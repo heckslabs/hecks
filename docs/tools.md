@@ -1,71 +1,127 @@
-# The tools
+# The commands
 
-Every script under `bin/` in one table — each summary is the tool's own
-opening comment, truncated. Read the tool itself for the full
-description, or run it with no arguments (most support `--help` or
-print a usage line on a missing argument).
+Every job the `bin/` scripts did is a command of the `Hecks` chapter or of a chapter it attaches, and the
+`hecks` launcher answers it: `hecks` lists the verbs, `hecks <verb> --help` prints one's usage, and
+`hecks <verb> name=value …` runs it. A verb that changes the tree, a database or a registry does nothing
+until it is given `--confirm`. The Custodian verbs ship in the installed gem; the Codebase verbs need a
+checkout of this repository and refuse without one. The `bin/` script named in the last column is the
+script the command replaced: `bin/` was removed in 3.0.0. The QualityControl scripts (`bin/qa_*`) are commands
+of the attached QualityControl chapter, spelled `hecks quality_control <verb>`.
 
-| tool | |
+Each launcher form below is the form `exe/hecks` executes, copied from `lib/hecks/three_zero/forms.yml`. Those
+are the positional spellings, which can differ from the ADR 0080 section 7 spelling of a command's arguments.
+`spec/hecks_tools_doc_spec.rb` pins every row to that file, and `spec/hecks_adr_command_table_spec.rb` checks
+that every row's verb is declared and answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
+
+
+## Custodian, for clients
+
+| launcher | replaces |
 |---|---|
-| `bin/backfill_era_projections` | Proactively backfills `hecks_eras.held_projection` for every row of one domain that predates that column — an explicit, operator-run vers... |
-| `bin/bench` | Measures command-dispatch throughput and p50/p99 latency for the Ruby runtime on each persistence adapter and for the native Rust binary, using the pizzas and banking examples. A measurement, never a gate. See [benchmarks](benchmarks.md). |
-| `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
-| `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
-| `bin/check_engine_agreement` | THE SHAPE OF BUG THIS GUARDS AGAINST: `Ports::Query::InMemory` (the path a Memory- or Heki-backed aggregate query actually runs) and `RunT... |
-| `bin/check_era` | Checks the era a running host reports at `GET /version` against an allow-list file, after a roll: one era id per line, exit 0 when listed, 1 when not, 3 when the host cannot be reached. See [wiring](implemented/guides/wiring.md#hosting-scripts-for-awsfargate). |
-| `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
-| `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
-| `bin/console` | Boots a domain (pizzas on the in-memory adapter by default) and drops into IRB with its door installed, the fastest way to dispatch a real command by hand. bin/c... |
-| `bin/doc_coverage` | EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is a declaration, and a declaration nothing runs cannot disagree wit... |
-| `bin/docs` | A domain's usage document, projected from its own bluebook. bin/docs # list every domain in this checkout bin/docs examples/banking # the... |
-| `bin/evolve` | The language-change convention, made executable. Adding a word to the bluebook surface has always been a many-file walk — syntax row, Rub... |
-| `bin/expression_projection` | The expression machinery's tables, projected from the grammar chapter's admitted set and checked in, so the evaluator and the canonical f... |
-| `bin/follow` | Live-tails a domain's own persisted event log — the declared `emits` every command reports, durably recorded (not `registry.event_log`, w... |
-| `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
-| `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
-| `bin/hecks_mcp_door` | An MCP door onto the storehouse bus — one MCP server for every booted domain, not one per command. `docs/archive/hecks-survey-what-we-wis... |
-| `bin/hecks_query_ir_mcp` | AN MCP SERVER exposing Hecks::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/query... |
-| `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
-| `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
-| `bin/lint_deploy_recipes` | A MECHANICAL guard against the "blind trust" bug class fixed in bin/project_deploy under H13/H14/L20 (docs/audits/2026-08-11-bug-triage.m... |
-| `bin/merge_tail` | Tail-merge: the one deliberate command. It marks a business event — an old app retiring — never a shape change. One transaction: advance ... |
-| `bin/model_check` | STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions nothing can ever fire, saga states no handler chain reaches, a co... |
-| `bin/narrate` | A domain, read back in English — projected from its own bluebook. bin/narrate # list every domain in this checkout bin/narrate examples/b... |
-| `bin/pattern-cases` | THE RECORDED FIXTURE for `pattern:`, and how to regenerate it : bin/pattern-cases > spec/corpus/fixtures/patterns.json spec/pattern_subse... |
-| `bin/present` | Boots the banking example against the in-memory adapter (same rebind spec/facade/handle_spec.rb already uses — banking.hecksagon itself b... |
-| `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
-| `bin/project_bootstrap_table` | Projects the grammar's bootstrap-window fallbacks into lib/hecks/bluebook/dsl/bootstrap_table.rb, from the Keyword rows' own calls:/re... |
-| `bin/project_cli` | Mints a command-line binary for a domain, named after its bluebook. bin/project_cli # every domain in this checkout bin/project_cli qa # ... |
-| `bin/project_deploy` | The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md. Generates the SAM template and build Makefile for rus... |
-| `bin/project_diagrams` | Projects a booted domain's own shape into Mermaid diagrams — one stateDiagram-v2 per lifecycle-bearing aggregate/entity, one erDiagram fo... |
-| `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecks::Forms::FieldShape#text_field (lib/hecks/ forms/field_shape.rb) match... |
-| `bin/project_kernel_capabilities` | Generates the two capability enums the hand-written Rust kernel (rust/src/kernel/attribute_shapes/*.rs, rust/src/kernel/ expression_opera... |
-| `bin/project_model` | Projects the model's holding half from the language that declares it. Behaviour::X is hand-written and untouched; `settle` is the seam. b... |
-| `bin/project_oidc` | Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json` — the artifact half of §11, `Hecks::Projections::OIDC`, made... |
-| `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecks's se... |
-| `bin/project_refusal_wording` | Kept for muscle memory only: rust/src/kernel/refusal_wording.rs is now rust/src/kernel/vocab/refusal_template.rs, generated with every o... |
-| `bin/project_reserved_names` | Generates rust/codegen/src/reserved_names.rs from the `RustReservedWord` and `CargoReservedName` vocabularies (lib/hecks/language/bluebook/ vo... |
-| `bin/project_rust` | Generates Rust source for one domain into rust/src/generated/ — the driver for `RustProjection` (rust/project.rb, alongside the Rust crat... |
-| `bin/project_rust_vocabulary` | Projects the language's Vocabulary tables into the Rust kernel — rust/src/kernel/vocab/*.rs, one exhaustive enum per table (refusal temp... |
-| `bin/project_tenant` | THE TENANT PROVISIONER — same split bin/project_deploy already draws between VALIDATING a declared shape (lib/hecks/deploy's own Tenant.D... |
-| `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecks/vocabulary.rb. A one-line wrapper over the projector registry, deliberately — the ... |
-| `bin/project_wasm` | The WASM projector — wraps THE SAME Rust binary bin/project_rust already generates, rather than a second, WASM-specific implementation (d... |
-| `bin/project_wasm_browser` | The BROWSER wasm-bindgen projector — decision docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a SEPARATE binary from... |
-| `bin/query_ir` | STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session working ON the language (adding a resolution rule, checking a propagatio... |
-| `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
-| `bin/reference` | Regenerates docs/implemented/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved fro... |
-| `bin/release` | Performs the release after the release PR has merged: tags the merge commit, publishes the gem through `bin/release_gem`, then waits for CI to publish `@hecks/client` from the tag (`.github/workflows/publish-client.yml`, npm trusted publishing). Refuses first unless it is on a clean `main` equal to `origin/main` with the gem and client at one version and a changelog heading; skips whatever is already published, so a re-run resumes. `--dry-run` checks and builds without tagging or publishing; `--npm-local` publishes the client from this machine with a 1Password-held token (the first publish, or when CI is down). See [Releasing](../CONTRIBUTING.md#releasing). |
-| `bin/release_gem` | Builds the hecks gem and pushes it to rubygems.org with a 1Password-held key. Refuses first unless `packages/hecks-client` carries the same version as `Hecks::VERSION`; it publishes the gem only; `bin/release` runs it as one step of the whole release. See [Releasing](../CONTRIBUTING.md#releasing). |
-| `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |
-| `bin/rust_conformance` | THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md. Ruby is the oracle a second runtime is checked ag... |
-| `bin/rust_coverage` | THE COVERAGE CHECKER — a different question than bin/rust_conformance asks, deliberately, not a replacement for it. bin/rust_conformance ... |
-| `bin/rust_kernel_coverage` | THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE. bin/project_kernel_capabilities generates the ENUM half — the compiler already re... |
-| `bin/scaffold_translation` | The scaffold writes translations; humans resolve ambiguity. Diffs the held era against the current bluebook and writes the edge file: con... |
-| `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bump/no-bump question can be answered by diffing two of these. Given a directory instead of a file it prints one `<Domain> <label>` line per domain declared by the `*.bluebook` files directly in it (the label PostgresEra would mint), so running it before and after a re-vendor answers "does this bump an era?" without a database. |
-| `bin/smoke_http` | Signed-webhook and idempotency checks against any running HTTP service. Delivers one payload to a webhook route the way a sender would, a... |
-| `bin/smoke_test` | BOOTS A REAL DOMAIN AND ACTUALLY DISPATCHES AGAINST IT — the sibling `bin/model_check` never had. That tool proves a bluebook is STRUCTUR... |
-| `bin/statements` | Prints a booted domain's own declared facts as plain English sentences — the projection itself is Projections::Statements (see its own he... |
-| `bin/stores` | Prints every aggregate's current records, as JSON — the head, not the journal (bin/history prints the full write history instead). bin/st... |
-| `bin/stress_concurrency_specs` | WHY A SINGLE `rspec` RUN IS NOT ENOUGH FOR THIS CLASS OF BUG: every spec below proves a thread-safety property by forcing one specific in... |
-| `bin/translation_audit` | The audit derives its assertions. Layer 1: every translated state passes the new era's types, invariants, and lifecycle. Layer 2: the com... |
-| `bin/vendor_bluebook` | Vendors one package of the bluebook registry into a consuming project, pinned to a release or a commit: `bin/vendor_bluebook payments@1.2.0 --from <registry checkout>`. Writes `vendor/embryonaut_bluebooks/<package>/bluebook/`, `VENDORED_COMMIT` and, for a release, `bluebook.lock`; refuses a downgrade and a storage-shape change that is only a patch bump, and reports whether the shape moved. The gem ships `lib/` only, so a consumer runs `Hecks::EmbryonautBluebook::VendorCli.run(ARGV)` through its own bundle. See [the reference](implemented/reference/hecksagon.md#vendoring-a-package). |
+| `hecks ir <domain> [--translations] \| hecks ir --meta` | `bin/ir` |
+| `hecks shape <domain>` | `bin/shape` |
+| `hecks stores <domain>` | `bin/stores` |
+| `hecks history <domain>` | `bin/history` |
+| `hecks statements <domain> chapter=Name` | `bin/statements` |
+| `hecks narrate [domain-path] [aggregate]` | `bin/narrate` |
+| `hecks docs [domain-path] [aggregate]` | `bin/docs` |
+| `hecks project_diagrams <domain-path> <ChapterName>` | `bin/project_diagrams` |
+| `hecks glossary <domain> chapter=Name` | `bin/project_glossary` |
+| `hecks model_check [--strict] [--profile client] [<domain> …]` | `bin/model_check` |
+| `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
+| `hecks refresh_projections subject=<domain>` | `bin/project` |
+| `hecks run_behaviors subject=<path>` | `bin/behaviors` |
+| `hecks console [subject=<domain>]` | `bin/console` |
+| `hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now]` | `bin/follow` |
+| `hecks smoke_test [domain]` | `bin/smoke_test` |
+| `hecks smoke_http path=/p [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
+| `hecks check_era <url> expected=era-file [timeout=10]` | `bin/check_era` |
+| `hecks merge_tail <domain> winners=id:old,id:new --confirm` | `bin/merge_tail` |
+| `hecks reattest <domain> era=N --confirm` | `bin/reattest_era` |
+| `hecks backfill_projections <domain>` | `bin/backfill_era_projections` |
+| `hecks scaffold_translation <domain>` | `bin/scaffold_translation` |
+| `hecks audit_translation <domain>`; `hecks approve_translation <domain> [snapshot=] [host_version=] [rehearsal=pass\|fail] [rehearsed_at=] --confirm` | `bin/translation_audit` |
+| `hecks compact <domain> [aggregates=A,B] --confirm` | `bin/compact` |
+| `hecks compact_heki <domain> [aggregates=A,B] --confirm` | `bin/heki_compact` |
+| `hecks vendor <package[@version]> [from=path] [root=path]` | `bin/vendor_bluebook` |
+| `hecks project_cli [domain-path …]` | `bin/project_cli` |
+| `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
+| `hecks project_rust <domain>` | `bin/project_rust` |
+| `hecks build_wasm <domain>` | `bin/project_wasm` |
+| `hecks build_browser_wasm <domain>` | `bin/project_wasm_browser` |
+| `hecks rust_coverage <module> [codegen=ruby]`; `hecks check_coverage_allowlist` | `bin/rust_coverage` |
+| `hecks check_conformance <domain> script=steps.json [artifact=native]` | `bin/rust_conformance` |
+| `hecks fuzz_conformance <domain> artifact=native [seeds=10] [steps=25]` | `bin/rust_conformance_fuzz` |
+| `hecks fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]` | `bin/fuzz` |
+| `hecks generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]` | `bin/generate` |
+| `hecks bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup=200] [runs=3] [rust_binary=] [format=markdown] [output=]` | `bin/bench` |
+
+## Deploy, for clients
+
+| launcher | replaces |
+|---|---|
+| `hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]` | `bin/project_deploy` |
+| `hecks deploy lint [makefiles=a,b]` | `bin/lint_deploy_recipes` |
+| `hecks deploy diff before=a.yaml after=b.yaml [--json] [--strict]` | `bin/deploy_template_diff` |
+| `hecks deploy project_oidc [domains=a,b]` | `bin/project_oidc` |
+| `hecks deploy provision <domain_dir> slug=s domain= realm= schema= database= [adapter=PostgresEra]`; `hecks deploy reprovision <tenant> directory= database= [adapter=PostgresEra]` | `bin/project_tenant` |
+
+## Codebase, for maintaining Hecks
+
+| launcher | replaces |
+|---|---|
+| `hecks project_model` | `bin/project_model` |
+| `hecks project_vocabulary` | `bin/project_vocabulary` |
+| `hecks project_rust_vocabulary` | `bin/project_rust_vocabulary` |
+| `hecks project_refusal_wording` | `bin/project_refusal_wording` |
+| `hecks project_reserved_names` | `bin/project_reserved_names` |
+| `hecks project_parser_table` | `bin/project_parser_table` |
+| `hecks project_bootstrap_table` | `bin/project_bootstrap_table` |
+| `hecks project_field_hints` | `bin/project_field_hints` |
+| `hecks project_expression_tables [--stdout]` | `bin/expression_projection` |
+| `hecks project_reference` | `bin/reference` |
+| `hecks word_status`; `hecks propose <word> context=X [body=none] [inner=] [opens=] [fills=]`; `hecks admit\|deprecate\|retire <word> context=X`; `hecks rename <word> context=X new_name=Y`; `hecks propose_argument <word> context=X kind=K [required=false] [at=N] [named=] [fills=] [pairs_shape=]`; `hecks admit_argument\|deprecate_argument\|retire_argument <word> context=X [at=N] [named=]` | `bin/evolve` |
+| `hecks project_kernel_capabilities` | `bin/project_kernel_capabilities` |
+| `hecks measure_kernel_coverage` | `bin/rust_kernel_coverage` |
+| `hecks check_engine_agreement` | `bin/check_engine_agreement` |
+| `hecks measure_doc_coverage` | `bin/doc_coverage` |
+| `hecks argument_gate_matrix [--confirm] (writes only with --confirm)` | `bin/argument_gate_matrix` |
+| `hecks regenerate_corpus [--check]` | `bin/regen_codegen_domains` |
+| `hecks report_comments paths=a,b [only=] [--json] [top=20]`; `hecks check_comments paths=…`; `hecks fix_comments paths=… --confirm`; `hecks write_comment_baseline --confirm`; `hecks check_comments_unchanged ref=REF` | `bin/standardize_comments` |
+| `hecks report_rust_comments paths=a,b [only=] [--json] [top=N]`; `hecks check_rust_comments paths=… [only=]`; `hecks fix_rust_comments paths=… [only=] --confirm` | `bin/standardize_comments_rust` |
+| `hecks canonicalise <file.json>` | `bin/canonicalise` |
+| `hecks hoist_local_givens --confirm` | `bin/codemod_hoist_local_givens` |
+| `hecks drop_implicit_append_fields --confirm` | `bin/codemod_implicit_append_fields` |
+| `hecks shard_specs group=1 groups=N [runtime_log=]` | `bin/rspec_shard_files` |
+| `hecks list_io_parallel_specs exclude=REGEX [tags=] [check=file]`; `hecks write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm` | `bin/rspec_io_parallel_files` |
+| `hecks refresh_runtime_baseline [workers=6] [from_run=ID]` | `bin/refresh_rspec_runtime_baseline` |
+| `hecks run_spec_example file=path example=text` | `bin/spec_example` |
+| `hecks stress_concurrency [runs=30] [parallel=] [seed_start=1]` | `bin/stress_concurrency_specs` |
+| `hecks regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
+| `hecks seed_semantics_corpus [fixture=name]` | `bin/seed_semantics_corpus` |
+| `hecks record_pattern_cases` | `bin/pattern-cases` |
+| `hecks rust_domains`; `hecks regen_order`; `hecks corpus_rust_coverage` | `bin/corpus` |
+| `hecks ir_constructs [names=a,b]`; `hecks ir_duplicates [domains=a,b] [--meta]`; `hecks ir_impact name=N field=F` | `bin/query_ir` |
+| `hecks serve_query_ir_mcp` | `bin/hecks_query_ir_mcp` |
+| `hecks present [port=4567]` | `bin/present` |
+| `hecks publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm (without --confirm, the old --dry-run)` | `bin/release` |
+| `hecks publish_gem --confirm` | `bin/release_gem` |
+
+## QualityControl, for maintaining Hecks
+
+| launcher | replaces |
+|---|---|
+| `hecks quality_control tick` | `bin/qa_tick` |
+| `hecks quality_control ask run [target=] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control release <target> [now=] [next_streak=] [capabilities=] [yield_score=]` | `bin/qa_sweep` |
+| `hecks quality_control check_pull_requests` | `bin/qa_pr_check` |
+| `hecks quality_control patch.open bug=BUG#n number=N url=… branch=… commit=SHA title=… [now=]`; `hecks quality_control improvement.open [angle=ANGLE-n] number=N url=… branch=… title=… [now=]` | `bin/qa_open_pr` |
+| `hecks quality_control log sweep=<sweep id> reference= sequence=N title= demonstration= symptom= expectation= submitter= [tags=a,b] [name=] [reproduced=yes\|no]` | `bin/qa_log_bug` |
+| `hecks quality_control angle.seed` | `bin/qa_seed_angles` |
+| `hecks quality_control target.seed` | `bin/qa_seed_targets` |
+| `hecks quality_control check_generated_domains [arguments="--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"]` | `bin/qa_generated_domains` |
+| `hecks quality_control mine_combinations [arguments="--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"]` | `bin/qa_mine_combinations` |
+| `hecks quality_control judge_novelty <domain> [arguments="--against PATH …"]` | `bin/qa_domain_novelty` |
+| `hecks quality_control discover_external_domains [arguments="--projects-dir ~/Projects --max-depth 3 --known-path PATH …"]` | `bin/qa_discover_external_domains` |
+| `hecks quality_control migrate_ledger_from_heki domain=<domain_dir> data=<heki_dir> [arguments="[aggregate …] --force"] (a dry run without --force)` | `bin/qa_postgres_migrate` |
+| `hecks quality_control create_ledger_role <database> [role=hecks_qa]` | `bin/qa_postgres_role` |
+| not user-facing; ProcessPool starts it as `hecks quality_control race domain= database= schema= verb= step_arguments=` | `bin/qa_concurrency_racer` |

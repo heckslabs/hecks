@@ -96,8 +96,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     # attempted would vanish silently; naming them here makes dropping one a failure.
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
-    expect(back.keys).to eq(%i[name version vision classification formerly_known_as attaches_to provides aggregates read_models
-                               policies
+    expect(back.keys).to eq(%i[name version vision classification formerly_known_as namespace attaches_to provides aggregates
+                               read_models policies
                                process_managers])
     expect(Hecks::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end

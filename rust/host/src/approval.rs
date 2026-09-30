@@ -1,5 +1,11 @@
 //! Approval gate for migration edges with compute or rekey rules; ports `minter.rb`'s check.
 //! `edge_digest` must match Ruby's `ApprovalDigest.edge_digest` byte for byte.
+//!
+//! Two approvals satisfy the gate. One is recorded in the journal and matches the edge's digest and
+//! the journal's current tip. The other is committed beside the edge as
+//! `translations/<edge>.approval`: it binds to the edge's digest alone, since a production journal
+//! keeps writing between the commit and the deploy, and it must record a rehearsal that passed on a host of this release's `major.minor`.
+//! A committed approval that applies is written into the journal, which stays the single history.
 
 use crate::journal;
 use serde_json::Value;
@@ -21,12 +27,148 @@ pub fn requires_approval(edge: &Value) -> bool {
     })
 }
 
-/// Refuses to mint unless a compute/rekey edge has an approval whose digest matches and whose
-/// reviewed ordinal is the current journal tip. A no-op for edges with neither rule.
+/// The Hecks release this host was built for, from `rust/host/HECKS_RELEASE`. The release step
+/// keeps that file equal to `Hecks::VERSION`, and Ruby's `ApprovalFile::HOST_RELEASE` is that
+/// constant, so both sides compare against one identity (the crate's own `0.1.0` is not it).
+pub const HOST_RELEASE: &str = include_str!("../HECKS_RELEASE");
+
+/// The `(major, minor)` a version names: `major.minor`, an optional patch, an optional
+/// pre-release or build suffix, as Ruby's `ApprovalFile::HOST_LINE` reads it.
+fn release_line(version: &str) -> Option<(u64, u64)> {
+    static SHAPE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let shape = SHAPE.get_or_init(|| regex::Regex::new(r"^(\d+)\.(\d+)(?:\.\d+)?(?:[-+][0-9A-Za-z.+-]+)?$").expect("version pattern"));
+    let parts = shape.captures(version)?;
+    Some((parts[1].parse().ok()?, parts[2].parse().ok()?))
+}
+
+/// The refusal for a rehearsal that ran on another host line; Ruby's `ApprovalFile.host_refusal`
+/// words it the same.
+pub fn host_refusal(rehearsed_on: &str, host: &str) -> String {
+    let line = release_line(host).map(|(major, minor)| format!("{major}.{minor}")).unwrap_or_default();
+    format!(
+        "the rehearsal ran on Hecks {rehearsed_on}, but this host is Hecks {host}; a rehearsal counts only on a host of the same \
+         major.minor ({line}.x) — re-run the rehearsal on this host and approve again"
+    )
+}
+
+/// The rehearsal a committed approval records: the run a person made against real data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rehearsal {
+    pub snapshot: String,
+    pub host_version: String,
+    pub result: String,
+    pub at: String,
+}
+
+/// An approval committed as `translations/<edge>.approval`, as `ir.json`'s `approvals` carries it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Committed {
+    pub edge: String,
+    pub edge_digest: String,
+    pub approved_by: String,
+    pub approved_at: String,
+    pub rehearsal: Option<Rehearsal>,
+}
+
+/// Whether `value` is an RFC 3339 time that exists on the calendar, the shape Ruby's
+/// `ApprovalFile::TIMESTAMP` accepts: `2026-09-28T12:30:00Z`, with optional fraction and `+HH:MM`.
+fn is_timestamp(value: &str) -> bool {
+    static SHAPE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let shape = SHAPE.get_or_init(|| {
+        regex::Regex::new(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$").expect("timestamp pattern")
+    });
+    let Some(parts) = shape.captures(value) else { return false };
+    let part = |index: usize| parts[index].parse::<u32>().unwrap_or(u32::MAX);
+    let (year, month, day, hour, minute, second) = (part(1), part(2), part(3), part(4), part(5), part(6));
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let days = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=days).contains(&day) && hour < 24 && minute < 60 && second < 60
+}
+
+impl Committed {
+    /// Whether the approval names who approved it and when, the two things a reviewer signs.
+    pub fn attributed(&self) -> bool {
+        !self.approved_by.trim().is_empty() && is_timestamp(&self.approved_at)
+    }
+
+    /// Whether the rehearsal ran on a host compatible with `host`: equal `major.minor`. A patch
+    /// release does not change what a mint does, so a rehearsal survives it; a minor or major one
+    /// may, and a newer host's rehearsal proves nothing about an older one.
+    pub fn host_compatible(&self, host: &str) -> bool {
+        self.rehearsal.as_ref().is_some_and(|r| release_line(&r.host_version).is_some_and(|line| Some(line) == release_line(host)))
+    }
+
+    /// Whether the approval records a rehearsal that passed, every field named. Whether it ran on
+    /// a compatible host is `host_compatible`'s question.
+    pub fn rehearsed(&self) -> bool {
+        self.rehearsal.as_ref().is_some_and(|r| {
+            [&r.snapshot, &r.host_version, &r.result, &r.at].iter().all(|field| !field.trim().is_empty()) && r.result == "pass"
+        })
+    }
+}
+
+/// Reads the committed approvals out of `ir.json`; an entry with no digest approves nothing and is
+/// left out.
+pub fn committed(ir: &Value) -> Vec<Committed> {
+    let text = |value: &Value, key: &str| value.get(key).and_then(Value::as_str).unwrap_or("").to_string();
+    ir.get("approvals")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|approval| approval.get("edge_digest").and_then(Value::as_str).is_some_and(|digest| !digest.is_empty()))
+        .map(|approval| Committed {
+            edge: text(approval, "edge"),
+            edge_digest: text(approval, "edge_digest"),
+            approved_by: text(approval, "approved_by"),
+            approved_at: text(approval, "approved_at"),
+            rehearsal: approval.get("rehearsal").filter(|r| r.is_object()).map(|r| Rehearsal {
+                snapshot: text(r, "snapshot"),
+                host_version: text(r, "host_version"),
+                result: text(r, "result"),
+                at: text(r, "at"),
+            }),
+        })
+        .collect()
+}
+
+/// The committed approval that lets `edge` mint: its digest is the edge's, it names who approved it
+/// and when, and a rehearsal that passed is recorded, since a compute or rekey is verified by
+/// nothing else.
+pub fn applicable<'a>(committed: &'a [Committed], edge: &Value) -> Option<&'a Committed> {
+    applicable_on(committed, edge, HOST_RELEASE.trim())
+}
+
+/// `applicable` for a host that reports `host` as its release.
+pub fn applicable_on<'a>(committed: &'a [Committed], edge: &Value, host: &str) -> Option<&'a Committed> {
+    let digest = edge_digest(edge);
+    committed.iter().find(|approval| approval.edge_digest == digest && approval.attributed() && approval.rehearsed() && approval.host_compatible(host))
+}
+
+/// Why a committed approval that covers `edge` was still not applied, when the only thing wrong is
+/// the host it was rehearsed on.
+fn host_mismatch(committed: &[Committed], edge: &Value, host: &str) -> Option<String> {
+    let digest = edge_digest(edge);
+    committed
+        .iter()
+        .find(|approval| approval.edge_digest == digest && approval.attributed() && approval.rehearsed() && !approval.host_compatible(host))
+        .and_then(|approval| approval.rehearsal.as_ref())
+        .map(|rehearsal| host_refusal(&rehearsal.host_version, host))
+}
+
+/// Refuses to mint unless a compute/rekey edge has an approval: one from the journal whose digest
+/// matches and whose reviewed ordinal is the current journal tip, or a committed one that applies
+/// (which is then written into the journal). A no-op for edges with neither rule.
 ///
 /// # Errors
-/// Fails when the approval is missing, its digest differs, or the journal has moved past it.
-pub async fn check<C: GenericClient>(client: &C, domain: &str, edge: &Value, ordinal: i32) -> anyhow::Result<()> {
+/// Fails when no approval applies: none is recorded, its digest differs, or the journal has moved
+/// past a journal approval and no committed one covers the edge.
+pub async fn check<C: GenericClient>(client: &C, domain: &str, edge: &Value, ordinal: i32, committed: &[Committed]) -> anyhow::Result<()> {
     if !requires_approval(edge) {
         return Ok(());
     }
@@ -36,23 +178,35 @@ pub async fn check<C: GenericClient>(client: &C, domain: &str, edge: &Value, ord
     let digest = edge_digest(edge);
 
     let approval = journal::approval_for(client, domain, from, to).await?;
+    let tip = journal::last_ordinal(client, domain).await?;
+    if let Some(approval) = approval.as_ref().filter(|approval| approval.edge_digest == digest) {
+        if approval.reviewed_ordinal == tip {
+            return Ok(());
+        }
+    }
+
+    if applicable(committed, edge).is_some() {
+        journal::record_approval(client, domain, from, to, &digest).await?;
+        return Ok(());
+    }
+
     let approval = match approval {
         Some(approval) if approval.edge_digest == digest => approval,
+        _ if host_mismatch(committed, edge, HOST_RELEASE.trim()).is_some() => anyhow::bail!(
+            "cannot mint era {ordinal} of {domain}: the committed approval does not apply — {}",
+            host_mismatch(committed, edge, HOST_RELEASE.trim()).unwrap_or_default()
+        ),
         _ => anyhow::bail!(
             "cannot mint era {ordinal} of {domain}: this edge carries a compute or rekey rule, and the audit's \
-             human-approved sample is its only verification — run bin/translation_audit with --approve, then boot again"
+             human-approved sample is its only verification — run hecks audit_translation with --approve, then boot again"
         ),
     };
 
-    let tip = journal::last_ordinal(client, domain).await?;
-    if approval.reviewed_ordinal != tip {
-        anyhow::bail!(
-            "cannot mint era {ordinal} of {domain}: the journal advanced past the approved review (ordinal {} \
-             reviewed, {tip} now) — the samples a human approved no longer cover the data; re-run bin/translation_audit with --approve",
-            approval.reviewed_ordinal
-        );
-    }
-    Ok(())
+    anyhow::bail!(
+        "cannot mint era {ordinal} of {domain}: the journal advanced past the approved review (ordinal {} \
+         reviewed, {tip} now) — the samples a human approved no longer cover the data; re-run hecks audit_translation with --approve",
+        approval.reviewed_ordinal
+    )
 }
 
 fn canonical_edge(edge: &Value) -> String {
@@ -166,6 +320,19 @@ mod tests {
         assert_eq!(edge_digest(&edge), "3803f00c11d5c613d2abb4f289a8a668e5885d2f36681134e509ed98408d520c");
     }
 
+    // A backfill default or convert value is untyped JSON, and Ruby digests the text `JSON.generate`
+    // wrote for it: `1.0e+20`, `1.0e-05`, `1.0`, and integers past u64. The literals below are
+    // Ruby's own ir.json output for that edge and 0afbe95b... is Ruby's `edge_digest` of it.
+    #[test]
+    fn edge_digest_matches_ruby_for_floats_and_integers_beyond_u64_in_untyped_json() {
+        let ir: Value = serde_json::from_str(
+            r#"{"translations":[{"domain":"F","from":"aaaaaa","to":"bbbbbb","retired":[],"aggregates":[{"name":"Account","was":null,"renames":{},"moves":[],"converts":[{"from":"k","to":"k2","values":[[1.0e+20,12345678901234567890]]}],"drops":[],"retypes":[],"computes":[],"rekeys":[],"backfills":[{"name":"a","default":1.0e+20},{"name":"b","default":100000000000000000000},{"name":"c","default":1.0e-05},{"name":"d","default":1.0}]}]}]}"#,
+        )
+        .expect("Ruby's export is JSON");
+
+        assert_eq!(edge_digest(&ir["translations"][0]), "0afbe95b13fc8dbdab470acda48184eca6f898c4b736dd72b77a41977d7c0077");
+    }
+
     #[test]
     fn edge_digest_ignores_the_compiled_sql_fields() {
         let edge = serde_json::json!({
@@ -217,32 +384,7 @@ mod tests {
     // journal write makes it stale again.
     #[tokio::test]
     async fn check_refuses_without_approval_succeeds_with_one_and_refuses_again_once_stale() {
-        use tokio_postgres::NoTls;
-
-        let db = "rust_host_approval_gate_test";
-        let owner = "rust_host_approval_gate_owner";
-
-        let admin = tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await.expect("connect to postgres as admin");
-        tokio::spawn(async move {
-            let _ = admin.1.await;
-        });
-        let _ = admin.0.batch_execute(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)")).await;
-        admin.0.batch_execute(&format!("CREATE DATABASE {db}")).await.expect("create scratch db");
-        let _ = admin.0.batch_execute(&format!("DROP ROLE IF EXISTS {owner}")).await;
-        admin.0.batch_execute(&format!("CREATE ROLE {owner} LOGIN")).await.expect("create owner role");
-        admin.0.batch_execute(&format!("GRANT CONNECT ON DATABASE {db} TO {owner}")).await.expect("grant connect");
-
-        let grant = tokio_postgres::connect(&format!("host=localhost dbname={db}"), NoTls).await.expect("connect to scratch db as superuser");
-        tokio::spawn(async move {
-            let _ = grant.1.await;
-        });
-        grant.0.batch_execute(&format!("ALTER DATABASE {db} OWNER TO {owner}")).await.expect("make owner the db owner");
-        grant.0.batch_execute(&format!("GRANT USAGE, CREATE ON SCHEMA public TO {owner}")).await.expect("grant schema rights");
-
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner}"), NoTls).await.expect("connect as owner");
-        tokio::spawn(async move {
-            let _ = connection.await;
-        });
+        let client = scratch_client("rust_host_approval_gate_test", "rust_host_approval_gate_owner").await;
 
         let domain = "ApprovalGateTest";
         crate::mint::ensure_base(&client, domain).await.expect("ensure_base");
@@ -258,9 +400,9 @@ mod tests {
             }]
         });
 
-        let refused = check(&client, domain, &edge, 2).await;
+        let refused = check(&client, domain, &edge, 2, &[]).await;
         assert!(refused.is_err(), "an unapproved compute/rekey edge must refuse to mint");
-        assert!(format!("{:#}", refused.unwrap_err()).contains("bin/translation_audit"), "the refusal should name the tool that fixes it");
+        assert!(format!("{:#}", refused.unwrap_err()).contains("hecks audit_translation"), "the refusal should name the tool that fixes it");
 
         let digest = edge_digest(&edge);
         client
@@ -271,7 +413,7 @@ mod tests {
             .await
             .expect("record approval");
 
-        let allowed = check(&client, domain, &edge, 2).await;
+        let allowed = check(&client, domain, &edge, 2, &[]).await;
         assert!(allowed.is_ok(), "a real, matching, unstale approval must let the mint proceed: {allowed:?}");
 
         client
@@ -282,8 +424,229 @@ mod tests {
             .await
             .expect("write a journal row, advancing last_ordinal past the approval's own reviewed_ordinal");
 
-        let stale = check(&client, domain, &edge, 2).await;
+        let stale = check(&client, domain, &edge, 2, &[]).await;
         assert!(stale.is_err(), "an approval reviewed against an EARLIER journal position must refuse once the journal has moved on");
         assert!(format!("{:#}", stale.unwrap_err()).contains("advanced past"), "the refusal should name staleness specifically, not \"no approval\"");
+    }
+
+    // A scratch database owned by an ordinary role, as the host boots against a real one.
+    async fn scratch_client(db: &str, owner: &str) -> tokio_postgres::Client {
+        use tokio_postgres::NoTls;
+
+        let admin = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await.expect("connect to postgres as admin");
+        tokio::spawn(async move {
+            let _ = admin.1.await;
+        });
+        let _ = admin.0.batch_execute(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)")).await;
+        admin.0.batch_execute(&format!("CREATE DATABASE {db}")).await.expect("create scratch db");
+        let _ = admin.0.batch_execute(&format!("DROP ROLE IF EXISTS {owner}")).await;
+        admin.0.batch_execute(&format!("CREATE ROLE {owner} {}", crate::test_pg::login_clause())).await.expect("create owner role");
+        admin.0.batch_execute(&format!("GRANT CONNECT ON DATABASE {db} TO {owner}")).await.expect("grant connect");
+
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls).await.expect("connect to scratch db as superuser");
+        tokio::spawn(async move {
+            let _ = grant.1.await;
+        });
+        grant.0.batch_execute(&format!("ALTER DATABASE {db} OWNER TO {owner}")).await.expect("make owner the db owner");
+        grant.0.batch_execute(&format!("GRANT USAGE, CREATE ON SCHEMA public TO {owner}")).await.expect("grant schema rights");
+
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls).await.expect("connect as owner");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+    }
+
+    fn compute_rekey_edge(domain: &str) -> Value {
+        serde_json::json!({
+            "domain": domain, "from": "aaaaaa", "to": "bbbbbb", "retired": [],
+            "aggregates": [{
+                "name": "Widget", "was": null, "renames": {}, "moves": [], "converts": [], "drops": [], "retypes": [], "computes": [],
+                "rekeys": [{"sql": "state->>'kind'"}], "backfills": []
+            }]
+        })
+    }
+
+    fn committed_for(edge: &Value, rehearsal: Value) -> Committed {
+        let ir = serde_json::json!({ "approvals": [{
+            "edge": "aaaaaa-bbbbbb", "edge_digest": edge_digest(edge), "approved_by": "Ada <ada@example.com>",
+            "approved_at": "2026-09-28T12:30:00Z", "rehearsal": rehearsal
+        }]});
+        committed(&ir).remove(0)
+    }
+
+    fn passed() -> Value {
+        serde_json::json!({ "snapshot": "rds:ledger", "host_version": "3.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" })
+    }
+
+    // A rehearsal that passed on this very host.
+    fn passed_here() -> Value {
+        serde_json::json!({ "snapshot": "rds:ledger", "host_version": HOST_RELEASE.trim(), "result": "pass", "at": "2026-09-28T12:00:00Z" })
+    }
+
+    #[test]
+    fn the_host_release_is_a_version_and_not_the_crates_own() {
+        assert!(release_line(HOST_RELEASE.trim()).is_some(), "HECKS_RELEASE must hold a version: {HOST_RELEASE:?}");
+        assert_ne!(HOST_RELEASE.trim(), env!("CARGO_PKG_VERSION"));
+    }
+
+    // Ruby's `ApprovalFile.host_compatible?` is equal `major.minor`: a patch differs freely, an
+    // older or newer minor or major does not, and a name that is not a version is refused.
+    #[test]
+    fn a_rehearsal_counts_only_on_the_same_major_minor() {
+        let edge = compute_rekey_edge("D");
+        let on = |version: &str| {
+            let rehearsal = serde_json::json!({ "snapshot": "s", "host_version": version, "result": "pass", "at": "2026-09-28T12:00:00Z" });
+            applicable_on(&[committed_for(&edge, rehearsal)], &edge, "3.0.4").is_some()
+        };
+        assert!(on("3.0.0") && on("3.0.4") && on("3.0.9") && on("3.0.1-rc.1") && on("3.0"));
+        assert!(!on("2.9.0") && !on("3.1.0") && !on("4.0.0") && !on("3.10.0") && !on("") && !on("three") && !on("3"));
+    }
+
+    #[test]
+    fn the_refusal_names_both_versions() {
+        assert_eq!(
+            host_refusal("2.9.0", "3.0.4"),
+            "the rehearsal ran on Hecks 2.9.0, but this host is Hecks 3.0.4; a rehearsal counts only on a host of the same \
+             major.minor (3.0.x) — re-run the rehearsal on this host and approve again"
+        );
+    }
+
+    async fn journal_approvals(client: &tokio_postgres::Client, domain: &str) -> i64 {
+        client.query_one("SELECT count(*) AS n FROM hecks_approvals WHERE domain = $1", &[&domain]).await.expect("count approvals").get("n")
+    }
+
+    // Reads the parity fixture the Ruby spec writes from Ruby's own export of a compute+rekey edge and
+    // the approval Ruby writes for it: Rust must reach the digest Ruby recorded, from the same JSON.
+    #[test]
+    fn a_committed_approval_ruby_wrote_applies_to_the_edge_ruby_exported() {
+        let ir: Value = serde_json::from_str(include_str!("../../../spec/fixtures/approval_parity/ir.json")).expect("parity fixture is JSON");
+        let edge = &ir["translations"][0];
+        let approvals = committed(&ir);
+
+        assert_eq!(approvals.len(), 1);
+        assert_eq!(approvals[0].edge_digest, edge_digest(edge), "Ruby's approval digest and Rust's digest of Ruby's export must agree");
+        assert_eq!(approvals[0].edge, "aaaaaa-bbbbbb");
+        assert_eq!(approvals[0].approved_by, "Ada <ada@example.com>");
+        assert!(approvals[0].rehearsed());
+        assert_eq!(applicable_on(&approvals, edge, "3.0.7"), Some(&approvals[0]));
+        assert!(applicable_on(&approvals, edge, "3.1.0").is_none());
+    }
+
+    #[test]
+    fn a_committed_approval_applies_only_with_a_rehearsal_that_passed() {
+        let edge = compute_rekey_edge("D");
+        for rehearsal in [
+            Value::Null,
+            serde_json::json!({}),
+            serde_json::json!({ "snapshot": "s", "host_version": "3.0.0", "result": "fail", "at": "2026-09-28T12:00:00Z" }),
+            serde_json::json!({ "snapshot": " ", "host_version": "3.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+        ] {
+            let approval = committed_for(&edge, rehearsal);
+            assert!(applicable_on(&[approval], &edge, "3.0.0").is_none());
+        }
+        assert!(applicable_on(&[committed_for(&edge, passed())], &edge, "3.0.0").is_some());
+    }
+
+    // Ruby's `ApprovalFile` refuses the same: a non-String rehearsal field, a blank approver, an
+    // approved_at that is not a time on the calendar.
+    #[test]
+    fn a_committed_approval_needs_a_string_rehearsal_and_a_named_approver_and_time() {
+        let edge = compute_rekey_edge("D");
+        for rehearsal in [
+            serde_json::json!({ "snapshot": 42, "host_version": "3.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+            serde_json::json!({ "snapshot": "s", "host_version": 3.0, "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+            serde_json::json!({ "snapshot": "s", "host_version": "3.0.0", "result": "pass", "at": null }),
+        ] {
+            assert!(applicable_on(&[committed_for(&edge, rehearsal)], &edge, "3.0.0").is_none());
+        }
+
+        let mut approval = committed_for(&edge, passed());
+        assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_some());
+        for who in ["", "  "] {
+            approval.approved_by = who.to_string();
+            assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_none(), "blank approver {who:?}");
+        }
+        approval.approved_by = "Ada".to_string();
+        for at in ["", "yesterday", "2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2025-02-29T00:00:00Z", "2026-09-28T25:00:00Z", "2026-09-28"] {
+            approval.approved_at = at.to_string();
+            assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_none(), "approved_at {at:?}");
+        }
+        for at in ["2026-09-28T12:30:00.5+02:00", "2024-02-29T00:00:00Z"] {
+            approval.approved_at = at.to_string();
+            assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_some(), "approved_at {at:?}");
+        }
+    }
+
+    #[test]
+    fn a_committed_approval_binds_to_the_edge_digest_not_the_journal_tip() {
+        let edge = compute_rekey_edge("D");
+        let approval = committed_for(&edge, passed());
+        let mut changed = edge.clone();
+        changed["aggregates"][0]["rekeys"][0]["sql"] = serde_json::json!("state->>'other'");
+
+        assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_some());
+        assert!(applicable_on(&[approval], &changed, "3.0.0").is_none());
+    }
+
+    #[test]
+    fn committed_reads_nothing_from_ir_without_approvals_and_skips_an_entry_with_no_digest() {
+        assert!(committed(&serde_json::json!({})).is_empty());
+        assert!(committed(&serde_json::json!({ "approvals": [{ "edge": "a-b" }] })).is_empty());
+    }
+
+    // Against real Postgres: a committed approval satisfies the gate with no journal approval, is
+    // written into the journal when it applies, keeps applying after the journal moves on, and a
+    // journal approval at the tip still works alone.
+    #[tokio::test]
+    async fn a_committed_approval_lets_the_mint_through_and_joins_the_journal() {
+        let client = scratch_client("rust_host_committed_approval_test", "rust_host_committed_approval_owner").await;
+        let domain = "CommittedApprovalTest";
+        crate::mint::ensure_base(&client, domain).await.expect("ensure_base");
+        crate::mint::advance_era(&client, domain, 1).await.expect("advance_era");
+        let edge = compute_rekey_edge(domain);
+
+        let refused = check(&client, domain, &edge, 2, &[]).await;
+        assert!(refused.is_err(), "no approval at all still refuses");
+        assert_eq!(journal_approvals(&client, domain).await, 0);
+
+        let without_rehearsal = committed_for(&edge, Value::Null);
+        assert!(check(&client, domain, &edge, 2, &[without_rehearsal]).await.is_err(), "a committed approval with no passed rehearsal is no approval");
+        assert_eq!(journal_approvals(&client, domain).await, 0);
+
+        let approval = committed_for(&edge, passed_here());
+        check(&client, domain, &edge, 2, std::slice::from_ref(&approval)).await.expect("a committed approval applies");
+        assert_eq!(journal_approvals(&client, domain).await, 1, "applying it writes it into the journal");
+        assert_eq!(journal::approval_for(&client, domain, "aaaaaa", "bbbbbb").await.unwrap().unwrap().edge_digest, edge_digest(&edge));
+
+        // The journal now holds the approval at the tip, so it satisfies the gate alone.
+        check(&client, domain, &edge, 2, &[]).await.expect("the journal's own approval, at the tip, still works");
+
+        client
+            .execute(
+                "INSERT INTO hecks_journal_committed_approval_test (era, aggregate, aggregate_id, operation, state) VALUES (1, 'widget', 'w1', 'save', '{}'::jsonb)",
+                &[],
+            )
+            .await
+            .expect("the journal moves on");
+        assert!(check(&client, domain, &edge, 2, &[]).await.is_err(), "the journal's approval is stale now");
+        check(&client, domain, &edge, 2, &[approval]).await.expect("the committed approval is not tied to the tip");
+    }
+
+    #[tokio::test]
+    async fn a_committed_approval_rehearsed_on_another_release_refuses_naming_both_versions() {
+        let client = scratch_client("rust_host_committed_approval_host_test", "rust_host_committed_approval_host_owner").await;
+        let domain = "CommittedApprovalHostTest";
+        crate::mint::ensure_base(&client, domain).await.expect("ensure_base");
+        crate::mint::advance_era(&client, domain, 1).await.expect("advance_era");
+        let edge = compute_rekey_edge(domain);
+        let stale = committed_for(
+            &edge,
+            serde_json::json!({ "snapshot": "s", "host_version": "1.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+        );
+
+        let message = format!("{:#}", check(&client, domain, &edge, 2, &[stale]).await.unwrap_err());
+        assert!(message.contains("Hecks 1.0.0") && message.contains(HOST_RELEASE.trim()), "{message}");
+        assert_eq!(journal_approvals(&client, domain).await, 0);
     }
 }

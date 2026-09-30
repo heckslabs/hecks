@@ -81,7 +81,7 @@ module Hecks
       #   Memory-only-guarded runtime
       # @raise [Malformed] if any aggregate is bound to a non-Memory adapter
       def boot_and_guard(files)
-        runtime = Hecks::Runtime::Loader.boot_files(files, install_facade: false)
+        runtime = Hecks::Runtime::Loader.boot_files(files, install_doors: false)
         guard_memory_only!(runtime)
         runtime
       end

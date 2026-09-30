@@ -4,25 +4,25 @@ require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
 require "tmpdir"
 require "fileutils"
-require "open3"
+require_relative "support/qa_lib_cli"
 
-# Round trip of `bin/qa_postgres_migrate`: boots the QualityControl bluebook under a Heki
-# binding, then under PostgresEra on a scratch database, both from temp-dir copies.
+# Round trip of `hecks quality_control migrate_ledger_from_heki`: boots the QualityControl bluebook
+# under a Heki binding, then under PostgresEra on a scratch database, both from temp-dir copies.
 #
 # Data is generated through real command dispatch so it matches what the ledger produces.
 # Examples call `run_migrate` themselves (idempotent) because order is random; the dry-run
 # result is captured in `before(:all)`, before any `--force` call.
-RSpec.describe "bin/qa_postgres_migrate", :io do
+RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
   # A constant assigned in a describe block lands at top level, and
   # spec/oidc_manifest_spec.rb already owns the bare name `ROOT`.
-  BLUEBOOK_SOURCE  = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook")
   HECKSAGON_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.hecksagon")
-  MIGRATE_SCRIPT   = File.join(InMemoryDomain::ROOT, "bin/qa_postgres_migrate")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze
 
   # Heki-backed wiring, inlined so it stays fixed whatever the real file says. Same as the
   # real hecksagon except for the seven `persisted_by` lines.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -33,24 +33,6 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       QualityControl::Ticket.persisted_by("Heki")
       QualityControl::Patch.persisted_by("Heki")
       QualityControl::Clearance.persisted_by("Heki")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   HECKSAGON
 
@@ -66,7 +48,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
   end
 
   def run_migrate(*args)
-    Open3.capture3("ruby", MIGRATE_SCRIPT, @pg_dir, @heki_data_dir, *args)
+    QaLibCli.capture3("qa_postgres_migrate", @pg_dir, @heki_data_dir, *args)
   end
 
   before(:all) do
@@ -79,8 +61,6 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     FileUtils.mkdir_p(heki_bluebook_dir)
     FileUtils.mkdir_p(@pg_dir)
 
-    FileUtils.cp(BLUEBOOK_SOURCE, heki_bluebook_dir)
-    FileUtils.cp(BLUEBOOK_SOURCE, @pg_dir)
     FileUtils.cp(HECKSAGON_SOURCE, @pg_dir)
     File.write(File.join(heki_bluebook_dir, "quality_control.hecksagon"), HEKI_HECKSAGON)
     File.write(File.join(heki_bluebook_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
@@ -100,7 +80,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     admin.exec("DROP DATABASE IF EXISTS #{SCRATCH_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{SCRATCH_DB}")
     admin.close
-    # Same URL shape and `bin/qa_postgres_role` step as the real ledger's `.world`.
+    # Same URL shape and `create_ledger_role` step as the real ledger's `.world`.
     QaLedgerRole.provision!(SCRATCH_DB)
 
     @heki_runtime = Hecks.boot(heki_bluebook_dir)
@@ -168,7 +148,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       citation: { value: "BUG#1" }, now: { value: 1_000 }
     )
     angle.investigate!
-    angle.build!(resolution: { value: "built into bin/qa_postgres_migrate + this spec" })
+    angle.build!(resolution: { value: "built into hecks quality_control migrate_ledger_from_heki + this spec" })
 
     QualityControl::Angle.propose!(
       reference: { value: "ANGLE-2" }, proposer: { value: "Claude QA" },

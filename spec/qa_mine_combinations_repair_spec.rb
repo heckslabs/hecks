@@ -1,10 +1,10 @@
 require "spec_helper"
 require_relative "support/qa_mine_combinations_helpers"
 
-# `bin/qa_mine_combinations`' repair rounds — a candidate that does not
+# `hecks quality_control mine_combinations`' repair rounds — a candidate that does not
 # boot goes back to the agent. Its own file for the shards; see
 # spec/support/qa_mine_combinations_helpers.rb.
-RSpec.describe "bin/qa_mine_combinations, repairing a candidate" do
+RSpec.describe "hecks quality_control mine_combinations, repairing a candidate" do
   include QaMineCombinationsHelpers
 
   it "sends a candidate that does not boot back to the agent, and checks the repaired file" do

@@ -1131,7 +1131,7 @@ mod tests {
     // docs/decisions/0059) that the functions under test query directly.
     async fn scratch_member_db(name: &str) -> Mutex<tokio_postgres::Client> {
         use tokio_postgres::NoTls;
-        let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -1140,7 +1140,7 @@ mod tests {
         admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
         admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&format!("host=localhost dbname={name}"), NoTls)
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {

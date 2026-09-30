@@ -182,7 +182,8 @@ module Hecks
       end
 
       # Vocabulary::FieldHint rows (language/bluebook/vocabulary.bluebook), matched
-      # case-insensitively. bin/project_field_hints writes the Rust host's copy from the same rows.
+      # case-insensitively. hecks project_field_hints writes the Rust host's copy from the same
+      # rows.
       HINTS = Hecks::Vocabulary.rows("FieldHint")
                                .to_h { |row| [row["name"], Regexp.new(row["pattern"], Regexp::IGNORECASE)] }
                                .freeze

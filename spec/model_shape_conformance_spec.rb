@@ -15,7 +15,7 @@ RSpec.describe "the model's shape, held to the language" do
     "ProcessManager" => Hecks::Bluebook::ProcessManager
   }.freeze
 
-  # Named DEVIATIONS, not `D`: spec/syntax_conformance_spec claims `D`, and a top-level
+  # Named `DEVIATIONS`, not `D`: spec/syntax_conformance_spec claims `D`, and a top-level
   # constant in a spec is shared with every other spec in the run.
   DEVIATIONS = Hecks::Projections::Model::Deviations
 

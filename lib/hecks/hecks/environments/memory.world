@@ -1,0 +1,10 @@
+# The Memory selection for the Hecks domain: nothing is written to a database. Specs and
+# pull-request runs use it (`HECKS_ENVIRONMENT=memory`); a real run keeps the PostgresEra
+# journal named in hecks.world. The overlay's `default_adapter` wins over the base's.
+Hecks.world "Hecks" do
+  default_adapter "Memory"
+end
+
+Hecks.world "Governance" do
+  default_adapter "Memory"
+end

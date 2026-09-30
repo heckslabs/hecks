@@ -5,7 +5,7 @@ require "fileutils"
 # operations) — the shape `DomainPortBuilder#build` turns into a plain `Bluebook::Port`
 # rather than a `DomainPort`. `DSL::BindingProxy#port` (hit on a domain's first in-process
 # boot, before its aggregate facade constant exists) and `HecksagonBuilder#port_impl` both
-# guard for that shape with `built.is_a?(Port)`. `Facade::Surface::AggregateDoor`'s own
+# guard for that shape with `built.is_a?(Port)`. `Doors::RubyDoor::AggregateDoor`'s own
 # `:port` singleton method — hit once the aggregate's facade constant already exists, e.g.
 # a domain booted twice in the same process — does not, and calls `.operations` on the bare
 # `Port` unconditionally.

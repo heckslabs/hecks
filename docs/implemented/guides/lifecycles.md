@@ -10,7 +10,7 @@ record's life, decide those points here. Get it right and a caller who
 calls things out of order gets told so, in words you wrote, before
 anything is written to your store. Get it wrong — forget to give a
 state an exit, or declare a transition that can never fire — and
-`bin/model_check` is the tool that tells you before your users do.
+`hecks model_check` is the tool that tells you before your users do.
 
 The examples in this guide run against the real corpus,
 `examples/banking/bluebook/`'s `CardPayment` aggregate:
@@ -153,7 +153,7 @@ payment.reject_dispute!  # ~> LifecycleRefused: RejectDispute refused — status
 Same shape as `Chargeback` above — `RejectDispute`'s own guard is
 `admissible_transition` alone now too. No transition names `from:
 "charged_back"` either way — on purpose, a charged-back payment is
-done. `bin/model_check` notices this
+done. `hecks model_check` notices this
 shape on every
 lifecycle in the corpus and reports it as a `stuck_state` finding —
 but at `:warning` severity, not `:error`, because a genuinely terminal
@@ -179,7 +179,7 @@ Three findings this time, not one — `CardPayment` has three states
 this lifecycle never declares an exit from: `"voided"` and
 `"reversed"`, reached by paths this walkthrough never took, and
 `"charged_back"`, just shown live above. The checker names all three
-anyway, because it reads the declaration, not a run — `bin/model_check`
+anyway, because it reads the declaration, not a run — `hecks model_check`
 would find `"voided"` and `"reversed"` stuck the same way even if this
 page never dispatched a single command. Nothing here is an error — this
 lifecycle is clean to ship, with three states its own domain considers
@@ -189,7 +189,7 @@ done.
 
 A stuck state is a judgment call. A **dead transition** and an
 **unreachable state** are not — they are declarations that can never
-mean anything at runtime, and `bin/model_check` reports both as
+mean anything at runtime, and `hecks model_check` reports both as
 `:error`. Nothing in `examples/banking` has either — the corpus stays
 free of them on purpose, so the shape that produces them cannot come
 from it. What follows is not a domain: it is a small, standalone
@@ -276,7 +276,7 @@ errors, both real declarations that can never do anything — and
 warning, because maybe that really is where an inspection flow ends
 and maybe you forgot a `Stow` transition out of it. The checker cannot
 tell your intent apart from your typo; it can only tell you dead code
-apart from a live one. Run `bin/model_check` before you ship a
+apart from a live one. Run `hecks model_check` before you ship a
 lifecycle, not after a caller reports that a command they expected to
 work simply never fires. `Impasse` stops here — the rest of this guide,
 and every other page that runs against real data, is banking.

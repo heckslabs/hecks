@@ -58,6 +58,7 @@ fn tmpl_store_fields_placeholder() -> crate::kernel::InMemoryRepository<i64> {
 fn tmpl_dump_arm_placeholder() {}
 fn tmpl_seed_arm_placeholder() {}
 fn tmpl_query_arm_placeholder() {}
+fn tmpl_scan_each_arm_placeholder() {}
 fn tmpl_dispatch_arm_placeholder() -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     Ok(Vec::new())
 }
@@ -83,7 +84,7 @@ impl TmplStore2 {
 
     /// Every aggregate this domain declared, dumped as
     /// "Domain::Aggregate#id" -> its own to_json() — the exact key
-    /// shape bin/rust_conformance's own comparable["instances"]
+    /// shape hecks check_conformance's own comparable["instances"]
     /// builds from Ruby (Fuzzing::Replay.call's own instance key
     /// format, read directly).
     pub fn instances(&self) -> Vec<(String, crate::kernel::Json)> {
@@ -116,11 +117,17 @@ tmpl_seed_arm_placeholder();
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
-/// refusal, never a panic.
+/// refusal, never a panic. `scan_each` is the same listing borrowed, so a declared query clones
+/// only the rows it keeps; both read the repositories' cached `to_json()` renderings.
 impl crate::kernel::AggregateScan for TmplStore2 {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 tmpl_query_arm_placeholder();
         None
+    }
+
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &crate::kernel::Json)) -> bool {
+tmpl_scan_each_arm_placeholder();
+        false
     }
 }
 

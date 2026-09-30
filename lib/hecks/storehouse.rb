@@ -2,8 +2,8 @@ require "json"
 require "fileutils"
 require "time"
 require_relative "cache_dir"
-require_relative "facade/command_request"
-require_relative "facade/json_door"
+require_relative "doors/command_request"
+require_relative "doors/json_door"
 require_relative "naming"
 require_relative "projector"
 require_relative "runtime/errors"
@@ -56,7 +56,7 @@ module Hecks
     end
 
     # The same alias table CliRunner resolves against, kept here so dispatch
-    # and query never drift from what a human typing bin/run sees.
+    # and query never drift from what a human typing hecks run sees.
     # :nodoc:
     def resolve!(cli, name, asking:)
       pool = asking ? cli[:questions] : cli[:verbs]
@@ -185,9 +185,9 @@ module Hecks
       cli      = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
       spec     = resolve!(cli, command, asking: false)
       require_caller_for_role_gated!(spec, role)
-      envelope = Facade::CommandRequest.normalize(Facade::JsonDoor.deep_symbolize(args),
-                                                  receiver:        spec[:receiver],
-                                                  legacy_receiver: spec[:legacy_receiver])
+      envelope = Doors::CommandRequest.normalize(Doors::JsonDoor.deep_symbolize(args),
+                                                 receiver:        spec[:receiver],
+                                                 legacy_receiver: spec[:legacy_receiver])
 
       result = with_caller(role, actor_id) do
         dry_run ? dry_run_outcome(runtime, spec, envelope, summary: summary) : real_dispatch(runtime, spec, envelope, summary)
@@ -200,8 +200,8 @@ module Hecks
       result = runtime.dispatch_flat(spec[:verb], envelope)
       ok(summary: summary,
          id:      result.id,
-         state:   result.state.nil? ? nil : Facade::JsonDoor.materialize(result.state),
-         events:  result.events.map { |event| { name: event.name, payload: Facade::JsonDoor.materialize(event.payload) } })
+         state:   result.state.nil? ? nil : Doors::JsonDoor.materialize(result.state),
+         events:  result.events.map { |event| { name: event.name, payload: Doors::JsonDoor.materialize(event.payload) } })
     end
 
     # :nodoc:
@@ -228,7 +228,7 @@ module Hecks
     def dispatch_batch(runtime:, steps:, summary:, source: nil, role: nil, actor_id: nil)
       require_summary!(summary)
       results = Array(steps).map do |raw|
-        step = Facade::JsonDoor.deep_symbolize(raw)
+        step = Doors::JsonDoor.deep_symbolize(raw)
         dispatch(runtime: runtime, command: step[:command], args: step[:args] || {},
                  summary: summary, source: source, role: role, actor_id: actor_id)
       end
@@ -268,9 +268,9 @@ module Hecks
       valid_caller!(role, actor_id)
       cli  = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
       spec = resolve!(cli, question, asking: true)
-      rows = with_caller(role, actor_id) { runtime.query(spec[:verb], **Facade::JsonDoor.deep_symbolize(args)) }
+      rows = with_caller(role, actor_id) { runtime.query(spec[:verb], **Doors::JsonDoor.deep_symbolize(args)) }
 
-      ok(summary: summary, rows: rows.map { |row| Facade::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
+      ok(summary: summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
     end
 
     # Reads one aggregate's stored records directly, bypassing any declared
@@ -303,9 +303,9 @@ module Hecks
       if id
         instance = repository.find(id) or
           raise Runtime::NotFound, "no #{ir.hecks_name} found for id #{id.inspect}"
-        ok(summary: summary, record: Facade::JsonDoor.materialize(instance.to_h))
+        ok(summary: summary, record: Doors::JsonDoor.materialize(instance.to_h))
       else
-        records = repository.all.map { |instance| Facade::JsonDoor.materialize(instance.to_h) }
+        records = repository.all.map { |instance| Doors::JsonDoor.materialize(instance.to_h) }
         ok(summary: summary, count: records.length, records: records)
       end
     end
@@ -346,7 +346,7 @@ module Hecks
     end
 
     # One aggregate's (or the whole chapter's) full usage documentation — the
-    # same document bin/docs renders for a human.
+    # same document hecks docs renders for a human.
     #
     # @param runtime [Runtime::Registry] the booted domain to describe
     # @param aggregate [String, Symbol, nil] one aggregate's name, or nil for the
@@ -373,7 +373,7 @@ module Hecks
     # @return [Hash] {ok: true, domain:, valid: true} plus :findings when deep;
     #   {ok: false, domain:, valid: false, error:} if the boot itself failed
     def validate(domain:, deep: false)
-      runtime = Hecks.boot(confine!(domain, "domain"), install_facade: false)
+      runtime = Hecks.boot(confine!(domain, "domain"), install_doors: false)
       result  = { ok: true, domain: domain, valid: true }
 
       if deep
@@ -407,7 +407,7 @@ module Hecks
 
     # :nodoc:
     def journal_entries(repository)
-      repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Facade::JsonDoor.materialize(entry.state) } }
+      repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Doors::JsonDoor.materialize(entry.state) } }
     end
 
     # Runs a domain's hand-curated .behaviors examples and reports the results.

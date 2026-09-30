@@ -47,6 +47,13 @@ module Hecks
         # @return [Bluebook::PortOperation, nil] the operation, or `nil` if none is
         #   declared by that name
         def operation(named) = @operations.find { |op| op.hecks_name == named.to_s }
+
+        # Finds the binding this port gives a query, if it answers that query.
+        #
+        # @param named [String, Symbol] the query's declared name
+        # @return [Bluebook::QueryAnswer, nil] the binding, or `nil` if this port does not
+        #   answer that query
+        def answer_for(named) = @answered_queries.find { |answer| answer.name == named.to_s }
       end
     end
   end

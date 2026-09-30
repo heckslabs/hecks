@@ -2,6 +2,7 @@ require_relative "../../../../../../runtime/registry"
 require_relative "../../storage_shape"
 require_relative "../../translation/audit"
 require_relative "../../translation/scaffold"
+require_relative "../../translation/approval_file"
 
 module Hecks
   module Adapters
@@ -20,7 +21,7 @@ module Hecks
             ordinal = latest[:ordinal] + 1
 
             edge = resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
-            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
+            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: directory)
             check_coverage!(registry, bluebook, shadow(latest[:held_text]), edge)
 
             chain = edge_chain(registry, bluebook, lineage.eras, label)
@@ -49,32 +50,48 @@ module Hecks
             unless edge.to == label
               raise Runtime::WiringError,
                     "cannot boot #{bluebook.name}: the translation edge from #{latest[:label]} targets " \
-                    "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run bin/scaffold_translation"
+                    "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run hecks scaffold_translation"
             end
             edge
           end
 
-          # Refuses a mint whose edge carries a compute or rekey rule without a recorded,
-          # edge-matching, journal-current approval.
+          # Refuses a mint whose edge carries a compute or rekey rule without an approval.
           #
-          # A compute or rekey's only verification is a human-approved audit sample.
-          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
-            return unless edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+          # A compute or rekey's only verification is a human-approved audit sample. Two approvals
+          # satisfy it: one recorded in the journal that matches the edge and the journal's current
+          # tip, or a committed `translations/<edge>.approval` that matches the edge's digest and
+          # records a passed rehearsal on a compatible host release. A committed approval that
+          # applies is written into the journal, so the journal stays the single history.
+          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: nil)
+            return unless Translation::ApprovalFile.needs_rehearsal?(edge)
 
             approval = lineage.approval_for(from: edge.from, to: edge.to)
-            unless approval && approval[:edge_digest] == Translation::Audit.edge_digest(edge)
+            digest = Translation::Audit.edge_digest(edge)
+            tip = lineage.last_ordinal
+            return if approval && approval[:edge_digest] == digest && approval[:reviewed_ordinal] == tip
+
+            if Translation::ApprovalFile.applicable(directory, edge)
+              lineage.record_approval!(from: edge.from, to: edge.to, edge_digest: digest)
+              return
+            end
+
+            unless approval && approval[:edge_digest] == digest
+              if (mismatch = Translation::ApprovalFile.host_mismatch(directory, edge))
+                raise Runtime::WiringError,
+                      "cannot mint era #{ordinal} of #{bluebook.name}: the committed approval does not " \
+                      "apply — #{mismatch}"
+              end
+
               raise Runtime::WiringError,
                     "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
                     "rule, and the audit's human-approved sample is its only verification — run " \
-                    "bin/translation_audit with --approve, then boot again"
+                    "hecks audit_translation with --approve, then boot again"
             end
-            tip = lineage.last_ordinal
-            return unless approval[:reviewed_ordinal] != tip
 
             raise Runtime::WiringError,
                   "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \
                   "review (ordinal #{approval[:reviewed_ordinal]} reviewed, #{tip} now) — the samples a " \
-                  "human approved no longer cover the data; re-run bin/translation_audit with --approve"
+                  "human approved no longer cover the data; re-run hecks audit_translation with --approve"
           end
 
           # Refuses toward the authoring loop, or, under HECKS_SCAFFOLD=1, scaffolds the
@@ -84,13 +101,13 @@ module Hecks
               path = scaffold!(registry, bluebook, lineage, latest, directory)
               raise Runtime::WiringError,
                     "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) — wrote #{path}; " \
-                    "review it (resolve every unresolved), check it with bin/translation_audit, then boot again"
+                    "review it (resolve every unresolved), check it with hecks audit_translation, then boot again"
             end
 
             raise Runtime::WiringError,
                   "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) and no translation edge " \
-                  "covers it — run bin/scaffold_translation to write the edge, " \
-                  "check it with bin/translation_audit, then boot again"
+                  "covers it — run hecks scaffold_translation to write the edge, " \
+                  "check it with hecks audit_translation, then boot again"
           end
 
           # Diffs the held era against the current shape and writes the edge file —

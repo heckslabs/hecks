@@ -3,7 +3,7 @@ require_relative "vendor"
 
 module Hecks
   module EmbryonautBluebook
-    # The command line behind `bin/vendor_bluebook`; lives in the gem so a
+    # The command line behind `hecks vendor`; lives in the gem so a
     # consuming project reaches it through its own bundle, no script to copy.
     #
     #     vendor_bluebook <package>[@<version-or-commit>] [--from path] [--root path]

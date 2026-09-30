@@ -13,8 +13,10 @@ module Hecks
           verify_world_defaults!
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
+          refuse_reserved_chapter_names!
           refuse_membership_without_identity!
           refuse_unresolved_port_operations!
+          refuse_unanswerable_queries!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -94,6 +96,13 @@ module Hecks
         # persistence/projection/loading are per-aggregate bound and already checked via
         # each bind above; a singleton port is never bound to an aggregate at all.
         PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
+
+        # The directory holding the gem's own Hecks chapter, the only place a chapter named
+        # `Hecks` may be declared from.
+        GEM_CHAPTER_DIR = File.expand_path("../../hecks", __dir__).freeze
+
+        # The chapter names only the gem itself may declare (ADR 0080, section 9).
+        RESERVED_CHAPTER_NAMES = %w[Hecks].freeze
 
         # Checks every singleton port with exactly one wired adapter against its own
         # declared `answers` methods.
@@ -180,14 +189,14 @@ module Hecks
           end
         end
 
-        # `uses_framework` loads a bounded context; the consumer must declare the sibling
-        # hecksagon that is its ACL (Governance/Identity/Privacy already do).
+        # `uses_framework` and `attaches` load a bounded context; the consumer must declare the
+        # sibling hecksagon that is its ACL (Governance/Identity/Privacy already do).
         def refuse_unwired_framework_members!(hexagon)
-          Array(hexagon.framework_members).each do |member|
+          hexagon.member_chapters.each do |member|
             next if hecksagon(member)
 
             raise WiringError,
-                  "#{hexagon.domain} attaches framework member #{member.inspect} " \
+                  "#{hexagon.domain} attaches #{member.inspect} " \
                   "(bounded context) but never declared Hecks.hecksagon " \
                   "#{member.inspect} — put that sibling (and any `translates` " \
                   "ACL) in context_map.hecksagon; same-name blocks merge, " \
@@ -229,6 +238,130 @@ module Hecks
           end
         end
 
+        # A query has exactly one answer path. It is derivable when the bluebook says which of the
+        # aggregate's own records it wants (a where, order_by, limit or offset, or no arguments at
+        # all: the plain list) and returns no value object of its own; it is bound when it
+        # `returns` a value object and the hecksagon names the port whose adapter answers it. None
+        # of the two is "no answer path"; both is "two answer paths". A bound query also needs an
+        # adapter behind its port that implements it, found here so it fails at boot rather than
+        # on the first ask.
+        def refuse_unanswerable_queries!
+          @bluebooks.each_value do |chapter|
+            chapter.aggregates.each do |aggregate|
+              refuse_misbound_queries!(chapter, aggregate)
+
+              aggregate.queries.each { |query| refuse_answer_paths!(chapter, aggregate, query) }
+              aggregate.entities.each do |entity|
+                entity.queries.each { |query| refuse_entity_answer_path!(chapter, aggregate, entity, query) }
+              end
+            end
+          end
+        end
+
+        # Counts the query's answer paths (the bindings, plus the derived answer when it exists)
+        # and refuses any count but one, then checks a bound query's shape and adapter.
+        def refuse_answer_paths!(chapter, aggregate, query)
+          where  = "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name}"
+          ports  = aggregate.query_bindings(query.hecks_name)
+          paths  = ports.size + (derivable?(query) ? 1 : 0)
+
+          if paths > 1
+            raise WiringError, "#{where} has two answer paths: #{answer_path_names(query, ports)} — " \
+                               "a query is answered from records or from outside, not both"
+          end
+          return check_bound_query!(chapter, aggregate, query, ports.first) if ports.any?
+          return if paths == 1
+
+          raise WiringError, no_answer_path_message(chapter, aggregate, query, where)
+        end
+
+        # A query that returns nothing and says something about which records it wants, or wants
+        # all of them. One that takes arguments but filters, orders and bounds nothing reads none
+        # of them, so it derives no answer.
+        def derivable?(query)
+          return false if query.returns
+
+          filters_records?(query) || query.attributes.empty?
+        end
+
+        def answer_path_names(query, ports)
+          names = ports.map { |port| "the #{port.name} port" }
+          names.unshift("its records") if derivable?(query)
+          names.join(" and ")
+        end
+
+        def no_answer_path_message(chapter, aggregate, query, where)
+          if query.returns
+            "#{where} has no answer path: it returns #{query.returns}, which only an adapter can " \
+              "answer, and no hecksagon port binds it. Bind it: `#{chapter.name}::#{aggregate.hecks_name}" \
+              ".port \"Port\" do answers_query \"#{query.hecks_name}\" end`."
+          else
+            "#{where} has no answer path: it declares no where and returns nothing, and no hecksagon " \
+              "binds it — its arguments (#{query.attributes.map(&:name).join(', ')}) select nothing. " \
+              "Add a where, or declare what it returns and bind it in the hecksagon."
+          end
+        end
+
+        # Checks what a binding needs to be answerable: a returned value object the aggregate
+        # declares, and one adapter behind the port that implements the query's method.
+        def check_bound_query!(chapter, aggregate, query, port)
+          where = "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name}"
+          unless query.returns
+            raise WiringError, "#{where} is bound to the #{port.name} port but returns nothing — " \
+                               "declare the value object its answer takes with `returns`"
+          end
+          if filters_records?(query)
+            raise WiringError, "#{where} has two answer paths: it is bound to the #{port.name} port but " \
+                               "also declares where, order_by or limit over stored records"
+          end
+          if query.authorization
+            raise WiringError, "#{where} is bound to the #{port.name} port but declares authorize — " \
+                               "an outside answer is never tenant-scoped or authorized, so drop the " \
+                               "authorize or answer the query from records"
+          end
+          unless Value.value_object_for(aggregate, query.returns_name)
+            raise WiringError, "#{where} returns #{query.returns_name}, but #{aggregate.hecks_name} " \
+                               "declares no such value object"
+          end
+
+          klass = AdapterLookup.adapter_class(self, port.name, asked: where)
+          AdapterLookup.check_answers!(klass, port.name, Naming.snake(query.hecks_name), query, asked: where)
+        end
+
+        # An entity's query reads the elements of its aggregate's list, and nothing outside can
+        # be bound to one, so declaring a value object to return leaves it no answer.
+        def refuse_entity_answer_path!(chapter, aggregate, entity, query)
+          where = "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{query.hecks_name}"
+          if query.returns
+            raise WiringError, "#{where} has no answer path: it returns #{query.returns}, but " \
+                               "only an aggregate's queries can be bound to a port"
+          end
+          return if derivable?(query)
+
+          raise WiringError, "#{where} has no answer path: it declares no where and returns nothing — its " \
+                             "arguments (#{query.attributes.map(&:name).join(', ')}) select nothing"
+        end
+
+        # Refuses a binding that names a query its aggregate does not declare, or names one twice
+        # on a single port (the DSL already refuses that, so this guards a hand-built port).
+        def refuse_misbound_queries!(chapter, aggregate)
+          aggregate.ports.each do |port|
+            names = port.answered_queries.map(&:name)
+            names.each do |name|
+              where = "#{chapter.name}::#{aggregate.hecks_name}.#{name}"
+              unless aggregate.query(name)
+                raise WiringError, "the #{port.name} port binds #{where}, which the aggregate does not declare"
+              end
+              raise WiringError, "#{where} has two answer paths: the #{port.name} port twice" if names.count(name) > 1
+            end
+          end
+        end
+
+        # A query that says anything about which stored records it wants.
+        def filters_records?(query)
+          !(query.wheres.empty? && query.order_by.nil? && query.limit.nil? && query.offset.nil?)
+        end
+
         def port_operation_declared?(chapter, verb)
           aggregate_name, port_name, operation_name = verb.split(".", 3)
           ports = chapter.aggregate(aggregate_name)&.ports || []
@@ -261,6 +394,32 @@ module Hecks
         # inside one — the same reach dispatch-time role checking needs.
         def commands_in(bluebook_ir)
           bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
+        end
+
+        # Refuses a chapter whose name is reserved unless every file that declared it sits under
+        # the gem's own chapter directory. A rename is the only fix, so the message says so.
+        #
+        # @raise [WiringError] naming the reserved word and the offending file(s)
+        def refuse_reserved_chapter_names!
+          RESERVED_CHAPTER_NAMES.each do |reserved|
+            next unless @bluebooks.key?(reserved)
+
+            sources = Array(@bluebook_sources[reserved]).compact
+            foreign = sources.reject { |path| gem_chapter_source?(path) }
+            next if foreign.empty? && !sources.empty?
+
+            where = foreign.empty? ? "" : " (declared in #{foreign.join(', ')})"
+            raise WiringError,
+                  "a chapter named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
+                  "word, the name of the gem's own chapter, and only the gem may declare it#{where}. " \
+                  "Rename the chapter (for example to your app's name) in its " \
+                  "`Hecks.bluebook #{reserved.inspect}` line and in its hecksagon."
+          end
+        end
+
+        # Whether `path` is a file of the gem's own chapter directory.
+        def gem_chapter_source?(path)
+          File.expand_path(path.to_s).start_with?("#{GEM_CHAPTER_DIR}/")
         end
 
         # Two packages can share a chapter name by coincidence (found live: a stale

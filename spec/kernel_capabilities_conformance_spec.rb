@@ -3,7 +3,7 @@ require "hecks/grammar"
 
 # Holds the generated kernel/attribute_shapes and kernel/expression_operators mod.rs
 # rosters to `Coercion::SHAPES` and `Grammar.admitted_operators`, both directions.
-RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
+RSpec.describe "kernel capability tables (hecks project_kernel_capabilities)" do
   def self.pub_mod_names(path)
     File.readlines(File.join(InMemoryDomain::ROOT, path))
         .filter_map { |line| line[/^pub mod (\w+);/, 1] }
@@ -15,14 +15,14 @@ RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
   it "generates attribute_shapes/mod.rs from the SAME order Coercion::SHAPES declares" do
     expect(ATTRIBUTE_SHAPE_NAMES).to eq(Hecks::Runtime::Value::Coercion::SHAPES.map(&:to_s)),
                                      "rust/src/kernel/attribute_shapes/mod.rs is stale relative to " \
-                                     "Coercion::SHAPES — run bin/project_kernel_capabilities"
+                                     "Coercion::SHAPES — run hecks project_kernel_capabilities"
   end
 
   it "generates expression_operators/mod.rs from the SAME first-appearance category order Grammar.admitted_operators declares" do
     live = Hecks::Grammar.admitted_operators.map { |op| op[:category].to_s }.uniq
     expect(OPERATOR_CATEGORY_NAMES).to eq(live),
                                        "rust/src/kernel/expression_operators/mod.rs is stale relative to " \
-                                       "Grammar.admitted_operators — run bin/project_kernel_capabilities"
+                                       "Grammar.admitted_operators — run hecks project_kernel_capabilities"
   end
 
   # A `pub mod` line with no hand-written file is an unresolved module; this catches

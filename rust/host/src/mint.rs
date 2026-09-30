@@ -1150,13 +1150,13 @@ mod tests {
     /// `bin/mint_harness`, which has no `dispatch` module to borrow a helper from.
     async fn own_scratch_db(name: &str) -> tokio_postgres::Client {
         let (admin, connection) =
-            tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await.expect("connect as admin");
+            tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await.expect("connect as admin");
         tokio::spawn(async move {
             let _ = connection.await;
         });
         let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
         admin.batch_execute(&format!("CREATE DATABASE {name}")).await.expect("create scratch db");
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={name}"), NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {
@@ -1300,7 +1300,7 @@ mod tests {
         let db = "rust_host_self_mint_test";
         let owner = "rust_host_self_mint_owner";
 
-        let admin = tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await;
+        let admin = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await;
         let (admin_client, admin_connection) = admin.expect("connect to postgres as admin");
         tokio::spawn(async move {
             let _ = admin_connection.await;
@@ -1308,10 +1308,10 @@ mod tests {
         let _ = admin_client.batch_execute(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)")).await;
         admin_client.batch_execute(&format!("CREATE DATABASE {db}")).await.expect("create scratch db");
         let _ = admin_client.batch_execute(&format!("DROP ROLE IF EXISTS {owner}")).await;
-        admin_client.batch_execute(&format!("CREATE ROLE {owner} LOGIN")).await.expect("create owner role");
+        admin_client.batch_execute(&format!("CREATE ROLE {owner} {}", crate::test_pg::login_clause())).await.expect("create owner role");
         admin_client.batch_execute(&format!("GRANT CONNECT ON DATABASE {db} TO {owner}")).await.expect("grant connect");
 
-        let grant = tokio_postgres::connect(&format!("host=localhost dbname={db}"), NoTls).await;
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls).await;
         let (grant_client, grant_connection) = grant.expect("connect to scratch db as superuser to grant schema rights");
         tokio::spawn(async move {
             let _ = grant_connection.await;
@@ -1319,7 +1319,7 @@ mod tests {
         grant_client.batch_execute(&format!("GRANT USAGE, CREATE ON SCHEMA public TO {owner}")).await.expect("grant schema rights");
         grant_client.batch_execute(&format!("ALTER DATABASE {db} OWNER TO {owner}")).await.expect("make owner the db owner");
 
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner}"), NoTls).await.expect("connect as owner");
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls).await.expect("connect as owner");
         tokio::spawn(async move {
             let _ = connection.await;
         });
@@ -1759,7 +1759,7 @@ mod tests {
         let db = "rust_host_audit_test";
         let owner = "rust_host_audit_owner";
 
-        let admin = tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await;
+        let admin = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await;
         let (admin_client, admin_connection) = admin.expect("connect to postgres as admin");
         tokio::spawn(async move {
             let _ = admin_connection.await;
@@ -1767,10 +1767,10 @@ mod tests {
         let _ = admin_client.batch_execute(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)")).await;
         admin_client.batch_execute(&format!("CREATE DATABASE {db}")).await.expect("create scratch db");
         let _ = admin_client.batch_execute(&format!("DROP ROLE IF EXISTS {owner}")).await;
-        admin_client.batch_execute(&format!("CREATE ROLE {owner} LOGIN")).await.expect("create owner role");
+        admin_client.batch_execute(&format!("CREATE ROLE {owner} {}", crate::test_pg::login_clause())).await.expect("create owner role");
         admin_client.batch_execute(&format!("GRANT CONNECT ON DATABASE {db} TO {owner}")).await.expect("grant connect");
 
-        let grant = tokio_postgres::connect(&format!("host=localhost dbname={db}"), NoTls).await;
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls).await;
         let (grant_client, grant_connection) = grant.expect("connect to scratch db as superuser to grant schema rights");
         tokio::spawn(async move {
             let _ = grant_connection.await;
@@ -1778,7 +1778,7 @@ mod tests {
         grant_client.batch_execute(&format!("GRANT USAGE, CREATE ON SCHEMA public TO {owner}")).await.expect("grant schema rights");
         grant_client.batch_execute(&format!("ALTER DATABASE {db} OWNER TO {owner}")).await.expect("make owner the db owner");
 
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner}"), NoTls).await.expect("connect as owner");
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls).await.expect("connect as owner");
         tokio::spawn(async move {
             let _ = connection.await;
         });

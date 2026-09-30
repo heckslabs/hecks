@@ -5,7 +5,7 @@ Words available inside `bluebook do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `bin/reference` — do not edit inside the markers. The prose
+by `hecks project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -130,6 +130,24 @@ outside this one) declares `formerly_known_as` with its previous
 domain name on its own chapter, bridging real production journal/
 era/approval rows onto the renamed domain the day it deployed under
 the new name, zero data loss, real Member rows confirmed intact.
+
+## namespace
+
+<!-- generated:begin word=namespace -->
+`namespace namespace` — fills `namespace`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | namespace |
+<!-- generated:end -->
+
+Names the Ruby module the constants of a chapter install under, instead of its own name. Without it, a chapter called `Pizzas` installs as `::Pizzas` and its aggregates as `Pizzas::Order`. With `namespace "Tools::Workbench"`, the chapter installs as `Tools::Workbench` and its aggregates inside it, with no top-level shortcuts. The Hecks domain (ADR 0080) uses it: a chapter named `Hecks` would otherwise install into the gem module of the same name, where aggregates such as `Release` and `Kernel` collide with modules hecks already defines. A chapter whose constants would land in `Hecks` itself refuses at build.
+
+The chapter keeps its own name; only where Ruby installs it changes:
+
+```ruby
+Hecks::Bluebook::Chapter.new(name: "Workbench", namespace: "Tools::Workbench").namespace  # => "Tools::Workbench"
+```
 
 ## attaches_to
 

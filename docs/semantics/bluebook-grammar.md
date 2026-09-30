@@ -22,7 +22,7 @@ grammar before this document:
   keyword and argument as real `Keyword`/`Argument` rows, dispatched
   into a live domain instance at boot
   (`Hecks::Bluebook::MetaValidator::SyntaxBoot`) the same way any other
-  domain's own commands are. `bin/reference` regenerates
+  domain's own commands are. `hecks project_reference` regenerates
   `docs/implemented/reference/*.md` — one page per construct — **from
   that table**, gated so a word with no prose or no runnable example
   fails the build. `spec/syntax_conformance_spec.rb` holds the DSL

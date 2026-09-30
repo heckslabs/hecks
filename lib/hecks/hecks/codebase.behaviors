@@ -1,0 +1,172 @@
+Hecks.behaviors "Codebase" do
+  vision "A request to work on this repository is recorded, the tree is examined, and only a hecks checkout lets it through."
+
+  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+
+  test "ProjectModel reports what the language projects, and keeps the answer" do
+    tests "ProjectModel", on: "LanguageRun"
+    input run: { value: "model" }
+    expect emits: %w[ProjectModelRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "ProjectRefusalWording is a second name that carries out the same projection" do
+    tests "ProjectRefusalWording", on: "LanguageRun"
+    input run: { value: "wording" }
+    expect emits: %w[ProjectRefusalWordingRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "Propose rehearses a new word and writes nothing without confirm" do
+    tests "Propose", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, run: { value: "propose" }
+    expect emits: %w[ProposeRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "Propose refuses a body the language does not have" do
+    tests "Propose", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, body: { value: "everything" },
+          run: { value: "propose" }
+    expect refused: "must match"
+  end
+
+  test "Admit keeps a word that is not declared as a faulted request" do
+    tests "Admit", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, run: { value: "admit" }
+    expect emits: %w[AdmitRequested LanguageExamined LanguageAccepted LanguageRefused LanguageFaulted]
+  end
+
+  test "ProposeArgument refuses a kind of argument the language does not have" do
+    tests "ProposeArgument", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, kind: { value: "blob" },
+          run: { value: "argument" }
+    expect refused: "must match"
+  end
+
+  test "ProjectKernelCapabilities reports what the grammar projects, and keeps the answer" do
+    tests "ProjectKernelCapabilities", on: "KernelRun"
+    input run: { value: "kernel" }
+    expect emits: %w[ProjectKernelCapabilitiesRequested KernelExamined KernelAccepted KernelAnswered KernelCompleted]
+  end
+
+  test "MeasureKernelCoverage keeps a complete kernel as a completed measure" do
+    tests "MeasureKernelCoverage", on: "KernelRun"
+    input run: { value: "coverage" }
+    expect emits: %w[MeasureKernelCoverageRequested KernelExamined KernelAccepted KernelAnswered KernelCompleted]
+  end
+
+  test "CheckEngineAgreement keeps agreeing engines as a completed check" do
+    tests "CheckEngineAgreement", on: "ConformanceRun"
+    input run: { value: "engines" }
+    expect emits: %w[CheckEngineAgreementRequested ConformanceExamined ConformanceAccepted ConformanceAnswered
+                     ConformanceCompleted]
+  end
+
+  test "MeasureDocCoverage keeps a covered reference as a completed measure" do
+    tests "MeasureDocCoverage", on: "ConformanceRun"
+    input run: { value: "docs" }
+    expect emits: %w[MeasureDocCoverageRequested ConformanceExamined ConformanceAccepted ConformanceAnswered
+                     ConformanceCompleted]
+  end
+
+  test "ArgumentGateMatrix refuses a run that is not named" do
+    tests "ArgumentGateMatrix", on: "ConformanceRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "RegenerateCorpus refuses a run that is not named" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "CheckComments keeps a file with no violations as a completed check" do
+    tests "CheckComments", on: "StyleRun"
+    input paths: { value: "lib/hecks/canonical_json.rb" }, run: { value: "clean" }
+    expect emits: %w[CheckCommentsRequested StyleExamined StyleAccepted StyleAnswered StyleCompleted]
+  end
+
+  test "CheckComments refuses a list of paths that is not one" do
+    tests "CheckComments", on: "StyleRun"
+    input paths: { value: "lib, spec" }, run: { value: "paths" }
+    expect refused: "must match"
+  end
+
+  test "FixComments lists what it would rewrite, and writes nothing, without confirm" do
+    tests "FixComments", on: "StyleRun"
+    input paths: { value: "lib/hecks/canonical_json.rb" }, run: { value: "fix" }
+    expect emits: %w[FixCommentsRequested StyleExamined StyleAccepted StyleAnswered StyleCompleted]
+  end
+
+  test "CheckCommentsUnchanged refuses a ref with a space in it" do
+    tests "CheckCommentsUnchanged", on: "StyleRun"
+    input ref: { value: "not a ref" }, run: { value: "unchanged" }
+    expect refused: "must match"
+  end
+
+  test "Canonicalise keeps a file that is not there as a faulted request" do
+    tests "Canonicalise", on: "StyleRun"
+    input file: { value: "/tmp/hecks-behaviors-absent/file.json" }, run: { value: "canonical" }
+    expect emits: %w[CanonicaliseRequested StyleExamined StyleAccepted StyleRefused StyleFaulted]
+  end
+
+  test "HoistLocalGivens refuses a run that is not named" do
+    tests "HoistLocalGivens", on: "CodemodRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "RunSpecExample keeps a spec file that is not there as a faulted request" do
+    tests "RunSpecExample", on: "TestSuiteRun"
+    input file: { value: "spec/no_such_spec.rb" }, example: { value: "works" }, run: { value: "example" }
+    expect emits: %w[RunSpecExampleRequested TestSuiteExamined TestSuiteAccepted TestSuiteRefused TestSuiteFaulted]
+  end
+
+  test "StressConcurrency refuses a count of zero runs" do
+    tests "StressConcurrency", on: "TestSuiteRun"
+    input runs: { value: 0 }, run: { value: "stress" }
+    expect refused: "a count is positive"
+  end
+
+  test "RefreshRuntimeBaseline refuses a run that is not a number" do
+    tests "RefreshRuntimeBaseline", on: "TestSuiteRun"
+    input from_run: { value: "latest" }, run: { value: "baseline" }
+    expect refused: "must match"
+  end
+
+  test "RegenerateLegacyFixtures reports what it would rewrite, and rewrites nothing, without confirm" do
+    tests "RegenerateLegacyFixtures", on: "TestSuiteRun"
+    input run: { value: "fixtures" }
+    expect emits: %w[RegenerateLegacyFixturesRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered
+                     TestSuiteCompleted]
+  end
+
+  test "SeedSemanticsCorpus refuses a fixture name that is not a file name" do
+    tests "SeedSemanticsCorpus", on: "TestSuiteRun"
+    input fixture: { value: "Not A Name" }, run: { value: "seed" }
+    expect refused: "must match"
+  end
+
+  test "Present refuses a port that is not one" do
+    tests "Present", on: "CorpusRun"
+    input port: { value: 70_000 }, run: { value: "present" }
+    expect refused: "a port is 1 to 65535"
+  end
+
+  test "ServeQueryIrMcp refuses a run that is not named" do
+    tests "ServeQueryIrMcp", on: "CorpusRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "Publish refuses a run that is not named" do
+    tests "Publish", on: "PublishingRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "PublishGem refuses a run that is not named" do
+    tests "PublishGem", on: "PublishingRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+end

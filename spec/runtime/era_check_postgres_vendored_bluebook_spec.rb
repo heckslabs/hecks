@@ -158,7 +158,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     Dir.mktmpdir do |dir|
       domain_dir = write_domain(dir)
 
-      Hecks.boot(domain_dir, install_facade: false)
+      Hecks.boot(domain_dir, install_doors: false)
 
       db = PG.connect(dbname: VENDORED_BLUEBOOK_DB)
       rows = db.exec_params(
@@ -180,9 +180,9 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     Dir.mktmpdir do |dir|
       domain_dir = write_domain(dir)
 
-      Hecks.boot(domain_dir, install_facade: false)
+      Hecks.boot(domain_dir, install_doors: false)
 
-      expect { Hecks.boot(domain_dir, install_facade: false) }.not_to raise_error
+      expect { Hecks.boot(domain_dir, install_doors: false) }.not_to raise_error
     end
   end
 end

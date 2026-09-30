@@ -2,9 +2,9 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` / single-target: claim races and the `--modes` override.
+# `qa_sweep --all` / single-target: claim races and the `--modes` override.
 # Own throwaway database: `hecks_qa_sweep_all_claims_spec`.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_claims_spec"
 
   it "lets exactly one of two real concurrent claims on the SAME target win" do

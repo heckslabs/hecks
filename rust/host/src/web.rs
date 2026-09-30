@@ -2101,14 +2101,14 @@ mod tests {
     use tokio_postgres::NoTls;
 
     pub(super) async fn scratch_db(name: &str) -> Mutex<Client> {
-        let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await.expect("connect to postgres");
+        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await.expect("connect to postgres");
         tokio::spawn(async move {
             let _ = conn.await;
         });
         admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
         admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&format!("host=localhost dbname={name}"), NoTls).await.expect("connect to scratch db");
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls).await.expect("connect to scratch db");
         tokio::spawn(async move {
             let _ = conn.await;
         });

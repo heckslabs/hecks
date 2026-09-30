@@ -1,6 +1,6 @@
 // `to_json().from_json()` must reproduce an equal record, including `Json::Null` for unset
 // Option fields; `Store::from_seed` would otherwise silently corrupt seeded state.
-// Compiles only when banking is the generated domain (bin/project_rust examples/banking).
+// Compiles only when banking is the generated domain (hecks project_rust examples/banking).
 #![cfg(feature = "banking")]
 
 use rust::generated::active::{dispatch_by_name, Store};

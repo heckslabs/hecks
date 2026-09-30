@@ -1,7 +1,7 @@
 module Hecks
   module Grammar
-    # File surgery under bin/evolve: reads and rewrites the aggregate-local
-    # KeywordSeed/ArgumentSeed rows as text, preserving the table's own formatting.
+    # File surgery under `hecks word_status` and its siblings: reads and rewrites the
+    # aggregate-local KeywordSeed/ArgumentSeed rows as text, preserving the table's own formatting.
     module Evolve
       class Refusal < StandardError; end
 
@@ -17,6 +17,32 @@ module Hecks
         value.nil? || value.start_with?("-") ? default : value
       end
 
+      # Runs the block against an in-memory copy of the tables: every edit it makes is held, none
+      # is written, and later reads see the earlier edits.
+      #
+      # @yield the edits to rehearse
+      # @return [Hash{String => String}] each file the edits changed, with the text it would hold
+      def rehearse
+        @overlay = {}
+        yield
+        @overlay.dup
+      ensure
+        @overlay = nil
+      end
+
+      # @param path [String] a table file
+      # @return [String] its text: a rehearsed edit if one was made, else what the file holds
+      def read_source(path)
+        @overlay&.key?(path) ? @overlay[path] : File.read(path)
+      end
+
+      # @param path [String] a table file
+      # @param text [String] what it holds afterwards; held, not written, while rehearsing
+      # @return [Object] the text
+      def write_source(path, text)
+        @overlay ? (@overlay[path] = text) : File.write(path, text)
+      end
+
       # Snapshots `paths` before running the block and restores every file
       # if it raises, even partway through a multi-file write.
       def restore_on_raise(paths)
@@ -30,7 +56,7 @@ module Hecks
       # Every syntax-table file declaring a KeywordSeed or ArgumentSeed value object.
       def syntax_paths
         Dir.glob(File.expand_path("../language/**/*.bluebook", __dir__)).select do |path|
-          source = File.read(path)
+          source = read_source(path)
           source.include?('value_object "KeywordSeed"') || source.include?('value_object "ArgumentSeed"')
         end
       end
@@ -44,7 +70,7 @@ module Hecks
       # Parses the Keyword one_of's member rows leniently off the text.
       def keyword_rows(path = nil)
         paths_for(path).flat_map do |candidate|
-          blocks = seed_blocks(File.read(candidate), "KeywordSeed")
+          blocks = seed_blocks(read_source(candidate), "KeywordSeed")
           raise Refusal, "source declares no KeywordSeed value object" if path && blocks.empty?
 
           blocks.flat_map do |block|
@@ -68,7 +94,7 @@ module Hecks
         end
 
         path = owner_path(context: context, word: word, opens: opens, paths: paths_for(path))
-        source = File.read(path)
+        source = read_source(path)
         block  = keyword_blocks(source).find { |candidate| candidate.include?(%(context: "#{context}")) } || keyword_block(source)
         indent = block[/^(\s*)member /, 1] || "        "
         row = %(#{indent}member word: "#{word}", context: "#{context}", body: "#{body}", ) +
@@ -77,7 +103,7 @@ module Hecks
         # Appended at the end; whoever admits it may move it to its group.
         closing = block.rindex(/^\s*end\s*$/)
         updated = block[0...closing] + row + block[closing..]
-        File.write(path, source.sub(block, updated))
+        write_source(path, source.sub(block, updated))
       end
 
       # Rewrites a declared keyword row's status: cell in place.
@@ -86,7 +112,7 @@ module Hecks
                                                                                        retired].include?(to)
 
         path = path_holding_keyword(word, context, paths_for(path))
-        source = File.read(path)
+        source = read_source(path)
         block  = keyword_blocks(source).find { |candidate| candidate.lines.any? { |line| member_row?(line, word, context) } }
         rows   = block.lines.select { |line| member_row?(line, word, context) }
         raise Refusal, "#{context}.#{word} is not declared" if rows.empty?
@@ -99,7 +125,7 @@ module Hecks
           to == "admitted" ? stripped : stripped.sub(/\n\z/, %(, status: "#{to}"\n))
         end.join
 
-        File.write(path, source.sub(block, updated))
+        write_source(path, source.sub(block, updated))
       end
 
       # Respells a keyword row (was: holds the old spelling) — one hop only;
@@ -117,7 +143,7 @@ module Hecks
 
         paths = paths_for(path)
         path = path_holding_keyword(word, context, paths)
-        source = File.read(path)
+        source = read_source(path)
         block  = keyword_blocks(source).find { |candidate| candidate.lines.any? { |line| member_row?(line, word, context) } }
         updated = block.lines.map do |line|
           next line unless member_row?(line, word, context)
@@ -126,7 +152,7 @@ module Hecks
               .sub(/\n\z/, %(, was: "#{word}"\n))
         end.join
         source = source.sub(block, updated)
-        File.write(path, source)
+        write_source(path, source)
 
         cascade_argument_rename(keyword: word, context: context, to: to, path: paths)
       end
@@ -139,14 +165,14 @@ module Hecks
       # Finds which syntax-table path declares a keyword row.
       def path_holding_keyword(word, context, paths = syntax_paths)
         paths.find do |candidate|
-          keyword_blocks(File.read(candidate)).any? { |block| block.lines.any? { |line| member_row?(line, word, context) } }
+          keyword_blocks(read_source(candidate)).any? { |block| block.lines.any? { |line| member_row?(line, word, context) } }
         end || raise(Refusal, "#{context}.#{word} is not declared")
       end
 
       # Finds which syntax-table path declares an argument row.
       def path_holding_argument(keyword, context, at, named, paths = syntax_paths)
         paths.find do |candidate|
-          argument_blocks(File.read(candidate)).any? do |block|
+          argument_blocks(read_source(candidate)).any? do |block|
             block.lines.any? do |line|
               argument_row?(line, keyword, context, at, named)
             end
@@ -157,12 +183,12 @@ module Hecks
       # Picks the owning file for a new row; opens names the aggregate for a File-context word.
       def owner_path(context:, word:, opens: "", paths: syntax_paths)
         if context == "File" && !opens.to_s.empty?
-          aggregate_path = paths.find { |candidate| File.read(candidate).match?(/^\s*aggregate "#{Regexp.escape(opens)}" do$/) }
+          aggregate_path = paths.find { |candidate| read_source(candidate).match?(/^\s*aggregate "#{Regexp.escape(opens)}" do$/) }
           return aggregate_path if aggregate_path
         end
 
         paths.find do |candidate|
-          source = File.read(candidate)
+          source = read_source(candidate)
           %w[KeywordSeed ArgumentSeed].any? do |seed|
             seed_blocks(source, seed).any? { |block| block.include?(%(context: "#{context}")) }
           end
@@ -202,7 +228,7 @@ module Hecks
       # Parses the ArgumentSeed's member rows leniently off the text.
       def argument_rows(path = nil)
         paths_for(path).flat_map do |candidate|
-          blocks = seed_blocks(File.read(candidate), "ArgumentSeed")
+          blocks = seed_blocks(read_source(candidate), "ArgumentSeed")
           raise Refusal, "source declares no ArgumentSeed value object" if path && blocks.empty?
 
           blocks.flat_map do |block|
@@ -226,7 +252,7 @@ module Hecks
         end
 
         path = owner_path(context: context, word: keyword, paths: paths_for(path))
-        source = File.read(path)
+        source = read_source(path)
         block  = argument_blocks(source).find do |candidate|
           candidate.include?(%(context: "#{context}"))
         end || argument_block(source)
@@ -238,7 +264,7 @@ module Hecks
 
         closing = block.rindex(/^\s*end\s*$/)
         updated = block[0...closing] + row + block[closing..]
-        File.write(path, source.sub(block, updated))
+        write_source(path, source.sub(block, updated))
       end
 
       # Rewrites a declared argument row's status: cell in place.
@@ -247,7 +273,7 @@ module Hecks
                                                                                             retired].include?(to)
 
         path = path_holding_argument(keyword, context, at, named, paths_for(path))
-        source = File.read(path)
+        source = read_source(path)
         block  = argument_blocks(source).find do |candidate|
           candidate.lines.any? do |line|
             argument_row?(line, keyword, context, at, named)
@@ -266,7 +292,7 @@ module Hecks
           to == "admitted" ? stripped : stripped.sub(/\n\z/, %(, status: "#{to}"\n))
         end.join
 
-        File.write(path, source.sub(block, updated))
+        write_source(path, source.sub(block, updated))
       end
 
       # Tells whether `line` is an ArgumentSeed row for this (keyword, context, at, named) tuple.
@@ -284,7 +310,7 @@ module Hecks
       # to the renamed keyword, not a blind gsub across the file.
       def cascade_argument_rename(keyword:, context:, to:, path: nil)
         paths_for(path).each do |candidate|
-          source = File.read(candidate)
+          source = read_source(candidate)
           original = source
           argument_blocks(source).each do |block|
             updated = block.lines.map do |line|
@@ -295,7 +321,7 @@ module Hecks
             end.join
             source = source.sub(block, updated) if updated != block
           end
-          File.write(candidate, source) if source != original
+          write_source(candidate, source) if source != original
         end
       end
 

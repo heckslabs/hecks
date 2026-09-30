@@ -3,16 +3,19 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
 require "open3"
+require "hecks/quality_control/cli/child"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `adapter_parity_sqlite` mode, run as a real subprocess over a fixture ledger.
+# `qa_sweep`'s `adapter_parity_sqlite` mode, run as a real subprocess over a fixture ledger.
 # Needs no PostgresEra binding: every domain has the `sqlite` capability.
-RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
+RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
   # Copy of the shared fixture; top-level constants need a name no other spec file uses.
   LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC = <<~RUBY.freeze
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -24,31 +27,13 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   RUBY
 
   # Same widget as the shared fixture, bound to Memory to show no PostgresEra binding is needed.
   ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepAdapterParitySqliteFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Widget" do
         description "One numbered widget and a bump count — nothing a fuzzer can ever catch."
@@ -99,8 +84,6 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_adapter_parity_sqlite_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
-                   File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
     url = QaLedgerRole.url(QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE)
@@ -112,7 +95,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Inside the repo ROOT because `bin/qa_sweep` resolves a target `path` against it.
+    # Inside the repo `ROOT` because `qa_sweep` resolves a target `path` against it.
     # The prefix omits the mode name: the basename is printed, and a full name would make the
     # mode-name assertions pass whether or not the mode ran.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-aps-target-", InMemoryDomain::ROOT)
@@ -151,7 +134,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
-      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
       chdir: InMemoryDomain::ROOT
     )
   end

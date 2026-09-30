@@ -1,0 +1,7 @@
+# Binds the `ClearanceTools` port to `ClearanceTools`, which answers `Clearance`'s query: the PR check.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/clearance_tools"
+
+Hecks.adapter "ClearanceTools" do
+  port "ClearanceTools"
+end

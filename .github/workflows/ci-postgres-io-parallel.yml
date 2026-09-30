@@ -8,19 +8,21 @@ on:
     secrets:
       HECKS_CI_ATTEST_KEY:
         required: false
+      HECKS_JOURNAL_DATABASE:
+        required: false
 
 # The spec files this workflow never runs — the Rust-building and shared-
 # hecks_pizzas files other jobs own. One copy, read by the shards' committed
-# file list check and by bin/rspec_io_parallel_files --write.
+# file list check and by hecks write_io_parallel_spec_list.
 env:
-  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|codegen_manifest_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
+  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|codegen_manifest_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|rust_host_expr_json_conformance_spec|rust_host_query_step_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
 
 jobs:
   # Skip gate for the shard job. A job-level `if:` is the only way to skip Postgres
   # provisioning too, not just the rspec step. Runs on every trigger, push included; with
   # every leg skipped the workflow still concludes `success` for the ci.yml aggregator.
   #
-  # The skip list is exclude-shaped: specs `require "hecks"`, shell out to bin/, build the
+  # The skip list is exclude-shaped: specs `require "hecks"`, shell out to `exe/hecks`, build the
   # shared rust/ crate and read examples/ and qa/, so those, Gemfile*, hecks.gemspec and
   # .rspec stay in scope. Skippable: docs, editors, release, deploy, .claude, .githooks,
   # local-dev files and rubocop config. `.github/**` is not skippable: a workflow change
@@ -118,9 +120,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
-        run: bin/rspec_io_parallel_files --check .github/postgres_io_spec_files.txt "$IO_PARALLEL_EXCLUDE_PATTERN" -- --tag io --tag ~fuzzing
+        run: bundle exec exe/hecks ask list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
 
   # Matrix of 8 one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.
@@ -128,7 +133,7 @@ jobs:
   # Every leg computes the identical 8-way split (`-n 8`, same committed baseline) and
   # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
   #
-  # One process per leg is load-bearing: bin/qa_postgres_role creates the cluster-global
+  # One process per leg is load-bearing: hecks quality_control create_ledger_role creates the cluster-global
   # role `hecks_qa` check-then-create, and two qa_sweep_all specs provisioning at once
   # collided on `pg_authid_rolname_index`.
   #
@@ -176,7 +181,7 @@ jobs:
 
       # The committed baseline is the only grouping input: every leg must compute the split
       # from byte-identical inputs or it is not a partition (a restored per-run cache differed
-      # across legs). Built by `bin/refresh_rspec_runtime_baseline --from-run <run-id>`.
+      # across legs). Built by `hecks refresh_runtime_baseline from_run= <run-id>`.
       # The file list is committed too; `postgres_io_file_list` proves it matches a dry run.
       - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only — see job header comment on --only-group)"
         run: |
@@ -188,9 +193,9 @@ jobs:
             --runtime-log .github/postgres_io_runtime_baseline.log \
             -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
-      # Uploaded, never restored: bin/refresh_rspec_runtime_baseline --from-run needs all eight
+      # Uploaded, never restored: hecks refresh_runtime_baseline from_run= needs all eight
       # legs' logs from one run. Grouping never reads it.
-      - name: Upload this group's runtime log (for bin/refresh_rspec_runtime_baseline --from-run)
+      - name: Upload this group's runtime log (for hecks refresh_runtime_baseline from_run=)
         if: always()
         uses: actions/upload-artifact@v4
         with:

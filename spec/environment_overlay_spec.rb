@@ -59,7 +59,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
           end
         HECKSAGON
 
-        dispatcher = Hecks.boot(dir, environment: "production", install_facade: false)
+        dispatcher = Hecks.boot(dir, environment: "production", install_doors: false)
         hexagon = dispatcher.registry.hecksagon("Overlaid")
 
         expect(hexagon.subscriptions).to eq(["SomeOutsideEvent"])
@@ -133,7 +133,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
           end
         WORLD
 
-        dispatcher = Hecks.boot(dir, environment: "production", install_facade: false)
+        dispatcher = Hecks.boot(dir, environment: "production", install_doors: false)
         world = dispatcher.registry.world("Overlaid")
 
         expect(world.realm).to eq("Overlaid")
@@ -189,7 +189,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         HECKSAGON
         write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
 
-        dispatcher = Hecks.boot(domain_dir, install_facade: false)
+        dispatcher = Hecks.boot(domain_dir, install_doors: false)
 
         expect(dispatcher.registry.bluebook("Widgets")).not_to be_nil
         expect(dispatcher.registry.hecksagon("Widgets").vendored_bluebooks).to eq(["widgets"])

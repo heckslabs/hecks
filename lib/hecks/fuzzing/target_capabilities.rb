@@ -41,7 +41,8 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
-      # The modes `bin/qa_sweep` can run; one absent here is refused at start, not resolved.
+      # The modes `hecks quality_control ask run` can run; one absent here is refused at start, not
+      # resolved.
       RUNNABLE_MODES = %i[differential ruby_only self_consistency properties_in_differential
                           structural_skip_report adapter_parity_sqlite persistence_parity
                           era_boundary concurrency].freeze

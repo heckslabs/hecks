@@ -6,7 +6,7 @@ module Hecks
   #
   # A projection is inert and derived from a chapter's declaration. An export
   # (rust crate, WASM, CloudFormation) also needs `.world` bindings and declares
-  # `needs_world: true`. State projections (`bin/expression_projection`) and
+  # `needs_world: true`. State projections (`hecks project_expression_tables`) and
   # `Ports::Projection` read-model catch-up are different things and not registered.
   module Projector
     class UnknownProjector < StandardError; end

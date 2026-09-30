@@ -1,5 +1,5 @@
 # Connection for the QualityControl ledger; the sibling .hecksagon names only the adapter.
-# Run `bin/qa_postgres_role hecks_quality_control` once before the first boot.
+# Run `exe/hecks quality_control ask create_ledger_role database.value=hecks_quality_control` once before the first boot.
 Hecks.world "QualityControl" do
   realm "QA"
   # Connects as the ordinary role hecks_qa: a superuser bypasses the era write-fence

@@ -124,6 +124,10 @@ Every angle ever proposed on one exact citation, whatever became of it — the c
 
 Decide a lead is not worth the practice's time, and say why. Done by the qa engineer.
 
+### Document
+
+Made up of text (text).
+
 ### Instant
 
 A whole number.
@@ -147,6 +151,10 @@ Always true: an angle is proposed by somebody.
 ### Resolved
 
 Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice's own hit rate.
+
+### Seed
+
+Propose the practice's starting leads that are not on file yet; a lead already chased down is proposed, investigated and built in one pass.
 
 ## Bug
 
@@ -180,6 +188,7 @@ stateDiagram-v2
     investigating --> paused: Pause
     logged --> withdrawn: Withdraw
     investigating --> withdrawn: Withdraw
+    paused --> withdrawn: Withdraw
     fixed --> investigating: Regress
     verified --> investigating: Regress
     paused --> investigating: Revisit
@@ -551,6 +560,10 @@ stateDiagram-v2
 
 Every CI run ever recorded, one per commit.
 
+### Check pull requests
+
+Check CI for every PR the ledger tracks as open, a Patch or an Improvement: retire one GitHub reports merged or closed, and start a clearance for each unsettled head commit.
+
 ### Clearance given
 
 Recorded after [Passed](#passed).
@@ -566,6 +579,10 @@ Recorded after [Start](#start).
 ### Commit ref
 
 Text.
+
+### Document
+
+Made up of text (text).
 
 ### Failed
 
@@ -727,7 +744,7 @@ Record that a deliberate, non-bugfix piece of work has been opened as a pull req
 
 ### Open (the list)
 
-Every PR we've landed for deliberate, non-bugfix work that's still open, by number — bin/qa_pr_check's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
 
 ### Opened since
 
@@ -807,7 +824,7 @@ Record that a fix has been opened as a pull request, the moment its number, bran
 
 ### Open (the list)
 
-Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+Every PR we've opened that's still open, by number — hecks quality_control check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
 
 ### Opened since
 
@@ -895,6 +912,13 @@ stateDiagram-v2
 - A check sequence is positive.
 - A check names what it put to the system.
 - A check says what it expected.
+- A domain is named by its path.
+- A data directory is named by its path.
+- A database is named.
+- A role is named.
+- A schema is named.
+- A step names its verb.
+- A step carries its arguments, `{}` for none.
 
 ### Abandon
 
@@ -950,6 +974,32 @@ Recorded after [Unsettled (check)](#unsettled-check).
 
 End a pass and say what it taught. Done by the qa engineer.
 
+### Create ledger role
+
+Create the ordinary Postgres role the ledger connects as and make it own the database; idempotent, and refuses a superuser or BYPASSRLS role, which the era write-fence cannot bind.
+
+### Data path
+
+Text.
+
+Always true: a data directory is named by its path.
+
+### Database name
+
+Text.
+
+Always true: a database is named.
+
+### Document
+
+Made up of text (text).
+
+### Domain path
+
+Text.
+
+Always true: a domain is named by its path.
+
 ### Engineer
 
 Text.
@@ -982,6 +1032,10 @@ Record that the system did what the chapter promised. Done by the qa engineer.
 
 Text.
 
+### Migrate ledger from heki
+
+Copy each aggregate's current state from a Heki data directory into the repository the domain's bindings name today; a dry run unless `--force` is in the arguments, and an id held under a different state is always refused.
+
 ### Observation
 
 Text.
@@ -990,9 +1044,41 @@ Text.
 
 Begin a pass over one chapter. Done by the qa engineer.
 
+### Race
+
+One racer of a concurrent dispatch: boot a domain against a schema and dispatch one step; the answer is `succeeded`, `refused` or `crashed:<class>: <message>`.
+
 ### Remake
 
 Put a settled check back, against a system that has since changed. Done by the qa engineer.
+
+### Role name
+
+Text.
+
+Always true: a role is named.
+
+### Run
+
+One claim, sweep, conclude and release cycle against a target (the rotation's pick when none is named), or every waiting target with `--all`; the first surprised check ends it with a report.
+
+### Schema name
+
+Text.
+
+Always true: a schema is named.
+
+### Step arguments
+
+Text.
+
+Always true: a step carries its arguments, `{}` for none.
+
+### Step verb
+
+Text.
+
+Always true: a step names its verb.
 
 ### Subject
 
@@ -1044,6 +1130,10 @@ Passes live right now — one per agent, and the reason a target shows as held.
 
 Text.
 
+### Tick
+
+One QA tick: a clean tree, a rebase on origin/main, the PR check, a sweep of the whole rotation and the generated domains, then one report. It never logs a bug, releases a hold or opens a PR.
+
 ### Unsettled (check)
 
 Record a check that ran and settled nothing. Done by the qa engineer.
@@ -1077,6 +1167,10 @@ Always true: a waiver count is not negative.
 Text.
 
 Always true: a waived gate says why.
+
+### Words
+
+Text.
 
 ## Target
 
@@ -1120,6 +1214,7 @@ stateDiagram-v2
 - A mode is named.
 - A yield score is not negative.
 - A staleness window is positive.
+- A domain is named by its path.
 
 ### All
 
@@ -1135,6 +1230,10 @@ Text.
 
 Always true: a mode is named.
 
+### Check generated domains
+
+Generate domains nobody wrote and check them the way the rotation does: a domain that does not boot is invalid, never a finding.
+
 ### Claim
 
 Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.
@@ -1144,6 +1243,20 @@ Take the next chapter in the rotation, or one whose holder has gone quiet. Done 
 A whole number.
 
 Always true: a streak is not negative.
+
+### Discover external domains
+
+Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols.
+
+### Document
+
+Made up of text (text).
+
+### Domain path
+
+Text.
+
+Always true: a domain is named by its path.
 
 ### Eligible for
 
@@ -1167,6 +1280,14 @@ A whole number.
 
 Always true: an instant is not before the epoch.
 
+### Judge novelty
+
+Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target.
+
+### Mine combinations
+
+Ask an agent to mine the adversarial corpus for new domain combinations, then check the ones that boot; opt-in, since an agent call costs money.
+
 ### Release
 
 Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.
@@ -1182,6 +1303,10 @@ Put a shelved chapter back in the rotation, and say what changed. Done by the qa
 ### Rotation
 
 Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.
+
+### Seed
+
+Identify every corpus domain as a rotation target, printing each one's inferred capabilities; one already on file is skipped.
 
 ### Shelve
 
@@ -1203,7 +1328,7 @@ Take a chapter out of the rotation because a check surprised, until a person rel
 
 ### Suspended
 
-Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep <target> --release --notes is how one comes back.
+Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control ask run <target> --release --notes is how one comes back.
 
 ### Swept in
 
@@ -1261,6 +1386,10 @@ Recorded after [Suspend](#suspend).
 
 Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.
 
+### Words
+
+Text.
+
 ### Yield score
 
 A whole number.
@@ -1293,6 +1422,8 @@ stateDiagram-v2
     submitting --> filed: Filed
     submitting --> refused: Refused
     refused --> submitting: Retry
+    raised --> abandoned: Abandon
+    submitting --> abandoned: Abandon
     refused --> abandoned: Abandon
     filed --> closed: Close
 ```

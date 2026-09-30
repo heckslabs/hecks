@@ -1,6 +1,6 @@
 # Benchmarks
 
-`bin/bench` measures how many commands a runtime dispatches per second and how long
+`hecks bench` measures how many commands a runtime dispatches per second and how long
 each one takes (p50 and p99), for the Ruby runtime on each persistence adapter and for
 the native Rust binary. This page says how to run it, what it does and does not
 measure, and publishes one baseline with the machine it was taken on.
@@ -11,11 +11,11 @@ CI runs it.
 ## Running it
 
 ```sh
-bin/bench                                   # everything, 3 runs per target
-bin/bench --targets ruby:memory,rust        # only these targets
-bin/bench --domain pizzas --runs 5          # one domain, median of 5 fresh boots
-bin/bench --format json --output tmp/bench.json
-bin/bench --iterations 20 --warmup 5 --runs 1   # a quick smoke run
+hecks bench                                   # everything, 3 runs per target
+hecks bench targets=ruby:memory,rust        # only these targets
+hecks bench domains=pizzas runs=5          # one domain, median of 5 fresh boots
+hecks bench format=json output=tmp/bench.json
+hecks bench iterations=20 warmup=5 runs=1   # a quick smoke run
 ```
 
 | flag | default | meaning |
@@ -46,7 +46,7 @@ skip ruby:postgres: no Postgres server is reachable (connection to server at "12
 Both write to a uniquely named schema in a scratch database called `hecks_bench`, which is
 created if missing (the database is left in place; each run's schema is dropped when it
 finishes). They never touch the example's own database, and `ruby:postgres` does not use
-the fuzzer's shared `hecks_fuzz` schema, so it is safe to run while `bin/fuzz` is running.
+the fuzzer's shared `hecks_fuzz` schema, so it is safe to run while `hecks fuzz` is running.
 
 ## What is measured
 
@@ -63,7 +63,7 @@ runtime is driven the same way: one caller, one command at a time, each waiting 
 previous answer.
 
 - **Ruby** boots the domain from a throwaway copy (`Fuzzing::IsolatedBoot`, the same isolation
-  `bin/fuzz --adapter` uses), then times each `dispatch_flat` call in-process with the
+  `hecks fuzz adapter=…` uses), then times each `dispatch_flat` call in-process with the
   monotonic clock. That includes validation, guards, the aggregate update, the
   persistence write, event emission and any policy the event triggers.
 - **Rust** starts the generated binary in `--serve` mode and times each round trip: write
@@ -118,8 +118,8 @@ figure is the median of the runs' own figures; the range column is the slowest a
 throughput.
 
 ```sh
-bin/bench --domain pizzas --runs 5 --iterations 1000 --warmup 200   # 5 runs
-bin/bench --domain banking --runs 7 --iterations 1000 --warmup 200  # 7 runs
+hecks bench domains=pizzas runs=5 iterations=1000 warmup=200   # 5 runs
+hecks bench domains=banking runs=7 iterations=1000 warmup=200  # 7 runs
 ```
 
 The two domains were run as separate invocations (the first run of both, at a
@@ -169,12 +169,12 @@ Rust rows' 15 to 19 us p50 is the pipe, not the domain.
 ### Reproducing it
 
 Any machine with Ruby, `bundle install` done, and (for the Rust row) a Rust toolchain will
-run `bin/bench` with the commands above. Expect different absolute numbers; the shape of the
+run `hecks bench` with the commands above. Expect different absolute numbers; the shape of the
 table (Memory fastest, Sqlite next, the Postgres adapters slowest, Rust far ahead) is what to compare. The
 smoke configuration in `spec/bench_spec.rb` runs the same code with a handful of iterations
 so the harness does not rot; it asserts nothing about speed.
 
-CI does not run `bin/bench`. The figures above were taken on a machine shared with heavy
+CI does not run `hecks bench`. The figures above were taken on a machine shared with heavy
 unrelated work, and ranges as wide as 84 to 259 commands per second (banking, PostgresEra,
 in the first attempt) were seen, so a scheduled job on a shared runner would not give a
 stable enough signal to publish or gate on.

@@ -20,11 +20,11 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
 
-      # The sibling hecksagon(s), if any, as in bin/model_check; fixtures have none.
+      # The sibling hecksagon(s), if any, as in hecks model_check; fixtures have none.
       hecksagons = if File.directory?(bluebook)
                      Dir.glob(File.join(bluebook, "*.hecksagon"))
                    else
-                     [bluebook.sub(/\.bluebook\z/, ".hecksagon")]
+                     [".hecksagon", ".ports.hecksagon"].map { |suffix| bluebook.sub(/\.bluebook\z/, suffix) }
                    end
       hecksagons.each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
     end
@@ -154,9 +154,9 @@ RSpec.describe "the model checker" do
     end
 
     # A policy triggering an `asks`/`tells` port operation (three segments) is not an
-    # `unknown_trigger`; qa/bluebook/quality_control.bluebook's FileWhenSubmitted is the real case.
+    # `unknown_trigger`; the QualityControl chapter's FileWhenSubmitted is the real case.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
-      quality_control = File.join(ROOT_DIR, "qa/bluebook/quality_control.bluebook")
+      quality_control = File.join(ROOT_DIR, "lib/hecks/quality_control/quality_control.bluebook")
       real_findings = call_model_check(boot(quality_control))
 
       unknown_triggers = real_findings.select { |f| f.kind == :unknown_trigger }
@@ -261,17 +261,17 @@ RSpec.describe "the model checker" do
     end
   end
 
-  # The coverage gate: the real corpus stays finding-free against bin/model_check's allowlist.
+  # The coverage gate: the real corpus stays finding-free against hecks model_check's allowlist.
   # An unlisted reported error, or a stale allowlist entry, fails.
   describe "the real corpus" do
-    # The same kinds bin/model_check walks, from the one table both read (Hecks::Corpus).
+    # The same kinds hecks model_check walks, from the one table both read (Hecks::Corpus).
     MODEL_CHECK_CORPUS = Hecks::Corpus.model_check_members
                                       .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
-    # The same constant bin/model_check reads — one table, not a copy.
+    # The same constant hecks model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
-    # Two passes over the same boots, as in bin/model_check: a cross-domain check needs every
+    # Two passes over the same boots, as in hecks model_check: a cross-domain check needs every
     # corpus member's domain name known first. Computed lazily and memoized.
     def self.known_domains
       @known_domains ||= MODEL_CHECK_CORPUS.flat_map do |_, source|
@@ -288,8 +288,8 @@ RSpec.describe "the model checker" do
     end
 
     MODEL_CHECK_CORPUS.each do |name, source|
-      it "#{name} has no error bin/model_check does not already name" do
-        # Same Rust-target inference bin/model_check#examine makes, so a
+      it "#{name} has no error hecks model_check does not already name" do
+        # Same Rust-target inference hecks model_check#examine makes, so a
         # reserved-name collision in a Rust-built corpus domain is an error here too.
         rust_target = Hecks::Fuzzing::TargetCapabilities.rust_feature?(name, File.join(ROOT_DIR, "rust"))
         registry = boot(source)

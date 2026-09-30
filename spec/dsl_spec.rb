@@ -296,6 +296,15 @@ RSpec.describe "the DSL surface" do
       expect(runtime.verbs).to include("Pizzas::Order.Purchase")
     end
 
+    # Reads declarations only: no adapter is resolved, so a domain that declares
+    # `persisted_by("PostgresEra")` answers without a database.
+    it ".describe reads a domain directory, binding no adapter and opening no database" do
+      described = Hecks.describe(File.expand_path("../examples/pizzas", __dir__))
+
+      expect(described).to be_a(Hecks::Runtime::Loader::Described)
+      expect(described.registry.bluebooks.values.map(&:name)).to include("Pizzas")
+    end
+
     it ".boot refuses a declaration loaded outside a boot" do
       expect { Hecks.bluebook("Orphan") { vision "x" } }
         .to raise_error(Hecks::LoadOutsideBoot, /outside a boot/)
@@ -308,7 +317,7 @@ RSpec.describe "the DSL surface" do
       root = File.expand_path("../examples/pizzas", __dir__)
       runtime = Hecks.boot_files(
         [File.join(root, "bluebook/pizzas.bluebook"), File.join(root, "pizzas_behaviors.hecksagon")],
-        install_facade: false
+        install_doors: false
       )
 
       expect(runtime).to be_a(Hecks::Runtime::Dispatcher)
@@ -2897,6 +2906,24 @@ RSpec.describe "the DSL surface" do
           end
         end
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both a verb and operations/)
+    end
+
+    it "answers_query binds a query to the port, and says nothing of the shape its answer takes" do
+      port = build_domain_port { answers_query "Census" }
+
+      expect(port.answer_for("Census")).to have_attributes(name: "Census")
+      expect(port.to_h).to include(answered_queries: [{ name: "Census" }])
+    end
+
+    it "answers_query refuses the shape: it once took, and a query bound twice" do
+      expect { build_domain_port { answers_query "Census", shape: :rows } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /shape/)
+      expect do
+        build_domain_port do
+          answers_query "Census"
+          answers_query "Census"
+        end
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /binds Census twice/)
     end
 
     it "refuses a port with no verb and no operations" do

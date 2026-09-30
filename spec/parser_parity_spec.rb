@@ -21,7 +21,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     Hecks::Corpus.bluebook_files(domain) || []
   end
 
-  # Loaded right after the `.bluebook`, as bin/project_rust does.
+  # Loaded right after the `.bluebook`, as hecks project_rust does.
   def self.hecksagon_in(domain)
     Dir.glob(File.join(domain, "bluebook", "*.hecksagon")).min ||
       Dir.glob(File.join(domain, "*.hecksagon")).min
@@ -75,7 +75,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # Expected stderr for a pending member.
   PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").freeze
 
-  # stem -> [chapter name, files...] in the order bin/project_rust loads them: the `.bluebook`,
+  # stem -> [chapter name, files...] in the order hecks project_rust loads them: the `.bluebook`,
   # then its `.hecksagon`. Derived from the corpus, not hand-listed.
   REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory embryonaut_vendoring_demo].to_h do |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
@@ -104,7 +104,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     end
   ).merge(
     # Every `spec/fixtures/**/*.bluebook`, globbed. `payments.hecksagon` exists for
-    # bin/model_check, not for the chapter compared here.
+    # hecks model_check, not for the chapter compared here.
     PARITY_FIXTURE_MEMBERS.to_h do |bluebook|
       stem = fixture_stem(bluebook)
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
@@ -120,7 +120,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)
   end
 
-  # Ruby oracle: loads a domain as bin/project_rust does and exports it with `Exporter.call`.
+  # Ruby oracle: loads a domain as hecks project_rust does and exports it with `Exporter.call`.
   # Uses Hash insertion order, not the key-sorted golden fixtures.
   def self.ruby_ir_json(stem, chapter_name, paths)
     # `bluebook_language` must go through `grammar_registry`: loading `aggregate.bluebook` the

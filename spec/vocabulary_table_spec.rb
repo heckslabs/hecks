@@ -5,7 +5,7 @@ require "spec_helper"
 # The table is checked in, not built at boot, because sets like `Attribute::PRIMITIVES` are read
 # while a bluebook is parsed, before the framework could load.
 RSpec.describe "the generated vocabulary table" do
-  it "is exactly what bin/project_vocabulary would regenerate right now" do
+  it "is exactly what hecks project_vocabulary would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/vocabulary.rb"))
 
     projected = Hecks::Projector.call(
@@ -14,7 +14,7 @@ RSpec.describe "the generated vocabulary table" do
     )
 
     expect(projected).to eq(committed),
-                         "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
+                         "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run hecks project_vocabulary"
   end
 
   # With the regeneration check above, this holds each Ruby constant equal to the language:
@@ -34,7 +34,7 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
-    # Derivable despite appearances: DOMAIN_REFUSALS maps to classes (one const_get), REFUSED is
+    # Derivable despite appearances: DOMAIN_REFUSALS maps to classes (one const_get), `REFUSED` is
     # one constant Trigger declares, and a separate gate resolves the DISPATCH_ORDER methods.
     it "DomainRefusal resolves to the exception classes the module defines" do
       expect(Hecks::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last })

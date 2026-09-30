@@ -33,6 +33,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     attribute :version,        Version
     # A rename is a declared fact. Absent is not empty.
     attribute :formerly_known_as, FormerlyKnownAs
+    attribute :namespace, ChapterNamespace
     attribute :normalisations, list_of(NormalisationRule)
     # Core contexts a sub-language chapter contributes Syntax rows for (ADR 0026).
     # Absent is not empty: most chapters attach to nothing.
@@ -92,6 +93,12 @@ Hecks.bluebook "Bluebook", version: "1" do
       invariant("a formerly_known_as says something") { !value.to_s.empty? }
     end
 
+    # The Ruby module a chapter's constants install under instead of its own name.
+    value_object "ChapterNamespace" do
+      attribute :value, String
+      invariant("a namespace is a constant path") { value.to_s.match?(/\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z/) }
+    end
+
     value_object "AttachesToContext" do
       attribute :value, String
       invariant("an attachment names a context") { !value.to_s.empty? }
@@ -106,12 +113,14 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :classification, Classification, optional: true
       attribute :version,        Version, optional: true
       attribute :formerly_known_as, FormerlyKnownAs, optional: true
+      attribute :namespace,         ChapterNamespace, optional: true
 
       sets :name
       sets :vision
       sets :classification
       sets :version
       sets :formerly_known_as
+      sets :namespace
 
       emits ChapterDeclared
     end
@@ -185,6 +194,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
       member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision"
       member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
+      member word: "namespace",       context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "namespace"
       member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl"
       member word: "provides",        context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "provides", calls: "provides_impl"
       member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
@@ -218,6 +228,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
       member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision", coerce: "false"
       member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
+      member keyword: "namespace",       context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "namespace"
       member keyword: "attaches_to",     context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "attaches_to", variadic: "true"
       member keyword: "provides",        context: "Bluebook", at: "1", named: "",            kind: "text", required: "true",  fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "assignments", kind: "text", required: "false", fills: "provides"

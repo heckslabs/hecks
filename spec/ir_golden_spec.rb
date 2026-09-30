@@ -33,7 +33,9 @@ RSpec.describe "the IR the builder produces, frozen" do
     "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
-    "Reflex"     => "spec/fixtures/reflex.bluebook"
+    "Reflex"     => "spec/fixtures/reflex.bluebook",
+    # The first chapter to declare `namespace`, so the golden corpus carries that field set.
+    "Hecks"      => "lib/hecks/hecks/hecks.bluebook"
   }.freeze
 
   # Language chapters come from the bootstrap registry: judging one while loading it would recurse.
@@ -54,7 +56,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   def golden_path(name) = File.join(GOLDEN_DIR, "#{name}.json")
 
-  # Sorted like bin/canonicalise (key order is not semantics), so a diff names the moved field.
+  # Sorted like hecks canonicalise (key order is not semantics), so a diff names the moved field.
   def rendered(bluebook) = "#{JSON.pretty_generate(sorted(bluebook.to_h))}\n"
 
   def sorted(value)

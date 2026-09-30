@@ -5,6 +5,7 @@
   "vision": "A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.",
   "classification": "supporting",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Roster",

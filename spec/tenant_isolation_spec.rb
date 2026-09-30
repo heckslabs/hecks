@@ -74,7 +74,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   end
 
   def boot_tenant(dir, slug)
-    Hecks.boot(dir, environment: slug, install_facade: false)
+    Hecks.boot(dir, environment: slug, install_doors: false)
   end
 
   # Registers only "Tenanted": `uses_framework "Governance"` also loads Governance, which has no

@@ -5,7 +5,7 @@ require_relative "../ports/persistence/plugins/era"
 
 module Hecks
   module CLI
-    # The command behind `bin/ir` and `hecks ir`: a booted domain's IR as JSON, the
+    # The command behind `hecks ir`: a booted domain's IR as JSON, the
     # same `to_h` the golden specs pin and `StorageShape` hashes into an era.
     module Ir
       module_function

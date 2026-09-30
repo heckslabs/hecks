@@ -1,0 +1,7 @@
+# Binds the `AngleTools` port to `AngleTools`, which answers `Angle`'s query: the seed of the backlog.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/angle_tools"
+
+Hecks.adapter "AngleTools" do
+  port "AngleTools"
+end

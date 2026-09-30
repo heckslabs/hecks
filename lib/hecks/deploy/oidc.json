@@ -12,8 +12,88 @@
       "role": null
     },
     {
-      "scope": "deploy:tenant.declare",
-      "verb": "Deploy::Tenant.Declare",
+      "scope": "deploy:makefile_check.flag",
+      "verb": "Deploy::MakefileCheck.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:makefile_check.lint",
+      "verb": "Deploy::MakefileCheck.Lint",
+      "role": null
+    },
+    {
+      "scope": "deploy:makefile_check.pass",
+      "verb": "Deploy::MakefileCheck.Pass",
+      "role": null
+    },
+    {
+      "scope": "deploy:oidc_manifest.complete",
+      "verb": "Deploy::OidcManifest.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:oidc_manifest.fault",
+      "verb": "Deploy::OidcManifest.Fault",
+      "role": null
+    },
+    {
+      "scope": "deploy:oidc_manifest.project_oidc",
+      "verb": "Deploy::OidcManifest.ProjectOidc",
+      "role": null
+    },
+    {
+      "scope": "deploy:recipe.complete",
+      "verb": "Deploy::Recipe.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:recipe.fault",
+      "verb": "Deploy::Recipe.Fault",
+      "role": null
+    },
+    {
+      "scope": "deploy:recipe.project",
+      "verb": "Deploy::Recipe.Project",
+      "role": null
+    },
+    {
+      "scope": "deploy:template_comparison.diff",
+      "verb": "Deploy::TemplateComparison.Diff",
+      "role": null
+    },
+    {
+      "scope": "deploy:template_comparison.drift",
+      "verb": "Deploy::TemplateComparison.Drift",
+      "role": null
+    },
+    {
+      "scope": "deploy:template_comparison.match",
+      "verb": "Deploy::TemplateComparison.Match",
+      "role": null
+    },
+    {
+      "scope": "deploy:template_comparison.refuse",
+      "verb": "Deploy::TemplateComparison.Refuse",
+      "role": null
+    },
+    {
+      "scope": "deploy:tenant.abandon",
+      "verb": "Deploy::Tenant.Abandon",
+      "role": null
+    },
+    {
+      "scope": "deploy:tenant.complete",
+      "verb": "Deploy::Tenant.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:tenant.provision",
+      "verb": "Deploy::Tenant.Provision",
+      "role": null
+    },
+    {
+      "scope": "deploy:tenant.reprovision",
+      "verb": "Deploy::Tenant.Reprovision",
       "role": null
     }
   ],

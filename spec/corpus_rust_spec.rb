@@ -36,7 +36,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(corpus.rust_regen_order).to eq(corpus.rust_domains)
   end
 
-  # bin/project_rust rewrites Cargo's `default` to whichever domain it ran
+  # hecks project_rust rewrites Cargo's `default` to whichever domain it ran
   # last, so the drift check's last domain must already be the committed
   # default — or every regen run would diff rust/Cargo.toml.
   it "regenerates the committed Cargo default last" do

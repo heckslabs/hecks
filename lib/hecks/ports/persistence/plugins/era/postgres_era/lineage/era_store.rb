@@ -22,7 +22,7 @@ module Hecks
             end
           end
 
-          # Skips the integrity check `eras` runs, so bin/reattest_era can show the raw row first.
+          # Skips the integrity check `eras` runs, so hecks reattest can show the raw row first.
           def raw_era(ordinal)
             rows = @db.exec_params(
               "SELECT held_text, held_digest, hash, held_projection::text FROM hecks_eras WHERE domain = $1 AND ordinal = $2",

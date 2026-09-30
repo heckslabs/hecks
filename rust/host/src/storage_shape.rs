@@ -146,7 +146,7 @@ mod tests {
     // The real ir.json for examples/pizzas, not a fixture, so drift from Ruby fails here.
     fn pizzas_ir() -> Value {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/generated/pizzas/ir.json");
-        let text = fs::read_to_string(path).expect("rust/src/generated/pizzas/ir.json — run bin/project_rust examples/pizzas first");
+        let text = fs::read_to_string(path).expect("rust/src/generated/pizzas/ir.json — run hecks project_rust examples/pizzas first");
         serde_json::from_str(&text).expect("valid JSON")
     }
 

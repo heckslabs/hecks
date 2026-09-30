@@ -64,7 +64,7 @@ module Hecks
 
         # C5.3 (docs/semantics/bluebook-semantics.md): overlapping `from:` sets for one command
         # are refused. Disjoint sets are legitimate. An undeclared `from:` state is left to
-        # `bin/model_check`.
+        # `hecks model_check`.
         def refuse_ambiguity!
           return if MetaValidator.shadow_parsing? # frozen era text is exempt
 

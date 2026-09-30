@@ -2,7 +2,7 @@ require "spec_helper"
 
 # The real QA ledger boots against its own committed world files. The other
 # ledger specs write a disposable fixture directory, so a world file missing
-# from qa/bluebook itself only shows up when bin/run qa/bluebook refuses to
+# from qa/bluebook itself only shows up when hecks run qa/bluebook refuses to
 # boot. Static on purpose: no database is opened.
 RSpec.describe "the QA ledger's world files" do
   LEDGER_DIR = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze

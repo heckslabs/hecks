@@ -4,7 +4,7 @@ name: Publish @hecks/client
 # trusted publishing (OIDC), so no npm token is stored anywhere.
 #
 # One-time setup on npmjs.com (an owner of the `@hecks` scope, once the package exists — the
-# first publish is by hand, with `bin/release --npm-local`): package @hecks/client > Settings >
+# first publish is by hand, with `hecks publish --npm-local --confirm`): package @hecks/client > Settings >
 # Trusted Publisher > GitHub Actions, org heckslabs, repo hecks, workflow publish-client.yml.
 #
 # Re-run: `gh workflow run publish-client.yml -f tag=vX.Y.Z`; skips a version npm already has.

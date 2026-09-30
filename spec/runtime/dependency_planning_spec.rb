@@ -158,4 +158,56 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
       expect(plan.read_set).to include(:status)
     end
   end
+
+  describe Hecks::Runtime::DependencyPlanning::ExpressionReads do
+    let(:evaluator) { Hecks::Bluebook::Expression::Evaluator }
+
+    it "answers the paths a rule reads, the same on every ask" do
+      first = described_class.paths("amount > 0 && parent.limit > amount")
+
+      expect(first).to eq(%w[amount parent.limit amount])
+      expect(described_class.paths("amount > 0 && parent.limit > amount")).to eq(first)
+    end
+
+    it "parses a rule's text once, however many times a command is analyzed" do
+      text = "quantity_unique_to_this_example > 0"
+      expect(evaluator).to receive(:parse).with(text).once.and_call_original
+
+      3.times { described_class.paths(text) }
+    end
+
+    it "hands out a frozen answer, so one caller cannot change what the next reads" do
+      expect(described_class.paths("frozen_probe > 0")).to be_frozen
+    end
+
+    it "never remembers a text that fails to parse" do
+      expect(evaluator).to receive(:parse).with("broken_probe ???").twice.and_raise(ArgumentError, "unparseable")
+
+      2.times { expect { described_class.paths("broken_probe ???") }.to raise_error(ArgumentError) }
+    end
+
+    it "stays bounded however many distinct texts are asked" do
+      stub_const("#{described_class}::PATHS_CACHE_LIMIT", 3)
+      cache = described_class.const_get(:PATHS_CACHE)
+
+      10.times { |n| described_class.paths("bound_probe_#{n} > 0") }
+
+      expect(cache.size).to be <= 3
+      expect(described_class.paths("bound_probe_9 > 0")).to eq(%w[bound_probe_9])
+    end
+
+    it "answers the same frozen paths to concurrent dispatch threads" do
+      threads = Array.new(8) do |n|
+        Thread.new { Array.new(50) { described_class.paths("thread_probe_#{n % 3} > 0") } }
+      end
+      answers = threads.flat_map(&:value)
+
+      expect(answers).to all(be_frozen)
+      expect(answers.uniq.size).to eq(3)
+    end
+
+    it "guards the cache with a lock" do
+      expect(described_class.const_get(:PATHS_LOCK)).to be_a(Mutex)
+    end
+  end
 end

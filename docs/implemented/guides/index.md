@@ -20,7 +20,7 @@ you're not.
 4. **[Queries and read models](queries-and-read-models.md)** — what the
    build-time seal catches for you, and the one open question it doesn't.
 5. **[Lifecycles](lifecycles.md)** — states, transitions, and what
-   `bin/model_check` flags before you ship one wrong.
+   `hecks model_check` flags before you ship one wrong.
 6. **[Entities](entities.md)** — identity and behavior that lives inside
    an aggregate, never addressed alone.
 7. **[Policies and process managers](policies-and-process-managers.md)**
@@ -44,11 +44,11 @@ you're not.
     the expression grammar `given`/`ensures`/`invariant` compile down
     to.
 14. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
-    is used, in its own vocabulary, run as tests: `bin/behaviors`, the
+    is used, in its own vocabulary, run as tests: `hecks run_behaviors`, the
     rspec shim, and what `emits:` sees through a real policy cascade.
 15. **[Language versioning](language-versioning.md)** — how the bluebook
     surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
-    and what `bin/evolve` does with a rename.
+    and what `hecks rename` does with a rename.
 16. **[Projections: Rust and WebAssembly](projections.md)** — the
     bluebook as the one definition, projected to generated Rust and WASM,
     and how that output is held equal to Ruby's.
@@ -65,7 +65,7 @@ you're not.
 - **[Architecture map](../../architecture-map.md)** — the `lib/hecks/`
   and `rust/` directory layout, and the dependency direction the split
   follows.
-- **[The tools](../../tools.md)** — every `bin/` script, one line each.
+- **[The commands](../../tools.md)** — every `hecks <verb>`, with the `bin/` script it replaces.
 - **[Running a rules service](../../running-a-rules-service.md)** — from a
   bluebook to a deployed API, with the auth caveats.
 - **Resolution rules** — the exact algorithm behind every piece of DSL

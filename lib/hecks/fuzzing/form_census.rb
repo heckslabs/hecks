@@ -5,8 +5,9 @@ module Hecks
   module Fuzzing
     # The declared forms an aggregate can exhibit, and the pairs it puts together.
     #
-    # Shared by the combination-coverage spec and `bin/qa_domain_novelty` so they cannot drift.
-    # The unit is one aggregate: forms on one head meet at dispatch, forms in one chapter do not.
+    # Shared by the combination-coverage spec and `hecks quality_control judge_novelty` so they
+    # cannot drift. The unit is one aggregate: forms on one head meet at dispatch, forms in one
+    # chapter do not.
     module FormCensus
       # A given path crossing two references has at least this many segments.
       TWO_HOP_GIVEN_PATH_LENGTH = 3

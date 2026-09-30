@@ -8,7 +8,7 @@ two — which only means anything if both engines are deterministic
 FUNCTIONS of that sequence. Neither runtime reads a wall clock at
 dispatch time at all (grepped: no `Time.now`/`Clock`/`SystemTime`
 anywhere under `lib/hecks/runtime` or `rust/src/kernel`); the corpus's
-own established idiom for "now" is `qa/bluebook/quality_control.
+own established idiom for "now" is `lib/hecks/quality_control/quality_control.
 bluebook`'s `Instant` value object plus `Target.Claim`'s own comment,
 quoted in the bluebook's header: "`now` ARRIVES AS AN ARGUMENT, from the
 Clock port. A predicate cannot ask the time — it reads attributes and

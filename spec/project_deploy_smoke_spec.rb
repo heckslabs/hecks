@@ -1,12 +1,12 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
 # `smoke true` in a domain's `deployed_to` block adds the smoke harness and workflow
-# to what `bin/project_deploy` writes, and nothing else changes. Runs the script as a
-# subprocess for the same reason spec/project_deploy_fargate_spec.rb does.
-RSpec.describe "bin/project_deploy — smoke true", :io do
-  SMOKE_DEPLOY_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_deploy").freeze
+# to what `hecks deploy project` writes, and nothing else changes. Runs the generator in this
+# process, like spec/project_deploy_fargate_spec.rb.
+RSpec.describe "hecks deploy project — smoke true", :io do
   SMOKE_DEPLOY_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Scratch" do
       aggregate "Thing" do
@@ -55,7 +55,7 @@ RSpec.describe "bin/project_deploy — smoke true", :io do
   end
 
   def generate_into(domain, out)
-    _stdout, stderr, status = Open3.capture3("ruby", SMOKE_DEPLOY_SCRIPT, domain, "--out=#{out}")
+    _stdout, stderr, status = ProjectDeployRunner.run(domain, "--out=#{out}", root: InMemoryDomain::ROOT)
     return stderr unless status.success?
 
     Dir.glob("**/*", base: out).select { |path| File.file?(File.join(out, path)) }

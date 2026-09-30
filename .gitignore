@@ -32,8 +32,8 @@ tmp/
 vendor/bundle/
 # `sam build`'s own local build output, under every deploy/<stack>/ —
 # never committed, matching how deploy/quality-control-webhook's own tracked tree
-# already holds only the 4 files bin/project_deploy itself generates
-# (template.yaml, Makefile, samconfig.toml, bastion.yaml), never a
+# already holds only the files `hecks deploy project` itself generates
+# (template.yaml, samconfig.toml, bastion.yaml), never a
 # local build's own artifacts. Found live: qa's own dispatch "None"
 # deploy is the first domain in THIS repo ever `sam build`-ed for
 # real from a checkout that also runs `git status`, so nothing had

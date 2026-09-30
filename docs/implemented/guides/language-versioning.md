@@ -67,7 +67,7 @@ of its own rather than living only as `sets`'s `was:` (see
 answers "does this still parse" from the language's own declaration,
 never from a maintained changelog.
 
-`bin/evolve` walks a language change through the stations a rename or
+`hecks propose` and its siblings walk a language change through the stations a rename or
 a new word actually needs: snapshot the current state, rewrite the
 corpus to the new spelling, regenerate every projected table (parser,
 reference, vocabulary), gate on the full suite, and restore the

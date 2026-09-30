@@ -57,8 +57,8 @@ module Hecks
         def self.timeout_hint(version)
           "Timed out after #{LIMIT / 60} minutes waiting for CI to publish @hecks/client #{version}. " \
             "See the run: gh run list --workflow publish-client.yml. Re-run it: " \
-            "gh workflow run publish-client.yml -f tag=v#{version}. Then finish with: bin/release --npm-only. " \
-            "To publish from this machine instead: bin/release --npm-only --npm-local."
+            "gh workflow run publish-client.yml -f tag=v#{version}. Then finish with: hecks publish --npm-only --confirm. " \
+            "To publish from this machine instead: hecks publish --npm-only --npm-local --confirm."
         end
 
         private

@@ -1,10 +1,11 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
-# Regression coverage for four bugs in bin/project_deploy's generated Makefile
+# Regression coverage for four bugs in hecks deploy project's generated Makefile
 # (H13, H14, M28, M29). Each context shells out once and asserts on the real output.
-RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
+RSpec.describe "hecks deploy project — H13/H14/M28/M29 regressions", :io do
   def self.root = File.expand_path("..", __dir__)
 
   def self.write_fixture(dir, basename, world_body, env_local: nil)
@@ -45,12 +46,12 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   end
 
   # Generates the fixture and returns <repo_root>/deploy/<basename>, where
-  # bin/project_deploy always writes.
+  # hecks deploy project always writes.
   def self.generate!(basename, world_body, env_local: nil)
     Dir.mktmpdir do |dir|
       domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
-      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-      status.success? or raise "bin/project_deploy failed: #{stderr}"
+      _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+      status.success? or raise "hecks deploy project failed: #{stderr}"
     end
     File.join(root, "deploy", basename)
   end

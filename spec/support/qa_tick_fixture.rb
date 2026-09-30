@@ -1,9 +1,10 @@
 require "hecks/ports/persistence/plugins/era"
 require_relative "qa_ledger_fixture"
+require_relative "qa_lib_cli"
 require "pathname"
 require "tmpdir"
 
-# Shared fixture for the `bin/qa_tick` specs; pass a per-file unique database name.
+# Shared fixture for the `hecks quality_control tick` specs; pass a per-file unique database name.
 # Files run as concurrent processes, so a shared name would race on create/drop.
 RSpec.shared_context "with a qa_tick fixture" do |database_name|
   # The trivial target from qa_sweep_all_fixture.rb, so "clean" examples avoid the live corpus.
@@ -95,7 +96,7 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
 
   # Zero generated domains per tick: a throwaway tick must not spend minutes building them.
   def tick
-    @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
+    QaLibCli.run(@ledger, "qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
   # Boots the fixture ledger in-process only to write `Target` rows.

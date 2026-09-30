@@ -5,7 +5,7 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `bin/reference` — do not edit inside the markers. The prose
+by `hecks project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -154,7 +154,7 @@ Hecks.hecksagon("Widgets") { uses_embryonaut_bluebook "payments" }  # ~> WiringE
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `bin/vendor_bluebook`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -172,7 +172,7 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `bin/shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 
@@ -182,6 +182,30 @@ A release pin also carries two refusals, because a production project binds `Pos
 A release must also be a real one: the `<package>/bluebook.yml` at the tag has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The last line of the command reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
+
+## attaches
+
+<!-- generated:begin word=attaches -->
+`attaches attached_chapters` — fills `attached_chapters`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | attached_chapters |
+<!-- generated:end -->
+
+Attaches a chapter hecks itself carries, by name: one of the chapters of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy` or `QualityControl`. It works like `uses_framework`:
+- It loads the files of the chapter into the registry, from their real location, even when the chapter spans several files.
+- It loads what the chapter ships beside its bluebook: `<chapter_name>.ports.hecksagon`, the ports it declares (a `Hecks.hecksagon` block that merges into the attaching one), and every `adapters/*.adapter`, the adapters that bind them. Persistence is never in either: it is the attaching hecksagon's, or its world's `default_adapter`.
+- It records the name on the hecksagon that asked for it.
+- It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter.
+
+`Framework` members stay with `uses_framework`, and a name hecks does not carry refuses, listing the names it does. The chapters on offer:
+
+```ruby
+Hecks::Chapters.index.keys.sort  # => ["Adapter", "Bluebook", "Deploy", "Expression", "Hecksagon", "Paging", "Port", "QualityControl", "Tenancy", "Translation", "World"]
+```
+
+The Hecks domain (ADR 0080) is its main user, attaching the language, Tenancy, Deploy and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::Chapters.load!("QualityControl")` and binds it to its own PostgresEra database.
 
 ## port
 

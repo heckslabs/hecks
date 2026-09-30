@@ -101,7 +101,7 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
     runtime = boot_anti_join_lifecycle
     runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c1" })  # stays "held"
     runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c2" })
-    runtime.dispatch_flat("AntiJoinLifecycle::Claim.Release", id: "c2")          # no longer "held"
+    runtime.dispatch_flat("AntiJoinLifecycle::Claim.Release", id: "c2")          # leaves "held"
 
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Open", id: { value: "b1" })
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c1")

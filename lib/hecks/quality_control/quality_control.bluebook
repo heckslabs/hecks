@@ -1,0 +1,2224 @@
+# Quality control: every check writes its expectation down before it looks at the answer.
+# A bug is logged with the failing test that proves it, or it is not logged.
+
+# Tunable dials for the QA loop: values in qa/settings.yml, reasoning here.
+# `require`, not `require_relative`: isolated fuzz boots load a copy of this file from a tmpdir.
+require "hecks/fuzzing/qa_settings"
+
+unless defined?(QualityControlDials)
+  module QualityControlDials
+    # `DEFAULT_PATH` resolves from QaSettings' own location: this directory is copied for isolated
+    # boots. HECKS_QA_SETTINGS_PATH lets a subprocess test read a different settings file.
+    settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
+
+    # Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately.
+    # Read by the `/loop hecks_qa` caller, not by any script.
+    CADENCE_SECONDS = settings.cadence_seconds
+
+    # Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped.
+    PR_CAP_PER_DAY = settings.pr_cap_per_day
+
+    # Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by
+    # `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling.
+    WIDENING_TIERS = settings.widening_tiers
+
+    # How many `hecks quality_control ask run <target>` children `--all` keeps running at once.
+    SWEEP_MAX_PARALLEL = settings.sweep_max_parallel
+
+    # How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled.
+    LIVENESS_FALLBACK_SECONDS = settings.liveness_fallback_seconds
+
+    # The identity the loop runs as. `WaivedBy` repeats this literal (invariants read literals,
+    # not constants); `spec/quality_control_spec.rb` pins the two equal.
+    AUTOMATED_ENGINEER = "qa_sweep"
+
+    # How `hecks quality_control patch.open` opens a PR: not a draft, queued for auto-merge, on a branch that starts
+    # with BRANCH_PREFIX.
+    DRAFT_ONLY    = settings.draft_only
+    AUTO_MERGE    = settings.auto_merge
+    BRANCH_PREFIX = settings.branch_prefix
+
+    # Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off.
+    # Higher finds refusal-ordering splits sooner but reaches deep state less often.
+    ADVERSARIAL_FRACTION = settings.adversarial_fraction
+
+    # Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`).
+    GUIDED_GENERATION = settings.guided_generation
+
+    # Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage.
+    # Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state
+    # tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost.
+    CORPUS_SPLICE_PROBABILITY = settings.corpus_splice_probability
+
+    # How many of the least-hit verbs the next seed weights up; 0 turns the lever off.
+    FAVOR_RARE_VERBS = settings.favor_rare_verbs
+
+    # Whether `hecks quality_control ask run` also runs the self-consistency pass (cold rehydration, replay
+    # idempotency, value-object JSON round trip) on the same generated sequence.
+    SELF_CONSISTENCY_CHECKS = settings.self_consistency_checks
+
+    # Candidate replays `hecks quality_control ask run` may spend shrinking one surprised check; 0 turns shrinking
+    # off. `concurrency` is never shrunk: a race does not reproduce on demand.
+    SHRINK_BUDGET = settings.shrink_budget
+
+    # Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`.
+    # Zero would make yield invisible, so pick a number that lets it matter.
+    YIELD_WEIGHT_SECONDS = settings.yield_weight_seconds
+
+    # Percent of the prior yield score kept at each release, so recent findings dominate.
+    # Applied by the caller: the mutation language cannot express "decay, then add" in `Release`.
+    YIELD_DECAY_PERCENT = settings.yield_decay_percent
+
+    # Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield
+    # score, so a quiet target cannot starve.
+    ROTATION_STALE_FLOOR_SECONDS = settings.rotation_stale_floor_seconds
+
+    # Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch.
+    # `hecks quality_control ask run` clamps down, never up, and prints a note.
+    PERSISTENCE_PARITY_SEED_CAP = settings.persistence_parity_seed_cap
+
+    # Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed.
+    CONCURRENCY_SEED_CAP = settings.concurrency_seed_cap
+
+    # The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new
+    # entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no
+    # disposable database.
+    ADAPTER_PARITY_PAIRS = settings.adapter_parity_pairs
+
+    # Which comparison modes `hecks quality_control ask run` may run: the enabled ones intersected with what
+    # `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run.
+    #
+    # `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are
+    # built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control ask run`
+    # refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled.
+    MODES = settings.modes
+
+    # How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`);
+    # 0 turns the draw off.
+    ROLE_DRAW_PROBABILITY = settings.role_draw_probability
+
+    # Fraction of generated command steps offered as a dry run instead of a real dispatch; 0 is
+    # off. Kept low: a dry run creates no state for later steps to act on.
+    DRY_RUN_FRACTION = settings.dry_run_fraction
+
+    # How many generated domains one `hecks quality_control tick` checks after the rotation sweep; 0 skips the
+    # step.
+    GENERATED_DOMAINS_PER_TICK = settings.generated_domains_per_tick
+
+    # Whether generated domains are also compared against a compiled Rust binary built in a scratch
+    # copy.
+    GENERATED_DOMAINS_RUST = settings.generated_domains_rust
+
+    # Generated sequences run per generated domain.
+    GENERATED_DOMAIN_SEEDS = settings.generated_domain_seeds
+
+    # Construct families a skipped query verb may belong to. A skip inside the list is logged Held,
+    # one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a
+    # family here is declared by no committed manifest.
+    STRUCTURAL_REFUSAL_BOUNDARY = settings.structural_refusal_boundary
+  end
+end
+
+Hecks.bluebook "QualityControl" do
+  vision "A user should never be made to feel stupid by something that took what they said and quietly did otherwise. Every check writes down what it expected before it looks, every bug carries the test that proves it, and nothing reaches the outside world that nobody first tried to fix."
+
+  core
+
+  # The rotation and its lock: `Claim` is a lifecycle edge, so when two agents race for a chapter
+  # one transition wins and the other is refused.
+  aggregate "Target" do
+    description "A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice."
+
+    identified_by :reference
+
+    attribute :reference,  TargetReference
+    attribute :path,       TargetPath
+    attribute :held_by,    Engineer
+    # A number, not a timestamp type: the predicate sublanguage compares only numbers.
+    attribute :claimed_at, Instant
+    attribute :window,     StaleAfter
+    attribute :last_swept, SweptIn
+    # Recency-decayed count of how often this chapter was worth sweeping; see `YieldScore`.
+    attribute :yield_score, YieldScore
+    # Consecutive `Release`s that came back clean; `hecks quality_control ask run` reads it to choose sweep depth.
+    # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
+    attribute :clean_streak, CleanStreak
+    # Comma-joined mode names recorded at release from what the runner inferred. Stored so
+    # `EligibleFor` can answer why a mode never ran; inference at sweep time still decides.
+    attribute :capabilities, Capabilities
+    attribute :reason,     TargetReason
+
+    value_object "TargetReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a target is referenced") { !value.to_s.empty? }
+    end
+
+    # Required: a name can be disputed, a path can be opened.
+    value_object "TargetPath" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a target says where it is") { !value.to_s.empty? }
+    end
+
+    value_object "Engineer" do
+      attribute :value, String, default: "nobody"
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # A number, not a string: "never" sorts after "SW-9" and inverts the rotation. Zero means
+    # never.
+    value_object "SweptIn" do
+      attribute :value, Integer, default: 0
+      invariant("a sweep time is not before the epoch") { !value.negative? }
+    end
+
+    # A count, not a clock. `default: 0` keeps rows written before this field hydrating.
+    value_object "CleanStreak" do
+      attribute :value, Integer, default: 0
+      invariant("a streak is not negative") { !value.negative? }
+    end
+
+    value_object "TargetReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("shelving a target says why") { !value.to_s.empty? }
+    end
+
+    # Comma-joined in one string so `EligibleFor` can test it with `contains`.
+    # `default: ""` keeps rows written before this field booting.
+    value_object "Capabilities" do
+      attribute :value, String, default: ""
+    end
+
+    # One mode name, as `EligibleFor`'s argument; a query attribute, never stored.
+    value_object "Capability" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a mode is named") { !value.to_s.empty? }
+    end
+
+    # Recency-weighted, not lifetime: `RotationPriority.next_yield_score` decays it at each
+    # `Release` by `QualityControlDials::YIELD_DECAY_PERCENT`.
+    value_object "YieldScore" do
+      attribute :value, Integer, default: 0
+      invariant("a yield score is not negative") { !value.negative? }
+    end
+
+    # `suspended` is "surprised, waiting for a person": stale-claim arithmetic never reaches it, so
+    # a chapter with an unresolved surprise is not re-fuzzed until a `Release` puts it back.
+    lifecycle :status, default: "waiting" do
+      transition "Claim"   => "held",      from: ["waiting", "held"]
+      transition "Release" => "waiting",   from: ["held", "suspended"]
+      transition "Suspend" => "suspended", from: "held"
+      transition "Shelve"  => "shelved",   from: ["waiting", "held"]
+      transition "Restore" => "waiting",   from: "shelved"
+    end
+
+    command "Identify" do
+      role "QA engineer"
+      goal "Write down that a chapter exists which nobody has swept"
+
+      attribute :reference, TargetReference
+      attribute :path,      TargetPath
+
+      emits "TargetIdentified"
+    end
+
+    # `from: ["waiting", "held"]` is deliberate: a held target is claimable once its claim is
+    # stale. The sublanguage has `+` and no `-`, so `claimed_at + window <= now` stands for `now -
+    # claimed_at >= window`. `now` arrives as an argument (Clock port) because a predicate cannot
+    # read the time.
+    command "Claim" do
+      role "QA engineer"
+      goal "Take the next chapter in the rotation, or one whose holder has gone quiet"
+
+      # The window lives on the record, not in an argument: a caller-supplied window would let any
+      # agent take a live claim by asking with a window of one second.
+      reference_to Target
+      attribute :held_by,    Engineer
+      attribute :now,        Instant
+
+      given("a live claim is not taken from the agent holding it") do
+        status != "held" || claimed_at.value + window.value <= now.value
+      end
+
+      sets :held_by
+      sets :claimed_at, to: :now
+
+      emits "TargetClaimed"
+    end
+
+    value_object "StaleAfter" do
+      attribute :value, Integer, default: 900
+      invariant("a staleness window is positive") { value.positive? }
+    end
+
+    command "Release" do
+      role "QA engineer"
+      goal "Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
+
+      # `now` is the argument and `last_swept` the field, so the door can fill the clock.
+      #
+      # `next_streak` is the caller's to compute (`clean_streak + 1` if every check held and none
+      # was ever surprised, else 0): `Target` cannot read `Sweep` state and no policy payload can
+      # carry it. Required, so an omitted streak can neither blank the counter nor guess at it.
+      reference_to Target
+      attribute :now,          Instant
+      attribute :next_streak,  CleanStreak
+      # Required: an in-process dispatch does not fill defaults for absent arguments, so an omitted
+      # list refuses rather than blanks. `capabilities.value=""` is an honest value.
+      attribute :capabilities, Capabilities
+
+      # Required, not defaulted to zero: a silent zero would erase what the pass found. The caller
+      # computes `RotationPriority.next_yield_score`; decay cannot be a second mutation here
+      # because build refuses a field written twice in one command.
+      attribute :yield_score, YieldScore
+
+      sets :last_swept, to: :now
+      sets :yield_score
+      sets :clean_streak, to: :next_streak
+      sets :capabilities
+
+      emits "TargetReleased"
+    end
+
+    # Dispatched by `SuspendOnSurprise` as `System`; `reason` is the literal that policy supplies.
+    command "Suspend" do
+      role "System"
+      goal "Take a chapter out of the rotation because a check surprised, until a person releases it"
+
+      reference_to Target
+      attribute :reason, TargetReason
+
+      sets :reason
+
+      emits "TargetSuspended"
+    end
+
+    command "Shelve" do
+      role "QA engineer"
+      goal "Decide a chapter is not worth the practice's time, and say why"
+
+      reference_to Target
+      attribute :reason, TargetReason
+
+      sets :reason
+
+      emits "TargetShelved"
+    end
+
+    # `reason` is required so the record's `reason` reads as the last decision in either direction.
+    command "Restore" do
+      role "QA engineer"
+      goal "Put a shelved chapter back in the rotation, and say what changed"
+
+      reference_to Target
+      attribute :reason, TargetReason
+
+      sets :reason
+
+      emits "TargetRestored"
+    end
+
+    # Not a lifecycle move, and reachable whatever the chapter's status: a recorded path can go
+    # stale (a worktree removed, a project relocated) at any point in the rotation, and fixing it
+    # should not have to wait on whatever status a stale claim or a pending sweep happens to leave
+    # the chapter in.
+    command "Relocate" do
+      role "QA engineer"
+      goal "Correct where a chapter's own domain actually lives, once its recorded path stops resolving"
+
+      reference_to Target
+      attribute :path, TargetPath
+
+      sets :path
+
+      emits "TargetRelocated"
+    end
+
+    # Ordered by `last_swept` alone: `order_by` sorts one stored field, and the yield-weighted
+    # blend needs `now`. `RotationPriority.pick` weights these rows in Ruby.
+    query "Rotation" do
+      description "Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows."
+      where(status: "waiting")
+      order_by :last_swept
+    end
+
+    query "Untouched" do
+      description "Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere."
+      where(status: "waiting")
+      where(:"last_swept.value" => 0)
+      order_by :reference
+    end
+
+    query "Held" do
+      description "Claimed right now, and by whom. Read it before wondering why the rotation looks short — a claim older than the window is free for the taking."
+      where(status: "held")
+      order_by :claimed_at
+    end
+
+    query "Shelved" do
+      description "Deliberately not swept, each with its reason. Re-read before anybody claims a coverage number."
+      where(status: "shelved")
+      order_by :reference
+    end
+
+    query "Suspended" do
+      description "Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control ask run <target> --release --notes is how one comes back."
+      where(status: "suspended")
+      order_by :reference
+    end
+
+    # Answers from the ledger which waiting chapters a mode could run against.
+    query "EligibleFor" do
+      description "Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides."
+      attribute :mode, Capability
+      where(:"capabilities.value" => { contains: :mode })
+      where(status: "waiting")
+      order_by :last_swept
+    end
+
+    query "All" do
+      description "Every chapter ever written down — the inventory a runner walking the repository checks its findings against."
+      order_by :reference
+    end
+
+    # The commands that enrol, generate and judge chapters. TargetTools answers each by running the
+    # script's own command as a child process (lib/hecks/quality_control/adapters/target_tools.rb) and
+    # handing back what it printed; none reads or writes this aggregate's records, so each is a query.
+    # `arguments` is the command's own flags as one string, such as `--domains 3 --rust`.
+    value_object "Words" do
+      attribute :value, String, pattern: '[^\n\r]'
+    end
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Seed" do
+      description "Identify every corpus domain as a rotation target, printing each one's inferred capabilities; one already on file is skipped."
+      returns Document
+    end
+
+    query "CheckGeneratedDomains" do
+      description "Generate domains nobody wrote and check them the way the rotation does: a domain that does not boot is invalid, never a finding."
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+
+    query "MineCombinations" do
+      description "Ask an agent to mine the adversarial corpus for new domain combinations, then check the ones that boot; opt-in, since an agent call costs money."
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+
+    query "JudgeNovelty" do
+      description "Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target."
+      attribute :domain,    DomainPath
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+
+    query "DiscoverExternalDomains" do
+      description "Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols."
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+  end
+
+  aggregate "Sweep" do
+    description "One agent's pass over one chapter — every check it made, what each expected, and what actually came back."
+
+    reference_to Target
+
+    identified_by :reference
+
+    attribute :reference, SweepReference
+    attribute :engineer,  Engineer
+    attribute :made,      CheckCount
+    attribute :notes,     SweepNotes
+    # A counter, not a flag (a sweep can bend several gates) or a list (`where` cannot test
+    # emptiness).
+    attribute :waived,    WaiverCount
+    # The signature beside the count. No default, since a default would be a forged signature;
+    # `optional: true` because a sweep that waived nothing has no signer.
+    attribute :waived_by, WaivedBy, optional: true
+    attribute :checks,    list_of(Check)
+
+    value_object "SweepReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a sweep is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "Engineer" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a sweep says who ran it") { !value.to_s.empty? }
+    end
+
+    value_object "CheckCount" do
+      attribute :value, Integer, default: 0
+      invariant("a check count is not negative") { !value.negative? }
+    end
+
+    value_object "WaiverCount" do
+      attribute :value, Integer, default: 0
+      invariant("a waiver count is not negative") { !value.negative? }
+    end
+
+    value_object "SweepNotes" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      # The number is in the sentence because the sentence is the refusal message.
+      invariant("a sweep says what it learned, in at least 40 characters") { value.to_s.size >= 40 }
+    end
+
+    value_object "WaiverReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # The literal "qa_sweep" is `QualityControlDials::AUTOMATED_ENGINEER`; invariants read
+    # literals, so `spec/quality_control_spec.rb` pins the two equal. "nobody" is refused: unsigned
+    # is anonymous.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
+    end
+
+    # Restated on a surprise so the event carries it: an event holds only its dispatched arguments,
+    # and `SuspendOnSurprise` needs a `Target` to address.
+    value_object "TargetRef" do
+      attribute :value, String
+    end
+
+    value_object "CheckSequence" do
+      attribute :value, Integer
+      invariant("a check sequence is positive") { value.positive? }
+    end
+
+    # Plain text, no pattern: a test file is newlines by construction and tool output is whatever
+    # the tool said.
+    value_object "Listing" do
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a check names what it put to the system") { !value.to_s.empty? }
+    end
+
+    # Written before the answer exists: an expectation fitted to the answer cannot be surprised.
+    value_object "Expectation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a check says what it expected") { !value.to_s.empty? }
+    end
+
+    value_object "Observation" do
+      attribute :value, String
+    end
+
+    # One comparison. An entity: a check has its own identity, verbs and lifecycle, and only makes
+    # sense inside the sweep that made it. `Surprising` answers "every surprising check, any
+    # sweep".
+    entity "Check" do
+      description "One dispatch made against a written-down expectation, and what actually came back."
+
+      identified_by :sequence
+
+      attribute :sequence,    CheckSequence
+      attribute :subject,     Subject
+      attribute :expectation, Expectation
+      attribute :observation, Observation, optional: true
+      # Sticky: `outcome` is the current verdict and `Remake` resets it, but `Release`'s
+      # `next_streak` needs "did anything ever surprise this sweep", which a remake must not erase.
+      # `one_of` rather than a Boolean, which this chapter has no precedent for.
+      attribute :ever_surprised, one_of("no", "yes"), default: { value: "no" }
+
+      # `surprising` is not `failed`: it covers the crash and the quiet divergence without
+      # prejudging which.
+      lifecycle :outcome, default: "made" do
+        transition "Held"      => "held",       from: "made"
+        transition "Surprised" => "surprising", from: "made"
+        transition "Unsettled" => "unsettled",  from: "made"
+        transition "Remake"    => "made",       from: ["held", "surprising", "unsettled"]
+      end
+
+      command "Held" do
+        role "QA engineer"
+        goal "Record that the system did what the chapter promised"
+
+        attribute :sequence,    CheckSequence
+        attribute :observation, Observation
+
+        sets :observation
+
+        emits "CheckHeld"
+      end
+
+      command "Surprised" do
+        role "QA engineer"
+        goal "Record that the system did something other than what was written down"
+
+        attribute :sequence,    CheckSequence
+        attribute :observation, Observation
+        # Restated so `CheckSurprised` carries a `Target` id for `SuspendOnSurprise`; see
+        # `TargetRef`. Required: a caller that omits it is refused (`AbsentArgument`) rather than
+        # suspending nothing.
+        attribute :target,      TargetRef
+
+        sets :observation
+        # A literal, set here and nowhere else; see `ever_surprised`.
+        sets :ever_surprised, to: "yes"
+
+        emits "CheckSurprised"
+      end
+
+      command "Unsettled" do
+        role "QA engineer"
+        goal "Record a check that ran and settled nothing"
+
+        attribute :sequence,    CheckSequence
+        attribute :observation, Observation
+
+        sets :observation
+
+        emits "CheckUnsettled"
+      end
+
+      command "Remake" do
+        role "QA engineer"
+        goal "Put a settled check back, against a system that has since changed"
+
+        attribute :sequence, CheckSequence
+
+        emits "CheckRemade"
+      end
+
+      query "Surprising" do
+        description "Every check the system surprised, across every sweep — the raw material a bug is written from, and the only list here that is supposed to be interesting."
+        where(outcome: "surprising")
+        order_by :sequence
+      end
+
+      query "Unsettled" do
+        description "Made and never ruled on, plus the runs that settled nothing. A sweep concluded with rows here concluded early."
+        where(outcome: { in: "made,unsettled" })
+        order_by :sequence
+      end
+
+      query "ForSubject" do
+        description "Everything ever put to one verb, across every sweep. Count the rows and that is its coverage."
+        attribute :subject, Subject
+        where(subject: :subject)
+        order_by :sequence
+      end
+    end
+
+    lifecycle :status, default: "sweeping" do
+      transition "Check"    => "sweeping",  from: "sweeping"
+      transition "Waive"    => "sweeping",  from: "sweeping"
+      transition "Conclude" => "concluded", from: "sweeping"
+      transition "Abandon"  => "abandoned", from: "sweeping"
+    end
+
+    command "Open" do
+      role "QA engineer"
+      goal "Begin a pass over one chapter"
+
+      reference_to Target
+      attribute :reference, SweepReference
+      attribute :engineer,  Engineer
+
+      emits "SweepOpened"
+    end
+
+    command "Check" do
+      role "QA engineer"
+      goal "Put one thing to the system, saying what it should do before looking"
+
+      reference_to Sweep
+      attribute :subject,     Subject
+      attribute :expectation, Expectation
+
+      # `sequence` is absent because `MutationApplier#entity_element` mints it as `size + 1`.
+      # `observation` is absent on purpose: a check is written down when made, carrying only its
+      # expectation, so an expectation cannot be fitted to an answer after the fact.
+      sets :checks, append: { subject: :subject, expectation: :expectation }
+      sets :made,   increment: { value: 1 }
+
+      ensures("checking never loses a check") { made.value == old.made.value + 1 }
+
+      emits "CheckMade"
+    end
+
+    # Waiving is countable: `Sweep.Waived` can be read afterwards, so going round a gate has a
+    # price.
+    command "Waive" do
+      role "QA engineer"
+      goal "Go round a gate, on the record, signed by a person"
+
+      reference_to Sweep
+      attribute :reason,    WaiverReason
+      # `WaivedBy` refuses "qa_sweep" and "nobody", so only a person can sign.
+      attribute :waived_by, WaivedBy
+
+      sets :waived, increment: { value: 1 }
+      sets :waived_by
+
+      ensures("a waiver is never silent") { waived.value == old.waived.value + 1 }
+
+      emits "GateWaived"
+    end
+
+    command "Conclude" do
+      role "QA engineer"
+      goal "End a pass and say what it taught"
+
+      reference_to Sweep
+      attribute :notes, SweepNotes
+
+      # A sweep that checked nothing tested nothing; the `waived` clause makes this a gate, not a
+      # wall.
+      given("a sweep that checked nothing tested nothing") { made.value.positive? || waived.value.positive? }
+
+      sets :notes
+
+      emits "SweepConcluded"
+    end
+
+    command "Abandon" do
+      role "QA engineer"
+      goal "End a pass whose output should not be trusted"
+
+      reference_to Sweep
+      emits "SweepAbandoned"
+    end
+
+    query "Sweeping" do
+      description "Passes live right now — one per agent, and the reason a target shows as held."
+      where(status: "sweeping")
+      order_by :reference
+    end
+
+    query "Waived" do
+      description "Sweeps that went round a gate. Read as a fraction of all of them: a practice whose waiver rate is climbing is not moving faster, it is agreeing with itself less."
+      where(:"waived.value" => { gt: 0 })
+      order_by :reference
+    end
+
+    query "All" do
+      description "Every pass ever made — what a runner mints the next reference from."
+      order_by :reference
+    end
+
+    # The commands that work a whole pass. SweepTools answers each by running the script's own command
+    # as a child process (lib/hecks/quality_control/adapters/sweep_tools.rb) and handing back what it
+    # printed: a run that found something is an answer, an operational error a refusal with its
+    # report. They log their own checks through the commands above; none of these queries reads this
+    # aggregate's records. `arguments` is the command's own flags as one string, such as `--all`.
+    value_object "Words" do
+      attribute :value, String, pattern: '[^\n\r]'
+    end
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "DataPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a data directory is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a database is named") { !value.to_s.empty? }
+    end
+
+    value_object "RoleName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "SchemaName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a schema is named") { !value.to_s.empty? }
+    end
+
+    value_object "StepVerb" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a step names its verb") { !value.to_s.empty? }
+    end
+
+    # A step's arguments as JSON text, which is how the racer's command line carries them.
+    value_object "StepArguments" do
+      attribute :value, String
+
+      invariant("a step carries its arguments, `{}` for none") { !value.to_s.empty? }
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Tick" do
+      description "One QA tick: a clean tree, a rebase on origin/main, the PR check, a sweep of the whole rotation and the generated domains, then one report. It never logs a bug, releases a hold or opens a PR."
+      returns Document
+    end
+
+    query "Run" do
+      description "One claim, sweep, conclude and release cycle against a target (the rotation's pick when none is named), or every waiting target with `--all`; the first surprised check ends it with a report."
+      attribute :target,    TargetRef, optional: true
+      attribute :arguments, Words,     optional: true
+      returns Document
+    end
+
+    query "MigrateLedgerFromHeki" do
+      description "Copy each aggregate's current state from a Heki data directory into the repository the domain's bindings name today; a dry run unless `--force` is in the arguments, and an id held under a different state is always refused."
+      attribute :domain,    DomainPath
+      attribute :data,      DataPath
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+
+    query "CreateLedgerRole" do
+      description "Create the ordinary Postgres role the ledger connects as and make it own the database; idempotent, and refuses a superuser or BYPASSRLS role, which the era write-fence cannot bind."
+      attribute :database, DatabaseName
+      attribute :role,     RoleName, optional: true
+      returns Document
+    end
+
+    # Runs only as a child process a concurrency sweep starts, two at a time, so it is not something a
+    # person types.
+    query "Race" do
+      description "One racer of a concurrent dispatch: boot a domain against a schema and dispatch one step; the answer is `succeeded`, `refused` or `crashed:<class>: <message>`."
+      attribute :domain,         DomainPath
+      attribute :database,       DatabaseName
+      attribute :schema,         SchemaName
+      attribute :verb,           StepVerb
+      attribute :step_arguments, StepArguments
+      returns Document
+    end
+  end
+
+  # One failing test, one bug, and the test comes first: `Log` requires the demonstration, so a bug
+  # that cannot be shown cannot be written down. Hence no `found` state and no `Failure` record.
+  aggregate "Bug" do
+    description "One thing now known to be wrong, the test that proves it, and how far the fix got."
+
+    reference_to Sweep
+
+    identified_by :reference
+
+    attribute :reference,     BugReference
+    attribute :sequence,      BugSequence
+    attribute :title,         BugTitle
+    attribute :demonstration, Demonstration
+    attribute :symptom,       Symptom
+    attribute :expectation,   Expectation
+    # Who reported it. Distinct from `held_by` (who is working on it now); a submitter never
+    # changes.
+    attribute :submitter,     Submitter
+    attribute :order,         BugOrder
+    attribute :tags,          list_of(Tag)
+    attribute :site,          BugSite
+    attribute :cause,         BugCause
+    attribute :commit,        CommitRef
+    attribute :verification,  Verification
+    attribute :reason,        BugReason
+    attribute :next_step,     NextStep
+    attribute :waived,        WaiverCount
+    # The same signature as `Sweep.waived_by`; absent until a person waives.
+    attribute :waived_by,     WaivedBy, optional: true
+    # A short memorable handle such as `replace-entries-duplicate-identity`. Optional with no
+    # default: only a person reading an old bug can write a good slug.
+    attribute :name,          BugName, optional: true
+    # Whether the bug is fixable on the spot or bigger; `Triage` is the only mover.
+    # `default:` keeps rows already on file hydrating as `undecided`.
+    attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
+    # `default: yes` is true of every bug on file, since `Log` always required a failing
+    # demonstration. `no` is the escape hatch for a real but flaky finding (`hecks quality_control log
+    # --reproduced no`).
+    attribute :reproduced,    one_of("yes", "no"), default: { value: "yes" }
+    # Bugs are claimed like chapters so two agents do not fix the same one. A `given` rather than a
+    # lifecycle edge: holding a bug is orthogonal to how far the fix got.
+    attribute :held_by,       Engineer
+    attribute :claimed_at,    Instant
+    attribute :window,        StaleAfter
+
+    value_object "BugReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a bug is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "BugSequence" do
+      attribute :value, Integer
+      invariant("a bug sequence is positive") { value.positive? }
+    end
+
+    # Prefixed on purpose: `Doors::RubyDoor.install` puts every aggregate name on Object, so a
+    # value object sharing a word with any aggregate resolves to that class once the other domain
+    # boots.
+    value_object "BugTitle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a bug is titled") { !value.to_s.empty? }
+    end
+
+    # Required at `Log`, which is what makes the one absolute rule absolute.
+    value_object "Demonstration" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a bug is proven by a test somebody can re-run") { !value.to_s.empty? }
+    end
+
+    value_object "Symptom" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a bug says what actually happened") { !value.to_s.empty? }
+    end
+
+    value_object "Expectation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a bug says what should have happened") { !value.to_s.empty? }
+    end
+
+    value_object "BugSite" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an investigation names where the bug lives") { !value.to_s.empty? }
+    end
+
+    value_object "BugCause" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an investigation says why the code is wrong") { !value.to_s.empty? }
+    end
+
+    # 7 to 40 hex: a fix that lives only in a working tree is not a fix.
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
+    end
+
+    # What was actually run, e.g. "rspec --order random, 1335 examples, 0 failures, seed 12345":
+    # a count and a seed are checkable, "tests pass" is not.
+    value_object "Verification" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a verification says what was actually run") { !value.to_s.empty? }
+    end
+
+    value_object "BugReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("stopping on a bug says why") { !value.to_s.empty? }
+    end
+
+    # Who decides and what would unblock it, so "deferred" does not become "forgotten".
+    value_object "NextStep" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("stopping on a bug says what would move it") { !value.to_s.empty? }
+    end
+
+    value_object "WaiverCount" do
+      attribute :value, Integer, default: 0
+      invariant("a waiver count is not negative") { !value.negative? }
+    end
+
+    value_object "WaiverReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # Redeclared, as elsewhere in this file; the "qa_sweep" literal is pinned to AUTOMATED_ENGINEER
+    # by spec.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
+    end
+
+    # Kebab-case, at least two words: one word is too close to a `Tag` to tell apart at a glance.
+    # The anchored pattern is the whole contract.
+    value_object "BugName" do
+      attribute :value, String, pattern: '^[a-z0-9]+(-[a-z0-9]+)+$'
+    end
+
+    value_object "SweepRef" do
+      attribute :value, String
+    end
+
+    value_object "Engineer" do
+      attribute :value, String, default: "nobody"
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    value_object "StaleAfter" do
+      attribute :value, Integer, default: 900
+      invariant("a staleness window is positive") { value.positive? }
+    end
+
+    # Not an `Engineer`: that type defaults to "nobody" (an unclaimed bug is held by nobody), which
+    # would let a report omit its submitter. This type has no default and refuses "nobody".
+    value_object "Submitter" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a bug is reported by somebody") { value != "nobody" }
+    end
+
+    # An order is judgement, kept apart from discovery order (`sequence`). Lower is sooner; the
+    # default is not zero so an unranked bug sits behind every ranked one.
+    value_object "BugOrder" do
+      attribute :value, Integer, default: 1_000
+
+      invariant("an order is a position, not a direction") { !value.negative? }
+    end
+
+    value_object "Tag" do
+      attribute :value, String, pattern: "^[a-z0-9][a-z0-9_-]*$"
+
+      invariant("a tag is a word, not a sentence") { !value.empty? }
+    end
+
+    # A bug is born proven; "somebody thinks something is wrong" is a check, on the sweep.
+    lifecycle :status, default: "logged" do
+      transition "Investigate" => "investigating", from: "logged"
+      transition "Fix"         => "fixed",         from: "investigating"
+      transition "Verify"      => "verified",      from: "fixed"
+      transition "Pause"       => "paused",        from: ["logged", "investigating"]
+      # `withdrawn` is for a report whose test proved something other than what it claimed.
+      transition "Withdraw"    => "withdrawn",     from: ["logged", "investigating", "paused"]
+      transition "Regress"     => "investigating", from: ["fixed", "verified"]
+      transition "Revisit"     => "investigating", from: "paused"
+    end
+
+    command "Log" do
+      role "QA engineer"
+      goal "Write down something that is wrong, with the test that proves it"
+
+      reference_to Sweep
+      attribute :reference,     BugReference
+      attribute :sequence,      BugSequence
+      attribute :title,         BugTitle
+      attribute :demonstration, Demonstration
+      attribute :symptom,       Symptom
+      attribute :expectation,   Expectation
+      # Required like the demonstration: one is the evidence, the other is who produced it.
+      attribute :submitter,     Submitter
+      attribute :tags,          list_of(Tag), optional: true
+      # Optional; `Name` covers bugs logged without one. No `sets`: on a creation command an
+      # argument sharing the aggregate field's name lands there directly.
+      attribute :name,          BugName, optional: true
+      # Optional; omitted, the aggregate's default `yes` applies. `hecks quality_control log --reproduced no`
+      # uses it to skip its must-fail check for a finding with no reliable pass/fail signal.
+      attribute :reproduced,    one_of("yes", "no"), optional: true
+
+      emits "BugLogged"
+    end
+
+    # Tagging and ranking are not lifecycle moves: they are knowable at any status and change
+    # nothing about what may happen next.
+    command "Rank" do
+      role "QA engineer"
+      goal "Say what should be dealt with first"
+
+      reference_to Bug
+      attribute :order, BugOrder
+
+      sets :order
+
+      emits "BugRanked"
+    end
+
+    # Tags are a set on the bug, not an entity: a tag has no identity or lifecycle. `Tag` replaces
+    # the whole set, so removing one needs no second verb and tagging twice is not two tags.
+    command "Tag" do
+      role "QA engineer"
+      goal "Say what kind of thing this bug is, so it can be found with its kind later"
+
+      reference_to Bug
+      attribute :tags, list_of(Tag)
+
+      sets :tags
+
+      emits "BugTagged"
+    end
+
+    # Not a lifecycle move (the `Rank` shape); `undecided` is only ever the birth value.
+    # `hecks quality_control log --triage` dispatches this right after `Log`.
+    command "Triage" do
+      role "QA engineer"
+      goal "Write down whether this can be fixed on the spot or needs a bigger judgment"
+
+      reference_to Bug
+      attribute :disposition, one_of("self_contained", "bigger")
+
+      # The `given` is the fence: an argument named like the record's own `one_of` field coerces
+      # against the wider set, so the narrower inline set did not refuse "undecided". Predicates
+      # read args first.
+      given("a triage decides — self_contained or bigger, never undecided") { disposition.value != "undecided" }
+
+      sets :disposition
+
+      emits "BugTriaged"
+    end
+
+    # Not a lifecycle move and callable from any status, so an already-logged bug can be named
+    # later.
+    command "Name" do
+      role "QA engineer"
+      goal "Give a bug a short, memorable slug — at log time or any point after"
+
+      reference_to Bug
+      attribute :name, BugName
+
+      sets :name
+
+      emits "BugNamed"
+    end
+
+    # Everything one agent ever reported, as against `InHand`, which is what it holds now.
+    query "From" do
+      description "Every bug one submitter has ever logged, in whatever state — what an agent found, as against what it is holding."
+      attribute :submitter, Submitter
+      where(submitter: :submitter)
+      order_by :reference
+    end
+
+    # `contains` against a bound argument, so it answers whichever tag you have.
+    query "Tagged" do
+      description "Every bug carrying one tag, whatever state it is in — the way to find all the flaky ones, or everything about the projector."
+      attribute :tag, Tag
+      where(tags: { contains: :tag })
+      order_by :reference
+    end
+
+    # Same rule as `Target.Claim`: held by nobody, or stale. `+` because the sublanguage has no
+    # `-`.
+    command "Claim" do
+      role "QA engineer"
+      goal "Take the next bug off the queue, or one whose holder has gone quiet"
+
+      # Same reason as `Target.Claim`: the window is on the record, not the claimer's to name.
+      reference_to Bug
+      attribute :held_by, Engineer
+      attribute :now,     Instant
+
+      given("a live claim is not taken from the agent holding it") do
+        held_by.value == "nobody" || claimed_at.value + window.value <= now.value
+      end
+
+      sets :held_by
+      sets :claimed_at, to: :now
+
+      emits "BugClaimed"
+    end
+
+    command "Drop" do
+      role "QA engineer"
+      goal "Put a bug back on the queue without finishing it"
+
+      reference_to Bug
+      attribute :held_by, Engineer
+
+      sets :held_by
+
+      emits "BugDropped"
+    end
+
+    command "Investigate" do
+      role "QA engineer"
+      goal "Name the code that is wrong and say why"
+
+      reference_to Bug
+      attribute :site,  BugSite
+      attribute :cause, BugCause
+
+      sets :site
+      sets :cause
+
+      emits "BugInvestigated"
+    end
+
+    # `reference` is restated so `BugFixed` carries it: an event holds only its dispatched
+    # arguments, and `BugCiWatch`'s saga memory is a copy of that payload, so without it the saga
+    # cannot know which bug it watches. Required, so omitting it is refused (`AbsentArgument`).
+    command "Fix" do
+      role "QA engineer"
+      goal "Record the commit that makes it stop happening"
+
+      reference_to Bug
+      attribute :reference, BugReference
+      attribute :commit,    CommitRef
+
+      sets :commit
+
+      emits "BugFixed"
+    end
+
+    command "Verify" do
+      role "QA engineer"
+      goal "Record that the fix was actually verified, and exactly how"
+
+      reference_to Bug
+      attribute :evidence, Verification
+
+      sets :verification, to: :evidence
+
+      emits "BugVerified"
+    end
+
+    command "Pause" do
+      role "QA engineer"
+      goal "Stop on a bug that is real and too large to fix here — why, and what would move it"
+
+      reference_to Bug
+      attribute :reason,    BugReason
+      attribute :next_step, NextStep
+
+      sets :reason
+      sets :next_step
+
+      emits "BugPaused"
+    end
+
+    command "Withdraw" do
+      role "QA engineer"
+      goal "Take back a report whose test turned out to prove something else"
+
+      reference_to Bug
+      attribute :reason, BugReason
+
+      sets :reason
+
+      emits "BugWithdrawn"
+    end
+
+    command "Regress" do
+      role "QA engineer"
+      goal "Put a bug back when its fix stopped holding"
+
+      reference_to Bug
+      emits "BugRegressed"
+    end
+
+    command "Revisit" do
+      role "QA engineer"
+      goal "Pick a paused bug back up, investigation intact"
+
+      reference_to Bug
+      emits "BugRevisited"
+    end
+
+    command "Waive" do
+      role "QA engineer"
+      goal "Go round a gate on this bug, on the record, signed by a person"
+
+      reference_to Bug
+      attribute :reason,    WaiverReason
+      # Signed and checked, as in `Sweep.Waive`.
+      attribute :waived_by, WaivedBy
+
+      sets :waived, increment: { value: 1 }
+      sets :waived_by
+
+      emits "GateWaived"
+    end
+
+    query "Open" do
+      description "Every bug still owed work — the open ledger, derived rather than maintained."
+      where(status: { in: "logged,investigating,paused" })
+      order_by :sequence
+    end
+
+    query "Untriaged" do
+      description "Live bugs (logged or investigating) nobody has triaged as self_contained or bigger yet — the judgment still owed on each."
+      where(status: { in: "logged,investigating" })
+      where(:"disposition.value" => "undecided")
+      order_by :sequence
+    end
+
+    # `fixed` counts as still owed: a landed fix does not answer the bigger judgment call; only
+    # `Verify` or `Withdraw` resolves it.
+    query "NeedsJudgment" do
+      description "Open bugs triaged bigger and not yet resolved — the pile still owed a human or agent judgment call, not one anybody can just fix off the queue."
+      where(:"disposition.value" => "bigger")
+      where(status: { in: "logged,investigating,fixed,paused" })
+      order_by :sequence
+    end
+
+    query "Queue" do
+      description "Open bugs nobody is holding, most important first, then oldest. The queue an agent takes from when it is fixing rather than sweeping."
+      where(status: { in: "logged,investigating" })
+      where(:"held_by.value" => "nobody")
+      # Order by the scalar, not the value object: sorting the whole `{value: n}` put rank 1 behind
+      # two ranked 1000.
+      order_by :"order.value"
+    end
+
+    query "InHand" do
+      description "Open bugs somebody is holding, and since when. A claim older than the window is free for the taking — read claimed_at before assuming somebody is on it."
+      where(status: { in: "logged,investigating" })
+      where(:"held_by.value" => { ne: "nobody" })
+      order_by :claimed_at
+    end
+
+    query "FoundIn" do
+      description "Everything one sweep turned up, in the order it was found."
+      attribute :sweep_id, SweepRef
+      where(sweep: :sweep_id)
+      order_by :sequence
+    end
+
+    query "ReadyToVerify" do
+      description "Fixed and not yet re-run — the queue a full CI pass empties."
+      where(status: "fixed")
+      order_by :sequence
+    end
+
+    query "Paused" do
+      description "Real, unfixed, stopped on, each with what would move it. The only queue a ticket is ever raised from."
+      where(status: "paused")
+      order_by :sequence
+    end
+
+    query "Withdrawn" do
+      description "Reports whose test proved something other than what was claimed. Read the reasons: a run of these is a practice testing the wrong thing, not a runtime behaving."
+      where(status: "withdrawn")
+      order_by :sequence
+    end
+
+    query "Waived" do
+      description "Bugs that went round one of their own gates — the honesty check on any claim about following the protocol."
+      where(:"waived.value" => { gt: 0 })
+      order_by :sequence
+    end
+
+    query "All" do
+      description "Every bug ever logged — what a runner mints the next reference from."
+      order_by :sequence
+    end
+  end
+
+  # The practice's backlog of leads: a citable reason to suspect an uninvestigated corner.
+  # A lead, not a task: `citation` says why it is worth chasing, `resolution` what got built.
+  aggregate "Angle" do
+    description "One concrete, citable reason to suspect an uninvestigated corner exists — proposed, chased down, and either built into something real or set aside with a reason. The practice's own backlog of what to try next, so a future sweep mines its own history instead of guessing."
+
+    identified_by :reference
+
+    attribute :reference,   AngleReference
+    attribute :premise,     AnglePremise
+    attribute :citation,    AngleCitation
+    attribute :proposer,    Proposer
+    attribute :proposed_at, Instant
+    attribute :resolution,  AngleResolution
+    attribute :reason,      AngleReason
+
+    value_object "AngleReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle is referenced") { !value.to_s.empty? }
+    end
+
+    # The number is in the sentence because the sentence is the refusal; 60 characters trips a
+    # stub.
+    value_object "AnglePremise" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle says enough to be acted on without its proposer in the room, in at least 60 characters") { value.to_s.size >= 60 }
+    end
+
+    # A Bug reference, ADR number or named gap that a reader can check for themselves.
+    value_object "AngleCitation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle cites something concrete, not a mood") { !value.to_s.empty? }
+    end
+
+    # Not an `Engineer`, for the reason `Submitter` is not: that default would let authorship go
+    # unrecorded.
+    value_object "Proposer" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle is proposed by somebody") { value != "nobody" }
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # What came of it (a Target, a PR number, a domain path); set once, at `Build`.
+    value_object "AngleResolution" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a built angle says what actually got built") { !value.to_s.empty? }
+    end
+
+    # Redeclared as `Target::Shelve` does: a discard with no reason looks like a lead nobody read.
+    value_object "AngleReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("discarding an angle says why") { !value.to_s.empty? }
+    end
+
+    # `Build` is reachable only from `investigating`, so a lead cannot be built unless it was
+    # picked up. `Discard` reads from both live states: a lead can prove a dead end before or after
+    # it starts.
+    lifecycle :status, default: "proposed" do
+      transition "Investigate" => "investigating", from: "proposed"
+      transition "Build"       => "built",         from: "investigating"
+      transition "Discard"     => "discarded",     from: ["proposed", "investigating"]
+    end
+
+    command "Propose" do
+      role "QA engineer"
+      goal "Write down a concrete, citable reason to suspect an uninvestigated corner exists, before it is lost to a conversation"
+
+      attribute :reference, AngleReference
+      attribute :premise,   AnglePremise
+      attribute :citation,  AngleCitation
+      attribute :proposer,  Proposer
+      # `now:` is filled from the clock port, as in `Target.Claim`; an explicit value wins.
+      attribute :now,       Instant
+
+      sets :proposed_at, to: :now
+
+      emits "AngleProposed"
+    end
+
+    command "Investigate" do
+      role "QA engineer"
+      goal "Pick a lead up for a real look, rather than leaving it to look picked-up by default"
+
+      reference_to Angle
+      emits "AngleInvestigated"
+    end
+
+    command "Build" do
+      role "QA engineer"
+      goal "Say what actually came of chasing this lead"
+
+      reference_to Angle
+      attribute :resolution, AngleResolution
+
+      sets :resolution
+
+      emits "AngleBuilt"
+    end
+
+    command "Discard" do
+      role "QA engineer"
+      goal "Decide a lead is not worth the practice's time, and say why"
+
+      reference_to Angle
+      attribute :reason, AngleReason
+
+      sets :reason
+
+      emits "AngleDiscarded"
+    end
+
+    # Ordered by the scalar `proposed_at.value`, not the value object (see `Bug.Queue`).
+    query "Backlog" do
+      description "Leads nobody has finished chasing yet, oldest first — read this before inventing a new angle from scratch."
+      where(status: { in: "proposed,investigating" })
+      order_by :"proposed_at.value"
+    end
+
+    # Built and discarded share one query: a discarded angle is evidence a citation was already
+    # covered.
+    query "Resolved" do
+      description "Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice's own hit rate."
+      where(status: { in: "built,discarded" })
+      order_by :reference
+    end
+
+    # The duplicate-premise check, run before `Propose` so a second session finds the first one's
+    # row.
+    query "Citing" do
+      description "Every angle ever proposed on one exact citation, whatever became of it — the check before proposing another on the same fact."
+      attribute :citation, AngleCitation
+      where(citation: :citation)
+      order_by :reference
+    end
+
+    query "All" do
+      description "Every angle ever proposed — what a runner mints the next reference from."
+      order_by :reference
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # AngleTools answers this by running the script's own command as a child process
+    # (lib/hecks/quality_control/adapters/angle_tools.rb); it reads no record of this aggregate.
+    query "Seed" do
+      description "Propose the practice's starting leads that are not on file yet; a lead already chased down is proposed, investigated and built in one pass."
+      returns Document
+    end
+  end
+
+  # Raise an issue only for a bug you could not fix yourself. `Raise` checks that the reference
+  # resolves but not the bug's state; `RestingOnUnpaused` surfaces that half.
+  aggregate "Ticket" do
+    description "One issue raised in a tracker outside this repository — what it says, whether the tracker took it, and how many times we have asked."
+
+    reference_to Bug
+
+    identified_by :reference
+
+    attribute :reference,  TicketReference
+    attribute :repository, TicketRepository
+    attribute :title,      TicketTitle
+    attribute :body,         TicketBody
+    attribute :pull_request, PullRequest
+    attribute :number,     IssueNumber
+    attribute :url,        IssueUrl
+    attribute :refusal,    RefusalText
+    attribute :attempts,   AttemptCount
+    # The cap lives on the record: a policy carries only the event payload, so a `max` passed as an
+    # argument would never reach the retry.
+    attribute :max_attempts, MaxAttempts
+
+    value_object "TicketReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a ticket is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "TicketRepository" do
+      attribute :value, String, pattern: '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+    end
+
+    value_object "TicketTitle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a ticket is titled") { !value.to_s.empty? }
+    end
+
+    # The URL is on the ticket so the ledger can answer `Ticket.Proposed`. It defaults to ""
+    # because most tickets are raised before anybody has fixed anything.
+    value_object "PullRequest" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "TicketBody" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a ticket says something") { !value.to_s.empty? }
+    end
+
+    value_object "IssueNumber" do
+      attribute :value, Integer, default: 0
+      invariant("an issue number is not negative") { !value.negative? }
+    end
+
+    value_object "IssueUrl" do
+      attribute :value, String
+    end
+
+    value_object "RefusalText" do
+      attribute :value, String
+    end
+
+    # Three tries, then a human. The cap is on the record because a policy carries no state.
+    value_object "AttemptCount" do
+      attribute :value, Integer, default: 0
+      invariant("an attempt count is not negative") { !value.negative? }
+    end
+
+    value_object "MaxAttempts" do
+      attribute :value, Integer, default: 3
+      invariant("a filing is attempted at least once") { value.positive? }
+    end
+
+    value_object "BugRef" do
+      attribute :value, String
+    end
+
+    # Raising and sending are two verbs: a crash between them leaves a `Raised` row, not a false
+    # filing. `Submit` is non-creating, so `TicketSubmitted` carries `{ id: ... }`, which a
+    # reference slot takes.
+    lifecycle :status, default: "raised" do
+      transition "Submit"  => "submitting", from: ["raised", "refused"]
+      transition "Filed"   => "filed",      from: "submitting"
+      transition "Refused" => "refused",    from: "submitting"
+      transition "Retry"   => "submitting", from: "refused"
+      transition "Abandon" => "abandoned",  from: ["raised", "submitting", "refused"]
+      transition "Close"   => "closed",     from: "filed"
+    end
+
+    # The port is declared in `quality_control.ports.hecksagon`, where wiring lives.
+
+    command "Raise" do
+      role "QA engineer"
+      goal "Say the outside world needs to know about a bug we could not fix"
+
+      reference_to Bug
+      attribute :reference,    TicketReference
+      attribute :repository,   TicketRepository
+      attribute :title,        TicketTitle
+      attribute :body,         TicketBody
+      # `held_state` hands the whole ticket to the adapter, so this field reaches `gh` with no
+      # extra argument.
+      attribute :pull_request, PullRequest, optional: true
+
+      emits "TicketRaised"
+    end
+
+    # Dispatch with `id:`, not through the facade: the facade form addresses by identity heads, so
+    # the payload carries `reference` and the port refuses it ("File was not given id").
+    command "Submit" do
+      role "QA engineer"
+      goal "Send it — the last reversible moment"
+
+      reference_to Ticket
+      emits "TicketSubmitted"
+    end
+
+    command "Filed" do
+      role "System"
+      goal "Record that the tracker took it, and where it landed"
+
+      reference_to Ticket
+      attribute :number, IssueNumber
+      attribute :url,    IssueUrl
+
+      sets :number
+      sets :url
+
+      emits "TicketFiled"
+    end
+
+    command "Refused" do
+      role "System"
+      goal "Record that the tracker would not take it, and what it said"
+
+      reference_to Ticket
+      attribute :refusal, RefusalText
+
+      sets :refusal
+      sets :attempts, increment: { value: 1 }
+
+      emits "TicketFilingRefused"
+    end
+
+    # A policy re-enters its target with the event payload verbatim, so `Retry` must accept
+    # `refusal` or be refused outright. It is set rather than dropped: an argument taken and
+    # ignored is exactly what this chapter hunts.
+    command "Retry" do
+      role "System"
+      goal "Ask again, up to the limit, carrying what was refused"
+
+      reference_to Ticket
+      attribute :refusal, RefusalText
+
+      given("a retry is still allowed") { attempts.value < max_attempts.value }
+
+      sets :refusal
+
+      emits "TicketRetried"
+    end
+
+    command "Abandon" do
+      role "QA engineer"
+      goal "Stop asking, and put it in front of a person"
+
+      reference_to Ticket
+      emits "TicketFilingAbandoned"
+    end
+
+    command "Close" do
+      role "QA engineer"
+      goal "Record that the issue is done with"
+
+      reference_to Ticket
+      emits "TicketClosed"
+    end
+
+    query "Proposed" do
+      description "Tickets that already carry a pull request — a fix exists, so more work filed against them is duplicated effort."
+      where(:"pull_request.value" => { ne: "" })
+      order_by :reference
+    end
+
+    query "Raised" do
+      description "Composed and not sent. Nothing will happen to these until somebody submits one."
+      where(status: "raised")
+      order_by :reference
+    end
+
+    query "Submitting" do
+      description "Sent and not yet answered. A row that sticks here is a call whose outcome nobody recorded — look at the tracker before asking again, or a retry files a duplicate."
+      where(status: "submitting")
+      order_by :reference
+    end
+
+    query "Filed" do
+      description "Open issues this practice is responsible for, out in the world."
+      where(status: "filed")
+      order_by :number
+    end
+
+    query "Refused" do
+      description "The tracker said no, and what it said. Retried automatically until the cap."
+      where(status: "refused")
+      order_by :reference
+    end
+
+    query "Abandoned" do
+      description "Asked three times, refused three times. Every row belongs in the report, because nothing automatic will touch it again."
+      where(status: "abandoned")
+      order_by :reference
+    end
+
+    query "ForBug" do
+      description "Every ticket ever raised about one bug — the duplicate check, before a second is raised."
+      attribute :bug_id, BugRef
+      where(bug: :bug_id)
+      order_by :reference
+    end
+
+    # A dotted where hops the reference because this cannot be a `given`: `bug.status` does not
+    # resolve inside a predicate. The rule is surfaced, not enforced.
+    query "RestingOnUnpaused" do
+      description "Tickets about a bug nobody has stopped on. Raise an issue only for something you could not fix yourself — this is the list where that gets skipped."
+      where(status: { in: "raised,filed" })
+      where(:"bug/status" => { in: "logged,investigating" })
+      order_by :reference
+    end
+
+    query "RestingOnFixed" do
+      description "Tickets about a bug this repository went on to fix itself. Each one owes the outside world a Close."
+      where(status: "filed")
+      where(:"bug/status" => { in: "fixed,verified" })
+      order_by :number
+    end
+
+    query "All" do
+      description "Every ticket ever raised."
+      order_by :reference
+    end
+  end
+
+  # A PR opened for a Bug's own fix, recorded at open so `hecks quality_control check_pull_requests` looks it up by number.
+  # Not named `PullRequest`: `Ticket::PullRequest` exists and aggregate names install on Object.
+  aggregate "Patch" do
+    description "One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess."
+
+    reference_to Bug
+
+    identified_by :number
+
+    attribute :number, PatchNumber
+    attribute :url,    PatchUrl
+    attribute :branch, PatchBranch
+    attribute :commit, CommitRef
+    attribute :title,  PatchTitle
+    # Makes `PR_CAP_PER_DAY` countable (`OpenedSince`). `default: 0` hydrates older rows at the
+    # epoch, which the cap never counts.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    value_object "PatchNumber" do
+      attribute :value, Integer
+      invariant("a patch is numbered") { value.positive? }
+    end
+
+    value_object "PatchUrl" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch says where it lives") { !value.to_s.empty? }
+    end
+
+    value_object "PatchBranch" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch says which branch it is on") { !value.to_s.empty? }
+    end
+
+    # Recorded at `Open` so the commit is in hand when the PR needs checking, as `Bug.commit` is.
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
+    end
+
+    value_object "PatchTitle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch is titled") { !value.to_s.empty? }
+    end
+
+    value_object "BugRef" do
+      attribute :value, String
+    end
+
+    # Both endings are terminal: a merged PR does not reopen, and neither does the ledger's memory
+    # of a closed one.
+    lifecycle :status, default: "opened" do
+      transition "Merge" => "merged", from: "opened"
+      transition "Close" => "closed", from: "opened"
+    end
+
+    # Dispatched only by `hecks quality_control patch.open --bug`, which reads the facts back from `gh pr view`, so
+    # the record is written by the process that made it true. `now` is that script's clock read.
+    # The script asks `dry_run?` of this command before it opens anything, so the two `given`s are
+    # the rules for opening a PR at all: the branch is one this practice recognises as its own, and
+    # the bug it fixes is fixed. The prefix repeats `BRANCH_PREFIX` as a literal, as `WaivedBy`
+    # repeats `AUTOMATED_ENGINEER`; `spec/quality_control_spec.rb` pins the two equal.
+    command "Open" do
+      role "QA engineer"
+      goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
+
+      reference_to Bug
+      attribute :number, PatchNumber
+      attribute :url,    PatchUrl
+      attribute :branch, PatchBranch
+      attribute :commit, CommitRef
+      attribute :title,  PatchTitle
+      attribute :now,    Instant
+
+      given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
+      given("the bug is fixed") { bug.status == "fixed" }
+
+      sets :opened_at, to: :now
+
+      emits "PatchOpened"
+    end
+
+    command "Merge" do
+      role "QA engineer"
+      goal "Record that GitHub merged it"
+
+      reference_to Patch
+      emits "PatchMerged"
+    end
+
+    command "Close" do
+      role "QA engineer"
+      goal "Record that GitHub closed it without merging"
+
+      reference_to Patch
+      emits "PatchClosed"
+    end
+
+    # The worklist for `hecks quality_control check_pull_requests`: ask `gh` about each row's exact number, never search.
+    query "Open" do
+      description "Every PR we've opened that's still open, by number — hecks quality_control check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
+      where(status: "opened")
+      order_by :number
+    end
+
+    query "ForBug" do
+      description "Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue."
+      attribute :bug_id, BugRef
+      where(bug: :bug_id)
+      order_by :number
+    end
+
+    # `hecks quality_control patch.open` compares this and `Improvement.OpenedSince` counts, from local midnight,
+    # against `PR_CAP_PER_DAY`. `gte` on a bound argument, the `Account.AtOrAbove` shape.
+    query "OpenedSince" do
+      description "Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from."
+      attribute :since, Instant
+      where(:"opened_at.value" => { gte: :since })
+      order_by :number
+    end
+
+    query "All" do
+      description "Every patch ever opened — what a runner reads back to reconcile against GitHub's own list."
+      order_by :number
+    end
+  end
+
+  # A PR for deliberate, non-bugfix work: a sibling of `Patch`, because `Bug` means "proven wrong"
+  # and `Patch.Open` keeps its required `reference_to Bug`.
+  # Born `opened`, with no investigating state: the work was decided before any code moved.
+  #
+  # `Open` and `Land` are separate so `ImprovementCiWatch` can `starts_on` the one event that is
+  # also re-dispatched after a `Regress`; folding `commit` into `Open` would refuse a re-land
+  # as `AlreadyExists`.
+  aggregate "Improvement" do
+    description "One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix."
+
+    # Optional, set only at `Open`: not all deliberate work began as a cited `Angle`, and forcing
+    # one would invent a lead after the fact.
+    reference_to Angle, optional: true
+
+    identified_by :number
+
+    attribute :number, ImprovementNumber
+    attribute :url,    ImprovementUrl
+    attribute :branch, ImprovementBranch
+    attribute :commit, CommitRef
+    attribute :title,  ImprovementTitle
+    # See `Patch.opened_at`: the same field, for the same cap.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    value_object "ImprovementNumber" do
+      attribute :value, Integer
+      invariant("an improvement is numbered") { value.positive? }
+    end
+
+    value_object "ImprovementUrl" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an improvement says where it lives") { !value.to_s.empty? }
+    end
+
+    value_object "ImprovementBranch" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an improvement says which branch it is on") { !value.to_s.empty? }
+    end
+
+    # Redeclared per aggregate. Absent until `Land`: there is nothing to watch until a commit
+    # exists.
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
+    end
+
+    value_object "ImprovementTitle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an improvement is titled") { !value.to_s.empty? }
+    end
+
+    value_object "AngleRef" do
+      attribute :value, String
+    end
+
+    # `Merge` and `Close` are reachable from "opened" too: GitHub does not wait for a `Land`, and a
+    # proof-only PR can be closed while still "opened" (`retire_if_settled?` hit
+    # `LifecycleRefused`).
+    lifecycle :status, default: "opened" do
+      transition "Land"    => "landed",   from: ["opened", "needs_fix"]
+      transition "Regress" => "needs_fix", from: "landed"
+      transition "Merge"   => "merged",   from: ["opened", "landed", "needs_fix"]
+      transition "Close"   => "closed",   from: ["opened", "landed", "needs_fix"]
+    end
+
+    # Dispatched by `hecks quality_control patch.open --improvement`, which then dispatches `Land` in the same run so
+    # `ImprovementCiWatch` is watching before the script exits. The `given`s are `Patch.Open`'s
+    # rules with the angle in place of the bug: a lead is picked up (`investigating`) before
+    # something is built from it, and work with no angle behind it is admitted.
+    command "Open" do
+      role "QA engineer"
+      goal "Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching"
+
+      reference_to Angle, optional: true
+      attribute :number, ImprovementNumber
+      attribute :url,    ImprovementUrl
+      attribute :branch, ImprovementBranch
+      attribute :title,  ImprovementTitle
+      attribute :now,    Instant
+
+      given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
+      given("the angle is under investigation") { angle.unset? || angle.status == "investigating" }
+
+      sets :opened_at, to: :now
+
+      emits "ImprovementOpened"
+    end
+
+    # The event `ImprovementCiWatch` starts on, and the one a re-landing fires again.
+    # `number` is restated so the event carries it into the saga's memory (see `Bug::Fix`).
+    command "Land" do
+      role "QA engineer"
+      goal "Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix"
+
+      reference_to Improvement
+      attribute :number, ImprovementNumber
+      attribute :commit, CommitRef
+
+      sets :commit
+
+      emits "ImprovementLanded"
+    end
+
+    # The same word `Bug` uses; `ImprovementCiWatch` is the only dispatcher.
+    command "Regress" do
+      role "QA engineer"
+      goal "Put landed work back in front of somebody when its own commit stops holding"
+
+      reference_to Improvement
+      emits "ImprovementRegressed"
+    end
+
+    # Both endings are terminal and reachable from `needs_fix`: GitHub can merge or close a PR
+    # whatever this ledger's CI watch last heard.
+    command "Merge" do
+      role "QA engineer"
+      goal "Record that GitHub merged it"
+
+      reference_to Improvement
+      emits "ImprovementMerged"
+    end
+
+    command "Close" do
+      role "QA engineer"
+      goal "Record that GitHub closed it without merging"
+
+      reference_to Improvement
+      emits "ImprovementClosed"
+    end
+
+    query "Open" do
+      description "Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
+      where(status: { in: "opened,landed,needs_fix" })
+      order_by :number
+    end
+
+    query "NeedsFix" do
+      description "Landed work whose own commit came back red — what ImprovementCiWatch put back in front of somebody, and the list a human or agent clears with a fresh Land."
+      where(status: "needs_fix")
+      order_by :number
+    end
+
+    query "ForAngle" do
+      description "Every improvement ever landed against one angle — the duplicate check, the same shape Patch.ForBug already gives for a bug."
+      attribute :angle_id, AngleRef
+      where(angle: :angle_id)
+      order_by :number
+    end
+
+    # `Patch.OpenedSince`'s twin: the cap counts both kinds of PR.
+    query "OpenedSince" do
+      description "Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY."
+      attribute :since, Instant
+      where(:"opened_at.value" => { gte: :since })
+      order_by :number
+    end
+
+    query "All" do
+      description "Every improvement ever landed — what a runner reads back to reconcile against GitHub's own list."
+      order_by :number
+    end
+  end
+
+  # One CI run against one commit. A clearance is minted per commit, so a later commit is stale
+  # by simply having none.
+  aggregate "Clearance" do
+    description "One CI run against one commit, and therefore the only answer to whether that commit is safe to ship."
+
+    identified_by :commit
+
+    attribute :commit,  CommitRef
+    attribute :summary, RunSummary
+
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
+    end
+
+    value_object "RunSummary" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a run says what it ran and what came back") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "running" do
+      transition "Passed" => "green", from: "running"
+      transition "Failed" => "red",   from: "running"
+    end
+
+    command "Start" do
+      role "QA engineer"
+      goal "Put a commit through CI"
+
+      attribute :commit, CommitRef
+
+      emits "ClearanceStarted"
+    end
+
+    command "Passed" do
+      role "System"
+      goal "Record that the suite went green against this commit"
+
+      reference_to Clearance
+      attribute :summary, RunSummary
+
+      sets :summary
+
+      emits "ClearanceGiven"
+    end
+
+    command "Failed" do
+      role "System"
+      goal "Record that the suite went red against this commit"
+
+      # `refusal`, not `summary`: a policy re-enters with the answering event's payload verbatim,
+      # and the runtime names what a refused ask returned `refusal`.
+      reference_to Clearance
+      attribute :refusal, RunSummary
+
+      sets :summary, to: :refusal
+
+      emits "ClearanceRefused"
+    end
+
+    # Name the commit you are about to ship; an empty answer means nothing has vouched for it.
+    query "For" do
+      description "Is this exact commit cleared? Ask with the sha you are about to deploy; an empty answer is a no, including when nobody has run CI on it at all."
+      attribute :commit, CommitRef
+      where(commit: :commit)
+      where(status: "green")
+      order_by :commit
+    end
+
+    query "Red" do
+      description "Commits CI refused, with what it said."
+      where(status: "red")
+      order_by :commit
+    end
+
+    query "All" do
+      description "Every CI run ever recorded, one per commit."
+      order_by :commit
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # ClearanceTools answers this by running the script's own command as a child process
+    # (lib/hecks/quality_control/adapters/clearance_tools.rb). The command starts the clearances and
+    # lets the CI port's policies record each verdict; a newly red PR ends it with a report.
+    query "CheckPullRequests" do
+      description "Check CI for every PR the ledger tracks as open, a Patch or an Improvement: retire one GitHub reports merged or closed, and start a clearance for each unsettled head commit."
+      returns Document
+    end
+  end
+
+  # Puts `Bug.Fix`'s commit and CI's `Clearance` for it back together, dispatching `Bug.Regress` on
+  # red. Correlates by commit, which `BugFixed` carries and `Clearance` is identified by.
+  # `ClearanceRefused` has no `ends_on`, as in banking's `ExternalSettlement`: an instance left in
+  # "regressed" costs nothing.
+  process_manager "BugCiWatch" do
+    correlates_by :"commit.value"
+    starts_on Bug::BugFixed
+    ends_on   Clearance::ClearanceGiven
+
+    # `bug:` is Bug's own reference key (`Naming.reference_key("Bug")`); the value is the
+    # `reference` that `BugFixed` carries into saga memory.
+    transition Clearance::ClearanceRefused => "regressed", from: "watching" do
+      dispatch Bug::Regress, with: { bug: :reference }
+    end
+  end
+
+  # The `BugCiWatch` mechanism aimed at deliberate work, dispatching `Improvement::Regress`. That
+  # lands in `needs_fix`, not an investigating state; a fresh `Improvement.Land` clears it and
+  # starts a new watch.
+  process_manager "ImprovementCiWatch" do
+    correlates_by :"commit.value"
+    starts_on Improvement::ImprovementLanded
+    ends_on   Clearance::ClearanceGiven
+
+    # `improvement:` is the reference key; the value is `:number`, which `ImprovementLanded`
+    # carries.
+    transition Clearance::ClearanceRefused => "regressed", from: "watching" do
+      dispatch Improvement::Regress, with: { improvement: :number }
+    end
+  end
+
+  # Rootless reports: `group_by` gives each group's size, which a query's rows cannot, and they
+  # centre on no record so they take no id.
+
+  # `withdrawn` beside `verified` says whether the practice finds real things or cries wolf.
+  read_model "BugsByStatus" do
+    description "Every bug sorted into what became of it — the tally. The share that is withdrawn, beside the share verified, is the honesty check on the whole practice."
+    include Bug
+    group_by :status, :reference
+  end
+
+  read_model "BugsBySubmitter" do
+    description "Every bug sorted by who reported it, then by its own reference — what each agent has actually found."
+    include Bug
+    group_by :submitter, :reference
+  end
+
+  read_model "BugsByDisposition" do
+    description "Every bug sorted by the call its finder made — self-contained, bigger, or not yet decided — beside its reference. The fix-rate, and the judgment still owed, at a glance."
+    include Bug
+    group_by :disposition, :reference
+  end
+
+  read_model "TicketsByStatus" do
+    description "Every ticket sorted by where it got to — stuck filings and abandoned ones are only visible as a count."
+    include Ticket
+    group_by :status, :reference
+  end
+
+  read_model "ImprovementsByStatus" do
+    description "Every improvement sorted into what became of it — landed, needing a fix, merged, or closed, at a glance."
+    include Improvement
+    group_by :status, :number
+  end
+
+  # `Ticket.Close` is the only way a ticket leaves `filed`, and only the outside can know it
+  # happened, so the fact arrives by whichever route reaches us first.
+  policy "CloseWhenClosedUpstream" do
+    on      "Ticket.IssueClosedUpstream"
+    trigger Ticket::Close
+  end
+
+  # The adapter decides by answering or refusing, the only branch a policy can express.
+  policy "ClearOnPass" do
+    on      "Clearance.SuitePassed"
+    trigger Clearance::Passed
+  end
+
+  policy "RefuseOnFail" do
+    on      "Clearance.SuiteFailed"
+    trigger Clearance::Failed
+  end
+
+  # `Raise` and the call are split so a crash leaves a `Ticket.Raised` row rather than a lie.
+  policy "FileWhenSubmitted" do
+    on      "Ticket.TicketSubmitted"
+    trigger Ticket::IssueTracker::File
+  end
+
+  policy "RecordTheIssue" do
+    on      "Ticket.IssueFiled"
+    trigger Ticket::Filed
+  end
+
+  policy "RecordTheRefusal" do
+    on      "Ticket.IssueFilingRefused"
+    trigger Ticket::Refused
+  end
+
+  # The cap is the `given` on `Retry`, not here: a policy holds no state and would ask forever.
+  policy "AskAgain" do
+    on      "Ticket.TicketFilingRefused"
+    trigger Ticket::Retry
+  end
+
+  policy "AskOnceMore" do
+    on      "Ticket.TicketRetried"
+    trigger Ticket::IssueTracker::File
+  end
+
+  # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.
+
+  # The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work: that event
+  # carries no target id, `next_streak` or yield score, so `hecks quality_control ask run` still releases.
+  # `on Sweep::CheckSurprised`, not `Sweep::Check::...`: an entity command's event is stamped with
+  # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
+  policy "SuspendOnSurprise" do
+    on      Sweep::CheckSurprised
+    trigger Target::Suspend, with: {
+      target: :target,
+      reason: { value: "a check surprised — a person releases with hecks quality_control ask run <target> --release --notes" }
+    }
+  end
+end

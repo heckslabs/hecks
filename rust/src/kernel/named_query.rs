@@ -82,19 +82,35 @@ pub fn run_cross_domain(
         }
     }
 
-    let mut entries = store
-        .scan(def.aggregate)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)))?;
+    // Reduced once per condition, as `filter_entries` reduces its operand.
+    let wants: Vec<(&QueryCondition, Json)> = def
+        .conditions
+        .iter()
+        .map(|condition| {
+            let want = match condition.value {
+                QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
+                QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
+                QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
+            };
+            (condition, super::query_comparators::comparable(&want))
+        })
+        .collect();
 
-    for condition in def.conditions {
-        let want = match condition.value {
-            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
-            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
-        };
-        entries =
-            repository::filter_entries_cross_domain(entries, condition.field, condition.comparator, &want, cross_domain);
+    // Every condition is tested against the borrowed row, so only a row that passes them all is
+    // cloned. ANDing per row keeps what chaining one filter per condition kept.
+    let mut entries: Vec<(String, Json)> = Vec::new();
+    let known = store.scan_each(def.aggregate, &mut |id, record| {
+        let kept = wants
+            .iter()
+            .all(|(c, want)| repository::entry_matches(record, c.field, c.comparator, want, cross_domain));
+        if kept {
+            entries.push((id.to_string(), record.clone()));
+        }
+    });
+    if !known {
+        return Err(Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)));
     }
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
 
     entries = super::read_model::apply_reference_hops(entries, def.reference_hop_conditions, args, store)?;
 

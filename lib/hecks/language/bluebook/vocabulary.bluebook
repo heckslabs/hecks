@@ -1,7 +1,7 @@
 Hecks.bluebook "Bluebook" do
   aggregate "Vocabulary" do
     # Closed sets the language admits, projected into matching Ruby and Rust
-    # tables (bin/project_vocabulary, bin/project_rust_vocabulary) so both runtimes agree.
+    # tables (hecks project_vocabulary, hecks project_rust_vocabulary) so both runtimes agree.
     description "The closed sets the language admits — the whole of what any runtime may accept, declared once."
 
     # Named only by itself; a vocabulary hangs under nothing else.
@@ -585,7 +585,7 @@ Hecks.bluebook "Bluebook" do
     # (case-insensitively) to guess an HTML input type or textarea kind, when
     # nothing more specific already answered (Hecks::Forms::FieldShape's
     # EMAIL_HINT/URL_HINT/TEL_HINT/TEXTAREA_HINT). `pattern` is the regex
-    # source, no delimiters or flags. bin/project_field_hints writes the Rust
+    # source, no delimiters or flags. hecks project_field_hints writes the Rust
     # host's copy from these rows, so neither side is typed by hand.
     #
     # `resolves_to` names which Field attribute a match sets: html_type for
@@ -604,7 +604,7 @@ Hecks.bluebook "Bluebook" do
 
     # Rust keywords (strict + reserved) a generated identifier must not
     # collide with. RustProjection::Projector::RUST_KEYWORDS reads this;
-    # bin/project_reserved_names projects it into
+    # hecks project_reserved_names projects it into
     # rust/codegen/src/reserved_names.rs, so Ruby and Rust escape or refuse
     # the same words from one declaration instead of two hand-typed copies.
     value_object "RustReservedWord" do
@@ -621,7 +621,7 @@ Hecks.bluebook "Bluebook" do
     # outside `[features]` (`[package]`, `[lib]`, `[[bin]]`) plus `default`,
     # which Cargo reserves for the auto-enabled feature set. Read by
     # RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES and projected by
-    # bin/project_reserved_names, same as RustReservedWord above.
+    # hecks project_reserved_names, same as RustReservedWord above.
     value_object "CargoReservedName" do
       attribute :name, String,
                 one_of: ["name", "version", "edition", "path", "authors", "license", "description", "default",

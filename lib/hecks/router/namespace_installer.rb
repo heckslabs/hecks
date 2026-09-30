@@ -1,5 +1,5 @@
 require_relative "../fqn"
-require_relative "../facade/handle"
+require_relative "../doors/handle"
 
 module Hecks
   class Router
@@ -100,12 +100,12 @@ module Hecks
 
         target.define_singleton_method(:find) do |id|
           found = dispatcher.registry.repository(domain, ir).find(id)
-          found && Facade::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: found)
+          found && Doors::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: found)
         end
 
         target.define_singleton_method(:all) do
           dispatcher.registry.repository(domain, ir).all.map do |instance|
-            Facade::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: instance)
+            Doors::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: instance)
           end
         end
       end

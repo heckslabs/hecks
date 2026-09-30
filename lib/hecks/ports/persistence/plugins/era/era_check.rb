@@ -3,6 +3,7 @@ require_relative "../../../../ports/persistence/binding_policy"
 require_relative "lineage"
 require_relative "../../../../naming"
 require_relative "../../../../framework"
+require_relative "../../../../chapters"
 require_relative "../../../../runtime/registry"
 require_relative "expected_era"
 
@@ -115,21 +116,23 @@ module Hecks
 
       # Picks the files to read for a bluebook no file in the domain directory declares.
       #
-      # Tries, in order: the domain's own single remaining file, a framework member, then a
-      # vendored embryonaut bluebook.
+      # Tries, in order: a chapter the gem carries (the QA ledger's QualityControl), the domain's
+      # own single remaining file, a framework member, then a vendored embryonaut bluebook.
       #
       # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
       # @param directory [String] path of the domain's own bluebook directory
       # @param domain_files [Array<String>] paths of every `.bluebook` file in `directory`
       # @param registry [Runtime::Registry, nil] the registry asked for a vendored name; nil
       #   skips the vendored lookup
-      # @return [Array<String>] file paths to read, in load order; `[]` when the bluebook
-      #   comes from none of the three sources
+      # @return [Array<String>] file paths to read, in load order; `[]` when none applies
       def fallback_source_files(bluebook, directory, domain_files, registry)
         vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name)
         framework_path = Framework.members[bluebook.name]
+        attached = Chapters.index.fetch(bluebook.name, [])
 
-        if domain_files.size == 1 && !framework_path && !vendored_name
+        if attached.any? && !framework_path && !vendored_name
+          attached
+        elsif domain_files.size == 1 && !framework_path && !vendored_name
           domain_files
         elsif framework_path
           [framework_path]

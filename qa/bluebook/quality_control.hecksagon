@@ -1,5 +1,9 @@
 # Live wiring for the QualityControl ledger, persisted through PostgresEra.
-# The database name lives in the sibling quality_control.world.
+# The chapter, its ports and its adapters ship in lib/hecks/quality_control/; this directory holds
+# what belongs to this repository's QA practice: the wiring below, the sibling quality_control.world
+# (the database name), the era's translations/ and the Governance binds in context_map.hecksagon.
+Hecks::Chapters.load!("QualityControl")
+
 Hecks.hecksagon "QualityControl" do
   uses_framework "Governance"
 
@@ -11,26 +15,4 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Patch.persisted_by("PostgresEra")
   QualityControl::Improvement.persisted_by("PostgresEra")
   QualityControl::Clearance.persisted_by("PostgresEra")
-
-  # No adapter is bound; the port still has to be declared so FileWhenSubmitted
-  # has a target and model_check's deaf-policy check can see it.
-  QualityControl::Ticket.port "IssueTracker" do
-    asks "File", to: Ticket do
-      answers "IssueFiled"
-      refuses "IssueFilingRefused"
-    end
-
-    tells "Closed", to: Ticket do
-      emits "IssueClosedUpstream"
-    end
-  end
-
-  # Bound by qa/adapters/github_checks, found via the nearest adapters/ directory.
-  # ClearOnPass and RefuseOnFail turn its answer into Clearance::Passed/Failed.
-  QualityControl::Clearance.port "CI" do
-    asks "Run", to: Clearance do
-      answers "SuitePassed"
-      refuses "SuiteFailed"
-    end
-  end
 end

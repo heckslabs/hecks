@@ -5,6 +5,7 @@
   "vision": "One lease slot, acquired, renewed, and reclaimed against a clock value that always arrives as a plain Integer argument — never read off the wall clock — so the same generated sequence produces the same answer whether it runs against Ruby or a compiled Rust binary with no clock of its own.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Lease",

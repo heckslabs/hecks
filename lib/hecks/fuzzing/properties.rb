@@ -112,6 +112,9 @@ module Hecks
                                      "a command can never announce a name its own declaration doesn't list",
         "Query#attributes"        => "query arguments are coerced through the same Value.build door — same guarantee as " \
                                      "Command#attributes",
+        "Query#returns"           => "every row a port answers is built as the returned value object by Value.build " \
+                                     "(QueryInterpreter#shaped) before it enters the domain — an answer of any other " \
+                                     "shape is refused, so none can be accepted",
         "Entity#attributes"       => "same coercion door, one level in — an entity's own attributes are Value-typed exactly " \
                                      "the way an aggregate's are",
         "ValueObject#attributes"  => "the shape Value.build enforces IS this declaration — the guarantee and the " \

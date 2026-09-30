@@ -7,8 +7,8 @@ require_relative "record_renderer"
 require_relative "command_form_renderer"
 require_relative "query_form_renderer"
 require_relative "params"
-require_relative "../facade/command_request"
-require_relative "../facade/json_door"
+require_relative "../doors/command_request"
+require_relative "../doors/json_door"
 
 module Hecks
   module Forms
@@ -258,16 +258,16 @@ module Hecks
       end
 
       def command_envelope(command, args)
-        Facade::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
+        Doors::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
       end
 
       def command_receiver(command) = command.creates? ? nil : :aggregate
 
       def submitted_command(request, aggregate, command)
         if request.media_type == "application/json"
-          raw = Facade::JsonDoor.parse(request.body.read)
-          envelope = Facade::JsonDoor.command_request(raw, receiver:        command_receiver(command),
-                                                           legacy_receiver: :id)
+          raw = Doors::JsonDoor.parse(request.body.read)
+          envelope = Doors::JsonDoor.command_request(raw, receiver:        command_receiver(command),
+                                                          legacy_receiver: :id)
           return [raw, envelope]
         end
 

@@ -72,7 +72,7 @@ module Hecks
 
       attr_reader :coverage, :verbs
 
-      # Sum of every `Result#events` length across the run; bin/fuzz declares it as the
+      # Sum of every `Result#events` length across the run; hecks fuzz declares it as the
       # script's `expectations.events` claim. Zero means no interesting state was reached.
       attr_reader :event_count
 
@@ -121,7 +121,7 @@ module Hecks
         # Leftover data under the example's data/ would start the run from state
         # known_ids does not track; IsolatedBoot resets it and rebinds persistence to Memory.
         IsolatedBoot.call(@domain_path, adapter: @adapter) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
           catalog = build_catalog(runtime)
           @verbs  = catalog.values_at(:creating, :instance, :entity_commands, :queries, :entity_queries, :read_models)
                            .flatten.map { |entry| entry[:verb] }.uniq

@@ -420,6 +420,66 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
 }
 
 #[test]
+fn a_query_returns_names_its_value_object_and_whether_it_is_a_list() {
+    let path = fixture("query_returns.bluebook");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "QueryReturnsFixture",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "returns exemplar should parse cleanly: {stderr}"
+    );
+    assert!(
+        stdout.contains("\"returns\": \"Heard\""),
+        "returns Heard was not emitted: {stdout}"
+    );
+    assert!(
+        stdout.contains("\"returns\": \"list_of(Heard)\""),
+        "returns list_of(Heard) was not emitted: {stdout}"
+    );
+    // A query that returns nothing keeps its shape: only the two declared `returns` appear.
+    assert_eq!(stdout.matches("\"returns\"").count(), 2, "{stdout}");
+}
+
+#[test]
+fn a_query_that_returns_twice_or_in_quotes_is_refused() {
+    let dir = std::env::temp_dir().join(format!("returns-refusals-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (name, body, expected) in [
+        ("twice", "returns Heard\n      returns Other", "returns twice"),
+        ("quoted", "returns \"Heard\"", "reads as text"),
+    ] {
+        let path = dir.join(format!("{name}.bluebook"));
+        std::fs::write(
+            &path,
+            format!(
+                "Hecks.bluebook \"ReturnsRefusal\" do\n  aggregate \"Note\" do\n    identified_by :title\n    attribute :title, Title\n    value_object \"Title\" do\n      attribute :value, String\n    end\n    query \"Echo\" do\n      {body}\n    end\n  end\nend\n"
+            ),
+        )
+        .unwrap();
+        let output = run(&[
+            "chapter",
+            "--chapter",
+            "ReturnsRefusal",
+            path.to_str().unwrap(),
+        ]);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "{name} should be refused");
+        assert!(
+            stderr.contains(expected),
+            "{name}: expected {expected:?} in {stderr}"
+        );
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn usage_errors_exit_2() {
     let output = run(&[]);
     assert_eq!(output.status.code(), Some(2));

@@ -1,0 +1,9 @@
+# Binds the `CI` port to `GithubChecks` for any boot that loads the QualityControl chapter.
+# The implementation is required by name, not relative to this file, because the `.adapter` glob
+# never loads the sibling `.rb` and a copy of this directory (a fuzz boot) must share the one
+# implementation already loaded.
+require "hecks/quality_control/adapters/github_checks"
+
+Hecks.adapter "GithubChecks" do
+  port "CI"
+end

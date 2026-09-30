@@ -41,7 +41,7 @@ Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook").aggregates.
 like any other, judged the same way. It owns the live `Keyword` and
 `Argument` records and their lifecycle; their static source rows remain
 with the aggregates whose language they describe. The combined rows are what
-`bin/reference` projects into `docs/implemented/reference/*.md` — the prose you
+`hecks project_reference` projects into `docs/implemented/reference/*.md` — the prose you
 read when you look up what `given` takes came out of exactly this
 table, which is one more reason the row has to be right before
 anything else follows from it.
@@ -87,36 +87,37 @@ flag / literal / constant / pairs / list), whether it's required, and
 which field it lands on. One row per `(word, context, form)` — a word
 admitting two shapes gets two rows, not one row with a maybe.
 
-## `bin/evolve`: the stations
+## `hecks propose` and its siblings: the stations
 
 Adding a word by hand — editing the row, teaching the builder, moving
 the golden IR, remembering which specs gate the change — is a many-file
-walk that used to live in memory and review alone. `bin/evolve` makes
-it mechanical. Read its header comment before you touch anything; this
+walk that used to live in memory and review alone. the `Language` commands of the `Hecks` chapter make
+it mechanical. Run `hecks <verb> --help` before you touch anything; this
 is what it actually does, station by station:
 
 ```ruby skip
-bin/evolve status
-bin/evolve propose <word> --context Aggregate [--body ...] [--inner ...] [--opens ...] [--fills ...]
-bin/evolve admit <word> --context Aggregate
-bin/evolve deprecate <word> --context Aggregate
-bin/evolve retire <word> --context Aggregate
-bin/evolve rename <word> --context Aggregate --to <new-word>
+hecks word_status
+hecks propose <word> context=Aggregate [body=...] [inner=...] [opens=...] [fills=...]
+hecks admit <word> context=Aggregate
+hecks deprecate <word> context=Aggregate
+hecks retire <word> context=Aggregate
+hecks rename <word> context=Aggregate to=<new-word>
 
-bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named NAME] [--required true|false] [--fills F]
-bin/evolve argument-admit <keyword> --context X [--at N] [--named NAME]
-bin/evolve argument-deprecate <keyword> --context X [--at N] [--named NAME]
-bin/evolve argument-retire <keyword> --context X [--at N] [--named NAME]
+hecks propose_argument <keyword> context=X kind=K [at=N] [named=NAME] [required=true|false] [fills=F]
+hecks admit_argument <keyword> context=X [at=N] [named=NAME]
+hecks deprecate_argument <keyword> context=X [at=N] [named=NAME]
+hecks retire_argument <keyword> context=X [at=N] [named=NAME]
 ```
 
-`status` prints where every word stands: how many rows are not simply
+`word_status` prints where every word stands: how many rows are not simply
 `admitted`, and which ones carry a `was:`. Run it before you start —
 it's the fastest way to see whether the word you want already exists
 under another spelling.
 
 Every *mutating* command — `propose`, `admit`, `deprecate`, `retire`,
-`rename`, and their `argument-*` siblings — runs the identical dance,
-implemented once as `guarded` in `bin/evolve` itself:
+`rename`, and their `*_argument` siblings — runs the identical dance,
+implemented once as `guarded` in the Codebase `Language` adapter
+(`lib/hecks/hecks/adapters/codebase/language.rb`):
 
 1. **Snapshot** every discovered aggregate-local syntax source plus the
    golden `spec/golden/ir/Bluebook.json`, byte for byte, in memory.
@@ -232,7 +233,7 @@ decoration wearing the shape of a rule.
 
 ## The golden IR discipline
 
-`bin/evolve` regenerates `spec/golden/ir/Bluebook.json` for you as part
+`hecks admit` regenerates `spec/golden/ir/Bluebook.json` for you as part
 of every mutating command, but it's worth knowing what that file is and
 when touching it by hand is legitimate. `Bluebook#to_h` is the wire
 format two production mechanisms stand on directly — era projection
@@ -249,7 +250,7 @@ the wire format changed.** Read the diff before trusting it, because
 every era a domain has ever held was minted off the *old* shape — a
 rewrite that quietly drops or renames a key is not a formatting change,
 it's a claim that every stored era's projection needs to be re-derived.
-`bin/evolve` runs the rewrite for you precisely because adding a word
+the evolve commands run the rewrite for you precisely because adding a word
 changes the owning aggregate's emitted seed rows, which is exactly the kind
 of change the golden file is supposed to catch — the tool trusts the
 gate, not the other way around. (What happens when a *domain's own
@@ -260,7 +261,7 @@ same reflex: review the diff before you believe it.)
 ## Teaching the model checker a new finding
 
 Sometimes the thing you're adding to the language isn't a new word but
-a new *check* — a way for `bin/model_check` to catch something a
+a new *check* — a way for `hecks model_check` to catch something a
 lifecycle or a process manager could declare and get wrong. This is
 static analysis over the IR (no bluebook boots twice, nothing here
 touches a runtime), so it lives entirely in
@@ -301,7 +302,7 @@ the saga's own bookkeeping never closes). `spec/model_check_spec.rb`
 enforces this table in **both directions** over the whole corpus: an
 error the checker reports that the table doesn't name is a regression
 you have to fix or explicitly allow; an entry in the table the checker
-no longer reports is stale and must be deleted. `bin/model_check`
+no longer reports is stale and must be deleted. `hecks model_check`
 reads the exact same `ALLOWED_FINDINGS` constant the spec does — one
 table, never a copy — so the tool a human runs and the gate CI runs
 can't drift apart the way the syntax table and the old hand-written
@@ -316,7 +317,7 @@ new section if it's none of those), have it return `Finding.new(kind:
 that already covers its construct (or into `call` directly, for
 something new), add a fixture under `spec/fixtures/model_check/` that
 deliberately trips it, assert the new kind in `spec/model_check_spec.rb`,
-then run `bin/model_check` over the real corpus — anything it newly
+then run `hecks model_check` over the real corpus — anything it newly
 flags there has to be fixed in the example domain or added to
 `ALLOWED_FINDINGS` with the same kind of comment the existing entry
 carries, naming exactly what's real and what's a bookkeeping gap.
@@ -331,7 +332,7 @@ nobody wrote a sentence about it.
 `lib/hecks/doc/reference.rb` projects the combined live
 `Syntax::Keyword` and `Syntax::Argument` records into one Markdown page per context —
 `docs/implemented/reference/aggregate.md`, `docs/implemented/reference/command.md`, and so on —
-regenerated by `bin/reference`. The generated part (signature, argument
+regenerated by `hecks project_reference`. The generated part (signature, argument
 table, `opens`/`fills`/status facts) lives between
 `<!-- generated:begin word=... -->` / `<!-- generated:end -->` markers
 and is rebuilt fresh every run; the prose after each marker is
@@ -341,7 +342,7 @@ your writing survives regeneration. A brand-new word is seeded with a
 
 `spec/reference_golden_spec.rb` checks two things. First, the same
 frozen-file discipline the golden IR uses: every reference page must
-equal what `bin/reference` would generate right now — a tree where the
+equal what `hecks project_reference` would generate right now — a tree where the
 declaration and the docs disagree refuses rather than drifting quietly,
 same as the golden IR. Second, and this is the one that actually gates
 a new word: `Reference.undocumented` walks every *live* (admitted or
@@ -350,9 +351,9 @@ page still carries the TODO sentinel or no section at all. You may not
 ship a word nobody can read about — that's the whole rule, enforced,
 not aspirational.
 
-So the last station in the checklist, after `bin/evolve admit` goes
-green, is: run `bin/reference`, open the page for your word's context,
-and replace the TODO with real prose. Nothing about `bin/evolve`
+So the last station in the checklist, after `hecks admit` goes
+green, is: run `hecks project_reference`, open the page for your word's context,
+and replace the TODO with real prose. Nothing about the evolve commands
 reminds you of this step directly — it's a separate gate, checked by a
 separate spec, over a separate file — which is exactly why it belongs
 on this list rather than being assumed.

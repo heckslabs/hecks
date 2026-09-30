@@ -37,7 +37,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
       steps = JSON.parse(File.read(script_path)).fetch("steps")
 
       binary = build_rust_for(File.basename(domain).downcase)
-      skip "rust/Cargo.toml has no #{File.basename(domain).downcase} feature — run bin/project_rust for it first" unless binary
+      skip "rust/Cargo.toml has no #{File.basename(domain).downcase} feature — run hecks project_rust for it first" unless binary
 
       ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
@@ -76,7 +76,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a " \
      "byte-for-byte comparison — Ruby answers this one for real)" do
     binary = build_rust_for("banking")
-    skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
+    skip "rust/Cargo.toml has no banking feature — run hecks project_rust for it first" unless binary
 
     uncovered = "Banking::Account.NoSuchQuery"
     stdout, status = Open3.capture2(

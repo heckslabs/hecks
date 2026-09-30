@@ -41,8 +41,9 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-      # The one real file, resolved from this file's `__dir__` rather than the bluebook's:
-      # IsolatedBoot copies only `qa/bluebook`, so a bluebook-relative path would miss it.
+      # The one real file, resolved from this file's `__dir__` rather than the bluebook's: the
+      # chapter ships in `lib/hecks/quality_control/`, the settings stay in `qa/`, and IsolatedBoot
+      # copies only `qa/bluebook`, so a bluebook-relative path would miss it.
       DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 
       class << self

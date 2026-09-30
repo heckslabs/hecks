@@ -15,6 +15,12 @@
 #[path = "../journal.rs"]
 mod journal;
 
+// journal.rs's Postgres tests connect through `crate::test_pg`, so the harness's own test build
+// carries the same connection-string helpers.
+#[cfg(test)]
+#[path = "../test_pg.rs"]
+mod test_pg;
+
 use serde_json::{json, Value};
 use std::io::Read;
 use tokio_postgres::NoTls;
@@ -35,7 +41,9 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|v| v.as_array())
         .ok_or_else(|| anyhow::anyhow!("stdin JSON missing \"operations\" array"))?;
 
-    let conn_string = format!("host=localhost dbname={db_name} user={app_role}");
+    // tokio_postgres ignores libpq's `PGPASSWORD`, so pass it through when the server asks for one.
+    let password = std::env::var("PGPASSWORD").ok().filter(|p| !p.is_empty()).map(|p| format!(" password={p}")).unwrap_or_default();
+    let conn_string = format!("host=localhost dbname={db_name} user={app_role}{password}");
     let (client, connection) = tokio_postgres::connect(&conn_string, NoTls).await?;
     tokio::spawn(async move {
         if let Err(err) = connection.await {

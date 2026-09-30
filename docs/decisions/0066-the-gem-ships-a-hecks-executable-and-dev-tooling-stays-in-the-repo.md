@@ -60,3 +60,7 @@ These are the maintainer questions from the distribution ticket that are still u
 - Should the gem carry a sample domain and corpus so the README can say `gem install` and mean it?
 - Are the dependents still pinned to `~> 0.3` dead? If so they do not constrain this change.
 - Are the `exe/` names locked as public API under the 1.0 stability promise, or do they stay provisional for a stated period?
+
+## Addendum (2026-09-30): Facade is now Doors
+
+`Hecks::Facade` is now `Hecks::Doors`, and this text's `Hecks::Facade::CliRunner` is `Hecks::Doors::CliRunner` (in `lib/hecks/doors/cli_runner.rb`). `Surface` is `Doors::RubyDoor`, and the MCP door (`Hecks::Doors::McpDoor`, with its `McpDoorScope`) moved from `lib/hecks/cli/` to sit beside the others. The boot keyword `install_facade:` is `install_doors:`. The old constants and keyword still work for one release and warn; generated launchers pick up the new names when regenerated with `hecks project_cli`.

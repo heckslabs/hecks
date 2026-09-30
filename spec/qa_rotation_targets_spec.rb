@@ -26,9 +26,9 @@ RSpec.describe "the QA rotation's own targets" do
   end
 
   # Fails if someone re-types the membership in the seeder instead of reading the corpus.
-  it "is what bin/qa_seed_targets seeds from" do
-    seeder = File.read(File.join(root, "bin/qa_seed_targets"))
+  it "is what qa_seed_targets seeds from" do
+    seeder = File.read(File.join(root, "lib/hecks/quality_control/cli/qa_seed_targets.rb"))
 
-    expect(seeder).to match(/SEED\s*=\s*Hecks::Corpus\.rotation_targets/)
+    expect(seeder).to match(/seed\s*=\s*Hecks::Corpus\.rotation_targets/)
   end
 end

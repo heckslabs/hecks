@@ -201,8 +201,9 @@ module Hecks
         def blank?(value)
           return true if value.nil? || value == false
 
-          # Duck-typed: reaching across to Runtime::Value would couple the namespaces.
-          value = value.to_h if value.respond_to?(:to_h) && !value.is_a?(Hash)
+          # Duck-typed: reaching across to Runtime::Value would couple the namespaces. A list
+          # is judged by its own emptiness, never coerced: `[0].to_h` would raise TypeError.
+          value = value.to_h if value.respond_to?(:to_h) && !value.is_a?(Hash) && !value.is_a?(Array)
           case value
           when String, Array, Hash then value.empty?
           else false

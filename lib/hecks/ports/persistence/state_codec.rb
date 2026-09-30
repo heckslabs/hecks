@@ -211,7 +211,16 @@ module Hecks
           return true if attribute.nil? || value.nil? || attribute.reference?
           return composite_decoded?(aggregate, attribute.type.to_s, value) unless attribute.list?
 
-          !value.is_a?(Array) || value.all? { |element| composite_decoded?(aggregate, attribute.type.to_s, element) }
+          return true unless value.is_a?(Array)
+
+          # The element type resolves once per list, not once per element.
+          fields = :unresolved
+          value.all? do |element|
+            next true unless element.is_a?(Hash)
+
+            fields = composite_fields(aggregate, attribute.type.to_s) if fields == :unresolved
+            fields.nil? || hash_decoded?(aggregate, fields, element)
+          end
         end
 
         # Checks one stored value object or entity, the mirror of `decode_composite`.
@@ -225,13 +234,23 @@ module Hecks
         def composite_decoded?(aggregate, type, value)
           return true unless value.is_a?(Hash)
 
+          fields = composite_fields(aggregate, type)
+          fields.nil? || hash_decoded?(aggregate, fields, value)
+        end
+
+        # Maps the declared keys of a stored value object or entity, looked up by type name.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct that
+        #   declares, or whose chapter declares, the type
+        # @param type [String] the declared type name
+        # @return [Hash{Symbol => Bluebook::Attribute, nil}, nil] the entity's fields, else the
+        #   unambiguous value object's; nil when `type` names neither
+        def composite_fields(aggregate, type)
           entity = Runtime::Value.find_entity(aggregate, type)
-          return hash_decoded?(aggregate, entity_fields(entity), value) if entity
+          return entity_fields(entity) if entity
 
           value_object = Runtime::Value.value_object_for(aggregate, type)
-          return true unless value_object
-
-          hash_decoded?(aggregate, value_object.attributes.to_h { |field| [field.name, field] }, value)
+          value_object&.attributes&.to_h { |field| [field.name, field] }
         end
       end
     end

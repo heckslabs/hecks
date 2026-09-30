@@ -4,10 +4,10 @@ require_relative "report"
 
 module Hecks
   module Bench
-    # The command line behind `bin/bench`: parses flags, runs the `Suite`, prints the report.
+    # The command line behind `hecks bench`: parses flags, runs the `Suite`, prints the report.
     # Lives in `lib/` so a spec can drive it without shelling out.
     module CLI
-      # The defaults `bin/bench` runs with when no flag says otherwise.
+      # The defaults `hecks bench` runs with when no flag says otherwise.
       DEFAULTS = { domains: %w[pizzas banking], targets: Suite::TARGETS, warmup: 200, iterations: 1000,
                    runs: 3 }.freeze
 
@@ -23,7 +23,7 @@ module Hecks
         File.write(options[:output], Report.json(result)) if options[:output]
         0
       rescue OptionParser::ParseError, ArgumentError => e
-        err.puts "bin/bench: #{e.message}"
+        err.puts "hecks bench: #{e.message}"
         2
       end
 
@@ -40,7 +40,7 @@ module Hecks
 
       def parser(values, extras)
         OptionParser.new do |opts|
-          opts.banner = "usage: bin/bench [options]"
+          opts.banner = "usage: hecks bench [options]"
           opts.on("--domain NAMES", Array, "pizzas, banking (default: both)") { |v| values[:domains] = v }
           opts.on("--targets NAMES", Array, "#{Suite::TARGETS.join(', ')} (default: all)") { |v| values[:targets] = v }
           opts.on("--iterations N", Integer, "timed cycles per run (default #{DEFAULTS[:iterations]})") do |v|

@@ -29,7 +29,7 @@ RSpec.describe "the declared syntax" do
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
 
   # Admitted/deprecated words are live and run every builder⇄row gate below.
-  # Proposed (no builder yet) and retired (no builder any more) get their own
+  # Proposed (no builder yet) and retired (no builder now) get their own
   # gates instead. An absent status reads as admitted (see syntax_lifecycle_spec).
   def self.status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
 
@@ -86,6 +86,7 @@ RSpec.describe "the declared syntax" do
     "File"      => {
       boot:             "the runtime facade, not a declaration",
       boot_files:       "the runtime facade, not a declaration — the explicit-file sibling of boot",
+      describe:         "the runtime facade, not a declaration — boot's declarations-only sibling",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
@@ -98,6 +99,7 @@ RSpec.describe "the declared syntax" do
       subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
       framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
       vendored_bluebooks: "the builder's own collected vendored-embryonaut-bluebook names, read by whoever owns them",
+      attached_chapters:  "the builder's own collected attached-chapter names, read by whoever owns them",
       # The open verb catch-all: `persisted_by "Heki"` bare reaches
       # HecksagonBuilder#method_missing — the verb is whichever bind-shaped
       # word a domain declares, not a closed set this table could enumerate.
@@ -170,6 +172,7 @@ RSpec.describe "the declared syntax" do
       tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
                           "— also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:          "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
+      answers_query_impl: "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
       rename_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       move_impl:          "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       convert_impl:       "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
@@ -211,7 +214,7 @@ RSpec.describe "the declared syntax" do
   end
 
   # A GenericDispatch word has no real method to introspect — this reads its
-  # shape straight off the ARGUMENTS rows; `Hecks` is excluded outright.
+  # shape straight off the `ARGUMENTS` rows; `Hecks` is excluded outright.
   def generically_dispatched?(word, context)
     builder = BUILDER.fetch(context)
     return false if builder.equal?(Hecks)
@@ -278,7 +281,7 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # Grouped by BUILDER since ValueObject/OneOf share one and AttributeCollector
+  # Grouped by `BUILDER` since ValueObject/OneOf share one and AttributeCollector
   # mixes into five. A builder's own `one_of(&block)` shadows AttributeCollector's
   # `one_of(*values)`, so a mixed-in word counts as declared only while unshadowed.
   BUILDER.group_by { |_, builder| builder }.each do |builder, pairs|
@@ -350,7 +353,7 @@ RSpec.describe "the declared syntax" do
 
     expect(early).to be_empty,
                      "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
-                     "— proposed, but the builder already answers; run bin/evolve admit"
+                     "— proposed, but the builder already answers; run hecks admit"
   end
 
   it "leaves every retired word unanswered — answered means it never left" do

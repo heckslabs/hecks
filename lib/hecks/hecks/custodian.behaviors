@@ -1,0 +1,179 @@
+Hecks.behaviors "Custodian" do
+  vision "A check and an operation are recorded as requested before anything outside is asked."
+
+  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+
+  test "ModelCheck records the request, runs the analysis and keeps a clean verdict" do
+    tests "ModelCheck", on: "ModelCheckRun"
+    input run: { value: "nightly" }, domains: { value: "examples/pizzas" }
+    expect emits: %w[ModelCheckRequested ModelCheckAnswered ModelCheckPassed]
+  end
+
+  test "ModelCheck refuses a profile it does not know" do
+    tests "ModelCheck", on: "ModelCheckRun"
+    input run: { value: "nightly" }, profile: { value: "strictest" }
+    expect refused: "must match"
+  end
+
+  test "Run keeps a verb the domain refused as a failed operation" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }, verb: { value: "create_pizza" }
+    expect emits: %w[RunRequested OperationRefused OperationFailed]
+  end
+
+  test "Run refuses a request that names neither a script nor a verb" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }
+    expect refused: "exactly one of a script and a verb is named"
+  end
+
+  test "Run refuses a request that names both a script and a verb" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }, script: { value: "steps.json" }, verb: { value: "create_pizza" }
+    expect refused: "exactly one of a script and a verb is named"
+  end
+
+  test "SmokeHttp refuses a scheme it cannot sign with" do
+    tests "SmokeHttp", on: "Operation"
+    input run: { value: "hook" }, path: { value: "/webhooks/events" }, scheme: { value: "md5" }
+    expect refused: "must match"
+  end
+
+  test "SmokeHttp refuses a path that is not a route" do
+    tests "SmokeHttp", on: "Operation"
+    input run: { value: "hook" }, path: { value: "webhooks" }
+    expect refused: "must match"
+  end
+
+  test "CheckEra keeps a host that cannot be reached as lost" do
+    tests "CheckEra", on: "Host"
+    input host: { value: "http://127.0.0.1:1" }, expected: { value: "eras.txt" }
+    expect emits: %w[EraCheckRequested HostRefused HostLost]
+  end
+
+  test "CheckEra refuses an address that is not an http URL" do
+    tests "CheckEra", on: "Host"
+    input host: { value: "ftp://host" }, expected: { value: "eras.txt" }
+    expect refused: "must match"
+  end
+
+  test "CheckEra refuses a timeout that is not positive" do
+    tests "CheckEra", on: "Host"
+    input host: { value: "http://127.0.0.1:1" }, expected: { value: "eras.txt" }, timeout: { value: 0.0 }
+    expect refused: "timeout is positive"
+  end
+
+  test "Vendor keeps a source that is not there as a refused pinning" do
+    tests "Vendor", on: "Package"
+    input package: { value: "payments@1.2.0" }, from: { value: "/tmp/hecks-behaviors-absent/registry" }
+    expect emits: %w[VendorRequested PinRefused VendoringRefused]
+  end
+
+  test "ProjectCli keeps a domain it cannot boot as a stopped door, and writes nothing" do
+    tests "ProjectCli", on: "Door"
+    input run: { value: "launchers" }, domains: { value: "no/such/domain" }
+    expect emits: %w[LaunchersRequested DoorRefused DoorStopped]
+  end
+
+  test "ServeMcp refuses a door that is not named" do
+    tests "ServeMcp", on: "Door"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "Vendor refuses a package name that is not a directory name" do
+    tests "Vendor", on: "Package"
+    input package: { value: "Payments" }
+    expect refused: "must match"
+  end
+
+  test "HoldFirst is refused without an explicit confirmation" do
+    tests "HoldFirst", on: "Era"
+    input domain: { value: "examples/pizzas" }, run: { value: "first" }
+    expect refused: "holding the first era is confirmed"
+  end
+
+  test "MergeTail refuses a winner that names neither world" do
+    tests "MergeTail", on: "Era"
+    input domain: { value: "examples/pizzas" }, run: { value: "merge" }, winners: { value: "a1:both" }, confirm: { value: true }
+    expect refused: "must match"
+  end
+
+  test "Reattest refuses an era that is not counted from one" do
+    tests "Reattest", on: "Era"
+    input domain: { value: "examples/pizzas" }, era: { value: 0 }, run: { value: "attest" }, confirm: { value: true }
+    expect refused: "an era is counted from one"
+  end
+
+  test "ApproveTranslation refuses a rehearsal that neither passed nor failed" do
+    tests "ApproveTranslation", on: "Era"
+    input domain: { value: "examples/pizzas" }, run: { value: "approve" }, confirm: { value: true }, rehearsal: { value: "maybe" }
+    expect refused: "must match"
+  end
+
+  test "CompactHeki keeps a domain that is not there as a refused change" do
+    tests "CompactHeki", on: "Era"
+    input domain: { value: "/tmp/hecks-behaviors-absent/heki-domain" }, run: { value: "compact" }, confirm: { value: true }
+    expect emits: %w[HekiCompactionRequested EraRefused EraAbandoned]
+  end
+
+  test "ProjectRust refuses a domain whose name cannot be a Rust module" do
+    tests "ProjectRust", on: "Build"
+    input domain: { value: "examples/Pizzas" }, run: { value: "rust" }
+    expect refused: "must match"
+  end
+
+  test "ProjectRust keeps a domain that is not there as a faulted build" do
+    tests "ProjectRust", on: "Build"
+    input domain: { value: "no/such/domain" }, run: { value: "rust" }
+    expect emits: %w[RustProjectionRequested BuildRefused BuildFaulted]
+  end
+
+  test "CheckConformance refuses a script that is not named" do
+    tests "CheckConformance", on: "Build"
+    input domain: { value: "examples/pizzas" }, run: { value: "conform" }
+    expect refused: "script"
+  end
+
+  test "FuzzConformance refuses a count that is not positive" do
+    tests "FuzzConformance", on: "Build"
+    input domain: { value: "examples/pizzas" }, artifact: { value: "native" }, run: { value: "fuzz" }, seeds: { value: 0 }
+    expect refused: "a count is positive"
+  end
+
+  test "Fuzz refuses a count that is not positive" do
+    tests "Fuzz", on: "FuzzRun"
+    input run: { value: "sweep" }, domain: { value: "examples/pizzas" }, seeds: { value: 0 }
+    expect refused: "a count is positive"
+  end
+
+  test "Fuzz refuses a persistence it does not know" do
+    tests "Fuzz", on: "FuzzRun"
+    input run: { value: "sweep" }, adapter: { value: "cassandra" }
+    expect refused: "must match"
+  end
+
+  test "Fuzz keeps a domain it cannot sweep as a halted run" do
+    tests "Fuzz", on: "FuzzRun"
+    input run: { value: "sweep" }, domain: { value: "no/such/domain" }, seeds: { value: 1 }, steps: { value: 1 }
+    expect emits: %w[FuzzRequested FuzzRefused FuzzHalted]
+  end
+
+  test "Bench refuses a warmup below zero" do
+    tests "Bench", on: "FuzzRun"
+    input run: { value: "bench" }, warmup: { value: -1 }
+    expect refused: "a warmup is not negative"
+  end
+
+  test "Bench refuses a format it cannot write" do
+    tests "Bench", on: "FuzzRun"
+    input run: { value: "bench" }, format: { value: "xml" }
+    expect refused: "must match"
+  end
+
+  test "BuildWasm refuses a build that is not named" do
+    tests "BuildWasm", on: "Build"
+    input domain: { value: "examples/pizzas" }, run: { value: "" }
+    expect refused: "must match"
+  end
+end

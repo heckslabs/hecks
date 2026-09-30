@@ -143,7 +143,7 @@ pub(crate) mod tests {
         let dir = std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let copy = dir.join("checkout_fixture.wasm");
-        std::fs::copy(&source, &copy).expect("bin/project_wasm writes checkout_fixture.wasm");
+        std::fs::copy(&source, &copy).expect("hecks build_wasm writes checkout_fixture.wasm");
         copy
     }
 

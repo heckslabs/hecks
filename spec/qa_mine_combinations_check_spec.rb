@@ -1,11 +1,11 @@
 require "spec_helper"
 require_relative "support/qa_mine_combinations_helpers"
 
-# `bin/qa_mine_combinations` handing a booting candidate to
-# `bin/qa_generated_domains --source` — its own file because it is the
+# `hecks quality_control mine_combinations` handing a booting candidate to
+# `hecks quality_control check_generated_domains --source` — its own file because it is the
 # slowest example of the miner's specs (~24s on a CI runner); see
 # spec/support/qa_mine_combinations_helpers.rb.
-RSpec.describe "bin/qa_mine_combinations, checking a candidate" do
+RSpec.describe "hecks quality_control mine_combinations, checking a candidate" do
   include QaMineCombinationsHelpers
 
   it "checks what the agent wrote through qa_generated_domains --source, and exits with its verdict" do

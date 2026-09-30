@@ -1,0 +1,552 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "version",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Version"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "ir_version",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Version"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "ships_from",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Checkout"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "version",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Version"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "ir_version",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Version"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "ships_from",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Checkout"
+            }
+          ],
+          "emits": [
+            "Tagged"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record a version as tagged, with the IR version it carries",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "version"
+              },
+              "target": "version"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ir_version"
+              },
+              "target": "ir_version"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ships_from"
+              },
+              "target": "ships_from"
+            }
+          ],
+          "name": "Tag",
+          "provenance": null,
+          "references": null,
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Published"
+          ],
+          "ensures": [
+
+          ],
+          "from": "tagged",
+          "givens": [
+
+          ],
+          "goal": "Record that a tagged version reached the gem registry",
+          "mutations": [
+
+          ],
+          "name": "MarkPublished",
+          "provenance": null,
+          "references": "Release",
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Verified"
+          ],
+          "ensures": [
+
+          ],
+          "from": [
+            "published",
+            "verified"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the published version installs and boots",
+          "mutations": [
+
+          ],
+          "name": "Verify",
+          "provenance": null,
+          "references": "Release",
+          "role": "Maintainer"
+        }
+      ],
+      "description": "One gem version: the record of what is running and what was shipped.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "version.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": {
+        "default": "tagged",
+        "field": "state",
+        "transitions": [
+          {
+            "command": "MarkPublished",
+            "from_state": "tagged",
+            "to_state": "published"
+          },
+          {
+            "command": "Verify",
+            "from_state": "published",
+            "to_state": "verified"
+          },
+          {
+            "command": "Verify",
+            "from_state": "verified",
+            "to_state": "verified"
+          }
+        ]
+      },
+      "name": "Release",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Every version that was tagged, published and verified.",
+          "limit": null,
+          "name": "Shipped",
+          "order_by": {
+            "direction": "asc",
+            "field": "version"
+          },
+          "wheres": [
+            {
+              "field": "state",
+              "op": "eq",
+              "value": "\"verified\""
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "^[0-9]+[.][0-9]+[.][0-9]+",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a version is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Version"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "path",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "path"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!path.to_s.empty?",
+              "description": "a checkout is a working tree with hecks.gemspec beside lib/"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Checkout"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "digest",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Digest"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "digest",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Digest"
+            }
+          ],
+          "emits": [
+            "CacheRecorded"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record a boot cache as built from the grammar chapters that hash to this digest",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "digest"
+              },
+              "target": "digest"
+            }
+          ],
+          "name": "Record",
+          "provenance": null,
+          "references": null,
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CacheInvalidated"
+          ],
+          "ensures": [
+
+          ],
+          "from": "fresh",
+          "givens": [
+
+          ],
+          "goal": "Record that the grammar changed under the cache",
+          "mutations": [
+
+          ],
+          "name": "Invalidate",
+          "provenance": null,
+          "references": "SyntaxBootCache",
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CacheRebuilt"
+          ],
+          "ensures": [
+
+          ],
+          "from": "stale",
+          "givens": [
+
+          ],
+          "goal": "Record that the cache was rebuilt from the current grammar",
+          "mutations": [
+
+          ],
+          "name": "Rebuild",
+          "provenance": null,
+          "references": "SyntaxBootCache",
+          "role": "Maintainer"
+        }
+      ],
+      "description": "The grammar chapters' on-disk boot cache, keyed by a digest of the chapters it was built from.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "digest.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": {
+        "default": "fresh",
+        "field": "state",
+        "transitions": [
+          {
+            "command": "Invalidate",
+            "from_state": "fresh",
+            "to_state": "stale"
+          },
+          {
+            "command": "Rebuild",
+            "from_state": "stale",
+            "to_state": "fresh"
+          }
+        ]
+      },
+      "name": "SyntaxBootCache",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Every cache whose grammar changed under it and is not yet rebuilt.",
+          "limit": null,
+          "name": "Stale",
+          "order_by": {
+            "direction": "asc",
+            "field": "digest"
+          },
+          "wheres": [
+            {
+              "field": "state",
+              "op": "eq",
+              "value": "\"stale\""
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a digest is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Digest"
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": null,
+  "formerly_known_as": null,
+  "ir_version": 1,
+  "name": "Hecks",
+  "namespace": "Hecks::Domain",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "provides": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "What this install is, what version it runs, and whether its grammar cache can be trusted."
+}

@@ -3,7 +3,7 @@ require "json"
 require "hecks/fuzzing/form_census"
 
 # Every pair of declared forms must meet on one aggregate; defects live where two forms meet.
-# The form table is Hecks::Fuzzing::FormCensus, shared with bin/qa_domain_novelty.
+# The form table is Hecks::Fuzzing::FormCensus, shared with hecks quality_control judge_novelty.
 RSpec.describe "every pair of declared forms, met on one aggregate" do
   # The unit is one aggregate: forms on different heads never meet at dispatch.
   FormCensus = Hecks::Fuzzing::FormCensus
@@ -106,7 +106,8 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
                                                      end.join(', ')}"
   end
 
-  # The same walk over a domain on disk, the path bin/qa_domain_novelty measures through.
+  # The same walk over a domain on disk, the path hecks quality_control judge_novelty measures
+  # through.
   it "measures a domain on disk the same way it measures a golden" do
     transfer = FormCensus.census(File.join(InMemoryDomain::ROOT, "examples/banking"))
                          .find { |name, _| name == "Banking::Transfer" }

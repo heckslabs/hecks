@@ -6,7 +6,7 @@ name: Refresh rspec runtime baselines (scheduled)
 # doesn't just cost total suite time: it actively worsens the max-shard "long pole", since
 # the packer keeps a file's shard allocation pinned to whatever it cost the last time the
 # baseline was refreshed, even after a real fix changes that file's actual cost (this is
-# exactly what happened after #898 sped up bin/qa_tick — the packer kept budgeting the old,
+# exactly what happened after #898 sped up hecks quality_control tick — the packer kept budgeting the old,
 # slower time for those specs until #900 manually refreshed the baseline).
 #
 # SCHEDULED, NOT PER-MERGE — the postgres-io legs only run on `pull_request`/`merge_group`
@@ -46,7 +46,11 @@ jobs:
 
       - uses: ./.github/actions/setup-ruby
 
-      # `bin/refresh_rspec_runtime_baseline --from-run` refuses (aborts) a non-`success` run,
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # `hecks refresh_runtime_baseline from_run=` refuses (aborts) a non-`success` run,
       # and separately skips (warns, does not abort) a family whose artifact set is
       # incomplete — the rspec-runtime-group family runs on every merge_group/pull_request,
       # but the postgres-io family is itself gated by `postgres_io_relevant_changed` and can
@@ -81,12 +85,12 @@ jobs:
 
       - name: Refresh the committed baselines
         if: steps.find_run.outputs.run_id != ''
-        run: bin/refresh_rspec_runtime_baseline --from-run ${{ steps.find_run.outputs.run_id }}
+        run: bundle exec exe/hecks refresh_runtime_baseline from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
 
       # Auto-merge, not a human-reviewed PR — this is a scoped, mechanical, data-only change
       # (two generated log files, no code or spec content), the same class of change a
-      # person would rubber-stamp without reading every line anyway. `bin/refresh_rspec_
-      # runtime_baseline`'s own safety checks (above) are what actually gate correctness.
+      # person would rubber-stamp without reading every line anyway. `hecks refresh_runtime_
+      # baseline`'s own safety checks (above) are what actually gate correctness.
       - name: Open and auto-merge a PR if the baselines changed
         if: steps.find_run.outputs.run_id != ''
         env:
@@ -107,5 +111,5 @@ jobs:
 
           pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" \
             --title "Scheduled refresh of rspec runtime baselines" \
-            --body "Automated weekly refresh of .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log from merge-queue run $RUN_ID. Data-only: no code or spec content changed. See bin/refresh_rspec_runtime_baseline's own header for what these files drive.")
+            --body "Automated weekly refresh of .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log from merge-queue run $RUN_ID. Data-only: no code or spec content changed. See hecks refresh_runtime_baseline's own header for what these files drive.")
           gh pr merge "$pr_url" --auto --squash

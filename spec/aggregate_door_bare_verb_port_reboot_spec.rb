@@ -6,7 +6,7 @@ require_relative "support/bare_port_reboot_domain"
 # a bare-verb port declaration (`port "x" do verb "y" end`) makes `DomainPortBuilder#build`
 # return a plain `Bluebook::Port` (verb/signal/answers, no `operations`), not a `DomainPort`.
 # `DSL::BindingProxy#port` and `HecksagonBuilder#port_impl` both guard with
-# `built.is_a?(Port)` before touching `.operations`; `Facade::Surface::AggregateDoor#port` —
+# `built.is_a?(Port)` before touching `.operations`; `Doors::RubyDoor::AggregateDoor#port` —
 # reached once the aggregate's Ruby facade constant already exists, e.g. the same domain
 # booted a second time in one process — did not, and crashed with a raw `NoMethodError`
 # instead of a declared `Bluebook::DSL::Malformed`.

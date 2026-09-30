@@ -5,7 +5,7 @@ require_relative "../support/persistence_legacy_fixture"
 require_relative "../support/postgres_probe"
 
 # Legacy fixtures under spec/fixtures/persistence_legacy/ (see
-# bin/regenerate_persistence_legacy_fixtures) still decode, canonically, through today's adapters.
+# hecks regenerate_legacy_fixtures) still decode, canonically, through today's adapters.
 #
 # Pins the raw `state:` each adapter hands `Runtime::Instance.new`, not `instance.state`:
 # `Instance#initialize` re-hydrates and accepts either key spelling, hiding regressions.

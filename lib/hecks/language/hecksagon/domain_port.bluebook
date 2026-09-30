@@ -7,6 +7,7 @@ Hecks.bluebook "Hecksagon" do
     attribute :verb,    PortVerb, optional: true
     attribute :signal,  PortSignal, optional: true
     attribute :answers, list_of(PortAnswer)
+    attribute :answered_queries, list_of(QueryBinding)
 
     value_object "PortName" do
       attribute :value, String
@@ -29,6 +30,13 @@ Hecks.bluebook "Hecksagon" do
       invariant("an answer names a real method") { !value.to_s.empty? }
     end
 
+    # A query this port's adapter answers. The shape of the answer is the query's own `returns`,
+    # declared in the bluebook; the hecksagon only says who answers.
+    value_object "QueryBinding" do
+      attribute :name, String
+      invariant("a bound query is named") { !name.to_s.empty? }
+    end
+
     # Keyword rows for DomainPort; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -48,6 +56,7 @@ Hecks.bluebook "Hecksagon" do
       member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
       member word: "signal",          context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "signal"
       member word: "answers",         context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "answers"
+      member word: "answers_query",   context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "answered_queries", calls: "answers_query_impl"
 
     end
 
@@ -74,6 +83,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
       member keyword: "signal",          context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
       member keyword: "answers",         context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "answers"
+      member keyword: "answers_query",   context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
 
       # The receiving aggregate is named on the opening word (`to:`), not by `reference_to` inside.
       member keyword: "operation",       context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"

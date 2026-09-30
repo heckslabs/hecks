@@ -1,6 +1,7 @@
 //! Storage trait and in-memory implementation shared by every generated aggregate.
 //! The adapter persistence contract is docs/implemented/guides/writing-an-adapter.md.
 
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
 
 pub trait Repository<T: Clone> {
@@ -10,9 +11,19 @@ pub trait Repository<T: Clone> {
     fn count(&self) -> usize;
 }
 
+/// One held record plus its `to_json()` rendering, built the first time a scan asks for it.
+///
+/// A slot is only ever replaced whole by `save`, so the rendering can never outlive the record
+/// it was built from.
+#[derive(Clone)]
+struct Slot<T> {
+    record: T,
+    json: OnceCell<super::Json>,
+}
+
 #[derive(Default, Clone)]
 pub struct InMemoryRepository<T: Clone> {
-    records: BTreeMap<String, T>,
+    records: BTreeMap<String, Slot<T>>,
 }
 
 impl<T: Clone> InMemoryRepository<T> {
@@ -23,21 +34,33 @@ impl<T: Clone> InMemoryRepository<T> {
     /// `(id, record)` pairs; `Repository::all` drops the id, which the CLI `instances` dump needs.
     /// Inherent rather than on the trait: only the hand-written CLI calls it.
     pub fn entries(&self) -> impl Iterator<Item = (&String, &T)> {
-        self.records.iter()
+        self.records.iter().map(|(id, slot)| (id, &slot.record))
+    }
+
+    /// `(id, record.to_json())` pairs in id order, borrowed from a per-record cache.
+    ///
+    /// `to_json` runs once per record per save, not once per scan, so a query over an unchanged
+    /// store allocates nothing until a row actually matches. `to_json` must be a pure function
+    /// of the record, as every generated `to_json` is.
+    pub fn json_entries<'a>(
+        &'a self,
+        to_json: impl Fn(&T) -> super::Json + 'a,
+    ) -> impl Iterator<Item = (&'a String, &'a super::Json)> {
+        self.records.iter().map(move |(id, slot)| (id, slot.json.get_or_init(|| to_json(&slot.record))))
     }
 }
 
 impl<T: Clone> Repository<T> for InMemoryRepository<T> {
     fn find(&self, id: &str) -> Option<T> {
-        self.records.get(id).cloned()
+        self.records.get(id).map(|slot| slot.record.clone())
     }
 
     fn save(&mut self, id: &str, record: T) {
-        self.records.insert(id.to_string(), record);
+        self.records.insert(id.to_string(), Slot { record, json: OnceCell::new() });
     }
 
     fn all(&self) -> Vec<T> {
-        self.records.values().cloned().collect()
+        self.records.values().map(|slot| slot.record.clone()).collect()
     }
 
     fn count(&self) -> usize {
@@ -73,6 +96,20 @@ pub trait AggregateScan {
         let _ = aggregate;
         None
     }
+
+    /// Calls `visit` with each `(id, record.to_json())` of `aggregate` in id order, borrowing the
+    /// rows so a caller that keeps only some of them clones only those.
+    ///
+    /// Answers `false` for an unknown aggregate, where `scan` answers `None`. The default walks
+    /// `scan`, so a store that overrides only `scan` still answers; generated stores override
+    /// this to read their repositories' cached renderings.
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &super::Json)) -> bool {
+        let Some(entries) = self.scan(aggregate) else { return false };
+        for (id, record) in &entries {
+            visit(id, record);
+        }
+        true
+    }
 }
 
 /// Keeps the entries whose dotted `field` satisfies `comparator` against `want`, sorted by id.
@@ -100,18 +137,31 @@ pub fn filter_entries_cross_domain(
     let want = super::query_comparators::comparable(want);
     let mut matched: Vec<(String, super::Json)> = entries
         .into_iter()
-        .filter(|(_, record)| {
-            let held = record.dig(field).cloned().unwrap_or(super::Json::Null);
-            let held = super::query_comparators::comparable(&held);
-            if comparator == super::query_comparators::QueryComparator::NoneInState {
-                super::query_comparators::none_in_state_matches(cross_domain, &held, &want)
-            } else {
-                comparator.matches(&held, &want)
-            }
-        })
+        .filter(|(_, record)| entry_matches(record, field, comparator, &want, cross_domain))
         .collect();
     matched.sort_by(|a, b| a.0.cmp(&b.0));
     matched
+}
+
+/// True when `record`'s dotted `field` satisfies `comparator` against `want`, which the caller
+/// has already reduced through `query_comparators::comparable`.
+///
+/// The per-record test `filter_entries_cross_domain` applies; `named_query::run` calls it on
+/// borrowed rows so a record that fails is never cloned. A missing field reads as `Json::Null`.
+pub fn entry_matches(
+    record: &super::Json,
+    field: &str,
+    comparator: super::query_comparators::QueryComparator,
+    want: &super::Json,
+    cross_domain: &[(&str, &dyn AggregateScan)],
+) -> bool {
+    static NULL: super::Json = super::Json::Null;
+    let held = super::query_comparators::comparable_ref(record.dig(field).unwrap_or(&NULL));
+    if comparator == super::query_comparators::QueryComparator::NoneInState {
+        super::query_comparators::none_in_state_matches(cross_domain, held, want)
+    } else {
+        comparator.matches(held, want)
+    }
 }
 
 /// Prepends the field `"id"` to a record's `to_json()` object, matching Ruby's query row shape.
@@ -390,5 +440,29 @@ mod check_role_actor_id_tests {
 
         let result = check_role_via(Some("Chef"), "Prepare", Some("Chef"), Some("whoever"), &store, &queries, None);
         assert!(result.is_ok(), "no declared provider -> string fallback, matching role -> accepted: {result:?}");
+    }
+}
+
+#[cfg(test)]
+mod json_cache_tests {
+    use super::{InMemoryRepository, Repository};
+    use crate::kernel::Json;
+
+    fn render(n: &i64) -> Json {
+        Json::obj(vec![("n", Json::int(*n))])
+    }
+
+    // A save replaces the whole slot, so a scan after it never sees the old rendering.
+    #[test]
+    fn json_entries_follow_a_resave_and_stay_in_id_order() {
+        let mut repo: InMemoryRepository<i64> = InMemoryRepository::new();
+        repo.save("b", 2);
+        repo.save("a", 1);
+        let first: Vec<(String, Json)> = repo.json_entries(render).map(|(id, json)| (id.clone(), json.clone())).collect();
+        assert_eq!(first, vec![("a".to_string(), render(&1)), ("b".to_string(), render(&2))]);
+
+        repo.save("a", 10);
+        let second: Vec<Json> = repo.json_entries(render).map(|(_, json)| json.clone()).collect();
+        assert_eq!(second, vec![render(&10), render(&2)]);
     }
 }

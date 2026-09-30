@@ -1,9 +1,8 @@
 require_relative "../projector"
 
 module Hecks
-  # Repository-only tooling: `Doc::Reference` reads the committed pages under
-  # `docs/`, which only a checkout has, so it loads on first use and the
-  # packaged gem leaves it out (ADR 0066).
+  # `Doc::Reference` reads the committed pages under `docs/`, which only a
+  # checkout has, so it loads on first use.
   module Doc
     autoload :Reference, File.expand_path("../doc/reference", __dir__)
   end

@@ -1,3 +1,4 @@
 Hecks.bluebook "Hecks" do
+  namespace "HecksSibling"
   generic
 end

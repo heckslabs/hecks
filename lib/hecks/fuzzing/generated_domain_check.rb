@@ -7,7 +7,8 @@ require_relative "differential"
 
 module Hecks
   module Fuzzing
-    # The child-process half of `bin/qa_generated_domains`: checks one generated domain.
+    # The child-process half of `hecks quality_control check_generated_domains`: checks one
+    # generated domain.
     #
     # One domain per process, since every generated domain is named `QaGenerated`.
     # A domain that fails to boot is `invalid` (a generator defect), not a finding.
@@ -39,7 +40,7 @@ module Hecks
       end
 
       def boot_error(domain_path)
-        IsolatedBoot.call(domain_path) { |copy| Hecks.boot(copy) }
+        IsolatedBoot.call(domain_path) { |copy| Hecks.boot(copy, environment: nil) }
         nil
       rescue StandardError, ScriptError => e
         "#{e.class}: #{e.message.lines.first&.strip}"

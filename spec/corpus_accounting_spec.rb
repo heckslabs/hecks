@@ -35,6 +35,14 @@ RSpec.describe Hecks::Corpus do
                          "no Hecks::Corpus kind holds #{uncovered.join(', ')} — add a kind, or a ROUTE to the check that owns it"
   end
 
+  it "names a real, sweepable domain and a reason for each one a fuzz cannot boot" do
+    expect(described_class::FUZZ_UNBOOTABLE.values).to all(match(/\S/))
+    unbootable = described_class::FUZZ_UNBOOTABLE.keys.map { |dir| File.join(root, dir) }
+
+    expect(described_class.sweepable_domains).to include(*unbootable)
+    expect(described_class.fuzzable_domains).to eq(described_class.sweepable_domains - unbootable)
+  end
+
   it "gives every route a known check and a reason" do
     expect(described_class::ROUTES.map(&:check)).to all(satisfy { |check| ROUTE_CHECKS.include?(check) })
     expect(described_class::ROUTES.map(&:why)).to all(match(/\S/))

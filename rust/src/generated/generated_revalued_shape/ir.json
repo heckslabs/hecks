@@ -5,6 +5,7 @@
   "vision": "A generated domain that puts revalued_reference and has_query together.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Hangar",

@@ -720,6 +720,7 @@
   "formerly_known_as": null,
   "ir_version": 1,
   "name": "Pizzas",
+  "namespace": null,
   "policies": [
     {
       "expect_undelivered": false,

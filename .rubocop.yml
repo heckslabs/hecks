@@ -30,12 +30,10 @@ Hecks/ThreadSharedIvarMutation:
 Hecks/SequentialHashRenameInLoop:
   Enabled: true
 
-# Extensionless bin/ scripts are Ruby by shebang only, so Include names them for linting.
 AllCops:
   TargetRubyVersion: 3.3
   NewCops: enable
   Include:
-    - "bin/*"
     - "**/*.rb"
   Exclude:
     - "rust/**/*"

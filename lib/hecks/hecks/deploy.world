@@ -1,0 +1,12 @@
+# The Deploy chapter's launcher when the Hecks domain attaches it: `hecks deploy <verb>` reads the
+# world named for the chapter, as `hecks.world` does for the Hecks chapter's own verbs. Its store
+# is not set here: hecks.world's `default_adapter` fills the gap, so the memory overlay swaps it
+# with the rest.
+#
+# `run_keys` mints the `run` key of a recipe, a lint, a comparison or a manifest projection, and
+# `--wait` reports a faulted, flagged, drifted or refused run as exit 1.
+Hecks.world "Deploy" do
+  launcher "Launcher", run_keys: true,
+                       failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
+                                          abandoned red needs_fix]
+end

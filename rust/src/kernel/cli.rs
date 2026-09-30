@@ -66,6 +66,9 @@ pub fn run(input: &str) -> String {
     // Parallel to `mutations_per_step`: policies that named a domain not compiled into this
     // `Store`; rust/host delivers them.
     let mut cross_domain_per_step: Vec<Vec<PendingCrossDomainReaction>> = Vec::new();
+    // Parallel to `mutations_per_step`: the slice of `reaction_log` each step appended, so a
+    // host reads `.last()` for only the newest step's reactions, not the replayed history's.
+    let mut reactions_per_step: Vec<Json> = Vec::new();
     // Whole-run accumulations matching `Registry#reaction_log`/`#saga_log`; never reset per step.
     let mut reaction_log: Vec<Json> = Vec::new();
     let mut saga_log: Vec<Json> = Vec::new();
@@ -206,6 +209,7 @@ pub fn run(input: &str) -> String {
             }
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
+            reactions_per_step.push(Json::Array(Vec::new()));
             continue;
         }
 
@@ -217,6 +221,7 @@ pub fn run(input: &str) -> String {
             dry_runs.push(dry_run(&store, verb, &command_input, caller_role, caller_actor_id));
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
+            reactions_per_step.push(Json::Array(Vec::new()));
             continue;
         }
 
@@ -243,6 +248,7 @@ pub fn run(input: &str) -> String {
         // Mutations from a refused command stay recorded: earlier saga legs may have saved.
         let mut step_mutations: Vec<MutationRecord> = Vec::new();
         let mut step_cross_domain: Vec<PendingCrossDomainReaction> = Vec::new();
+        let reactions_before = reaction_log.len();
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
@@ -276,6 +282,7 @@ pub fn run(input: &str) -> String {
         }
         mutations_per_step.push(step_mutations);
         cross_domain_per_step.push(step_cross_domain);
+        reactions_per_step.push(Json::Array(reaction_log[reactions_before..].to_vec()));
     }
 
     let events_json = Json::Array(events.iter().map(event_to_json).collect());
@@ -308,6 +315,7 @@ pub fn run(input: &str) -> String {
         ("cross_domain_reactions".to_string(), cross_domain_json),
         // Whole-run logs, not per-step.
         ("reactions".to_string(), Json::Array(reaction_log)),
+        ("reactions_per_step".to_string(), Json::Array(reactions_per_step)),
         ("sagas".to_string(), Json::Array(saga_log)),
         // State at the end of the run, fed back as `"sagas"` next time; the `"sagas"` key above
         // is the transition log, including refused transitions.

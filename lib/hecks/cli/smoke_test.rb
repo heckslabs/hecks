@@ -3,7 +3,7 @@ require_relative "../bluebook/smoke_test"
 
 module Hecks
   module CLI
-    # The command behind `bin/smoke_test` and `hecks smoke_test`: boots a real domain
+    # The command behind `hecks smoke_test`: boots a real domain
     # and dispatches one synthesized call per declared command and report
     # (`Bluebook::SmokeTest`), printing every failure rather than the first.
     #
@@ -14,8 +14,10 @@ module Hecks
       module_function
 
       def call(argv, root:)
-        dir_arg = argv.first
-        targets = dir_arg ? [dir_arg] : Dir.glob("#{root}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) }
+        missing = argv.reject { |dir| File.directory?(dir) }
+        abort "smoke_test: no such domain #{missing.first.inspect}" unless missing.empty?
+
+        targets = argv.empty? ? Dir.glob("#{root}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) } : argv
         abort "no wired example domains found (none of examples/* has a .hecksagon)" if targets.empty?
 
         ok = targets.reduce(true) { |all_ok, dir| clean?(dir) && all_ok }

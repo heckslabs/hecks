@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # The QA ledger booted against Memory so runs never touch the real ledger; only wiring is swapped.
 # Written through the facade; the two helpers at the top are where it reaches past it.
 RSpec.describe "QualityControl" do
-  QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
+  QC_ROOT = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control").freeze
 
   class StubTracker
     # The answer is spread into the event payload and a policy re-enters with it verbatim, so
@@ -60,25 +60,11 @@ RSpec.describe "QualityControl" do
          QualityControl::Clearance].each do |aggregate|
           aggregate.persisted_by("Memory")
         end
-
-        QualityControl::Ticket.port "IssueTracker" do
-          asks "File", to: Ticket do
-            answers "IssueFiled"
-            refuses "IssueFilingRefused"
-          end
-
-          tells "Closed", to: Ticket do
-            emits "IssueClosedUpstream"
-          end
-        end
-
-        QualityControl::Clearance.port "CI" do
-          asks "Run", to: Clearance do
-            answers "SuitePassed"
-            refuses "SuiteFailed"
-          end
-        end
       end
+      # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+      # and tool-query bindings are the real ones.
+      Kernel.load(File.join(QC_ROOT, "quality_control.ports.hecksagon"))
+      Dir[File.join(QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
       sibling_governance!
     end
 
@@ -120,7 +106,7 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the clock" do
-    def cli(*argv) = Hecks::Facade::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
+    def cli(*argv) = Hecks::Doors::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
 
     def target = @target ||= a_target("banking")
 
@@ -204,7 +190,7 @@ RSpec.describe "QualityControl" do
     it "is a question the command line offers" do
       a_logged_bug("BUG#1")
 
-      text, code = Hecks::Facade::CliRunner.call(
+      text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, argv: %w[ask bugs_by_status], program: "qa/quality_control"
       )
 
@@ -320,9 +306,9 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # `bin/qa_sweep` does the streak arithmetic; these examples do it by hand. `Target::Release`
-  # trusts the `next_streak` it is given, so what is under test is that the field lands and
-  # `Check::Surprised`'s sticky bit survives a `Remake`.
+  # `hecks quality_control ask run` does the streak arithmetic; these examples do it by hand.
+  # `Target::Release` trusts the `next_streak` it is given, so what is under test is that the
+  # field lands and `Check::Surprised`'s sticky bit survives a `Remake`.
   describe "the clean streak" do
     it "starts at zero for a freshly identified target" do
       target = a_target
@@ -562,6 +548,13 @@ RSpec.describe "QualityControl" do
       expect(bug.verification.to_h[:value]).to include("seed 12345")
     end
 
+    it "withdraws a paused bug whose report proved something else" do
+      bug = a_bug(a_sweep)
+      bug.pause!(reason: { value: "architectural" }, next_step: { value: "review" })
+
+      expect(bug.withdraw!(reason: { value: "the test proved something else" }).status).to eq("withdrawn")
+    end
+
     it "cannot be fixed before anybody has looked at it" do
       expect { a_bug(a_sweep).fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
         .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "investigating"/)
@@ -597,7 +590,7 @@ RSpec.describe "QualityControl" do
     # facade's Ruby method always wants it named.
     it "fills proposed_at from the clock when the caller leaves it out" do
       runtime
-      text, code = Hecks::Facade::CliRunner.call(
+      text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, program: "bin/qc",
         argv: ["propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]
@@ -690,6 +683,18 @@ RSpec.describe "QualityControl" do
       runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
     end
 
+    it "abandons a ticket that was raised and never sent" do
+      bug = a_paused_bug
+      raise_ticket(bug)
+      QualityControl::Ticket.raise!(
+        bug: bug.id, reference: { value: "TK-2" }, repository: { value: "chrisyoung/hecksagain" },
+        title: { value: "unsent" }, body: { value: "never submitted" }
+      )
+      runtime.dispatch_flat("QualityControl::Ticket.Abandon", id: "TK-2")
+
+      expect(QualityControl::Ticket.find("TK-2").status).to eq("abandoned")
+    end
+
     it "cannot be raised for a bug that does not exist" do
       a_sweep
 
@@ -744,19 +749,21 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # The worklist `bin/qa_pr_check` reads instead of searching: a patch is recorded at
-  # `gh pr create`, when its number, branch and commit are already known.
+  # The worklist `hecks quality_control check_pull_requests` reads instead of searching: a patch
+  # is recorded at `gh pr create`, when its number, branch and commit are already known.
   describe "tracking a pull request" do
     def a_bug_needing_a_patch
-      a_bug(a_sweep)
+      bug = a_bug(a_sweep)
+      bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+      bug.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
     end
 
-    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c", now: 1_000)
+    def open_patch(bug, number: 538, branch: "qa/some-slug", commit: "4f2a19c", now: 1_000)
       QualityControl::Patch.open!(
         bug: bug.id, number: { value: number },
         url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
         branch: { value: branch }, commit: { value: commit },
-        title: { value: "loop-parity: #{branch}" },
+        title: { value: "qa: #{branch}" },
         now: { value: now }
       )
     end
@@ -783,6 +790,38 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to eq([538])
     end
 
+    # The rules for opening a pull request are `given`s on `Open`, so a dry run of the command
+    # answers them before a pull request exists.
+    it "refuses a branch this practice does not recognise as its own" do
+      bug = a_bug_needing_a_patch
+
+      expect { open_patch(bug, branch: "loop-parity/old-habit") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /branch is one this practice recognises/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "refuses a bug that is not fixed" do
+      logged = a_bug(a_sweep)
+
+      expect { open_patch(logged) }.to raise_error(Hecks::Runtime::GivenNotMet, /the bug is fixed/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "answers a dry run without recording anything" do
+      bug = a_bug_needing_a_patch
+
+      expect(runtime.dry_run?("QualityControl::Patch.Open", bug: bug.id, number: { value: 538 },
+                                url: { value: "https://example.com/pull/538" }, branch: { value: "qa/x" },
+                                commit: { value: "4f2a19c" }, title: { value: "x" }, now: { value: 1 })).to be(true)
+      expect(open_numbers).to be_empty
+    end
+
+    it "spells the branch prefix the dial names" do
+      source = File.read(File.join(QC_ROOT, "quality_control.bluebook"))
+
+      expect(source).to include(%(branch.value.start_with?("#{QualityControlDials::BRANCH_PREFIX}")))
+    end
+
     it "drops out of the worklist once GitHub merges it" do
       patch = open_patch(a_bug_needing_a_patch)
       patch.merge!
@@ -802,8 +841,8 @@ RSpec.describe "QualityControl" do
     # Same shape as `Ticket.ForBug`, restated here rather than shared.
     it "finds every patch ever opened for one bug" do
       bug = a_bug_needing_a_patch
-      open_patch(bug, number: 538, branch: "loop-parity/first")
-      open_patch(bug, number: 540, branch: "loop-parity/second")
+      open_patch(bug, number: 538, branch: "qa/first")
+      open_patch(bug, number: 540, branch: "qa/second")
 
       numbers = rows("Patch.ForBug", bug_id: { value: bug.id }).map { |row| row[:number][:value] }
       expect(numbers).to contain_exactly(538, 540)
@@ -823,9 +862,9 @@ RSpec.describe "QualityControl" do
 
     it "lists every patch ever opened, whatever became of it" do
       bug = a_bug_needing_a_patch
-      merged = open_patch(bug, number: 538, branch: "loop-parity/first")
+      merged = open_patch(bug, number: 538, branch: "qa/first")
       merged.merge!
-      open_patch(bug, number: 540, branch: "loop-parity/second")
+      open_patch(bug, number: 540, branch: "qa/second")
 
       numbers = rows("Patch.All").map { |row| row[:number][:value] }
       expect(numbers).to contain_exactly(538, 540)
@@ -859,6 +898,22 @@ RSpec.describe "QualityControl" do
           branch: { value: "x" }, title: { value: "x" }, now: { value: 1_000 }
         )
       end.to raise_error(Hecks::Runtime::NotFound)
+    end
+
+    it "refuses a branch this practice does not recognise as its own" do
+      expect { open_improvement(branch: "loop-parity/old-habit") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /branch is one this practice recognises/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "refuses an angle nobody has picked up, and admits it once somebody has" do
+      angle = an_angle(reference: "ANGLE-1")
+
+      expect { open_improvement(angle: angle) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /the angle is under investigation/)
+
+      angle.investigate!
+      expect(open_improvement(angle: angle).status).to eq("opened")
     end
 
     it "is born opened, with no commit on the record yet" do
@@ -1198,14 +1253,15 @@ RSpec.describe "QualityControl" do
 
       expect { target.restore! }.to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
 
-      restored = target.restore!(reason: { value: "bin/project_rust now covers it" })
+      restored = target.restore!(reason: { value: "hecks project_rust now covers it" })
       expect(restored.status).to eq("waiting")
-      expect(restored.reason.to_h[:value]).to eq("bin/project_rust now covers it")
+      expect(restored.reason.to_h[:value]).to eq("hecks project_rust now covers it")
     end
   end
 
-  # Not a lifecycle move, so it must reach a chapter whatever `bin/qa_sweep` currently has it
-  # doing: a stale path is exactly as wrong while a claim or a suspension is in progress.
+  # Not a lifecycle move, so it must reach a chapter whatever `hecks quality_control ask run`
+  # currently has it doing: a stale path is exactly as wrong while a claim or a suspension is
+  # in progress.
   describe "relocating a chapter" do
     it "refuses without a path" do
       target = a_target
@@ -1307,7 +1363,7 @@ RSpec.describe "QualityControl" do
     end
 
     # The invariant grammar reads literals, not constants, so `WaivedBy` spells "qa_sweep" where
-    # `bin/qa_sweep` reads `AUTOMATED_ENGINEER`; this pins the two together.
+    # `hecks quality_control ask run` reads `AUTOMATED_ENGINEER`; this pins the two together.
     it "refuses exactly the identity the loop runs as" do
       runtime
 
@@ -1502,7 +1558,7 @@ RSpec.describe "QualityControl" do
     end
 
     # A row from before the field existed hydrates at the epoch, before any midnight
-    # `bin/qa_open_pr` counts from.
+    # `hecks quality_control patch.open` counts from.
     it "never counts a PR recorded at the epoch against a later day" do
       open_patch(a_fixed_bug, 1, 0)
 

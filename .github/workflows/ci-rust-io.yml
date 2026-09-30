@@ -9,6 +9,8 @@ on:
     secrets:
       HECKS_CI_ATTEST_KEY:
         required: false
+      HECKS_JOURNAL_DATABASE:
+        required: false
 
 jobs:
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
@@ -52,6 +54,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       # Root crate only, so a dependency bump in rust/parser does not invalidate it.
       - uses: ./.github/actions/cargo-cache
@@ -82,7 +87,7 @@ jobs:
       # via RustConformanceHelpers#build_rust_for, and the exemplar step below
       # already type-checks the default feature set.
       - name: Build the Rust conformance binary
-        run: bundle exec bin/project_rust examples/banking
+        run: bundle exec exe/hecks project_rust domain=examples/banking --wait
 
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.

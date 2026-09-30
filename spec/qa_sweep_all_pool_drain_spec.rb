@@ -2,9 +2,9 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all`: the pool draining fast children.
+# `qa_sweep --all`: the pool draining fast children.
 # Own throwaway database `hecks_qa_sweep_all_pool_drain_spec`, so it never races a sibling file.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_pool_drain_spec"
 
   # Every target finishes almost instantly, so several children exit within the same

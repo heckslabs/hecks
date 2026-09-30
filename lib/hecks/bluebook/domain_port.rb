@@ -58,20 +58,51 @@ module Hecks
       end
     end
 
-    # A named group of operations an aggregate exposes to whatever adapter calls in.
+    # A query the hecksagon binds to a port's adapter: the bluebook declares the question and the
+    # value object its answer takes (`returns`), and this declares that something outside the
+    # domain answers it.
+    class QueryAnswer
+      include Hecks::IR
+
+      emits_ir(name: :name)
+
+      attr_reader :name
+
+      # @param name [String, Symbol] the bound query's declared name
+      def initialize(name:)
+        @name = name.to_s
+      end
+    end
+
+    # A named group of operations an aggregate exposes to whatever adapter calls in, plus the
+    # queries its adapter answers.
     class DomainPort
       include Hecks::IR
       include Behaviour::DomainPort
 
       emits_ir(name: :name, operations: many(:operations))
 
-      attr_reader :name, :operations
+      attr_reader :name, :operations, :answered_queries
 
       # @param name [String, Symbol] the port's declared name
       # @param operations [Array<Bluebook::PortOperation>] the port's declared operations
-      def initialize(name:, operations: [])
-        @name       = name.to_s
-        @operations = operations
+      # @param answered_queries [Array<Bluebook::QueryAnswer>] the queries this port's adapter
+      #   answers instead of the aggregate's stored records
+      def initialize(name:, operations: [], answered_queries: [])
+        @name             = name.to_s
+        @operations       = operations
+        @answered_queries = answered_queries
+      end
+
+      # `answered_queries` is merged in only when there are some, so a port that binds no query
+      # emits the shape it always did.
+      #
+      # @return [Hash] the port's IR
+      def to_h
+        shape = super
+        return shape if @answered_queries.empty?
+
+        shape.merge(answered_queries: @answered_queries.map(&:to_h))
       end
     end
   end

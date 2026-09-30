@@ -73,7 +73,7 @@ shape that were never part of the Tiers 1-5 fix set — mostly
 `settings[:key] || settings["key"]` in the storage adapters (`d1.rb`,
 `heki.rb`, `lambda.rb`, `postgres.rb`, `sqlite.rb`, the era plugin's
 `postgres_era.rb` and `era_resolver.rb`), plus a handful of one-off
-spots (`bin/fuzz`, `lib/hecks/bluebook/dsl/word_gate.rb`,
+spots (`hecks fuzz`, `lib/hecks/bluebook/dsl/word_gate.rb`,
 `lib/hecks/facade/cli_door.rb`, and a few specs reading fixture hashes
 by either-spelling key). Those were fixed separately (out of scope for
 the cop itself), which is why wiring it in above found the tree already

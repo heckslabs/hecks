@@ -1,5 +1,5 @@
 module Hecks
-  # Throughput and latency harness behind `bin/bench`; see `docs/benchmarks.md`.
+  # Throughput and latency harness behind `hecks bench`; see `docs/benchmarks.md`.
   # Not required by `lib/hecks.rb`: a booted domain never needs it.
   module Bench
   end

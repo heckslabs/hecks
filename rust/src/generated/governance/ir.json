@@ -5,6 +5,7 @@
   "vision": "Organizational authority is explicit, reviewable, and historically explainable.",
   "classification": "supporting",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "RoleAssignment",

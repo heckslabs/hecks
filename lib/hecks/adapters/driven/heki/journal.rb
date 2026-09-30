@@ -24,7 +24,7 @@ module Hecks
 
         # Folds the journal into the snapshot and truncates it. Opt-in; never run after a save.
         #
-        # This discards the history `entries` returns, which projections and `bin/history`
+        # This discards the history `entries` returns, which projections and `hecks history`
         # read in full, so use it only on an aggregate nothing projects from.
         #
         # The snapshot is written durably before the journal is truncated; a crash between

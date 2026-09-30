@@ -1,12 +1,13 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
-# `bin/project_deploy --out=<dir>` writes a domain's recipe beside the
+# `hecks deploy project out=<dir>` writes a domain's recipe beside the
 # client that owns it instead of into this repo's deploy/. Structural,
-# like project_deploy_tenant_spec.rb: runs the script as a subprocess
+# like project_deploy_tenant_spec.rb: runs the generator in this process
 # against a throwaway domain and reads back what it wrote.
-RSpec.describe "bin/project_deploy --out", :io do
+RSpec.describe "hecks deploy project out=", :io do
   OUT_FIXTURE_BASENAME = "project_deploy_out_spec_fixture".freeze
 
   def root = File.expand_path("..", __dir__)
@@ -52,8 +53,8 @@ RSpec.describe "bin/project_deploy --out", :io do
       FileUtils.rm_rf(in_repo)
 
       begin
-        _out, err, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir, "--out=#{out_dir}")
-        status.success? or raise "bin/project_deploy --out failed: #{err}"
+        _out, err, status = ProjectDeployRunner.run(domain_dir, "--out=#{out_dir}", root: root)
+        status.success? or raise "hecks deploy project out= failed: #{err}"
 
         expect(File).to exist(File.join(out_dir, "template.yaml"))
         expect(File).to exist(File.join(out_dir, "Makefile"))

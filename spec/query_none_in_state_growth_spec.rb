@@ -102,7 +102,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
     runtime = boot_anti_join
     runtime.dispatch_flat("AntiJoinGrowth::Claim.File", id: { value: "c1" })  # stays "held"
     runtime.dispatch_flat("AntiJoinGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch_flat("AntiJoinGrowth::Claim.Release", id: "c2")          # no longer "held"
+    runtime.dispatch_flat("AntiJoinGrowth::Claim.Release", id: "c2")          # leaves "held"
 
     runtime.dispatch_flat("AntiJoinGrowth::Board.Open", id: { value: "b1" })
     runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c1")

@@ -98,16 +98,18 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
     expect(campaign.summary).to start_with("coverage: 1 distinct").and include("1 seed(s) reached something new")
   end
 
-  # Persistence is what lets `bin/qa_sweep` carry a campaign's corpus and coverage knowledge across
-  # separate process invocations (one per tick), rather than rebuilding it from scratch every time.
+  # Persistence is what lets `hecks quality_control ask run` carry a campaign's corpus and
+  # coverage knowledge across separate process invocations (one per tick), rather than
+  # rebuilding it from scratch every time.
   describe "#to_h / .load / #restore!" do
     it "round-trips the corpus, seen tuples, verb hits and declared verbs through a JSON-safe hash" do
       original = described_class.new(splice_probability: 1.0, favor_count: 0)
       original.record(1, original.plan(1), trace([tuple("D::A.Open"), tuple("D::A.Close")]))
       original.record(2, original.plan(2), trace([tuple("D::A.Rare")]))
 
-      # JSON.parse(JSON.generate(...)) is exactly what a real bin/qa_sweep round trip does: every
-      # key becomes a string, same as reading the saved file back on the next process's boot.
+      # JSON.parse(JSON.generate(...)) is exactly what a real hecks quality_control ask run round
+      # trip does: every key becomes a string, same as reading the saved file back on the next
+      # process's boot.
       state = JSON.parse(JSON.generate(original.to_h))
 
       restored = described_class.load(state, splice_probability: 1.0, favor_count: 0)

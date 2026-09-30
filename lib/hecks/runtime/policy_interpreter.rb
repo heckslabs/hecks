@@ -31,15 +31,18 @@ module Hecks
       # @param only [Array(Bluebook::Policy, String), nil] one `[policy, home_domain]`
       #   pair to run exactly (the outbox relay's consumer), instead of scanning every
       #   loaded bluebook for candidates
+      # @param event_uid [String, nil] the outbox uid every consumer of this event shares, when the
+      #   event was rebuilt from an outbox row; otherwise the event object itself is the identity
       # @return [void]
-      def react(event, domain, only: nil)
+      def react(event, domain, only: nil, event_uid: nil)
         selected = only ? [only] : policies_for(event, domain)
         selected.each do |policy, home_domain|
           result = deliver(policy, event, home_domain)
           next if result.nil?
 
           # A for_each policy answers an array; Array(...) would explode a record Hash.
-          (result.is_a?(Array) ? result : [result]).each { |record| @registry.reaction_log << record }
+          identity = event_uid || event.object_id
+          (result.is_a?(Array) ? result : [result]).each { |record| @registry.log_reaction(record, event: identity) }
         end
       end
 

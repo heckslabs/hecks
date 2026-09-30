@@ -1,7 +1,0 @@
-# Binds the `CI` port to `GithubChecks` for any boot under `qa/`.
-# `require_relative` is needed because the `.adapter` glob never loads the sibling `.rb`.
-require_relative "github_checks"
-
-Hecks.adapter "GithubChecks" do
-  port "CI"
-end

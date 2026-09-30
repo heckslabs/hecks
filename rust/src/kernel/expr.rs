@@ -290,7 +290,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
 }
 
 /// Exhaustive over `OperatorCategory`, no wildcard `_ =>` arm: adding or
-/// removing a variant (bin/project_kernel_capabilities) stops this
+/// removing a variant (hecks project_kernel_capabilities) stops this
 /// compiling until a matching arm exists. Never add one back — it would
 /// silently route a new category to the wrong operator file.
 fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {

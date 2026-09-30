@@ -25,14 +25,14 @@ module Hecks
         limit:       one(:limit)
       )
 
-      attr_reader :name, :description, :attributes
+      attr_reader :name, :description, :attributes, :returns
 
       # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] defaults to
       #   `NullSemantics.default`
       def initialize(name:, description: nil, attributes: [], wheres: [],
                      order_by: nil, limit: nil, offset: nil, cursor: nil,
                      authorization: nil, null_semantics: nil,
-                     inspection: nil)
+                     inspection: nil, returns: nil)
         null_semantics ||= QuerySpecification::Common::NullSemantics.default
         super(wheres: wheres, order_by: order_by, limit: limit, offset: offset, cursor: cursor,
               authorization: authorization,
@@ -41,13 +41,28 @@ module Hecks
         @hecks_name  = @name
         @description = description
         @attributes  = attributes
+        @returns     = returns&.to_s
       end
 
-      # `extra_options_to_h` (count, median, group_by, scope_to) stays dynamic; `super` covers the
-      # declared emission.
+      # The value object a `returns` names, without the `list_of(...)` wrapper.
       #
-      # @return [Hash] the declared emission merged with `extra_options_to_h`
-      def to_h = super.merge(extra_options_to_h)
+      # @return [String, nil] the value object's name, or `nil` when the query returns nothing
+      def returns_name = @returns&.sub(/\Alist_of\((.*)\)\z/, '\1')
+
+      # Says whether the answer is many rows of the returned value object.
+      #
+      # @return [Boolean] true for `returns list_of(Name)`
+      def returns_list? = !@returns.nil? && @returns.start_with?("list_of(")
+
+      # `extra_options_to_h` (count, median, group_by, scope_to) stays dynamic; `super` covers the
+      # declared emission. `returns` follows, only when the query declares one, so a query that
+      # returns nothing keeps its wire shape.
+      #
+      # @return [Hash] the declared emission merged with `extra_options_to_h`, then `returns`
+      def to_h
+        shape = super.merge(extra_options_to_h)
+        @returns ? shape.merge(returns: @returns) : shape
+      end
     end
   end
 end

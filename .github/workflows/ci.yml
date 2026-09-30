@@ -62,6 +62,7 @@ jobs:
     uses: ./.github/workflows/ci-rspec.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+      HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
   # Aggregator that keeps `checks` the required-status-check name; the work is in
   # ci-checks.yml. `if: always()` is required, else a failed `checks_impl` would skip this job.
@@ -87,6 +88,7 @@ jobs:
     uses: ./.github/workflows/ci-checks.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+      HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
   # Writes the same kind of attestation note .githooks/pre-push writes locally (Phase 7),
   # but for THIS run's own checked-out tree, right after a green pull_request run. When the
@@ -215,6 +217,7 @@ jobs:
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+      HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
   # Aggregator that keeps `rspec_rust_io` the required-status-check name; the work is in
   # ci-rust-io.yml. Each required name has its own reusable-workflow file, since a `uses:` job
@@ -244,6 +247,7 @@ jobs:
     uses: ./.github/workflows/ci-rust-io.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+      HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
     # The calling job's permissions cap the reusable workflow's; `packages: write` is for the
     # GHCR binary cache.
     permissions:
@@ -286,7 +290,7 @@ jobs:
         run: cd rust/build && cargo test
 
   # Split from rspec_rust_io: the spec regenerates rust/src/generated and rewrites Cargo.toml
-  # via bin/project_wasm, so it needs its own checkout, plus wasm32-wasip1 and wasmtime.
+  # via hecks build_wasm, so it needs its own checkout, plus wasm32-wasip1 and wasmtime.
   rspec_rust_io_deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -390,6 +394,7 @@ jobs:
     uses: ./.github/workflows/ci-rust-host.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+      HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
   # ci-rust-parser.yml's identical addition for the full comment. rspec_fuzzing is its own
@@ -441,7 +446,7 @@ jobs:
       - name: "rspec: fuzzing (property replay)"
         run: bundle exec parallel_rspec spec/fuzzing -n 4 -o "--tag fuzzing"
 
-  # Gated rather than run always: bin/stress_concurrency_specs repeats concurrency specs 30
+  # Gated rather than run always: hecks stress_concurrency repeats concurrency specs 30
   # times to catch schedule-dependent races, so it runs only when `lib/hecks/runtime/**`
   # changes. Split in two so an unrelated PR skips the Postgres setup too: that needs a
   # job-level `if:`, and so a diff computed in a job that finished first.
@@ -512,7 +517,11 @@ jobs:
       # off don't affect Postgres locking or MVCC visibility, so the contention is unchanged.
       - uses: ./.github/actions/postgres
 
-      # No flags: the script's defaults are its recommended CI settings. It sets `CI=true` on
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # No arguments: the command's defaults are its recommended CI settings. It sets `CI=true` on
       # its child rspec runs, so the `io: true` Postgres spec is included.
-      - name: bin/stress_concurrency_specs
-        run: bundle exec bin/stress_concurrency_specs
+      - name: hecks stress_concurrency
+        run: bundle exec exe/hecks stress_concurrency --wait

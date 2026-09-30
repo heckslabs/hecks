@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/forms/port_argument"
 
-# bin/present's `-p`/`--port` reader. Pins the `--port=8080` form being honored
+# hecks present's `-p`/`--port` reader. Pins the `--port=8080` form being honored
 # and a non-numeric `-p abc` not becoming port 0 (an ephemeral bind).
 RSpec.describe Hecks::Forms::PortArgument do
   def parse(argv) = described_class.parse(argv)

@@ -1,0 +1,2453 @@
+Hecks.bluebook "Hecks" do
+  # Codebase: working on this repository. Each aggregate here is a concern only a maintainer of
+  # Hecks runs, and every one of them needs a hecks checkout (ADR 0080, section 2). A request
+  # follows the journaled-command shape of Custodian: it is recorded, the SourceTree port is asked
+  # to examine the tree, `Accept` holds the one rule every Codebase change shares (the working tree
+  # is a hecks checkout, hecks.gemspec beside lib/), and only an accepted request is carried out.
+  # A command that rewrites tracked files reports drift and writes only when it is confirmed.
+  #
+  # The records are named for the run, as ModelCheckRun is, because several of the table's
+  # concerns share a name with a module the gem already owns.
+
+  # The language: the tables the Bluebook chapter declares and everything projected from them. A
+  # projection reports drift from the committed files and writes only when it is confirmed; an
+  # evolution edits the syntax tables, regenerates the golden and holds the gates, and only when
+  # confirmed (without it, the edit is rehearsed in memory and nothing is written).
+  aggregate "LanguageRun" do
+    description "One change to the language's own tables, or one reading of where its words stand."
+
+    attribute :run,         RunKey
+    attribute :operation,   Operation, optional: true
+    attribute :confirm,     Switch, optional: true
+    attribute :stdout,      Switch, optional: true
+    attribute :word,        Word, optional: true
+    attribute :context,     Context, optional: true
+    attribute :body,        Body, optional: true
+    attribute :inner,       Fill, optional: true
+    attribute :opens,       Fill, optional: true
+    attribute :fills,       Fill, optional: true
+    attribute :new_name,    Word, optional: true
+    attribute :kind,        Kind, optional: true
+    attribute :required,    Flag, optional: true
+    attribute :at,          Position, optional: true
+    attribute :named,       Fill, optional: true
+    attribute :pairs_shape, Shape, optional: true
+    attribute :checkout,    Switch, optional: true
+    attribute :report,      Report, optional: true
+    attribute :refusal,     Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # A keyword of the language, or the keyword an argument belongs to.
+    value_object "Word" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a word is named") { !value.to_s.empty? }
+    end
+
+    # The part of the language a word is a word in.
+    value_object "Context" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+    end
+
+    # What a word's block holds.
+    value_object "Body" do
+      attribute :value, String, pattern: '^(none|keywords|source|rows)$'
+    end
+
+    # A cell of a table row; empty when the row leaves it blank.
+    value_object "Fill" do
+      attribute :value, String, pattern: '^[^\t\n\r]*$'
+    end
+
+    # What an argument is.
+    value_object "Kind" do
+      attribute :value, String, pattern: '^(text|symbol|number|flag|literal|constant|pairs|list)$'
+    end
+
+    # Whether an argument is required.
+    value_object "Flag" do
+      attribute :value, String, pattern: '^(true|false)$'
+    end
+
+    # An argument's place, counted from zero.
+    value_object "Position" do
+      attribute :value, String, pattern: '^[0-9]*$'
+    end
+
+    # How a pairs argument is read, such as verbatim.
+    value_object "Shape" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ProjectModel" do
+      role "Maintainer"
+      goal "Project the model's holding half from the language that declares it"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_model"
+
+      emits ProjectModelRequested
+    end
+
+    command "ProjectVocabulary" do
+      role "Maintainer"
+      goal "Project the language's closed sets into the vocabulary"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_vocabulary"
+
+      emits ProjectVocabularyRequested
+    end
+
+    command "ProjectRustVocabulary" do
+      role "Maintainer"
+      goal "Project the vocabulary tables into the Rust kernel, one enum a table"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_rust_vocabulary"
+
+      emits ProjectRustVocabularyRequested
+    end
+
+    command "ProjectRefusalWording" do
+      role "Maintainer"
+      goal "Project the refusal template table, a second name of ProjectRustVocabulary"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_rust_vocabulary"
+
+      emits ProjectRefusalWordingRequested
+    end
+
+    command "ProjectReservedNames" do
+      role "Maintainer"
+      goal "Project the Rust and Cargo reserved words into the codegen and build crates"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_reserved_names"
+
+      emits ProjectReservedNamesRequested
+    end
+
+    command "ProjectParserTable" do
+      role "Maintainer"
+      goal "Project the Rust parser's keyword table"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_parser_table"
+
+      emits ProjectParserTableRequested
+    end
+
+    command "ProjectBootstrapTable" do
+      role "Maintainer"
+      goal "Project the DSL's bootstrap-window fallbacks from the keyword rows"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_bootstrap_table"
+
+      emits ProjectBootstrapTableRequested
+    end
+
+    command "ProjectFieldHints" do
+      role "Maintainer"
+      goal "Project the host's form-field hints"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_field_hints"
+
+      emits ProjectFieldHintsRequested
+    end
+
+    command "ProjectExpressionTables" do
+      role "Maintainer"
+      goal "Project the expression machinery's operator and normalisation tables"
+
+      attribute :stdout,  Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :stdout
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_expression_tables"
+
+      emits ProjectExpressionTablesRequested
+    end
+
+    command "ProjectReference" do
+      role "Maintainer"
+      goal "Regenerate the DSL reference from the Syntax chapter, keeping the committed prose"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_reference"
+
+      emits ProjectReferenceRequested
+    end
+
+    command "Propose" do
+      role "Maintainer"
+      goal "Enter a keyword row, proposed: it reaches no projection until admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :body,    Body, optional: true
+      attribute :inner,   Fill, optional: true
+      attribute :opens,   Fill, optional: true
+      attribute :fills,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :body
+      sets :inner
+      sets :opens
+      sets :fills
+      sets :run
+      sets :confirm
+      sets :operation, to: "propose"
+
+      emits ProposeRequested
+    end
+
+    command "Admit" do
+      role "Maintainer"
+      goal "Move a proposed keyword row to admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "admit"
+
+      emits AdmitRequested
+    end
+
+    command "Deprecate" do
+      role "Maintainer"
+      goal "Move an admitted keyword row to deprecated"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "deprecate"
+
+      emits DeprecateRequested
+    end
+
+    command "Retire" do
+      role "Maintainer"
+      goal "Move a deprecated or admitted keyword row to retired"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "retire"
+
+      emits RetireRequested
+    end
+
+    command "Rename" do
+      role "Maintainer"
+      goal "Respell a keyword row; the old spelling keeps parsing"
+
+      attribute :word,     Word
+      attribute :context,  Context
+      attribute :new_name, Word
+      attribute :run,      RunKey
+      attribute :confirm,  Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :new_name
+      sets :run
+      sets :confirm
+      sets :operation, to: "rename"
+
+      emits RenameRequested
+    end
+
+    command "ProposeArgument" do
+      role "Maintainer"
+      goal "Enter an argument row of a keyword, proposed"
+
+      attribute :word,        Word
+      attribute :context,     Context
+      attribute :kind,        Kind
+      attribute :required,    Flag, optional: true
+      attribute :at,          Position, optional: true
+      attribute :named,       Fill, optional: true
+      attribute :fills,       Fill, optional: true
+      attribute :pairs_shape, Shape, optional: true
+      attribute :run,         RunKey
+      attribute :confirm,     Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :kind
+      sets :required
+      sets :at
+      sets :named
+      sets :fills
+      sets :pairs_shape
+      sets :run
+      sets :confirm
+      sets :operation, to: "propose_argument"
+
+      emits ProposeArgumentRequested
+    end
+
+    command "AdmitArgument" do
+      role "Maintainer"
+      goal "Move a proposed argument row to admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "admit_argument"
+
+      emits AdmitArgumentRequested
+    end
+
+    command "DeprecateArgument" do
+      role "Maintainer"
+      goal "Move an admitted argument row to deprecated"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "deprecate_argument"
+
+      emits DeprecateArgumentRequested
+    end
+
+    command "RetireArgument" do
+      role "Maintainer"
+      goal "Move a deprecated or admitted argument row to retired"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "retire_argument"
+
+      emits RetireArgumentRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to LanguageRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits LanguageAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to LanguageRun
+      attribute :report, Report
+
+      sets :report
+
+      emits LanguageCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to LanguageRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits LanguageFaulted
+    end
+
+    query "LanguageOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "LanguageFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "WordStatus" do
+      description "Where every word of the language stands: the ones not simply admitted, and the renamed."
+      returns Document
+    end
+  end
+
+  policy "ExamineWhenProjectModelRequested" do
+    on      "LanguageRun.ProjectModelRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectVocabularyRequested" do
+    on      "LanguageRun.ProjectVocabularyRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectRustVocabularyRequested" do
+    on      "LanguageRun.ProjectRustVocabularyRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectRefusalWordingRequested" do
+    on      "LanguageRun.ProjectRefusalWordingRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectReservedNamesRequested" do
+    on      "LanguageRun.ProjectReservedNamesRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectParserTableRequested" do
+    on      "LanguageRun.ProjectParserTableRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectBootstrapTableRequested" do
+    on      "LanguageRun.ProjectBootstrapTableRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectFieldHintsRequested" do
+    on      "LanguageRun.ProjectFieldHintsRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectExpressionTablesRequested" do
+    on      "LanguageRun.ProjectExpressionTablesRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectReferenceRequested" do
+    on      "LanguageRun.ProjectReferenceRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProposeRequested" do
+    on      "LanguageRun.ProposeRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenAdmitRequested" do
+    on      "LanguageRun.AdmitRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDeprecateRequested" do
+    on      "LanguageRun.DeprecateRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRetireRequested" do
+    on      "LanguageRun.RetireRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRenameRequested" do
+    on      "LanguageRun.RenameRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProposeArgumentRequested" do
+    on      "LanguageRun.ProposeArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenAdmitArgumentRequested" do
+    on      "LanguageRun.AdmitArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDeprecateArgumentRequested" do
+    on      "LanguageRun.DeprecateArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRetireArgumentRequested" do
+    on      "LanguageRun.RetireArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptLanguageWhenExamined" do
+    on      "LanguageRun.LanguageExamined"
+    trigger LanguageRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultLanguageWhenNotAccepted" do
+    on      "LanguageRun.LanguageExamined"
+    where   { !checkout.value }
+    trigger LanguageRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformLanguageWhenAccepted" do
+    on      "LanguageRun.LanguageAccepted"
+    trigger LanguageRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordLanguageOutcome" do
+    on      "LanguageRun.LanguageAnswered"
+    trigger LanguageRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordLanguageFault" do
+    on      "LanguageRun.LanguageRefused"
+    trigger LanguageRun::Fault, with: { refusal: :refusal }
+  end
+
+  # The Rust kernel: the capability enums the hand-written kernel is matched against, and the check
+  # that every attribute shape and expression-operator category the grammar admits has its file.
+  aggregate "KernelRun" do
+    description "One projection of the Rust kernel's capability enums, or one measure of their coverage."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ProjectKernelCapabilities" do
+      role "Maintainer"
+      goal "Project the capability enums the hand-written Rust kernel is matched against"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_kernel_capabilities"
+
+      emits ProjectKernelCapabilitiesRequested
+    end
+
+    command "MeasureKernelCoverage" do
+      role "Maintainer"
+      goal "Check that every capability the grammar admits has its hand-written kernel file"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "measure_kernel_coverage"
+
+      emits MeasureKernelCoverageRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to KernelRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits KernelAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to KernelRun
+      attribute :report, Report
+
+      sets :report
+
+      emits KernelCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to KernelRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits KernelFaulted
+    end
+
+    query "KernelOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "KernelFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenProjectKernelCapabilitiesRequested" do
+    on      "KernelRun.ProjectKernelCapabilitiesRequested"
+    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenMeasureKernelCoverageRequested" do
+    on      "KernelRun.MeasureKernelCoverageRequested"
+    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptKernelWhenExamined" do
+    on      "KernelRun.KernelExamined"
+    trigger KernelRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultKernelWhenNotAccepted" do
+    on      "KernelRun.KernelExamined"
+    where   { !checkout.value }
+    trigger KernelRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformKernelWhenAccepted" do
+    on      "KernelRun.KernelAccepted"
+    trigger KernelRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordKernelOutcome" do
+    on      "KernelRun.KernelAnswered"
+    trigger KernelRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordKernelFault" do
+    on      "KernelRun.KernelRefused"
+    trigger KernelRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Conformance: the checks on the language itself. Each finds every disagreement and refuses with
+  # them all, so a check that fails is recorded as faulted with what it found. The argument-gate
+  # matrix rewrites a committed matrix and its fixtures, so it only reports unless it is confirmed.
+  aggregate "ConformanceRun" do
+    description "One check that the engines, the reference docs and the argument gates agree with the language."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "CheckEngineAgreement" do
+      role "Maintainer"
+      goal "Check that the query engines route every comparator through the one shared implementation"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "check_engine_agreement"
+
+      emits CheckEngineAgreementRequested
+    end
+
+    command "MeasureDocCoverage" do
+      role "Maintainer"
+      goal "Check that every live word of the language has prose and a running example in the reference"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "measure_doc_coverage"
+
+      emits MeasureDocCoverageRequested
+    end
+
+    command "ArgumentGateMatrix" do
+      role "Maintainer"
+      goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "argument_gate_matrix"
+
+      emits ArgumentGateMatrixRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to ConformanceRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits ConformanceAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to ConformanceRun
+      attribute :report, Report
+
+      sets :report
+
+      emits ConformanceCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to ConformanceRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ConformanceFaulted
+    end
+
+    query "ConformanceOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "ConformanceFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenCheckEngineAgreementRequested" do
+    on      "ConformanceRun.CheckEngineAgreementRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenMeasureDocCoverageRequested" do
+    on      "ConformanceRun.MeasureDocCoverageRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenArgumentGateMatrixRequested" do
+    on      "ConformanceRun.ArgumentGateMatrixRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptConformanceWhenExamined" do
+    on      "ConformanceRun.ConformanceExamined"
+    trigger ConformanceRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultConformanceWhenNotAccepted" do
+    on      "ConformanceRun.ConformanceExamined"
+    where   { !checkout.value }
+    trigger ConformanceRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformConformanceWhenAccepted" do
+    on      "ConformanceRun.ConformanceAccepted"
+    trigger ConformanceRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordConformanceOutcome" do
+    on      "ConformanceRun.ConformanceAnswered"
+    trigger ConformanceRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordConformanceFault" do
+    on      "ConformanceRun.ConformanceRefused"
+    trigger ConformanceRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Regeneration: rebuilding every corpus domain's committed output, which only this repository has.
+  # A check projects into a scratch crate and never writes the tree; without --confirm the run is
+  # that check, so the tracked generated files change only when the regeneration is confirmed.
+  aggregate "RegenerationRun" do
+    description "One regeneration of every corpus domain's committed Rust output, or the check that it is current."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :check,     Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "RegenerateCorpus" do
+      role "Maintainer"
+      goal "Regenerate every corpus domain's Rust output, or with check only compare it with the tree"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "regenerate_corpus"
+
+      emits RegenerateCorpusRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to RegenerationRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits RegenerationAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to RegenerationRun
+      attribute :report, Report
+
+      sets :report
+
+      emits RegenerationCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to RegenerationRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RegenerationFaulted
+    end
+
+    query "RegenerationOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "RegenerationFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenRegenerateCorpusRequested" do
+    on      "RegenerationRun.RegenerateCorpusRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptRegenerationWhenExamined" do
+    on      "RegenerationRun.RegenerationExamined"
+    trigger RegenerationRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultRegenerationWhenNotAccepted" do
+    on      "RegenerationRun.RegenerationExamined"
+    where   { !checkout.value }
+    trigger RegenerationRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformRegenerationWhenAccepted" do
+    on      "RegenerationRun.RegenerationAccepted"
+    trigger RegenerationRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordRegenerationOutcome" do
+    on      "RegenerationRun.RegenerationAnswered"
+    trigger RegenerationRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordRegenerationFault" do
+    on      "RegenerationRun.RegenerationRefused"
+    trigger RegenerationRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
+  # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless
+  # it is confirmed. The baseline of tolerated long blocks is written only when confirmed.
+  aggregate "StyleRun" do
+    description "One check or fix of comment style, or one document written with its keys in order."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :paths,     PathList, optional: true
+    attribute :only,      CategoryList, optional: true
+    attribute :json,      Switch, optional: true
+    attribute :top,       Top, optional: true
+    attribute :ref,       Ref, optional: true
+    attribute :file,      FilePath, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Files or directories, comma separated.
+    value_object "PathList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    # Violation categories, comma separated.
+    value_object "CategoryList" do
+      attribute :value, String, pattern: '^[a-z_]+(,[a-z_]+)*$'
+    end
+
+    # How many rows a report lists.
+    value_object "Top" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    # A revision a code comparison is made against.
+    value_object "Ref" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    # A JSON file.
+    value_object "FilePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a file is named") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "CheckComments" do
+      role "Maintainer"
+      goal "List every comment that breaks the Ruby style guide"
+
+      attribute :paths, PathList
+      attribute :only,  CategoryList, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :operation, to: "check_comments"
+
+      emits CheckCommentsRequested
+    end
+
+    command "FixComments" do
+      role "Maintainer"
+      goal "Rewrite the mechanical Ruby comment violations"
+
+      attribute :paths,   PathList
+      attribute :only,    CategoryList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :confirm
+      sets :operation, to: "fix_comments"
+
+      emits FixCommentsRequested
+    end
+
+    command "WriteCommentBaseline" do
+      role "Maintainer"
+      goal "Record every long comment block as tolerated, for lib/hecks unless paths are named"
+
+      attribute :paths,   PathList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :run
+      sets :confirm
+      sets :operation, to: "write_comment_baseline"
+
+      emits WriteCommentBaselineRequested
+    end
+
+    command "CheckCommentsUnchanged" do
+      role "Maintainer"
+      goal "Prove an edit was comment-only: no file's code differs from the ref"
+
+      attribute :ref,   Ref
+      attribute :paths, PathList, optional: true
+      attribute :run,   RunKey
+
+      sets :ref
+      sets :paths
+      sets :run
+      sets :operation, to: "check_comments_unchanged"
+
+      emits CheckCommentsUnchangedRequested
+    end
+
+    command "CheckRustComments" do
+      role "Maintainer"
+      goal "List every comment that breaks the Rust style guide"
+
+      attribute :paths, PathList
+      attribute :only,  CategoryList, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :operation, to: "check_rust_comments"
+
+      emits CheckRustCommentsRequested
+    end
+
+    command "FixRustComments" do
+      role "Maintainer"
+      goal "Rewrite the mechanical Rust comment violations"
+
+      attribute :paths,   PathList
+      attribute :only,    CategoryList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :confirm
+      sets :operation, to: "fix_rust_comments"
+
+      emits FixRustCommentsRequested
+    end
+
+    command "Canonicalise" do
+      role "Maintainer"
+      goal "Write a JSON document with every object's keys sorted"
+
+      attribute :file, FilePath
+      attribute :run,  RunKey
+
+      sets :file
+      sets :run
+      sets :operation, to: "canonicalise"
+
+      emits CanonicaliseRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to StyleRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits StyleAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to StyleRun
+      attribute :report, Report
+
+      sets :report
+
+      emits StyleCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to StyleRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits StyleFaulted
+    end
+
+    query "StyleOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "StyleFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "ReportComments" do
+      description "The Ruby comment violations, as summary tables, a list or JSON."
+      attribute :paths, PathList
+      attribute :only, CategoryList, optional: true
+      attribute :json, Switch, optional: true
+      attribute :top, Top, optional: true
+      returns Document
+    end
+
+    query "ReportRustComments" do
+      description "The Rust comment violations, as summary tables, a list or JSON."
+      attribute :paths, PathList
+      attribute :only, CategoryList, optional: true
+      attribute :json, Switch, optional: true
+      attribute :top, Top, optional: true
+      returns Document
+    end
+  end
+
+  policy "ExamineWhenCheckCommentsRequested" do
+    on      "StyleRun.CheckCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenFixCommentsRequested" do
+    on      "StyleRun.FixCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenWriteCommentBaselineRequested" do
+    on      "StyleRun.WriteCommentBaselineRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCheckCommentsUnchangedRequested" do
+    on      "StyleRun.CheckCommentsUnchangedRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCheckRustCommentsRequested" do
+    on      "StyleRun.CheckRustCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenFixRustCommentsRequested" do
+    on      "StyleRun.FixRustCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCanonicaliseRequested" do
+    on      "StyleRun.CanonicaliseRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptStyleWhenExamined" do
+    on      "StyleRun.StyleExamined"
+    trigger StyleRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultStyleWhenNotAccepted" do
+    on      "StyleRun.StyleExamined"
+    where   { !checkout.value }
+    trigger StyleRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformStyleWhenAccepted" do
+    on      "StyleRun.StyleAccepted"
+    trigger StyleRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordStyleOutcome" do
+    on      "StyleRun.StyleAnswered"
+    trigger StyleRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordStyleFault" do
+    on      "StyleRun.StyleRefused"
+    trigger StyleRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Codemod: the mechanical rewrites of the example bluebooks. Each one edits tracked files, so
+  # unconfirmed it rehearses the edit (the script reboots every bluebook and puts the files back)
+  # and reports what it would change; the files stay changed only when it is confirmed.
+  aggregate "CodemodRun" do
+    description "One rewrite of the example bluebooks by a codemod, or the rehearsal of it."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "HoistLocalGivens" do
+      role "Maintainer"
+      goal "Hoist a given that several commands of one owner repeat into one owner-level given"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "hoist_local_givens"
+
+      emits HoistLocalGivensRequested
+    end
+
+    command "DropImplicitAppendFields" do
+      role "Maintainer"
+      goal "Drop an attribute line that only repeats what an append target element declares"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "drop_implicit_append_fields"
+
+      emits DropImplicitAppendFieldsRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to CodemodRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits CodemodAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to CodemodRun
+      attribute :report, Report
+
+      sets :report
+
+      emits CodemodCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to CodemodRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits CodemodFaulted
+    end
+
+    query "CodemodOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "CodemodFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenHoistLocalGivensRequested" do
+    on      "CodemodRun.HoistLocalGivensRequested"
+    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDropImplicitAppendFieldsRequested" do
+    on      "CodemodRun.DropImplicitAppendFieldsRequested"
+    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptCodemodWhenExamined" do
+    on      "CodemodRun.CodemodExamined"
+    trigger CodemodRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultCodemodWhenNotAccepted" do
+    on      "CodemodRun.CodemodExamined"
+    where   { !checkout.value }
+    trigger CodemodRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformCodemodWhenAccepted" do
+    on      "CodemodRun.CodemodAccepted"
+    trigger CodemodRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordCodemodOutcome" do
+    on      "CodemodRun.CodemodAnswered"
+    trigger CodemodRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordCodemodFault" do
+    on      "CodemodRun.CodemodRefused"
+    trigger CodemodRun::Fault, with: { refusal: :refusal }
+  end
+
+  # TestSuite: the tooling around this repository's specs. Listings of which files a shard or a
+  # job runs are pure reads; refreshing the committed timings, rewriting the persistence fixtures
+  # and writing the committed spec list change tracked files and need --confirm; a stress run
+  # and a single example only run specs and write nothing tracked.
+  aggregate "TestSuiteRun" do
+    description "One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite."
+
+    attribute :run,         RunKey
+    attribute :operation,   Operation, optional: true
+    attribute :confirm,     Switch, optional: true
+    attribute :workers,     Count, optional: true
+    attribute :from_run,    RunId, optional: true
+    attribute :file,        FilePath, optional: true
+    attribute :example,     ExampleText, optional: true
+    attribute :runs,        Count, optional: true
+    attribute :parallel,    Count, optional: true
+    attribute :seed_start,  Count, optional: true
+    attribute :fixture,     FixtureName, optional: true
+    attribute :exclude,     ExcludePattern, optional: true
+    attribute :tags,        TagArguments, optional: true
+    attribute :write,       FilePath, optional: true
+    attribute :group,       Count, optional: true
+    attribute :groups,      Count, optional: true
+    attribute :runtime_log, FilePath, optional: true
+    attribute :check,       FilePath, optional: true
+    attribute :checkout,    Switch, optional: true
+    attribute :report,      Report, optional: true
+    attribute :refusal,     Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # How many, always at least one.
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    # A CI run's number.
+    value_object "RunId" do
+      attribute :value, String, pattern: '^[0-9]+$'
+    end
+
+    # A file, relative to the checkout or absolute.
+    value_object "FilePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a file is named") { !value.to_s.empty? }
+    end
+
+    # Part of an example's description.
+    value_object "ExampleText" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("an example is named") { !value.to_s.empty? }
+    end
+
+    # The name of a semantics-corpus fixture.
+    value_object "FixtureName" do
+      attribute :value, String, pattern: '^[a-z0-9_]+$'
+    end
+
+    # A regular expression naming the specs to leave out.
+    value_object "ExcludePattern" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The tag filter, as the test runner spells it.
+    value_object "TagArguments" do
+      attribute :value, String, pattern: '^[^\t\n\r]+$'
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "RefreshRuntimeBaseline" do
+      role "Maintainer"
+      goal "Regenerate the committed runtime baselines the sharded jobs group from"
+
+      attribute :workers,  Count, optional: true
+      attribute :from_run, RunId, optional: true
+      attribute :run,      RunKey
+      attribute :confirm,  Switch, optional: true
+
+      sets :workers
+      sets :from_run
+      sets :run
+      sets :confirm
+      sets :operation, to: "refresh_runtime_baseline"
+
+      emits RefreshRuntimeBaselineRequested
+    end
+
+    command "RunSpecExample" do
+      role "Maintainer"
+      goal "Run one spec file filtered to one example, through the test runner in this process"
+
+      attribute :file,    FilePath
+      attribute :example, ExampleText
+      attribute :run,     RunKey
+
+      sets :file
+      sets :example
+      sets :run
+      sets :operation, to: "run_spec_example"
+
+      emits RunSpecExampleRequested
+    end
+
+    command "StressConcurrency" do
+      role "Maintainer"
+      goal "Rerun the thread-safety specs under many seeds, several processes at a time"
+
+      attribute :runs,       Count, optional: true
+      attribute :parallel,   Count, optional: true
+      attribute :seed_start, Count, optional: true
+      attribute :run,        RunKey
+
+      sets :runs
+      sets :parallel
+      sets :seed_start
+      sets :run
+      sets :operation, to: "stress_concurrency"
+
+      emits StressConcurrencyRequested
+    end
+
+    command "RegenerateLegacyFixtures" do
+      role "Maintainer"
+      goal "Regenerate the persistence legacy fixtures through the real adapters"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "regenerate_legacy_fixtures"
+
+      emits RegenerateLegacyFixturesRequested
+    end
+
+    command "SeedSemanticsCorpus" do
+      role "Maintainer"
+      goal "Fill the expected outcome of every semantics fixture that lacks one, or re-seed one"
+
+      attribute :fixture, FixtureName, optional: true
+      attribute :run,     RunKey
+
+      sets :fixture
+      sets :run
+      sets :operation, to: "seed_semantics_corpus"
+
+      emits SeedSemanticsCorpusRequested
+    end
+
+    command "WriteIoParallelSpecList" do
+      role "Maintainer"
+      goal "Write the committed list of the spec files a tag filter selects"
+
+      attribute :exclude, ExcludePattern
+      attribute :tags,    TagArguments, optional: true
+      attribute :write,   FilePath
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :exclude
+      sets :tags
+      sets :write
+      sets :run
+      sets :confirm
+      sets :operation, to: "write_io_parallel_spec_list"
+
+      emits WriteIoParallelSpecListRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to TestSuiteRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits TestSuiteAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to TestSuiteRun
+      attribute :report, Report
+
+      sets :report
+
+      emits TestSuiteCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to TestSuiteRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits TestSuiteFaulted
+    end
+
+    query "TestSuiteOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "TestSuiteFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "ShardSpecs" do
+      description "The spec files one group of a runtime-balanced split runs."
+      attribute :group, Count
+      attribute :groups, Count
+      attribute :runtime_log, FilePath, optional: true
+      returns Document
+    end
+
+    query "ListIoParallelSpecs" do
+      description "The spec files with an example a tag filter selects."
+      attribute :exclude, ExcludePattern
+      attribute :tags, TagArguments, optional: true
+      attribute :check, FilePath, optional: true
+      returns Document
+    end
+
+    query "RecordPatternCases" do
+      description "The expected match results of the pattern cases, as JSON."
+      returns Document
+    end
+  end
+
+  policy "ExamineWhenRefreshRuntimeBaselineRequested" do
+    on      "TestSuiteRun.RefreshRuntimeBaselineRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRunSpecExampleRequested" do
+    on      "TestSuiteRun.RunSpecExampleRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenStressConcurrencyRequested" do
+    on      "TestSuiteRun.StressConcurrencyRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRegenerateLegacyFixturesRequested" do
+    on      "TestSuiteRun.RegenerateLegacyFixturesRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenSeedSemanticsCorpusRequested" do
+    on      "TestSuiteRun.SeedSemanticsCorpusRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenWriteIoParallelSpecListRequested" do
+    on      "TestSuiteRun.WriteIoParallelSpecListRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptTestSuiteWhenExamined" do
+    on      "TestSuiteRun.TestSuiteExamined"
+    trigger TestSuiteRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultTestSuiteWhenNotAccepted" do
+    on      "TestSuiteRun.TestSuiteExamined"
+    where   { !checkout.value }
+    trigger TestSuiteRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformTestSuiteWhenAccepted" do
+    on      "TestSuiteRun.TestSuiteAccepted"
+    trigger TestSuiteRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordTestSuiteOutcome" do
+    on      "TestSuiteRun.TestSuiteAnswered"
+    trigger TestSuiteRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordTestSuiteFault" do
+    on      "TestSuiteRun.TestSuiteRefused"
+    trigger TestSuiteRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Corpus: what this repository's committed domains are, and what the language's own IR holds.
+  # Every question about them is a pure read, answered by the SourceTree port: which domains carry
+  # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
+  # structural queries over the IR. Two commands open a long-running door: the query MCP server
+  # on stdio and the forms app on a local port; each is recorded, runs until it is closed, and
+  # answers when it ends.
+  aggregate "CorpusRun" do
+    description "One look at the corpus and the language's IR, or one server opened on them."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :names,     NameList, optional: true
+    attribute :domains,   PathList, optional: true
+    attribute :meta,      Switch, optional: true
+    attribute :name,      ConstructName, optional: true
+    attribute :field,     FieldName, optional: true
+    attribute :port,      Port, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Construct names, comma separated.
+    value_object "NameList" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*(,[A-Za-z][A-Za-z0-9_]*)*$'
+    end
+
+    # Domain directories, comma separated.
+    value_object "PathList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    # The name of one IR construct.
+    value_object "ConstructName" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+    end
+
+    # The name of one field of a construct.
+    value_object "FieldName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # A local port a server listens on.
+    value_object "Port" do
+      attribute :value, Integer
+
+      invariant("a port is 1 to 65535") { value >= 1 && value <= 65535 }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ServeQueryIrMcp" do
+      role "Maintainer"
+      goal "Serve the IR queries to an MCP client over stdio until it closes"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "serve_query_ir_mcp"
+
+      emits ServeQueryIrMcpRequested
+    end
+
+    command "Present" do
+      role "Maintainer"
+      goal "Serve the banking example's rendered forms and views on a local port until stopped"
+
+      attribute :port, Port, optional: true
+      attribute :run,  RunKey
+
+      sets :port
+      sets :run
+      sets :operation, to: "present"
+
+      emits PresentRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to CorpusRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits CorpusAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to CorpusRun
+      attribute :report, Report
+
+      sets :report
+
+      emits CorpusCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to CorpusRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits CorpusFaulted
+    end
+
+    query "CorpusOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "CorpusFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "RustDomains" do
+      description "The feature and directory of every domain with a Rust feature."
+      returns Document
+    end
+
+    query "RegenOrder" do
+      description "The directories regeneration walks, in the order it walks them."
+      returns Document
+    end
+
+    query "CorpusRustCoverage" do
+      description "Whether every generated Rust module is routed by its domain."
+      returns Document
+    end
+
+    query "IrConstructs" do
+      description "The structural diff of each IR construct from its meta-domain."
+      attribute :names, NameList, optional: true
+      returns Document
+    end
+
+    query "IrDuplicates" do
+      description "The rules declared more than once across the corpus."
+      attribute :domains, PathList, optional: true
+      attribute :meta, Switch, optional: true
+      returns Document
+    end
+
+    query "IrImpact" do
+      description "Which propagation touchpoints of a construct's field already show it."
+      attribute :name, ConstructName
+      attribute :field, FieldName
+      returns Document
+    end
+  end
+
+  policy "ExamineWhenServeQueryIrMcpRequested" do
+    on      "CorpusRun.ServeQueryIrMcpRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenPresentRequested" do
+    on      "CorpusRun.PresentRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptCorpusWhenExamined" do
+    on      "CorpusRun.CorpusExamined"
+    trigger CorpusRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultCorpusWhenNotAccepted" do
+    on      "CorpusRun.CorpusExamined"
+    where   { !checkout.value }
+    trigger CorpusRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformCorpusWhenAccepted" do
+    on      "CorpusRun.CorpusAccepted"
+    trigger CorpusRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordCorpusOutcome" do
+    on      "CorpusRun.CorpusAnswered"
+    trigger CorpusRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordCorpusFault" do
+    on      "CorpusRun.CorpusRefused"
+    trigger CorpusRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Publishing: cutting a release of this gem. The run holds the facts the Git adapter surveyed
+  # (branch, tree, versions, changelog, tag), and `Accept` holds the rules that let a release go
+  # ahead: the adapter supplies the facts and the givens decide. Only an accepted run is carried
+  # out, and without --confirm it is the old dry run: every check and build, nothing tagged,
+  # pushed or published. A real run advances the root Release: tagged, published, verified.
+  aggregate "PublishingRun" do
+    description "One release of the gem, or the rehearsal of it: judged by the facts, then carried out."
+
+    attribute :run,            RunKey
+    attribute :operation,      Operation, optional: true
+    attribute :confirm,        Switch, optional: true
+    attribute :gem_only,       Switch, optional: true
+    attribute :npm_only,       Switch, optional: true
+    attribute :npm_local,      Switch, optional: true
+    attribute :no_wait,        Switch, optional: true
+    attribute :checkout,       Switch, optional: true
+    attribute :branch,         Word, optional: true
+    attribute :on_origin,      Switch, optional: true
+    attribute :clean,          Switch, optional: true
+    attribute :version,        Version, optional: true
+    attribute :client_version, Version, optional: true
+    attribute :changelog,      Switch, optional: true
+    attribute :tag_state,      Word, optional: true
+    attribute :head,           Word, optional: true
+    attribute :ir_version,     Version, optional: true
+    attribute :ships_from,     Checkout, optional: true
+    attribute :tagged,         Switch, optional: true
+    attribute :published,      Switch, optional: true
+    attribute :verified,       Switch, optional: true
+    attribute :report,         Report, optional: true
+    attribute :refusal,        Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # One word of a fact: a branch, a commit, whether a tag stands.
+    value_object "Word" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Version" do
+      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
+    end
+
+    # The working tree the release is cut from.
+    value_object "Checkout" do
+      attribute :path, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"     => "accepted",  from: "requested"
+      transition "AcceptGem"  => "accepted",  from: "requested"
+      transition "Complete"   => "completed", from: "accepted"
+      transition "Fault"      => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Publish" do
+      role "Maintainer"
+      goal "Tag the merged release commit, publish the gem, and get the client package published"
+
+      attribute :gem_only,  Switch, optional: true
+      attribute :npm_only,  Switch, optional: true
+      attribute :npm_local, Switch, optional: true
+      attribute :no_wait,   Switch, optional: true
+      attribute :run,       RunKey
+      attribute :confirm,   Switch, optional: true
+
+      sets :gem_only
+      sets :npm_only
+      sets :npm_local
+      sets :no_wait
+      sets :run
+      sets :confirm
+      sets :operation, to: "publish"
+
+      emits PublishRequested
+    end
+
+    command "PublishGem" do
+      role "Maintainer"
+      goal "Build the gem and push it to the gem registry, with the key the vault holds"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "publish_gem"
+
+      emits PublishGemRequested
+    end
+
+    # What the tree reported about itself, and the facts the Git adapter surveyed, held against the
+    # rules of a release. Nothing here runs outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a release go ahead only in a hecks checkout, and only when the facts satisfy every rule"
+
+      reference_to PublishingRun
+      attribute :checkout,       Switch
+      attribute :branch,         Word
+      attribute :on_origin,      Switch
+      attribute :clean,          Switch
+      attribute :version,        Version
+      attribute :client_version, Version
+      attribute :changelog,      Switch
+      attribute :tag_state,      Word
+      attribute :head,           Word
+      attribute :ir_version,     Version
+      attribute :ships_from,     Checkout
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("a release is cut from main: switch to main first") { branch.value == "main" }
+      given("main is origin/main: merge the release PR, then pull") { on_origin.value }
+      given("the working tree is clean: commit or discard changes first") { clean.value }
+      given("the client package is at the gem's version: bump the package first") do
+        client_version.value == version.value
+      end
+      given("CHANGELOG.md has a heading for the version: add the release entry") { changelog.value }
+      given("a tag for the version points at the release commit, not elsewhere") do
+        tag_state.value != "elsewhere"
+      end
+
+      sets :checkout
+      sets :branch
+      sets :on_origin
+      sets :clean
+      sets :version
+      sets :client_version
+      sets :changelog
+      sets :tag_state
+      sets :head
+      sets :ir_version
+      sets :ships_from
+
+      emits PublishingAccepted
+    end
+
+    # release_gem's one rule: the client package is released beside the gem at the same version.
+    command "AcceptGem" do
+      role "System"
+      goal "Let a gem push go ahead only in a hecks checkout, with the client package at the gem's version"
+
+      reference_to PublishingRun
+      attribute :checkout,       Switch
+      attribute :version,        Version
+      attribute :client_version, Version
+      attribute :ir_version,     Version
+      attribute :ships_from,     Checkout
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("the client package is at the gem's version: bump the package first") do
+        client_version.value == version.value
+      end
+
+      sets :checkout
+      sets :version
+      sets :client_version
+      sets :ir_version
+      sets :ships_from
+
+      emits GemAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the release was carried out, what it did, and what it reported"
+
+      reference_to PublishingRun
+      attribute :report,    Report
+      attribute :tagged,    Switch
+      attribute :published, Switch
+      attribute :verified,  Switch
+
+      sets :report
+      sets :tagged
+      sets :published
+      sets :verified
+
+      emits PublishingCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to PublishingRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits PublishingFaulted
+    end
+
+    query "PublishingOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "PublishingFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExaminePublishingWhenPublishRequested" do
+    on      "PublishingRun.PublishRequested"
+    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExaminePublishingWhenPublishGemRequested" do
+    on      "PublishingRun.PublishGemRequested"
+    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptTheReleaseWhenExamined" do
+    on      "PublishingRun.PublishingExamined"
+    where   { operation.value == "publish" }
+    trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, on_origin: :on_origin,
+                                           clean: :clean, version: :version, client_version: :client_version,
+                                           changelog: :changelog, tag_state: :tag_state, head: :head,
+                                           ir_version: :ir_version, ships_from: :ships_from }
+  end
+
+  policy "AcceptTheGemWhenExamined" do
+    on      "PublishingRun.PublishingExamined"
+    where   { operation.value == "publish_gem" }
+    trigger PublishingRun::AcceptGem, with: { checkout: :checkout, version: :version,
+                                              client_version: :client_version, ir_version: :ir_version,
+                                              ships_from: :ships_from }
+  end
+
+  policy "FaultTheReleaseWhenNotAccepted" do
+    on      "PublishingRun.PublishingExamined"
+    where do
+      operation.value == "publish" &&
+        (!checkout.value || branch.value != "main" || !on_origin.value || !clean.value ||
+          client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere")
+    end
+    trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG and tag" }
+  end
+
+  policy "FaultTheGemWhenNotAccepted" do
+    on      "PublishingRun.PublishingExamined"
+    where do
+      operation.value == "publish_gem" && (!checkout.value || client_version.value != version.value)
+    end
+    trigger PublishingRun::Fault, with: { refusal: "a gem push rule is not met: needs a checkout and the client at the gem's version" }
+  end
+
+  policy "PerformPublishingWhenAccepted" do
+    on      "PublishingRun.PublishingAccepted"
+    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "PerformPublishingWhenGemAccepted" do
+    on      "PublishingRun.GemAccepted"
+    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  # A real run advances the root Release: tagged when the tag was made, published when a registry
+  # took the gem, verified when every registry in scope lists the version.
+  policy "RecordTheTagWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { tagged.value }
+    trigger Release::Tag, with: { version: :version, ir_version: :ir_version, ships_from: :ships_from }
+  end
+
+  policy "RecordThePublishingWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { published.value }
+    trigger Release::MarkPublished, with: { version: :version }
+  end
+
+  policy "RecordTheVerificationWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { verified.value }
+    trigger Release::Verify, with: { version: :version }
+  end
+
+  # A release that stopped after a real step (the tag pushed, the gem published) still records the
+  # steps it took on the root Release, then ends as a fault carrying what the release said.
+  policy "RecordPublishingOutcome" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { succeeded.value }
+    trigger PublishingRun::Complete, with: { report: :report, tagged: :tagged, published: :published,
+                                             verified: :verified }
+  end
+
+  policy "RecordPublishingShortfall" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { succeeded.value == false }
+    trigger PublishingRun::Fault, with: { refusal: :report }
+  end
+
+  policy "RecordPublishingFault" do
+    on      "PublishingRun.PublishingRefused"
+    trigger PublishingRun::Fault, with: { refusal: :refusal }
+  end
+end

@@ -92,15 +92,20 @@ pub(crate) fn to_s(value: &Json) -> String {
 /// `Ports::Query::InMemory#comparable`: reduces a value object one level, to its numeric member
 /// or its only member; anything else passes through unchanged.
 pub fn comparable(value: &Json) -> Json {
-    let Json::Object(fields) = value else { return value.clone() };
+    comparable_ref(value).clone()
+}
+
+/// `comparable` without the copy: the reduced value is always `value` itself or a member of it.
+pub fn comparable_ref(value: &Json) -> &Json {
+    let Json::Object(fields) = value else { return value };
 
     if let Some((_, numeric)) = fields.iter().find(|(_, v)| matches!(v, Json::Num(_, _) | Json::Float(_))) {
-        return numeric.clone();
+        return numeric;
     }
     if fields.len() == 1 {
-        return fields[0].1.clone();
+        return &fields[0].1;
     }
-    value.clone()
+    value
 }
 
 /// Reads `in`'s argument or a `list_of` value as elements; other text is comma-separated.

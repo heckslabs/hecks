@@ -2,14 +2,14 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` ledger lifecycle: role provisioning, empty rotation, stale-hold reclaim,
+# `qa_sweep --all` ledger lifecycle: role provisioning, empty rotation, stale-hold reclaim,
 # and every child failing. See `spec/support/qa_sweep_all_fixture.rb` for the shared setup.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_lifecycle_spec"
 
-  # Runs the operator step `bin/qa_postgres_role <database>` against a disposable database; checks
+  # Runs the operator step `qa_postgres_role <database>` against a disposable database; checks
   # its report, idempotence on a second run, and that the resulting owner is an ordinary role.
-  it "bin/qa_postgres_role hands the ledger's database to hecks_qa, an ordinary owner, idempotently" do
+  it "qa_postgres_role hands the ledger's database to hecks_qa, an ordinary owner, idempotently" do
     expect(@role_report).to include("#{@qa_sweep_all_database} is hecks_qa's")
     expect(@role_report).to include("database #{@qa_sweep_all_database}: owner")
 

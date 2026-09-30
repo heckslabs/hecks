@@ -1,3 +1,4 @@
+require_relative "adapter_lookup"
 require_relative "interpreting"
 require_relative "command_interpreter/argument_gate"
 require_relative "event"
@@ -125,16 +126,7 @@ module Hecks
       end
 
       def adapter_for(ctx)
-        name = port_name_for(ctx)
-        implementations = @registry.adapters.values.select { |adapter| adapter.port == name }
-
-        case implementations.size
-        when 1 then Adapters.const_get(implementations.first.name).new
-        when 0 then raise WiringError, "no adapter implements the #{name} port — nothing can answer #{ctx.operation.hecks_name}"
-        else raise WiringError,
-                   "#{implementations.size} adapters implement the #{name} port " \
-                   "(#{implementations.map(&:name).sort.join(', ')}) — the runtime will not choose for you"
-        end
+        AdapterLookup.call(@registry, port_name_for(ctx), asked: ctx.operation.hecks_name)
       end
 
       # Adapters are handed plain data, never a Value.

@@ -33,7 +33,10 @@ RSpec.describe Hecks::Adapters::Sqlite do
 
   it "projects its schema from the aggregate IR" do
     adapter
-    schema = `sqlite3 #{File.join(@dir, "pizzas.db")} ".schema order"`
+    # Read through the gem the adapter itself uses, so the spec does not need the sqlite3 CLI.
+    db = SQLite3::Database.new(File.join(@dir, "pizzas.db"))
+    schema = db.execute("SELECT sql FROM sqlite_master WHERE tbl_name = 'order'").flatten.join("\n")
+    db.close
 
     expect(schema).to include(%("pizza" TEXT))
     expect(schema).to include(%("name" TEXT))

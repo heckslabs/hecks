@@ -3,8 +3,8 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/stores` and `hecks stores`: every aggregate's current
-    # records as JSON (the head, not the journal — see `bin/history` for that).
+    # The command behind `hecks stores`: every aggregate's current
+    # records as JSON (the head, not the journal — see `hecks history` for that).
     module Stores
       module_function
 
@@ -13,10 +13,9 @@ module Hecks
       # @param argv [Array<String>] the domain directory, first
       # @param program [String] the name the error message calls this command by
       # @return [void]
-      # @raise [IndexError] when `argv` is empty
-      # @raise [SystemExit] when the domain directory does not exist
+      # @raise [SystemExit] when `argv` is empty or the domain directory does not exist
       def call(argv, program:)
-        domain = argv.fetch(0)
+        domain = argv.first or abort "usage: #{program} <domain>"
         unless Dir.exist?(domain)
           warn "#{program}: no such domain #{domain.inspect}"
           exit 1

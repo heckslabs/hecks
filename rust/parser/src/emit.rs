@@ -82,6 +82,7 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             "formerly_known_as".to_string(),
             JsonValue::opt_str(&bb.formerly_known_as),
         ),
+        ("namespace".to_string(), JsonValue::opt_str(&bb.namespace)),
         (
             "aggregates".to_string(),
             JsonValue::Array(bb.aggregates.iter().map(aggregate_json).collect()),
@@ -452,6 +453,10 @@ fn query_json(q: &ir::Query) -> JsonValue {
         ("limit".to_string(), limit_json(&q.limit)),
     ];
     pairs.extend(query_options_json(&q.options));
+    // `returns` follows the options, only when declared (`Query#to_h`).
+    if let Some(returns) = &q.returns {
+        pairs.push(("returns".to_string(), JsonValue::str(returns.clone())));
+    }
     JsonValue::Object(pairs)
 }
 

@@ -4,7 +4,7 @@ require_relative "../../../../../../projector/exporter"
 module Hecks
   module Translation
     module Audit
-      # The human gate: a compute edge cannot mint until `bin/translation_audit --approve`
+      # The human gate: a compute edge cannot mint until `hecks audit_translation --approve`
       # binds an approval to the edge's content digest and the journal's ordinal at review.
       module ApprovalDigest
         # Fingerprints a parsed translation edge, so an approval lapses when the edge's

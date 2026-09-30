@@ -1,7 +1,7 @@
 # command_form.bluebook and query_form.bluebook: forms and views straight off the IR
 
 **Status: prototype.** A working slice lives at `lib/hecks/forms/`,
-demoed by `bin/present` against the banking example. This records the
+demoed by `hecks present` against the banking example. This records the
 design, what it deliberately does and doesn't do yet, and the path to
 making these real words in the language rather than the ordinary Ruby DSL
 they are today.
@@ -258,11 +258,11 @@ splitting it would mean two copies drifting, for no reader's benefit:
   command's `role:` next to the form. There is no CSRF token, no
   Origin/Referer check, no SameSite handling, and no session anywhere in
   the directory — any page open in the same browser can POST a
-  state-changing command to a running `bin/present`. This is a security
+  state-changing command to a running `hecks present`. This is a security
   boundary, not a packaging detail: see the next item.
-- **Not deployed, and not safe to expose.** `bin/present` boots the
+- **Not deployed, and not safe to expose.** `hecks present` boots the
   banking example in memory, for local use — the same
-  `webrick`/`rackup` dev-server shape `bin/console` and friends already
+  `webrick`/`rackup` dev-server shape `hecks console` and friends already
   use, not a production server story. Concretely, because of the item
   above: do not put this behind a public URL or bind it to
   anything but localhost. It is a prototype for exploring the forms
@@ -271,8 +271,8 @@ splitting it would mean two copies drifting, for no reader's benefit:
 ## Running it
 
 ```
-bin/present            # binds :4567
-bin/present -p 8080
+hecks present            # binds :4567
+hecks present port=8080
 ```
 
 Then, for example: `open http://localhost:4567/`,
@@ -282,7 +282,7 @@ Then, for example: `open http://localhost:4567/`,
 To point this at a different domain, write a
 `lib/hecks/forms/examples/banking_console.bluebook`-shaped file
 (anywhere but `examples/*` — see above) declaring which chapters to
-expose, and adapt `bin/present`'s own boot block (or, for a domain whose
+expose, and adapt `hecks present`'s own boot block (or, for a domain whose
 `.hecksagon` already binds a real adapter rather than needing the
 Memory rebind, just `Hecks.boot(path)` and skip the hand-rolled boot
 entirely — `App.for` only needs a booted `Registry` and a configured name).

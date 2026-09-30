@@ -23,10 +23,12 @@ RUBY_DB = "mvr_ruby_#{suffix}"
 RUST_DB = "mvr_rust_#{suffix}"
 OWNER = "mvr_owner_#{suffix}"
 
+# A role the test connects as later needs the admin password when the server asks for one.
+LOGIN_CLAUSE = ENV["PGPASSWORD"] ? "LOGIN PASSWORD '#{ENV["PGPASSWORD"].gsub("'", "''")}'" : "LOGIN"
 admin = PG.connect(dbname: "postgres")
 [RUBY_DB, RUST_DB].each { |db| admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)") }
 admin.exec("DROP ROLE IF EXISTS #{OWNER}")
-admin.exec("CREATE ROLE #{OWNER} LOGIN")
+admin.exec("CREATE ROLE #{OWNER} #{LOGIN_CLAUSE}")
 [RUBY_DB, RUST_DB].each do |db|
   admin.exec("CREATE DATABASE #{db}")
   conn = PG.connect(dbname: db)
@@ -111,7 +113,7 @@ from_label = label_of(V1)
 to_label = label_of(V2)
 edge_src = edge_source(from: from_label, to: to_label)
 
-# Real Exporter output, the same calls bin/project_rust makes.
+# Real Exporter output, the same calls hecks project_rust makes.
 def export_ir(source, translation_source:)
   registry = load_registry(source, translation_source: translation_source)
   domain_name = registry.bluebooks.keys.first

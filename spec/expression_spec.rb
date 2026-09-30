@@ -444,6 +444,15 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "present?/blank? on lists" do
+    it "answers a non-empty list is present, pairs or not, without raising" do
+      expect(evaluate("value.present?", value: [0])).to be(true)
+      expect(evaluate("value.blank?", value: [0])).to be(false)
+      expect(evaluate("value.present?", value: [[1, 2]])).to be(true)
+      expect(evaluate("value.blank?", value: [])).to be(true)
+    end
+  end
+
   describe "set?/unset? -- deliberately narrower than present?/blank?" do
     it "asks only whether the receiver is nil, never whether it is empty" do
       expect(evaluate("value.set?", value: nil)).to be(false)
@@ -637,6 +646,37 @@ RSpec.describe "the expression sublanguage" do
       Hecks::Adapters::Prism.forget_all
       File.write(@tmp_file, "2")
       expect(Hecks::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
+    end
+
+    it "finds the first block starting on a line, and none on a line without one" do
+      File.write(@tmp_file, "a { 1 }\nb do\n  c { 2 }\nend\nd { 3 }; e { 4 }\n")
+      prism = Hecks::Adapters::Prism
+
+      expect(prism.block_node_at(@tmp_file, 1).body.slice).to eq("1")
+      expect(prism.block_node_at(@tmp_file, 2).location.start_line).to eq(2)
+      expect(prism.block_node_at(@tmp_file, 3).body.slice).to eq("2")
+      expect(prism.block_node_at(@tmp_file, 5).body.slice).to eq("3")
+      expect(prism.block_node_at(@tmp_file, 4)).to be_nil
+    end
+
+    it "walks a file's tree once for all its block lookups" do
+      File.write(@tmp_file, "a { 1 }\nb { 2 }\n")
+      prism = Hecks::Adapters::Prism
+      expect(prism).to receive(:blocks_by_line).once.and_call_original
+
+      prism.block_node_at(@tmp_file, 1)
+      prism.block_node_at(@tmp_file, 2)
+    end
+
+    it "indexes a file's blocks afresh after forget" do
+      File.write(@tmp_file, "a { 1 }\nb { 2 }\n")
+      prism = Hecks::Adapters::Prism
+      prism.block_node_at(@tmp_file, 1)
+
+      File.write(@tmp_file, "a { 1 }\n\nb { 22 }\n")
+      prism.forget(@tmp_file)
+      expect(prism.block_node_at(@tmp_file, 3).body.slice).to eq("22")
+      expect(prism.block_node_at(@tmp_file, 2)).to be_nil
     end
 
     it "forget on a path never cached is a no-op, not a raise" do

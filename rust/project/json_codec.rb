@@ -9,6 +9,13 @@ module RustProjection
       "crate::kernel::Refusal::TypeMismatch(#{"#{struct_name}.#{key}: expected #{expectation}".inspect}.to_string())"
     end
 
+    # The refusal for a scalar offered where a list argument goes; worded as Ruby's
+    # `Value.refuse_scalar_list`, with the offered value known only at runtime.
+    def list_shape_error(struct_name, key, element_type, value_var)
+      template = "#{struct_name}.#{key} expects list_of(#{element_type}), got {}"
+      "crate::kernel::Refusal::TypeMismatch(format!(#{template.inspect}, #{value_var}.inspect()))"
+    end
+
     # A String mismatch also reports TypeMismatch when the value is an
     # Array/Hash/Null, matching Ruby's laxer scalar-shape check; other
     # scalar mismatches fall through to the generic wording.
@@ -202,10 +209,12 @@ module RustProjection
         "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
         "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
       elsif attr[:list]
+        # A list argument is an array: a lone scalar is refused, as Ruby's
+        # `Value.refuse_scalar_list` does; null and an absent key are the empty list.
         mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
-        "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
-          "Some(items) => items.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
-          "None => Vec::new(), }"
+        shape_error = list_shape_error(struct_name, key, attr[:type], "x")
+        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => Vec::new(), " \
+          "Some(x) => x.as_array().ok_or_else(|| #{shape_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, }"
       elsif attr[:optional] && scalar
         # A null value is the same absence as an omitted key for an
         # optional argument (Ruby's nil passthrough).

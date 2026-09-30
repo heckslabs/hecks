@@ -2,12 +2,12 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep`'s coverage-guided `CoverageCampaign` persists to a file per (target, mode) so its
+# `qa_sweep`'s coverage-guided `CoverageCampaign` persists to a file per (target, mode) so its
 # corpus and coverage knowledge compound across separate process invocations (one per tick),
 # rather than rebuilding an identical corpus from an identical trace and discarding it at exit
 # every time. `spec/fuzzing/coverage_campaign_spec.rb` pins the serialization round trip itself;
 # this proves the wiring: the right file, read before the sweep and written after it.
-RSpec.describe "bin/qa_sweep coverage corpus persistence", :io do
+RSpec.describe "qa_sweep coverage corpus persistence", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_coverage_corpus_spec"
 
   around do |example|
@@ -63,7 +63,7 @@ RSpec.describe "bin/qa_sweep coverage corpus persistence", :io do
     expect(saved).to include("corpus", "seen", "verb_hits", "declared_verbs")
   end
 
-  # `bin/qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
+  # `qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
   # domain (e.g. `lifeadelics/lifeadelics`); `coverage_corpus_path` folds that `/` into a filename,
   # and `FileUtils.mkdir_p(@corpus_dir)` never creates a matching subdirectory for it, so the
   # filename component is sanitized before the write runs. The reference itself keeps its `/` in

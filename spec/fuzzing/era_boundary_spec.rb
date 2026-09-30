@@ -8,7 +8,7 @@ require "pg"
 require "json"
 
 # `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
-# `BindingPolicy` resolution and `.world` settings reach the answer `bin/merge_tail` reports.
+# `BindingPolicy` resolution and `.world` settings reach the answer `hecks merge_tail` reports.
 RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
   ERA_BOUNDARY_SPEC_DATABASE = "hecks_era_boundary_spec".freeze
 
@@ -175,8 +175,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     expect(result[:reason]).to include("not PostgresEra")
   end
 
-  # Nothing to audit and could-not-audit must differ: `bin/qa_sweep` reads `kind:` to tell
-  # a note (no Check) from a finding.
+  # Nothing to audit and could-not-audit must differ: `hecks quality_control ask run` reads
+  # `kind:` to tell a note (no Check) from a finding.
   it "reports kind: :error when the audit itself cannot run" do
     result = described_class.diverged_ancestor_writes(@fixture_root)
 

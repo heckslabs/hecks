@@ -11,6 +11,7 @@ require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
 require_relative "postgres/outbox"
 require_relative "postgres/reconnect"
+require_relative "postgres/shared_connection"
 require_relative "../../runtime/instance"
 
 module Hecks
@@ -79,7 +80,8 @@ module Hecks
               "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
 
-      # Connects and creates the aggregate, journal, event, saga and outbox tables if absent.
+      # Joins the process's shared connection for the declared database and schema, then
+      # creates the aggregate, journal, event, saga and outbox tables if absent.
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
       # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
@@ -93,7 +95,7 @@ module Hecks
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
-        @db = self.class.connect_for(aggregate.name, settings)
+        @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
         # Scopes saga rows; falls back to the aggregate's storage name when
         # settings gives no domain (e.g. a directly-instantiated adapter).
         @domain = (

@@ -1,0 +1,54 @@
+# The ports QualityControl declares, for every hecksagon that attaches the chapter (`Chapters`
+# loads this file with it). Persistence is the attaching hecksagon's: the Hecks chapter binds
+# every aggregate through its world's `default_adapter`, and the QA ledger binds its own
+# (qa/bluebook/quality_control.hecksagon).
+Hecks.hecksagon "QualityControl" do
+  # Bound by adapters/github_issues. The port has to be declared even where no adapter binds it,
+  # so FileWhenSubmitted has a target and model_check's deaf-policy check can see it.
+  QualityControl::Ticket.port "IssueTracker" do
+    asks "File", to: Ticket do
+      answers "IssueFiled"
+      refuses "IssueFilingRefused"
+    end
+
+    tells "Closed", to: Ticket do
+      emits "IssueClosedUpstream"
+    end
+  end
+
+  # Bound by adapters/github_checks. ClearOnPass and RefuseOnFail turn its answer into
+  # Clearance::Passed/Failed.
+  QualityControl::Clearance.port "CI" do
+    asks "Run", to: Clearance do
+      answers "SuitePassed"
+      refuses "SuiteFailed"
+    end
+  end
+
+  # Queries answered from outside the domain. The bluebook declares each question and the value
+  # object its answer takes and never says who answers it; each `answers_query` binds it to the
+  # `*Tools` port's adapter, which runs the script's own command and answers what it printed.
+  QualityControl::Target.port "TargetTools" do
+    answers_query "Seed"
+    answers_query "CheckGeneratedDomains"
+    answers_query "MineCombinations"
+    answers_query "JudgeNovelty"
+    answers_query "DiscoverExternalDomains"
+  end
+
+  QualityControl::Sweep.port "SweepTools" do
+    answers_query "Tick"
+    answers_query "Run"
+    answers_query "MigrateLedgerFromHeki"
+    answers_query "CreateLedgerRole"
+    answers_query "Race"
+  end
+
+  QualityControl::Angle.port "AngleTools" do
+    answers_query "Seed"
+  end
+
+  QualityControl::Clearance.port "ClearanceTools" do
+    answers_query "CheckPullRequests"
+  end
+end

@@ -1,14 +1,15 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 require "yaml"
 
 # Checks that the generated template.yaml, bastion.yaml and Makefile agree with each other,
-# parsed back out of real bin/project_deploy output rather than re-derived from its tables.
-RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output", :io do
+# parsed back out of real hecks deploy project output rather than re-derived from its tables.
+RSpec.describe "hecks deploy project's stack<->bastion structural contract, in its own generated output", :io do
   CONTRACT_FIXTURE_BASENAME = "project_deploy_contract_spec_fixture".freeze
 
-  # bin/project_deploy always writes to <repo_root>/deploy/<basename>, so the basename is
+  # hecks deploy project always writes to <repo_root>/deploy/<basename>, so the basename is
   # unique. Generated once and shared by every example.
   before(:context) do
     root = File.expand_path("..", __dir__)
@@ -45,8 +46,8 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
         end
       WORLD
 
-      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-      status.success? or raise "bin/project_deploy failed: #{stderr}"
+      _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+      status.success? or raise "hecks deploy project failed: #{stderr}"
     end
 
     @files = {

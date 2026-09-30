@@ -114,7 +114,7 @@ RSpec.describe "ReferralChain" do
   it "refuses to re-point a referral at a handle naming no member on the compiled Rust conformance binary too", :io do
     rust_dir = File.join(InMemoryDomain::ROOT, "rust")
     binary = build_rust_for("referral_chain", rust_dir)
-    skip "rust/Cargo.toml has no referral_chain feature — run bin/project_rust for it first" unless binary
+    skip "rust/Cargo.toml has no referral_chain feature — run hecks project_rust for it first" unless binary
 
     steps = [
       { "verb" => "ReferralChain::Sponsor.Enroll", "args" => { "handle" => { "value" => "s1" } } },

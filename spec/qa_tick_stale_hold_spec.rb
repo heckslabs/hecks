@@ -2,11 +2,11 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_tick_fixture"
 
-# `bin/qa_tick`, proven against the real thing — see `spec/qa_tick_dirty_
+# `hecks quality_control tick`, proven against the real thing — see `spec/qa_tick_dirty_
 # tree_spec.rb`'s own header. One of four sibling files split out of the
 # original `qa_tick_spec.rb` on 2026-09-18. Own throwaway database:
 # `hecks_qa_tick_stale_hold_spec`.
-RSpec.describe "bin/qa_tick", :io do
+RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_stale_hold_spec"
 
   it "counts a stale hold the sweep reclaimed, so a recurring one is visible across ticks" do

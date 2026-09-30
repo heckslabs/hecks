@@ -27,7 +27,7 @@ if ENV["DB_SECRET_ARN"]
 end
 
 require_relative "../lib/hecks"
-require_relative "adapters/github_ci_webhook"
+require_relative "../lib/hecks/quality_control/adapters/github_ci_webhook"
 
 # Must match the world file's handler_module; not named LambdaHandler because
 # aws-lambda-ric defines a class of that name.

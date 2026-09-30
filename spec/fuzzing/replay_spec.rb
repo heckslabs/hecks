@@ -19,7 +19,7 @@ RSpec.describe "Hecks::Fuzzing::Replay" do
                   "name" => "Margherita" } }
   end
 
-  it "boots fresh, dispatches every step, and reports the same surface bin/run prints" do
+  it "boots fresh, dispatches every step, and reports the same surface hecks run prints" do
     history = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
 
     expect(history[:events].map { |e| e[:name] }).to eq(["PizzaCreated", "ToppingAdded"])

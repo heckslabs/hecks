@@ -1,5 +1,5 @@
 # Standalone fixture crate owned by spec/qa_sweep_all_spec.rb, kept outside `rust/`'s workspace.
-# `QA_SWEEP_RUST_DIR` points bin/qa_sweep at it.
+# `QA_SWEEP_RUST_DIR` points hecks quality_control ask run at it.
 #
 # One feature per fixture domain, named exactly like its fixture directory
 # (`RustConformanceHelpers#build_rust_for` matches on it); src/main.rs branches on each.

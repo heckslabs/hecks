@@ -1,4 +1,4 @@
-# Fixture for spec/qa_domain_novelty_spec.rb: a flat bluebook, which bin/qa_domain_novelty
+# Fixture for spec/qa_domain_novelty_spec.rb: a flat bluebook, which hecks quality_control judge_novelty
 # refuses (a stress domain is `<name>/bluebook/<name>.bluebook`, never a bare file).
 Hecks.bluebook "Flat" do
   generic

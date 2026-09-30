@@ -29,9 +29,11 @@ tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
 rustls-pemfile = "2"
+# arbitrary_precision keeps a number as the text Ruby wrote (`1.0e+20`, integers past u64), which
+# approval.rs digests verbatim as Ruby's `JSON.generate` would.
 # preserve_order keeps JSON object key order, which approval.rs's `edge_digest` needs to match
 # `ApprovalDigest.edge_digest` (a translation edge's `renames` order is meaningful).
-serde_json = { version = "1", features = ["preserve_order"] }
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
 anyhow = "1"
 # Used by field_hints.rs; pure Rust, no aws-lc/openssl-sys.
 regex = "1"

@@ -67,7 +67,7 @@ pub fn parse_body(
 
 // Refuses one command reaching two targets from overlapping `from:` states (`None` overlaps all).
 // Rows are already expanded one per `from:` state. A `from:` naming an undeclared state is left
-// to `bin/model_check`, since a bluebook may exhibit it on purpose. Wording matches Ruby's.
+// to `hecks model_check`, since a bluebook may exhibit it on purpose. Wording matches Ruby's.
 fn refuse_ambiguity(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
     let mut seen: Vec<(&str, Option<&str>, &str)> = Vec::new();
     for row in &lifecycle.transitions {

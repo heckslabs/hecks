@@ -5,6 +5,7 @@
   "vision": "The smallest domain pairing a state-independent creating command with a genuinely-falsifiable aggregate invariant — the existence-vs-invariant ordering pair BUG#28's own real corpus example (Account.Open) can't exercise today.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Vault",

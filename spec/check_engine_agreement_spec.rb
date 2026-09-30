@@ -2,14 +2,22 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "open3"
+require "rbconfig"
 
-# bin/check_engine_agreement is a script, so this runs it as a subprocess. The negative cases
-# mutate a scratch copy of the files it reads, selected by `HECKS_CHECK_ENGINE_AGREEMENT_ROOT`;
-# the declared comparator set still comes from the real `Hecks::Vocabulary`.
-RSpec.describe "bin/check_engine_agreement" do
-  # Namespaced because a constant assigned in a `describe` block lands on Object; a bare
-  # `SCRIPT` collided with project_tenant_spec.rb's (see load_hygiene_spec.rb).
-  CHECK_ENGINE_AGREEMENT_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/check_engine_agreement").freeze
+# `hecks check_engine_agreement` (Hecks::CLI::CheckEngineAgreement) runs as a subprocess. The
+# negative cases mutate a scratch copy of the files it reads, selected by
+# `HECKS_CHECK_ENGINE_AGREEMENT_ROOT`; the declared comparator set still comes from the real
+# `Hecks::Vocabulary`.
+RSpec.describe "hecks check_engine_agreement" do
+  # Namespaced because a constant assigned in a `describe` block lands on Object (see
+  # load_hygiene_spec.rb). The child's whole program is the library entry point.
+  CHECK_ENGINE_AGREEMENT_CHILD =
+    '$LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/check_engine_agreement"; ' \
+    'exit(Hecks::CLI::CheckEngineAgreement.call(root: ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || Dir.pwd))'.freeze
+
+  def check_engine_agreement(env = {})
+    Open3.capture3(env, RbConfig.ruby, "-e", CHECK_ENGINE_AGREEMENT_CHILD, chdir: InMemoryDomain::ROOT)
+  end
 
   TRACKED_RELATIVE_PATHS = %w[
     lib/hecks/ports/query/in_memory.rb
@@ -31,11 +39,11 @@ RSpec.describe "bin/check_engine_agreement" do
   end
 
   def run_against(dir)
-    Open3.capture3({ "HECKS_CHECK_ENGINE_AGREEMENT_ROOT" => dir }, CHECK_ENGINE_AGREEMENT_SCRIPT)
+    check_engine_agreement({ "HECKS_CHECK_ENGINE_AGREEMENT_ROOT" => dir })
   end
 
   it "passes cleanly against the real, current repo — Tiers 1-4 already unified the two engines" do
-    stdout, stderr, status = Open3.capture3(CHECK_ENGINE_AGREEMENT_SCRIPT)
+    stdout, stderr, status = check_engine_agreement
 
     expect(status).to be_success, "expected 0 problems, got:\n#{stdout}#{stderr}"
     expect(stdout).to include("0 problems")

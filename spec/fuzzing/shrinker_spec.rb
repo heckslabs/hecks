@@ -135,4 +135,43 @@ RSpec.describe Hecks::Fuzzing::Shrinker do
       expect(described_class.reproduces?(Set[], [])).to be(false)
     end
   end
+
+  describe ".args_of" do
+    # key? first, never `||`: a falsy "args" value must still win over the other spelling.
+    it "returns the string-keyed value even when it is literally `false`, rather than falling to the symbol spelling" do
+      expect(described_class.args_of({ "args" => false, args: { "a" => 1 } })).to be(false)
+    end
+
+    it "falls to the symbol spelling only when the string key is genuinely absent" do
+      expect(described_class.args_of({ args: { "a" => 1 } })).to eq({ "a" => 1 })
+    end
+  end
+
+  describe ".drop_arguments" do
+    def drop_arguments(steps, &reproduces)
+      described_class.drop_arguments(steps, described_class::Meter.new(nil), &reproduces)
+    end
+
+    it "accumulates every accepted drop instead of reverting earlier ones" do
+      steps = [{ "verb" => "Some.Verb", "args" => { "a" => 1, "b" => 2 } }]
+
+      # Both are droppable, so neither should survive; a shrinker that fails to
+      # accumulate drops would keep the first one.
+      expect(drop_arguments(steps) { true }.first["args"]).to eq({})
+    end
+
+    it "still reverts a drop the domain genuinely needs, mid-accumulation" do
+      steps = [{ "verb" => "Some.Verb", "args" => { "a" => 1, "b" => 2 } }]
+      # "a" is droppable; dropping "b" changes the outcome, so it must be restored.
+      shrunk = drop_arguments(steps) { |candidate| candidate.first["args"].key?("b") }
+
+      expect(shrunk.first["args"]).to eq({ "b" => 2 })
+    end
+
+    it "accumulates drops across more than two arguments" do
+      steps = [{ "verb" => "Some.Verb", "args" => { "a" => 1, "b" => 2, "c" => 3, "d" => 4 } }]
+
+      expect(drop_arguments(steps) { true }.first["args"]).to eq({})
+    end
+  end
 end

@@ -1,8 +1,8 @@
-require "open3"
 require "json"
 require "hecks/projections/deploy/template_diff"
+require "hecks/hecks/adapters/deploy_toolchain"
 
-# `bin/deploy_template_diff` and `Hecks::Projections::Deploy::TemplateDiff`: the offline half of
+# `hecks deploy diff` and `Hecks::Projections::Deploy::TemplateDiff`: the offline half of
 # checking that a generated template leaves a deployed stack untouched. The fixtures are small
 # neutral templates; `same_written_differently.yaml` is `base.yaml` with its keys reordered, its
 # short forms written long, and its comments dropped.
@@ -141,36 +141,38 @@ RSpec.describe Hecks::Projections::Deploy::TemplateDiff do
   end
 
   describe "the command" do
-    def run(*args)
-      Open3.capture3("ruby", File.expand_path("../bin/deploy_template_diff", __dir__), *args)
+    # `hecks deploy diff` (TemplateComparison.Diff): the DeployToolchain adapter's answer, whose
+    # `different:` is what the launcher turns into an exit status.
+    def compare(before, after, **options)
+      answer = Hecks::Adapters::DeployToolchain.new.compare(before: before, after: after, **options)
+      [answer.dig(:different, :value), answer.dig(:report, :value)]
     end
 
-    it "exits 0 for templates that do not differ" do
-      out, _err, status = run(base, rewritten)
+    it "reports no difference for templates that do not differ" do
+      different, text = compare(base, rewritten)
 
-      expect([status.exitstatus, out]).to eq([0, "no differences\n"])
+      expect([different, text]).to eq([false, "no differences\n"])
     end
 
-    it "exits 1 and lists the differences for templates that do" do
-      out, _err, status = run(base, edited)
+    it "reports the differences for templates that have them" do
+      different, text = compare(base, edited)
 
-      expect(status.exitstatus).to eq(1)
-      expect(out).to include("+ Topic (AWS::SNS::Topic)", "REPLACEMENT")
+      expect(different).to be(true)
+      expect(text).to include("+ Topic (AWS::SNS::Topic)", "REPLACEMENT")
     end
 
-    it "writes JSON with --json" do
-      out, _err, status = run(base, edited, "--json")
-      parsed = JSON.parse(out)
+    it "writes JSON with json" do
+      different, text = compare(base, edited, json: true)
+      parsed = JSON.parse(text)
 
-      expect(status.exitstatus).to eq(1)
+      expect(different).to be(true)
       expect(parsed["different"]).to be(true)
       expect(parsed["sections"]["Resources"]["added"]).to eq([{ "id" => "Topic", "type" => "AWS::SNS::Topic" }])
     end
 
-    it "exits 2 with a message for a missing file" do
-      _out, err, status = run(base, File.join(fixtures, "missing.yaml"))
-
-      expect([status.exitstatus, err]).to match([2, /missing\.yaml does not exist/])
+    it "refuses a missing file with a message" do
+      expect { compare(base, File.join(fixtures, "missing.yaml")) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /missing\.yaml does not exist/)
     end
   end
 end

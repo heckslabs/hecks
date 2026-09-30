@@ -5,6 +5,7 @@
   "vision": "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise uses_embryonaut_bluebook end to end (create, refuse, retire, query).",
   "classification": "supporting",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Widget",

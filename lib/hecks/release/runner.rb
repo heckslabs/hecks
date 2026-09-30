@@ -94,9 +94,16 @@ module Hecks
       # @param err [IO] where refusals and failures are written
       # @param pause [#call] sleeps for a number of seconds while waiting for CI
       # @param now [#call] answers the current time in seconds, monotonically, while waiting for CI
+      # @param facts [Preflight::Facts, nil] what a caller already checked and cleared (a branch, a
+      #   clean tree, matching versions, a changelog entry); the release then checks only that its
+      #   tools are installed, and every rule stays with the caller
       def initialize(root:, options: Options.new, commands: Commands.new, input: $stdin, out: $stdout, err: $stderr,
-                     pause: ->(seconds) { sleep(seconds) }, now: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) })
+                     pause: ->(seconds) { sleep(seconds) }, now: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) },
+                     facts: nil)
         @root = root
+        @facts = facts
+        @steps = []
+        @verified = false
         @options = options
         @commands = commands
         @console = Console.new(input: input, out: out, err: err, assume_yes: options.yes?)
@@ -105,16 +112,28 @@ module Hecks
         @ci = CiPublisher.new(root: root, published: @published, console: @console, pause: pause, now: now)
       end
 
+      # @return [Array<Symbol>] the steps this run carried out for real: `:tagged`, `:gem`, `:npm`
+      attr_reader :steps
+
+      # @return [Boolean] whether, after a real run, every registry in scope lists the version
+      attr_reader :verified
+
       # Runs the release.
       #
       # @return [Integer] 0 when the release finished or had nothing to do, 1 when a check refused,
       #   a step failed, CI's publish did not arrive in time or a confirmation was declined
       def call
-        facts = Preflight.new(root: @root, commands: @commands, git: @git, tools: tools).check!
+        facts = preflight
         pending = pending_steps(facts.version)
         require_workflow(pending)
-        return declined unless Tagger.new(git: @git, console: @console, dry_run: @options.dry_run).ensure!(facts)
+        # Nothing is tagged or pushed until the person has agreed to the publish: the tag push
+        # is what starts CI's npm publish.
+        return declined unless @options.dry_run || pending.empty? || publish_confirmed?(facts.version, pending)
 
+        tagger = Tagger.new(git: @git, console: @console, dry_run: @options.dry_run)
+        return declined unless tagger.ensure!(facts, note: tag_note(facts.version, pending))
+
+        @steps << :tagged if tagger.changed?
         publish(facts, pending)
       rescue Refusal, CommandFailed => e
         @console.warn(e.message)
@@ -122,6 +141,14 @@ module Hecks
       end
 
       private
+
+      def preflight
+        check = Preflight.new(root: @root, commands: @commands, git: @git, tools: tools)
+        return check.check! unless @facts
+
+        check.check_tools!
+        @facts
+      end
 
       def tools
         list = %w[git curl]
@@ -143,6 +170,11 @@ module Hecks
         published
       end
 
+      # The steps this run's flags put in scope, whether or not a registry already lists them.
+      def in_scope
+        [(:gem if @options.gem?), (:npm if @options.npm?)].compact
+      end
+
       def ci_publishes?(pending)
         pending.include?(:npm) && !@options.npm_local?
       end
@@ -157,11 +189,17 @@ module Hecks
       def publish(facts, pending)
         if pending.empty?
           @console.say("Nothing to publish for #{facts.version}.")
+          @verified = registries_list?(facts.version, in_scope) unless @options.dry_run
           return 0
         end
-        return declined unless @options.dry_run || publish_confirmed?(facts.version, pending)
-
         run_steps(facts.version, pending)
+      end
+
+      # What pushing the tag sets off, for the tag question; nothing when CI publishes nothing.
+      def tag_note(version, pending)
+        return unless ci_publishes?(pending)
+
+        "CI then publishes @hecks/client #{version} to npm from the tag, which cannot be undone"
       end
 
       def publish_confirmed?(version, pending)
@@ -179,29 +217,42 @@ module Hecks
         publish_gem(version, dry_run) if pending.include?(:gem)
         return 1 if pending.include?(:npm) && !publish_npm!(version, dry_run, ci_publishes?(pending))
 
+        @verified = registries_list?(version, pending) unless dry_run
+
         @console.say(dry_run ? "Dry run complete; nothing was tagged, pushed or published." : "Released hecks #{version}.")
         0
       end
 
       def publish_gem(version, dry_run)
         GemPublisher.new(root: @root, commands: @commands, console: @console).publish!(version, dry_run: dry_run)
+        @steps << :gem unless dry_run
+      end
+
+      # Asks each registry a step published to whether it now lists the version.
+      def registries_list?(version, pending)
+        (!pending.include?(:gem) || @published.gem?(version)) && (!pending.include?(:npm) || @published.npm?(version))
+      rescue Refusal
+        false
       end
 
       def publish_npm!(version, dry_run, via_ci)
         return wait_for_ci!(version, dry_run) if via_ci
 
         NpmPublisher.new(root: @root, commands: @commands, console: @console).publish!(version, dry_run: dry_run)
+        @steps << :npm unless dry_run
         true
       rescue CommandFailed => e
         @console.warn("npm publish failed: #{e.message}")
         unless dry_run
-          @console.warn("Finish the release with: bin/release --npm-only --npm-local (published steps are not repeated)")
+          @console.warn("Finish the release with: hecks publish --npm-only --npm-local --confirm " \
+                        "(published steps are not repeated)")
         end
         raise
       end
 
       def wait_for_ci!(version, dry_run)
         arrived = @ci.wait!(version, dry_run: dry_run, wait: @options.wait?)
+        @steps << :npm if arrived && !dry_run
         @console.warn(CiPublisher.timeout_hint(version)) unless arrived
         arrived
       end

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# The Ruby builder accepts any `provides` key and checks it against CONTRACTS, but the Rust
+# The Ruby builder accepts any `provides` key and checks it against `CONTRACTS`, but the Rust
 # parser accepts only grammar-declared keys, so a key missing from the grammar parses in Ruby only.
 RSpec.describe "capability contracts and the language grammar" do
   let(:grammar) { File.read(File.expand_path("../lib/hecks/language/bluebook/bluebook.bluebook", __dir__)) }

@@ -1,10 +1,11 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
-# Runs bin/project_deploy --tenant/--schema as a subprocess and checks the generated per-tenant
+# Runs `hecks deploy project` tenant=/schema= in this process and checks the generated per-tenant
 # CloudFormation (one deploy per tenant, isolated by HECKS_SCHEMA); structural, not deployed.
-RSpec.describe "bin/project_deploy --tenant", :io do
+RSpec.describe "hecks deploy project tenant=", :io do
   TENANT_FIXTURE_BASENAME = "project_deploy_tenant_spec_fixture".freeze
 
   def root = File.expand_path("..", __dir__)
@@ -43,7 +44,7 @@ RSpec.describe "bin/project_deploy --tenant", :io do
   end
 
   def run_project_deploy(domain_dir, *flags)
-    Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir, *flags)
+    ProjectDeployRunner.run(domain_dir, *flags, root: root)
   end
 
   def cleanup(*stack_names)
@@ -60,16 +61,16 @@ RSpec.describe "bin/project_deploy --tenant", :io do
 
       begin
         _out, err_acme, status_acme = run_project_deploy(domain_dir, "--tenant=acme", "--schema=acme_schema")
-        status_acme.success? or raise "bin/project_deploy --tenant=acme failed: #{err_acme}"
+        status_acme.success? or raise "hecks deploy project tenant==acme failed: #{err_acme}"
 
         _out, err_bloom, status_bloom = run_project_deploy(domain_dir, "--tenant=bloom")
-        status_bloom.success? or raise "bin/project_deploy --tenant=bloom failed: #{err_bloom}"
+        status_bloom.success? or raise "hecks deploy project tenant==bloom failed: #{err_bloom}"
 
         acme_template  = File.read(File.join(root, "deploy", acme_stack, "template.yaml"))
         bloom_template = File.read(File.join(root, "deploy", bloom_stack, "template.yaml"))
 
         expect(acme_template).to include("HECKS_SCHEMA: acme_schema")
-        # --schema omitted falls back to the tenant slug, as bin/project_tenant does.
+        # --schema omitted falls back to the tenant slug.
         expect(bloom_template).to include("HECKS_SCHEMA: bloom")
 
         expect(acme_template).not_to include("HECKS_SCHEMA: bloom")

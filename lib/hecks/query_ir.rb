@@ -4,7 +4,7 @@ require_relative "projections/model"
 require_relative "fuzzing/properties"
 
 module Hecks
-  # Shared core of `bin/query_ir` and `bin/hecks_query_ir_mcp`.
+  # Shared core of `hecks ir_constructs` and `hecks serve_query_ir_mcp`.
   # Returns structured data; formatting belongs to each front end.
   module QueryIR
     Codemod    = Hecks::Codemod
@@ -199,7 +199,8 @@ module Hecks
     end
     private_class_method :declaration_count
 
-    # Renders `constructs` output as text, shared by `bin/query_ir` and `bin/hecks_query_ir_mcp`.
+    # Renders `constructs` output as text, shared by `hecks ir_constructs` and `hecks
+    # serve_query_ir_mcp`.
     #
     # @param diffs [Array<Hash>] `constructs`' own output
     # @return [String] the human-readable rendering

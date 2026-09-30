@@ -23,7 +23,7 @@ module Hecks
       def call(dir)
         Dir.mktmpdir("hecks-smoke-") do |scratch|
           isolate!(dir, scratch)
-          dispatcher = Hecks.boot(scratch, install_facade: false)
+          dispatcher = Hecks.boot(scratch, install_doors: false)
           domain     = dispatcher.registry.bluebooks.keys.first
           next [] unless domain
 

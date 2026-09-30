@@ -87,7 +87,7 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
 /// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` — writes one chapter's
 /// `<aggregate>.rs`, `registry.rs`, `mod.rs` and `manifest.json` into `out_dir`.
 ///
-/// `metadata.rs` and `ir.json` are left to `bin/project_rust`.
+/// `metadata.rs` and `ir.json` are left to `hecks project_rust`.
 fn run_domain(args: &[String]) -> Result<(), String> {
     let [ir_path, source_label, mod_name, out_dir] = args else {
         return Err("usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string());

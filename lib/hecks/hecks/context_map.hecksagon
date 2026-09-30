@@ -1,0 +1,13 @@
+# Sibling bounded-context hecksagons.
+# Same-name blocks merge with hecks.hecksagon, order-independent.
+
+# Governance's aggregates take their store from governance.world's `default_adapter`, the same
+# way the Hecks chapter's do, so the memory overlay swaps them together.
+Hecks.hecksagon "Governance" do
+end
+
+# The attached chapters (hecks.hecksagon `attaches`): each is a bounded context whose store comes
+# from hecks.world's `default_adapter`, so the memory overlay swaps them with the Hecks chapter.
+%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy QualityControl].each do |chapter|
+  Hecks.hecksagon(chapter) { uses_framework "Governance" }
+end

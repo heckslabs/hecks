@@ -5,6 +5,7 @@
   "vision": "Two tenant-scoped aggregates, a cross-tenant reference_to between them, an entity, and a saga that crosses tenants — enough surface to prove the write side has no TenantScope equivalent at all.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Ledger",

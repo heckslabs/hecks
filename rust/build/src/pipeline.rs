@@ -40,7 +40,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         .ok_or_else(|| format!("could not determine a module name from domain path {domain:?}"))?
         .to_string();
 
-    // Same guard, same reason as bin/project_rust's own default path (R5)
+    // Same guard, same reason as hecks project_rust's own default path (R5)
     // — see `cargo_sync::valid_domain_mod_name`'s own header.
     if !cargo_sync::valid_domain_mod_name(&target_mod_name) {
         return Err(format!(

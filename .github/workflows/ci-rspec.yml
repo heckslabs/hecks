@@ -3,12 +3,15 @@ name: CI rspec (reusable)
 # Reusable rspec gate behind the `rspec` required check; called from ci.yml.
 #
 # One file per required check: a called workflow reports a single `.result` to its caller.
-# Secrets are declared, not inherited: ci.yml must pass HECKS_CI_ATTEST_KEY at the call site.
+# Secrets are declared, not inherited: ci.yml must pass HECKS_CI_ATTEST_KEY and
+# HECKS_JOURNAL_DATABASE at the call site.
 
 on:
   workflow_call:
     secrets:
       HECKS_CI_ATTEST_KEY:
+        required: false
+      HECKS_JOURNAL_DATABASE:
         required: false
 
 jobs:
@@ -55,6 +58,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       # `io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.
       # Every shard must compute its file list from identical inputs or the lists stop
@@ -62,7 +68,7 @@ jobs:
       - name: Determine this shard's own file list
         run: |
           mkdir -p tmp
-          bundle exec bin/rspec_shard_files ${{ matrix.group }} 2 .github/rspec_runtime_baseline.log \
+          bundle exec exe/hecks ask shard_specs group=${{ matrix.group }} groups=2 runtime_log=.github/rspec_runtime_baseline.log \
             > tmp/rspec_shard_files.txt
 
       # --group-by runtime: without it parallel_rspec splits by file size and one worker can
@@ -76,9 +82,9 @@ jobs:
             --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \
             -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
 
-      # Artifact only, never restored: `bin/refresh_rspec_runtime_baseline --from-run <run-id>`
+      # Artifact only, never restored: `hecks refresh_runtime_baseline from_run= <run-id>`
       # rebuilds the committed baseline from CI timings.
-      - name: Upload this shard's runtime log (for bin/refresh_rspec_runtime_baseline --from-run)
+      - name: Upload this shard's runtime log (for hecks refresh_runtime_baseline from_run=)
         if: always()
         uses: actions/upload-artifact@v4
         with:

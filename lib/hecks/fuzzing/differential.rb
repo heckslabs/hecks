@@ -8,8 +8,8 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # The Ruby-vs-Rust comparison of one generated sequence, shared by `bin/qa_sweep` and
-    # `bin/qa_generated_domains --rust`.
+    # The Ruby-vs-Rust comparison of one generated sequence, shared by the QualityControl sweep
+    # (`hecks quality_control ask run`) and `hecks quality_control check_generated_domains --rust`.
     #
     # `differ` is duck-typed (the `RustConformanceHelpers` comparison helpers plus a
     # `structural_skips` set) so lib never requires spec/.
@@ -34,7 +34,7 @@ module Hecks
           { field: "manifest", verb: row["query"],
             detail: "#{row['query']} is declared generated: false in manifest.json " \
                     "(#{gaps.not_generated(row['query']).values_at('gap_class', 'construct').join('/')}), " \
-                    "but the Rust binary answered it — regenerate with bin/project_rust" }
+                    "but the Rust binary answered it — regenerate with hecks project_rust" }
         end
         reached = (ruby_refusals + rust_refusals + ruby_queries).select(&declared)
         { ruby_refusals: ruby_refusals.reject(&declared), rust_refusals: rust_refusals.reject(&declared),

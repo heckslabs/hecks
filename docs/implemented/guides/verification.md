@@ -12,12 +12,12 @@ walks the path you thought to write. This page is the toolbox for the
 paths you didn't.
 
 Four checks, each answering a narrower question than "is the suite
-green." `bin/model_check` reads your domain's own declared shape and
+green." `hecks model_check` reads your domain's own declared shape and
 proves facts about every path through it, not just the ones you
-tested. `bin/fuzz` walks random-but-valid histories through the real
+tested. `hecks fuzz` walks random-but-valid histories through the real
 interpreter and checks properties that must hold of ANY of them. The
 corpus under `spec/corpus/` is the fixed list of refusal paths you
-already decided matter, walked end to end by `bin/run`. And the golden
+already decided matter, walked end to end by `hecks run`. And the golden
 IR is a frozen snapshot of what your builder emits, so a shape drift
 shows up before something that reads that shape by name silently
 corrupts. None of them replace the suite — they are what you reach for
@@ -78,13 +78,13 @@ Nothing above is ever dispatched — there is no creating command, and
 nothing below ever calls one — because `model_check` needs no run at
 all. It reads the declaration, not a dispatch.
 
-## `bin/model_check` — what a dispatch never tells you
+## `hecks model_check` — what a dispatch never tells you
 
 The runtime itself never checks any of this: a dead transition simply
 never fires, in silence, and a saga stuck on an unreachable state looks
 identical to one that is merely rare — nothing raises, nothing logs,
 the domain just quietly never does the thing you declared it could.
-`bin/model_check`'s own header names the family it belongs to —
+`hecks model_check`'s own header names the family it belongs to —
 TLA+, Alloy, P, the lightweight-formal-methods leg of the arc — and
 `model_check.rb` states the property that makes it worth having rather
 than a second spec someone has to remember to keep in sync: the model
@@ -173,8 +173,8 @@ The CLI walks every example, every grammar chapter, and the language's
 own two meta-chapters the same way, in one pass:
 
 ```sh
-bin/model_check                  # everything
-bin/model_check examples/banking # one domain
+hecks model_check                  # everything
+hecks model_check examples/banking # one domain
 ```
 
 `ModelCheck::ALLOWED_FINDINGS` is empty — this repo's own corpus ships
@@ -191,7 +191,7 @@ nothing transitions into or out of no longer exists to be declared,
 so the finding that used to be allowlisted here cannot occur any more,
 by construction, and the entry was deleted rather than left stale. The
 coverage gate in `spec/model_check_spec.rb` — reading the same table
-`bin/model_check` does — still fails in both directions: a new error
+`hecks model_check` does — still fails in both directions: a new error
 nothing names is a regression, and an allowlisted entry the checker
 stops finding is stale and has to be deleted. A finding gets shipped by
 being named, never by being silenced.
@@ -203,8 +203,8 @@ without saying so. Two such paths are documented and still open, so
 `model_check` has an opt-in profile that turns each into an error:
 
 ```sh
-bin/model_check --profile client                 # the whole corpus
-bin/model_check --profile client path/to/domain  # one domain
+hecks model_check --profile client                 # the whole corpus
+hecks model_check --profile client path/to/domain  # one domain
 ```
 
 Without `--profile`, nothing changes. The profile fixes nothing; it
@@ -232,10 +232,10 @@ holds a probe per rule that runs the buggy code and fails when it stops
 misbehaving, naming the rule, its examples and the probe to delete
 together.
 
-## `bin/fuzz` and the properties that must hold of any run
+## `hecks fuzz` and the properties that must hold of any run
 
 `model_check` proves facts about the declared graph before anything
-runs. `bin/fuzz` proves facts about what actually happens when
+runs. `hecks fuzz` proves facts about what actually happens when
 something DOES run — repeatedly, on sequences no one sat down and
 wrote. It draws random-but-valid command and query sequences off the
 domain's own IR, replays each one in process, and checks whether
@@ -296,7 +296,7 @@ only asks the adapter about itself could ever have caught it.
 once they have already passed — a property violation or a crash is
 cheap to find; proving determinism means replaying the SAME steps
 against a SECOND fresh boot and diffing two full histories, which is
-not cheap, so `bin/fuzz` only pays for it once a sequence is otherwise
+not cheap, so `hecks fuzz` only pays for it once a sequence is otherwise
 clean:
 
 ```ruby
@@ -316,7 +316,7 @@ is nondeterminism the runtime promised not to have, and it is caught
 by two INDEPENDENT replays, not one compared against a cached copy of
 itself, which would only ever agree with its own bug.
 
-When a generated sequence does find something, `bin/fuzz` does not
+When a generated sequence does find something, `hecks fuzz` does not
 hand you thirty random steps and a seed number. It shrinks — removing
 one step at a time, then one argument within a step at a time, keeping
 each removal only while the exact same finding still reproduces — and
@@ -325,8 +325,8 @@ script shaped exactly like the corpus's own, reproducible with the
 tool you already have:
 
 ```sh
-bin/fuzz examples/banking
-bin/run examples/banking tmp/fuzz-failures/banking-seed7.json
+hecks fuzz examples/banking
+hecks run examples/banking tmp/fuzz-failures/banking-seed7.json
 ```
 
 ## The corpus — the refusals you already decided matter
@@ -345,7 +345,7 @@ Where this sits next to the other two: `model_check` proves things
 about the declaration; `fuzz` proves things about arbitrary runs; the
 corpus is neither — it is a fixed, curated list of the SPECIFIC paths
 a person already decided deserve a permanent regression guard, most of
-them refusals. `bin/run <domain> <script.json>` walks one, dispatching
+them refusals. `hecks run <domain> <script.json>` walks one, dispatching
 every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
@@ -359,7 +359,7 @@ require "json"
 script  = JSON.parse(File.read("spec/corpus/banking.json"))
 history = Hecks::Fuzzing::Replay.call("examples/banking", script.fetch("steps"))
 
-# The same check bin/run performs after every corpus run — every refusal
+# The same check hecks run performs after every corpus run — every refusal
 # the script says must happen, actually happened.
 unmet = script.dig("expectations", "refusals").reject do |expected|
   history[:refusals].any? { |r| r[:verb] == expected["verb"] && r[:error].include?(expected["includes"]) }
@@ -376,7 +376,7 @@ the identical walk without a Ruby snippet, against the domain's real
 binding:
 
 ```sh
-bin/run examples/banking spec/corpus/banking.json
+hecks run examples/banking spec/corpus/banking.json
 ```
 
 — printing the full report to stdout and aborting nonzero on the
@@ -408,8 +408,8 @@ against the shape you are about to overwrite.
 
 ## What actually blocks a push
 
-The suite and `bin/model_check` are exactly what `.githooks/pre-push`
-runs before anything leaves your machine — not `bin/fuzz`, which stays
+The suite and `hecks model_check` are exactly what `.githooks/pre-push`
+runs before anything leaves your machine — not `hecks fuzz`, which stays
 out deliberately: a random sweep is not a fast loop, and pre-push is
 supposed to be one. The suite runs first; then the model checker; and
 either one being red blocks the push outright. So the question of

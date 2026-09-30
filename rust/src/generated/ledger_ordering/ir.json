@@ -5,6 +5,7 @@
   "vision": "One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Folder",

@@ -47,7 +47,7 @@ module RustProjection
     # to the identifier role.
     #
     # Declared once as the `RustReservedWord` vocabulary;
-    # `bin/project_reserved_names` projects the same table into
+    # `hecks project_reserved_names` projects the same table into
     # hecks-codegen's `reserved_names.rs`.
     RUST_KEYWORDS = Hecks::Vocabulary.fetch("RustReservedWord")
 

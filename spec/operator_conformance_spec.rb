@@ -254,7 +254,7 @@ RSpec.describe "the operator domain" do
   it "admits every operator the language itself stands on" do
     # Guards and invariants in the language's own chapters evaluate through this operator
     # table, so retiring one would leave the language unable to read its rules.
-    # bin/expression_projection refuses the same case at regeneration.
+    # hecks project_expression_tables refuses the same case at regeneration.
     require "hecks/grammar"
     stranded = Hecks::Grammar.self_bearing_operators
                              .except(*symbols(ADMITTED))
