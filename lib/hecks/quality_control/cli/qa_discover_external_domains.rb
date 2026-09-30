@@ -161,11 +161,11 @@ module Hecks
       # Shells out rather than booting the ledger in-process, so this is safe to run alongside a
       # live qa_tick or qa_sweep.
       def ledger_target_paths
-        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "bin/run"),
+        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "exe/hecks"), "run",
                                           "qa/bluebook", "ask", "target.all", chdir: @root)
         unless status.success?
           raise Refused, "bin/qa_discover_external_domains: could not read the ledger's targets " \
-                         "(bin/run qa/bluebook ask target.all exited #{status.exitstatus}):\n#{err}\n" \
+                         "(exe/hecks run qa/bluebook ask target.all exited #{status.exitstatus}):\n#{err}\n" \
                          "pass --known-path <path> ... to run without the ledger", usage: false
         end
 
@@ -238,7 +238,7 @@ module Hecks
         candidates.each do |c|
           puts "  #{c[:reference]}"
           puts "    path: #{c[:path]}"
-          puts "    enroll: bin/run qa/bluebook identify reference=#{c[:reference]} path=#{c[:path]}"
+          puts "    enroll: exe/hecks run qa/bluebook identify reference=#{c[:reference]} path=#{c[:path]}"
           puts
         end
       end

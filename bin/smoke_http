@@ -5,15 +5,8 @@
 #
 #   SMOKE_WEBHOOK_SECRET=... bin/smoke_http --url http://127.0.0.1:4322 --path /webhooks/events
 #
-# Checks that unsigned, wrong-secret and tampered deliveries are refused, a
-# correctly signed one is accepted, and a repeated delivery leaves state
-# unchanged. Every check runs even if an earlier one fails; exit status is 1
-# if any failed. See `--help` for flags; each also has an env var.
-#
-# Prefer SMOKE_WEBHOOK_SECRET over `--secret`: an argument shows in `ps`.
-
-# The logic is `Hecks::CLI::SmokeHttp` (lib/hecks/cli/smoke_http.rb), which Custodian's
-# `Operation.SmokeHttp` also runs.
+# The body lives in lib/hecks/cli/smoke_http.rb, which Custodian's `Operation.SmokeHttp` also
+# runs; this file only starts it. See `--help` for flags; each also has an env var.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("smoke_http")
@@ -21,12 +14,4 @@ Hecks::ThreeZero.notice("smoke_http")
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/smoke_http"
 
-SmokeHttp = Hecks::CLI::SmokeHttp
-
-if $PROGRAM_NAME == __FILE__
-  begin
-    exit SmokeHttp.new(SmokeHttp.settings(ARGV, ENV)).run
-  rescue ArgumentError, OptionParser::ParseError, Errno::ENOENT => e
-    abort "bin/smoke_http: #{e.message}"
-  end
-end
+exit Hecks::CLI::SmokeHttp.main(ARGV)

@@ -6,6 +6,8 @@ require_relative "../../../hecks"
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../cli/stores"
+require_relative "../../cli/shape"
+require_relative "../../cli/history"
 require_relative "in_process_operations"
 
 module Hecks
@@ -51,18 +53,7 @@ module Hecks
       #   one `<Domain> <label>` line per domain for a directory
       # @raise [Runtime::NotFound] if the path does not exist or holds no bluebook
       def shape(domain:)
-        target = plain(domain)
-        raise Runtime::NotFound, "#{target} does not exist" unless File.exist?(target)
-
-        directory = File.directory?(target)
-        files = directory ? Dir[File.join(target, "*.bluebook")] : [target]
-        raise Runtime::NotFound, "no *.bluebook files in #{target}" if files.empty?
-
-        registry = load_files(files)
-        return report(shape_labels(registry)) if directory
-
-        bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "#{target} declares no bluebook"
-        report(JSON.pretty_generate(Projector.call(:shape, bluebook: bluebook)))
+        report(CLI::Shape.render(plain(domain)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -84,14 +75,7 @@ module Hecks
       #   hold, as JSON
       # @raise [Runtime::NotFound] if the domain cannot be found
       def history(domain:)
-        registry = boot(domain).registry
-        history = registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
-          bluebook.aggregates.each do |aggregate|
-            all[aggregate.storage_name] = entries(registry.repository(name, aggregate))
-          end
-        end
-
-        report(JSON.generate(history))
+        report(JSON.generate(CLI::History.document(boot(domain).registry)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -208,28 +192,6 @@ module Hecks
 
       # The `ProjectedFile` rows a projection that would have written files answers instead.
       def projected_files(files) = files.map { |name, text| { name: name, text: text } }
-
-      def entries(repository)
-        return [] unless repository.is_a?(Ports::Persistence::AppendOnly)
-
-        repository.entries.map { |entry| { "operation" => entry.operation, "id" => entry.id, "state" => entry.state } }
-      end
-
-      def load_files(files)
-        registry = Runtime::Registry.new
-        loading  = Ports::Loading.bootstrap
-        Hecks.with_registry(registry) do
-          loading.load_library
-          files.each { |file| Kernel.eval(File.read(file), TOPLEVEL_BINDING, File.expand_path(file), 1) }
-        end
-        registry
-      end
-
-      def shape_labels(registry)
-        registry.bluebooks.sort_by { |name, _| name.to_s }
-                .map { |name, bluebook| "#{name} #{Runtime::StorageShape.mint_label(bluebook)}" }
-                .join("\n")
-      end
     end
   end
 end

@@ -335,7 +335,7 @@ module Hecks
         replay = if report[:binary]
                    "bin/rust_conformance #{report[:dir]} #{report[:steps_file]} #{report[:binary]}"
                  else
-                   "bin/run #{report[:dir]} #{report[:steps_file]}"
+                   "exe/hecks run #{report[:dir]} #{report[:steps_file]}"
                  end
         puts "replay:      #{replay}"
         shrunk.each_with_index do |step, index|

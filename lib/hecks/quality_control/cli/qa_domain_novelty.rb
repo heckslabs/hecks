@@ -104,10 +104,10 @@ module Hecks
 
       # The ledger's target paths via one read-only `ask`; never boots the ledger in this process.
       def ledger_target_paths
-        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "bin/run"),
+        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "exe/hecks"), "run",
                                           "qa/bluebook", "ask", "target.all", chdir: @root)
         unless status.success?
-          warn "bin/qa_domain_novelty: could not read the ledger's targets (bin/run qa/bluebook ask " \
+          warn "bin/qa_domain_novelty: could not read the ledger's targets (exe/hecks run qa/bluebook ask " \
                "target.all exited #{status.exitstatus}):\n#{err}"
           warn "pass --against <path> ... to run without the ledger"
           raise Stopped

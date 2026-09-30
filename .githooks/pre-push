@@ -74,9 +74,9 @@ run_check rspec bundle exec parallel_rspec spec -n "$RSPEC_WORKERS" &
 run_check fuzzing bundle exec rspec spec/fuzzing --tag fuzzing &
 run_check query_agreement bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io &
 run_check engine_agreement bundle exec exe/hecks check_engine_agreement --wait &
-# Still bin/model_check: `hecks model_check` reaches `Hecks::CLI` through exe/hecks's legacy route,
-# which has no checkout root to sweep the corpus from and takes no `--wait`.
-run_check model_check "$ROOT/bin/model_check" &
+# `model_check` is one of the legacy routes in exe/hecks, which sweeps the corpus of the checkout it
+# is loaded from and exits with the verdict.
+run_check model_check bundle exec exe/hecks model_check &
 run_check doc_coverage bundle exec exe/hecks measure_doc_coverage --wait &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
 run_check codegen_drift bundle exec exe/hecks regenerate_corpus --check --wait &
