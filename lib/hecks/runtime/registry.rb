@@ -40,6 +40,7 @@ module Hecks
         @translations = []
         @event_log    = []
         @reaction_log = []
+        @reaction_events = {}.compare_by_identity
         @saga_log = []
         # Recorded at hecksagon-build time (AggregateDoor#mark_sensitive); Loader.boot's
         # post-dispatch step turns each entry into a real Privacy::Marking.Mark, idempotently.
@@ -390,13 +391,24 @@ module Hecks
       # Records one policy reaction on the shared log, and on every collection open on this
       # thread (see `collecting_reactions`).
       #
+      # The event that triggered a reaction is kept beside the log, not in the record: the record
+      # is the byte-for-byte shape the Rust kernel also writes.
+      #
       # @param record [Hash{Symbol => Object}] the reaction's outcome
+      # @param event [String, Integer, nil] identity of the event instance the reaction answered
       # @return [void]
       # rubocop:disable-next Hecks/ThreadSharedIvarMutation
-      def log_reaction(record)
+      def log_reaction(record, event: nil)
         @reaction_log << record
+        @reaction_events[record] = event if event
         Array(Thread.current[REACTION_SINKS]).each { |sink| sink << record }
       end
+
+      # The identity of the event instance a logged reaction answered.
+      #
+      # @param record [Hash{Symbol => Object}] a record `log_reaction` was given
+      # @return [String, Integer, nil] nil for a record logged without its event
+      def reaction_event(record) = @reaction_events[record]
 
       # Collects the reactions logged on this thread while the block runs, so one dispatch
       # reads exactly its own even when other threads dispatch on the same registry. Nested
@@ -426,6 +438,7 @@ module Hecks
       def reset_runtime_state!
         @event_log.clear
         @reaction_log.clear
+        @reaction_events.clear
         @saga_log.clear
         @saga_dispatch_log.clear
         @policy_dispatch_log.clear

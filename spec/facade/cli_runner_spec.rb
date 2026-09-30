@@ -150,7 +150,8 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(blocking.([delivered, declined])).to eq([])
       expect(blocking.([delivered, declined, alone])).to eq(["D::Run.Accept"])
       expect(blocking.([defect])).to eq([])
-      exists = alone.merge(reason: "Register creates a Tenant that already exists — slug.value \"a\"")
+      exists = alone.merge(trigger: "D::Tenant.Register",
+                           reason: "Register creates a Tenant that already exists — slug.value \"a\"")
       expect(blocking.([exists])).to eq([])
       expect(blocking.([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
     end
