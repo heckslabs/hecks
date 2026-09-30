@@ -1,4 +1,7 @@
-# hecks 3.0 build: handoff (2026-09-29)
+# hecks 3.0 build: handoff (2026-09-30)
+
+**Status: complete.** Version bump done: `Hecks::VERSION`, `rust/host/HECKS_RELEASE`, `packages/hecks-client` (package.json + lockfile) and the README's current-release lines say `3.0.0`; CHANGELOG `[Unreleased]` became `[3.0.0] - 2026-09-30` with every entry kept. No tag, no gem publish, nothing pushed to `main`. The repository holds no committed `translations/*.approval` file, so there was nothing to re-mint; the first approval minted on a 3.0.x host carries `host_version` 3.0.x. Cargo `0.1.0` is not the release identity and stays. Gemfile.lock has no hecks entry.
+Known caveats at release (from the sections below): the gap-register verifications never run (installed-gem smoke, client-launcher smoke, committed-approval rehearsal on scratch Postgres, release dry run, tick against the moved QualityControl chapter, the pre-push gate on the branch); the flaky order-dependent world_builder spec; the gemspec still filters `fuzzing/`; outside-answered queries are unjournaled and unreplayable and the Rust host does not serve them; `deploy/quality-control-webhook/*` still says `bin/project_deploy qa`; the `Facade` alias is removed in 3.1.0. FOLLOW-UPS after 3.0 are unchanged.
 
 Branch `hecks-3-0`, pushed to origin so the work can be picked up from anywhere. It has not been merged, and nothing has been pushed to `main`.
 Plan: [PLAN.md](PLAN.md). Design: ADR 0080, on branch `worktree-adr-0080-bins-as-adapters` (`docs/decisions/0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md`).

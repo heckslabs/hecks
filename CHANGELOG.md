@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-30
+
 **Breaking:** `Hecks::Facade` is now `Hecks::Doors` (`Surface` is `Doors::RubyDoor`, the MCP door lives beside it); `install_facade:` is now `install_doors:`. Both old names still work for one release and warn; regenerate launchers with `hecks project_cli`.
 
 **Committed approvals enforce `host_version`.** A rehearsal in `translations/<edge>.approval` now counts only when its `host_version` has the same `major.minor` as the Hecks release the running host was built for (`3.0.0` and `3.0.9` agree; `2.9.0`, `3.1.0` and a value that is not a version do not). A patch release does not change what a mint does, so a rehearsal survives it; a minor or major one may, so it does not. Ruby (`ApprovalFile`, on boot) and `rust/host` refuse with the same message naming both versions. The host learns its release from `rust/host/HECKS_RELEASE`, which must equal `Hecks::VERSION`: the release preflight refuses when it does not, and a spec fails on drift. `approve_translation` records `Hecks::VERSION` when `host_version=` is omitted.
