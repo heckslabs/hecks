@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "digest"
 require "fileutils"
 require "open3"
 
@@ -8,7 +9,9 @@ module Hecks
     # Builds the native binary for one generated domain's Cargo feature, once per workspace.
     #
     # Examples interleave, and alternating `--features` builds forces a full recompile each time,
-    # so a built binary is cached per `[rust_dir, feature]` for the life of the process.
+    # so a built binary is cached per `[rust_dir, feature, sources]`, where `sources` is a digest of
+    # the workspace's Rust sources and manifests. Regenerating the domain changes the digest, so the
+    # next call rebuilds instead of answering with a stale binary or a stale failure.
     module NativeBuild
       # Raised when a declared feature fails to build; nil is reserved for "feature not declared".
       class BuildFailed < StandardError; end
@@ -17,13 +20,14 @@ module Hecks
 
       class << self
         # @return [Hash{Array => String, BuildFailed, nil}] each build's answer, keyed by
-        #   `[rust_dir, feature]`
+        #   `[rust_dir, feature, sources_digest]`
         attr_reader :cache
       end
 
       module_function
 
-      # Builds the binary for `domain_feature` once per (rust_dir, feature) and memoizes the result.
+      # Builds the binary for `domain_feature` once per (rust_dir, feature, sources) and
+      # memoizes the result.
       #
       # @param domain_feature [String] the Cargo feature, a domain's directory basename
       # @param rust_dir [String] the workspace to build in
@@ -31,7 +35,7 @@ module Hecks
       # @raise [BuildFailed] when the build fails (memoized too)
       def build_rust_for(domain_feature, rust_dir)
         cache = NativeBuild.cache
-        key = [rust_dir, domain_feature]
+        key = [rust_dir, domain_feature, sources_digest(rust_dir)]
         if cache.key?(key)
           raise cache[key] if cache[key].is_a?(BuildFailed)
 
@@ -47,6 +51,29 @@ module Hecks
           cache[key] = e
           raise
         end
+      end
+
+      # Fingerprints what a build reads: every `.rs`, `.toml` and `Cargo.lock` file under the
+      # workspace outside `target/`, by path, size and modification time.
+      #
+      # @param rust_dir [String] the workspace
+      # @return [String] a hex digest that changes when any of those files does
+      def sources_digest(rust_dir)
+        digest = Digest::SHA256.new
+        Dir.glob(File.join(rust_dir, "**", "*.{rs,toml}"), File::FNM_DOTMATCH).sort.each do |path|
+          digest_file(digest, path, rust_dir)
+        end
+        lock = File.join(rust_dir, "Cargo.lock")
+        digest_file(digest, lock, rust_dir) if File.file?(lock)
+        digest.hexdigest
+      end
+
+      def digest_file(digest, path, rust_dir)
+        relative = path.delete_prefix("#{rust_dir}/")
+        return if relative.start_with?("target/") || !File.file?(path)
+
+        stat = File.stat(path)
+        digest << "#{relative}\0#{stat.size}\0#{stat.mtime.to_i}.#{stat.mtime.nsec}\n"
       end
 
       # Holds an exclusive flock from `cargo build` through the copy-out: parallel sweeps share
