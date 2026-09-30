@@ -24,12 +24,18 @@
 # **launcher** switches on the opt-in parts of the generated `hecks` launcher (see
 # `Facade::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
 # `failure_states` are the lifecycle states `--wait` reports as exit 1 (every failure state the
-# chapter's lifecycles declare), and `names` gives a command the launcher name clients type.
+# chapter's lifecycles declare), `names` gives a command the launcher name clients type,
+# `executable` is where `hecks project_cli` writes this chapter's launcher (the gem's
+# `exe/hecks`), and `legacy` names the verbs that launcher hands to `Hecks::CLI` in the
+# positional forms ADR 0066 shipped.
 Hecks.world "Hecks" do
   realm "Hecks"
   default_adapter "PostgresEra"
   default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
   launcher "Launcher", run_keys: true,
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted],
-                       names: { "mcp" => "serve_mcp", "console" => "open_console" }
+                       names: { "mcp" => "serve_mcp", "console" => "open_console" },
+                       executable: "exe/hecks",
+                       legacy: %w[run docs narrate ir stores model_check smoke_test
+                                  project_diagrams project_cli mcp]
 end
