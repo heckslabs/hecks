@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.0.2] - 2026-09-30
+
 **Security: `GET /newsletter/subscribers` requires an Admin or Owner.** The route returned every subscriber's email, names and status to any caller; it now answers 401 without an active account cookie and 403 without the Admin/Owner role, the same check sending the newsletter uses. A client that read the list without a cookie must send the account cookie.
 
 **Security: `rust/host` dependencies.** wasmtime and wasmtime-wasi 47.0.3 to 49.0.1 (RUSTSEC-2026-0269 filesystem sandbox escape, 0268, 0314, 0315, 0316), rustls 0.23.43 to 0.23.45 (0285), h2 0.4.15 to 0.4.16 (0258). `cargo audit` on `rust/host` reports only the unmaintained `rustls-pemfile` and a yanked `chacha20`.
