@@ -209,7 +209,8 @@ module Hecks
           creates: command.creates?,
           receiver: receiver, legacy_receiver: (receiver == :aggregate ? :id : nil),
           legacy_arguments: legacy_arguments,
-          refusals: refusals(command, holder), arguments: arguments }
+          refusals: refusals(command, holder), requirements: requirements(command),
+          arguments: arguments }
       end
 
       # A port operation reads as a verb but reports as a boundary: it creates no
@@ -334,8 +335,8 @@ module Hecks
         nil
       end
 
-      # Every way the verb can say no, in the chapter's own words: a lifecycle state
-      # mismatch, a missing referenced record per `reference_to`, then each `given`.
+      # The conditions that refuse the verb when they hold, in the chapter's own words: a
+      # lifecycle state mismatch and a missing referenced record per `reference_to`.
       def refusals(command, holder)
         out = []
         lifecycle = holder.lifecycle
@@ -344,8 +345,12 @@ module Hecks
         end.flatten.uniq
         out << "#{lifecycle.field} is not #{froms.join(' or ')}" if froms && !froms.empty?
         out += command.attributes.select(&:reference?).map { |r| "no #{r.type.target_name} has that #{r.name}" }
-        out + command.givens.map(&:description)
+        out
       end
+
+      # The conditions the verb needs: each `given` states what must hold, so the verb is
+      # refused unless it does.
+      def requirements(command) = command.givens.map(&:description)
 
       # Renders the full verb/question table, or one verb's `--help` text when
       # `options[:verb]` names one.
@@ -430,9 +435,9 @@ module Hecks
       end
 
       def verb_help_refusal_lines(spec)
-        return [] if Array(spec[:refusals]).empty?
-
-        ["refused when:", *spec[:refusals].map { |refusal| "  #{refusal}" }, ""]
+        [["refused when:", spec[:refusals]], ["refused unless:", spec[:requirements]]].flat_map do |heading, items|
+          Array(items).empty? ? [] : [heading, *items.map { |item| "  #{item}" }, ""]
+        end
       end
     end
   end
