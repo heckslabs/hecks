@@ -101,6 +101,44 @@ module Hecks
         nil
       end
 
+      # Rewrites the line anchors of a declared pattern into whole-string anchors.
+      #
+      # Ruby reads `^` and `$` as line anchors, so `"ok\n../evil"` satisfies `^[a-z]+$`; Rust's
+      # `regex` reads them as text anchors. Enforcement matches the rewritten source so both
+      # engines refuse the same values. Escaped characters and bracket classes are left alone.
+      #
+      # @param pattern [String, Symbol, #to_s] the declared `pattern:` regex source
+      # @return [String] the source with `^` as `\A` and `$` as `\z` outside classes
+      def whole_string(pattern)
+        chars = pattern.to_s.chars
+        in_class = false
+        class_start = nil
+        out = +""
+        index = 0
+        while index < chars.length
+          char = chars[index]
+          if char == "\\"
+            out << char << chars[index + 1].to_s
+            index += 2
+            next
+          end
+          if in_class
+            in_class = false if char == "]" && index != class_start
+          elsif char == "["
+            in_class = true
+            class_start = index + 1
+            class_start += 1 if chars[class_start] == "^"
+          elsif char == "^"
+            char = "\\A"
+          elsif char == "$"
+            char = "\\z"
+          end
+          out << char
+          index += 1
+        end
+        out
+      end
+
       # Spelled out, not derived from the key: callers read these strings in refusals.
       CONSTRUCTS = {
         backreference:       "backreference",

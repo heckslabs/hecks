@@ -194,7 +194,7 @@ module Hecks
       # is applied, and splitting would mean threading that snapshot through parameters.
       #
       # @param files [Array<String>] one example domain's bluebook files
-      # @param dry_run [Boolean] whether to put every file back
+      # @param dry_run [Boolean] whether to judge the edit in memory and write nothing
       # @return [Hash] `file`, `status` (`:clean`, `:applied`, `:skipped`), and the candidates
       # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def run_files(files, dry_run:)
@@ -222,11 +222,13 @@ module Hecks
                    reason: "no candidate matched its own source text", candidates: [] }
         end
 
-        texts.each { |file, text| File.write(file, text) }
+        texts.each { |file, text| Hecks::Codemod.stage(file, text, dry_run: dry_run) }
         after_rules, error = Hecks::Codemod.safely do
           command_rule_map(Hecks::Codemod.load_bluebook(files))
         end
-        originals.each { |file, text| File.write(file, text) } if dry_run || after_rules != before_rules
+        if dry_run || after_rules != before_rules
+          originals.each { |file, text| Hecks::Codemod.unstage(file, text, dry_run: dry_run) }
+        end
 
         if after_rules == before_rules
           { file: result_path, status: :applied, candidates: applied }

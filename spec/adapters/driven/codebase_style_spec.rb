@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
       shell = fake_tools
 
       expect(style("check_comments", { paths: word("lib/a.rb,lib/b") })).to eq("no comment violations")
-      expect(shell.asked.first[:command]).to eq(["standardize_comments", "--check", "lib/a.rb", "lib/b"])
+      expect(shell.asked.first[:command]).to eq(["standardize_comments", "--check", "--", "lib/a.rb", "lib/b"])
       expect(shell.asked.first[:chdir]).to eq(tree.root)
     end
 
@@ -38,7 +38,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
       style("check_comments", { paths: word("lib"), only: word("long_line,all_caps") })
 
       expect(shell.asked.first[:command]).to eq(["standardize_comments", "--check", "--only",
-                                                 "long_line,all_caps", "lib"])
+                                                 "long_line,all_caps", "--", "lib"])
     end
 
     it "refuses with every violation the linter listed" do
@@ -65,7 +65,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
 
       expect(report).to start_with("dry run, 2 violations a fix would rewrite (add --confirm to rewrite):")
       expect(shell.asked.map { |ask| ask[:command] })
-        .to eq([["standardize_comments", "--check", "--only", "all_caps,long_bold,long_line", "lib"]])
+        .to eq([["standardize_comments", "--check", "--only", "all_caps,long_bold,long_line", "--", "lib"]])
     end
 
     it "says so when there is nothing to rewrite" do
@@ -80,7 +80,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
       report = style("fix_comments", { paths: word("lib"), confirm: word(true) })
 
       expect(report).to eq("rewrote 2 files")
-      expect(shell.asked.first[:command]).to eq(["standardize_comments", "--fix", "lib"])
+      expect(shell.asked.first[:command]).to eq(["standardize_comments", "--fix", "--", "lib"])
     end
   end
 
@@ -92,7 +92,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
 
       expect(report).to start_with("dry run, 1 blocks would be recorded as tolerated (add --confirm):")
       expect(shell.asked.first[:command]).to eq(["standardize_comments", "--check", "--only",
-                                                 "long_block", "lib/hecks"])
+                                                 "long_block", "--", "lib/hecks"])
     end
 
     it "records the blocks with --write-baseline when confirmed" do
@@ -101,7 +101,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
       style("write_comment_baseline", { paths: word("lib/hecks/cli"), confirm: word(true) })
 
       expect(shell.asked.first[:command]).to eq(["standardize_comments", "--write-baseline",
-                                                 "lib/hecks/cli"])
+                                                 "--", "lib/hecks/cli"])
     end
   end
 
@@ -111,7 +111,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
 
       expect(style("check_comments_unchanged", { ref: word("main") })).to eq("code unchanged")
       expect(shell.asked.first[:command]).to eq(["standardize_comments", "--code-unchanged", "main",
-                                                 "lib"])
+                                                 "--", "lib"])
     end
 
     it "refuses naming the file whose code changed" do
@@ -131,7 +131,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
 
       expect(report).to eq("summary")
       expect(shell.asked.first[:command]).to eq(["standardize_comments", "--report", "--only",
-                                                 "long_line", "--json", "--top", "5", "lib", "spec"])
+                                                 "long_line", "--json", "--top", "5", "--", "lib", "spec"])
     end
 
     it "runs the Rust linter for the Rust report" do
@@ -170,6 +170,50 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
         expect { style("canonicalise", { file: word(File.join(dir, "bad.json")) }) }
           .to raise_error(failure, /is not JSON/)
       end
+    end
+  end
+
+  describe "user-supplied paths and refs" do
+    it "puts `--` before the paths so none is read as a linter flag" do
+      shell = fake_tools
+
+      style("check_comments", { paths: word("lib") })
+      style("fix_comments", { paths: word("lib"), confirm: word(true) })
+
+      expect(shell.asked.map { |ask| ask[:command] }).to all(include("--", "lib"))
+      expect(shell.asked.map { |ask| ask[:command] }.map { |command| command.index("--") })
+        .to all(be < 4)
+    end
+
+    %w[check_comments fix_comments write_comment_baseline check_comments_unchanged
+       check_rust_comments fix_rust_comments].each do |operation|
+      it "refuses a path beginning with '-' for #{operation}, running nothing" do
+        shell = fake_tools
+
+        expect { style(operation, { paths: word("--fix,lib"), ref: word("main"), confirm: word(true) }) }
+          .to raise_error(failure, /paths may not begin with '-': --fix/)
+        expect(shell.asked).to be_empty
+      end
+    end
+
+    it "refuses a report path beginning with '-'" do
+      shell = fake_tools
+
+      expect { described_class.report("report_comments", { paths: "--write-baseline" }, tree, shell: shell) }
+        .to raise_error(failure, /paths may not begin with '-'/)
+    end
+
+    it "refuses an absent ref rather than comparing with the index" do
+      shell = fake_tools
+
+      expect { style("check_comments_unchanged", {}) }.to raise_error(failure, /ref .* required/)
+      expect { style("check_comments_unchanged", { ref: word("") }) }.to raise_error(failure, /ref .* required/)
+      expect(shell.asked).to be_empty
+    end
+
+    it "refuses a ref beginning with '-'" do
+      expect { style("check_comments_unchanged", { ref: word("--fix") }) }
+        .to raise_error(failure, /ref may not begin with '-'/)
     end
   end
 end

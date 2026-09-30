@@ -3,6 +3,7 @@
 require "English"
 require "json"
 require "optparse"
+require "pathname"
 require "ripper"
 require_relative "../tools"
 
@@ -226,13 +227,24 @@ module Hecks
       #
       # Keyed by first-line text, not line number, so edits above a block don't break its key.
       module Baseline
-        PATH = File.expand_path("../../../../.standardize_comments_baseline.json", __dir__)
+        FILE = ".standardize_comments_baseline.json"
+
+        # The checkout this file lives in: the baseline's home when no `root:` is given.
+        ROOT = File.expand_path("../../..", __dir__)
+
+        PATH = File.join(ROOT, FILE)
 
         module_function
 
+        # The baseline's location inside a checkout.
+        #
+        # @param root [String] the checkout's root directory
+        # @return [String] the baseline file's path
+        def path_in(root) = File.join(root, FILE)
+
         # Reads the baseline from disk.
         def load(path = PATH)
-          File.exist?(path) ? JSON.parse(File.read(path)) : {}
+          File.exist?(path) ? JSON.parse(File.read(path, encoding: Encoding::UTF_8)) : {}
         end
 
         # Writes a baseline in a stable order, so a rewrite shows only real changes in a diff.
@@ -856,15 +868,22 @@ module Hecks
 
         # Files whose code differs from `ref`, comments and whitespace aside.
         #
-        # @param ref [String] git revision to compare the working tree against
+        # A file `ref` does not hold (new since `ref`, or outside the repository) counts as
+        # changed: what cannot be compared is not vouched for.
+        #
+        # @param ref [String] revision to compare the working tree against
         # @return [Array<String>] paths whose non-comment token stream changed
+        # @raise [ArgumentError] when `ref` names no commit
         def code_changed_since(ref)
-          @files.select do |path|
-            before = IO.popen(["git", "show", "#{ref}:#{path}"], err: File::NULL, &:read)
-            next false unless $CHILD_STATUS.success?
+          top = vcs_output("rev-parse", "--show-toplevel", chdir: Dir.pwd)&.strip
+          raise ArgumentError, "not inside a checkout" if top.nil? || top.empty?
+          unless vcs_output("rev-parse", "--verify", "--quiet", "#{ref}^{commit}", chdir: top)
+            raise ArgumentError, "unknown ref #{ref.inspect}"
+          end
 
-            before = before.force_encoding(Encoding::UTF_8)
-            CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
+          @files.select do |path|
+            before = committed_source(ref, path, top)
+            before.nil? || CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
           end
         end
 
@@ -912,6 +931,20 @@ module Hecks
         end
 
         private
+
+        # `path`'s text at `ref`, or nil when the repository at `top` holds none there.
+        def committed_source(ref, path, top)
+          relative = Pathname.new(File.expand_path(path)).relative_path_from(Pathname.new(top)).to_s
+          return nil if relative == ".." || relative.start_with?("../")
+
+          vcs_output("show", "#{ref}:#{relative}", chdir: top)&.force_encoding(Encoding::UTF_8)
+        end
+
+        # What `git <args>` printed, or nil when it failed.
+        def vcs_output(*args, chdir:)
+          out = IO.popen(["git", *args], chdir: chdir, err: File::NULL, &:read)
+          $CHILD_STATUS.success? ? out : nil
+        end
 
         # `.rb` files, plus extensionless scripts (`bin/*`) with a Ruby shebang.
         def ruby_files(dir)
@@ -989,29 +1022,41 @@ module Hecks
       end
 
       # The CLI entry point: parses `argv` and runs the requested mode.
-      def self.main(argv, **)
+      #
+      # Paths after a `--` are never read as flags, and a path that does not exist is refused.
+      def self.main(argv, root: Baseline::ROOT)
         options = { mode: :report, top: 20 }
         parser = option_parser(options)
         paths = parser.parse(argv)
         unknown = Array(options[:only]) - CATEGORIES.keys
         abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
         abort parser.help if paths.empty?
+        missing = paths.reject { |path| File.exist?(path) }
+        abort "no such path: #{missing.join(', ')}" unless missing.empty?
 
-        run = Run.new(paths, only: options[:only])
+        baseline_path = Baseline.path_in(root)
+        run = Run.new(paths, only: options[:only], baseline: Baseline.load(baseline_path))
         case options[:mode]
         when :fix then puts("rewrote #{run.fix!} files") || 0
-        when :write_baseline then write_baseline(run)
-        when :code_unchanged then report_code_changes(run.code_changed_since(options[:ref]))
+        when :write_baseline then write_baseline(run, baseline_path)
+        when :code_unchanged then report_code_changes(changed_since(run, options[:ref]))
         else render(run, options)
         end
       end
 
       # Rewrites the baseline file from the blocks over `MAX_BLOCK` lines that `run` finds.
-      def self.write_baseline(run)
+      def self.write_baseline(run, path = Baseline::PATH)
         held = run.long_block_baseline
-        Baseline.dump(held)
-        puts "recorded #{held.values.sum(&:size)} blocks in #{held.size} files at #{Baseline::PATH}"
+        Baseline.dump(held, path)
+        puts "recorded #{held.values.sum(&:size)} blocks in #{held.size} files at #{path}"
         0
+      end
+
+      # The files `run` finds changed since `ref`, refusing a ref that names no commit.
+      def self.changed_since(run, ref)
+        run.code_changed_since(ref)
+      rescue ArgumentError => e
+        abort e.message
       end
 
       # Prints `--code-unchanged`'s verdict.
