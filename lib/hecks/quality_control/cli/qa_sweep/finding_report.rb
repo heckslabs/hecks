@@ -27,12 +27,13 @@ module Hecks
           puts "=" * 72
           puts "FOUND SOMETHING — sweep #{@sweep_reference} left OPEN, target #{@target_reference} SUSPENDED."
           puts "No Bug was logged (that needs a real failing-test demonstration, which"
-          puts "needs judgment this script does not have — bin/qa_log_bug is the door)"
+          puts "needs judgment this script does not have — hecks quality_control log is the door)"
           puts "and the sweep was not concluded. The ledger's own SuspendOnSurprise"
           puts "policy took the target out of the rotation; it stays out until a PERSON"
-          puts "runs: bin/qa_sweep #{@target_reference} --release --notes \"…\""
+          puts "runs: hecks quality_control ask run target=#{@target_reference} " \
+               "arguments=\"--release --notes …\""
           puts "An agent decides from here: self-contained fix with a regression test"
-          puts "and a PR (bin/qa_open_pr), or a Bug left open for something bigger."
+          puts "and a PR (hecks quality_control patch.open), or a Bug left open for something bigger."
           puts "Never waived here, never filed upstream from here."
           puts "=" * 72
           puts
@@ -98,9 +99,9 @@ module Hecks
           puts "file:        #{path.delete_prefix("#{@root}/")}"
           replay =
             if %i[differential self_consistency].include?(shrunk[:mode]) && @binary
-              "bin/rust_conformance #{@domain_path} #{path} #{@binary}"
+              "hecks check_conformance domain=#{@domain_path} script=#{path} artifact=#{@binary}"
             else
-              "bin/run #{@domain_path} #{path}"
+              "hecks run #{@domain_path} #{path}"
             end
           puts "replay:      #{replay}"
           puts "-- shrunk steps [#{shrunk[:mode]}] --"

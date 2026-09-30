@@ -3,12 +3,13 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
 require "open3"
+require "hecks/quality_control/cli/child"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `concurrency` mode against a real subprocess and disposable fixtures; the
+# `qa_sweep`'s `concurrency` mode against a real subprocess and disposable fixtures; the
 # lock mechanics live in `spec/fuzzing/concurrent_dispatch_spec.rb`, so this proves only wiring.
-RSpec.describe "bin/qa_sweep concurrency", :io do
+RSpec.describe "qa_sweep concurrency", :io do
   QA_SWEEP_CONCURRENCY_LEDGER_DATABASE = "hecks_qa_sweep_concurrency_spec".freeze
   QA_SWEEP_CONCURRENCY_TARGET_DATABASE = "hecks_qa_sweep_concurrency_target_spec".freeze
 
@@ -48,7 +49,7 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
   # Same smallest domain as `spec/fuzzing/concurrent_dispatch_spec.rb`, which uses the real lock.
   CONCURRENCY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepConcurrencyFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's concurrency mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's concurrency mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Account" do
         identified_by :number
@@ -173,7 +174,7 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
-      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
       chdir: InMemoryDomain::ROOT
     )
   end

@@ -1,11 +1,12 @@
 require "open3"
+require "hecks/quality_control/cli/child"
 require "tempfile"
 require "fileutils"
 require "pathname"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# Shared fixture for the `bin/qa_sweep --all` specs; pass a per-file unique database name.
+# Shared fixture for the `qa_sweep --all` specs; pass a per-file unique database name.
 # Files run as concurrent processes, so a shared name would race on create/drop.
 RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # Guarded with `unless defined?`: this block is re-evaluated per `include_context`, and the
@@ -71,7 +72,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   RUBY
 
   # A trivial target no fuzzer can violate, so "clean" examples never depend on the live corpus.
-  # No Rust feature, so `bin/qa_sweep` runs it `ruby_only`.
+  # No Rust feature, so `qa_sweep` runs it `ruby_only`.
   FIXTURE_TARGET_BLUEBOOK = <<~RUBY.freeze unless defined?(FIXTURE_TARGET_BLUEBOOK)
     Hecks.bluebook "QaSweepAllFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only so this spec's own 'clean' examples never depend on this repository's own live, actively-changing QA corpus."
@@ -148,7 +149,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Inside the repo root because `bin/qa_sweep` resolves a target's path against it.
+    # Inside the repo root because `qa_sweep` resolves a target's path against it.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), FIXTURE_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), FIXTURE_TARGET_HECKSAGON)
@@ -190,7 +191,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     QaLedgerRole.own_public!(@qa_sweep_all_database)
   end
 
-  # Boots in-process only to write `Target` rows; sweeps run as separate `bin/qa_sweep` processes.
+  # Boots in-process only to write `Target` rows; sweeps run as separate `qa_sweep` processes.
   def identify_targets!(targets)
     Hecks.boot(@fixture_dir)
     targets.each do |reference, path|
@@ -198,14 +199,14 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   end
 
-  # Runs `bin/qa_sweep` as a real subprocess against the fixture ledger and fixture Rust crate.
+  # Runs `qa_sweep` as a real subprocess against the fixture ledger and fixture Rust crate.
   # `env` merges in on top of the fixture's own two vars — for example
   # QA_SWEEP_COVERAGE_CORPUS_DIR, so a spec can point coverage-guided generation's corpus at its
   # own throwaway directory instead of this repository's real tmp/qa-coverage-corpus.
   def run_qa_sweep(*args, env: {})
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR }.merge(env),
-      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
       chdir: InMemoryDomain::ROOT
     )
   end

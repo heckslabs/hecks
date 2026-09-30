@@ -2,15 +2,15 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep`'s seed-range advance: once a target's streak has widened its depth to
+# `qa_sweep`'s seed-range advance: once a target's streak has widened its depth to
 # `SweepDepth`'s ceiling tier, the tier stops changing, so without an offset every later tick
 # would sweep the identical `1..seeds` integers — and, since `SequenceGenerator` is a pure
 # function of the seed, the identical generated sequences — forever.
-RSpec.describe "bin/qa_sweep seed range", :io do
+RSpec.describe "qa_sweep seed range", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_seed_offset_spec"
 
   # Moves `clean_streak` the way `Target::Release` really does (this is exactly what
-  # `bin/qa_sweep` itself calls at the end of a clean sweep), without sweeping the target clean
+  # `qa_sweep` itself calls at the end of a clean sweep), without sweeping the target clean
   # over and over just to climb there.
   def fast_forward_streak!(reference, next_streak)
     Hecks.boot(@fixture_dir)

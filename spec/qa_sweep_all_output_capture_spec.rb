@@ -2,9 +2,9 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` output capture: the consolidated report never interleaves children's output.
+# `qa_sweep --all` output capture: the consolidated report never interleaves children's output.
 # Own throwaway database: `hecks_qa_sweep_all_output_spec`.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_output_spec"
 
   # A finding, an operational error and a clean target at once, each child writing its own file.
