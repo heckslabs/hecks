@@ -226,9 +226,20 @@ module Hecks
       #
       # Keyed by first-line text, not line number, so edits above a block don't break its key.
       module Baseline
-        PATH = File.expand_path("../../../../.standardize_comments_baseline.json", __dir__)
+        FILE = ".standardize_comments_baseline.json"
+
+        # The checkout this file lives in: the baseline's home when no `root:` is given.
+        ROOT = File.expand_path("../../..", __dir__)
+
+        PATH = File.join(ROOT, FILE)
 
         module_function
+
+        # The baseline's location inside a checkout.
+        #
+        # @param root [String] the checkout's root directory
+        # @return [String] the baseline file's path
+        def path_in(root) = File.join(root, FILE)
 
         # Reads the baseline from disk.
         def load(path = PATH)
@@ -989,7 +1000,7 @@ module Hecks
       end
 
       # The CLI entry point: parses `argv` and runs the requested mode.
-      def self.main(argv, **)
+      def self.main(argv, root: Baseline::ROOT)
         options = { mode: :report, top: 20 }
         parser = option_parser(options)
         paths = parser.parse(argv)
@@ -997,20 +1008,21 @@ module Hecks
         abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
         abort parser.help if paths.empty?
 
-        run = Run.new(paths, only: options[:only])
+        baseline_path = Baseline.path_in(root)
+        run = Run.new(paths, only: options[:only], baseline: Baseline.load(baseline_path))
         case options[:mode]
         when :fix then puts("rewrote #{run.fix!} files") || 0
-        when :write_baseline then write_baseline(run)
+        when :write_baseline then write_baseline(run, baseline_path)
         when :code_unchanged then report_code_changes(run.code_changed_since(options[:ref]))
         else render(run, options)
         end
       end
 
       # Rewrites the baseline file from the blocks over `MAX_BLOCK` lines that `run` finds.
-      def self.write_baseline(run)
+      def self.write_baseline(run, path = Baseline::PATH)
         held = run.long_block_baseline
-        Baseline.dump(held)
-        puts "recorded #{held.values.sum(&:size)} blocks in #{held.size} files at #{Baseline::PATH}"
+        Baseline.dump(held, path)
+        puts "recorded #{held.values.sum(&:size)} blocks in #{held.size} files at #{path}"
         0
       end
 

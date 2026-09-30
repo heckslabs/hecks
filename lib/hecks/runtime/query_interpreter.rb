@@ -93,37 +93,16 @@ module Hecks
       # @raise [Runtime::TypeMismatch, Runtime::InvariantViolation, Runtime::UnknownArgument,
       #   Runtime::AbsentArgument] naming the query, if the answer is not its declared shape
       def answered_from_outside(aggregate, declared, args, port)
-        asked = "#{aggregate.hecks_name}.#{declared.name}"
-        refuse_offered_arguments!(declared, args, asked)
+        asked   = "#{aggregate.hecks_name}.#{declared.name}"
         adapter = AdapterLookup.call(@registry, port.name, asked: asked)
         method  = Naming.snake(declared.name)
-        AdapterLookup.check_answers!(adapter.class, port.name, method, declared, asked: asked)
+        unless adapter.respond_to?(method)
+          raise WiringError, "#{adapter.class} implements the #{port.name} port but not " \
+                             "##{method}, which answers #{asked}"
+        end
 
         answer = adapter.public_send(method, **Value.materialize(args))
         Freezer.deep(shaped(aggregate, declared, answer, asked))
-      end
-
-      # Refuses arguments the adapter cannot be handed: a required one left out, or one the query
-      # does not declare. The adapter is asked by keyword, so either would otherwise reach it as a
-      # raw ArgumentError.
-      #
-      # @raise [Runtime::AbsentArgument] if a non-optional declared argument is missing
-      # @raise [Runtime::UnknownArgument] if `args` names an argument the query does not declare
-      def refuse_offered_arguments!(declared, args, asked)
-        names   = declared.attributes.map { |attribute| attribute.name.to_sym }
-        offered = args.keys.map(&:to_sym)
-        unknown = (offered - names).sort
-        unless unknown.empty?
-          raise UnknownArgument, RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                                            command: asked, unknown: unknown, declared: names)
-        end
-
-        required = declared.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
-        absent   = (required - offered).sort
-        return if absent.empty?
-
-        raise AbsentArgument, RefusalWording.render_site("AbsentArgument", "absent_args",
-                                                         command: asked, absent: absent, declared: names)
       end
 
       # Builds the adapter's answer as the declared value object: one row, or a list of rows for

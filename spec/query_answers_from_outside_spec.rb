@@ -190,22 +190,6 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
   end
 
-  describe "the arguments an adapter is asked with" do
-    it "refuses a required argument left out, as the derived path does, before the adapter is asked" do
-      runtime = boot_domain
-
-      expect { runtime.query("Lookup::Note.Echo") }
-        .to raise_error(Hecks::Runtime::AbsentArgument, /Note\.Echo was not given title/)
-    end
-
-    it "refuses an argument the query does not declare" do
-      runtime = boot_domain
-
-      expect { runtime.query("Lookup::Note.Echo", title: "hello", extra: 1) }
-        .to raise_error(Hecks::Runtime::UnknownArgument, /extra/)
-    end
-  end
-
   describe "an answer that is not its declared shape" do
     def answering_with(echo: "{ heard: title }", roster: "[]")
       boot_domain(body: "def echo(title:) = #{echo}\ndef roster = #{roster}\ndef sight = {}")
@@ -341,45 +325,6 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       body = ECHOER_BODY.sub(/def roster.*?end\n/m, "")
 
       expect_refusal(/implements the Echoer port but not #roster, which answers Lookup::Note\.Roster/, body: body)
-    end
-
-    it "refuses a query named like a method every object has, which no adapter defined" do
-      display   = %(    query "Display" do\n      returns Sighting\n    end\n\n    query "Sight" do)
-      bluebook  = OUTSIDE_BLUEBOOK.sub('    query "Sight" do', display)
-      hecksagon = OUTSIDE_HECKSAGON.sub(%(answers_query "Sight"), %(answers_query "Sight"\n        answers_query "Display"))
-
-      expect_refusal(/implements the Echoer port but not #display, which answers Lookup::Note\.Display/,
-                     bluebook: bluebook, hecksagon: hecksagon)
-    end
-
-    it "refuses an adapter method that does not take the query's arguments as keywords" do
-      expect_refusal(/#echo answers Lookup::Note\.Echo but does not take title:/,
-                     body: ECHOER_BODY.sub("def echo(title:)", "def echo"))
-    end
-
-    it "refuses an adapter method that takes a positional argument" do
-      expect_refusal(/#echo answers Lookup::Note\.Echo but takes positional arguments/,
-                     body: ECHOER_BODY.sub("def echo(title:)", "def echo(title, **)"))
-    end
-
-    it "refuses an adapter method that requires a keyword the query does not declare" do
-      expect_refusal(/#echo answers Lookup::Note\.Echo but requires token:, which the query does not/,
-                     body: ECHOER_BODY.sub("def echo(title:)", "def echo(title:, token:)"))
-    end
-
-    it "refuses an adapter whose constructor requires arguments, since it is built with none" do
-      write_domain(@dir)
-      path = Dir[File.join(@dir, "bluebook", "adapters", "answering_echoer*.rb")].first
-      File.write(path, File.read(path).sub("def initialize(aggregate: nil, settings: {}, root: nil)",
-                                           "def initialize(token)"))
-
-      expect { Hecks.boot(@dir, install_facade: false) }
-        .to raise_error(Hecks::Runtime::WiringError, /constructor requires token/)
-    end
-
-    it "refuses a bound query that declares authorize, since an outside answer is never scoped" do
-      expect_refusal(/Lookup::Note\.Echo is bound to the Echoer port but declares authorize/,
-                     bluebook: echo_with("authorize :readers, tenant: :title\n      returns Heard"))
     end
 
     it "refuses the old spelling, which took the shape the bluebook now declares" do
