@@ -16,9 +16,10 @@ RSpec.describe "the DSL reference" do
     Hecks::Doc::Reference.pages(REFERENCE_DIR).each do |name, content|
       path = File.join(REFERENCE_DIR, name)
       expect(File.exist?(path))
-        .to be(true), "no #{name} — the language declares a context the reference does not carry; run bin/reference"
+        .to be(true), "no #{name} — the language declares a context the reference does not carry; run hecks project_reference"
       expect(File.read(path))
-        .to eq(content), "the language and docs/implemented/reference/#{name} disagree — run bin/reference and review the diff"
+        .to eq(content), "the language and docs/implemented/reference/#{name} disagree — " \
+                         "run hecks project_reference and review the diff"
     end
   end
 
@@ -49,6 +50,6 @@ RSpec.describe "the DSL reference" do
     expect(File.read(path))
       .to eq(Hecks::Doc::Reference.render_readme(InMemoryDomain::ROOT, File.read(path))),
           "README.md's generated regions (guides/reference/corpus/tools/diagrams) disagree with what's on " \
-          "disk — run bin/reference and review the diff"
+          "disk — run hecks project_reference and review the diff"
   end
 end

@@ -15,7 +15,7 @@ sibling piece under the same aggregate —
 `docs/resolution-rules/cross-entity-given.md`), chapter-wide given sharing
 (one aggregate's own `given`, shared with any other aggregate in the same
 chapter — `docs/resolution-rules/chapter-given.md`), a reusable "hoist
-un-shared local declarations" codemod (`bin/codemod_hoist_local_givens`,
+un-shared local declarations" codemod (`hecks hoist_local_givens`,
 generalizing the exact fix LedgerEntry got by hand in round 4), and
 `EntityBuilder#invariant` (a genuinely new IR field + real, additive
 runtime enforcement — the one round in this list that ISN'T pure builder
@@ -201,7 +201,7 @@ reactive `rspec` loops into what should be one:
    in a comment the same way `Aggregate#preconditions`'s own entry does).
 6. **Regenerate generated artifacts**, once, at the end:
    `GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb`, `ruby
-   bin/project_oidc <domain>` for any stale manifest, `bin/reference` for
+   hecks deploy project_oidc <domain>` for any stale manifest, `hecks project_reference` for
    docs (see step 6 for how to tell if one's stale).
 
 ## 6. Proactive checks — run these YOURSELF before the first commit
@@ -214,14 +214,14 @@ bundle exec rspec spec/syntax_conformance_spec.rb          # new grammar row wir
 bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing   # new field has a claim
 bundle exec rspec spec/round_trip_spec.rb                  # Reconstruction returns every ir_spec key
 bundle exec rspec                                            # full suite
-bin/doc_coverage
-bin/model_check
+hecks measure_doc_coverage
+hecks model_check
 ```
 
 If you migrated real corpus text, write the doc prose demonstrating it
 (`docs/reference/<construct>.md`, matching the existing "## word" section
 pattern — generated table stays inside the markers, hand-written prose
-goes below it) BEFORE running `bin/doc_coverage`, or it will name the gap
+goes below it) BEFORE running `hecks measure_doc_coverage`, or it will name the gap
 for you.
 
 ## 7. Full sweep, commit, merge, push
@@ -323,10 +323,10 @@ not discovery.
   invariant for this codemod family is narrower: every command's own
   EFFECTIVE rule set (kind/description/canonical, ignoring which
   construct's "(declared)" list it now shows up on) is unchanged.
-  `bin/codemod_hoist_local_givens` is the reference implementation of
+  `hecks hoist_local_givens` is the reference implementation of
   this narrower check — copy it rather than reusing the default
   byte-identical comparison for the next hoist-shaped codemod.
-- **`bin/query_ir duplicates` (`lib/hecks/query_ir.rb`'s
+- **`hecks ir_duplicates` (`lib/hecks/query_ir.rb`'s
   `declaration_count`) needs a matching update EVERY TIME a new sharing
   scope ships**, and it can only ever be a lagging structural snapshot —
   it reads the exported IR, which by design cannot distinguish "I

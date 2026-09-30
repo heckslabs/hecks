@@ -23,11 +23,11 @@ and the repository is the tool:
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bin/console          # boots the pizzas example this guide walks through
+hecks console          # boots the pizzas example this guide walks through
 ```
 
 `examples/pizzas` wires `PostgresEra`, so this needs a reachable local
-Postgres. If one isn't running yet, use `bin/console examples/banking`
+Postgres. If one isn't running yet, use `hecks console subject=examples/banking`
 instead — it is bound to the Heki file adapter, no server needed. See
 [Schema evolution](schema-evolution.md) for when Postgres earns its
 place.
@@ -37,7 +37,7 @@ place.
 The following example declares a domain about selling pizzas. It is
 small enough to review in full, and demonstrates both what the
 language allows and what it refuses. It is, in fact, the same
-`pizzas.bluebook` that `bin/console` already boots for you.
+`pizzas.bluebook` that `hecks console` already boots for you.
 
 ```ruby bluebook
 Hecks.bluebook "Pizzas" do

@@ -77,21 +77,21 @@ RSpec.describe "the generated diagrams" do
 
     regenerated.each do |relative, contents|
       path = File.join(committed_dir, relative)
-      expect(File).to exist(path), "#{domain}/#{relative} is missing — run bin/project_diagrams"
+      expect(File).to exist(path), "#{domain}/#{relative} is missing — run hecks project_diagrams"
       expect(File.read(path)).to eq(contents),
-                                 "#{domain}/#{relative} is stale — run bin/project_diagrams and commit the result"
+                                 "#{domain}/#{relative} is stale — run hecks project_diagrams and commit the result"
     end
 
     expect(Dir.children(committed_dir).sort).to eq(regenerated.keys.sort),
                                                 "docs/generated/diagrams/#{domain}/ holds a file the projection no " \
-                                                "longer generates, or is missing one it does — run bin/project_diagrams"
+                                                "longer generates, or is missing one it does — run hecks project_diagrams"
   end
 
-  it "is exactly what bin/project_diagrams would regenerate for pizzas right now", :io do
+  it "is exactly what hecks project_diagrams would regenerate for pizzas right now", :io do
     assert_undrifted("pizzas", pizzas_chapter, hecksagon: pizzas_hecksagon)
   end
 
-  it "is exactly what bin/project_diagrams would regenerate for banking right now" do
+  it "is exactly what hecks project_diagrams would regenerate for banking right now" do
     assert_undrifted("banking", banking_chapter, hecksagon: banking_hecksagon)
   end
 

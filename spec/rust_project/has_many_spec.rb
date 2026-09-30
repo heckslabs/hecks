@@ -37,14 +37,14 @@ RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :i
 
   it "the generated has_many_fixture module actually compiles" do
     binary = build_rust_for("has_many_fixture")
-    expect(binary).not_to be_nil, "rust/Cargo.toml has no has_many_fixture feature — run bin/project_rust " \
+    expect(binary).not_to be_nil, "rust/Cargo.toml has no has_many_fixture feature — run hecks project_rust " \
                                   "spec/fixtures/rust_project/has_many_fixture first (a failed build raises instead)"
   end
 
   it "a real command sequence round-trips through the compiled binary: has_many's own list serializes as bare " \
      "reference strings, never nested value objects" do
     binary = build_rust_for("has_many_fixture")
-    skip "rust/Cargo.toml has no has_many_fixture feature — run bin/project_rust for it first" unless binary
+    skip "rust/Cargo.toml has no has_many_fixture feature — run hecks project_rust for it first" unless binary
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => HAS_MANY_STEPS }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
@@ -63,7 +63,7 @@ RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :i
 
   it "Ruby and Rust agree on every step that does not touch the has_many list itself (Member.Join, Circle.Open)" do
     binary = build_rust_for("has_many_fixture")
-    skip "rust/Cargo.toml has no has_many_fixture feature — run bin/project_rust for it first" unless binary
+    skip "rust/Cargo.toml has no has_many_fixture feature — run hecks project_rust for it first" unless binary
 
     non_list_steps = HAS_MANY_STEPS.first(3) # both Joins + Open — no has_many field touched yet
     ruby_result = Hecks::Fuzzing::Replay.call(FIXTURE_DOMAIN, non_list_steps)
@@ -85,7 +85,7 @@ RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :i
   # admitted, in order.
   it "Ruby and Rust agree on WHICH members got admitted, modulo Ruby's own separate reference_list shape gap" do
     binary = build_rust_for("has_many_fixture")
-    skip "rust/Cargo.toml has no has_many_fixture feature — run bin/project_rust for it first" unless binary
+    skip "rust/Cargo.toml has no has_many_fixture feature — run hecks project_rust for it first" unless binary
 
     ruby_result = Hecks::Fuzzing::Replay.call(FIXTURE_DOMAIN, HAS_MANY_STEPS)
     ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))

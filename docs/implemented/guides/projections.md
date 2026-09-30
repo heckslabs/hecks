@@ -13,7 +13,7 @@ generated, not hand-maintained a second time.
 ## The canonical IR
 
 Every projection starts from the same data: the canonical IR a booted
-domain exports. `bin/project_rust` reads exactly this export (through a
+domain exports. `hecks project_rust` reads exactly this export (through a
 JSON round-trip) before it writes a line of Rust.
 
 <!-- doctest:boot
@@ -40,7 +40,7 @@ field.
 
 ## From IR to Rust
 
-`bin/project_rust <domain>` reads a booted domain's canonical IR and
+`hecks project_rust <domain>` reads a booted domain's canonical IR and
 generates typed Rust structs and enums for every value object, entity,
 and aggregate record. `given`/`ensures`/mutation logic stays data,
 interpreted at runtime by one small, hand-written kernel
@@ -48,7 +48,7 @@ interpreted at runtime by one small, hand-written kernel
 `CommandInterpreter#call` does in Ruby — so extending the language
 means extending one interpreter twice, not maintaining a second
 hand-written implementation that silently drifts. The parser is
-generated too (`bin/project_parser_table`, from the language's own
+generated too (`hecks project_parser_table`, from the language's own
 `Syntax` chapter), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
@@ -63,10 +63,10 @@ directly in this repository, generating and building the `pizzas`
 domain from a clean `rust/src/generated/`:
 
 ```sh
-$ bin/project_rust examples/pizzas      # canonical IR → Rust source
+$ hecks project_rust examples/pizzas      # canonical IR → Rust source
 # ~4s
 
-$ bin/project_wasm examples/pizzas      # cross-compiles the SAME binary to wasm32-wasip1
+$ hecks build_wasm examples/pizzas      # cross-compiles the SAME binary to wasm32-wasip1
 # ~13s cargo build --release; produces rust/dist/pizzas.wasm (551 KB)
 
 $ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
@@ -103,14 +103,14 @@ carries `where`/`order_by`/`limit`/`offset` — including ADR 0055's
 `on:` naming which of *several* many-side heads each option applies to
 (`Banking.ComplianceDashboard`) — all execute for real and match Ruby
 byte-for-byte; as of this writing every read model and query in the
-real corpus generates and runs (`bin/rust_coverage --check-allowlist`
+real corpus generates and runs (`hecks check_coverage_allowlist`
 finds no allowlisted gap left to justify). A query or read model this
 generator genuinely can't compile — a multi-hop reference chain, a
 where clause on a field whose kind can't be resolved from the exported
 IR, `cursor`/`consistency`/`inspection` — refuses with an explicit "is
 not generated for this domain" error in Rust instead of running; both
 sides are documented, allowlisted gaps (`rust/project/queries.rb`,
-`rust/project/read_models.rb`, `bin/rust_coverage`'s own allowlist), not
+`rust/project/read_models.rb`, `hecks check_coverage_allowlist`'s own allowlist), not
 silent wrong answers.
 
 ## WebAssembly
@@ -124,7 +124,7 @@ shape the native binary and Ruby both produce, so a runtime built for a
 browser tab, an edge function, or a sandboxed plugin host runs the
 *same checked semantics* — no server, no Ruby, no database — as the
 one CI holds equal to the reference implementation. A separate
-`wasm-bindgen` build (`bin/project_wasm_browser`) targets an ES module
+`wasm-bindgen` build (`hecks build_browser_wasm`) targets an ES module
 for the browser specifically.
 
 ## What this buys, and what it does not yet claim
@@ -135,16 +135,16 @@ hecks validates it against the same semantics regardless of target,
 then projects it to whichever execution form the deployment actually
 needs — a Ruby process talking to Postgres, or a portable binary with
 no runtime dependencies at all. Deployment (SAM/Lambda templates via
-`bin/project_deploy`, an OIDC manifest via `bin/project_oidc`, a
-standalone CLI via `bin/project_cli`) is downstream of that same
+`hecks deploy project`, an OIDC manifest via `hecks deploy project_oidc`, a
+standalone CLI via `hecks project_cli`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
 What this does *not* yet claim: throughput and latency are measured only
-by a single-machine harness (`bin/bench`; the [baseline and its
+by a single-machine harness (`hecks bench`; the [baseline and its
 caveats](../../benchmarks.md)), not under a production-like load,
 `read_model` queries outside the proven subset above are refused in Rust
 rather than run, and the WASM projector is one command away
-(`bin/project_wasm`) but not part of any deployed pipeline today. See
+(`hecks build_wasm`) but not part of any deployed pipeline today. See
 [Running a runtime](running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,
 and [the retired first Rust

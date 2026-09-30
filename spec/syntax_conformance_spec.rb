@@ -351,7 +351,7 @@ RSpec.describe "the declared syntax" do
 
     expect(early).to be_empty,
                      "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
-                     "— proposed, but the builder already answers; run bin/evolve admit"
+                     "— proposed, but the builder already answers; run hecks admit"
   end
 
   it "leaves every retired word unanswered — answered means it never left" do

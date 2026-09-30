@@ -14,7 +14,8 @@ RSpec.describe "the generated model" do
       committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook", host.fetch(:file)))
 
       expect(projected.fetch(host.fetch(:file))).to eq(committed),
-                                                    "lib/hecks/bluebook/#{host.fetch(:file)} has drifted — run bin/project_model"
+                                                    "lib/hecks/bluebook/#{host.fetch(:file)} has drifted — " \
+                                                    "run hecks project_model"
     end
   end
 

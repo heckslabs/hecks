@@ -45,7 +45,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         pending RUST_FUZZ_PENDING.fetch(File.basename(domain)) if RUST_FUZZ_PENDING.key?(File.basename(domain))
         feature = File.basename(domain).downcase
         binary = build_rust_for(feature)
-        skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary
+        skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
 
         gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
         divergences = []
@@ -133,7 +133,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
         expect(divergences).to be_empty, "#{divergences.size} divergence(s) found — reproduce with " \
                                          "`SEEDS=1 bundle exec rspec` after isolating the seed below, " \
-                                         "then shrink with bin/fuzz:\n#{message}"
+                                         "then shrink with hecks fuzz:\n#{message}"
       end
     end
   end

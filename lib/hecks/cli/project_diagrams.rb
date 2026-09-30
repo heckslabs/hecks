@@ -2,7 +2,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/project_diagrams` and `hecks project_diagrams`: boots a
+    # The command behind `hecks project_diagrams` and `bin/project_diagrams`: boots a
     # domain, finds the chapter it names, and writes its Mermaid diagrams
     # (`Projections::Diagrams`) under `docs/generated/diagrams/<chapter>/` below the
     # root.

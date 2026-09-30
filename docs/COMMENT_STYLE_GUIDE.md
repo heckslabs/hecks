@@ -1,10 +1,10 @@
 # Comment style guide
 
 The standard for comments in this repository's Ruby: `lib/`, `bin/`, `spec/`
-and `examples/`. `bin/standardize_comments` checks the parts of it a machine
+and `examples/`. `hecks check_comments` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 
-CI runs `bin/standardize_comments --check lib/hecks` as a gate, so a comment that breaks a
+CI runs `hecks check_comments paths=lib/hecks` as a gate, so a comment that breaks a
 rule the linter checks fails the build. The parts of this guide the linter cannot check are
 still the reviewer's.
 
@@ -159,7 +159,7 @@ A run of more than 50 consecutive comment lines is a `long_block`. The linter fa
 new one, and fails an old one that grows. Put the rationale in an ADR under
 `docs/decisions/` and cite it, or split the block into comments that sit next to the
 code each one explains. The threshold is the named constant `MAX_BLOCK` in
-`bin/standardize_comments`, and 50 is provisional: ADR 0069 leaves the number open.
+`lib/hecks/tools/comment_style.rb`, and 50 is provisional: ADR 0069 leaves the number open.
 
 The blocks that already exceed it are listed in `.standardize_comments_baseline.json`, so
 that only new and grown blocks fail. The file maps a path to its long blocks, and each
@@ -185,18 +185,18 @@ block to its length:
   and rewrite the baseline in the same change, or keep the line.
 
 Rewrite the baseline over the gated tree with
-`bin/standardize_comments --write-baseline lib/hecks`, and commit the result. A trimmed
+`hecks write_comment_baseline --confirm`, and commit the result. A trimmed
 block should leave the file. A block that must be longer is a deliberate baseline change,
 which the diff shows to the reviewer.
 
 ## Checking a tree
 
 ```
-bin/standardize_comments --report lib/hecks             # summary tables
-bin/standardize_comments --check  lib/hecks             # one line per violation
-bin/standardize_comments --fix    lib/hecks             # all_caps and long_line only
-bin/standardize_comments --write-baseline lib/hecks     # rewrite the long-block baseline
-bin/standardize_comments --code-unchanged main lib      # prove an edit was comment-only
+hecks report_comments paths=lib/hecks             # summary tables
+hecks check_comments paths=lib/hecks              # one line per violation
+hecks fix_comments paths=lib/hecks --confirm      # all_caps and long_line only
+hecks write_comment_baseline --confirm            # rewrite the long-block baseline
+hecks check_comments_unchanged ref=main           # prove an edit was comment-only
 ```
 
 `--fix` rewrites only the two mechanical categories. Do not run it over doc
@@ -206,4 +206,4 @@ non-comment tokens with `REF` and fails if any differ, which is how a
 comment-only change is shown to be one.
 
 Whether documented behaviour is backed by a running example is a separate
-concern with its own gate: see `bin/doc_coverage`.
+concern with its own gate: see `hecks measure_doc_coverage`.

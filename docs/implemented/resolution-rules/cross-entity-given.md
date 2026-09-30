@@ -59,7 +59,7 @@ aggregate's own execution context and wrong in a piece's own command's.
 |---|---|
 | `KeyIssuance.Return` bare-references `"box is rented"`; `Visit` (a sibling piece, same aggregate) already declared it with a block | Resolves to `Visit`'s own `Given` object — qualifies |
 | A piece bare-references a description ONLY the OWNING AGGREGATE declares (aggregate-scoped, not piece-scoped) | Still resolves normally through step 4.1 (the piece's own `named_givens` lookup already covers this when threaded correctly) — unaffected by this rule |
-| Two sibling pieces each independently write `given("x") { same predicate }` with their OWN block | Both keep their own LOCAL declaration; the pool holds whichever ran first. Not an error, but not maximally deduped either — a real, still-open hoisting opportunity `bin/query_ir duplicates` will keep surfacing until one becomes a bare reference to the other |
+| Two sibling pieces each independently write `given("x") { same predicate }` with their OWN block | Both keep their own LOCAL declaration; the pool holds whichever ran first. Not an error, but not maximally deduped either — a real, still-open hoisting opportunity `hecks ir_duplicates` will keep surfacing until one becomes a bare reference to the other |
 | A piece bare-references a description NEITHER its own scope NOR any sibling under the same aggregate declares | `Malformed`, naming both places checked |
 | Two UNRELATED aggregates' own pieces happen to phrase a rule identically | Never shared — each aggregate holds its own separate pool; cross-AGGREGATE sharing was, at the time this rule shipped, a different, larger, not-yet-built capability. It has SINCE been built, one level up (aggregate-to-aggregate, `chapter-given.md`) and one level down from THAT (piece-to-piece across aggregates, `chapter-entity-given.md`) — see that doc for the widened scope |
 
@@ -86,7 +86,7 @@ aggregate's own execution context and wrong in a piece's own command's.
   is what any caller reads — see `[[project_seam_agent_codemod_pilot]]`'s
   own note that object identity itself never survives a bluebook's own
   self-hosting build regardless).
-- `bin/query_ir duplicates`' own dedup (`Hecks::QueryIR#declaration_count`)
+- `hecks ir_duplicates`' own dedup (`Hecks::QueryIR#declaration_count`)
   had to be taught this rule explicitly — an entity-owned `given` rule is
   now considered "covered" not just by an exact-owner `"(declared)"` match,
   but by ANY `"(declared)"` entry sharing the same ROOT aggregate. A query

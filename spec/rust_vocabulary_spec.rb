@@ -21,7 +21,7 @@ RSpec.describe "the generated Rust vocabulary tables (bin/project_rust_vocabular
     end
 
     expect(stale.keys).to be_empty,
-                          "#{stale.keys.join(', ')} drifted from vocabulary.bluebook — run bin/project_rust_vocabulary"
+                          "#{stale.keys.join(', ')} drifted from vocabulary.bluebook — run hecks project_rust_vocabulary"
   end
 
   it "leaves no committed file under vocab/ that the projection no longer emits" do

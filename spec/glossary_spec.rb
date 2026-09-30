@@ -36,13 +36,13 @@ RSpec.describe "the glossary a domain carries with it" do
       let(:html)    { File.read(File.join(committed_dir(domain), "html/index.html")) }
       let(:visible) { html.gsub(%r{<(script|style)[^>]*>.*?</\1>}m, "").gsub(/<[^>]+>/, " ") }
 
-      it "is exactly what bin/project_glossary would regenerate right now" do
+      it "is exactly what hecks glossary would regenerate right now" do
         expect(tree.keys).to contain_exactly("glossary.md", "html/index.html")
         tree.each do |relative, contents|
           path = File.join(committed_dir(domain), relative)
-          expect(File).to exist(path), "#{domain}/glossary/#{relative} is missing — run bin/project_glossary"
+          expect(File).to exist(path), "#{domain}/glossary/#{relative} is missing — run hecks glossary"
           expect(File.read(path)).to eq(contents),
-                                     "#{domain}/glossary/#{relative} is stale — run bin/project_glossary and commit it"
+                                     "#{domain}/glossary/#{relative} is stale — run hecks glossary and commit it"
         end
         expect(committed_files(domain).sort).to eq(tree.keys.sort)
       end

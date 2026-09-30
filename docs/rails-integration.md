@@ -34,7 +34,7 @@ one maps to a specific thing this design avoids **structurally**, not by convent
 ## Architecture: Rails is a driving adapter, not a special one
 
 Per the hexagonal (ports & adapters) reading: a Rails controller calling into the
-domain is structurally identical to `bin/console` or `bin/run` — just another driving
+domain is structurally identical to `hecks console` or `hecks run` — just another driving
 adapter. The domain doesn't know or need to know which one called it. This has one
 hard consequence for the design: **core `Handle`/`AggregateDoor` must never gain a
 Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration layer
@@ -42,13 +42,13 @@ built on top of the core facade, applied once at boot — never inside
 `lib/hecks/facade/`.
 
 ```ruby skip
-lib/hecks/facade/handle.rb      core, adapter-agnostic, used by bin/console too
+lib/hecks/facade/handle.rb      core, adapter-agnostic, used by hecks console too
   ↓ decorated once, at boot, for Rails specifically
 WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
 WebDoor   (Rails-only)               wraps every Handle AggregateDoor hands out
 ```
 
-`bin/console`/`bin/run` boot through the plain `AggregateDoor` and never load
+`hecks console`/`hecks run` boot through the plain `AggregateDoor` and never load
 ActiveModel. A Rails app boots through `WebDoor` instead. By the time a controller
 sees a record, the decoration already happened — the controller never performs it.
 

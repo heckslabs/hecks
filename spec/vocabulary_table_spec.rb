@@ -14,7 +14,7 @@ RSpec.describe "the generated vocabulary table" do
     )
 
     expect(projected).to eq(committed),
-                         "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
+                         "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run hecks project_vocabulary"
   end
 
   # With the regeneration check above, this holds each Ruby constant equal to the language:

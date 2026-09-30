@@ -14,7 +14,7 @@ RSpec.describe "the generated bootstrap table" do
     )
 
     expect(projected).to eq(committed),
-                         "bootstrap_table.rb has drifted from the Keyword rows — run bin/project_bootstrap_table"
+                         "bootstrap_table.rb has drifted from the Keyword rows — run hecks project_bootstrap_table"
   end
 
   it "needs no part of the framework loaded to be read" do

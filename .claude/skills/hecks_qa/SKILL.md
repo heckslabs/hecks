@@ -95,7 +95,7 @@ in order:
    guard, an off-by-one, a validation gap — no semantic or architectural
    call. Anything else is `bigger`.
 4. **If `self_contained`:** fix it on a fresh `qa/<slug>` branch in the
-   runner worktree; move the bug through `bin/run qa/bluebook
+   runner worktree; move the bug through `hecks run qa/bluebook
    bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
    commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
    then `bin/qa_open_pr --bug BUG#n --title "…"`. It asks the ledger
@@ -166,7 +166,7 @@ it and no dial turns it on.
 
 ## Authoring a new stress domain (occasional)
 
-Read the backlog first — `bin/run qa/bluebook ask backlog` and `ask
+Read the backlog first — `hecks run qa/bluebook ask backlog` and `ask
 resolved` — before inventing an angle; `ask citing citation.value="…"`
 before proposing one. A new domain lives under `qa/stress_domains/<name>/
 bluebook/<name>.bluebook`, biases hard toward re-triggering a bug class
@@ -202,7 +202,7 @@ today, is correctly excluded even though its bluebook reads
 `Hecks.bluebook` — that gem aliases `Hecks = Hecksagain`, it is not the
 real `hecks` gem), cross-referenced against `Target.All` so an already-
 identified domain is never re-reported. **Report only** — it never
-calls `identify` itself; it prints the exact `bin/run qa/bluebook
+calls `identify` itself; it prints the exact `hecks run qa/bluebook
 identify reference=… path=…` command for a person to review and run.
 `bin/qa_tick` never runs it and no `qa/settings.yml` dial turns it on,
 same as `bin/qa_mine_combinations` above. Before enrolling a real find,

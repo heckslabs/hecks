@@ -276,7 +276,7 @@ The hermetic tests run a protocol scenario against an in-process fake of the
 host. `npm run test:contract` runs the same scenario against a live host; see
 `test/contract.mjs`. The repository's `client-contract` workflow starts
 `rust/host` on the `spec/fixtures/rust_host/checkout_fixture` domain and runs
-it. To do the same locally, build that domain with `bin/project_wasm`, start
+it. To do the same locally, build that domain with `hecks build_wasm`, start
 `rust/host`'s `bootstrap` binary with `HECKS_SERVE_MODE=1`, `HECKS_DOMAIN`,
 `HECKS_WASM_PATH`, `HECKS_IR_PATH` and `DATABASE_URL` (a Postgres database), and
 run `HECKS_SERVICE_URL=http://127.0.0.1:<port> npm run test:contract`. Add
@@ -288,7 +288,7 @@ routes (it started with `HECKS_CHECKOUT_DOMAIN` naming its domain) to check the
 
 The package version equals `Hecks::VERSION` and is released together with the
 gem; `spec/hecks_client_version_spec.rb` fails when they differ, and
-`bin/release` (and `bin/release_gem` on its own) refuses to publish while they do. When
+`hecks publish` (and `hecks publish_gem` on its own) refuses to publish while they do. When
 `lib/hecks/version.rb` changes, bump the package in the same change:
 
 ```sh
@@ -299,8 +299,8 @@ npm version <version> --no-git-tag-version   # also updates package-lock.json
 Pushing the release tag starts `.github/workflows/publish-client.yml`, which
 publishes the package with npm trusted publishing: a short-lived identity
 token from the workflow run, so no npm token and no one-time code is stored
-anywhere. `bin/release` pushes the tag, publishes the gem, and waits for the
-package to appear on npm (`bin/release --npm-only` waits again after a
+anywhere. `hecks publish` pushes the tag, publishes the gem, and waits for the
+package to appear on npm (`hecks publish --npm-only` waits again after a
 re-run; a version npm already has is skipped).
 
 One-time setup, by an owner of the `@hecks` scope, once the package exists:
@@ -309,7 +309,7 @@ Actions > organization or user `heckslabs`, repository `hecks`, workflow
 filename `publish-client.yml`, environment blank.
 
 The first publish, before that can be configured, and any emergency when CI is
-down, is `bin/release --npm-local`. It publishes from this machine with a
+down, is `hecks publish --npm-local`. It publishes from this machine with a
 token held in 1Password: the "publish token" field on the "npmjs.com" item in
 the Hecks vault (`release/npm_publish.env` names the vault, item and field;
 the setup is in the header of `bin/release`). That token must be a granular

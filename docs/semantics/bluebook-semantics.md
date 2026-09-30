@@ -197,7 +197,7 @@ it, except for one law they must uphold (C8.4).
   other) — two from disjoint states are the legitimate shape, the
   current state picking between them. A `from:` naming a state no
   transition reaches is *not* a build refusal: it is a reachability
-  finding (`bin/model_check`: unreachable state, dead transition), and
+  finding (`hecks model_check`: unreachable state, dead transition), and
   a bluebook may declare one on purpose.
 
 ## §6 Postconditions and invariants
@@ -313,7 +313,7 @@ A fixture (`spec/corpus/semantics/*.json`) carries `steps` (the same
 shape `spec/corpus/rust_conformance` uses), `spec` (the clauses it
 pins), and `expect`: ordered refusals with **kind**, the final
 instances, and the ordered events. Expectations were seeded from the
-Ruby runtime once (`bin/seed_semantics_corpus`), reviewed against these
+Ruby runtime once (`hecks seed_semantics_corpus`), reviewed against these
 clauses, and are frozen — a runtime change that breaks a fixture is a
 semantics change and must say so here, in the clause, first.
 `spec/semantics_corpus_spec.rb` runs every fixture against the Ruby
