@@ -64,6 +64,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -80,10 +83,10 @@ jobs:
 
       - uses: ./.github/actions/wasm-toolchain
 
-      # bin/project_wasm projects and builds in a scratch copy of rust/, so it
+      # hecks build_wasm projects and builds in a scratch copy of rust/, so it
       # leaves no tracked file modified.
       - name: Build the checkout fixture wasm
-        run: bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
+        run: bundle exec exe/hecks build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
 
       - name: Build the host
         run: cargo build --manifest-path rust/host/Cargo.toml --bin bootstrap
