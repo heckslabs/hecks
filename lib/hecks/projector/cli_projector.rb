@@ -10,10 +10,8 @@ module Hecks
     module CliProjector
       module_function
 
-      # Projects the verb and question tables and the usage text.
-      #
-      # Commands and queries are separate namespaces because a chapter may declare both
-      # under one name; questions are asked with `ask`.
+      # Projects the verb and question tables and the usage text. Commands and queries are
+      # separate namespaces (a chapter may declare both under one name); ask a query with `ask`.
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
