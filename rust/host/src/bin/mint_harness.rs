@@ -28,6 +28,12 @@ mod approval;
 #[path = "../mint.rs"]
 mod mint;
 
+// The shared modules' Postgres tests connect through `crate::test_pg`, so the harness's own test
+// build carries the same connection-string helpers.
+#[cfg(test)]
+#[path = "../test_pg.rs"]
+mod test_pg;
+
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tokio_postgres::NoTls;

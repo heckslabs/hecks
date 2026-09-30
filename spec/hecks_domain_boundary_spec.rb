@@ -6,7 +6,8 @@ require "rbconfig"
 
 # The Hecks domain (lib/hecks/hecks/) operates on the runtime but never sits in a client's dispatch
 # (ADR 0080, section 5). Each check runs in a fresh process, so `$LOADED_FEATURES` is only what
-# that path itself loaded.
+# that path itself loaded. The launcher boots pizzas on its Memory hecksagon, so no database
+# has to be reachable.
 RSpec.describe "the Hecks domain stays out of a client's runtime" do
   root = File.expand_path("..", __dir__)
 
@@ -34,7 +35,11 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
     result = probe(<<~RUBY)
       require "hecks"
       require "json"
-      runtime = Hecks.boot(File.join(Dir.pwd, "examples/pizzas"), install_doors: false)
+      runtime = Hecks.boot_files(
+        [File.join(Dir.pwd, "examples/pizzas/bluebook/pizzas.bluebook"),
+         File.join(Dir.pwd, "examples/pizzas/pizzas_behaviors.hecksagon")],
+        install_doors: false
+      )
       Hecks::Doors::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
       puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{hecks_domain}), chapters: runtime.registry.bluebooks.keys)
     RUBY
