@@ -5,14 +5,15 @@ require "open3"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_discover_external_domains`: reports sibling-repo bluebook domains
-    # under `--projects-dir` that already depend on the hecks gem but are not enrolled yet. It
-    # never enrolls anything itself.
+    # The command behind `hecks quality_control discover_external_domains`: reports sibling-repo
+    # bluebook domains under `--projects-dir` that already depend on the hecks gem but are not
+    # enrolled yet. It never enrolls anything itself.
     #
-    #   bin/qa_discover_external_domains
-    #   bin/qa_discover_external_domains --projects-dir ~/Projects
-    #   bin/qa_discover_external_domains --max-depth 4
-    #   bin/qa_discover_external_domains --known-path <path> ...   # bypass the ledger read
+    #   hecks quality_control discover_external_domains
+    #   hecks quality_control discover_external_domains --projects-dir ~/Projects
+    #   hecks quality_control discover_external_domains --max-depth 4
+    #   hecks quality_control discover_external_domains --known-path <path> ...   # bypass the
+    # ledger read
     class QaDiscoverExternalDomains
       USAGE = "usage: hecks quality_control discover_external_domains [--projects-dir <path>] " \
               "[--max-depth N] [--known-path <path> ...]"
@@ -161,11 +162,11 @@ module Hecks
       # Shells out rather than booting the ledger in-process, so this is safe to run alongside a
       # live qa_tick or qa_sweep.
       def ledger_target_paths
-        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "bin/run"),
-                                          "qa/bluebook", "ask", "target.all", chdir: @root)
+        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "exe/hecks"),
+                                          "run", "qa/bluebook", "ask", "target.all", chdir: @root)
         unless status.success?
-          raise Refused, "bin/qa_discover_external_domains: could not read the ledger's targets " \
-                         "(bin/run qa/bluebook ask target.all exited #{status.exitstatus}):\n#{err}\n" \
+          raise Refused, "hecks quality_control discover_external_domains: could not read the ledger's targets " \
+                         "(hecks run qa/bluebook ask target.all exited #{status.exitstatus}):\n#{err}\n" \
                          "pass --known-path <path> ... to run without the ledger", usage: false
         end
 
@@ -238,7 +239,7 @@ module Hecks
         candidates.each do |c|
           puts "  #{c[:reference]}"
           puts "    path: #{c[:path]}"
-          puts "    enroll: bin/run qa/bluebook identify reference=#{c[:reference]} path=#{c[:path]}"
+          puts "    enroll: hecks run qa/bluebook identify reference=#{c[:reference]} path=#{c[:path]}"
           puts
         end
       end

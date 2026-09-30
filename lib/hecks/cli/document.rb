@@ -2,7 +2,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/docs`, `bin/narrate`, `hecks docs` and `hecks narrate`:
+    # The command behind `hecks docs` and `hecks narrate`:
     # one domain's document, projected from its own bluebook, to stdout.
     #
     # Nothing is written for the caller: redirect it, so git decides whether it drifted.

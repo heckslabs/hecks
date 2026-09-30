@@ -4,6 +4,7 @@ require "fileutils"
 require "json"
 require "open3"
 require_relative "../../../hecks"
+require "hecks/rust_build"
 require_relative "../../fuzzing"
 require_relative "../../fuzzing/domain_generator"
 require_relative "../../fuzzing/generated_domain_check"
@@ -11,9 +12,9 @@ require_relative "child"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_generated_domains`: generates domains nobody wrote and checks
-    # them the way the rotation does (`USAGE` lists the forms: generate, `--blueprint`, `--source`
-    # and `--promote`).
+    # The command behind `hecks quality_control check_generated_domains`: generates domains nobody
+    # wrote and checks them the way the rotation does (`USAGE` lists the forms: generate,
+    # `--blueprint`, `--source` and `--promote`).
     #
     # Exit codes: 0 every valid domain clean; 2 at least one finding; 1 operational error.
     #
@@ -158,12 +159,13 @@ module Hecks
         File.write(File.join(target, "NOTES.md"), notes_for(name))
         puts "promoted: qa/stress_domains/#{name}"
         puts "next:"
-        puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
-        puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-        # `bin/qa_seed_targets` derives targets from `Hecks::Corpus.rotation_targets`, so a
-        # hand-typed `target.identify` line is not printed: nobody ran it and the domain never
+        puts "  hecks quality_control judge_novelty qa/stress_domains/#{name}"
+        puts "  hecks project_rust qa/stress_domains/#{name}  # when the finding needs the Rust comparison"
+        # `hecks quality_control target.seed` derives targets from
+        # `Hecks::Corpus.rotation_targets`, so a hand-typed `target.identify` line is not printed:
+        # nobody ran it and the domain never
         # entered the rotation.
-        puts "  bin/qa_seed_targets                               # idempotent; picks this domain up from the corpus"
+        puts "  hecks quality_control target.seed   # idempotent; picks this domain up from the corpus"
         EXIT_OK
       end
 
@@ -175,7 +177,7 @@ module Hecks
         <<~NOTES
           # #{name}
 
-          Promoted from a `bin/qa_generated_domains` finding — #{recorded&.key?('source') ? 'written by `bin/qa_mine_combinations`\' agent' : 'generated'}, not
+          Promoted from a `hecks quality_control check_generated_domains` finding — #{recorded&.key?('source') ? 'written by `hecks quality_control mine_combinations`\' agent' : 'generated'}, not
           hand-written. The bluebook is the minimal form of the domain that
           surprised; `QaGenerated` was renamed to `#{camelize(name)}` and nothing
           else changed.
@@ -200,8 +202,8 @@ module Hecks
         ::QualityControlDials.const_get(name)
       end
 
-      # `--from-dials` is how `bin/qa_tick` runs this. The dials come from the text of the
-      # bluebook before `Hecks.bluebook`, so the ledger's Postgres is not needed.
+      # `--from-dials` is how `hecks quality_control tick` runs this. The dials come from the text
+      # of the bluebook before `Hecks.bluebook`, so the ledger's Postgres is not needed.
       # `QA_GENERATED_DOMAINS_PER_TICK` overrides the count for one run.
       #
       # @return [Boolean] false when the dials turn the step off, true once they are applied
@@ -233,9 +235,11 @@ module Hecks
       end
 
       def build_rust(dir)
-        project, status = Open3.capture2e({ "HECKS_RUST_DIR" => @scratch }, "bundle", "exec", "ruby",
-                                          File.join(@root, "bin/project_rust"), dir, chdir: @root)
-        return [nil, { "mode" => "rust_projection", "detail" => project.lines.last(12).join }] unless status.success?
+        project = Hecks::RustBuild.capture("project_rust", [File.expand_path(dir, @root)],
+                                           env: { "HECKS_RUST_DIR" => @scratch })
+        unless project.ok?
+          return [nil, { "mode" => "rust_projection", "detail" => "#{project.out}#{project.err}".lines.last(12).join }]
+        end
 
         cargo, status = Open3.capture2e("cargo", "build", "--no-default-features", "--features",
                                         Generator::DIRECTORY, chdir: @scratch)
@@ -317,7 +321,8 @@ module Hecks
                "adversarial #{options[:adversarial]}"
         end
         print_shrunk(report, found["steps"], found["shrunk_steps"])
-        puts "promote:     bin/qa_generated_domains --promote #{relative(report[:root])} --name <stress_domain_name>"
+        puts "promote:     hecks quality_control check_generated_domains --promote " \
+             "#{relative(report[:root])} --name <stress_domain_name>"
         puts
         found["divergences"].each do |divergence|
           puts "-- #{divergence['field']} --"
@@ -333,9 +338,10 @@ module Hecks
 
         puts "shrunk:      #{steps.size} -> #{shrunk.size} step(s) — #{relative(report[:steps_file])}"
         replay = if report[:binary]
-                   "bin/rust_conformance #{report[:dir]} #{report[:steps_file]} #{report[:binary]}"
+                   "hecks check_conformance #{report[:dir]} script=#{report[:steps_file]} " \
+                     "artifact=#{report[:binary]}"
                  else
-                   "bin/run #{report[:dir]} #{report[:steps_file]}"
+                   "hecks run #{report[:dir]} #{report[:steps_file]}"
                  end
         puts "replay:      #{replay}"
         shrunk.each_with_index do |step, index|
@@ -355,7 +361,8 @@ module Hecks
         end
         File.write(File.join(final_root, "finding.json"), JSON.pretty_generate(final.except("dir", "binary")))
         steps_file = File.join(final_root, "shrunk_steps.json")
-        File.write(steps_file, JSON.pretty_generate(name: "qa_generated-shrunk", note: "bin/qa_generated_domains finding",
+        note = "hecks quality_control check_generated_domains finding"
+        File.write(steps_file, JSON.pretty_generate(name: "qa_generated-shrunk", note: note,
                                                     steps: final.fetch("shrunk_steps") { final.fetch("steps", []) }))
         { forms: blueprint["forms"], root: final_root, dir: final["dir"], binary: final["binary"], final: final,
           options: @options, steps_file: steps_file, domain_attempts: attempts,

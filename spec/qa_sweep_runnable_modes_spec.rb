@@ -2,8 +2,8 @@ require "spec_helper"
 require "yaml"
 require "hecks/fuzzing/target_capabilities"
 
-# A sweep mode counts as enabled only if the sweep command has code for it. The runner is the oracle:
-# comments are stripped before grepping, since prose naming a mode is not an implementation.
+# A sweep mode counts as enabled only if the sweep command has code for it. The runner is the
+# oracle: comments are stripped before grepping, since prose naming a mode is not an implementation.
 RSpec.describe "sweep modes that actually run" do
   let(:root) { InMemoryDomain::ROOT }
   let(:runnable) { Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES }

@@ -53,7 +53,7 @@ module Hecks
               raise Runtime::WiringError,
                     "cannot merge the tail of #{@domain}: touched by both worlds since the cut — " \
                     "#{unresolved.map { |storage, id| "#{storage}##{id}" }.sort.join(', ')}. " \
-                    "Name each winner (--winner <id>=old or --winner <id>=new), then run bin/merge_tail again. " \
+                    "Name each winner (--winner <id>=old or --winner <id>=new), then run hecks merge_tail again. " \
                     "A winner takes the WHOLE record — the aggregate is the consistency boundary, so the " \
                     "loser's edits are discarded even where they touched different attributes"
             end

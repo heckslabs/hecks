@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
-require_relative "../../cli/project_cli"
+require "hecks/cli/project_cli"
 
 module Hecks
   module Adapters

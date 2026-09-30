@@ -22,10 +22,10 @@ require_relative "qa_sweep/finding_report"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_sweep`: runs one claim, sweep, conclude and release cycle against
-    # a `QualityControl` target (`USAGE` lists the forms, from a bare sweep of the least recently
-    # swept target to `--all` and `--release`). It stops with a report and exit 2 on the first
-    # surprised check, and never logs a `Bug` itself.
+    # The command behind `hecks quality_control ask run`: runs one claim, sweep, conclude and
+    # release cycle against a `QualityControl` target (`USAGE` lists the forms, from a bare sweep
+    # of the least recently swept target to `--all` and `--release`). It stops with a report and
+    # exit 2 on the first surprised check, and never logs a `Bug` itself.
     #
     # Exit codes: 0 clean; 1 operational error; 2 found something (the sweep stays open and the
     # target is suspended by the ledger's `SuspendOnSurprise` policy until `--release`).
@@ -39,13 +39,13 @@ module Hecks
       EXIT_ERROR = 1
       EXIT_FOUND_SOMETHING = 2
 
-      USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adversarial FRACTION] " \
-              "[--role-draw FRACTION] [--dry-run FRACTION] [--self-consistency true|false] " \
-              "[--modes a,b,c]\n       " \
-              "bin/qa_sweep --all [--seeds N] [--steps N] [--adversarial FRACTION] [--role-draw FRACTION] " \
-              "[--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c] [--no-parity]\n       " \
-              "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]\n       " \
-              "bin/qa_sweep <target-reference> --release --notes \"what a person concluded, 40+ chars\""
+      USAGE = "usage: hecks quality_control ask run [target=<reference>] arguments=\"[--seeds N] [--steps N] " \
+              "[--adversarial FRACTION] [--role-draw FRACTION] [--dry-run FRACTION] " \
+              "[--self-consistency true|false] [--modes a,b,c]\"\n       " \
+              "arguments=\"--all [--seeds N] [--steps N] [--adversarial FRACTION] [--role-draw FRACTION] " \
+              "[--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c] [--no-parity]\"\n       " \
+              "target=<reference> arguments=\"--persistence-parity [--seeds N]\"\n       " \
+              "target=<reference> arguments=\"--release --notes 'what a person concluded, 40+ chars'\""
 
       # Modes run when the ledger declares no `QualityControlDials::MODES` (an isolated spec's
       # fixture).
@@ -136,9 +136,9 @@ module Hecks
         path.start_with?("/") ? File.expand_path(path) : File.expand_path(path, @root)
       end
 
-      # A target reference may itself contain `/` (`bin/qa_discover_external_domains` suggests
-      # `repo/entity`-shaped references for an external domain), but every reference also gets
-      # folded into a single filename component: a log prefix, a shrunk-repro filename, a
+      # A target reference may itself contain `/` (`hecks quality_control discover_external_domains`
+      # suggests `repo/entity`-shaped references for an external domain), but every reference also
+      # gets folded into a single filename component: a log prefix, a shrunk-repro filename, a
       # coverage-corpus filename. Left raw, an embedded `/` is read as an extra path segment that
       # nothing creates, breaking the write. This never changes what is stored as the
       # `Target`/`Sweep` reference itself.
@@ -366,7 +366,7 @@ module Hecks
         # `build_rust_for` answers nil only for an undeclared feature; a declared one that fails
         # raises, so its cargo stderr is printed here.
         reason = @rust_build_failure ? @rust_build_failure.message : "rust/Cargo.toml declares no #{@feature} feature"
-        puts "note: no #{@feature} Rust binary — degrading this sweep to ruby_only. Run bin/project_rust for it " \
+        puts "note: no #{@feature} Rust binary — degrading this sweep to ruby_only. Run `hecks project_rust` for it " \
              "and re-sweep.\n#{reason}"
         @active_modes = (@active_modes - %i[differential properties_in_differential structural_skip_report]) |
                         [:ruby_only]

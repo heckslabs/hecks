@@ -7,7 +7,7 @@ require_relative "../version"
 
 module Hecks
   module CLI
-    # The command behind `bin/release_gem` and the release runner's gem step: builds the hecks
+    # The command behind `hecks publish_gem` and the release runner's gem step: builds the hecks
     # gem and pushes it to rubygems.org, using a push-scoped API key from 1Password instead of
     # `~/.gem/credentials`. It pushes the version it is given, `Hecks::VERSION` by default.
     module ReleaseGem

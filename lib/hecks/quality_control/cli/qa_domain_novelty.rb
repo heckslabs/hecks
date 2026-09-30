@@ -7,10 +7,10 @@ require_relative "../../fuzzing/form_census"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_domain_novelty`: does a new stress domain earn its place? It is
-    # the gate before a domain becomes a `Target`.
+    # The command behind `hecks quality_control judge_novelty`: does a new stress domain earn its
+    # place? It is the gate before a domain becomes a `Target`.
     #
-    #   bin/qa_domain_novelty <domain-path> [--against <path> ...]
+    #   hecks quality_control judge_novelty <domain-path> [--against <path> ...]
     #
     # A domain is new when it puts two forms together on one aggregate that no existing target does
     # (`Hecks::Fuzzing::FormCensus`). It is compared against the ledger's `Target.path` rows unless
@@ -91,23 +91,23 @@ module Hecks
         [candidate, against]
       end
 
-      # `bin/project_rust` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything else
-      # early.
+      # `hecks project_rust` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything
+      # else early.
       def refuse_unless_stress_domain_shaped!(path)
         expected = File.join(path, "bluebook", "#{File.basename(path)}.bluebook")
         return if File.file?(expected)
 
         raise UsageError, "#{path} is not shaped like a stress domain: expected #{expected} to exist " \
-                          "(`<name>/bluebook/<name>.bluebook` — a flat file breaks bin/project_rust; " \
+                          "(`<name>/bluebook/<name>.bluebook` — a flat file breaks `hecks project_rust`; " \
                           "see qa/stress_domains/ledger_ordering/NOTES.md)"
       end
 
       # The ledger's target paths via one read-only `ask`; never boots the ledger in this process.
       def ledger_target_paths
-        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "bin/run"),
-                                          "qa/bluebook", "ask", "target.all", chdir: @root)
+        out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "exe/hecks"),
+                                          "run", "qa/bluebook", "ask", "target.all", chdir: @root)
         unless status.success?
-          warn "bin/qa_domain_novelty: could not read the ledger's targets (bin/run qa/bluebook ask " \
+          warn "hecks quality_control judge_novelty: could not read the ledger's targets (hecks run qa/bluebook ask " \
                "target.all exited #{status.exitstatus}):\n#{err}"
           warn "pass --against <path> ... to run without the ledger"
           raise Stopped

@@ -334,7 +334,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect { check!(V2_SOURCE) }.to raise_error(
       Hecks::Runtime::WiringError,
       "cannot boot Ledger: the shape changed (era 2) and no translation edge covers it — " \
-      "run bin/scaffold_translation to write the edge, check it with bin/translation_audit, then boot again"
+      "run hecks scaffold_translation to write the edge, check it with hecks audit_translation, then boot again"
     )
   end
 
@@ -343,7 +343,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     from = label_of(V1_SOURCE)
     stale = edge_source(from: from, to: "000000")
     expect { check!(V2_SOURCE, translation_source: stale) }.to raise_error(
-      Hecks::Runtime::WiringError, %r{the edge is stale; re-run bin/scaffold_translation}
+      Hecks::Runtime::WiringError, /the edge is stale; re-run hecks scaffold_translation/
     )
   end
 
@@ -726,7 +726,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end.to raise_error(
       Hecks::Runtime::WiringError,
       "cannot merge the tail of Ledger: touched by both worlds since the cut — account#a1. " \
-      "Name each winner (--winner <id>=old or --winner <id>=new), then run bin/merge_tail again. " \
+      "Name each winner (--winner <id>=old or --winner <id>=new), then run hecks merge_tail again. " \
       "A winner takes the WHOLE record — the aggregate is the consistency boundary, so the " \
       "loser's edits are discarded even where they touched different attributes"
     )
@@ -885,7 +885,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end.to raise_error(
       Hecks::Runtime::WiringError,
       "cannot mint era 2 of Pricing: this edge carries a compute or rekey rule, and the audit's " \
-      "human-approved sample is its only verification — run bin/translation_audit with --approve, then boot again"
+      "human-approved sample is its only verification — run hecks audit_translation with --approve, then boot again"
     )
 
     # the approval binds to the edge's content and the journal's
@@ -905,10 +905,10 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       )
     end.to raise_error(
       Hecks::Runtime::WiringError,
-      %r{
+      /
         the\ journal\ advanced\ past\ the\ approved\ review\ \(ordinal\ 1\ reviewed,\ 2\ now\)\ —\ the\ samples
-        \ a\ human\ approved\ no\ longer\ cover\ the\ data;\ re-run\ bin/translation_audit\ with\ --approve
-      }x
+        \ a\ human\ approved\ no\ longer\ cover\ the\ data;\ re-run\ hecks\ audit_translation\ with\ --approve
+      /x
     )
 
     pricing_lineage.record_approval!(

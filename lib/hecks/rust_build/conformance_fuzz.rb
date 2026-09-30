@@ -14,7 +14,7 @@ module Hecks
     #
     # `seeds` and `steps` default to `SEEDS` and `STEPS` in the environment, then to 10 and 25.
     module ConformanceFuzz
-      USAGE = "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
+      USAGE = "usage: hecks fuzz_conformance <domain> <native|path/to/module.wasm> [seeds] [steps]"
 
       module_function
 
@@ -46,9 +46,9 @@ module Hecks
         File.write(path, JSON.generate({ "steps" => sequence }))
         return if Conformance.call([domain, path, artifact]).zero?
 
-        raise Failure, "bin/rust_conformance_fuzz: seed #{seed}/#{seeds} diverged against #{artifact} " \
+        raise Failure, "hecks fuzz_conformance: seed #{seed}/#{seeds} diverged against #{artifact} " \
                        "(see the conformance output above) — " \
-                       "reproduce with: bin/rust_conformance #{domain} #{path} #{artifact}"
+                       "reproduce with: hecks check_conformance #{domain} #{path} #{artifact}"
       end
     end
   end

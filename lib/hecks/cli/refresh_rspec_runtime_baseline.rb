@@ -7,19 +7,19 @@ require "yaml"
 
 module Hecks
   module CLI
-    # The command behind `bin/refresh_rspec_runtime_baseline`: regenerates the committed runtime
+    # The command behind `hecks refresh_runtime_baseline`: regenerates the committed runtime
     # baselines the sharded CI jobs group from. It prefers one CI run's timings; a local run is
     # the fallback.
     #
-    #   bin/refresh_rspec_runtime_baseline --from-run <run-id>   # preferred: one CI run's timings
-    #   bin/refresh_rspec_runtime_baseline [workers]             # fallback: this machine only
+    #   hecks refresh_runtime_baseline --from-run <run-id>   # preferred: one CI run's timings
+    #   hecks refresh_runtime_baseline [workers]             # fallback: this machine only
     #
     # `--from-run` reads the runtime-log artifacts of a successful run and writes a family only
     # when every leg uploaded one; a partial set would skew the split. Runner seconds differ from a
     # laptop's, so a local baseline misses subprocess-heavy specs. The local mode refuses a red run.
     module RefreshRspecRuntimeBaseline
       REPO = "heckslabs/hecks"
-      USAGE = "usage: bin/refresh_rspec_runtime_baseline --from-run <run-id> | [workers]"
+      USAGE = "usage: hecks refresh_runtime_baseline --from-run <run-id> | [workers]"
 
       # Only `spec/..._spec.rb:<seconds>` lines; RSpec's "Run options" line must not be copied
       # into a committed file. Seconds can arrive in exponent form (`9.69e-05`).
@@ -91,12 +91,12 @@ module Hecks
       # @raise [SystemExit] when `gh` cannot read the run or it did not succeed
       def refuse_unless_successful!(run_id)
         out, status = Open3.capture2("gh", "run", "view", run_id, "-R", REPO, "--json", "conclusion")
-        abort "bin/refresh_rspec_runtime_baseline: could not read run #{run_id}" unless status.success?
+        abort "hecks refresh_runtime_baseline: could not read run #{run_id}" unless status.success?
 
         conclusion = JSON.parse(out)["conclusion"]
         return if conclusion == "success"
 
-        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} — " \
+        abort "hecks refresh_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} — " \
               "refusing to write a baseline from anything but a successful run"
       end
 
@@ -125,7 +125,7 @@ module Hecks
         end
         return unless written.zero?
 
-        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family — nothing written"
+        abort "hecks refresh_runtime_baseline: run #{run_id} had no complete artifact family — nothing written"
       end
 
       # @param root [String] the checkout
@@ -140,7 +140,7 @@ module Hecks
 
         formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{raw}"
         green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: root)
-        abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
+        abort "hecks refresh_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
 
         write_baseline(root, families(root).fetch("rspec-runtime-group")[:baseline],
                        baseline_lines([File.join(root, raw)]), out)

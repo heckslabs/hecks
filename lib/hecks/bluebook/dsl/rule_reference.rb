@@ -55,7 +55,7 @@ module Hecks
         #
         # Projected ahead of time into bootstrap_table.rb for the bootstrap window before
         # the grammar table itself is built (MetaValidator.bootstrapping?); kept in sync by
-        # bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb.
+        # hecks project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb.
         BOOTSTRAP_FALLBACK = BootstrapTable::RESOLVES
 
         # Reads how a (word, context) pair resolves rule references, off the self-hosted

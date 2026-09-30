@@ -4,8 +4,9 @@ require "json"
 
 module Hecks
   module CLI
-    # The command behind `bin/pattern-cases`: records the expected match results for `pattern:`
-    # cases, which `spec/pattern_subset_spec.rb` reads from `spec/corpus/fixtures/patterns.json`.
+    # The command behind `hecks record_pattern_cases`: records the expected match results for
+    # `pattern:` cases, which `spec/pattern_subset_spec.rb` reads from
+    # `spec/corpus/fixtures/patterns.json`.
     #
     # The inputs cover embedded and trailing newlines and non-ASCII digits and word characters.
     module PatternCases

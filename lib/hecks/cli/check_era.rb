@@ -2,10 +2,10 @@ require_relative "../ports/persistence/plugins/era/expected_era"
 
 module Hecks
   module CLI
-    # The command behind `bin/check_era` and Custodian's `Host.CheckEra`: asks a running host which
-    # era it reports and compares it with an allow-list file. Read-only: one GET, no writes.
+    # The command behind `hecks check_era` and Custodian's `Host.CheckEra`: asks a running host
+    # which era it reports and compares it with an allow-list file. Read-only: one GET, no writes.
     module CheckEra
-      USAGE = "usage: bin/check_era <url> <expected-era-file> [--timeout=<seconds>]".freeze
+      USAGE = "usage: hecks check_era <url> <expected-era-file> [--timeout=<seconds>]".freeze
 
       # What a check found.
       #
@@ -14,7 +14,7 @@ module Hecks
       # @!attribute [r] version
       #   @return [String] the gem version the host reports, empty when it reports none
       # @!attribute [r] line
-      #   @return [String] the sentence `bin/check_era` prints for this finding
+      #   @return [String] the sentence `hecks check_era` prints for this finding
       Finding = Struct.new(:verdict, :version, :line)
 
       module_function
@@ -36,7 +36,7 @@ module Hecks
         Finding.new(verdict, document.fetch("version"), sentence(verdict, file))
       end
 
-      # Runs `bin/check_era`: prints the finding and answers the exit status.
+      # Runs `hecks check_era`: prints the finding and answers the exit status.
       #
       # @param argv [Array<String>] the url, the allow-list file and an optional `--timeout=N`
       # @param out [IO] where a finding goes

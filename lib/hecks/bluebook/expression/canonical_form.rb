@@ -11,7 +11,7 @@ module Hecks
 
         STRATEGIES = Hecks::Vocabulary.fetch("NormalisationStrategy")
 
-        # Normalisation rules projected from the grammar chapter by bin/expression_projection.
+        # Normalisation rules projected from the grammar chapter by hecks project_expression_tables.
         RULES = JSON.parse(
           File.read(File.join(__dir__, "projection.json")), symbolize_names: true
         ).fetch(:normalisations).map { |row| Rule.new(**row) }.freeze

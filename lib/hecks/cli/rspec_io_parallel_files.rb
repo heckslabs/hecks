@@ -5,7 +5,7 @@ require "open3"
 
 module Hecks
   module CLI
-    # The command behind `bin/rspec_io_parallel_files`: prints, one per line, the spec files with
+    # The command behind `hecks list_io_parallel_specs`: prints, one per line, the spec files with
     # at least one example matching an RSpec tag filter. ci.yml hands the list to `parallel_rspec`
     # instead of the whole `spec` directory.
     #
@@ -16,7 +16,7 @@ module Hecks
     # The list is committed (`.github/postgres_io_spec_files.txt`). `--write FILE` refreshes it;
     # `--check FILE` (CI's postgres_io_file_list job) fails on a stale list.
     #
-    #   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
+    #   hecks list_io_parallel_specs '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
     module RspecIoParallelFiles
       module_function
 
@@ -33,13 +33,13 @@ module Hecks
       def call(argv, root: Dir.pwd, out: $stdout, err: $stderr)
         argv = argv.dup
         mode, list_path = argv.shift(2) if %w[--check --write].include?(argv.first)
-        abort "bin/rspec_io_parallel_files: #{mode} needs a file path" if mode && list_path.nil?
+        abort "hecks list_io_parallel_specs: #{mode} needs a file path" if mode && list_path.nil?
 
         exclude_arg, tag_args = parse(argv)
         candidates = Dir.glob("spec/**/*_spec.rb", base: root).grep_v(Regexp.new(exclude_arg)).sort
         refuse_empty_candidates(candidates)
         files, example_count = matching_files(candidates, tag_args, root, err)
-        err.puts "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a " \
+        err.puts "hecks list_io_parallel_specs: #{files.size} of #{candidates.size} candidate files carry a " \
                  "matching example (#{example_count} examples total) under `#{tag_args.join(' ')}`"
 
         case mode
@@ -56,7 +56,7 @@ module Hecks
       def parse(argv)
         exclude_arg, *rest = argv
         separator = rest.index("--")
-        usage = "usage: bin/rspec_io_parallel_files '<exclude-pattern regex>' -- <rspec tag args...>"
+        usage = "usage: hecks list_io_parallel_specs '<exclude-pattern regex>' -- <rspec tag args...>"
         abort usage unless exclude_arg && separator
         tag_args = rest[(separator + 1)..]
         abort usage if tag_args.nil? || tag_args.empty?
@@ -70,7 +70,7 @@ module Hecks
       def refuse_empty_candidates(candidates)
         return unless candidates.empty?
 
-        abort "bin/rspec_io_parallel_files: found ZERO candidate spec files after applying the exclude " \
+        abort "hecks list_io_parallel_specs: found ZERO candidate spec files after applying the exclude " \
               "pattern — that's almost certainly a broken pattern or an empty checkout, not a real empty " \
               "test suite. Refusing to silently hand parallel_rspec nothing to run."
       end
@@ -89,18 +89,18 @@ module Hecks
         stdout, stderr, status = Open3.capture3(*command, chdir: root)
         unless status.success?
           err.puts stderr
-          abort "bin/rspec_io_parallel_files: `#{command.join(' ')}` exited #{status.exitstatus} — " \
+          abort "hecks list_io_parallel_specs: `#{command.join(' ')}` exited #{status.exitstatus} — " \
                 "see stderr above. Refusing to guess a file list from a failed dry run."
         end
 
         start = stdout.index('{"version"')
-        abort "bin/rspec_io_parallel_files: couldn't find RSpec's JSON output in the dry-run's stdout:\n#{stdout}" unless start
+        abort "hecks list_io_parallel_specs: couldn't find RSpec's JSON output in the dry-run's stdout:\n#{stdout}" unless start
 
         examples = JSON.parse(stdout[start..])["examples"] || []
         files = examples.map { |e| e.fetch("file_path").sub(%r{\A\./}, "") }.uniq.sort
         return [files, examples.size] unless files.empty?
 
-        abort "bin/rspec_io_parallel_files: #{candidates.size} candidate files, but the dry run matched ZERO " \
+        abort "hecks list_io_parallel_specs: #{candidates.size} candidate files, but the dry run matched ZERO " \
               "examples under `#{tag_args.join(' ')}` — that's almost certainly a broken tag filter, not a " \
               "real empty set. Refusing to silently hand parallel_rspec nothing to run."
       end
@@ -123,7 +123,7 @@ module Hecks
         err.puts named("carries a matching example but is not listed (would never run in the shards)", missing) if missing.any?
         err.puts named("listed but carries no matching example any more", stale) if stale.any?
         abort "Refresh it and commit the result:\n  " \
-              "bin/rspec_io_parallel_files --write #{shown} '#{exclude_arg}' -- #{tag_args.join(' ')}"
+              "hecks list_io_parallel_specs --write #{shown} '#{exclude_arg}' -- #{tag_args.join(' ')}"
       end
 
       # @param heading [String] what the paths have in common

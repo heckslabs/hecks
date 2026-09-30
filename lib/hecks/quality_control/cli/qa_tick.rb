@@ -8,8 +8,8 @@ require "tempfile"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_tick`: one QA tick. It needs a clean tree, rebases on
-    # `origin/main`, then runs `QaPrCheck`, `QaSweep --all` and `QaGeneratedDomains --from-dials`
+    # The command behind `hecks quality_control tick`: one QA tick. It needs a clean tree, rebases
+    # on `origin/main`, then runs `QaPrCheck`, `QaSweep --all` and `QaGeneratedDomains --from-dials`
     # and prints one report.
     #
     # It exits 2 if any step found something, 1 if none did but a step errored or it refused, 0 if
@@ -170,7 +170,7 @@ module Hecks
         end
       end
 
-      # `bin/qa_sweep --all`'s consolidated report is the one step whose bulk section can get
+      # The sweep's `--all` consolidated report is the one step whose bulk section can get
       # large enough to put a relay at risk of truncation (a widened `clean_streak` means hundreds
       # of "seed N: held" lines can precede either a real finding or an unrelated operational
       # error). Everything from the first `OPERATIONAL ERRORS`/`FOUND SOMETHING` header through

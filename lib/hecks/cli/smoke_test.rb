@@ -3,7 +3,7 @@ require_relative "../bluebook/smoke_test"
 
 module Hecks
   module CLI
-    # The command behind `bin/smoke_test` and `hecks smoke_test`: boots a real domain
+    # The command behind `hecks smoke_test`: boots a real domain
     # and dispatches one synthesized call per declared command and report
     # (`Bluebook::SmokeTest`), printing every failure rather than the first.
     #

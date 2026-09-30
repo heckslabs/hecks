@@ -4,7 +4,7 @@ require "hecks/corpus"
 require "hecks/query_ir"
 require "hecks/query_ir_mcp"
 require_relative "tree"
-require_relative "../../../rust_build"
+require "hecks/rust_build"
 require_relative "../console_capture"
 
 module Hecks
@@ -13,8 +13,8 @@ module Hecks
       # What Codebase's `CorpusRun` asks of the working tree: which committed domains have a Rust
       # feature, what the language's IR holds, and the two doors that serve it.
       #
-      # The questions are pure reads and run in this process, with the code `bin/corpus` and
-      # `bin/query_ir` run (`Hecks::Corpus`, `Hecks::QueryIR`); the coverage question runs
+      # The questions are pure reads and run in this process, with the code `hecks rust_domains` and
+      # `hecks ir_constructs` run (`Hecks::Corpus`, `Hecks::QueryIR`); the coverage question runs
       # `Hecks::RustBuild`'s coverage tool over each generated module, also in this process. The
       # two doors run until they are closed: the query MCP server on stdio, and the forms app on a
       # local port.

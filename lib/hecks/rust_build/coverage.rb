@@ -18,8 +18,8 @@ module Hecks
     # IR that the manifest omits is a synthetic `unaccounted` finding. The exit status is 1 when a
     # gap remains that the allowlist does not excuse.
     module Coverage
-      USAGE = "usage: bin/rust_coverage <generated-module-name> [--codegen=ruby|rust]  " \
-              "(e.g. pizzas, banking, governance, identity)\n       bin/rust_coverage --check-allowlist"
+      USAGE = "usage: hecks rust_coverage <generated-module-name> [--codegen=ruby|rust]  " \
+              "(e.g. pizzas, banking, governance, identity)\n       hecks rust_coverage --check-allowlist"
 
       # Deliberate, documented gaps only, matched by kind, gap class and construct (never a regex
       # over `reason` prose). The list only shrinks: `--check-allowlist` fails once a rule excuses
@@ -93,10 +93,10 @@ module Hecks
       def coverage_findings(mod_dir)
         ir_path = File.join(mod_dir, "ir.json")
         File.exist?(ir_path) or raise Failure, "#{ir_path}: missing — this generated tree predates ir.json " \
-                                               "(bin/project_rust writes it now); re-run bin/project_rust for this domain"
+                                               "(hecks project_rust writes it now); re-run hecks project_rust for this domain"
         ir = JSON.parse(File.read(ir_path), symbolize_names: true)
         manifest_path = File.join(mod_dir, "manifest.json")
-        File.exist?(manifest_path) or raise Failure, "#{manifest_path}: missing — re-run bin/project_rust for this " \
+        File.exist?(manifest_path) or raise Failure, "#{manifest_path}: missing — re-run hecks project_rust for this " \
                                                      "domain to write it"
         manifest = JSON.parse(File.read(manifest_path), symbolize_names: true)
         [ir, manifest + unaccounted_findings(ir, manifest)]
@@ -132,7 +132,7 @@ module Hecks
         end
         stale = ALLOWLIST.reject { |rule| gaps.any? { |finding| allowlist_rule_matches?(rule, finding) } }
         if stale.empty?
-          puts "bin/rust_coverage --check-allowlist: all #{ALLOWLIST.size} rules still excuse a real gap"
+          puts "hecks rust_coverage --check-allowlist: all #{ALLOWLIST.size} rules still excuse a real gap"
           return 0
         end
         stale.each do |rule|
@@ -144,7 +144,7 @@ module Hecks
 
       def report(domain, codegen)
         mod_dir = File.join(generated_root, domain)
-        Dir.exist?(mod_dir) or raise Failure, "#{mod_dir}: no such generated module — run bin/project_rust first, " \
+        Dir.exist?(mod_dir) or raise Failure, "#{mod_dir}: no such generated module — run hecks project_rust first, " \
                                               "or check rust/src/generated/ for the actual directory name"
         return print_report(domain, mod_dir) unless codegen == "rust"
 
@@ -158,7 +158,7 @@ module Hecks
       def regenerated(mod_dir, domain, scratch)
         ir_path = File.join(mod_dir, "ir.json")
         File.exist?(File.join(mod_dir, "manifest.json")) or raise Failure, "#{mod_dir}: no committed manifest.json — " \
-                                                                           "re-run bin/project_rust for this domain to write it"
+                                                                           "re-run hecks project_rust for this domain to write it"
         out_dir = File.join(scratch, domain)
         output, status = Open3.capture2e("cargo", "run", "--quiet", "--", "domain", ir_path, domain, domain, out_dir,
                                          chdir: File.join(rust_dir, "codegen"))
@@ -176,7 +176,7 @@ module Hecks
         implemented, remainder = findings.partition { |f| f[:generated] && f[:routed] != false }
         deferred, gap = remainder.partition { |f| allowlisted(f) }
         puts "=" * 72
-        puts "bin/rust_coverage #{domain}  (source: manifest.json)"
+        puts "hecks rust_coverage #{domain}  (source: manifest.json)"
         puts "=" * 72
         puts "#{ir.fetch(:name)} — #{findings.size} constructs accounted for " \
              "(#{implemented.size} implemented, #{deferred.size} deferred, #{gap.size} GAP)"

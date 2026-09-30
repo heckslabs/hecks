@@ -1,7 +1,7 @@
 module Hecks
   module Grammar
-    # File surgery under bin/evolve: reads and rewrites the aggregate-local
-    # KeywordSeed/ArgumentSeed rows as text, preserving the table's own formatting.
+    # File surgery under `hecks word_status` and its siblings: reads and rewrites the
+    # aggregate-local KeywordSeed/ArgumentSeed rows as text, preserving the table's own formatting.
     module Evolve
       class Refusal < StandardError; end
 

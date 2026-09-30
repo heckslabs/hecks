@@ -25,7 +25,7 @@ module Hecks
       # @raise [Failure] when the target or the matching wasm-bindgen CLI is missing, or a step
       #   fails
       def call(argv)
-        domain = argv.first or raise Failure, "usage: bin/project_wasm_browser <domain>"
+        domain = argv.first or raise Failure, "usage: hecks build_browser_wasm <domain>"
         web_dir = File.join(RustBuild.rust_dir, "web")
         name = File.basename(domain)
         require_target!

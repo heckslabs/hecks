@@ -2,7 +2,7 @@
 
 require "fileutils"
 require "find"
-require_relative "../../version"
+require "hecks/version"
 
 module Hecks
   module Adapters

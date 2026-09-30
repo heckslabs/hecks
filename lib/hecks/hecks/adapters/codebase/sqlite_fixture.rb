@@ -59,7 +59,7 @@ module Hecks
 
         def regenerator
           @regenerator ||= begin
-            require_relative "../../../persistence_legacy_fixture"
+            require "hecks/persistence_legacy_fixture"
             PersistenceLegacyFixture::Regenerate
           end
         end

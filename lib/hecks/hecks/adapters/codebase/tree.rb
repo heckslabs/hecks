@@ -2,7 +2,7 @@
 
 require "fileutils"
 require_relative "../console_capture"
-require_relative "../../../runtime/errors"
+require "hecks/runtime/errors"
 
 module Hecks
   module Adapters

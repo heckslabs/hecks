@@ -3,8 +3,8 @@
 require "json"
 require_relative "tree"
 require_relative "../shell"
-require_relative "../../../projection_files"
-require_relative "../../../grammar/evolve"
+require "hecks/projection_files"
+require "hecks/grammar/evolve"
 
 module Hecks
   module Adapters

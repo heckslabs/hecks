@@ -12,7 +12,7 @@ module Hecks
     # target and dispatches to the matching `Projector` export, writing the recipe (template,
     # scripts and Makefile) under `deploy/<stack>/` of the checkout.
     #
-    #   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>]
+    #   hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>]
     #       [--out=<dir>] [--environment=<name>]
     #
     # `--environment` layers an overlay `.world` file over the base one; a missing overlay is an
@@ -20,7 +20,7 @@ module Hecks
     # `--schema` override the stack for shared-database hosting: `stack_name` is appended to, so
     # re-running with the same `--tenant` regenerates the same stack.
     module DeployRecipe
-      USAGE = "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] " \
+      USAGE = "usage: hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>] " \
               "[--out=<dir>] [--environment=<name>]"
 
       # What the flags asked for.
@@ -184,7 +184,7 @@ module Hecks
                   port 8080
                 end
 
-            then re-run bin/project_deploy #{domain}.
+            then re-run hecks deploy project #{domain}.
           MSG
         end
       end

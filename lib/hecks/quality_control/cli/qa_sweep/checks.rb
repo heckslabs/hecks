@@ -49,8 +49,8 @@ module Hecks
           )
         end
 
-        # Single-runtime fallback (`bin/fuzz`'s `outcome`) for domains with no compiled Rust binary:
-        # a violated property, or an exception escaping `Replay.call`.
+        # Single-runtime fallback (`hecks fuzz`'s `outcome`) for domains with no compiled Rust
+        # binary: a violated property, or an exception escaping `Replay.call`.
         def ruby_only_outcome(domain_path, steps, modes:)
           self_consistency = modes.include?(:self_consistency)
           history = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
@@ -179,7 +179,7 @@ module Hecks
             if result[:diverged_total].positive?
               [{ field: "era_boundary", breakdown: result[:breakdown],
                  detail: "#{result[:diverged_total]} post-cut write(s) across #{result[:era_count]} era(s) " \
-                         "that nothing has ever merged forward — bin/merge_tail <this target's own domain " \
+                         "that nothing has ever merged forward — hecks merge_tail <this target's own domain " \
                          "path> is the fix; see this script's own header on `era_boundary` for the class of " \
                          "bug this is" }]
             else
@@ -289,14 +289,14 @@ module Hecks
             original_size: steps.size }
         end
 
-        # Writes the shrunk steps in `bin/fuzz`'s `{name, note, steps}` shape so `bin/run` and
-        # `bin/rust_conformance` replay it unchanged.
+        # Writes the shrunk steps in `hecks fuzz`'s `{name, note, steps}` shape so `hecks run` and
+        # `hecks check_conformance` replay it unchanged.
         def write_shrunk!(shrunk, seed)
           dir = File.join(@root, "tmp/qa-shrunk")
           FileUtils.mkdir_p(dir)
           path = File.join(dir, "#{filesystem_safe_component(@sweep_reference)}-#{shrunk[:mode]}.json")
           File.write(path, JSON.pretty_generate(name:  "#{@feature}-#{shrunk[:mode]}-shrunk",
-                                                note:  "bin/qa_sweep #{@sweep_reference} seed #{seed}, shrunk " \
+                                                note:  "hecks quality_control ask run #{@sweep_reference} seed #{seed}, shrunk " \
                                                        "from #{shrunk[:original_size]} steps",
                                                 steps: shrunk[:steps]))
           path
@@ -304,9 +304,9 @@ module Hecks
 
         # Coverage-guided generation's corpus, one JSON file per (target, mode): `--all`'s waves can
         # run a target's primary sweep and its persistence-parity/concurrency variants as separate
-        # `bin/qa_sweep` processes within the same tick, and each explores a conceptually
-        # independent axis of the same domain, so each keeps its own file rather than sharing one
-        # that nothing here locks.
+        # `hecks quality_control ask run` processes within the same tick, and each explores a
+        # conceptually independent axis of the same domain, so each keeps its own file rather than
+        # sharing one that nothing here locks.
         def coverage_corpus_path(target_reference, mode)
           File.join(@coverage_corpus_dir, "#{filesystem_safe_component(target_reference)}-#{mode}.json")
         end

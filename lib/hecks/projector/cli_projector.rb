@@ -3,7 +3,7 @@ require_relative "../naming"
 module Hecks
   module Projector
     # Projects a bluebook as its own command-line surface: the verb tree, argument spec
-    # and usage text. Nothing executes here; the generic runner (`bin/run`) parses against it.
+    # and usage text. Nothing executes here; the generic runner (`hecks run`) parses against it.
     #
     # Argument types come from the declared field types, never from guessing at the
     # string: `sequence.value=99` must become 99, and a version "99" must stay a String.
@@ -16,7 +16,7 @@ module Hecks
       # under one name; questions are asked with `ask`.
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
-      # @param options [Hash{Symbol => Object}] `:program` (default `"bin/run"`) for the usage
+      # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
       #   text; `:verb` and `:ask` select one verb's `--help` text; `:names` maps a launcher
       #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`)
       # @return [Hash{Symbol => Object}] `:verbs`, `:questions`, `:names` (alias tables) and
@@ -323,7 +323,7 @@ module Hecks
       # Renders the full verb/question table, or one verb's `--help` text when
       # `options[:verb]` names one.
       def usage(bluebook, verbs, questions, options)
-        program = options[:program] || "bin/run"
+        program = options[:program] || "hecks run"
         only    = options[:verb]
 
         # `options[:ask]` picks the namespace when both hold the name; without it a

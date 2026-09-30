@@ -5,8 +5,8 @@ require "fileutils"
 module Hecks
   module Adapters
     # The imperative half of tenant provisioning, behind `Deploy::Tenant.port
-    # "TenantProvisioning"`, for `Tenant.Provision` and for bin/project_tenant; booting the domain
-    # and its capability gate stay in bin/project_tenant.
+    # "TenantProvisioning"`, for `Tenant.Provision` and for hecks deploy provision; booting the
+    # domain and its capability gate stay in hecks deploy provision.
     class TenantProvisioner
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #

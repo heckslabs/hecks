@@ -49,7 +49,7 @@ RSpec.describe Hecks::QualityControlCli do
     def sweep(*argv) = described_class.call(argv, root: root)
 
     it "prints its usage for --help" do
-      expect { expect(sweep("--help")).to eq(0) }.to output(%r{\Ausage: bin/qa_sweep}).to_stdout
+      expect { expect(sweep("--help")).to eq(0) }.to output(/\Ausage: hecks quality_control ask run/).to_stdout
     end
 
     it "refuses a seed count below one before it boots anything" do

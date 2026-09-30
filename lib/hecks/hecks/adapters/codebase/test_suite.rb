@@ -34,7 +34,7 @@ module Hecks
         # @param file [String] the command's file under `lib/hecks/cli/`, without the extension
         # @return [Module] the command, named as the file is, in camel case
         def command(file)
-          require_relative "../../../cli/#{file}"
+          require "hecks/cli/#{file}"
           Hecks::CLI.const_get(file.split("_").map(&:capitalize).join)
         end
 
