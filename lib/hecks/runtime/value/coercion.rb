@@ -309,6 +309,7 @@ module Hecks
           check_required_fields(value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
+          check_list_shapes(value_object, fields)
           check_numeric_fields(value_object, fields)
           check_scalar_shapes(value_object, fields)
           check_patterns(value_object, fields)
@@ -615,18 +616,38 @@ module Hecks
             given = fields[attribute.name]
             next if given.nil?
 
-            unless given.is_a?(expected)
-              raise TypeMismatch,
-                    RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                               type: value_object.hecks_name, field: attribute.name,
-                                               expected: attribute.type, offered: Rendering.describe(given))
-            end
+            offered_items(attribute, given).each do |item|
+              unless item.is_a?(expected)
+                raise TypeMismatch,
+                      RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                                 type: value_object.hecks_name, field: attribute.name,
+                                                 expected: attribute.type, offered: Rendering.describe(item))
+              end
 
-            # `is_a?(expected)` alone waves NaN/Infinity through — both are real
-            # Floats. `-0.0` is deliberately left unchecked: finite and legitimate.
-            check_numeric_bounds(value_object.hecks_name, attribute.name, given)
+              # `is_a?(expected)` alone waves NaN/Infinity through — both are real
+              # Floats. `-0.0` is deliberately left unchecked: finite and legitimate.
+              check_numeric_bounds(value_object.hecks_name, attribute.name, item)
+            end
           end
         end
+
+        # A `list_of` field holds an Array whatever its element type, so a lone scalar
+        # offered for it is refused; nil stays legitimate, as it is for any optional field.
+        private def check_list_shapes(value_object, fields)
+          value_object.attributes.each do |attribute|
+            given = fields[attribute.name]
+            next unless attribute.list? && !given.nil? && !given.is_a?(Array)
+
+            raise TypeMismatch, RefusalWording.render_site(
+              "TypeMismatch", "numeric_field", type: value_object.hecks_name, field: attribute.name,
+              expected: "list_of(#{attribute.type})", offered: Rendering.describe(given)
+            )
+          end
+        end
+
+        # The values a field's element-level checks apply to: each element of a list, or the
+        # one value of a scalar field.
+        private def offered_items(attribute, given) = attribute.list? && given.is_a?(Array) ? given : [given]
 
         # A scalar field (String, or a boolean) must not arrive as a composite
         # (Array/Hash) standing in for a leaf value. A String field additionally
@@ -641,14 +662,16 @@ module Hecks
             given = fields[attribute.name]
             next if given.nil?
 
-            composite = COMPOSITE_SHAPES.any? { |shape| given.is_a?(shape) }
-            non_string_scalar = type == "String" && !composite && !given.is_a?(String) && !judge_bootstrapping?
-            next unless composite || non_string_scalar
+            offered_items(attribute, given).each do |item|
+              composite = COMPOSITE_SHAPES.any? { |shape| item.is_a?(shape) }
+              non_string_scalar = type == "String" && !composite && !item.is_a?(String) && !judge_bootstrapping?
+              next unless composite || non_string_scalar
 
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                             type: value_object.hecks_name, field: attribute.name,
-                                             expected: attribute.type, offered: Rendering.describe(given))
+              raise TypeMismatch,
+                    RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                               type: value_object.hecks_name, field: attribute.name,
+                                               expected: attribute.type, offered: Rendering.describe(item))
+            end
           end
         end
 
@@ -662,12 +685,15 @@ module Hecks
 
             given = fields[attribute.name]
             next if given.nil?
-            next if given.is_a?(String) && Regexp.new(pattern).match?(given)
 
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
-                                             type: value_object.hecks_name, field: attribute.name,
-                                             pattern: pattern, offered: Rendering.describe(given))
+            offered_items(attribute, given).each do |item|
+              next if item.is_a?(String) && Regexp.new(pattern).match?(item)
+
+              raise TypeMismatch,
+                    RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
+                                               type: value_object.hecks_name, field: attribute.name,
+                                               pattern: pattern, offered: Rendering.describe(item))
+            end
           end
         end
       end

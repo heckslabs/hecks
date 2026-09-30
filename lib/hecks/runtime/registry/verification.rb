@@ -314,27 +314,32 @@ module Hecks
             raise WiringError, "#{where} has two answer paths: it is bound to the #{port.name} port but " \
                                "also declares where, order_by or limit over stored records"
           end
+          if query.authorization
+            raise WiringError, "#{where} is bound to the #{port.name} port but declares authorize — " \
+                               "an outside answer is never tenant-scoped or authorized, so drop the " \
+                               "authorize or answer the query from records"
+          end
           unless Value.value_object_for(aggregate, query.returns_name)
             raise WiringError, "#{where} returns #{query.returns_name}, but #{aggregate.hecks_name} " \
                                "declares no such value object"
           end
 
-          klass  = AdapterLookup.adapter_class(self, port.name, asked: where)
-          method = Naming.snake(query.hecks_name)
-          return if klass.public_method_defined?(method)
-
-          raise WiringError, "#{klass} implements the #{port.name} port but not ##{method}, " \
-                             "which answers #{where}"
+          klass = AdapterLookup.adapter_class(self, port.name, asked: where)
+          AdapterLookup.check_answers!(klass, port.name, Naming.snake(query.hecks_name), query, asked: where)
         end
 
         # An entity's query reads the elements of its aggregate's list, and nothing outside can
         # be bound to one, so declaring a value object to return leaves it no answer.
         def refuse_entity_answer_path!(chapter, aggregate, entity, query)
-          return unless query.returns
+          where = "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{query.hecks_name}"
+          if query.returns
+            raise WiringError, "#{where} has no answer path: it returns #{query.returns}, but " \
+                               "only an aggregate's queries can be bound to a port"
+          end
+          return if derivable?(query)
 
-          raise WiringError, "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}." \
-                             "#{query.hecks_name} has no answer path: it returns #{query.returns}, but " \
-                             "only an aggregate's queries can be bound to a port"
+          raise WiringError, "#{where} has no answer path: it declares no where and returns nothing — its " \
+                             "arguments (#{query.attributes.map(&:name).join(', ')}) select nothing"
         end
 
         # Refuses a binding that names a query its aggregate does not declare, or names one twice
