@@ -52,4 +52,21 @@ Hecks.behaviors "Deploy" do
           realm: { value: "" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
     expect refused: "a tenant realm is named"
   end
+
+  test "Provision on a slug that is already recorded is refused as AlreadyExists" do
+    tests "Provision", on: "Tenant"
+    setup  "Deploy::Tenant.Provision", directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+           realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
+    input directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+          realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
+    expect refused: "already"
+  end
+
+  test "Reprovision writes a provisioned or refused tenant's overlay again" do
+    tests "Reprovision", on: "Tenant"
+    setup  "Deploy::Tenant.Provision", directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+           realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
+    input  tenant: "acme", directory: { value: "/no/such/domain" }, database: { value: "hecks_tenants" }
+    expect emits: %w[TenantReprovisionRequested TenantProvisioned TenantRecorded]
+  end
 end

@@ -45,8 +45,7 @@ module Hecks
         domain_directory = File.expand_path(directory)
         File.directory?(domain_directory) or abort "no such domain directory: #{domain_directory}"
 
-        dispatcher = declare(slug, options)
-        write_overlay(dispatcher, slug, options, domain_directory)
+        dispatcher = provision(slug, options, domain_directory)
         confirm(dispatcher, slug, options, domain_directory)
         0
       end
@@ -70,60 +69,45 @@ module Hecks
         options
       end
 
-      # Boots Deploy and Tenancy together and validates the tenant through `Tenant.Declare`'s
-      # givens and invariants before anything is provisioned.
+      # Boots Deploy and Tenancy together, validates the declared shape with a dry run of
+      # `Tenant.Provision` (nothing is recorded), then dispatches it: the record is created once,
+      # its policy writes the overlay through the `TenantProvisioning` port, and `TenantProvisioned`
+      # reaches Tenancy. The port answers `TenantProvisioned` or `ProvisioningRefused` and never
+      # raises, so the record's status says which.
       #
-      # @param slug [String] the tenant's slug
-      # @param options [Hash] the parsed flags
-      # @return [Hecks::Runtime::Dispatcher] the dispatcher both chapters share
-      # @raise [SystemExit] when the declared shape is refused
-      def declare(slug, options)
-        lib_hecks  = File.expand_path("..", __dir__)
-        dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_facade: false)
-
-        begin
-          dispatcher.dispatch(
-            "Deploy::Tenant.Declare",
-            to:   slug,
-            with: {
-              slug:   { value: slug },
-              domain: { value: options[:domain] },
-              realm:  { value: options[:realm] },
-              schema: { value: options[:schema] }
-            }
-          )
-        rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
-          abort "tenant #{slug.inspect} is invalid: #{e.message}"
-        end
-        dispatcher
-      end
-
-      # Writes the overlay only; the port answers `TenantProvisioned` or `ProvisioningRefused`
-      # and never raises.
-      #
-      # @param dispatcher [Hecks::Runtime::Dispatcher] the shared dispatcher
       # @param slug [String] the tenant's slug
       # @param options [Hash] the parsed flags
       # @param domain_directory [String] the domain's directory
-      # @return [void]
-      # @raise [SystemExit] when provisioning is refused
-      def write_overlay(dispatcher, slug, options, domain_directory)
-        reactions = dispatcher.dispatch_port(
-          "Deploy", "Tenant", "TenantProvisioning", "WriteOverlay",
-          to:   slug,
-          with: {
-            database:  { value: options[:database] },
-            adapter:   { value: options[:adapter] },
-            directory: { value: domain_directory }
-          }
-        )
+      # @return [Hecks::Runtime::Dispatcher] the dispatcher both chapters share
+      # @raise [SystemExit] when the declared shape is refused, or provisioning is refused
+      def provision(slug, options, domain_directory)
+        lib_hecks  = File.expand_path("..", __dir__)
+        dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_facade: false)
+        facts = {
+          slug:      { value: slug },
+          domain:    { value: options[:domain] },
+          realm:     { value: options[:realm] },
+          schema:    { value: options[:schema] },
+          database:  { value: options[:database] },
+          adapter:   { value: options[:adapter] },
+          directory: { value: domain_directory }
+        }
 
-        if reactions.map(&:name).include?("ProvisioningRefused")
-          refusal = reactions.find { |event| event.name == "ProvisioningRefused" }
-          abort "provisioning #{slug.inspect} was refused: #{refusal.payload[:refusal]}"
+        begin
+          dispatcher.dry_run?("Deploy::Tenant.Provision", **facts)
+          dispatcher.dispatch("Deploy::Tenant.Provision", to: slug, with: facts)
+        rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
+          abort "tenant #{slug.inspect} is invalid: #{e.message}"
         end
 
+        record = dispatcher.registry.repository("Deploy", dispatcher.registry.bluebook("Deploy").aggregate("Tenant")).find(slug)
+        refused = record&.state&.dig(:refusal)
+        refused = refused[:value] if refused.is_a?(Hash)
+        record&.state&.dig(:status) == "refused" and
+          abort "provisioning #{slug.inspect} was refused: #{refused}"
+
         puts "wrote #{File.join(domain_directory, 'environments', "#{slug}.world")}"
+        dispatcher
       end
 
       # Boots the domain under the tenant's overlay (which also provisions the schema, since

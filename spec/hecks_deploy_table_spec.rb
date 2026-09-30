@@ -75,10 +75,12 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     expect(DEPLOY_ROWS.map(&:aggregate).uniq).to match_array(%w[Recipe MakefileCheck TemplateComparison OidcManifest Tenant])
   end
 
-  it "keeps the deployed_to targets and the Tenant declaration beside the new commands" do
+  it "keeps the deployed_to targets beside the new commands, and Provision the only Tenant creator" do
     expect(@bluebook.aggregate("LambdaTarget").commands.map(&:hecks_name)).to eq(["Declare"])
     expect(@bluebook.aggregate("FargateTarget").commands.map(&:hecks_name)).to eq(["Declare"])
-    expect(@bluebook.aggregate("Tenant").commands.map(&:hecks_name)).to include("Declare")
+    tenant = @bluebook.aggregate("Tenant").commands
+    expect(tenant.map(&:hecks_name)).not_to include("Declare")
+    expect(tenant.select(&:creates?).map(&:hecks_name)).to eq(["Provision"])
   end
 
   it "keeps the TenantProvisioning port on Tenant" do
@@ -184,16 +186,30 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       end
     end
 
-    it "writes the overlay for a tenant that was only declared, under `reprovision`" do
+    it "provisions a slug whose declaration was only validated by a dry run" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        declared = { slug: { value: "declared" }, domain: { value: "Scratch" },
-                     realm: { value: "Declared" }, schema: { value: "declared" } }
-        @hecks.dispatch("Deploy::Tenant.Declare", to: "declared", with: declared)
-        json, status = answer(["reprovision", "to=declared", "directory=#{dir}", "database=hecks_tenants", "--wait"])
+        facts = { slug: { value: "declared" }, domain: { value: "Scratch" }, realm: { value: "Declared" },
+                  schema: { value: "declared" }, database: { value: "hecks_tenants" },
+                  directory: { value: dir } }
+        expect(@hecks.dry_run?("Deploy::Tenant.Provision", **facts)).to be(true)
+        json, status = answer(["provision", dir, "slug=declared", "domain=Scratch", "realm=Declared",
+                               "schema=declared", "database=hecks_tenants", "--wait"])
 
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("provisioned")
         expect(File.read(File.join(dir, "environments/declared.world"))).to include('realm "Declared"')
+      end
+    end
+
+    it "refuses to provision the same slug twice, and points at `reprovision`" do
+      Dir.mktmpdir("deploy_tenant") do |dir|
+        args = ["provision", dir, "slug=twice", "domain=Scratch", "realm=Twice", "schema=twice",
+                "database=hecks_tenants", "--wait"]
+        answer(args)
+        out, status = launch(args)
+
+        expect(status).to eq(1)
+        expect(out).to include("already")
       end
     end
 

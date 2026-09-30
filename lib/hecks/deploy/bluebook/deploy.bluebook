@@ -229,32 +229,16 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
-      transition "Reprovision" => "requested",   from: %w[requested provisioned refused]
+      transition "Reprovision" => "requested",   from: %w[provisioned refused]
       transition "Complete"    => "provisioned", from: "requested"
       transition "Abandon"     => "refused",     from: "requested"
     end
 
-    # A declared tenant is a `requested` record on its slug, so `Provision` (a creating command)
-    # cannot run on that slug again: `Reprovision` writes the overlay for it.
-    command "Declare" do
-      goal "Validate one tenant's shape before hecks deploy provision writes its overlay world"
-
-      attribute :slug,   Slug
-      attribute :domain, DomainName
-      attribute :realm,  Realm
-      attribute :schema, Schema
-
-      sets :slug
-      sets :domain
-      sets :realm
-      sets :schema
-
-      emits "TenantDeclared"
-    end
-
     # `hecks deploy provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
-    # The shape is validated as `Declare` does, then the overlay is written through the
-    # TenantProvisioning port; the adapter answers PostgresEra when `adapter` is left out.
+    # The only command that creates a tenant: its slug, schema and realm are validated by the value
+    # objects' patterns and invariants, then the overlay is written through the TenantProvisioning
+    # port; the adapter answers PostgresEra when `adapter` is left out. `dry_run?` on this verb
+    # validates a declaration without recording it.
     command "Provision" do
       goal "Validate one tenant, write its environment overlay world, and register it"
 
@@ -280,7 +264,7 @@ Hecks.bluebook "Deploy" do
     # A tenant's slug names its record, so provisioning it again is its own command; the overlay
     # is rewritten with the database and adapter given now.
     command "Reprovision" do
-      goal "Write a declared, provisioned or refused tenant's environment overlay world again"
+      goal "Write a provisioned or refused tenant's environment overlay world again"
 
       reference_to Tenant
       attribute :directory, DirectoryPath
