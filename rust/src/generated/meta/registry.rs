@@ -153,43 +153,114 @@ if let Some(id) = key.strip_prefix("Bluebook::Vocabulary#") {
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
-/// refusal, never a panic.
+/// refusal, never a panic. `scan_each` is the same listing borrowed, so a declared query clones
+/// only the rows it keeps; both read the repositories' cached `to_json()` renderings.
 impl crate::kernel::AggregateScan for Store {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 if aggregate == "Bluebook::Aggregate" {
-    return Some(self.aggregate.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.aggregate.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Bluebook" {
-    return Some(self.bluebook.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.bluebook.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Command" {
-    return Some(self.command.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.command.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Entity" {
-    return Some(self.entity.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.entity.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Policy" {
-    return Some(self.policy.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.policy.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::ProcessManager" {
-    return Some(self.processmanager.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.processmanager.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::ReadModel" {
-    return Some(self.readmodel.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.readmodel.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Query" {
-    return Some(self.query.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.query.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::ValueObject" {
-    return Some(self.valueobject.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.valueobject.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Syntax" {
-    return Some(self.syntax.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.syntax.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Bluebook::Vocabulary" {
-    return Some(self.vocabulary.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.vocabulary.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
         None
+    }
+
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &crate::kernel::Json)) -> bool {
+if aggregate == "Bluebook::Aggregate" {
+    for (id, json) in self.aggregate.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Bluebook" {
+    for (id, json) in self.bluebook.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Command" {
+    for (id, json) in self.command.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Entity" {
+    for (id, json) in self.entity.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Policy" {
+    for (id, json) in self.policy.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::ProcessManager" {
+    for (id, json) in self.processmanager.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::ReadModel" {
+    for (id, json) in self.readmodel.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Query" {
+    for (id, json) in self.query.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::ValueObject" {
+    for (id, json) in self.valueobject.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Syntax" {
+    for (id, json) in self.syntax.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Bluebook::Vocabulary" {
+    for (id, json) in self.vocabulary.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+        false
     }
 }
 

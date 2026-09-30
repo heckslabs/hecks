@@ -34,6 +34,7 @@ module Hecks
         @events    = []
         @entries   = []
         @outbox    = []
+        @outbox_deliveries = {}
       end
 
       # Looks up the current record for one aggregate identity.
@@ -162,6 +163,7 @@ module Hecks
         @events  = []
         @entries = []
         @outbox  = []
+        @outbox_deliveries = {}
         self
       end
 
@@ -185,10 +187,11 @@ module Hecks
       #   was a duplicate
       def outbox_enqueue(rows)
         rows.filter_map do |row|
-          next nil if @outbox.any? { |held| held.delivery_id == row.delivery_id }
+          next nil if @outbox_deliveries.key?(row.delivery_id)
 
           row.id = @outbox.size + 1
           @outbox << row
+          @outbox_deliveries[row.delivery_id] = true
           row
         end
       end
@@ -199,7 +202,7 @@ module Hecks
       # @return [Boolean] true when the row was pending and is now claimed; false when it is
       #   unknown or not pending
       def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
-        row = @outbox.find { |held| held.id == id }
+        row = outbox_row(id)
         return false unless row&.pending?
 
         row.status = "claimed"
@@ -215,7 +218,7 @@ module Hecks
       # @param error [String, nil] the failure description, or nil to clear it
       # @return [Boolean] true when the row exists and was updated; false when no row has `id`
       def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod
-        row = @outbox.find { |held| held.id == id } or return false
+        row = outbox_row(id) or return false
         row.status = status.to_s
         row.error  = error
         true
@@ -232,6 +235,16 @@ module Hecks
       end
 
       private
+
+      # Finds a held outbox row by id in constant time.
+      #
+      # Ids are assigned as the 1-based position at enqueue and rows are never
+      # removed, so the id is the row's index plus one.
+      def outbox_row(id)
+        return nil unless id.is_a?(Integer) && id >= 1
+
+        @outbox[id - 1]
+      end
 
       # Skips the codec copy and rehydration round trip while judging the
       # self-hosted grammar (S17, ADR 0026), where re-validating already-valid

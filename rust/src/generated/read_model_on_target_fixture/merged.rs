@@ -81,19 +81,42 @@ if let Some(id) = key.strip_prefix("ReadModelOnTargetFixture::Note#") {
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
-/// refusal, never a panic.
+/// refusal, never a panic. `scan_each` is the same listing borrowed, so a declared query clones
+/// only the rows it keeps; both read the repositories' cached `to_json()` renderings.
 impl crate::kernel::AggregateScan for Store {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 if aggregate == "ReadModelOnTargetFixture::Board" {
-    return Some(self.board.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.board.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "ReadModelOnTargetFixture::Card" {
-    return Some(self.card.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.card.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "ReadModelOnTargetFixture::Note" {
-    return Some(self.note.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.note.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
         None
+    }
+
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &crate::kernel::Json)) -> bool {
+if aggregate == "ReadModelOnTargetFixture::Board" {
+    for (id, json) in self.board.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "ReadModelOnTargetFixture::Card" {
+    for (id, json) in self.card.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "ReadModelOnTargetFixture::Note" {
+    for (id, json) in self.note.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+        false
     }
 }
 

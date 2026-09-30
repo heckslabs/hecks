@@ -72,16 +72,33 @@ if let Some(id) = key.strip_prefix("GeneratedRevaluedShape::Venue#") {
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
-/// refusal, never a panic.
+/// refusal, never a panic. `scan_each` is the same listing borrowed, so a declared query clones
+/// only the rows it keeps; both read the repositories' cached `to_json()` renderings.
 impl crate::kernel::AggregateScan for Store {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 if aggregate == "GeneratedRevaluedShape::Hangar" {
-    return Some(self.hangar.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.hangar.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "GeneratedRevaluedShape::Venue" {
-    return Some(self.venue.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.venue.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
         None
+    }
+
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &crate::kernel::Json)) -> bool {
+if aggregate == "GeneratedRevaluedShape::Hangar" {
+    for (id, json) in self.hangar.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "GeneratedRevaluedShape::Venue" {
+    for (id, json) in self.venue.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+        false
     }
 }
 

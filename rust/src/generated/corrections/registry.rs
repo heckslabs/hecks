@@ -72,16 +72,33 @@ if let Some(id) = key.strip_prefix("Corrections::AuditTrail#") {
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
-/// refusal, never a panic.
+/// refusal, never a panic. `scan_each` is the same listing borrowed, so a declared query clones
+/// only the rows it keeps; both read the repositories' cached `to_json()` renderings.
 impl crate::kernel::AggregateScan for Store {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 if aggregate == "Corrections::Ledger" {
-    return Some(self.ledger.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.ledger.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
 if aggregate == "Corrections::AuditTrail" {
-    return Some(self.audittrail.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+    return Some(self.audittrail.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
 }
         None
+    }
+
+    fn scan_each(&self, aggregate: &str, visit: &mut dyn FnMut(&str, &crate::kernel::Json)) -> bool {
+if aggregate == "Corrections::Ledger" {
+    for (id, json) in self.ledger.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+if aggregate == "Corrections::AuditTrail" {
+    for (id, json) in self.audittrail.json_entries(|record| record.to_json()) {
+        visit(id, json);
+    }
+    return true;
+}
+        false
     }
 }
 
