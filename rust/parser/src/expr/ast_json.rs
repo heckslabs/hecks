@@ -91,6 +91,12 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
             ("divisor", emit_resolver(divisor)),
         ]),
         Resolver::Size(receiver) => obj(vec![op_tag("size"), ("receiver", emit_resolver(receiver))]),
+        Resolver::MatchesRegex { receiver, pattern, flags } => obj(vec![
+            op_tag("matches_regex"),
+            ("receiver", emit_resolver(receiver)),
+            ("pattern", JsonValue::String(pattern.clone())),
+            ("flags", JsonValue::String(flags.clone())),
+        ]),
         Resolver::BlockPredicate { mode, receiver, param, predicate } => obj(vec![
             op_tag("block_predicate"),
             ("mode", JsonValue::String(mode.json_name().to_string())),

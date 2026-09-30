@@ -49,6 +49,8 @@ pub enum Resolver {
     ArrayLiteral(Vec<Resolver>),
     /// `receiver.any? { |param| predicate }` and siblings; the body is parsed as a predicate.
     BlockPredicate { mode: BlockMode, receiver: Box<Resolver>, param: String, predicate: Box<Evaluator> },
+    /// `receiver.match?(/pattern/flags)`: the pattern text is kept verbatim.
+    MatchesRegex { receiver: Box<Resolver>, pattern: String, flags: String },
     /// `receiver.find { |param| predicate }.a.b`.
     Find { receiver: Box<Resolver>, param: String, predicate: Box<Evaluator>, path: Vec<String> },
 }
@@ -106,6 +108,10 @@ pub fn parse(expr: &str) -> Resolver {
 
     if let Some(inner) = strip_suffix_dotted(expr, "size") {
         return Resolver::Size(Box::new(parse(inner)));
+    }
+
+    if let Some((receiver, pattern, flags)) = match_regex(expr) {
+        return Resolver::MatchesRegex { receiver: Box::new(parse(receiver)), pattern: pattern.to_string(), flags: flags.to_string() };
     }
 
     // Last before the `Lookup` catch-all, matching `resolver.rb`.
@@ -316,6 +322,20 @@ fn match_suffix<'a>(expr: &'a str, suffixes: &[&'a str]) -> Option<(&'a str, &'a
     None
 }
 
+/// Hand-matched `/\A(.+)\.match\?\(\/(.*)\/([a-z]*)\)\z/m`: the receiver is the longest prefix
+/// (at least one character) that leaves a `/pattern/flags)` tail, the flags lowercase letters.
+fn match_regex(expr: &str) -> Option<(&str, &str, &str)> {
+    const MARKER: &str = ".match?(/";
+    let body = expr.strip_suffix(')')?;
+    let close = body.rfind('/')?;
+    let flags = &body[close + 1..];
+    if !flags.bytes().all(|b| b.is_ascii_lowercase()) {
+        return None;
+    }
+    let index = body[..close + 1].rmatch_indices(MARKER).map(|(i, _)| i).find(|i| *i > 0 && i + MARKER.len() <= close)?;
+    Some((&expr[..index], &body[index + MARKER.len()..close], flags))
+}
+
 /// Splits at the rightmost `marker` when the expression ends in `)`.
 fn match_call<'a>(expr: &'a str, marker: &str) -> Option<(&'a str, &'a str)> {
     if !expr.ends_with(')') {
@@ -323,4 +343,39 @@ fn match_call<'a>(expr: &'a str, marker: &str) -> Option<(&'a str, &'a str)> {
     }
     let index = expr.rfind(marker)?;
     Some((&expr[..index], &expr[index + marker.len()..expr.len() - 1]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn regex_parts(node: Resolver) -> (Resolver, String, String) {
+        match node {
+            Resolver::MatchesRegex { receiver, pattern, flags } => (*receiver, pattern, flags),
+            other => panic!("expected MatchesRegex, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_match_with_its_pattern_kept_verbatim() {
+        let text = r"value.to_s.match?(/\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z/)";
+        let (receiver, pattern, flags) = regex_parts(parse(text));
+
+        assert!(matches!(receiver, Resolver::ToS(_)));
+        assert_eq!(pattern, r"\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z");
+        assert_eq!(flags, "");
+    }
+
+    #[test]
+    fn keeps_the_flags_and_a_slash_inside_the_pattern() {
+        let (_, pattern, flags) = regex_parts(parse("name.match?(/a\\/b/i)"));
+
+        assert_eq!(pattern, "a\\/b");
+        assert_eq!(flags, "i");
+    }
+
+    #[test]
+    fn leaves_a_call_that_is_not_a_regex_match_a_lookup() {
+        assert!(matches!(parse("name.match?(other)"), Resolver::Lookup(_)));
+    }
 }
