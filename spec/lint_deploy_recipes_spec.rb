@@ -1,10 +1,7 @@
 require "tmpdir"
 require "open3"
 
-# bin/lint_deploy_recipes is a script; its CLI runs only as the main program, so
-# `Kernel.load` defines DeployRecipeLint without running it (`require` cannot resolve
-# an extension-less path).
-Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
+require "hecks/tools/deploy_recipe_lint"
 
 # Proves bin/lint_deploy_recipes catches the H13/H14 bug class
 # (docs/audits/2026-08-11-bug-triage.md) on fabricated recipes, and finds zero
@@ -13,7 +10,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
   def self.root = File.expand_path("..", __dir__)
 
   def self.lint(text, source: "fixture")
-    DeployRecipeLint.lint(text, source: source)
+    Hecks::Tools::DeployRecipeLint.lint(text, source: source)
   end
 
   # --- 1. Catches the bug class on fabricated recipes -------------------
@@ -155,6 +152,27 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
   end
 
   # --- End-to-end CLI ----------------------------------------------------
+
+  describe "the tool, in this process" do
+    it "answers 0 for a clean Makefile and 1 for the H13 shape, printing the report" do
+      Dir.mktmpdir do |dir|
+        clean = File.join(dir, "clean")
+        File.write(clean, "ok:\n\t@echo hi\n\taws cloudformation describe-stacks\n\tBOOT=$$?; \\\n\texit $$BOOT\n")
+        bad = File.join(dir, "bad")
+        File.write(bad, "mint:\n\t@aws cloudformation describe-stacks >/dev/null; \\\n\texit 0\n")
+
+        expect { expect(Hecks::Tools::DeployRecipeLint.main([clean])).to eq(0) }
+          .to output(/no violations found/).to_stdout
+        expect { expect(Hecks::Tools::DeployRecipeLint.main([bad])).to eq(1) }
+          .to output(/UNVERIFIED_EXIT_ZERO/).to_stderr
+      end
+    end
+
+    it "prints its usage for --help" do
+      expect { expect(Hecks::Tools::DeployRecipeLint.main(["--help"])).to eq(0) }
+        .to output(%r{usage: bin/lint_deploy_recipes}).to_stdout
+    end
+  end
 
   describe "the CLI itself" do
     def self.script = File.join(root, "bin/lint_deploy_recipes")

@@ -9,7 +9,7 @@ module Hecks
       # What Codebase's `RegenerationRun` asks of the working tree: regenerating every corpus
       # domain's committed Rust output.
       #
-      # It runs `bin/regen_codegen_domains` in a child process: the script forks once for each
+      # It runs `Hecks::Tools::RegenerationRun` in this process: the run forks once for each
       # domain, in a fixed order, because the domains share the files they stamp. With `check` it
       # projects into a scratch copy of the crate and compares, and never writes the tree. Without
       # `confirm` the run is that same check, so a regeneration that would rewrite tracked generated
@@ -28,7 +28,7 @@ module Hecks
         # @param _operation [String] `regenerate_corpus`
         # @param held [Hash] the `RegenerationRun` record's fields: `check`, `confirm`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
-        # @param shell [#capture, nil] starts the script's child process
+        # @param shell [#capture, nil] starts the child of a script not yet moved into the library
         # @return [String] how many domains were checked or regenerated
         # @raise [ConsoleCapture::Failure] with the difference, when a check finds drift, or with
         #   what the script printed when it ends badly

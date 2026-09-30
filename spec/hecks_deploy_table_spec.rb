@@ -2,6 +2,7 @@ require "spec_helper"
 require "json"
 require "tmpdir"
 require "hecks/three_zero"
+require "hecks/tools"
 require_relative "support/fake_codebase_shell"
 
 # ADR 0080, section 7: the Deploy rows of the command table. The Deploy chapter is attached to the
@@ -29,7 +30,11 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
   after do
     Hecks::Adapters::Codebase::Tree.root = nil
-    Hecks::Adapters::DeployToolchain.shell = nil
+  end
+
+  # Routes the tools the toolchain runs in this process to a fake that answers what it was given.
+  def stub_tools(shell)
+    allow(Hecks::Tools).to receive(:run, &shell.method(:run_tool))
   end
 
   def launch(argv)
@@ -193,7 +198,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   describe "hecks deploy project, lint and project_oidc" do
     it "asks the generator for a domain, with each flag it was given, and keeps what it wrote" do
       shell = FakeCodebaseShell.new("wrote deploy/pizzas/template.yaml\n")
-      Hecks::Adapters::DeployToolchain.shell = shell
+      stub_tools(shell)
 
       json, status = answer(["project", "examples/pizzas", "tenant=acme", "schema=acme", "out=/tmp/pizzas-out",
                              "environment=production", "--wait"])
@@ -206,7 +211,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     it "keeps a generator that refused as a faulted recipe with its own sentence, and exits 1 under --wait" do
-      Hecks::Adapters::DeployToolchain.shell = FakeCodebaseShell.new(["no deployed_to block", 1])
+      stub_tools(FakeCodebaseShell.new(["no deployed_to block", 1]))
 
       json, status = answer(["project", "examples/pizzas", "--wait"])
 
@@ -216,7 +221,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     it "keeps a Makefile that hides a failure as a flagged lint, and exits 1 under --wait" do
-      Hecks::Adapters::DeployToolchain.shell = FakeCodebaseShell.new(["1 violation(s) found", 1])
+      stub_tools(FakeCodebaseShell.new(["1 violation(s) found", 1]))
 
       json, status = answer(["lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
@@ -226,7 +231,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "records clean Makefiles as a clean lint" do
       shell = FakeCodebaseShell.new("bin/lint_deploy_recipes: no violations found.\n")
-      Hecks::Adapters::DeployToolchain.shell = shell
+      stub_tools(shell)
 
       json, status = answer(["lint", "makefiles=a/Makefile,b/Makefile", "--wait"])
 
@@ -237,7 +242,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "projects the manifests of the domains it is named" do
       shell = FakeCodebaseShell.new("  examples/banking/oidc.json  <-  Banking\n")
-      Hecks::Adapters::DeployToolchain.shell = shell
+      stub_tools(shell)
 
       json, status = answer(["project_oidc", "examples/banking", "--wait"])
 

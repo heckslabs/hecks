@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require "rbconfig"
-require_relative "shell"
 require_relative "console_capture"
 require_relative "codebase/tree"
+require_relative "codebase/ruby_child"
 require_relative "../../projections/deploy/template_diff"
 
 module Hecks
@@ -11,24 +10,17 @@ module Hecks
     # The `DeployToolchain` port's adapter: generates a domain's deploy recipe, lints and compares
     # what was generated, and projects the OIDC manifests.
     #
-    # The recipe, the lint and the manifests run the script that already does the work, in a child
-    # process, so the child's own printing and exit status stay what they are: a child that ends
-    # non-zero is a refusal whose reason is what it printed. Those scripts stand in a hecks
-    # checkout, so outside one the ask is refused with "needs a hecks checkout". A comparison needs
-    # no checkout and runs in this process.
+    # The recipe, the lint and the manifests run the `Hecks::Tools` tool that already does the work,
+    # in this process with its printing and exit status captured: a tool that ends non-zero is a
+    # refusal whose reason is what it printed. They write into a hecks checkout, so outside one the
+    # ask is refused with "needs a hecks checkout". A comparison needs no checkout.
     class DeployToolchain
-      # The hecks tools an ask runs, by ask.
+      # The `Hecks::Tools` tool an ask runs, by ask.
       SCRIPTS = { generate: "project_deploy", lint: "lint_deploy_recipes", manifest: "project_oidc" }.freeze
 
       # `bin/project_deploy`'s flag for each `Recipe` field it takes.
       GENERATE_FLAGS = { "--tenant" => :tenant, "--schema" => :schema, "--out" => :out,
                          "--environment" => :environment }.freeze
-
-      class << self
-        # @return [#capture, nil] starts each child; a `Shell` when nil. A spec replaces it, so no
-        #   generator has to run to test what is asked of it.
-        attr_accessor :shell
-      end
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -97,9 +89,9 @@ module Hecks
       private
 
       def child(ask, argv)
-        Codebase::Tree.new.require_checkout!
-        shell = self.class.shell || Shell.new
-        result = shell.capture(RbConfig.ruby, script(SCRIPTS.fetch(ask)), *argv, env: { "HECKS_NO_3_0_NOTICE" => "1" })
+        tree = Codebase::Tree.new
+        tree.require_checkout!
+        result = Codebase::RubyChild.new(tree).capture(SCRIPTS.fetch(ask), *argv)
         raise ConsoleCapture::Failure, message_of(result) unless result.ok?
 
         { output: { value: result.out } }
@@ -109,8 +101,6 @@ module Hecks
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
         text.empty? ? "the tool ended with status #{result.status.exitstatus}" : text
       end
-
-      def script(name) = File.expand_path("../../../../bin/#{name}", __dir__)
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

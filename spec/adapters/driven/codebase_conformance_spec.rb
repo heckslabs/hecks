@@ -1,26 +1,19 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "hecks/tools"
+require_relative "../../support/fake_codebase_shell"
 require "hecks/hecks/adapters/codebase/source_tree"
 
 RSpec.describe Hecks::Adapters::Codebase::Conformance do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
-  # Remembers what it was asked and answers a fixed status.
-  let(:shell_class) do
-    Class.new do
-      attr_reader :asked
-
-      def initialize(status = 0)
-        (@status = status
-         @asked = [])
-      end
-
-      def capture(*command, env: {}, chdir: nil)
-        @asked << { command: command, env: env, chdir: chdir }
-        Hecks::Adapters::Shell::Result.new("kept 3 rows", "", Struct.new(:success?, :exitstatus).new(@status.zero?, @status))
-      end
+  # Answers the matrix's report with a fixed status, and remembers what the tool was asked. The
+  # matrix runs in this process, so what is stubbed is `Hecks::Tools.run`.
+  def fake_matrix(status = 0)
+    FakeCodebaseShell.new(["kept 3 rows", status]).tap do |shell|
+      allow(Hecks::Tools).to receive(:run, &shell.method(:run_tool))
     end
   end
 
@@ -79,28 +72,28 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
   end
 
   describe "argument_gate_matrix" do
-    it "only reports, running the script without --write, unless confirmed" do
-      shell = shell_class.new
+    it "only reports, running the tool without --write, unless confirmed" do
+      shell = fake_matrix
 
-      report = described_class.call("argument_gate_matrix", {}, tree, shell: shell)
+      report = described_class.call("argument_gate_matrix", {}, tree)
 
       expect(report).to eq("kept 3 rows")
-      expect(shell.asked.first[:command].last).to eq(tree.path("bin/argument_gate_matrix"))
-      expect(shell.asked.first[:command]).not_to include("--write")
+      expect(shell.asked.first[:command]).to eq(["argument_gate_matrix"])
       expect(shell.asked.first[:chdir]).to eq(tree.root)
-      expect(shell.asked.first[:env]).to include("HECKS_NO_3_0_NOTICE" => "1")
     end
 
     it "rewrites the matrix and fixtures with --write when confirmed" do
-      shell = shell_class.new
+      shell = fake_matrix
 
-      described_class.call("argument_gate_matrix", { confirm: { value: true } }, tree, shell: shell)
+      described_class.call("argument_gate_matrix", { confirm: { value: true } }, tree)
 
-      expect(shell.asked.first[:command].last).to eq("--write")
+      expect(shell.asked.first[:command]).to eq(["argument_gate_matrix", "--write"])
     end
 
-    it "refuses with what the script printed when it ends badly" do
-      expect { described_class.call("argument_gate_matrix", {}, tree, shell: shell_class.new(1)) }
+    it "refuses with what the tool printed when it ends badly" do
+      fake_matrix(1)
+
+      expect { described_class.call("argument_gate_matrix", {}, tree) }
         .to raise_error(failure, "kept 3 rows")
     end
   end

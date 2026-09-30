@@ -65,6 +65,18 @@ module Hecks
       lines + result.stale.map { |path| File.delete(path) && "removed #{path}" }
     end
 
+    # Writes one projection and prints what changed, as the `project_*` commands do.
+    #
+    # @param name [Symbol] one of `NAMES`
+    # @param root [String] the checkout the projection is for
+    # @return [void] the `wrote`/`removed` lines go to stdout
+    # @raise [SystemExit] with the reason on stderr when the projection is refused
+    def run(name, root: ROOT)
+      puts write(name, root: root)
+    rescue Refused => e
+      abort e.message
+    end
+
     # Replaces a file through a same-directory temporary file and a rename.
     #
     # @param target [String] the file to write
