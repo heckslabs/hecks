@@ -200,9 +200,16 @@ module Hecks
       end
 
       # @api private
-      # @return [String] the launcher's middle: usage answered from the projection, then a boot
-      #   only for a line that runs a verb
+      # @return [String] the launcher's middle: for an opted-in launcher, usage answered from the
+      #   projection and a boot only for a line that runs a verb; for any other, the boot and
+      #   dispatch every launcher has always had, byte for byte
       def entry(name, boot, shown, opted)
+        opted ? described_entry(name, boot, shown) : plain_entry(name, boot, shown)
+      end
+
+      # @api private
+      # @return [String] the opted-in launcher's middle
+      def described_entry(name, boot, shown)
         <<~RUBY.chomp
           # Usage is answered from the projected chapter alone: no adapter is bound and no
           # database is opened. Only a line that runs a verb boots the domain.
@@ -214,7 +221,7 @@ module Hecks
             abort "cannot open #{name}: \#{e.message.lines.first.strip}"
           end
 
-          text, status#{', reason' if opted} = Hecks::Doors::CliRunner.usage(
+          text, status, reason = Hecks::Doors::CliRunner.usage(
             runtime: described, argv: ARGV, program: program
           )
           unless text
@@ -223,10 +230,26 @@ module Hecks
             rescue StandardError => e
               abort "cannot open #{name}: \#{e.message.lines.first.strip}"
             end
-            text, status#{', reason' if opted} = Hecks::Doors::CliRunner.call(
+            text, status, reason = Hecks::Doors::CliRunner.call(
               runtime: runtime, argv: ARGV, program: program
             )
           end
+        RUBY
+      end
+
+      # @api private
+      # @return [String] the middle every launcher had before opted-in ones answered usage alone
+      def plain_entry(name, boot, shown)
+        <<~RUBY.chomp
+          runtime = begin
+            Hecks.boot(#{boot}, install_doors: false)
+          rescue StandardError => e
+            abort "cannot open #{name}: \#{e.message.lines.first.strip}"
+          end
+
+          text, status = Hecks::Doors::CliRunner.call(
+            runtime: runtime, argv: ARGV, program: "#{shown}"
+          )
         RUBY
       end
 

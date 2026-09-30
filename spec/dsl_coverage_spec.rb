@@ -10,9 +10,10 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecks (module surface)"      => [
       Hecks.singleton_class,
-      # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `behaviors`
-      # is opt-in but becomes a real singleton method once anything requires it.
-      %i[boot boot_files with_registry bluebook hecksagon port adapter world data_translation current_registry
+      # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `describe` is its
+      # declarations-only sibling; `behaviors` is opt-in but becomes a real singleton method
+      # once anything requires it.
+      %i[boot boot_files describe with_registry bluebook hecksagon port adapter world data_translation current_registry
          as_caller behaviors]
     ],
     "BluebookBuilder"             => [

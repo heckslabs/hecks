@@ -296,6 +296,15 @@ RSpec.describe "the DSL surface" do
       expect(runtime.verbs).to include("Pizzas::Order.Purchase")
     end
 
+    # Reads declarations only: no adapter is resolved, so a domain that declares
+    # `persisted_by("PostgresEra")` answers without a database.
+    it ".describe reads a domain directory, binding no adapter and opening no database" do
+      described = Hecks.describe(File.expand_path("../examples/pizzas", __dir__))
+
+      expect(described).to be_a(Hecks::Runtime::Loader::Described)
+      expect(described.registry.bluebooks.values.map(&:name)).to include("Pizzas")
+    end
+
     it ".boot refuses a declaration loaded outside a boot" do
       expect { Hecks.bluebook("Orphan") { vision "x" } }
         .to raise_error(Hecks::LoadOutsideBoot, /outside a boot/)
