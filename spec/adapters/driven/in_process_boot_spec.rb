@@ -126,12 +126,18 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
 
   it "generates from seed 1 and 30 steps unless told otherwise, and refuses a missing domain" do
     expect(JSON.parse(adapter.generate_sequence(domain: domain).fetch(:text)).fetch("note")).to include("seed 1, 30 steps")
-    expect { adapter.generate_sequence(domain: { value: "/no/such/domain" }) }
-      .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    Dir.mktmpdir do |scratch|
+      absent = File.join(scratch, "no/such/domain")
+      expect { adapter.generate_sequence(domain: { value: absent }) }
+        .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    end
   end
 
   it "refuses a domain or chapter that cannot be found" do
-    expect { adapter.stores(domain: { value: "/no/such/domain" }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    Dir.mktmpdir do |scratch|
+      absent = File.join(scratch, "no/such/domain")
+      expect { adapter.stores(domain: { value: absent }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    end
     expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }
       .to raise_error(Hecks::Runtime::NotFound, /no chapter named Nope/)
   end

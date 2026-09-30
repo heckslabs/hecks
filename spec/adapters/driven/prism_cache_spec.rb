@@ -4,6 +4,9 @@ require "tmpdir"
 # The parse cache and the per-tree block index change together: a `forget` racing an index
 # build must never leave an index entry for a tree the cache has dropped.
 RSpec.describe Hecks::Adapters::Prism, ".forget" do
+  # Other specs parse files through the process-wide cache; start from an empty one.
+  before { described_class.forget_all }
+
   around do |example|
     Dir.mktmpdir("hecks-prism-cache") do |dir|
       @file = File.join(dir, "sample.rb")

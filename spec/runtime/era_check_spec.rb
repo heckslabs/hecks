@@ -59,7 +59,7 @@ RSpec.describe "the era check at boot" do
     begin
       Dir.mktmpdir do |root|
         source = "Hecks.bluebook \"Shaped\" do\n  vision \"an em dash — right here\"\nend\n"
-        File.write(File.join(root, "a.bluebook"), source)
+        File.write(File.join(root, "a.bluebook"), source, encoding: "UTF-8")
 
         bluebook = Struct.new(:name).new("Shaped")
         expect(Hecks::Runtime::EraCheck.source_text_for(bluebook, root)).to eq(source)

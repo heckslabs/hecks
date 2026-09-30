@@ -65,7 +65,7 @@ Hecks.behaviors "Custodian" do
 
   test "Vendor keeps a source that is not there as a refused pinning" do
     tests "Vendor", on: "Package"
-    input package: { value: "payments@1.2.0" }, from: { value: "/no/such/registry" }
+    input package: { value: "payments@1.2.0" }, from: { value: "/tmp/hecks-behaviors-absent/registry" }
     expect emits: %w[VendorRequested PinRefused VendoringRefused]
   end
 
@@ -113,7 +113,7 @@ Hecks.behaviors "Custodian" do
 
   test "CompactHeki keeps a domain that is not there as a refused change" do
     tests "CompactHeki", on: "Era"
-    input domain: { value: "/no/such/heki-domain" }, run: { value: "compact" }, confirm: { value: true }
+    input domain: { value: "/tmp/hecks-behaviors-absent/heki-domain" }, run: { value: "compact" }, confirm: { value: true }
     expect emits: %w[HekiCompactionRequested EraRefused EraAbandoned]
   end
 

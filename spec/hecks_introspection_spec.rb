@@ -75,7 +75,7 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "words a missing domain as a refusal, not a backtrace" do
-    out, status = run_verb("stores", "/no/such/domain")
+    out, status = Dir.mktmpdir { |scratch| run_verb("stores", File.join(scratch, "no/such/domain")) }
 
     expect(status).to eq(1)
     expect(out).to include("no such domain")

@@ -69,8 +69,10 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
 
     it "refuses a domain that is not there" do
-      expect { adapter.check(**held(domains: "/no/such/domain")) }
-        .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+      Dir.mktmpdir do |scratch|
+        expect { adapter.check(**held(domains: File.join(scratch, "no/such/domain"))) }
+          .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+      end
     end
   end
 
@@ -101,7 +103,10 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
 
     it "refuses a domain that is not there" do
-      expect { adapter.refresh(**held(subject: "/no/such/domain")) }.to raise_error(Hecks::Runtime::NotFound)
+      Dir.mktmpdir do |scratch|
+        expect { adapter.refresh(**held(subject: File.join(scratch, "no/such/domain"))) }
+          .to raise_error(Hecks::Runtime::NotFound)
+      end
     end
   end
 
@@ -263,6 +268,9 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
   end
 
   it "refuses to follow a domain that is not there" do
-    expect { adapter.follow(domain: "/no/such/domain") }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    Dir.mktmpdir do |scratch|
+      expect { adapter.follow(domain: File.join(scratch, "no/such/domain")) }
+        .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+    end
   end
 end

@@ -1,5 +1,6 @@
 require "spec_helper"
 require "stringio"
+require "tmpdir"
 require "hecks/quality_control/cli/child"
 require "hecks/quality_control/cli/qa_sweep"
 require "hecks/quality_control/cli/qa_generated_domains"
@@ -162,8 +163,9 @@ RSpec.describe Hecks::QualityControlCli do
       expect(Hecks::QualityControlCli::QaPostgresRole.call([], err: err, out: StringIO.new)).to eq(1)
       expect(err.string).to include("no database named", "usage: hecks quality_control create_ledger_role")
       err = StringIO.new
-      expect(Hecks::QualityControlCli::QaPostgresMigrate.call(["/no/such"], err: err, out: StringIO.new)).to eq(1)
-      expect(err.string).to include('no such domain directory "/no/such"')
+      absent = Dir.mktmpdir { |scratch| File.join(scratch, "no/such") }
+      expect(Hecks::QualityControlCli::QaPostgresMigrate.call([absent], err: err, out: StringIO.new)).to eq(1)
+      expect(err.string).to include("no such domain directory #{absent.inspect}")
     end
 
     it "qa_concurrency_racer needs all five arguments" do

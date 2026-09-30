@@ -5,7 +5,7 @@ Hecks.behaviors "Deploy" do
 
   test "Project keeps a domain that has no world file as a faulted recipe" do
     tests "Project", on: "Recipe"
-    input run: { value: "stack" }, domain: { value: "/no/such/domain" }
+    input run: { value: "stack" }, domain: { value: "/tmp/hecks-behaviors-absent/domain" }
     expect emits: %w[ProjectionRequested RecipeRefused RecipeFaulted]
   end
 
@@ -17,56 +17,58 @@ Hecks.behaviors "Deploy" do
 
   test "Lint keeps a Makefile that is not there as a flagged lint" do
     tests "Lint", on: "MakefileCheck"
-    input run: { value: "recipes" }, makefiles: { value: "/no/such/Makefile" }
+    input run: { value: "recipes" }, makefiles: { value: "/tmp/hecks-behaviors-absent/Makefile" }
     expect emits: %w[LintRequested LintRefused LintFlagged]
   end
 
   test "Diff keeps a template that is not there as a refused comparison" do
     tests "Diff", on: "TemplateComparison"
-    input run: { value: "stacks" }, before: { value: "/no/such/before.yaml" }, after: { value: "/no/such/after.yaml" }
+    input run: { value: "stacks" }, before: { value: "/tmp/hecks-behaviors-absent/before.yaml" }, after: { value: "/tmp/hecks-behaviors-absent/after.yaml" }
     expect emits: %w[ComparisonRequested ComparisonUnreadable ComparisonRefused]
   end
 
   test "Diff refuses a template with no path" do
     tests "Diff", on: "TemplateComparison"
-    input run: { value: "stacks" }, before: { value: "" }, after: { value: "/no/such/after.yaml" }
+    input run: { value: "stacks" }, before: { value: "" }, after: { value: "/tmp/hecks-behaviors-absent/after.yaml" }
     expect refused: "must match"
   end
 
   test "ProjectOidc keeps a domain it cannot boot out of the manifests and answers" do
     tests "ProjectOidc", on: "OidcManifest"
-    input run: { value: "manifests" }, domains: { value: "/no/such/domain" }
+    input run: { value: "manifests" }, domains: { value: "/tmp/hecks-behaviors-absent/domain" }
     expect emits: %w[OidcProjectionRequested ManifestAnswered OidcProjected]
   end
 
   test "Provision refuses a slug that is not lowercase, and writes nothing" do
     tests "Provision", on: "Tenant"
-    input directory: { value: "/no/such/domain" }, slug: { value: "Not A Slug" }, domain: { value: "Scratch" },
+    input directory: { value: "/tmp/hecks-behaviors-absent/domain" }, slug: { value: "Not A Slug" }, domain: { value: "Scratch" },
           realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
     expect refused: "must match"
   end
 
   test "Provision refuses a tenant with no realm" do
     tests "Provision", on: "Tenant"
-    input directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+    input directory: { value: "/tmp/hecks-behaviors-absent/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
           realm: { value: "" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
     expect refused: "a tenant realm is named"
   end
 
   test "Provision on a slug that is already recorded is refused as AlreadyExists" do
     tests "Provision", on: "Tenant"
-    setup  "Deploy::Tenant.Provision", directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+    setup  "Deploy::Tenant.Provision", directory: { value: "/tmp/hecks-behaviors-absent/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
            realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
-    input directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+    input directory: { value: "/tmp/hecks-behaviors-absent/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
           realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
     expect refused: "already"
   end
 
-  test "Reprovision writes a provisioned or refused tenant's overlay again" do
+  # A directory that is not there is refused, so no overlay is written and the test creates
+  # nothing; the writing path runs against a real tmpdir in spec/adapters/driven/tenant_provisioner_spec.rb.
+  test "Reprovision keeps a directory that is not there as a refused provisioning" do
     tests "Reprovision", on: "Tenant"
-    setup  "Deploy::Tenant.Provision", directory: { value: "/no/such/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
+    setup  "Deploy::Tenant.Provision", directory: { value: "/tmp/hecks-behaviors-absent/domain" }, slug: { value: "acme" }, domain: { value: "Scratch" },
            realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
-    input  tenant: "acme", directory: { value: "/no/such/domain" }, database: { value: "hecks_tenants" }
-    expect emits: %w[TenantReprovisionRequested TenantProvisioned TenantRecorded]
+    input  tenant: "acme", directory: { value: "/tmp/hecks-behaviors-absent/domain" }, database: { value: "hecks_tenants" }
+    expect emits: %w[TenantReprovisionRequested ProvisioningRefused ProvisioningAbandoned]
   end
 end
