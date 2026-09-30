@@ -7,7 +7,7 @@ use crate::dispatch;
 use crate::ir::PaymentsProvider;
 use crate::journal::LineageConfig;
 use crate::resend::{Email, Mailer};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
@@ -23,46 +23,49 @@ fn receipt_subject(event_name: &str) -> String {
     format!("You're registered for {event_name}")
 }
 
-/// What the site knows about a session: when it is and where.
-#[derive(Debug, Default, PartialEq)]
-struct SessionDetails {
-    when: Option<String>,
-    place: Option<String>,
+/// The subject and body the site built from the wording an editor keeps in
+/// the CMS (when, where and how-to-prepare are filled in there: the venue lives
+/// only in the CMS).
+#[derive(Debug, PartialEq)]
+struct SiteEmail {
+    subject: String,
+    body: String,
 }
 
-fn session_from_json(body: &Value) -> SessionDetails {
-    let text = |key: &str| body.get(key).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(String::from);
-    SessionDetails { when: text("when"), place: text("where") }
+fn site_email_from_json(body: &Value) -> Option<SiteEmail> {
+    let text = |key: &str| body.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty()).map(String::from);
+    Some(SiteEmail { subject: text("subject")?, body: text("body")? })
 }
 
-/// Asks the site for the session's date, time and venue (the host knows the
-/// date and time labels, but the venue lives in the CMS). Best effort: any
-/// failure means the email goes out without those lines.
-async fn session_details(event_slug: &str) -> SessionDetails {
-    let mut url = match reqwest::Url::parse(&format!("{}/api/session-details", super::newsletter_send::site_url())) {
-        Ok(url) => url,
-        Err(_) => return SessionDetails::default(),
-    };
-    url.query_pairs_mut().append_pair("event", event_slug);
-    let answer = match reqwest::Client::new().get(url).timeout(std::time::Duration::from_secs(5)).send().await {
-        Ok(response) if response.status().is_success() => response.json::<Value>().await.ok(),
-        _ => None,
-    };
-    answer.map(|body| session_from_json(&body)).unwrap_or_default()
+/// Asks the site for the finished email (signed, short-lived, bound to this
+/// one event). Best effort: any failure means the host's own built-in wording
+/// goes out instead, so a receipt is always sent.
+async fn site_email(event_slug: &str, first_name: Option<&str>, amount_cents: Option<i64>) -> Option<SiteEmail> {
+    let secret = std::env::var("SESSION_SECRET").ok().filter(|s| !s.is_empty())?;
+    let token = crate::auth::purpose_token(&secret, "confirmation-email", json!({ "event": event_slug }), 300);
+    let mut url = reqwest::Url::parse(&format!("{}/api/confirmation-email", super::newsletter_send::site_url())).ok()?;
+    {
+        let mut query = url.query_pairs_mut();
+        query.append_pair("event", event_slug);
+        if let Some(name) = first_name {
+            query.append_pair("first_name", name);
+        }
+        if let Some(cents) = amount_cents {
+            query.append_pair("amount_cents", &cents.to_string());
+        }
+    }
+    let response = reqwest::Client::new().get(url).header("x-internal-auth", token).timeout(std::time::Duration::from_secs(8)).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    site_email_from_json(&response.json::<Value>().await.ok()?)
 }
 
-fn receipt_body(first_name: Option<&str>, event_name: &str, amount_cents: Option<i64>, session: &SessionDetails) -> String {
+/// The host's own wording, used when the site cannot be asked.
+fn built_in_body(first_name: Option<&str>, event_name: &str, amount_cents: Option<i64>) -> String {
     let greeting = first_name.map(|name| format!("Hi {name},")).unwrap_or_else(|| "Hi,".to_string());
     let paid = amount_cents.map(|cents| format!(" We received your payment of {}.", dollars(cents))).unwrap_or_default();
-    let mut details = Vec::new();
-    if let Some(when) = &session.when {
-        details.push(format!("When: {when}"));
-    }
-    if let Some(place) = &session.place {
-        details.push(format!("Where: {place}"));
-    }
-    let details = if details.is_empty() { String::new() } else { format!("{}\n\n", details.join("\n")) };
-    format!("{greeting}\n\nYou're registered for {event_name}.{paid}\n\n{details}Your seat is held. If anything changes, just reply to this email.\n")
+    format!("{greeting}\n\nYou're registered for {event_name}.{paid}\n\nYour seat is held. If anything changes, just reply to this email.\n")
 }
 
 /// Mails the receipt for `reference` if its Payment has succeeded. A missing
@@ -104,13 +107,15 @@ pub(super) async fn send_receipt(reference: &str, client: &Mutex<Client>, wasm_p
         .unwrap_or("your event");
     let amount = payment.and_then(|p| p.get("amount")).and_then(|a| a.get("cents")).and_then(Value::as_i64);
     let first_name = attendee.get("first_name").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
-    let session = match registration.get("event_slug").and_then(|v| v.as_str()) {
-        Some(slug) => session_details(slug).await,
-        None => SessionDetails::default(),
+    let from_site = match registration.get("event_slug").and_then(|v| v.as_str()) {
+        Some(slug) => site_email(slug, first_name, amount).await,
+        None => None,
     };
-    let delivery = mailer
-        .deliver(&Email { to, subject: &receipt_subject(event_name), body: &receipt_body(first_name, event_name, amount, &session), unsubscribe_url: None })
-        .await;
+    let (subject, body) = match from_site {
+        Some(email) => (email.subject, email.body),
+        None => (receipt_subject(event_name), built_in_body(first_name, event_name, amount)),
+    };
+    let delivery = mailer.deliver(&Email { to, subject: &subject, body: &body, unsubscribe_url: None }).await;
     if !delivery.ok {
         eprintln!("registration receipt: not delivered: {}", delivery.reason.unwrap_or_default());
     }

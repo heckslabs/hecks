@@ -8,8 +8,8 @@ fn cents_render_as_dollars_with_two_places() {
 }
 
 #[test]
-fn the_receipt_names_the_event_the_first_name_and_the_amount() {
-    let body = receipt_body(Some("Ada"), "Yogadelics", Some(10800), &SessionDetails::default());
+fn the_built_in_receipt_names_the_event_the_first_name_and_the_amount() {
+    let body = built_in_body(Some("Ada"), "Yogadelics", Some(10800));
     assert!(body.starts_with("Hi Ada,"));
     assert!(body.contains("You're registered for Yogadelics."));
     assert!(body.contains("$108.00"));
@@ -17,30 +17,23 @@ fn the_receipt_names_the_event_the_first_name_and_the_amount() {
 }
 
 #[test]
-fn a_receipt_without_a_name_or_amount_still_reads_cleanly() {
-    let body = receipt_body(None, "Yogadelics", None, &SessionDetails::default());
+fn a_built_in_receipt_without_a_name_or_amount_still_reads_cleanly() {
+    let body = built_in_body(None, "Yogadelics", None);
     assert!(body.starts_with("Hi,"));
     assert!(!body.contains("payment of"));
 }
 
 #[test]
-fn the_receipt_lists_when_and_where_when_the_site_knows_them() {
-    let session = SessionDetails { when: Some("Friday, October 16 · 6:30–8:30 pm".into()), place: Some("Phoenix, Arizona".into()) };
-    let body = receipt_body(Some("Ada"), "Yogadelics", Some(10800), &session);
-    assert!(body.contains("When: Friday, October 16 · 6:30–8:30 pm\nWhere: Phoenix, Arizona\n"));
+fn the_sites_finished_email_is_read() {
+    let answer = serde_json::json!({"subject": "You're registered for Yogadelics", "body": "Hi Ada,\n\nWhere: Somewhere\n"});
+    assert_eq!(
+        site_email_from_json(&answer),
+        Some(SiteEmail { subject: "You're registered for Yogadelics".into(), body: "Hi Ada,\n\nWhere: Somewhere\n".into() })
+    );
 }
 
 #[test]
-fn a_session_without_a_venue_lists_only_the_time() {
-    let session = SessionDetails { when: Some("Friday, October 16".into()), place: None };
-    let body = receipt_body(None, "Yogadelics", None, &session);
-    assert!(body.contains("When: Friday, October 16"));
-    assert!(!body.contains("Where:"));
-}
-
-#[test]
-fn the_sites_answer_is_read_and_blank_fields_are_dropped() {
-    let body = serde_json::json!({"name": "Yogadelics", "when": " Friday ", "where": "  "});
-    assert_eq!(session_from_json(&body), SessionDetails { when: Some("Friday".into()), place: None });
-    assert_eq!(session_from_json(&serde_json::json!({"error": "no such session"})), SessionDetails::default());
+fn an_incomplete_answer_from_the_site_falls_back_to_the_built_in_wording() {
+    assert_eq!(site_email_from_json(&serde_json::json!({"error": "no such session"})), None);
+    assert_eq!(site_email_from_json(&serde_json::json!({"subject": "Hi", "body": "  "})), None);
 }
