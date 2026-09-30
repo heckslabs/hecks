@@ -21,8 +21,8 @@ module Hecks
     class QaOpenPr
       EXIT_OK = 0
 
-      USAGE = "usage: bin/qa_open_pr --bug BUG#n --title \"…\" [--body \"…\"]\n       " \
-              "bin/qa_open_pr --improvement [--angle ANGLE-n] --title \"…\" [--body \"…\"]"
+      USAGE = "usage: hecks quality_control patch.open --bug BUG#n --title \"…\" [--body \"…\"]\n       " \
+              "hecks quality_control improvement.open --improvement [--angle ANGLE-n] --title \"…\" [--body \"…\"]"
 
       SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
 

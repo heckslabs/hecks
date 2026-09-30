@@ -23,7 +23,7 @@ module Hecks
       EXIT_NOTHING = 1
       EXIT_USAGE = 2
 
-      USAGE = "usage: bin/qa_domain_novelty <domain-path> [--against <path> ...]"
+      USAGE = "usage: hecks quality_control judge_novelty <domain-path> [--against <path> ...]"
 
       # Judges the candidate.
       #

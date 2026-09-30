@@ -78,7 +78,7 @@ RSpec.describe Hecks::QualityControlCli do
     let(:tick) { described_class.new(root: root) }
 
     it "prints its usage for --help and refuses arguments" do
-      expect { expect(tick.call(["--help"])).to eq(0) }.to output("usage: bin/qa_tick\n").to_stdout
+      expect { expect(tick.call(["--help"])).to eq(0) }.to output("usage: hecks quality_control tick\n").to_stdout
       expect_abort(/this script takes no arguments/) { tick.call(["now"]) }
     end
 
@@ -142,7 +142,7 @@ RSpec.describe Hecks::QualityControlCli do
 
     it "qa_pr_check and qa_tick print a usage line for --help, and take nothing else" do
       expect { expect(Hecks::QualityControlCli::QaPrCheck.call(["--help"], root: root)).to eq(0) }
-        .to output("usage: bin/qa_pr_check\n").to_stdout
+        .to output("usage: hecks quality_control check_pull_requests\n").to_stdout
       expect_abort(/takes no arguments/) { Hecks::QualityControlCli::QaPrCheck.call(["x"], root: root) }
     end
 
@@ -150,14 +150,14 @@ RSpec.describe Hecks::QualityControlCli do
       err = StringIO.new
 
       expect(Hecks::QualityControlCli::QaPostgresRole.call([], err: err, out: StringIO.new)).to eq(1)
-      expect(err.string).to include("no database named", "usage: bin/qa_postgres_role")
+      expect(err.string).to include("no database named", "usage: hecks quality_control create_ledger_role")
       err = StringIO.new
       expect(Hecks::QualityControlCli::QaPostgresMigrate.call(["/no/such"], err: err, out: StringIO.new)).to eq(1)
       expect(err.string).to include('no such domain directory "/no/such"')
     end
 
     it "qa_concurrency_racer needs all five arguments" do
-      expect_abort(%r{usage: bin/qa_concurrency_racer}) { Hecks::QualityControlCli::QaConcurrencyRacer.call(%w[a b]) }
+      expect_abort(/usage: hecks quality_control race/) { Hecks::QualityControlCli::QaConcurrencyRacer.call(%w[a b]) }
     end
 
     it "compares migrated states without regard to key type or hash order" do

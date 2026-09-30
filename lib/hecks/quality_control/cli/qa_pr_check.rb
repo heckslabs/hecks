@@ -19,7 +19,7 @@ module Hecks
       EXIT_ERROR = 1
       EXIT_NEWLY_RED = 2
 
-      USAGE = "usage: bin/qa_pr_check"
+      USAGE = "usage: hecks quality_control check_pull_requests"
 
       SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
 
