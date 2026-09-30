@@ -21,7 +21,8 @@ module Hecks
       MAX_REACTION_DEPTH = 5
 
       Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome,
-                          :refused_reactions, :blocking_reactions, keyword_init: true) do
+                          :refused_reactions, :blocking_reactions, :reaction_defects,
+                          keyword_init: true) do
         # Lists the policy reactions this dispatch caused that the domain refused.
         #
         # A policy's trigger that a `given` or invariant refuses does not undo the command that
@@ -39,6 +40,15 @@ module Hecks
         #
         # @return [Array<Hash{Symbol => Object}>] the subset of `refused_reactions` that blocks
         def blocking_reactions = self[:blocking_reactions] || []
+
+        # Lists the reactions that crashed, as opposed to being refused by the domain.
+        #
+        # A crash is warned and never re-raised, since the emitting command has persisted; it is
+        # recorded here so `--wait` can fail on a chain that stopped halfway.
+        #
+        # @return [Array<Hash{Symbol => Object}>] `{ policy:, trigger:, reason:, error_class: }`
+        #   per crashed reaction; empty when none crashed
+        def reaction_defects = self[:reaction_defects] || []
 
         # Reads the identity of the record the dispatch settled on.
         #
@@ -191,7 +201,8 @@ module Hecks
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome,
                    refused_reactions: refused_from(reactions),
-                   blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)))
+                   blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)),
+                   reaction_defects: ReactionOutcome.defects(reactions))
       end
       private :dispatch_collecting
 

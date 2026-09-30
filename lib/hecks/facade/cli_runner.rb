@@ -107,7 +107,7 @@ module Hecks
 
       # The answer `--wait` gives: the record re-read from its repository after every reaction
       # has run, with all its events, and a status of 1 when its lifecycle ended in a failure
-      # state or a reaction the domain refused blocks the run.
+      # state, a reaction the domain refused blocks the run, or a reaction crashed.
       #
       # A refusal blocks unless a sibling reaction to the same event delivered another command on
       # the same aggregate (`Runtime::ReactionOutcome`): a given-gated policy pair, one of which
@@ -115,7 +115,7 @@ module Hecks
       #
       # @return [Array(String, Integer)] the JSON and the status
       def settled(runtime, spec, handle, bluebook, launcher, extra)
-        blocked = blocked?(handle)
+        blocked = blocked?(handle) || defective?(handle)
         return [JSON.pretty_generate(answered(handle).merge(extra)), blocked ? 1 : 0] if handle.state.nil?
 
         aggregate = aggregate_of(bluebook, spec)
@@ -126,6 +126,11 @@ module Hecks
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
         failed = blocked || LauncherOptions.failed?(aggregate, state, launcher)
         [JSON.pretty_generate(answer), failed ? 1 : 0]
+      end
+
+      # Whether a reaction crashed while the run the handle reports settled.
+      def defective?(handle)
+        handle.respond_to?(:reaction_defects) && !handle.reaction_defects.empty?
       end
 
       # Whether a reaction the domain refused blocks the run the handle reports.
@@ -178,14 +183,18 @@ module Hecks
       #
       # A policy's trigger that a `given` refuses is not the command's own refusal: the command
       # has already persisted. The dispatch result carries them (`Result#refused_reactions`);
-      # without this the answer would say nothing of it. A defect (a crash) is warned elsewhere.
+      # without this the answer would say nothing of it. A defect (a crash) is shown apart, as
+      # `reaction_defects:`, and fails `--wait`.
       #
       # @param handle [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the outcome
       # @return [Hash] `refused_reactions:` each with the `policy`, its `trigger` and the `reason`;
-      #   empty when every reaction was delivered (or a remote host sent no per-step log)
+      #   empty when every reaction was delivered (or a remote host sent no per-step log), plus
+      #   `reaction_defects:` when one crashed
       def refused_answer(handle)
         refused = handle.respond_to?(:refused_reactions) ? handle.refused_reactions : []
-        refused.empty? ? {} : { refused_reactions: refused }
+        defects = handle.respond_to?(:reaction_defects) ? handle.reaction_defects : []
+        answer  = refused.empty? ? {} : { refused_reactions: refused }
+        defects.empty? ? answer : answer.merge(reaction_defects: defects)
       end
 
       # Shapes a port operation's outcome, which has no state: each event with its full payload.
