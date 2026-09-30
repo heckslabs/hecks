@@ -180,14 +180,14 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     it "skips what exists when told to start from now" do
       answer = adapter.follow(domain: @dir, from_now: true)
 
-      expect(answer).to eq(cursor: 2, events: [])
+      expect(answer).to include(cursor: 2, events: [])
     end
 
     it "waits no longer than asked for a first entry, then answers the same cursor" do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       answer = adapter.follow(domain: @dir, since: 2, wait: 1, interval: 0.1)
 
-      expect(answer).to eq(cursor: 2, events: [])
+      expect(answer).to include(cursor: 2, events: [])
       expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 3
     end
   end

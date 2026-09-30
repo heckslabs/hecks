@@ -25,30 +25,30 @@ Hecks.hecksagon "QualityControl" do
     end
   end
 
-  # Queries answered from outside the domain. The bluebook declares each question and never says
-  # who answers it; each `answers_query` binds it to the `*Tools` port's adapter, which runs the
-  # script's own command and answers what it printed (`:text`). Rows carry `taken_at`.
+  # Queries answered from outside the domain. The bluebook declares each question and the value
+  # object its answer takes and never says who answers it; each `answers_query` binds it to the
+  # `*Tools` port's adapter, which runs the script's own command and answers what it printed.
   QualityControl::Target.port "TargetTools" do
-    answers_query "Seed", shape: :text
-    answers_query "CheckGeneratedDomains", shape: :text
-    answers_query "MineCombinations", shape: :text
-    answers_query "JudgeNovelty", shape: :text
-    answers_query "DiscoverExternalDomains", shape: :text
+    answers_query "Seed"
+    answers_query "CheckGeneratedDomains"
+    answers_query "MineCombinations"
+    answers_query "JudgeNovelty"
+    answers_query "DiscoverExternalDomains"
   end
 
   QualityControl::Sweep.port "SweepTools" do
-    answers_query "Tick", shape: :text
-    answers_query "Run", shape: :text
-    answers_query "MigrateLedgerFromHeki", shape: :text
-    answers_query "CreateLedgerRole", shape: :text
-    answers_query "Race", shape: :text
+    answers_query "Tick"
+    answers_query "Run"
+    answers_query "MigrateLedgerFromHeki"
+    answers_query "CreateLedgerRole"
+    answers_query "Race"
   end
 
   QualityControl::Angle.port "AngleTools" do
-    answers_query "Seed", shape: :text
+    answers_query "Seed"
   end
 
   QualityControl::Clearance.port "ClearanceTools" do
-    answers_query "CheckPullRequests", shape: :text
+    answers_query "CheckPullRequests"
   end
 end

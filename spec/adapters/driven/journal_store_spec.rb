@@ -193,8 +193,8 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     before { write_domain }
 
     it "answers that no era is held and changes nothing, however often it is asked" do
-      expect(store.scaffold_translation(domain: { value: @domain })).to include("holds no era yet")
-      expect(store.audit_translation(domain: { value: @domain })).to include("hecks hold_first")
+      expect(store.scaffold_translation(domain: { value: @domain }).fetch(:text)).to include("holds no era yet")
+      expect(store.audit_translation(domain: { value: @domain }).fetch(:text)).to include("hecks hold_first")
       expect(sql("SELECT to_regclass('hecks_eras') AS present").first["present"]).to be_nil
     end
 
@@ -215,7 +215,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     it "scaffolds the edge as text and writes no file" do
       write_domain
-      text = store.scaffold_translation(domain: { value: @domain })
+      text = store.scaffold_translation(domain: { value: @domain }).fetch(:text)
 
       expect(text).to include("# Save as translations/2-#{label_of(JS_V2)}.bluebook.")
       expect(text).to include("Hecks.data_translation \"Ledger\", from: #{label_of(JS_V1).inspect}")
@@ -225,7 +225,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     it "audits the pending edge without naming era 1" do
       write_domain(edge: JS_EDGE)
-      report = store.audit_translation(domain: { value: @domain })
+      report = store.audit_translation(domain: { value: @domain }).fetch(:text)
 
       expect(report).to include("Ledger::Account (edge #{label_of(JS_V1)} → #{label_of(JS_V2)}, 1 record)")
       expect(report).to include("AUDIT PASSED — review the samples above")
@@ -323,7 +323,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     it "reads the text back and attests to it only once admitted" do
       sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", edited)
 
-      shown = store.attestation(domain: { value: @domain }, era: { value: 1 })
+      shown = store.attestation(domain: { value: @domain }, era: { value: 1 }).fetch(:text)
       expect(shown).to include("does NOT match its recorded digest", "# a comment added by hand", "shape:    unchanged")
       expect(facts("reattest", era: { value: 1 }))
         .to include(capable: true, drifted: true, loadable: true, shape_kept: true)
@@ -332,7 +332,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       expect(report).to start_with("ATTESTED: era 1 re-frozen as ")
       expect(sql("SELECT count(*)::int AS n FROM hecks_attestations").first["n"].to_i).to eq(1)
-      expect(store.attestation(domain: { value: @domain }, era: { value: 1 })).to include("nothing to re-attest")
+      expect(store.attestation(domain: { value: @domain }, era: { value: 1 }).fetch(:text)).to include("nothing to re-attest")
       expect(facts("reattest", era: { value: 1 })).to include(drifted: false)
     end
 

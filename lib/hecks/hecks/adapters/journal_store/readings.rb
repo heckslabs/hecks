@@ -28,7 +28,7 @@ module Hecks
         # The edge file that would lead the latest held era to the current shape, as its text.
         #
         # @param domain [Hash, String] the domain directory
-        # @return [String] the `.bluebook` text, under comment lines saying where to save it and
+        # @return [Hash] `text:` the `.bluebook` text, under comments saying where to save it and
         #   what is left to decide
         # @raise [Runtime::NotFound] if the domain holds no eras, or cannot be loaded
         def scaffold_translation(domain:)
@@ -42,7 +42,7 @@ module Hecks
         # The audit of the edge that leads the latest held era to the current shape.
         #
         # @param domain [Hash, String] the domain directory
-        # @return [String] the report, ending in what approving needs
+        # @return [Hash] `text:` the report, ending in what approving needs
         # @raise [Runtime::NotFound] if the audit refuses, or no edge leads to the current shape
         def audit_translation(domain:)
           answering do
@@ -56,7 +56,7 @@ module Hecks
         #
         # @param domain [Hash, String] the domain directory
         # @param era [Hash, Integer] the era's ordinal
-        # @return [String] the digests and the text a person reads before attesting to it
+        # @return [Hash] `text:` the digests and the text a person reads before attesting to it
         # @raise [Runtime::NotFound] if the domain holds no such era
         def attestation(domain:, era:)
           answering do
@@ -70,7 +70,7 @@ module Hecks
         #
         # @param domain [Hash, String] the domain directory
         # @param aggregates [Hash, String, nil] aggregate names, comma separated
-        # @return [String] one line per journal
+        # @return [Hash] `text:` one line per journal
         # @raise [Runtime::NotFound] if the domain cannot be loaded
         def compaction(domain:, aggregates: nil)
           answering do
@@ -86,7 +86,7 @@ module Hecks
         # Words a lower layer's refusal as the one a query is refused with. `pg` is loaded lazily,
         # so its error is only named once something has connected.
         def answering
-          yield
+          { text: yield }
         rescue *lower_refusals => e
           raise Runtime::NotFound, e.message.strip
         end

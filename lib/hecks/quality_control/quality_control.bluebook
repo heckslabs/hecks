@@ -398,29 +398,39 @@ Hecks.bluebook "QualityControl" do
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "Seed" do
       description "Identify every corpus domain as a rotation target, printing each one's inferred capabilities; one already on file is skipped."
+      returns Document
     end
 
     query "CheckGeneratedDomains" do
       description "Generate domains nobody wrote and check them the way the rotation does: a domain that does not boot is invalid, never a finding."
       attribute :arguments, Words, optional: true
+      returns Document
     end
 
     query "MineCombinations" do
       description "Ask an agent to mine the adversarial corpus for new domain combinations, then check the ones that boot; opt-in, since an agent call costs money."
       attribute :arguments, Words, optional: true
+      returns Document
     end
 
     query "JudgeNovelty" do
       description "Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target."
       attribute :domain,    DomainPath
       attribute :arguments, Words, optional: true
+      returns Document
     end
 
     query "DiscoverExternalDomains" do
       description "Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols."
       attribute :arguments, Words, optional: true
+      returns Document
     end
   end
 
@@ -761,14 +771,21 @@ Hecks.bluebook "QualityControl" do
       invariant("a step carries its arguments, `{}` for none") { !value.to_s.empty? }
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "Tick" do
       description "One QA tick: a clean tree, a rebase on origin/main, the PR check, a sweep of the whole rotation and the generated domains, then one report. It never logs a bug, releases a hold or opens a PR."
+      returns Document
     end
 
     query "Run" do
       description "One claim, sweep, conclude and release cycle against a target (the rotation's pick when none is named), or every waiting target with `--all`; the first surprised check ends it with a report."
       attribute :target,    TargetRef, optional: true
       attribute :arguments, Words,     optional: true
+      returns Document
     end
 
     query "MigrateLedgerFromHeki" do
@@ -776,12 +793,14 @@ Hecks.bluebook "QualityControl" do
       attribute :domain,    DomainPath
       attribute :data,      DataPath
       attribute :arguments, Words, optional: true
+      returns Document
     end
 
     query "CreateLedgerRole" do
       description "Create the ordinary Postgres role the ledger connects as and make it own the database; idempotent, and refuses a superuser or BYPASSRLS role, which the era write-fence cannot bind."
       attribute :database, DatabaseName
       attribute :role,     RoleName, optional: true
+      returns Document
     end
 
     # Runs only as a child process a concurrency sweep starts, two at a time, so it is not something a
@@ -793,6 +812,7 @@ Hecks.bluebook "QualityControl" do
       attribute :schema,         SchemaName
       attribute :verb,           StepVerb
       attribute :step_arguments, StepArguments
+      returns Document
     end
   end
 
@@ -1435,10 +1455,16 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     # AngleTools answers this by running the script's own command as a child process
     # (lib/hecks/quality_control/adapters/angle_tools.rb); it reads no record of this aggregate.
     query "Seed" do
       description "Propose the practice's starting leads that are not on file yet; a lead already chased down is proposed, investigated and built in one pass."
+      returns Document
     end
   end
 
@@ -2058,11 +2084,17 @@ Hecks.bluebook "QualityControl" do
       order_by :commit
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     # ClearanceTools answers this by running the script's own command as a child process
     # (lib/hecks/quality_control/adapters/clearance_tools.rb). The command starts the clearances and
     # lets the CI port's policies record each verdict; a newly red PR ends it with a report.
     query "CheckPullRequests" do
       description "Check CI for every PR the ledger tracks as open, a Patch or an Improvement: retire one GitHub reports merged or closed, and start a clearance for each unsettled head commit."
+      returns Document
     end
   end
 

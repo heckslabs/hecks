@@ -53,6 +53,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
 
       File.foreach(path).any? do |line|
         next false if line.lstrip.start_with?("#")
+        # An attribute that happens to be named like a word (`attribute :cursor, Integer`) is data.
+        next false if line.match?(/\A\s*attribute\s+:#{Regexp.escape(word)}\b/)
 
         match = line.match(pattern)
         match && !inside_quotes?(line, match.begin(0))

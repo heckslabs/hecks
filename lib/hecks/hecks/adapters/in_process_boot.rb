@@ -34,21 +34,21 @@ module Hecks
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
       # @param translations [Boolean] only the translations, not the whole IR
       # @param meta [Boolean] the language's own IR, not a domain's
-      # @return [String] the IR as JSON
+      # @return [Hash] `text:` the IR as JSON
       # @raise [Runtime::NotFound] if the domain cannot be found
       def ir(domain: nil, translations: false, meta: false)
         if meta
           require_relative "../../bluebook/meta_validator"
-          return Projector::Exporter.json(Bluebook::MetaValidator.grammar_registry)
+          return report(Projector::Exporter.json(Bluebook::MetaValidator.grammar_registry))
         end
 
         registry = boot(domain).registry
-        translations ? Projector::Exporter.translations_json(registry) : Projector::Exporter.json(registry)
+        report(translations ? Projector::Exporter.translations_json(registry) : Projector::Exporter.json(registry))
       end
 
       # @param domain [Hash, String] a bluebook file, or a directory of them
-      # @return [String] the storage-shape projection as JSON for a file, or one
-      #   `<Domain> <label>` line per domain for a directory
+      # @return [Hash] `text:` the storage-shape projection as JSON for a file, or
+      #   one `<Domain> <label>` line per domain for a directory
       # @raise [Runtime::NotFound] if the path does not exist or holds no bluebook
       def shape(domain:)
         target = plain(domain)
@@ -59,14 +59,14 @@ module Hecks
         raise Runtime::NotFound, "no *.bluebook files in #{target}" if files.empty?
 
         registry = load_files(files)
-        return shape_labels(registry) if directory
+        return report(shape_labels(registry)) if directory
 
         bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "#{target} declares no bluebook"
-        JSON.pretty_generate(Projector.call(:shape, bluebook: bluebook))
+        report(JSON.pretty_generate(Projector.call(:shape, bluebook: bluebook)))
       end
 
       # @param domain [Hash, String] a domain directory
-      # @return [String] every aggregate's current records as one JSON document
+      # @return [Hash] `text:` every aggregate's current records as one JSON document
       # @raise [Runtime::NotFound] if the domain cannot be found
       def stores(domain:)
         registry = boot(domain).registry
@@ -76,11 +76,12 @@ module Hecks
           end
         end
 
-        JSON.generate(stores)
+        report(JSON.generate(stores))
       end
 
       # @param domain [Hash, String] a domain directory
-      # @return [String] every journal entry the domain's append-only adapters hold, as JSON
+      # @return [Hash] `text:` every journal entry the domain's append-only adapters
+      #   hold, as JSON
       # @raise [Runtime::NotFound] if the domain cannot be found
       def history(domain:)
         registry = boot(domain).registry
@@ -90,20 +91,20 @@ module Hecks
           end
         end
 
-        JSON.generate(history)
+        report(JSON.generate(history))
       end
 
       # @param domain [Hash, String] a domain directory
       # @param chapter [Hash, String] the chapter's name
-      # @return [String] the chapter's declared facts, one sentence a line
+      # @return [Hash] `text:` the chapter's declared facts, one sentence a line
       # @raise [Runtime::NotFound] if the domain or chapter cannot be found
       def statements(domain:, chapter:)
-        Projector.call(:statements, bluebook: chapter_of(domain, chapter)).join("\n")
+        report(Projector.call(:statements, bluebook: chapter_of(domain, chapter)).join("\n"))
       end
 
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
       # @param aggregate [Hash, String, nil] narrate only this aggregate
-      # @return [String] the domain in English
+      # @return [Hash] `text:` the domain in English
       # @raise [Runtime::NotFound] if the domain or aggregate cannot be found
       def narrate(domain: nil, aggregate: nil)
         document(:narrate, domain, aggregate)
@@ -111,7 +112,7 @@ module Hecks
 
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
       # @param aggregate [Hash, String, nil] document only this aggregate
-      # @return [String] the domain's usage document
+      # @return [Hash] `text:` the domain's usage document
       # @raise [Runtime::NotFound] if the domain or aggregate cannot be found
       def docs(domain: nil, aggregate: nil)
         document(:docs, domain, aggregate)
@@ -119,19 +120,19 @@ module Hecks
 
       # @param domain [Hash, String] a domain directory
       # @param chapter [Hash, String] the chapter's name
-      # @return [Hash{Symbol => Hash{String => String}}] `files:` the diagrams by file name
+      # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per diagram file
       # @raise [Runtime::NotFound] if the domain or chapter cannot be found
       def project_diagrams(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
         options = { hecksagon: runtime.registry.hecksagon(name) }
 
-        { files: Projector.call(:diagrams, bluebook: chapter_in(runtime, name), options: options) }
+        projected_files(Projector.call(:diagrams, bluebook: chapter_in(runtime, name), options: options))
       end
 
       # @param domain [Hash, String] a domain directory
       # @param chapter [Hash, String] the chapter's name
-      # @return [Hash{Symbol => Hash{String => String}}] `files:` the glossary by file name
+      # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per glossary file
       # @raise [Runtime::NotFound] if the domain or chapter cannot be found
       def glossary(domain:, chapter:)
         runtime = boot(domain)
@@ -140,7 +141,8 @@ module Hecks
           marking[:domain].to_s.start_with?("#{name}::")
         end
 
-        { files: Projector.call(:glossary, bluebook: chapter_in(runtime, name), options: { markings: markings }) }
+        projected_files(Projector.call(:glossary, bluebook: chapter_in(runtime, name),
+                                                  options:  { markings: markings }))
       end
 
       # One generated, valid dispatch sequence for a domain, through the generator `hecks fuzz`
@@ -150,7 +152,8 @@ module Hecks
       # @param seed [Integer, nil] the generator's seed (1 when absent)
       # @param steps [Integer, nil] how many steps to ask for (30 when absent)
       # @param adversarial [Float, nil] the fraction of steps mutated to be refused (0.0 if none)
-      # @return [String] a replayable script as JSON: its name, a note on how it was made, its steps
+      # @return [Hash] `text:` a replayable script as JSON: its name, a note on how it
+      #   was made, its steps
       # @raise [Runtime::NotFound] if the domain cannot be found
       def generate_sequence(domain:, seed: nil, steps: nil, adversarial: nil)
         require_relative "../../fuzzing"
@@ -161,10 +164,11 @@ module Hecks
         steps ||= 30
         generated = Fuzzing::SequenceGenerator.generate(target, seed: seed, steps: steps,
                                                                 adversarial: adversarial || 0.0)
-        JSON.pretty_generate(name:  "#{File.basename(target)}-generated",
-                             note:  "generated by hecks generate_sequence: seed #{seed}, #{steps} steps " \
-                                    "requested (#{generated.length} produced)",
-                             steps: generated)
+        script = { name:  "#{File.basename(target)}-generated",
+                   note:  "generated by hecks generate_sequence: seed #{seed}, #{steps} steps " \
+                          "requested (#{generated.length} produced)",
+                   steps: generated }
+        report(JSON.pretty_generate(script))
       end
 
       private
@@ -196,8 +200,14 @@ module Hecks
         bluebook = boot(domain).registry.bluebooks.values.first or raise Runtime::NotFound, "no bluebook loaded"
         name = plain(aggregate)
 
-        Projector.call(projection, bluebook: bluebook, options: name ? { aggregate: name } : {})
+        report(Projector.call(projection, bluebook: bluebook, options: name ? { aggregate: name } : {}))
       end
+
+      # The `Document` a query returns: one document of text.
+      def report(text) = { text: text }
+
+      # The `ProjectedFile` rows a projection that would have written files answers instead.
+      def projected_files(files) = files.map { |name, text| { name: name, text: text } }
 
       def entries(repository)
         return [] unless repository.is_a?(Ports::Persistence::AppendOnly)

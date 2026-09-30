@@ -29,56 +29,76 @@ Hecks.bluebook "Hecks" do
     # Each query below is answered by the DomainRuntime port's adapter: the domain is booted
     # in-process and the answer is the exact text the matching bin script printed.
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "Ir" do
       description "The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes."
       attribute :domain,       DomainPath, optional: true
       attribute :translations, Boolean,    optional: true
       attribute :meta,         Boolean,    optional: true
+      returns Document
     end
 
     query "Shape" do
       description "The storage shape an era's label is minted from: a bluebook file or a directory of them."
       attribute :domain, DomainPath
+      returns Document
     end
 
     query "Stores" do
       description "Every aggregate's current records: the head, not the journal."
       attribute :domain, DomainPath
+      returns Document
     end
 
     query "History" do
       description "Every journal entry a domain's append-only adapters hold: the whole write history."
       attribute :domain, DomainPath
+      returns Document
     end
 
     query "Statements" do
       description "A chapter's declared facts, as plain English sentences."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
+      returns Document
     end
 
     query "Narrate" do
       description "A domain read back in English, whole or for one aggregate."
       attribute :domain,    DomainPath,    optional: true
       attribute :aggregate, AggregateName, optional: true
+      returns Document
     end
 
     query "Docs" do
       description "A domain's usage document, whole or for one aggregate."
       attribute :domain,    DomainPath,    optional: true
       attribute :aggregate, AggregateName, optional: true
+      returns Document
+    end
+
+    # One file a projection would have written, held as its name and its text.
+    value_object "ProjectedFile" do
+      attribute :name, String
+      attribute :text, String
     end
 
     query "ProjectDiagrams" do
       description "A chapter's Mermaid diagrams, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
+      returns list_of(ProjectedFile)
     end
 
     query "Glossary" do
       description "A chapter's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
+      returns list_of(ProjectedFile)
     end
   end
 
@@ -421,6 +441,23 @@ Hecks.bluebook "Hecks" do
       order_by :run
     end
 
+    # A follow's answer: the count to pass back as `since`, the entries past it, and when it looked.
+    value_object "Tail" do
+      attribute :cursor,   Integer
+      attribute :events,   list_of(FollowedEvent)
+      attribute :taken_at, String
+    end
+
+    # One entry of a persisted event log; the payload is its JSON text, since a value object
+    # holds no free-form map.
+    value_object "FollowedEvent" do
+      attribute :name,        String
+      attribute :aggregate,   String
+      attribute :id,          String
+      attribute :payload,     String
+      attribute :occurred_at, String
+    end
+
     # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
     # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
     query "Follow" do
@@ -431,6 +468,7 @@ Hecks.bluebook "Hecks" do
       attribute :from_now,  Boolean, optional: true
       attribute :wait,      Integer, optional: true
       attribute :interval,  Float,   optional: true
+      returns Tail
     end
   end
 
@@ -995,28 +1033,37 @@ policy "RecordTheEra" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     # The reads that used to write. None holds an era or names one: a domain that holds no era
     # answers "no era held yet", and `hold_first` is the only thing that holds the first.
     query "ScaffoldTranslation" do
       description "The edge file that would lead the latest held era to the current shape."
       attribute :domain, DomainPath
+      returns Document
     end
 
     query "AuditTranslation" do
       description "The audit of the edge that leads the latest held era to the current shape."
       attribute :domain, DomainPath
+      returns Document
     end
 
     query "Attestation" do
       description "An era's held text as it now stands, and whether it still matches its digest."
       attribute :domain, DomainPath
       attribute :era,    Ordinal
+      returns Document
     end
 
     query "Compaction" do
       description "What compacting the domain's journals would delete, without deleting it."
       attribute :domain,     DomainPath
       attribute :aggregates, AggregateList, optional: true
+      returns Document
     end
   end
 
@@ -1516,10 +1563,16 @@ policy "RecordTheEra" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "RustCoverage" do
       description "Whether each construct of a generated module has a routed Rust implementation."
       attribute :module_name, ModuleName
       attribute :codegen,     CodegenName, optional: true
+      returns Document
     end
   end
 
@@ -1736,6 +1789,11 @@ policy "RecordTheEra" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     # The generator `hecks fuzz` draws from, on its own: one valid dispatch sequence as a
     # replayable script. `adversarial` is the fraction of steps mutated to be refused; 0 is off.
     query "GenerateSequence" do
@@ -1744,6 +1802,7 @@ policy "RecordTheEra" do
       attribute :seed,        Integer,    optional: true
       attribute :steps,       Integer,    optional: true
       attribute :adversarial, Float,      optional: true
+      returns Document
     end
   end
 

@@ -18,7 +18,7 @@ RSpec.describe "the QualityControl tool queries" do
   def tool_queries
     @chapter.aggregates.flat_map do |aggregate|
       aggregate.queries.filter_map do |query|
-        port, = aggregate.query_binding(query.name)
+        port = aggregate.query_binding(query.name)
         [aggregate, query, port.name] if port
       end
     end
@@ -82,7 +82,7 @@ RSpec.describe "the QualityControl tool queries" do
     it "answers what the command printed when it ends with an answering status" do
       ended_with(2, "FOUND SOMETHING\n")
 
-      expect(tool.tick).to eq("FOUND SOMETHING\n")
+      expect(tool.tick).to eq(text: "FOUND SOMETHING\n")
     end
 
     it "refuses with the report and the status when it ends with any other" do

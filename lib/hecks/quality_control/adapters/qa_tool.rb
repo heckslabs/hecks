@@ -30,12 +30,13 @@ module Hecks
       # @param args [Array<String>] the command's own arguments
       # @param answers [Array<Integer>] the exit statuses that are an answer: a finding, or a
       #   judgment, is one, an operational error is not
-      # @return [String] what the command printed, stdout and stderr in order
+      # @return [Hash] `text:` what the command printed, stdout and stderr in
+      #   order
       # @raise [Runtime::GivenNotMet] with what the command printed, when it ended with another
       #   status
       def run_command(command, *, answers: [0])
         output, status = Open3.capture2e(*QualityControlCli::Child.argv(@root, command, *), chdir: @root)
-        return output if answers.include?(status.exitstatus)
+        return { text: output } if answers.include?(status.exitstatus)
 
         raise Runtime::GivenNotMet, "#{output.strip}\n(#{command} ended with status #{status.exitstatus.inspect})"
       end

@@ -61,8 +61,10 @@ RSpec.describe "QualityControl" do
           aggregate.persisted_by("Memory")
         end
       end
-      # The chapter's own ports, so its IssueTracker, CI and tool-query bindings are the real ones.
+      # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+      # and tool-query bindings are the real ones.
       Kernel.load(File.join(QC_ROOT, "quality_control.ports.hecksagon"))
+      Dir[File.join(QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
       sibling_governance!
     end
 

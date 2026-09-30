@@ -287,14 +287,14 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
       answer = toolchain.rust_coverage(module_name: { value: "pizzas" }, codegen: { value: "rust" })
 
-      expect(answer).to start_with("=" * 72)
+      expect(answer.fetch(:text)).to start_with("=" * 72)
       expect(runner.calls.first.fetch(:argv).last(2)).to eq(%w[pizzas --codegen=rust])
     end
 
     it "answers a report that found gaps, since the gaps are what it reports" do
       runner.answer(out: "#{'=' * 72}\nGAP (2)\n", passed: false)
 
-      expect(toolchain.rust_coverage(module_name: { value: "pizzas" })).to include("GAP (2)")
+      expect(toolchain.rust_coverage(module_name: { value: "pizzas" }).fetch(:text)).to include("GAP (2)")
     end
 
     it "refuses when the script stopped before it could report at all" do

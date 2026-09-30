@@ -124,6 +124,10 @@ Every angle ever proposed on one exact citation, whatever became of it — the c
 
 Decide a lead is not worth the practice's time, and say why. Done by the qa engineer.
 
+### Document
+
+Made up of text (text).
+
 ### Instant
 
 A whole number.
@@ -575,6 +579,10 @@ Recorded after [Start](#start).
 
 Text.
 
+### Document
+
+Made up of text (text).
+
 ### Failed
 
 Record that the suite went red against this commit. Done by the system.
@@ -981,6 +989,10 @@ Text.
 
 Always true: a database is named.
 
+### Document
+
+Made up of text (text).
+
 ### Domain path
 
 Text.
@@ -1234,6 +1246,10 @@ Always true: a streak is not negative.
 ### Discover external domains
 
 Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols.
+
+### Document
+
+Made up of text (text).
 
 ### Domain path
 
