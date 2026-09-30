@@ -2899,20 +2899,20 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both a verb and operations/)
     end
 
-    it "answers_query binds a query to the port with the shape its answer takes" do
-      port = build_domain_port { answers_query "Census", shape: :rows }
+    it "answers_query binds a query to the port, and says nothing of the shape its answer takes" do
+      port = build_domain_port { answers_query "Census" }
 
-      expect(port.answer_for("Census")).to have_attributes(name: "Census", shape: :rows)
-      expect(port.to_h).to include(answered_queries: [{ name: "Census", shape: "rows" }])
+      expect(port.answer_for("Census")).to have_attributes(name: "Census")
+      expect(port.to_h).to include(answered_queries: [{ name: "Census" }])
     end
 
-    it "answers_query refuses a shape the language does not know, and a query bound twice" do
-      expect { build_domain_port { answers_query "Census", shape: :xml } }
-        .to raise_error(Hecks::Bluebook::DSL::Malformed, /answers as :xml/)
+    it "answers_query refuses the shape: it once took, and a query bound twice" do
+      expect { build_domain_port { answers_query "Census", shape: :rows } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /shape/)
       expect do
         build_domain_port do
-          answers_query "Census", shape: :rows
-          answers_query "Census", shape: :text
+          answers_query "Census"
+          answers_query "Census"
         end
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /binds Census twice/)
     end

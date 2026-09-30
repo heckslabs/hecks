@@ -65,6 +65,24 @@ pub fn parse_body(
                     target: None,
                 });
             }
+            "returns" => {
+                if query.returns.is_some() {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("{name} declares returns twice — a query answers in one shape"),
+                    ));
+                }
+                let raw = super::positional_constant(file, line, "returns", &gated.args, 1)?;
+                let (type_name, list, _) =
+                    super::resolve_type_expression(file, line, "returns", "returns", raw)?;
+                let type_name = crate::build::naming::demodulise(&type_name);
+                query.returns = Some(if list {
+                    format!("list_of({type_name})")
+                } else {
+                    type_name
+                });
+            }
             word if OPTION_WORDS.contains(&word) => {
                 query_options::apply(file, line, word, &gated.args, &mut query.options)?
             }

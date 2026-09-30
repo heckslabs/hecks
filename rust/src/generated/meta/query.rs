@@ -477,6 +477,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "order_by", context: "Query", body: "none", inner: "", opens: "", fills: "order_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "authorize", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "inspect_query", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "returns", context: "Query", body: "none", inner: "", opens: "", fills: "returns", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
 
 impl KeywordSeed {
@@ -542,6 +543,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "authorize", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "policy", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "authorize", context: "Query", at: "", named: "tenant", kind: "symbol", required: "false", fills: "tenant", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "inspect_query", context: "Query", at: "1", named: "", kind: "symbol", required: "false", fills: "mode", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "returns", context: "Query", at: "1", named: "", kind: "constant", required: "true", fills: "returns", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
 ];
 
 impl ArgumentSeed {
@@ -584,6 +586,7 @@ pub struct Query {
     pub order_field: Option<QueryText>,
     pub order_way: Option<QueryText>,
     pub limit: Option<QueryText>,
+    pub returns: Option<QueryText>,
     pub wheres: Vec<Filter>,
     pub attributes: Vec<AskArgument>,
     pub options: Vec<AskOption>,
@@ -601,6 +604,7 @@ impl crate::kernel::Fielded for Query {
             "order_field" => self.order_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "order_way" => self.order_way.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "limit" => self.limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "returns" => self.returns.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "wheres" => Some(Field::Value(Value::List(self.wheres.len()))),
             "attributes" => Some(Field::Value(Value::List(self.attributes.len()))),
             "options" => Some(Field::Value(Value::List(self.options.len()))),
@@ -635,6 +639,7 @@ impl Query {
         ("order_field".to_string(), self.order_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("order_way".to_string(), self.order_way.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("limit".to_string(), self.limit.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("returns".to_string(), self.returns.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("wheres".to_string(), crate::kernel::Json::Array(self.wheres.iter().map(|x| x.to_json()).collect())),
         ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
         ("options".to_string(), crate::kernel::Json::Array(self.options.iter().map(|x| x.to_json()).collect())),
@@ -656,6 +661,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         order_field: match v.get("order_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
         order_way: match v.get("order_way") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
         limit: match v.get("limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
+        returns: match v.get("returns") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
         wheres: match v.get("wheres").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Filter::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskArgument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -718,6 +724,7 @@ impl crate::kernel::Fielded for DeclareArgs {
             "order_field" => self.order_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "order_way" => self.order_way.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "limit" => self.limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "returns" => self.returns.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -747,6 +754,7 @@ pub struct DeclareArgs {
     pub order_field: Option<QueryText>,
     pub order_way: Option<QueryText>,
     pub limit: Option<QueryText>,
+    pub returns: Option<QueryText>,
     pub position: Option<Position>,
 }
 
@@ -758,6 +766,7 @@ pub fn dispatch_declare(
         if let Some(v) = &args.order_field { v.check_invariants()?; }
         if let Some(v) = &args.order_way { v.check_invariants()?; }
         if let Some(v) = &args.limit { v.check_invariants()?; }
+        if let Some(v) = &args.returns { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
     let seed_projections = crate::kernel::seeded_projections(&with_references, QUERY_PROJECTED_FIELDS);
@@ -781,6 +790,7 @@ pub fn dispatch_declare(
             order_field: args.order_field.clone(),
             order_way: args.order_way.clone(),
             limit: args.limit.clone(),
+            returns: args.returns.clone(),
             wheres: vec![],
             attributes: vec![],
             options: vec![],
@@ -799,6 +809,7 @@ pub fn dispatch_declare(
             order_field: args.order_field.clone(),
             order_way: args.order_way.clone(),
             limit: args.limit.clone(),
+            returns: args.returns.clone(),
             wheres: vec![],
             attributes: vec![],
             options: vec![],
@@ -824,6 +835,7 @@ pub fn dispatch_declare(
         record.order_field = args.order_field.clone();
         record.order_way = args.order_way.clone();
         record.limit = args.limit.clone();
+        record.returns = args.returns.clone();
         record.position = args.position.clone();
             Ok(())
         },
@@ -849,6 +861,7 @@ impl DeclareArgs {
         ("order_field".to_string(), self.order_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("order_way".to_string(), self.order_way.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("limit".to_string(), self.limit.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("returns".to_string(), self.returns.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
                 .into_iter()
                 .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
@@ -862,13 +875,13 @@ impl DeclareArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
 }
-let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
+let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position", "id", "owner_id"]);
 if !unknown.is_empty() {
     let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
     return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
         command: "Declare",
         unknown: &unknown,
-        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position"],
+        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position"],
     }.render_args()));
 }
 let absent: Vec<&str> = ["aggregate", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
@@ -876,7 +889,7 @@ if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
         command: "Declare",
         absent: &absent,
-        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position"],
+        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position"],
     }.render_args()));
 }
         let aggregate = { let x = v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()) })? };
@@ -891,6 +904,8 @@ if !absent.is_empty() {
         if let Some(v) = &order_way { v.check_invariants()?; }
         let limit = match v.get("limit") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &limit { v.check_invariants()?; }
+        let returns = match v.get("returns") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &returns { v.check_invariants()?; }
         let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &position { v.check_invariants()?; }
         Ok(Self {
@@ -901,6 +916,7 @@ if !absent.is_empty() {
         order_field,
         order_way,
         limit,
+        returns,
         position,
         })
     }
@@ -915,13 +931,13 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
+let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position", "id", "owner_id"]);
 if !unknown.is_empty() {
     let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
     return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
         command: "Declare",
         unknown: &unknown,
-        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position"],
+        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position"],
     }.render_args()));
 }
         Ok(())
@@ -933,7 +949,7 @@ if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
         command: "Declare",
         absent: &absent,
-        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position"],
+        declared: &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "returns", "position"],
     }.render_args()));
 }
         Ok(())

@@ -26,6 +26,7 @@ Hecks.bluebook "DomainPortReference" do
 
     value_object("Waybill") { attribute :value, String }
     value_object("Note")    { attribute :text,  String }
+    value_object("Position") { attribute :at, String }
 
     command "Book" do
       sets :waybill
@@ -35,6 +36,7 @@ Hecks.bluebook "DomainPortReference" do
 
     query "Whereabouts" do
       attribute :waybill, Waybill
+      returns Position
     end
   end
 end
@@ -78,7 +80,7 @@ Hecks.hecksagon("DomainPortReference") do
       emits "DeliveryReported"
     end
 
-    answers_query "Whereabouts", shape: :row
+    answers_query "Whereabouts"
   end
 
   # A PORT IS A `verb` OR ONE-OR-MORE `operation`s, never both — so the
@@ -293,40 +295,41 @@ runtime.registry.ports["extraction"].answers  # => [:canonical]
 ## answers_query
 
 <!-- generated:begin word=answers_query -->
-`answers_query name, shape:` — fills `answered_queries`
+`answers_query name` — fills `answered_queries`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
-| `shape:` | symbol | true | shape |
 <!-- generated:end -->
 
 Binds one of the aggregate's own queries to this port's adapter, so the answer comes from
-outside the domain instead of from stored records. The bluebook declares only the question: a
-`query` with attributes and no `where`. It never names a port or an adapter; the hecksagon does,
-here, and states the shape the answer takes:
-
-- `:text` — one document; it comes back as the single row `{ answered: text }`
-- `:row` — one Hash, which is the single row
-- `:rows` — an Array of Hashes, which are the rows
+outside the domain instead of from stored records. The bluebook owns the meaning: the `query`
+declares the question and the shape of its answer, `returns Position`, a value object of the
+aggregate (`returns list_of(Position)` for many rows). It never names a port or an adapter; the
+hecksagon does, here, and says nothing else. The hecksagon owns the capability (who can obtain the
+answer), the world owns the configuration.
 
 The adapter bound to the port is asked by the query's snake-cased name, with the query's
-arguments as plain data. An answer that is not the declared shape is refused with a
-`WiringError`, as is a port with no adapter, or two. The aggregate is never read and no event is
-written, and every row carries `taken_at`, the moment the adapter looked, so a reader knows
-"as of when". The answer is not in the journal, so it cannot be replayed.
+arguments as plain data. Each row it answers is built as the returned value object, so an answer
+that is not that shape (a missing field, a wrong type, a broken invariant, an extra key) is
+refused with a `TypeMismatch`, `InvariantViolation` or `UnknownArgument` that names the query,
+before it enters the domain. The aggregate is never read and no event is written. The answer is
+not in the journal, so it cannot be replayed; a query that wants to say when it was taken declares
+`attribute :taken_at, String` in its value object and the adapter fills it from the clock port.
 
-A query that takes arguments but declares no `where`, `order_by` or `limit`, and is bound by no
-port, is refused when the domain boots: its arguments select nothing, so only an outside answer
-could use them. (A query with no arguments and no clause is still the plain list of every record.)
-A binding that names a query the aggregate does not declare, or one that also filters stored
-records, is refused too.
+A query has exactly one answer path. It is derived from the aggregate's records when it declares
+a `where`, `order_by`, `limit` or `offset` (or takes no arguments and lists every record) and
+returns nothing; it is answered from outside when it `returns` a value object and is bound here.
+Booting refuses a query with no path (a `returns` nothing binds, or arguments that select
+nothing), with two (bound twice, or bound and also filtering records), a binding that names a
+query the aggregate does not declare, and a bound query whose port has no adapter, two, or one
+that lacks the method.
 
 A behaviors file swaps the adapter without touching the bluebook: it loads a sibling
 `adapters/` folder whose adapter implements the same port with canned answers.
 
 ```ruby
 where = runtime.query("DomainPortReference::Shipment.Whereabouts", waybill: { value: "wb-1" }).first
-[where[:at], where.key?(:taken_at)]  # => ["the depot", true]
+where  # => { at: "the depot" }
 ```
 

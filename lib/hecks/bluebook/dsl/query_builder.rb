@@ -27,6 +27,31 @@ module Hecks
         # @return [String] the description as stored
         def description(value) = @description = value
 
+        # Names the value object of the owning aggregate that shapes this query's answer.
+        #
+        # The bluebook owns the meaning of an answer: a query that returns a value object is
+        # answered by something outside the domain (the hecksagon binds it), and each row of
+        # that answer is built as the value object, so a wrong-shaped answer is refused before
+        # it enters the domain. A query that returns nothing answers with the aggregate's own row.
+        #
+        # @param type [Module, AttributeCollector::ListOf] a bare value-object constant, or
+        #   `list_of(Constant)` when the answer is many rows
+        # @return [String] the return type as stored: `"Name"` or `"list_of(Name)"`
+        # @raise [Bluebook::DSL::Malformed] if the query already returns, or the type is quoted text
+        def returns(type)
+          raise Malformed, "#{@name} declares returns twice — a query answers in one shape" if @returns
+
+          list  = type.is_a?(AttributeCollector::ListOf)
+          inner = list ? type.type : type
+          if inner.is_a?(::String)
+            raise Malformed, "#{@name}'s returns #{inner.inspect} is quoted text — give the bare " \
+                             "constant (#{inner}) instead"
+          end
+
+          name = Naming.demodulise(inner)
+          @returns = list ? "list_of(#{name})" : name.to_s
+        end
+
         # Declares a query parameter that names another aggregate's identity.
         #
         # A plain attribute typed as a reference; a query has no root of its own to act on.
@@ -61,7 +86,8 @@ module Hecks
             cursor:         @cursor,
             authorization:  @authorization,
             null_semantics: @null_semantics,
-            inspection:     @inspection
+            inspection:     @inspection,
+            returns:        @returns
           )
         end
 

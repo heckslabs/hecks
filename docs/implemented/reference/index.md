@@ -16,7 +16,7 @@ survives regeneration.
 - [Handler](handler.md) — 1 word
 - [Dispatch](dispatch.md) — 1 word
 - [ReadModel](read_model.md) — 21 words
-- [Query](query.md) — 11 words
+- [Query](query.md) — 12 words
 - [ValueObject](value_object.md) — 4 words
 - [OneOf](one_of.md) — 1 word
 - [Type](type.md) — 2 words

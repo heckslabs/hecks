@@ -38,7 +38,12 @@ regenerate launchers with `hecks project_cli`.
 **Breaking (3.0.0): `answered_by` is removed from the language.**
 A `query` no longer names the port that answers it. The binding from a query to its port moves to
 the hecksagon, beside the other adapter bindings, so a bluebook says what is asked and the
-hecksagon says who answers. Move each `answered_by` binding into the domain's hecksagon.
+hecksagon says who answers. Move each `answered_by` binding into the domain's hecksagon as
+`answers_query "Name"`, and declare the shape of the answer in the bluebook: the query says
+`returns Name` (or `returns list_of(Name)`) for a value object of its aggregate, and every row an
+adapter answers is built as that value object before it enters the domain. A query has exactly
+one answer path, checked at boot: it filters the aggregate's records, or it returns a value
+object and one port binds it.
 
 **Breaking (3.0.0): two Hecks lifecycle commands are renamed.**
 `Era.Admit` is `Era.Permit` (the lifecycle's `admitted` state and the request that reaches it are

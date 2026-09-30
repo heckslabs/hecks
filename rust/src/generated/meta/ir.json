@@ -19034,6 +19034,16 @@
           "relationship": null
         },
         {
+          "name": "returns",
+          "type": "QueryText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "wheres",
           "type": "Filter",
           "list": true,
@@ -19654,6 +19664,32 @@
               [
                 "fills",
                 "options"
+              ]
+            ],
+            [
+              [
+                "word",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "returns"
               ]
             ]
           ]
@@ -20342,6 +20378,36 @@
                 "fills",
                 "mode"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "returns"
+              ]
             ]
           ]
         }
@@ -20415,6 +20481,16 @@
             },
             {
               "name": "limit",
+              "type": "QueryText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "returns",
               "type": "QueryText",
               "list": false,
               "default": null,
@@ -20502,6 +20578,15 @@
               "source": {
                 "kind": "argument",
                 "name": "limit"
+              }
+            },
+            {
+              "target": "returns",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "returns"
               }
             },
             {

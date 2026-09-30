@@ -30,12 +30,11 @@ Hecks.bluebook "Hecksagon" do
       invariant("an answer names a real method") { !value.to_s.empty? }
     end
 
-    # A query this port's adapter answers, and the shape its answer takes: text, a row, or rows.
+    # A query this port's adapter answers. The shape of the answer is the query's own `returns`,
+    # declared in the bluebook; the hecksagon only says who answers.
     value_object "QueryBinding" do
-      attribute :name,  String
-      attribute :shape, String
+      attribute :name, String
       invariant("a bound query is named") { !name.to_s.empty? }
-      invariant("a bound query has a known shape") { shape == "text" || shape == "row" || shape == "rows" }
     end
 
     # Keyword rows for DomainPort; SyntaxBoot discovers every aggregate-local seed table.
@@ -85,7 +84,6 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "signal",          context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
       member keyword: "answers",         context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "answers"
       member keyword: "answers_query",   context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
-      member keyword: "answers_query",   context: "DomainPort", at: "",  named: "shape", kind: "symbol", required: "true", fills: "shape"
 
       # The receiving aggregate is named on the opening word (`to:`), not by `reference_to` inside.
       member keyword: "operation",       context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"

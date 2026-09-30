@@ -19023,6 +19023,16 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "returns",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "QueryText"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "wheres",
           "optional": false,
@@ -19138,6 +19148,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "returns",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -19219,6 +19239,15 @@
                 "name": "limit"
               },
               "target": "limit"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "returns"
+              },
+              "target": "returns"
             },
             {
               "op": "set",
@@ -20137,6 +20166,32 @@
                 "fills",
                 "options"
               ]
+            ],
+            [
+              [
+                "word",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "returns"
+              ]
             ]
           ],
           "name": "KeywordSeed"
@@ -20823,6 +20878,36 @@
               [
                 "fills",
                 "mode"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "type"
               ]
             ]
           ],
