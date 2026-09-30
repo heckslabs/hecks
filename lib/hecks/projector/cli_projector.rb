@@ -304,8 +304,11 @@ module Hecks
           note: "id of a #{attribute.type.target_name}" }
       end
 
+      # A `list_of` scalar carries `list: true, words: true`: the launcher reads a comma-separated
+      # value or a repeated name as the list's elements, since the runtime refuses a lone scalar.
       def scalar_option(path, field, optional, enum: [])
         option = { path: path, type: field.type.to_s, required: !optional }
+        option.merge!(list: true, words: true, note: "list: comma-separated or repeated") if field.list?
         option[:enum]    = enum          unless enum.empty?
         option[:pattern] = field.pattern if field.respond_to?(:pattern) && field.pattern
         option[:default] = field.default if field.respond_to?(:default) && !field.default.nil?

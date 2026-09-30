@@ -10,6 +10,13 @@ pub fn json_type_error(struct_name: &str, key: &str, expectation: &str) -> Strin
     format!("crate::kernel::Refusal::TypeMismatch({}.to_string())", naming::ruby_inspect_string(&format!("{struct_name}.{key}: expected {expectation}")))
 }
 
+// The refusal for a scalar offered where a list argument goes; worded as Ruby's
+// `Value.refuse_scalar_list`, with the offered value known only at runtime.
+pub fn list_shape_error(struct_name: &str, key: &str, element_type: &str, value_var: &str) -> String {
+    let template = format!("{struct_name}.{key} expects list_of({element_type}), got {{}}");
+    format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&template))
+}
+
 // A String field refuses only composite-shaped (or null) values, as Ruby's
 // `Value::Coercion#check_scalar_shapes` does; the offered shape is only known at runtime.
 pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_var: &str) -> String {
@@ -284,8 +291,11 @@ pub fn emit_from_json_flat(
                 )
             } else if list {
                 let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
+                // A list argument is an array: a lone scalar is refused, as Ruby's
+                // `Value.refuse_scalar_list` does; null and an absent key are the empty list.
+                let shape_error = list_shape_error(struct_name, &key, crate::attr::type_name(attr), "x");
                 format!(
-                    "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
+                    "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| {shape_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if optional && scalar.is_some() {

@@ -662,7 +662,7 @@ if !absent.is_empty() {
         declared: &["tags"],
     }.render_args()));
 }
-        let tags = match v.get("tags").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| HangarTag::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), };
+        let tags = match v.get("tags") { Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetagArgs.tags expects list_of(HangarTag), got {}", x.inspect())))?.iter().map(|item| HangarTag::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, };
         for item in &tags { item.check_invariants()?; }
         Ok(Self {
         tags,

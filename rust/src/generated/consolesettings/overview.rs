@@ -506,7 +506,7 @@ if !absent.is_empty() {
         declared: &["stats"],
     }.render_args()));
 }
-        let stats = match v.get("stats").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Stat::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), };
+        let stats = match v.get("stats") { Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ReplaceStatsArgs.stats expects list_of(Stat), got {}", x.inspect())))?.iter().map(Stat::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, };
         for item in &stats { item.check_invariants()?; }
         Ok(Self {
         stats,
