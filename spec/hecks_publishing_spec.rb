@@ -20,6 +20,8 @@ RSpec.describe "publishing a release" do
     FileUtils.mkdir_p(File.join(root, "packages/hecks-client"))
     File.write(File.join(root, "hecks.gemspec"), "")
     File.write(File.join(root, "lib/hecks/version.rb"), %(module Hecks\n  VERSION = "#{version}".freeze\nend\n))
+    FileUtils.mkdir_p(File.join(root, "rust/host"))
+    File.write(File.join(root, "rust/host/HECKS_RELEASE"), "#{version}\n")
     File.write(File.join(root, "packages/hecks-client/package.json"),
                JSON.generate("name" => "@hecks/client", "version" => version))
     File.write(File.join(root, "CHANGELOG.md"), "# Changelog\n\n## [#{version}] - 2026-01-01\n")

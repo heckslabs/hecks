@@ -106,16 +106,49 @@ RSpec.describe Hecks::Translation::ApprovalFile do
     it "applies to the edge whose digest it holds, and to no other" do
       approve!
 
-      expect(described_class.applicable(@dir, edge)).to include("approved_by" => "Ada")
+      expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to include("approved_by" => "Ada")
       changed = registry_with(COMPUTED_EDGE.sub("* 2", "* 3")).translations.first
-      expect(described_class.applicable(@dir, changed)).to be_nil
+      expect(described_class.applicable(@dir, changed, host_version: "3.0.0")).to be_nil
+    end
+
+    it "applies only on a host of the rehearsal's major.minor, and refuses naming both versions" do
+      approve!
+
+      %w[3.0.0 3.0.9 3.0.1-rc.1].each do |host|
+        expect(described_class.applicable(@dir, edge, host_version: host)).to include("approved_by" => "Ada")
+      end
+      %w[2.9.0 3.1.0 4.0.0].each do |host|
+        expect(described_class.applicable(@dir, edge, host_version: host)).to be_nil
+      end
+      expect(described_class.host_mismatch(@dir, edge, host_version: "3.1.2")).to eq(
+        "the rehearsal ran on Hecks 3.0.0, but this host is Hecks 3.1.2; a rehearsal counts only on a " \
+        "host of the same major.minor (3.1.x) — re-run the rehearsal on this host and approve again"
+      )
+      expect(described_class.host_mismatch(@dir, edge, host_version: "3.0.4")).to be_nil
+    end
+
+    it "does not apply a rehearsal whose host_version is not a version" do
+      path = approve!
+      original = File.read(path)
+      ["three", "3", "v3.0.0"].each do |bad|
+        File.write(path, original.sub('"3.0.0"', %("#{bad}")))
+
+        expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
+      end
+    end
+
+    it "checks against the running release by default" do
+      approve!(rehearsal: REHEARSAL.merge("host_version" => Hecks::VERSION))
+
+      expect(described_class.applicable(@dir, edge)).to include("approved_by" => "Ada")
+      expect(described_class::HOST_RELEASE).to eq(Hecks::VERSION)
     end
 
     it "does not apply once its rehearsal was edited to a failure" do
       path = approve!
       File.write(path, File.read(path).sub('"pass"', '"fail"'))
 
-      expect(described_class.applicable(@dir, edge)).to be_nil
+      expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
     end
 
     it "does not apply once approved_by or approved_at was blanked or a rehearsal field made a number" do
@@ -125,7 +158,7 @@ RSpec.describe Hecks::Translation::ApprovalFile do
        ['"rds:ledger-2026-09-28"', "20260928"], ['"3.0.0"', '""']].each do |from, to|
         File.write(path, original.sub(from, to))
 
-        expect(described_class.applicable(@dir, edge)).to be_nil
+        expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
       end
     end
 
@@ -134,7 +167,7 @@ RSpec.describe Hecks::Translation::ApprovalFile do
       File.write(File.join(@dir, "translations", "junk.approval"), "not json")
 
       expect(described_class.read_all(@dir)).to eq([])
-      expect(described_class.applicable(@dir, edge)).to be_nil
+      expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
     end
 
     it "applies to nothing when there is no directory" do
