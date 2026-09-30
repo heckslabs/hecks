@@ -24,4 +24,31 @@ Hecks.hecksagon "QualityControl" do
       refuses "SuiteFailed"
     end
   end
+
+  # Queries answered from outside the domain. The bluebook declares each question and never says
+  # who answers it; each `answers_query` binds it to the `*Tools` port's adapter, which runs the
+  # script's own command and answers what it printed (`:text`). Rows carry `taken_at`.
+  QualityControl::Target.port "TargetTools" do
+    answers_query "Seed", shape: :text
+    answers_query "CheckGeneratedDomains", shape: :text
+    answers_query "MineCombinations", shape: :text
+    answers_query "JudgeNovelty", shape: :text
+    answers_query "DiscoverExternalDomains", shape: :text
+  end
+
+  QualityControl::Sweep.port "SweepTools" do
+    answers_query "Tick", shape: :text
+    answers_query "Run", shape: :text
+    answers_query "MigrateLedgerFromHeki", shape: :text
+    answers_query "CreateLedgerRole", shape: :text
+    answers_query "Race", shape: :text
+  end
+
+  QualityControl::Angle.port "AngleTools" do
+    answers_query "Seed", shape: :text
+  end
+
+  QualityControl::Clearance.port "ClearanceTools" do
+    answers_query "CheckPullRequests", shape: :text
+  end
 end

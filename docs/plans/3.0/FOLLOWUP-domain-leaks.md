@@ -3,15 +3,15 @@
 Source: a grep scan of the three Hecks bluebooks plus knowledge of the runtime changes. The counts are
 real but the scan is not a full audit of every adapter. Not on the 3.0 critical path: 3.0 ships the
 bins-as-adapters build first, and these items change the language, so they are best done as 3.x work
-(before 3.0 only where an item is already a breaking change, such as `answered_by`).
+(before 3.0 only where an item is already a breaking change, such as the `answered_by` removal, which is done).
 
 ## Leaks into the domain
 
 1. **Port names inside policies (largest).** 83 policy triggers name a port operation directly, such
-   as `ModelCheckRun::DomainRuntime::Check`, and 28 queries carry `answered_by`. Asks are declared in
-   the hecksagon, but the bluebook still spells the port to reach them.
-   Fix: a policy says "ask for the check"; the hecksagon maps that to a port. Related to the
-   `answered_by` removal already decided for 3.0.
+   as `ModelCheckRun::DomainRuntime::Check`, and the outside-answered queries are now bound in the hecksagon (`answers_query`) rather than
+   carrying `answered_by`. Asks are declared in the hecksagon, but the bluebook still spells the port
+   to reach them.
+   Fix: a policy says "ask for the check"; the hecksagon maps that to a port. The queries are the part already done for 3.0.
 2. **The run protocol is modelled as domain.** 17 aggregates start in a `requested` lifecycle and 49
    companion commands (accept, settle, abandon and similar) only record process outcomes. 15 `Report`
    value objects plus `Output` and `refusal` attributes hold raw subprocess text (171 attribute lines
