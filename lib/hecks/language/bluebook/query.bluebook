@@ -15,6 +15,9 @@ Hecks.bluebook "Bluebook" do
     attribute :order_field, QueryText
     attribute :order_way,   QueryText
     attribute :limit,       QueryText
+    # The value object that shapes an answer given from outside the domain, spelled as written:
+    # `Name` or `list_of(Name)`. Empty when the answer is the aggregate's own row.
+    attribute :returns,     QueryText
     attribute :wheres,      list_of(Filter)
     attribute :attributes,  list_of(AskArgument)
     # Every other option a query carries, as an open map: rows of option name, key within it, and
@@ -88,6 +91,7 @@ Hecks.bluebook "Bluebook" do
       attribute :order_field, QueryText, optional: true
       attribute :order_way,   QueryText, optional: true
       attribute :limit,       QueryText, optional: true
+      attribute :returns,     QueryText, optional: true
 
       attribute :position, Position, optional: true
       sets :aggregate
@@ -97,6 +101,7 @@ Hecks.bluebook "Bluebook" do
       sets :order_field
       sets :order_way
       sets :limit
+      sets :returns
       sets :position
       emits AskDeclared
     end
@@ -173,6 +178,7 @@ Hecks.bluebook "Bluebook" do
       member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl"
       member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
       member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "returns",         context: "Query", body: "none", inner: "", opens: "", fills: "returns"
 
     end
 
@@ -210,6 +216,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "authorize",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "policy"
       member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
       member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
+      member keyword: "returns",         context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
 
     end
   end

@@ -150,18 +150,17 @@ module Hecks
 
       # The text a query answered by a port gave, when that is the whole answer.
       #
-      # An adapter that answers a String yields the single row `{ answered: text, taken_at: time }`;
-      # printing the text raw keeps a document (JSON, Markdown, sentences) readable and pipeable
-      # instead of quoted inside another JSON document. The `taken_at` stays on the row for a
-      # caller that reads rows rather than prints them.
+      # A query that returns a value object of the single String attribute `text` (the `Document`
+      # shape) answers one document; printing it raw keeps the document (JSON, Markdown,
+      # sentences) readable and pipeable instead of quoted inside another JSON document.
       #
       # @param rows [Array<Hash>] the query's rows
       # @return [String, nil] the text, or nil when the rows are anything else
       def text_answer(rows)
-        return unless rows.length == 1 && rows.first.except(:taken_at).keys == [:answered]
-        return unless rows.first[:answered].is_a?(String)
+        return unless rows.length == 1 && rows.first.keys == [:text]
+        return unless rows.first[:text].is_a?(String)
 
-        rows.first[:answered]
+        rows.first[:text]
       end
 
       # Fills in a `now` argument the caller left out, from the clock port; an explicit one wins.

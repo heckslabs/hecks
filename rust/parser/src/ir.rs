@@ -129,6 +129,8 @@ pub struct Query {
     pub order_by: Option<OrderBy>,
     pub limit: Option<LimitSpec>,
     pub options: QueryOptions,
+    /// `returns Name` or `returns list_of(Name)`, spelled as `Query#returns` holds it.
+    pub returns: Option<String>,
 }
 
 /// `AuthorizationSpec#to_h`: both fields are bare `.to_s`, never Literal-rendered.

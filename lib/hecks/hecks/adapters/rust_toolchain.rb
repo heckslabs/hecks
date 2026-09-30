@@ -133,13 +133,13 @@ module Hecks
       # @param module_name [Hash, String] the generated module (a domain's directory name)
       # @param codegen [Hash, String, nil] `ruby` (the default) or `rust`: which generator's
       #   manifest to read
-      # @return [String] the report, gaps included: a gap is what the report says, not a refusal
+      # @return [Hash] `text:` the report, gaps included: a gap is what it says, not a refusal
       # @raise [ConsoleCapture::Failure] when there is no such module, or no report could be made
       def rust_coverage(module_name:, codegen: nil)
         argv = [plain(module_name)]
         argv << "--codegen=#{plain(codegen)}" if plain(codegen)
         result = run(:coverage, argv)
-        return result.out if result.ok? || result.out.start_with?("=" * 8)
+        return { text: result.out } if result.ok? || result.out.start_with?("=" * 8)
 
         raise ConsoleCapture::Failure, message_of(result)
       end

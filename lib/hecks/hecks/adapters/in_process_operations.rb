@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "time"
 require_relative "console_capture"
 require_relative "../../cli/run"
 require_relative "../../cli/model_check"
@@ -102,32 +103,35 @@ module Hecks
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
       # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 60
       # @param interval [Hash, Float, nil] seconds between checks of the log
-      # @return [Hash] `cursor:` the count to pass as `since`, and `events:` the entries
+      # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
+        registry = boot(domain).registry
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
-                        timeout: [plain(wait).to_f, MAX_FOLLOW_WAIT].min, interval: interval) do |entry|
-          entries << entry
+                        timeout: [plain(wait).to_f, MAX_FOLLOW_WAIT].min, interval: interval,
+                        registry: registry) do |entry|
+          entries << entry.merge("payload" => JSON.generate(entry["payload"]))
           :batch
         end
-        { cursor: cursor, events: entries }
+        { cursor: cursor, events: entries, taken_at: Time.at(Ports::Clock.now(registry)).utc.iso8601 }
       end
 
       # Tails a domain's event log, handing each entry to the block as the log shows it, until
       # the block returns `:stop` (or `:batch`: after this check's entries), `limit` entries were
-      # handed over, `timeout` seconds pass, or the reader goes away. With no bound it runs until
-      # interrupted, as a terminal tail wants.
+      # handed over, `timeout` seconds pass, or the reader goes away; unbounded, until interrupted.
       #
       # @param domain [Hash, String] a domain directory
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] entries already seen; `from_now` skips what exists
       # @param limit [Hash, Integer, nil] entries to hand over at most, or `timeout` seconds
       # @param interval [Hash, Float, nil] seconds between checks (0.5 when absent)
+      # @param registry [Runtime::Registry, nil] the domain's booted registry; booted here if absent
       # @return [Integer] the count of log entries seen, to pass back as `since`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
-      def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil, &block)
-        repository = event_repository(domain)
+      def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil,
+                 registry: nil, &block)
+        repository = event_repository(domain, registry)
         tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
         cap = plain(limit)&.to_i
         deadline = plain(timeout) && (monotonic + plain(timeout).to_f)
@@ -180,8 +184,8 @@ module Hecks
         root if File.exist?(File.join(root, CHECKOUT_MARKER))
       end
 
-      def event_repository(domain)
-        registry = boot(domain).registry
+      def event_repository(domain, registry = nil)
+        registry ||= boot(domain).registry
         repositories = registry.bluebooks.flat_map do |name, bluebook|
           bluebook.aggregates.map { |aggregate| registry.repository(name, aggregate) }
         end

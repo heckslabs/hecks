@@ -494,8 +494,14 @@ Hecks.bluebook "Hecks" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "WordStatus" do
       description "Where every word of the language stands: the ones not simply admitted, and the renamed."
+      returns Document
     end
   end
 
@@ -1300,12 +1306,18 @@ Hecks.bluebook "Hecks" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "ReportComments" do
       description "The Ruby comment violations, as summary tables, a list or JSON."
       attribute :paths, PathList
       attribute :only, CategoryList, optional: true
       attribute :json, Switch, optional: true
       attribute :top, Top, optional: true
+      returns Document
     end
 
     query "ReportRustComments" do
@@ -1314,6 +1326,7 @@ Hecks.bluebook "Hecks" do
       attribute :only, CategoryList, optional: true
       attribute :json, Switch, optional: true
       attribute :top, Top, optional: true
+      returns Document
     end
   end
 
@@ -1770,11 +1783,17 @@ Hecks.bluebook "Hecks" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "ShardSpecs" do
       description "The spec files one group of a runtime-balanced split runs."
       attribute :group, Count
       attribute :groups, Count
       attribute :runtime_log, FilePath, optional: true
+      returns Document
     end
 
     query "ListIoParallelSpecs" do
@@ -1782,10 +1801,12 @@ Hecks.bluebook "Hecks" do
       attribute :exclude, ExcludePattern
       attribute :tags, TagArguments, optional: true
       attribute :check, FilePath, optional: true
+      returns Document
     end
 
     query "RecordPatternCases" do
       description "The expected match results of the pattern cases, as JSON."
+      returns Document
     end
   end
 
@@ -1992,33 +2013,44 @@ Hecks.bluebook "Hecks" do
       order_by :run
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     query "RustDomains" do
       description "The feature and directory of every domain with a Rust feature."
+      returns Document
     end
 
     query "RegenOrder" do
       description "The directories regeneration walks, in the order it walks them."
+      returns Document
     end
 
     query "CorpusRustCoverage" do
       description "Whether every generated Rust module is routed by its domain."
+      returns Document
     end
 
     query "IrConstructs" do
       description "The structural diff of each IR construct from its meta-domain."
       attribute :names, NameList, optional: true
+      returns Document
     end
 
     query "IrDuplicates" do
       description "The rules declared more than once across the corpus."
       attribute :domains, PathList, optional: true
       attribute :meta, Switch, optional: true
+      returns Document
     end
 
     query "IrImpact" do
       description "Which propagation touchpoints of a construct's field already show it."
       attribute :name, ConstructName
       attribute :field, FieldName
+      returns Document
     end
   end
 

@@ -61,21 +61,26 @@ module Hecks
 
         # Declares that this port's adapter answers one of the owning aggregate's queries.
         #
-        # The bluebook declares the question and never says who answers it; this binds it. The
-        # adapter is asked by the query's snake-cased name with its arguments, and its answer
-        # must take `shape`. The aggregate's stored records are never read.
+        # The bluebook declares the question and the shape of its answer (`returns`) and never
+        # says who answers it; this binds it. The adapter is asked by the query's snake-cased
+        # name with its arguments. The aggregate's stored records are never read.
         #
         # @param name [String] the query's name, as the aggregate declares it
-        # @param shape [Symbol, String] `:text` for one document, `:row` for one Hash, `:rows`
-        #   for an Array of Hashes
+        # @param removed [Hash] any keyword at all; the binding takes only the name
         # @return [Array<Bluebook::QueryAnswer>] every binding declared so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if `shape` is unknown or the query is already bound
-        def answers_query_impl(name, shape:)
+        # @raise [Bluebook::DSL::Malformed] if a keyword such as `shape:` is written, or the query
+        #   is already bound on this port
+        def answers_query_impl(name, **removed)
+          unless removed.empty?
+            raise Malformed, "answers_query #{name.inspect} takes only the query's name — the shape " \
+                             "of its answer is the query's own `returns`, declared in the bluebook " \
+                             "(#{removed.keys.join(', ')} is not a word here)"
+          end
           if @answered_queries.any? { |answer| answer.name == name.to_s }
             raise Malformed, "#{@name} binds #{name} twice — a query has one answer"
           end
 
-          @answered_queries << QueryAnswer.new(name: name, shape: shape)
+          @answered_queries << QueryAnswer.new(name: name)
         end
 
         # Names the verb aggregates call this port by, making it a driven `Port` rather than a

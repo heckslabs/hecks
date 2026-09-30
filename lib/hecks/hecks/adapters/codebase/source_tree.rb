@@ -70,90 +70,90 @@ module Hecks
         done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
-      # @return [String] where every word of the language stands
+      # @return [Hash] `text:` where every word of the language stands
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def word_status(**)
         tree.require_checkout!
-        Codebase::Language.word_status
+        { text: Codebase::Language.word_status }
       end
 
       # @param args [Hash] the query's arguments: `paths`, `only`, `json`, `top`
-      # @return [String] the Ruby comment violations, as the linter reports them
+      # @return [Hash] `text:` the Ruby comment violations, as the linter reports them
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
       def report_comments(**args)
-        report("report_comments", args)
+        { text: report("report_comments", args) }
       end
 
       # @param args [Hash] the query's arguments: `paths`, `only`, `json`, `top`
-      # @return [String] the Rust comment violations, as the linter reports them
+      # @return [Hash] `text:` the Rust comment violations, as the linter reports them
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
       def report_rust_comments(**args)
-        report("report_rust_comments", args)
+        { text: report("report_rust_comments", args) }
       end
 
       # @param args [Hash] the query's arguments: `group`, `groups`, `runtime_log`
-      # @return [String] the spec files one group of a runtime-balanced split runs, one per line
+      # @return [Hash] `text:` the spec files one group of a runtime-balanced split runs
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when the script refuses its arguments
       def shard_specs(**args)
-        test_suite("shard_specs", args)
+        { text: test_suite("shard_specs", args) }
       end
 
       # @param args [Hash] the query's arguments: `exclude`, `tags`, `check`
-      # @return [String] the spec files with an example the tag filter selects, one per line
+      # @return [Hash] `text:` the spec files with an example the tag filter selects, one per line
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when the list is stale, or the script refuses its arguments
       def list_io_parallel_specs(**args)
-        test_suite("list_io_parallel_specs", args)
+        { text: test_suite("list_io_parallel_specs", args) }
       end
 
-      # @return [String] the expected match results of the pattern cases, as JSON
+      # @return [Hash] `text:` the expected match results of the pattern cases, as JSON
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def record_pattern_cases(**)
-        test_suite("record_pattern_cases", {})
+        { text: test_suite("record_pattern_cases", {}) }
       end
 
-      # @return [String] the feature and directory of every domain with a Rust feature
+      # @return [Hash] `text:` the feature and directory of every domain with a Rust feature
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def rust_domains(**)
-        corpus("rust_domains", {})
+        { text: corpus("rust_domains", {}) }
       end
 
-      # @return [String] the directories regeneration walks, in the order it walks them
+      # @return [Hash] `text:` the directories regeneration walks, in the order it walks them
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def regen_order(**)
-        corpus("regen_order", {})
+        { text: corpus("regen_order", {}) }
       end
 
-      # @return [String] whether each generated Rust module is covered
+      # @return [Hash] `text:` whether each generated Rust module is covered
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when a module is not covered
       def corpus_rust_coverage(**)
-        corpus("corpus_rust_coverage", {})
+        { text: corpus("corpus_rust_coverage", {}) }
       end
 
       # @param args [Hash] the query's arguments: `names`
-      # @return [String] each IR construct's diff from its meta-domain
+      # @return [Hash] `text:` each IR construct's diff from its meta-domain
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def ir_constructs(**args)
-        corpus("ir_constructs", args)
+        { text: corpus("ir_constructs", args) }
       end
 
       # @param args [Hash] the query's arguments: `domains`, `meta`
-      # @return [String] the rules declared more than once
+      # @return [Hash] `text:` the rules declared more than once
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def ir_duplicates(**args)
-        corpus("ir_duplicates", args)
+        { text: corpus("ir_duplicates", args) }
       end
 
       # @param args [Hash] the query's arguments: `name`, `field`
-      # @return [String] which propagation touchpoints already show the field
+      # @return [Hash] `text:` which propagation touchpoints already show the field
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when the construct is not one
       def ir_impact(**args)
-        corpus("ir_impact", args)
+        { text: corpus("ir_impact", args) }
       end
 
       private

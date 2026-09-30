@@ -62,15 +62,15 @@ RSpec.describe "hecks introspection through the launcher" do
     out, status = run_verb("stores", @dir)
 
     expect(status).to eq(0)
-    expect(out).to eq(Hecks::Adapters::InProcessBoot.new.stores(domain: @dir))
+    expect(out).to eq(Hecks::Adapters::InProcessBoot.new.stores(domain: @dir).fetch(:text))
   end
 
-  it "answers files as a JSON map, and writes none" do
+  it "answers files as rows of name and text, and writes none" do
     before = Dir.glob(File.join(@dir, "**/*"))
     out, status = run_verb("glossary", @dir, "chapter=Shelf")
 
     expect(status).to eq(0)
-    expect(JSON.parse(out).first.fetch("files")).not_to be_empty
+    expect(JSON.parse(out)).to all(include("name", "text"))
     expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
   end
 

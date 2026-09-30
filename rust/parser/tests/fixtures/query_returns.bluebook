@@ -1,0 +1,27 @@
+Hecks.bluebook "QueryReturnsFixture" do
+  aggregate "Note" do
+    identified_by :title
+    attribute :title, Title
+
+    value_object "Title" do
+      attribute :value, String
+    end
+
+    value_object "Heard" do
+      attribute :heard, String
+    end
+
+    query "Echo" do
+      attribute :title, Title
+      returns Heard
+    end
+
+    query "Roster" do
+      returns list_of(Heard)
+    end
+
+    query "Recent" do
+      where title: "x"
+    end
+  end
+end

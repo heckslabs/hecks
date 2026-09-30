@@ -34,8 +34,8 @@ module Hecks
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
-        if (binding = aggregate.query_binding(declared.name))
-          return answered_from_outside(aggregate, declared, args, binding, taken_at: Time.now.utc.iso8601)
+        if (port = aggregate.query_binding(declared.name))
+          return answered_from_outside(aggregate, declared, args, port)
         end
 
         declared = TenantScope.apply(declared, args)
@@ -72,9 +72,9 @@ module Hecks
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
         # No records to interpret: the adapter is the only answer there is, and the reference
-        # takes it as given, unstamped, so a diff against #call sees only the adapter's rows.
-        binding = aggregate.query_binding(declared.name)
-        return answered_from_outside(aggregate, declared, args, binding, taken_at: nil) if binding
+        # takes it through the same shape check, so a diff against #call sees only the adapter.
+        port = aggregate.query_binding(declared.name)
+        return answered_from_outside(aggregate, declared, args, port) if port
 
         declared = TenantScope.apply(declared, args)
         reference_interpret(@registry.repository(domain, aggregate).all, declared, args,
@@ -84,15 +84,15 @@ module Hecks
       private
 
       # Asks the port's adapter the question the hecksagon bound to this query, by the query's
-      # snake-cased name and with its arguments as plain data. The answer must take the declared
-      # shape; each row carries `taken_at`, the moment the adapter looked, since nothing here
-      # replays it. The aggregate's records are never read.
+      # snake-cased name and with its arguments as plain data. Each row of the answer is built as
+      # the value object the query `returns`, so an answer that is not that shape is refused
+      # before it enters the domain. The aggregate's records are never read.
       #
-      # @return [Array<Hash>] the rows, frozen; a `:text` answer is the one row `{ answered: text }`
-      # @raise [Runtime::WiringError] if no adapter answers the port, the adapter lacks the
-      #   method, or its answer is not the declared shape
-      def answered_from_outside(aggregate, declared, args, binding, taken_at:)
-        port, answer = binding
+      # @return [Array<Hash>] the rows as the returned value object's fields, frozen
+      # @raise [Runtime::WiringError] if no adapter answers the port or the adapter lacks the method
+      # @raise [Runtime::TypeMismatch, Runtime::InvariantViolation, Runtime::UnknownArgument,
+      #   Runtime::AbsentArgument] naming the query, if the answer is not its declared shape
+      def answered_from_outside(aggregate, declared, args, port)
         asked   = "#{aggregate.hecks_name}.#{declared.name}"
         adapter = AdapterLookup.call(@registry, port.name, asked: asked)
         method  = Naming.snake(declared.name)
@@ -101,21 +101,30 @@ module Hecks
                              "##{method}, which answers #{asked}"
         end
 
-        rows = shaped(adapter.public_send(method, **Value.materialize(args)), answer, asked)
-        rows = rows.map { |row| row.merge(taken_at: taken_at) } if taken_at
-        Freezer.deep(rows)
+        answer = adapter.public_send(method, **Value.materialize(args))
+        Freezer.deep(shaped(aggregate, declared, answer, asked))
       end
 
-      def shaped(answer, declared_shape, asked)
-        rows = case declared_shape.shape
-               when :text then [{ answered: answer }] if answer.is_a?(String)
-               when :row  then [answer] if answer.is_a?(Hash)
-               when :rows then answer if answer.is_a?(Array) && answer.all?(Hash)
-               end
-        return rows if rows
+      # Builds the adapter's answer as the declared value object: one row, or a list of rows for
+      # `returns list_of(...)`. A refusal keeps its class and gains the query's name.
+      def shaped(aggregate, declared, answer, asked)
+        value_object = Value.value_object_for(aggregate, declared.returns_name) or
+          raise WiringError, "#{asked} returns #{declared.returns_name.inspect}, which the aggregate " \
+                             "declares no value object for"
+        offered = declared.returns_list? ? answer : [answer]
+        unless offered.is_a?(Array) && offered.all?(Hash)
+          raise TypeMismatch, "#{asked} answered outside the domain, but #{answer.class} is not " \
+                              "#{declared.returns_list? ? 'a list of' : 'a'} #{value_object.hecks_name} row"
+        end
 
-        raise WiringError, "#{asked} is bound as #{declared_shape.shape.inspect}, but its adapter answered " \
-                           "#{answer.class}"
+        offered.map { |row| answered_row(value_object, row, aggregate, declared, asked) }
+      end
+
+      # One row of an outside answer, built and validated as the returned value object.
+      def answered_row(value_object, row, aggregate, declared, asked)
+        Value.build(value_object, row, aggregate).to_h
+      rescue TypeMismatch, InvariantViolation, UnknownArgument, AbsentArgument => e
+        raise e.class, "#{asked} answered outside the domain, but not as its #{declared.returns} — #{e.message}"
       end
 
       def declared_query(aggregate, query_name)
