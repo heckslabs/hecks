@@ -1,75 +1,17 @@
 #!/usr/bin/env ruby
 
 # Builds the rust/web wasm-bindgen crate over the generated domain code
-# (docs/decisions/0015-wasm-bindgen-browser-projection.md).
+# (rust/dist/browser/<domain>/).
 #
 #   bin/project_wasm_browser <domain>
 #
-# Produces rust/dist/browser/<domain>/{<domain>.js,<domain>_bg.wasm,*.d.ts}, an ES module whose
-# dispatch(json) returns the same {"instances","events","refusals"} JSON as the WASI module.
+# A shim: the work is Hecks::RustBuild (lib/hecks/rust_build/).
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("project_wasm_browser")
 
-domain = ARGV.shift or abort "usage: bin/project_wasm_browser <domain>"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-root = File.expand_path("..", __dir__)
-# HECKS_RUST_DIR names the workspace to build in, as for bin/project_wasm; unset, this
-# checkout's own rust/.
-rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(root, "rust"))
-web_dir = File.join(rust_dir, "web")
-target_mod_name = File.basename(domain)
+require "hecks/rust_build"
 
-unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown")
-  abort <<~MSG
-    wasm32-unknown-unknown isn't installed for this toolchain. Install it once with:
-
-        rustup target add wasm32-unknown-unknown
-
-    then re-run bin/project_wasm_browser.
-  MSG
-end
-
-# The wasm-bindgen CLI must match the crate version pinned in rust/web/Cargo.toml;
-# a mismatch fails only when the CLI runs, so read the pin back instead of hardcoding it.
-pinned_version = File.read(File.join(web_dir, "Cargo.toml"))[/^wasm-bindgen = "=(.+)"/, 1] or
-  abort "rust/web/Cargo.toml: couldn't find a pinned (\"=x.y.z\") wasm-bindgen version"
-
-installed_version = `wasm-bindgen --version 2>/dev/null`[/[\d.]+/]
-unless installed_version == pinned_version
-  abort <<~MSG
-    wasm-bindgen CLI #{installed_version.inspect} != the pinned crate version #{pinned_version.inspect}. Install the matching CLI once with:
-
-        cargo install wasm-bindgen-cli --version #{pinned_version} --locked
-
-    then re-run bin/project_wasm_browser.
-  MSG
-end
-
-puts "== regenerating rust/src/generated/ for #{domain} =="
-system(File.join(root, "bin", "project_rust"), domain, exception: true)
-
-puts "== cargo build --release --target wasm32-unknown-unknown (rust/web) =="
-Dir.chdir(web_dir) do
-  # `rustup run`, not bare `cargo`, for the reason given in bin/project_wasm.
-  system("rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-unknown-unknown", exception: true)
-end
-
-out_dir = File.join(rust_dir, "dist", "browser", target_mod_name)
-require "fileutils"
-FileUtils.mkdir_p(out_dir)
-
-built = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(web_dir, "target")), "wasm32-unknown-unknown", "release",
-                  "rust_web.wasm")
-puts "== wasm-bindgen --target web =="
-system("wasm-bindgen", "--target", "web", "--out-dir", out_dir, "--out-name", target_mod_name, built, exception: true)
-
-puts "wrote #{out_dir}/"
-puts <<~MSG
-  use it in a browser:
-      <script type="module">
-        import init, { dispatch } from "./#{target_mod_name}.js";
-        await init();
-        const result = dispatch(JSON.stringify({ steps: [...] }));
-      </script>
-MSG
+exit Hecks::RustBuild.run("project_wasm_browser", ARGV)

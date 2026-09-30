@@ -42,31 +42,11 @@ module Hecks
         # @return [String] one line for each capability, and a verdict
         # @raise [ConsoleCapture::Failure] when any capability has no file
         def coverage(tree)
-          rows = KernelCapabilities.coverage(root: tree.root)
-          lines = rows.map do |row|
-            "#{row.present ? 'OK  ' : 'MISS'}  #{tree.relative(row.path)}  (#{row.source}: #{row.name.inspect})"
-          end
-          missing = rows.reject(&:present)
-          return [*lines, "", verdict(rows.size)].join("\n") if missing.empty?
+          lines, verdict, complete = KernelCapabilities.coverage_report(root: tree.root)
+          report = [lines, "", verdict].join("\n")
+          return report if complete
 
-          raise ConsoleCapture::Failure, [*lines, "", gaps(missing, tree)].join("\n")
-        end
-
-        # @param count [Integer] how many capabilities there are
-        # @return [String] the clean verdict
-        def verdict(count)
-          "#{count}/#{count} kernel capability files present — every attribute shape and " \
-            "expression-operator category the live Ruby grammar admits has a rust/src/kernel/ file " \
-            "at its conventional path."
-        end
-
-        # @param missing [Array<KernelCapabilities::Row>] the capabilities with no file
-        # @param tree [Tree] the checkout
-        # @return [String] what is missing, one path a line
-        def gaps(missing, tree)
-          head = "#{missing.size} capability file(s) missing — the grammar admits these but no " \
-                 "hand-written Rust interpretation exists for them yet:"
-          [head, *missing.map { |row| "  #{tree.relative(row.path)}" }].join("\n")
+          raise ConsoleCapture::Failure, report
         end
       end
     end

@@ -527,7 +527,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  # A fake shell stands in for the toolchain, so each verb is journaled and asked without a build.
+  # A fake runner stands in for the toolchain, so each verb is journaled and asked without a build.
   describe "the Build verbs" do
     let(:asked) { [] }
 
@@ -536,18 +536,17 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     def toolchain_says(out: "", err: "", passed: true)
-      status = Struct.new(:success?, :exitstatus).new(passed, passed ? 0 : 1)
-      answer = Struct.new(:out, :err, :status) { def ok? = status.success? }.new(out, err, status)
+      answer = Struct.new(:out, :err, :status) { def ok? = status.zero? }.new(out, err, passed ? 0 : 1)
       log = asked
-      Hecks::Adapters::RustToolchain.shell = Object.new.tap do |shell|
-        shell.define_singleton_method(:capture) do |*command, **|
-          log << command.drop(1).then { |script, *rest| [File.basename(script), *rest] }
+      Hecks::Adapters::RustToolchain.runner = Object.new.tap do |runner|
+        runner.define_singleton_method(:capture) do |tool, argv, **|
+          log << [tool, *argv]
           answer
         end
       end
     end
 
-    after { Hecks::Adapters::RustToolchain.shell = nil }
+    after { Hecks::Adapters::RustToolchain.runner = nil }
 
     it "project_rust asks the toolchain to generate the domain and keeps what it reported" do
       toolchain_says(out: "wrote rust/src/generated/shelf/mod.rs\n")

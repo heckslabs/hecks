@@ -1,6 +1,5 @@
 require "spec_helper"
 require "hecks/hecks/adapters/codebase/source_tree"
-require_relative "../../support/fake_codebase_shell"
 
 RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
@@ -9,6 +8,20 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
   after do
     described_class.mcp_server = nil
     described_class.web_server = nil
+    described_class.coverage_runner = nil
+  end
+
+  # Stands in for `Hecks::RustBuild`, recording each tool it is asked to run.
+  def runner_answering(out, status = 0)
+    asked = []
+    result = Struct.new(:out, :err, :status) { def ok? = status.zero? }.new(out, "", status)
+    runner = Object.new
+    runner.define_singleton_method(:capture) do |tool, argv, env: {}|
+      asked << { tool: tool, argv: argv, env: env }
+      result
+    end
+    described_class.coverage_runner = runner
+    asked
   end
 
   describe "the corpus questions" do
@@ -26,21 +39,22 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
       expect(lines).to all(satisfy { |line| !line.start_with?("/") })
     end
 
-    it "runs the coverage check once for each generated module, and says how many passed" do
-      shell = FakeCodebaseShell.new("ok\n")
+    it "runs the coverage tool once for each generated module in this process, and says how many passed" do
+      asked = runner_answering("ok\n")
 
-      report = described_class.report("corpus_rust_coverage", {}, tree, shell: shell)
+      report = described_class.report("corpus_rust_coverage", {}, tree)
 
       modules = Hecks::Corpus.generated_modules(root: tree.root)
-      expect(shell.asked.size).to eq(modules.size)
-      expect(shell.command.first).to eq("exec")
+      expect(asked.map { |ask| ask[:tool] }.uniq).to eq(["rust_coverage"])
+      expect(asked.map { |ask| ask[:argv] }).to eq(modules.map { |name| [name] })
+      expect(asked.first[:env]).to eq("HECKS_RUST_DIR" => tree.path("rust"))
       expect(report).to end_with("#{modules.size} generated modules checked")
     end
 
     it "refuses with each module that failed" do
-      shell = FakeCodebaseShell.new(["no route\n", 1])
+      runner_answering("no route\n", 1)
 
-      expect { described_class.report("corpus_rust_coverage", {}, tree, shell: shell) }
+      expect { described_class.report("corpus_rust_coverage", {}, tree) }
         .to raise_error(failure, /FAILED.*failed:\nno route/m)
     end
   end
