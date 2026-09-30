@@ -72,6 +72,54 @@ RSpec.describe Hecks::Adapters::GitPr do
     end
   end
 
+  describe "the fix commit on the pushed branch" do
+    before do
+      @remote = Dir.mktmpdir("git_pr_remote")
+      system("git", "init", "-q", "--bare", "-b", "main", @remote, out: File::NULL, err: File::NULL)
+      git("remote", "add", "origin", @remote)
+      git("checkout", "-qb", "qa/x")
+    end
+
+    after { FileUtils.remove_entry(@remote) }
+
+    it "refuses a branch that is not pushed, even when HEAD carries the commit" do
+      expect { adapter.assert_pushed!(branch: "qa/x", commit: @first, owner: "BUG#1") }
+        .to raise_error(described_class::Refusal, %r{qa/x is not pushed to origin})
+    end
+
+    it "refuses a commit made after the last push" do
+      git("push", "-q", "origin", "qa/x")
+      fix = commit_file("fix")
+
+      expect { adapter.assert_pushed!(branch: "qa/x", commit: fix, owner: "BUG#1") }
+        .to raise_error(described_class::Refusal, %r{not an ancestor of the pushed origin/qa/x})
+    end
+
+    it "takes a commit the pushed tip carries" do
+      fix = commit_file("fix")
+      git("push", "-q", "origin", "qa/x")
+
+      expect { adapter.assert_pushed!(branch: "qa/x", commit: fix, owner: "BUG#1") }.not_to raise_error
+    end
+
+    it "refuses a PR head that does not carry the commit" do
+      fix = commit_file("fix")
+
+      expect { adapter.assert_pr_head!(head: @first, commit: fix, owner: "BUG#1") }
+        .to raise_error(described_class::Refusal, /not an ancestor of the PR head/)
+      expect { adapter.assert_pr_head!(head: fix, commit: @first, owner: "BUG#1") }.not_to raise_error
+    end
+  end
+
+  describe "a commit that is not a sha" do
+    it "is refused before it reaches git, so it cannot pass as an option" do
+      expect(Open3).not_to receive(:capture3)
+
+      expect { adapter.assert_ancestor!(commit: "--all", owner: "BUG#1") }
+        .to raise_error(described_class::Refusal, /does not look like a sha/)
+    end
+  end
+
   describe "the per-day cap" do
     it "is no cap at zero" do
       expect { adapter.assert_under_daily_cap!(opened_today: 50, cap: 0) }.not_to raise_error
@@ -98,8 +146,22 @@ RSpec.describe Hecks::Adapters::GitPr do
       gh_answers(JSON.generate(number: 7, state: "MERGED"))
       expect(adapter.open_pull_request("qa/x")).to be_nil
 
-      gh_answers("", success: false)
+      gh_answers("", success: false, stderr: "no pull requests found for branch \"qa/x\"")
       expect(adapter.open_pull_request("qa/x")).to be_nil
+    end
+
+    it "does not read a gh network failure as there being no PR" do
+      gh_answers("", success: false, stderr: "error connecting to api.github.com")
+
+      expect { adapter.open_pull_request("qa/x") }
+        .to raise_error(described_class::CommandFailed, %r{gh pr view qa/x failed — error connecting})
+    end
+
+    it "refuses clearly when gh or git is not installed, not with Errno::ENOENT" do
+      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
+
+      expect { adapter.open_pull_request("qa/x") }.to raise_error(described_class::Refusal, /gh is not installed/)
+      expect { adapter.branch }.to raise_error(described_class::Refusal, /git is not installed/)
     end
 
     it "opens one, as a draft when asked" do

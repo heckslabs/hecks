@@ -17,7 +17,10 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
     case ARGV[0, 2]
     when %w[pr view]
-      exit 1 unless File.exist?(state)
+      unless File.exist?(state)
+        warn "no pull requests found for branch"
+        exit 1
+      end
       puts File.read(state)
     when %w[pr create]
       args   = ARGV.dup
@@ -61,7 +64,10 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     @gh_state = File.join(@repo, ".fake_gh.json")
   end
 
-  after { FileUtils.remove_entry(@repo) if @repo }
+  after do
+    FileUtils.remove_entry(@repo) if @repo
+    FileUtils.remove_entry(@remote) if @remote
+  end
 
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
@@ -75,6 +81,11 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     File.write(File.join(@repo, "fix.rb"), "fixed\n")
     git("add", ".")
     git("commit", "-qm", "the fix")
+    # `gh pr create --head` reads the pushed branch, so the fix commit must be on the remote.
+    @remote = Dir.mktmpdir("qa_open_pr_remote")
+    system("git", "init", "-q", "--bare", @remote, out: File::NULL, err: File::NULL)
+    git("remote", "add", "origin", @remote)
+    git("push", "-q", "origin", name)
     # Ignore the fake gh's log/state files so the tree reads clean.
     File.write(File.join(@repo, ".git/info/exclude"), ".fake_gh.*\n")
   end
@@ -193,6 +204,34 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
     expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
     expect(improvements_on_file).to eq([[777, "landed", head, "ANGLE-1"]])
+  end
+
+  it "refuses a fix commit that is on HEAD but was never pushed" do
+    on_branch("qa/unpushed")
+    File.write(File.join(@repo, "later.rb"), "later\n")
+    git("add", ".")
+    git("commit", "-qm", "unpushed fix")
+    a_fixed_bug(commit: head)
+
+    _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
+
+    expect(status.exitstatus).to eq(1)
+    expect(stderr).to include("not an ancestor of the pushed origin/qa/unpushed")
+    expect(gh_calls).to be_empty
+  end
+
+  # A crash between `Improvement.open!` and `land!` leaves the record opened; a rerun lands it.
+  it "completes the landing of an Improvement a crashed run left opened" do
+    on_branch("qa/angle-2")
+    @ledger.boot
+    QualityControl::Improvement.open!(number: { value: 777 }, url: { value: "https://example.com/pull/777" },
+                                      branch: { value: "qa/angle-2" }, title: { value: "qa: build it" },
+                                      now: { value: Time.now.to_i })
+
+    stdout, stderr, status = open_pr("--improvement", "--title", "qa: build it")
+
+    expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
+    expect(improvements_on_file.map { |row| row[0, 2] }).to eq([[777, "landed"]])
   end
 
   # `pr_cap_per_day` is 0 (uncapped) in the real qa/settings.yml, so this example points

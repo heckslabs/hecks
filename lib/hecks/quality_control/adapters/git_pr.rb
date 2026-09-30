@@ -19,6 +19,15 @@ module Hecks
       # `git` or `gh` could not do what was asked, whatever the request.
       class CommandFailed < StandardError; end
 
+      # A commit sha as it may be handed to `git` as a revision.
+      SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
+
+      # The remote a branch is pushed to and `gh pr create --head` reads it from.
+      REMOTE = "origin"
+
+      # What `gh pr view` says when the branch simply has no pull request.
+      NO_PR = /no pull requests? found/i
+
       # The fields `gh pr view` is asked for when a PR is opened or looked up by branch.
       VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state"
 
@@ -74,22 +83,60 @@ module Hecks
       # @param commit [String] the commit the ledger says fixes the bug
       # @param owner [String] what the commit belongs to, worded into the refusal (`"BUG#1"`)
       # @return [void]
-      # @raise [Refusal] when `commit` is not an ancestor of `HEAD`
+      # @raise [Refusal] when `commit` is not a sha or not an ancestor of `HEAD`
       def assert_ancestor!(commit:, owner:)
-        _out, _err, status = git("merge-base", "--is-ancestor", commit, "HEAD")
+        assert_sha!(commit, owner)
+        _out, _err, status = git("merge-base", "--is-ancestor", "--", commit, "HEAD")
         return if status.success?
 
         raise Refusal, "#{owner}'s own fix commit #{commit[0, 7]} is not an ancestor of HEAD " \
                        "(#{head[0, 7]}) on #{branch} — the PR must carry the commit the ledger says fixes it"
       end
 
+      # Refuses a fix commit that the pushed branch does not carry: `gh pr create --head` opens
+      # the pull request from the remote branch, not from the local checkout.
+      #
+      # @param branch [String] the head branch
+      # @param commit [String] the commit the ledger says fixes the bug
+      # @param owner [String] what the commit belongs to, worded into the refusal
+      # @return [void]
+      # @raise [Refusal] when the branch is not on the remote, or its tip does not carry `commit`
+      def assert_pushed!(branch:, commit:, owner:)
+        assert_sha!(commit, owner)
+        out, err, status = git("ls-remote", "--heads", REMOTE, "refs/heads/#{branch}")
+        raise Refusal, "could not read #{REMOTE} for #{branch}: #{err}" unless status.success?
+
+        tip = out.split.first.to_s
+        raise Refusal, "#{branch} is not pushed to #{REMOTE} — push it before opening the PR" if tip.empty?
+
+        assert_carries!(tip, commit, owner, "the pushed #{REMOTE}/#{branch}")
+      end
+
+      # Refuses a pull request whose head does not carry the fix commit.
+      #
+      # @param head [String] the PR's head commit, as `gh` reports it
+      # @param commit [String] the commit the ledger says fixes the bug
+      # @param owner [String] what the commit belongs to, worded into the refusal
+      # @return [void]
+      # @raise [Refusal] when `head` is not a sha, or does not carry `commit`
+      def assert_pr_head!(head:, commit:, owner:)
+        assert_sha!(commit, owner)
+        assert_sha!(head, "the PR head")
+        assert_carries!(head, commit, owner, "the PR head")
+      end
+
       # The open PR for a branch.
       #
       # @param branch [String] the head branch
       # @return [Hash{Symbol => Object}, nil] `gh pr view`'s fields, or nil when no PR is open
+      # @raise [CommandFailed] when `gh` failed for any reason but the branch having no PR
       def open_pull_request(branch)
-        out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
-        return nil unless status.success?
+        out, err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
+        unless status.success?
+          return nil if err.match?(NO_PR)
+
+          raise CommandFailed, "gh pr view #{branch} failed — #{err.empty? ? out : err}"
+        end
 
         view = JSON.parse(out, symbolize_names: true)
         view[:state] == "OPEN" ? view : nil
@@ -142,6 +189,20 @@ module Hecks
 
       private
 
+      def assert_sha!(value, owner)
+        return if value.to_s.match?(SHA_PATTERN)
+
+        raise Refusal, "#{owner}'s commit #{value.to_s.inspect} does not look like a sha"
+      end
+
+      def assert_carries!(tip, commit, owner, label)
+        _out, _err, status = git("merge-base", "--is-ancestor", "--", commit, tip)
+        return if status.success?
+
+        raise Refusal, "#{owner}'s own fix commit #{commit[0, 7]} is not an ancestor of #{label} " \
+                       "(#{tip[0, 7]}) — the PR must carry the commit the ledger says fixes it"
+      end
+
       def parse(result, failure)
         out, err, status = result
         raise CommandFailed, "#{failure} — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
@@ -149,14 +210,16 @@ module Hecks
         JSON.parse(out, symbolize_names: true)
       end
 
-      def git(*)
-        out, err, status = Open3.capture3("git", *, chdir: @repo_dir)
-        [out.strip, err.strip, status]
-      end
+      def git(*) = run_tool("git", *)
 
-      def gh(*)
-        out, err, status = Open3.capture3("gh", *, chdir: @repo_dir)
+      def gh(*) = run_tool("gh", *)
+
+      def run_tool(tool, *)
+        out, err, status = Open3.capture3(tool, *, chdir: @repo_dir)
         [out.strip, err.strip, status]
+      rescue Errno::ENOENT
+        raise Refusal, "#{tool} is not installed or not on PATH (or #{@repo_dir} is missing) — " \
+                       "the practice cannot open or check a pull request without it"
       end
     end
   end

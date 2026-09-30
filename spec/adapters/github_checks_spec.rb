@@ -108,7 +108,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
   describe "pagination" do
     it "reads every page so a red run past the first 100 is caught" do
       status = instance_double(Process::Status, success?: true)
-      page1 = runs_json(*Array.new(100) { |i| check_run("ok#{i}") })
+      page1 = runs_json(*(0...100).map { |i| check_run("ok#{i}") })
       page2 = runs_json(check_run("late-red", conclusion: "failure"))
       allow(Open3).to receive(:capture3).with("gh", "api", api_path(1)).and_return([page1, "", status])
       allow(Open3).to receive(:capture3).with("gh", "api", api_path(2)).and_return([page2, "", status])

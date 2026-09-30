@@ -103,7 +103,7 @@ module Hecks
       # Every rule the adapter enforces refuses the same way: exit 1, nothing opened or recorded.
       def refusing
         yield
-      rescue Hecks::Adapters::GitPr::Refusal => e
+      rescue Hecks::Adapters::GitPr::Refusal, Hecks::Adapters::GitPr::CommandFailed => e
         abort "refused: #{e.message}"
       end
 
@@ -201,17 +201,20 @@ module Hecks
         commit = @bug.commit.to_h[:value].to_s
         abort "refused: #{@bug.id} carries no commit" unless commit.match?(SHA_PATTERN)
 
-        refusing { @git_pr.assert_ancestor!(commit: commit, owner: @bug.id) }
+        refusing do
+          @git_pr.assert_ancestor!(commit: commit, owner: @bug.id)
+          @git_pr.assert_pushed!(branch: @branch, commit: commit, owner: @bug.id)
+        end
       end
 
       # @return [Hash] `gh`'s view of the PR, opened here when the branch had none
       def open_pull_request
-        view = @git_pr.open_pull_request(@branch)
+        view = refusing { @git_pr.open_pull_request(@branch) }
         if view
           puts "PR ##{view[:number]} already open for #{@branch} — not re-creating"
         else
           create_pull_request
-          view = @git_pr.open_pull_request(@branch)
+          view = refusing { @git_pr.open_pull_request(@branch) }
           abort "gh pr create returned, but gh pr view #{@branch} shows no open PR — record nothing" unless view
         end
         sha = view[:headRefOid].to_s
@@ -219,7 +222,15 @@ module Hecks
           abort "refused: gh reports head #{sha.inspect} for ##{view[:number]}, which does not look like a sha"
         end
 
+        check_pr_head(sha)
         view
+      end
+
+      # The PR must carry the fix commit, whether this run opened it or an earlier one did.
+      def check_pr_head(sha)
+        return unless @bug
+
+        refusing { @git_pr.assert_pr_head!(head: sha, commit: @bug.commit.to_h[:value].to_s, owner: @bug.id) }
       end
 
       def create_pull_request
@@ -263,12 +274,14 @@ module Hecks
       end
 
       def record_improvement(view, number, sha, now)
-        if query("Improvement.All").map { |row| row[:number][:value] }.include?(number)
-          puts "Improvement ##{number} already recorded — not re-recording"
+        existing = ::QualityControl::Improvement.find(number)
+        if existing && existing.status != "opened"
+          puts "Improvement ##{number} already recorded (#{existing.status}) — not re-recording"
           return
         end
 
-        ::QualityControl::Improvement.open!(
+        # A run that stopped between `open!` and `land!` leaves the record `opened`: finish it.
+        existing || ::QualityControl::Improvement.open!(
           **(@angle ? { angle: @angle.id } : {}),
           number: { value: number }, url: { value: view[:url] },
           branch: { value: view[:headRefName] }, title: { value: view[:title] },
