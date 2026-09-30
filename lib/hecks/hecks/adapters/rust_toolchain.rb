@@ -4,7 +4,7 @@ require "rbconfig"
 require_relative "console_capture"
 require_relative "rust_workspace"
 require_relative "process_pool"
-require_relative "../../rust_build"
+require "hecks/rust_build"
 
 module Hecks
   module Adapters
@@ -23,7 +23,13 @@ module Hecks
                 conform: "rust_conformance", replay: "rust_conformance_fuzz",
                 coverage: "rust_coverage" }.freeze
 
-      # `bin/bench`'s flag for each `FuzzRun` field a benchmark takes.
+      # The load path the benchmark child runs with: this checkout's or gem's `lib/`.
+      LIB = File.expand_path("../../..", __dir__)
+
+      # The program the benchmark child runs: `hecks bench`'s command line.
+      BENCH = 'require "hecks"; require "hecks/bench"; exit Hecks::Bench::CLI.run(ARGV)'
+
+      # `Hecks::Bench::CLI`'s flag for each `FuzzRun` field a benchmark takes.
       BENCH_FLAGS = { "--domain" => :domains, "--targets" => :targets, "--iterations" => :iterations,
                       "--warmup" => :warmup, "--runs" => :runs, "--rust-binary" => :rust_binary,
                       "--format" => :format, "--output" => :output }.freeze
@@ -120,7 +126,8 @@ module Hecks
       def measure(**held)
         flags = BENCH_FLAGS.filter_map { |flag, key| [flag, plain(held[key]).to_s] unless plain(held[key]).nil? }
         env = (self.class.workspace || RustWorkspace.new).environment.merge("HECKS_NO_3_0_NOTICE" => "1")
-        finished = (self.class.pool || ProcessPool.new).run([RbConfig.ruby, script("bench"), *flags.flatten], env: env)
+        command = [RbConfig.ruby, "-I", LIB, "-e", BENCH, "--", *flags.flatten]
+        finished = (self.class.pool || ProcessPool.new).run(command, env: env)
         raise ConsoleCapture::Failure, finished.output.strip unless finished.ok?
 
         { report: { value: finished.output } }
@@ -165,8 +172,6 @@ module Hecks
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
         text.empty? ? "the build ended with status #{result.status}" : text
       end
-
-      def script(name) = File.expand_path("../../../../bin/#{name}", __dir__)
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

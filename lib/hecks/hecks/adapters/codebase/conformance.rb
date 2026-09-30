@@ -2,8 +2,8 @@
 
 require_relative "tree"
 require_relative "ruby_child"
-require_relative "../../../engine_agreement"
-require_relative "../../../doc/reference"
+require "hecks/engine_agreement"
+require "hecks/doc/reference"
 
 module Hecks
   module Adapters

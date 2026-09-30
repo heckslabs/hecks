@@ -1,7 +1,7 @@
 require_relative "runtime/errors"
 
 module Hecks
-  # What a spawned bin/hecks_mcp_door may do: every tool by default, or only
+  # What a spawned hecks mcp may do: every tool by default, or only
   # reader tools against named domains in reader mode — reach, not identity (ADR 0072).
   class McpDoorScope
     ENV_PREFIX       = "HECKS_DOOR_".freeze

@@ -16,7 +16,7 @@ module Hecks
     # or `build` (the domain's own Cargo feature, built and run); a live one gets the script on
     # stdin. `HECKS_RUST_DIR` names the workspace and `CARGO_TARGET_DIR` where its output went.
     module Conformance
-      USAGE = "usage: bin/rust_conformance <domain> <script.json> " \
+      USAGE = "usage: hecks check_conformance <domain> <script.json> " \
               "[rust_output.json | native | build | path/to/binary | path/to/module.wasm]"
 
       # The refusal kinds are not compared for ad-hoc filter steps: C8.3
@@ -74,7 +74,7 @@ module Hecks
         when "native" then run_binary(native_binary || missing_native!, script)
         when "build" then run_binary(built_binary(domain), script)
         when /\.wasm\z/
-          raise Failure, "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)
+          raise Failure, "#{other}: no such file — run hecks build_wasm #{domain} first" unless File.exist?(other)
 
           run_process(["wasmtime", "run", other], File.read(script))
         when ->(path) { !path.end_with?(".json") && File.file?(path) && File.executable?(path) }
@@ -108,7 +108,7 @@ module Hecks
       def built_binary(domain)
         feature = File.basename(domain.chomp("/"))
         NativeBuild.build_rust_for(feature, RustBuild.rust_dir) or
-          raise Failure, "no `#{feature}` feature in rust/Cargo.toml — run bin/project_rust #{domain} first"
+          raise Failure, "no `#{feature}` feature in rust/Cargo.toml — run hecks project_rust #{domain} first"
       end
 
       # Strips what a Rust run carries that Ruby has no analog for: `emitted_*` snapshot flags

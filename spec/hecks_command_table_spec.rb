@@ -637,7 +637,8 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
       Hecks::Adapters::RustToolchain.pool = Object.new.tap do |pool|
         pool.define_singleton_method(:run) do |command, **|
-          log << [File.basename(command[1]), *command.drop(2)]
+          # The benchmark starts as `ruby -I lib -e <program> -- <flags>`.
+          log << ["bench", *command.drop(command.index("--") + 1)]
           finished
         end
       end

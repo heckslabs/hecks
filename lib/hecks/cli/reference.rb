@@ -5,8 +5,8 @@ require_relative "../projection_files"
 
 module Hecks
   module CLI
-    # The command behind `bin/reference`: regenerates `docs/implemented/reference/` from the
-    # language's Syntax chapter. Tables come from the declaration; prose is kept from the
+    # The command behind `hecks project_reference`: regenerates `docs/implemented/reference/` from
+    # the language's Syntax chapter. Tables come from the declaration; prose is kept from the
     # committed pages.
     module Reference
       module_function

@@ -16,10 +16,10 @@ module Hecks
     # merge) the base `persisted_by` settings, so `--database` is required. A policy's refusal is
     # swallowed by `PolicyInterpreter#deliver`, so success is confirmed by query.
     #
-    #   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
+    #   hecks deploy provision <domain-directory> <slug> --domain=name --realm=name \
     #     --schema=name --database=name [--adapter=PostgresEra]
     module TenantProvisioning
-      USAGE = "usage: bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME " \
+      USAGE = "usage: hecks deploy provision <domain-directory> <slug> --domain=NAME --realm=NAME " \
               "--schema=NAME --database=NAME [--adapter=PostgresEra]"
 
       # The chapters that must boot together for a tenant to be declared and registered.
@@ -65,7 +65,7 @@ module Hecks
         end.parse!(argv)
 
         %i[domain realm schema database].each do |flag|
-          options[flag] or abort "bin/project_tenant needs --#{flag}"
+          options[flag] or abort "hecks deploy provision needs --#{flag}"
         end
         options
       end

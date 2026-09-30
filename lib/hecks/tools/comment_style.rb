@@ -958,7 +958,7 @@ module Hecks
       # Builds the CLI's option parser, filling `options` as flags are seen.
       def self.option_parser(options)
         OptionParser.new do |opts|
-          opts.banner = "Usage: bin/standardize_comments [--report|--check|--fix] [--only a,b] PATH..."
+          opts.banner = "Usage: hecks check_comments [--report|--check|--fix] [--only a,b] PATH..."
           opts.on("--report", "summary tables (default)") { options[:mode] = :report }
           opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
           opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }

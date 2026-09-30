@@ -50,7 +50,7 @@ module Hecks
             unless edge.to == label
               raise Runtime::WiringError,
                     "cannot boot #{bluebook.name}: the translation edge from #{latest[:label]} targets " \
-                    "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run bin/scaffold_translation"
+                    "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run hecks scaffold_translation"
             end
             edge
           end
@@ -79,13 +79,13 @@ module Hecks
               raise Runtime::WiringError,
                     "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
                     "rule, and the audit's human-approved sample is its only verification — run " \
-                    "bin/translation_audit with --approve, then boot again"
+                    "hecks audit_translation with --approve, then boot again"
             end
 
             raise Runtime::WiringError,
                   "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \
                   "review (ordinal #{approval[:reviewed_ordinal]} reviewed, #{tip} now) — the samples a " \
-                  "human approved no longer cover the data; re-run bin/translation_audit with --approve"
+                  "human approved no longer cover the data; re-run hecks audit_translation with --approve"
           end
 
           # Refuses toward the authoring loop, or, under HECKS_SCAFFOLD=1, scaffolds the
@@ -95,13 +95,13 @@ module Hecks
               path = scaffold!(registry, bluebook, lineage, latest, directory)
               raise Runtime::WiringError,
                     "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) — wrote #{path}; " \
-                    "review it (resolve every unresolved), check it with bin/translation_audit, then boot again"
+                    "review it (resolve every unresolved), check it with hecks audit_translation, then boot again"
             end
 
             raise Runtime::WiringError,
                   "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) and no translation edge " \
-                  "covers it — run bin/scaffold_translation to write the edge, " \
-                  "check it with bin/translation_audit, then boot again"
+                  "covers it — run hecks scaffold_translation to write the edge, " \
+                  "check it with hecks audit_translation, then boot again"
           end
 
           # Diffs the held era against the current shape and writes the edge file —

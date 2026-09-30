@@ -19,7 +19,7 @@ RSpec.describe Hecks::RustBuild do
     it "turns a tool's usage complaint into a status and a message, never an exception" do
       result = described_class.capture("project_wasm", [])
 
-      expect([result.status, result.err]).to eq([1, "usage: bin/project_wasm <domain>\n"])
+      expect([result.status, result.err]).to eq([1, "usage: hecks build_wasm <domain>\n"])
     end
 
     it "refuses a domain name that cannot be a Rust module before it writes anything" do

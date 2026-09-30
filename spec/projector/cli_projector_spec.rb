@@ -181,7 +181,7 @@ RSpec.describe Hecks::Projector::CliProjector do
                                       options:  { verb: "account.open", ask: true })[:usage]
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("bin/run ask open")
+      expect(question).to include("hecks run ask open")
     end
   end
 end

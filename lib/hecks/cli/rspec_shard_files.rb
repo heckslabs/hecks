@@ -4,7 +4,7 @@ require "parallel_tests/test/runner"
 
 module Hecks
   module CLI
-    # The command behind `bin/rspec_shard_files`: prints the spec files assigned to one group
+    # The command behind `hecks shard_specs`: prints the spec files assigned to one group
     # (1-indexed) of a runtime-balanced N-way split. `rspec_shard` in ci-rspec.yml passes the
     # committed runtime baseline so every leg agrees.
     #
@@ -12,7 +12,7 @@ module Hecks
     # is CPU-bound, so each leg would use one of four vCPUs. The group's list comes from
     # `tests_in_groups`, leaving `parallel_rspec` its own workers.
     module RspecShardFiles
-      USAGE = "usage: bin/rspec_shard_files <group 1-indexed> <num_groups> [runtime_log_path]"
+      USAGE = "usage: hecks shard_specs <group 1-indexed> <num_groups> [runtime_log_path]"
 
       module_function
 
@@ -34,13 +34,13 @@ module Hecks
 
         files = Dir.glob("spec/**/*_spec.rb", base: root)
         if files.empty?
-          abort "bin/rspec_shard_files: found ZERO spec files under spec/ — " \
+          abort "hecks shard_specs: found ZERO spec files under spec/ — " \
                 "refusing to hand parallel_rspec nothing to run"
         end
 
         groups = Dir.chdir(root) { groups_of(files, num_groups, runtime_log && File.expand_path(runtime_log, root)) }
         selected = groups[group - 1] || []
-        err.puts "bin/rspec_shard_files: group #{group}/#{num_groups} has #{selected.size} of #{files.size} files"
+        err.puts "hecks shard_specs: group #{group}/#{num_groups} has #{selected.size} of #{files.size} files"
         out.puts selected
         0
       end

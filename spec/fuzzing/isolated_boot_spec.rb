@@ -133,6 +133,20 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     end
   end
 
+  describe ".rewrite_bindings!" do
+    it "keeps the statement after a binding written without parentheses" do
+      Dir.mktmpdir do |copy|
+        hecksagon = %(Hecks.hecksagon "Main" do\n  persisted_by "Postgres"\n\n  Main::Thing.port "Out" do\nend\nend\n)
+        write(copy, "bluebook/main.hecksagon", hecksagon)
+
+        described_class.rewrite_bindings!(copy, "Memory")
+
+        text = File.read(File.join(copy, "bluebook/main.hecksagon"))
+        expect(text).to include(%(persisted_by("Memory")\n\n  Main::Thing.port))
+      end
+    end
+  end
+
   # `Folder#load_domain` globs `*.world` in one directory, so a directory holding two
   # `.hecksagon` files (a domain plus its `context_map.hecksagon`) needs one world file
   # naming every block in both — the second file's write must not replace the first's.

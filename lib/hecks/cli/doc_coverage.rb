@@ -5,7 +5,7 @@ require_relative "../doc/reference"
 
 module Hecks
   module CLI
-    # The command behind `bin/doc_coverage`: refuses unless every live word in
+    # The command behind `hecks measure_doc_coverage`: refuses unless every live word in
     # `docs/implemented/reference/` has prose and a running example. It checks that an example
     # exists; `spec/reference_doctest_spec.rb` checks that it passes. `ruby skip` fences and
     # hidden `<!-- doctest:boot -->` blocks do not count as examples.
@@ -24,7 +24,7 @@ module Hecks
         return 0 if clean
 
         err.puts "docs/implemented/reference/ is behind the language. " \
-                 "Regenerate with bin/reference to see the words in place."
+                 "Regenerate with hecks project_reference to see the words in place."
         1
       end
     end

@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
 require_relative "../../../hecks"
-# Load the era plugin before `Hecks.boot` (see bin/run).
+# Load the era plugin before `Hecks.boot` (see hecks run).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../fuzzing"
 require_relative "../../corpus"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_seed_targets`: identifies every corpus domain as a rotation
-    # `Target`, printing each one's inferred capabilities. It is idempotent: references already on
-    # file are skipped whatever their status (re-`Identify` refuses).
+    # The command behind `hecks quality_control target.seed`: identifies every corpus domain as a
+    # rotation `Target`, printing each one's inferred capabilities. It is idempotent: references
+    # already on file are skipped whatever their status (re-`Identify` refuses).
     #
     # It skips `examples/embryonaut` (an external product) and `lib/hecks/framework` (no standalone
     # Rust binary) on purpose.

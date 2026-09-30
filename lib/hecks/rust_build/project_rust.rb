@@ -29,7 +29,7 @@ module Hecks
       # @return [Integer] the exit status
       # @raise [Failure] when the domain's name cannot be a Rust module and Cargo feature name
       def self.call(argv)
-        domain = argv.first or raise Failure, "usage: bin/project_rust <domain>"
+        domain = argv.first or raise Failure, "usage: hecks project_rust <domain>"
         new(domain).call
       end
 
@@ -58,7 +58,7 @@ module Hecks
       def validate_name!
         return if RustProjection::Projector.valid_domain_mod_name?(@mod_name)
 
-        raise Failure, "bin/project_rust: domain name #{@mod_name.inspect} (from #{@domain.inspect}) can't " \
+        raise Failure, "hecks project_rust: domain name #{@mod_name.inspect} (from #{@domain.inspect}) can't " \
                        "be used as-is — it has to double as a Rust module identifier and a Cargo feature " \
                        "name, and this one is either not a plain lowercase identifier, is a Rust keyword, " \
                        "or collides with a reserved Cargo.toml key " \

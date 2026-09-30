@@ -6,7 +6,7 @@ require "fileutils"
 
 module Hecks
   module CLI
-    # The command behind `bin/stress_concurrency_specs`: reruns the thread-safety specs under many
+    # The command behind `hecks stress_concurrency`: reruns the thread-safety specs under many
     # seeds, several OS processes at a time. A clean run shows only "not in this many tries", never
     # "impossible".
     #
@@ -29,7 +29,7 @@ module Hecks
       ].freeze
 
       USAGE = <<~TEXT
-        Usage: bin/stress_concurrency_specs [--runs N] [--parallel N] [--seed-start N]
+        Usage: hecks stress_concurrency [--runs N] [--parallel N] [--seed-start N]
 
           --runs N        How many times to run EACH group below (default 30).
                            Each run uses a different --seed (seed-start + run

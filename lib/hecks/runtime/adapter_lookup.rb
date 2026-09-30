@@ -8,17 +8,40 @@ module Hecks
     # (a query answered by a port), so both refuse the same way when nothing, or too much,
     # implements the port.
     module AdapterLookup
+      @stand_in = nil
+
       module_function
 
       # Modules whose instance methods every object inherits; a method they own answers no query.
       INHERITED_OWNERS = [Object, Kernel, BasicObject].freeze
 
+      # Answers every port with a stand-in instead of its adapter while the block runs, for a
+      # caller that must not reach what the adapters reach (the fuzzer replays a domain whose
+      # adapters run shells and write files). Boot still checks the real adapters' classes; only
+      # what `call` hands out changes.
+      #
+      # @param stand_in [#call] answers `(port_name, asked)` with the object to ask instead
+      # @yield the work to run with the stand-in in place
+      # @return [Object] what the block answers
+      def standing_in(stand_in)
+        previous = @stand_in
+        @stand_in = stand_in
+        yield
+      ensure
+        @stand_in = previous
+      end
+
       # @param registry [Runtime::Registry] the booted registry whose adapters are searched
       # @param port_name [String] the port's name as an adapter declares it
       # @param asked [String] what is being asked, worded into a refusal
-      # @return [Object] a new instance of the port's only adapter
+      # @return [Object] a new instance of the port's only adapter, or the stand-in for it
       # @raise [Runtime::WiringError] if no adapter, or more than one, implements the port
-      def call(registry, port_name, asked:) = adapter_class(registry, port_name, asked: asked).new
+      def call(registry, port_name, asked:)
+        adapter_class(registry, port_name, asked: asked)
+        return @stand_in.call(port_name, asked) if @stand_in
+
+        adapter_class(registry, port_name, asked: asked).new
+      end
 
       # Finds the class of the one adapter this boot loaded for a port name, without building it,
       # so boot can check what the adapter answers before anything asks it.

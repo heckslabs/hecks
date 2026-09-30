@@ -226,15 +226,16 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
     after { described_class.pool = nil }
 
-    it "starts bin/bench through the pool with the flags the record holds, and answers its report" do
+    it "starts the benchmark through the pool with the flags the record holds, and answers its report" do
       answer = toolchain.measure(domains: { value: "pizzas,banking" }, targets: { value: "ruby:memory" },
                                  iterations: { value: 50 }, warmup: { value: 0 }, runs: { value: 1 },
                                  format: { value: "json" }, output: { value: "tmp/bench.json" })
 
       command = started.first.fetch(:command)
-      expect(File.basename(command[1])).to eq("bench")
-      expect(command.drop(2)).to eq(%w[--domain pizzas,banking --targets ruby:memory --iterations 50 --warmup 0
-                                       --runs 1 --format json --output tmp/bench.json])
+      expect(command[command.index("-e") + 1]).to include("Hecks::Bench::CLI.run(ARGV)")
+      flags = %w[--domain pizzas,banking --targets ruby:memory --iterations 50 --warmup 0
+                 --runs 1 --format json --output tmp/bench.json]
+      expect(command.drop(command.index("--") + 1)).to eq(flags)
       expect(answer).to eq(report: { value: "| ruby:memory | 1000 |\n" })
     end
 
@@ -248,10 +249,10 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
     it "refuses with what the benchmark printed when it could not run" do
       described_class.pool = Object.new.tap do |failing|
-        failing.define_singleton_method(:run) { |*, **| Struct.new(:output, :ok?).new("bin/bench: no such target\n", false) }
+        failing.define_singleton_method(:run) { |*, **| Struct.new(:output, :ok?).new("hecks bench: no such target\n", false) }
       end
 
-      expect { toolchain.measure }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "bin/bench: no such target")
+      expect { toolchain.measure }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "hecks bench: no such target")
     end
   end
 

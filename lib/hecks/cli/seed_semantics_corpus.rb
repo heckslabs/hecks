@@ -6,12 +6,12 @@ require_relative "../fuzzing"
 
 module Hecks
   module CLI
-    # The command behind `bin/seed_semantics_corpus`: seeds (or deliberately re-seeds) the
+    # The command behind `hecks seed_semantics_corpus`: seeds (or deliberately re-seeds) the
     # `expect` block of semantics-corpus fixtures from the Ruby runtime. Review the result
     # against `docs/semantics/bluebook-semantics.md` before committing.
     #
-    #   bin/seed_semantics_corpus                                # fill fixtures missing an expect
-    #   SEED=refusal_kind_lifecycle bin/seed_semantics_corpus    # re-seed one, deliberately
+    #   hecks seed_semantics_corpus                                # fill fixtures missing an expect
+    #   SEED=refusal_kind_lifecycle hecks seed_semantics_corpus    # re-seed one, deliberately
     #
     # The seeded expectation is the definition, not a recording: both runtimes are compared to it.
     # `occurred_at` is stripped from events (C7.3/C9.1); refusals keep verb, error and kind (C8.2).

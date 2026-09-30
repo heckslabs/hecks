@@ -2,8 +2,8 @@
 
 require "stringio"
 require_relative "console_capture"
-require_relative "../../cli/smoke_http"
-require_relative "../../cli/check_era"
+require "hecks/cli/smoke_http"
+require "hecks/cli/check_era"
 
 module Hecks
   module Adapters
@@ -44,7 +44,7 @@ module Hecks
       # @param held [Hash] the `Host` record: `host` (the base URL), `expected` (the allow-list
       #   file) and `timeout` (seconds; 10 when absent)
       # @return [Hash{Symbol => Hash}] `era:`, `version:`, `verdict:` (`match`, `unlisted` or
-      #   `mismatch`) and `report:` (the sentence `bin/check_era` prints)
+      #   `mismatch`) and `report:` (the sentence `hecks check_era` prints)
       # @raise [ArgumentError] if no allow-list file was named
       # @raise [Errno::ENOENT] if the allow-list file cannot be read
       # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached

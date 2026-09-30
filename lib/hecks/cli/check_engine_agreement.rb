@@ -5,7 +5,7 @@ require_relative "../engine_agreement"
 
 module Hecks
   module CLI
-    # The command behind `bin/check_engine_agreement`: fails when a query engine re-grows its
+    # The command behind `hecks check_engine_agreement`: fails when a query engine re-grows its
     # own comparator dispatch, or when a declared comparator lacks a shared `Comparison` case or
     # a cross-engine agreement spec. Grep-based.
     module CheckEngineAgreement

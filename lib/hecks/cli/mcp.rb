@@ -2,7 +2,7 @@ require_relative "../mcp_stdio_guard"
 
 module Hecks
   module CLI
-    # The command behind `bin/hecks_mcp_door` and `hecks mcp`: the MCP door onto the
+    # The command behind `hecks mcp`: the MCP door onto the
     # storehouse bus, over stdio only.
     #
     # This file loads nothing but `McpStdioGuard`, so the transport check runs

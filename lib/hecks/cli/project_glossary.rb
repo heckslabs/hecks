@@ -2,7 +2,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/project_glossary`: boots a domain and projects one chapter into its
+    # The command behind `hecks glossary`: boots a domain and projects one chapter into its
     # Ubiquitous Language glossary, `glossary.md` plus `html/index.html` rendered from it, in the
     # domain's own `glossary/` folder.
     #
@@ -18,7 +18,7 @@ module Hecks
       # @param program [String] the name the usage line shows
       # @return [void]
       # @raise [SystemExit] with the usage line when an argument is missing
-      def call(argv, program: "bin/project_glossary")
+      def call(argv, program: "hecks glossary")
         usage = "usage: #{program} <domain-path> <ChapterName>"
         domain_path  = argv[0] or abort usage
         chapter_name = argv[1] or abort usage

@@ -11,6 +11,9 @@ module Hecks
     # Parses and dispatches a command line against a `Projector::CliProjector` projection.
     # Does no IO: it answers `[text, status]` and leaves printing and exiting to `bin/` scripts.
     module CliRunner
+      # The class an adapter raises when the tool it wraps refuses.
+      TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
+
       module_function
 
       # Runs one command line against a booted domain and answers the text to print.
@@ -23,7 +26,7 @@ module Hecks
       # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
       # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
       # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
-      def call(runtime:, argv:, program: "bin/run")
+      def call(runtime:, argv:, program: "hecks run")
         bluebook, argv, program = chapter_for(runtime, argv, program)
         launcher = LauncherOptions.settings(runtime, bluebook.name)
         options  = { program: program, names: launcher && launcher[:names] }
@@ -71,7 +74,8 @@ module Hecks
       end
 
       # Parses one resolved verb's arguments, runs it as a query or command, and turns the
-      # outcome, or the domain's refusal, into `[json_or_message, status]`.
+      # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
+      # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
       #
       # @param bluebook [Bluebook::Chapter] the chapter the verb belongs to
       # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted in
@@ -79,10 +83,7 @@ module Hecks
         rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
         args = stamp_time(runtime, spec, CliDoor.arguments(spec, rest))
 
-        if spec[:kind] == :query
-          rows = runtime.query(spec[:verb], **args)
-          return [text_answer(rows) || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
-        end
+        return answer_query(runtime, spec, args, wait) if spec[:kind] == :query
 
         args, minted = LauncherOptions.run_key(runtime, spec, args, launcher)
         # Answers with only this verb's outcome; a full store dump is every record there is.
@@ -103,6 +104,23 @@ module Hecks
       rescue *Runtime::DOMAIN_REFUSALS => e
         # The refusal is the chapter's own sentence, verbatim.
         [e.message, 1]
+      rescue StandardError => e
+        # So is a wrapped tool's, when a question's adapter refuses to answer. Matched by name: the
+        # adapters belong to the Hecks chapter, which a client's runtime never loads.
+        raise unless e.class.ancestors.map(&:name).include?(TOOL_REFUSAL)
+
+        [e.message, 1]
+      end
+
+      # Runs a question and answers its rows, or its text when an adapter answered in text.
+      #
+      # @param wait [Boolean, nil] whether `--wait` was given: a report naming a gap then fails
+      # @return [Array(String, Integer)] the answer and the status
+      def answer_query(runtime, spec, args, wait)
+        rows = runtime.query(spec[:verb], **args)
+        text = text_answer(rows)
+        [text || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }),
+         wait && LauncherOptions.gap_reported?(text) ? 1 : 0]
       end
 
       # The answer `--wait` gives: the record re-read from its repository after every reaction

@@ -1,5 +1,5 @@
 module Hecks
-  # The fuzzing toolkit bin/fuzz and bin/generate drive. Not required by
+  # The fuzzing toolkit hecks fuzz and hecks generate_sequence drive. Not required by
   # lib/hecks.rb on purpose — a booted domain never needs it.
   module Fuzzing
   end

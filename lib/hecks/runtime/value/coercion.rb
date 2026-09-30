@@ -12,7 +12,7 @@ module Hecks
       # as `Value.for`, `Value.build`, and so on.
       module Coercion
         # The complete set of attribute value shapes. Mirrored by hand into a
-        # generated Rust enum (bin/project_kernel_capabilities) — adding a shape
+        # generated Rust enum (hecks project_kernel_capabilities) — adding a shape
         # here without a matching Rust file leaves the kernel unaware of it.
         SHAPES = %i[scalar list optional composite].freeze
 

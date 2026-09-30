@@ -4,11 +4,12 @@ require "pg"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_postgres_role`: creates the ordinary Postgres role the QA ledger
-    # connects as and makes it own the database. It is idempotent, and refuses a superuser or
-    # `BYPASSRLS` role, which the era write-fence cannot bind.
+    # The command behind `hecks quality_control create_ledger_role`: creates the ordinary Postgres
+    # role the QA ledger connects as and makes it own the database. It is idempotent, and refuses a
+    # superuser or `BYPASSRLS` role, which the era write-fence cannot bind.
     #
-    #   bin/qa_postgres_role <database> [--role <role>]   # role defaults to hecks_qa
+    #   hecks quality_control create_ledger_role <database> [--role <role>]   # role defaults to
+    # hecks_qa
     class QaPostgresRole
       USAGE = "usage: hecks quality_control create_ledger_role <database> [--role <role>]"
 
@@ -62,7 +63,7 @@ module Hecks
       private
 
       def usage(message)
-        @err.puts "bin/qa_postgres_role: #{message}"
+        @err.puts "hecks quality_control create_ledger_role: #{message}"
         @err.puts USAGE
         1
       end
@@ -81,7 +82,7 @@ module Hecks
           done << "created role #{role} (LOGIN, no SUPERUSER, no BYPASSRLS)"
         elsif attrs[0]["rolsuper"] == "t" || attrs[0]["rolbypassrls"] == "t"
           admin.close
-          abort "bin/qa_postgres_role: role #{role} already exists as " \
+          abort "hecks quality_control create_ledger_role: role #{role} already exists as " \
                 "#{attrs[0]['rolsuper'] == 't' ? 'a superuser' : 'a BYPASSRLS role'} — the era write-fence " \
                 "cannot bite it, which is the exact state this script exists to end. Pick another role, or " \
                 "ALTER ROLE #{role} NOSUPERUSER NOBYPASSRLS first."
@@ -96,7 +97,7 @@ module Hecks
         )
         if owner.ntuples.zero?
           admin.close
-          abort "bin/qa_postgres_role: no database #{database} — createdb it first (PostgresEra provisions " \
+          abort "hecks quality_control create_ledger_role: no database #{database} — createdb it first (PostgresEra provisions " \
                 "every table it needs on first connect, never the database itself)"
         end
         if owner[0]["owner"] == role
@@ -148,7 +149,7 @@ module Hecks
       end
 
       def report(database, role, done, skipped)
-        @out.puts "bin/qa_postgres_role: #{database} is #{role}'s"
+        @out.puts "hecks quality_control create_ledger_role: #{database} is #{role}'s"
         done.each { |line| @out.puts "  did:     #{line}" }
         skipped.each { |line| @out.puts "  already: #{line}" }
         @out.puts "  bind it: database \"postgres://#{role}@localhost/#{database}\"" if done.any?

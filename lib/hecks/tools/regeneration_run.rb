@@ -8,7 +8,7 @@ require_relative "../corpus"
 
 module Hecks
   module Tools
-    # Regenerates every corpus domain's committed Rust output with `bin/project_rust`, or checks
+    # Regenerates every corpus domain's committed Rust output with `hecks project_rust`, or checks
     # that the committed output is what a regeneration would write.
     #
     # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list. The
@@ -16,8 +16,8 @@ module Hecks
     # Cargo.toml and generated/mod.rs stamp them with whichever ran last, so it must not flap. If
     # the domain set or the sort rule changes, re-run and commit the output; never hand-edit stamps.
     #
-    #   bin/regen_codegen_domains         # discover, regenerate, print the plan
-    #   bin/regen_codegen_domains --check # regenerate into a scratch crate; fail on any difference
+    #   hecks regenerate_corpus         # discover, regenerate, print the plan
+    #   hecks regenerate_corpus --check # regenerate into a scratch crate; fail on any difference
     #
     # `--check` never writes the working tree: it runs beside the parallel suite.
     module RegenerationRun
@@ -39,7 +39,7 @@ module Hecks
           ENV["HECKS_RUST_DIR"] = scratch if scratch
           begin
             begin
-              regenerate(domains, root)
+              regenerate(domains)
             ensure
               saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
             end
@@ -60,13 +60,13 @@ module Hecks
         domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{root}/") }
 
         if domains.empty?
-          abort "bin/regen_codegen_domains: discovered ZERO domains with committed rust/src/generated/ " \
+          abort "hecks regenerate_corpus: discovered ZERO domains with committed rust/src/generated/ " \
                 "output in Hecks::Corpus — that almost certainly means this script is running from the " \
                 "wrong directory, or something upstream deleted rust/src/generated/ entirely. Refusing " \
                 "to silently treat that as \"nothing to regenerate.\""
         end
 
-        puts "bin/regen_codegen_domains: regenerating #{domains.size} domain(s), in this fixed order:"
+        puts "hecks regenerate_corpus: regenerating #{domains.size} domain(s), in this fixed order:"
         domains.each { |d| puts "  #{d}" }
         puts
         domains
@@ -76,41 +76,39 @@ module Hecks
       # order, because the shared outputs depend on which domain ran last.
       #
       # @param domains [Array<String>] the domains, in run order
-      # @param root [String] the checkout
       # @return [void]
-      def regenerate(domains, root)
+      def regenerate(domains)
         require "hecks"
         require "hecks/bluebook/meta_validator"
+        require "hecks/rust_build"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        domains.each { |domain| project_rust_in_fork(File.join(root, "bin/project_rust"), domain) }
+        domains.each { |domain| project_rust_in_fork(domain) }
       end
 
       # Forks so the child inherits the memoized grammar registry instead of rebuilding it. The
       # child's output goes through a pipe and is printed here, so it reaches whoever captures this
       # process's stdout.
       #
-      # @param project_rust [String] the script that projects one domain
       # @param domain [String] the domain, relative to the checkout
       # @return [void]
       # @raise [SystemExit] when the child fails
-      def project_rust_in_fork(project_rust, domain)
-        puts "== bin/project_rust #{domain} =="
+      def project_rust_in_fork(domain)
+        puts "== hecks project_rust #{domain} =="
         reader, writer = IO.pipe
-        pid = fork { run_child(reader, writer, project_rust, domain) }
+        pid = fork { run_child(reader, writer, domain) }
         writer.close
         $stdout.write(reader.read)
         reader.close
         _, status = Process.wait2(pid)
-        abort "bin/regen_codegen_domains: bin/project_rust #{domain} failed (#{status.inspect})" unless status.success?
+        abort "hecks regenerate_corpus: hecks project_rust #{domain} failed (#{status.inspect})" unless status.success?
         puts
       end
 
       # @param reader [IO] the parent's end of the pipe, closed here
       # @param writer [IO] the child's end, which becomes its stdout and stderr
-      # @param project_rust [String] the script that projects one domain
       # @param domain [String] the domain
       # @return [void] never returns: the child leaves without the parent's exit handlers
-      def run_child(reader, writer, project_rust, domain)
+      def run_child(reader, writer, domain)
         reader.close
         # The real descriptors, not the globals: a caller may have swapped those for a buffer.
         STDOUT.reopen(writer) # rubocop:disable Style/GlobalStdStream
@@ -118,10 +116,7 @@ module Hecks
         $stdout = STDOUT
         $stderr = STDERR
         status = begin
-          ARGV.replace([domain])
-          $PROGRAM_NAME = project_rust
-          load project_rust
-          0
+          Hecks::RustBuild.run("project_rust", [domain], out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
         rescue SystemExit => e
           e.status
         rescue StandardError => e
@@ -132,7 +127,8 @@ module Hecks
         exit!(status)
       end
 
-      # A scratch crate: copies of the generated tree and Cargo.toml, all `bin/project_rust` writes.
+      # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks project_rust`
+      # writes.
       #
       # @param root [String] the checkout
       # @return [String] the scratch directory

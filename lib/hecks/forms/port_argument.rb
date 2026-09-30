@@ -1,6 +1,6 @@
 module Hecks
   module Forms
-    # Reads bin/present's `-p PORT` / `--port PORT` / `--port=PORT` argument.
+    # Reads hecks present's `-p PORT` / `--port PORT` / `--port=PORT` argument.
     # Returns `[port, nil]` or `[nil, message]`; a non-numeric port is refused, not read as 0.
     module PortArgument
       module_function

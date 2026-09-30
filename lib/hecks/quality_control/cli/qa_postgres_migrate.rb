@@ -7,12 +7,12 @@ require_relative "../../adapters/driven/heki"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_postgres_migrate`: copies each aggregate's current state from a
-    # Heki data directory into the repository that the domain's `.hecksagon`/`.world` files bind
-    # today (for example `PostgresEra`). It is domain-agnostic.
+    # The command behind `hecks quality_control migrate_ledger_from_heki`: copies each aggregate's
+    # current state from a Heki data directory into the repository that the domain's
+    # `.hecksagon`/`.world` files bind today (for example `PostgresEra`). It is domain-agnostic.
     #
-    #   bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...]         # dry run
-    #   bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] --force  # apply
+    #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...]         # dry run
+    #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...] --force # apply
     #
     # One `save` per id from `Heki#all`, not a journal replay: state is kept byte-for-byte, the
     # per-append history is not. The Heki side is only read. An id the destination holds under a
@@ -59,7 +59,8 @@ module Hecks
         registry = Hecks.boot(domain_dir).registry
         candidates = candidates_in(registry, heki_dir, argv)
         if candidates.empty?
-          @out.puts "bin/qa_postgres_migrate: no aggregate matched #{argv.empty? ? '(any)' : argv.inspect} with a " \
+          @out.puts "hecks quality_control migrate_ledger_from_heki: no aggregate matched " \
+                    "#{argv.empty? ? '(any)' : argv.inspect} with a " \
                     "corresponding .heki file under #{heki_dir}"
           return 0
         end
@@ -88,7 +89,7 @@ module Hecks
       private
 
       def usage(message)
-        @err.puts "bin/qa_postgres_migrate: #{message}"
+        @err.puts "hecks quality_control migrate_ledger_from_heki: #{message}"
         @err.puts USAGE
         1
       end

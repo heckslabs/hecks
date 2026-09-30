@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "tree"
-require_relative "../../../kernel_capabilities"
+require "hecks/kernel_capabilities"
 
 module Hecks
   module Adapters
@@ -11,7 +11,7 @@ module Hecks
       # admits has its hand-written file.
       #
       # The projection is built in memory by `KernelCapabilities`, the code
-      # `bin/project_kernel_capabilities` runs, and compared with the tree; it writes only when
+      # `hecks project_kernel_capabilities` runs, and compared with the tree; it writes only when
       # confirmed. The coverage check reads the tree and writes nothing.
       module KernelTables
         # Every operation this family carries out.

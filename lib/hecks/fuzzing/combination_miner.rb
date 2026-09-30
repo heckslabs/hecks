@@ -5,7 +5,8 @@ require_relative "form_census"
 module Hecks
   module Fuzzing
     # Asks an agent to write candidate bluebooks from the corpus's form-pair census.
-    # Opt-in: `bin/qa_tick` never runs it; an agent call is costly and nondeterministic.
+    # Opt-in: `hecks quality_control tick` never runs it; an agent call is costly and
+    # nondeterministic.
     module CombinationMiner
       PROMPT_TEMPLATE = "qa/combination_miner/prompt.md".freeze
       HYPOTHESIS_FILE = "HYPOTHESIS.md".freeze

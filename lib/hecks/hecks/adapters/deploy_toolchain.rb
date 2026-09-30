@@ -3,7 +3,7 @@
 require_relative "console_capture"
 require_relative "codebase/tree"
 require_relative "codebase/ruby_child"
-require_relative "../../projections/deploy/template_diff"
+require "hecks/projections/deploy/template_diff"
 
 module Hecks
   module Adapters
@@ -18,7 +18,7 @@ module Hecks
       # The `Hecks::Tools` tool an ask runs, by ask.
       SCRIPTS = { generate: "project_deploy", lint: "lint_deploy_recipes", manifest: "project_oidc" }.freeze
 
-      # `bin/project_deploy`'s flag for each `Recipe` field it takes.
+      # `hecks deploy project`'s flag for each `Recipe` field it takes.
       GENERATE_FLAGS = { "--tenant" => :tenant, "--schema" => :schema, "--out" => :out,
                          "--environment" => :environment }.freeze
 
@@ -30,7 +30,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
       # Writes a domain's deploy recipe (the template, scripts and Makefile) from its declared
-      # `deployed_to` target, through `bin/project_deploy`.
+      # `deployed_to` target, through `hecks deploy project`.
       #
       # @param held [Hash] the `Recipe` record: `domain`, and `tenant`, `schema`, `out` and
       #   `environment` when set
@@ -43,7 +43,7 @@ module Hecks
       end
 
       # Lints generated deploy Makefiles for prod-touching recipes that hide failure, through
-      # `bin/lint_deploy_recipes`.
+      # `hecks deploy lint`.
       #
       # @param held [Hash] the `MakefileCheck` record: `makefiles` (comma separated paths; three
       #   generated fixture domains when absent)
@@ -56,7 +56,7 @@ module Hecks
       end
 
       # Projects each domain's OIDC client and scope manifest into its `oidc.json`, through
-      # `bin/project_oidc`.
+      # `hecks deploy project_oidc`.
       #
       # @param held [Hash] the `OidcManifest` record: `domains` (comma separated directories; every
       #   domain of the checkout when absent)

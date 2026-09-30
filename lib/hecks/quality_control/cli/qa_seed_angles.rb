@@ -7,9 +7,9 @@ require_relative "../../ports/persistence/plugins/era"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_seed_angles`: seeds the QualityControl ledger's `Angle` backlog
-    # with the practice's starting leads. It is idempotent: only references not already on file
-    # are proposed.
+    # The command behind `hecks quality_control angle.seed`: seeds the QualityControl ledger's
+    # `Angle` backlog with the practice's starting leads. It is idempotent: only references not
+    # already on file are proposed.
     class QaSeedAngles
       # A `resolution:` present means the lead was already chased down: it is proposed,
       # investigated and built in one pass. Its absence means the lever is still open.
@@ -56,7 +56,7 @@ module Hecks
                      "banking for CI-gated differential fuzzing. rust/Cargo.toml already declares " \
                      "compiled-binary features for compliance and roster (plus embryonaut and meta) that " \
                      "sit unused for this purpose; examples/chess and examples/directory have no Cargo " \
-                     "feature at all — bin/project_rust has never regenerated a binary for either. " \
+                     "feature at all — `hecks project_rust` has never regenerated a binary for either. " \
                      "Widening either list would let differential fuzzing catch a whole bug class " \
                      "Ruby-only fuzzing cannot, on domains the practice already owns.",
           citation:  "BUG#1/#3/#4 (engine-divergence bugs); spec/rust_conformance_fuzz_spec.rb DOMAINS " \

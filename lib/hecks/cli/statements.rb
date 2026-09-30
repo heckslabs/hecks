@@ -4,10 +4,10 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/statements`: prints a booted domain's declared facts as plain
+    # The command behind `hecks statements`: prints a booted domain's declared facts as plain
     # English sentences, through `Projections::Statements`.
     module Statements
-      USAGE = "usage: bin/statements <domain-path> <ChapterName>"
+      USAGE = "usage: hecks statements <domain-path> <ChapterName>"
 
       module_function
 

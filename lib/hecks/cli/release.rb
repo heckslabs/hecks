@@ -5,11 +5,11 @@ require_relative "../release/runner"
 
 module Hecks
   module CLI
-    # The command behind `bin/release`: tags the merged release commit, publishes the gem, and
+    # The command behind `hecks publish`: tags the merged release commit, publishes the gem, and
     # gets `@hecks/client` published to npm. See "Releasing" in CONTRIBUTING.md for the release PR.
     #
-    #   bin/release --dry-run    # every check and build, nothing tagged or published
-    #   bin/release              # tag, gem, then wait for CI to publish the client
+    #   hecks publish --dry-run    # every check and build, nothing tagged or published
+    #   hecks publish              # tag, gem, then wait for CI to publish the client
     module Release
       # The flags a run starts with, before any is named.
       DEFAULT_FLAGS = { dry_run: false, gem_only: false, npm_only: false, npm_local: false,
@@ -34,7 +34,7 @@ module Hecks
 
           options = Hecks::Release::Runner::Options.new(**flags)
         rescue OptionParser::ParseError, ArgumentError => e
-          warn "bin/release: #{e.message}"
+          warn "hecks publish: #{e.message}"
           warn parser
           return 2
         end
@@ -43,10 +43,10 @@ module Hecks
       end
 
       # @param flags [Hash{Symbol => Boolean}] filled in as the parser reads each flag
-      # @return [OptionParser] the parser for `bin/release`'s flags
+      # @return [OptionParser] the parser for `hecks publish`'s flags
       def parser_for(flags)
         OptionParser.new do |opts|
-          opts.banner = "Usage: bin/release [--dry-run] [--gem-only | --npm-only] [--npm-local | --no-wait] [--yes]"
+          opts.banner = "Usage: hecks publish [--dry-run] [--gem-only | --npm-only] [--npm-local | --no-wait] [--yes]"
           opts.separator("Tags the merged release commit, publishes the gem, and gets @hecks/client published.")
           opts.separator("By default CI publishes the client from the tag and this waits for it.")
           opts.on("--dry-run", "run every check and build; tag, push and publish nothing") { flags[:dry_run] = true }

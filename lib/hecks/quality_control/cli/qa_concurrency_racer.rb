@@ -10,8 +10,9 @@ module Hecks
     # The command behind `bin/qa_concurrency_racer`: one racer of
     # `Hecks::Fuzzing::ConcurrentDispatch`, run as its own OS process.
     #
-    # It is spawned, not forked: the caller (`bin/qa_sweep`) holds live `PostgresEra` connections,
-    # and fork duplicates their file descriptors and SSL state, corrupting them when a child exits.
+    # It is spawned, not forked: the caller (`hecks quality_control ask run`) holds live
+    # `PostgresEra` connections, and fork duplicates their file descriptors and SSL state,
+    # corrupting them when a child exits.
     #
     #   bin/qa_concurrency_racer <domain-path> <database> <schema> <verb> <args-json>
     #

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../../../hecks"
-require_relative "../../../ports/persistence/plugins/era"
+require "hecks"
+require "hecks/ports/persistence/plugins/era"
 
 module Hecks
   module Adapters

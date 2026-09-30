@@ -76,8 +76,9 @@ module Hecks
           query("Target.Held").select { |row| row[:claimed_at][:value] + row[:window][:value] <= now }
         end
 
-        # Spawns `bin/qa_sweep <target>` as a fresh process, not a fork. Seeds/steps forward only
-        # when given, so each child derives its own depth from its own streak.
+        # Spawns `hecks quality_control ask run target=<target>` as a fresh process, not a fork.
+        # Seeds/steps forward only when given, so each child derives its own depth from its own
+        # streak.
         def spawn_sweep_child(target_reference, seeds_override, steps_override, self_consistency,
                               modes:, parity: false)
           # Unlinked at once: the open fd stays readable, nothing is left on disk, and no fixed path

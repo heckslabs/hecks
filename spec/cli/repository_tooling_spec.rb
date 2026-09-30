@@ -67,14 +67,14 @@ RSpec.describe "the repository tooling commands" do
 
   describe Hecks::CLI::Release do
     it "prints its usage and exits 0 for --help" do
-      expect { @status = described_class.call(["--help"], root: Dir.pwd) }.to output(%r{Usage: bin/release}).to_stdout
+      expect { @status = described_class.call(["--help"], root: Dir.pwd) }.to output(/Usage: hecks publish/).to_stdout
       expect(@status).to eq(0)
     end
 
     it "exits 2 with the usage for a flag it does not know" do
       status = nil
       expect { status = described_class.call(["--frobnicate"], root: Dir.pwd) }
-        .to output(%r{--frobnicate.*Usage: bin/release}m).to_stderr
+        .to output(/--frobnicate.*Usage: hecks publish/m).to_stderr
       expect(status).to eq(2)
     end
   end
@@ -128,7 +128,7 @@ RSpec.describe "the repository tooling commands" do
 
   describe Hecks::CLI::RspecIoParallelFiles do
     it "refuses a command line with no tag arguments" do
-      expect_abort_with(%r{usage: bin/rspec_io_parallel_files}) do
+      expect_abort_with(/usage: hecks list_io_parallel_specs/) do
         described_class.call(["^spec/qa"], root: InMemoryDomain::ROOT)
       end
     end
@@ -157,7 +157,7 @@ RSpec.describe "the repository tooling commands" do
       out = StringIO.new
 
       expect(described_class.call(["--help"], root: Dir.pwd, out: out)).to eq(0)
-      expect(out.string).to include("Usage: bin/stress_concurrency_specs")
+      expect(out.string).to include("Usage: hecks stress_concurrency")
     end
 
     it "exits 64 for an argument it does not know" do

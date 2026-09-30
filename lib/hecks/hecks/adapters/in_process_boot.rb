@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "../../../hecks"
+require "hecks"
 # A domain wired to PostgresEra needs this plugin loaded explicitly, and the `:shape` projection
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
@@ -140,7 +140,7 @@ module Hecks
       #   was made, its steps
       # @raise [Runtime::NotFound] if the domain cannot be found
       def generate_sequence(domain:, seed: nil, steps: nil, adversarial: nil)
-        require_relative "../../fuzzing"
+        require "hecks/fuzzing"
         target = plain(domain)
         raise Runtime::NotFound, "no such domain #{target.inspect}" unless File.exist?(target)
 

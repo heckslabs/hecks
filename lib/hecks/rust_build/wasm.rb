@@ -25,7 +25,7 @@ module Hecks
       # @return [Integer] the exit status
       # @raise [Failure] when the target is not installed or a step fails
       def call(argv)
-        domain = argv.first or raise Failure, "usage: bin/project_wasm <domain>"
+        domain = argv.first or raise Failure, "usage: hecks build_wasm <domain>"
         return build_with_rust(domain) if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
 
         require_target!

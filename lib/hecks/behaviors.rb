@@ -2,7 +2,7 @@ require_relative "behaviors/dsl"
 require_relative "behaviors/expectations"
 require_relative "behaviors/runner"
 
-# The `.behaviors` toolkit driven by `bin/behaviors` and `hecks/behaviors/rspec`.
+# The `.behaviors` toolkit driven by `hecks run_behaviors` and `hecks/behaviors/rspec`.
 # Opt-in: not required by lib/hecks.rb, like `Fuzzing`.
 # lib/hecks/fuzzing.rb, the shape this file mirrors) is opt-in too.
 module Hecks
