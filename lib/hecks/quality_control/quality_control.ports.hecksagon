@@ -1,0 +1,27 @@
+# The ports QualityControl declares, for every hecksagon that attaches the chapter (`Chapters`
+# loads this file with it). Persistence is the attaching hecksagon's: the Hecks chapter binds
+# every aggregate through its world's `default_adapter`, and the QA ledger binds its own
+# (qa/bluebook/quality_control.hecksagon).
+Hecks.hecksagon "QualityControl" do
+  # Bound by adapters/github_issues. The port has to be declared even where no adapter binds it,
+  # so FileWhenSubmitted has a target and model_check's deaf-policy check can see it.
+  QualityControl::Ticket.port "IssueTracker" do
+    asks "File", to: Ticket do
+      answers "IssueFiled"
+      refuses "IssueFilingRefused"
+    end
+
+    tells "Closed", to: Ticket do
+      emits "IssueClosedUpstream"
+    end
+  end
+
+  # Bound by adapters/github_checks. ClearOnPass and RefuseOnFail turn its answer into
+  # Clearance::Passed/Failed.
+  QualityControl::Clearance.port "CI" do
+    asks "Run", to: Clearance do
+      answers "SuitePassed"
+      refuses "SuiteFailed"
+    end
+  end
+end

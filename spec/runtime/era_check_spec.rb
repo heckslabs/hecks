@@ -83,6 +83,20 @@ RSpec.describe "the era check at boot" do
     end
   end
 
+  # A domain that attaches a chapter the gem carries (the QA ledger, QualityControl) holds no
+  # file for it: the era reads the chapter's own files, wherever the gem keeps them.
+  it "reads an attached chapter's source from the files the gem carries it in" do
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "quality_control.hecksagon"), "# wiring only\n")
+
+      bluebook = Struct.new(:name).new("QualityControl")
+      text = Hecks::Runtime::EraCheck.source_text_for(bluebook, root)
+
+      expect(text).to eq(File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
+                                   encoding: "UTF-8"))
+    end
+  end
+
   it "holds nothing for an adapter that has no eras, and never refuses its drift" do
     Dir.mktmpdir do |root|
       check!(root, ERA_V1)

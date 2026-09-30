@@ -134,7 +134,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     @fixture_root = Dir.mktmpdir("qa_sweep_all_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
+    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)

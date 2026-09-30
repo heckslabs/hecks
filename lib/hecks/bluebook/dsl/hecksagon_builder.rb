@@ -80,9 +80,10 @@ module Hecks
           Hecks.current_registry&.mark_bounded(Hecks::Naming.pascal(name.to_s))
         end
 
-        # Attaches a chapter the gem carries (the language, Expression, Tenancy, Deploy) by name
-        # and loads its files into the registry. Marked bounded like a framework member, since
-        # this hecksagon is its anti-corruption layer.
+        # Attaches a chapter the gem carries (the language, Expression, Tenancy, Deploy,
+        # QualityControl) by name and loads its files into the registry, with the ports and
+        # adapters it ships. Marked bounded like a framework member, since this hecksagon is its
+        # anti-corruption layer.
         def attaches(name)
           require_relative "../../chapters"
           @attached_chapters << name.to_s

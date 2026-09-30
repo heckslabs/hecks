@@ -36,7 +36,7 @@ SEED = [
                 "session having just built a real one (BugCiWatch) — a stress domain specifically " \
                 "exercising process-manager correlation, multi-step handler chains, and compensation " \
                 "legs was a natural, and the highest-priority, next target.",
-    citation:   "BugCiWatch (qa/bluebook/quality_control.bluebook, \"noticing when a fix stops " \
+    citation:   "BugCiWatch (lib/hecks/quality_control/quality_control.bluebook, \"noticing when a fix stops " \
                 "holding\"); BUG#1-5, none of which touched saga machinery",
     proposer:   "Claude QA",
     resolution: "BUG#6 — SagaInterpreter#qualified cannot tell a same-domain nested-entity " \

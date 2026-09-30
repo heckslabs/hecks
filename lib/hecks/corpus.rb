@@ -28,7 +28,7 @@ module Hecks
     FILE_KINDS = {
       grammar:   "lib/hecks/grammar/*.bluebook",
       framework: "lib/hecks/framework/bluebook/*.bluebook",
-      qa:        "qa/bluebook/*.bluebook",
+      qa:        "lib/hecks/quality_control/*.bluebook",
       language:  "lib/hecks/language/**/*.bluebook",
       deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
@@ -103,8 +103,13 @@ module Hecks
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
 
-    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`,
-    # or the directory itself when that holds none (e.g. `qa/bluebook`).
+    # How a domain's hecksagon names a chapter the gem carries and loads by name, as the QA
+    # ledger's does (`Hecks::Chapters.load!("QualityControl")`).
+    ATTACHED_CHAPTER = /Chapters\.load!\(\s*"([^"]+)"\s*\)/
+
+    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`, or the directory
+    # itself when that holds none, or the chapter files its hecksagons load by name (the QA
+    # ledger, `qa/bluebook`, holds only wiring: its chapter ships in `lib/hecks/quality_control/`).
     #
     # @param domain_path [String] path to a domain directory
     # @return [Array<String>, nil] `.bluebook` file paths found, or nil when none
@@ -113,7 +118,18 @@ module Hecks
         files = Dir[File.join(dir, "*.bluebook")]
         return files unless files.empty?
       end
-      nil
+      attached_chapter_files(domain_path)
+    end
+
+    # The bluebook files of every chapter a domain's own hecksagons load by name.
+    #
+    # @param domain_path [String] path to a domain directory
+    # @return [Array<String>, nil] the chapters' `.bluebook` file paths, or nil when none is named
+    def attached_chapter_files(domain_path)
+      names = Dir[File.join(domain_path, "{bluebook/,}*.hecksagon")]
+              .flat_map { |path| File.read(path).scan(ATTACHED_CHAPTER).flatten }.uniq
+      files = names.flat_map { |name| Chapters.index.fetch(name, []) }
+      files.empty? ? nil : files
     end
 
     # The directory holding `domain_path`'s bluebooks.

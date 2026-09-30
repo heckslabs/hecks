@@ -193,18 +193,19 @@ A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plu
 | positional 1 | text | true | attached_chapters |
 <!-- generated:end -->
 
-Attaches a chapter hecks itself carries, by name: one of the chapters of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy` or `Deploy`. It works like `uses_framework`:
+Attaches a chapter hecks itself carries, by name: one of the chapters of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy` or `QualityControl`. It works like `uses_framework`:
 - It loads the files of the chapter into the registry, from their real location, even when the chapter spans several files.
+- It loads what the chapter ships beside its bluebook: `<chapter_name>.ports.hecksagon`, the ports it declares (a `Hecks.hecksagon` block that merges into the attaching one), and every `adapters/*.adapter`, the adapters that bind them. Persistence is never in either: it is the attaching hecksagon's, or its world's `default_adapter`.
 - It records the name on the hecksagon that asked for it.
 - It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter.
 
 `Framework` members stay with `uses_framework`, and a name hecks does not carry refuses, listing the names it does. The chapters on offer:
 
 ```ruby
-Hecks::Chapters.index.keys.sort  # => ["Adapter", "Bluebook", "Deploy", "Expression", "Hecksagon", "Paging", "Port", "Tenancy", "Translation", "World"]
+Hecks::Chapters.index.keys.sort  # => ["Adapter", "Bluebook", "Deploy", "Expression", "Hecksagon", "Paging", "Port", "QualityControl", "Tenancy", "Translation", "World"]
 ```
 
-The Hecks domain (ADR 0080) is its main user, attaching the language, Tenancy and Deploy so one `hecks` launcher reaches all of their verbs.
+The Hecks domain (ADR 0080) is its main user, attaching the language, Tenancy, Deploy and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::Chapters.load!("QualityControl")` and binds it to its own PostgresEra database.
 
 ## port
 

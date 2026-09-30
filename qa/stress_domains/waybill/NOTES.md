@@ -9,7 +9,7 @@ targets a command owned by a NESTED ENTITY, not a plain aggregate.
 
 - `examples/banking/bluebook/new_customer_onboarding.bluebook`'s own
   `Onboarding`, `examples/banking/bluebook/transfers_and_payments.
-  bluebook`'s own `Settlement`/`ExternalSettlement`, and `qa/bluebook/
+  bluebook`'s own `Settlement`/`ExternalSettlement`, and `lib/hecks/quality_control/
   quality_control.bluebook`'s own `BugCiWatch` — every `dispatch` in
   every one of them targets a plain aggregate command
   (`Account::Debit`, `Manifest::Open`-shaped references, `Bug::Regress`).
@@ -99,7 +99,7 @@ enough information to tell the two apart from the string alone.
 
 Same restraint this domain's own sibling, `nested_pieces`, already
 exercised for BUG#4: this domain was authored from an isolated worktree
-with no access to `qa/bluebook/quality_control.bluebook`'s own persisted
+with no access to `lib/hecks/quality_control/quality_control.bluebook`'s own persisted
 ledger, so the `Bug.log`/judgment/fix lifecycle belongs to the session
 that DOES hold that ledger, not to this PR. `bin/model_check
 qa/stress_domains/waybill` reports exactly one error

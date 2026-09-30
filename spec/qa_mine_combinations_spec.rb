@@ -27,7 +27,7 @@ RSpec.describe "bin/qa_mine_combinations" do
 
   it "is opt-in: neither the tick nor the dials ever run it" do
     tick  = File.read(File.join(InMemoryDomain::ROOT, "bin/qa_tick"))
-    dials = File.read(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"))
+    dials = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"))
 
     expect(tick).not_to match(/^[^#]*qa_mine_combinations/)
     expect(dials).not_to include("qa_mine_combinations")

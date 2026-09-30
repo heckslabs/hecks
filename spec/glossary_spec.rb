@@ -17,7 +17,8 @@ RSpec.describe "the glossary a domain carries with it" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      InMemoryDomain.load_bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook"))
+      # `qa` holds the ledger's wiring only; its chapter is the one that wiring loads by name.
+      InMemoryDomain.load_bluebook_files(Hecks::Corpus.bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook")))
     end
     registry.bluebook(name)
   end

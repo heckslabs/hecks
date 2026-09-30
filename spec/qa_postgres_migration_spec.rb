@@ -15,7 +15,7 @@ require "open3"
 RSpec.describe "bin/qa_postgres_migrate", :io do
   # A constant assigned in a describe block lands at top level, and
   # spec/oidc_manifest_spec.rb already owns the bare name `ROOT`.
-  BLUEBOOK_SOURCE  = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook")
+  BLUEBOOK_SOURCE  = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook")
   HECKSAGON_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.hecksagon")
   MIGRATE_SCRIPT   = File.join(InMemoryDomain::ROOT, "bin/qa_postgres_migrate")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze

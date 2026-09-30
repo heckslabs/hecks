@@ -152,7 +152,7 @@ def dial(name, fallback)
 end
 
 if options[:from_dials]
-  dials_path = File.join(ROOT, "qa/bluebook/quality_control.bluebook")
+  dials_path = File.join(ROOT, "lib/hecks/quality_control/quality_control.bluebook")
   eval(File.read(dials_path).split(/^Hecks\.bluebook/).first, TOPLEVEL_BINDING, dials_path)
   per_tick = Integer(ENV.fetch("QA_GENERATED_DOMAINS_PER_TICK", dial(:GENERATED_DOMAINS_PER_TICK, 0)))
   if per_tick.zero?

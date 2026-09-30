@@ -1,0 +1,7 @@
+# Binds the `IssueTracker` port to `GithubIssues` for any boot that loads the chapter.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/github_issues"
+
+Hecks.adapter "GithubIssues" do
+  port "IssueTracker"
+end

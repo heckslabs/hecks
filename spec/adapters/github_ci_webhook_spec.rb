@@ -2,7 +2,7 @@ require "spec_helper"
 require "rack/test"
 require "openssl"
 require "json"
-require_relative "../../qa/adapters/github_ci_webhook"
+require_relative "../../lib/hecks/quality_control/adapters/github_ci_webhook"
 
 # Push sibling of spec/adapters/github_checks_spec.rb: posts a signed HTTP
 # request at #call(env) and runs QualityControl end to end, for real.
@@ -14,7 +14,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
   # Not QC_ROOT — that name belongs to spec/quality_control_spec.rb, and a
   # spec-file top-level constant lands on Object regardless of nesting
   # depth (spec/load_hygiene_spec.rb catches exactly this collision).
-  WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
+  WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control").freeze
 
   module FixedClock
     module_function

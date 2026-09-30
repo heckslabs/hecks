@@ -107,7 +107,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_era_boundary_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
+    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ERA_BOUNDARY_SPEC)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
