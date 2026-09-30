@@ -55,11 +55,15 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
   end
 
   describe "which refusals block the run" do
-    let(:match)   { { "policy" => "RecordTheMatch", "on" => "Answered", "trigger" => "D::Cmp.Match", "delivered" => true } }
-    let(:drift)   { { "policy" => "RecordTheDrift", "on" => "Answered", "trigger" => "D::Cmp.Drift",
-                      "delivered" => false, "reason" => "Drift refused — the templates differ" } }
-    let(:accept)  { { "policy" => "Accept", "on" => "Examined", "trigger" => "D::Run.Accept",
-                      "delivered" => false, "reason" => "Accept refused — the working tree is clean" } }
+    let(:match) { { "policy" => "RecordTheMatch", "on" => "Answered", "trigger" => "D::Cmp.Match", "delivered" => true } }
+    let(:drift) do
+      { "policy" => "RecordTheDrift", "on" => "Answered", "trigger" => "D::Cmp.Drift",
+        "delivered" => false, "reason" => "Drift refused — the templates differ" }
+    end
+    let(:accept) do
+      { "policy" => "Accept", "on" => "Examined", "trigger" => "D::Run.Accept",
+        "delivered" => false, "reason" => "Accept refused — the working tree is clean" }
+    end
 
     it "does not count a given-gated pair's declined half, but counts a refusal with no alternative" do
       result = dispatcher_answering(response([[match, drift, accept]])).dispatch_flat(verb, {})
