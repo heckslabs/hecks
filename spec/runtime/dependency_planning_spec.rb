@@ -185,5 +185,29 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
 
       2.times { expect { described_class.paths("broken_probe ???") }.to raise_error(ArgumentError) }
     end
+
+    it "stays bounded however many distinct texts are asked" do
+      stub_const("#{described_class}::PATHS_CACHE_LIMIT", 3)
+      cache = described_class.const_get(:PATHS_CACHE)
+
+      10.times { |n| described_class.paths("bound_probe_#{n} > 0") }
+
+      expect(cache.size).to be <= 3
+      expect(described_class.paths("bound_probe_9 > 0")).to eq(%w[bound_probe_9])
+    end
+
+    it "answers the same frozen paths to concurrent dispatch threads" do
+      threads = Array.new(8) do |n|
+        Thread.new { Array.new(50) { described_class.paths("thread_probe_#{n % 3} > 0") } }
+      end
+      answers = threads.flat_map(&:value)
+
+      expect(answers).to all(be_frozen)
+      expect(answers.uniq.size).to eq(3)
+    end
+
+    it "guards the cache with a lock" do
+      expect(described_class.const_get(:PATHS_LOCK)).to be_a(Mutex)
+    end
   end
 end

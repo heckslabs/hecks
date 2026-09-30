@@ -48,19 +48,30 @@ module Hecks
 
         # Paths by canonical text: parsing is a pure function of the text, and the analyzer asks
         # for the same rule text on every dispatch of a command. A text that fails to parse
-        # raises before it is stored, so a failure is never cached.
+        # raises before it is stored, so a failure is never cached. Written from dispatch
+        # threads, so every access holds PATHS_LOCK; the cache is cleared when it reaches
+        # PATHS_CACHE_LIMIT entries, so distinct texts cannot grow it without bound.
         # rubocop:disable-next Style/MutableConstant
         PATHS_CACHE = {}
-        private_constant :PATHS_CACHE
+        PATHS_LOCK = Mutex.new
+        PATHS_CACHE_LIMIT = 4096
+        private_constant :PATHS_CACHE, :PATHS_LOCK
 
         # Finds every dotted path a canonical expression reads.
         #
         # Walks the parsed nodes the evaluator uses; only Lookup nodes carry dependencies.
         #
         # @param canonical [String] the canonical expression text
-        # @return [Array<String>] the dotted paths the expression reads
+        # @return [Array<String>] the dotted paths the expression reads (frozen)
         def paths(canonical)
-          PATHS_CACHE[canonical] ||= collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new).freeze
+          cached = PATHS_LOCK.synchronize { PATHS_CACHE[canonical] }
+          return cached if cached
+
+          found = collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new).freeze
+          PATHS_LOCK.synchronize do
+            PATHS_CACHE.clear if PATHS_CACHE.size >= PATHS_CACHE_LIMIT && !PATHS_CACHE.key?(canonical)
+            PATHS_CACHE[canonical] ||= found
+          end
         end
 
         # Walks one parsed node, skipping names bound by an enclosing block predicate.
