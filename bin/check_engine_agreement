@@ -1,24 +1,12 @@
 #!/usr/bin/env ruby
 
-# Fails when a query engine re-grows its own comparator dispatch, or when a declared
-# comparator lacks a shared Comparison case or a cross-engine agreement spec. Grep-based.
+# Fails when a query engine re-grows its own comparator dispatch.
+# The body lives in lib/hecks/cli/check_engine_agreement.rb; this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("check_engine_agreement")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecks"
-require "hecks/engine_agreement"
+require "hecks/cli/check_engine_agreement"
 
-# Overridable only by this script's own spec, which points it at a scratch copy of the files.
-ROOT = ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || File.expand_path("..", __dir__)
-
-finding = Hecks::EngineAgreement.check(root: ROOT)
-
-if finding.problems.empty?
-  puts Hecks::EngineAgreement.clean_line(finding)
-  exit 0
-end
-
-warn Hecks::EngineAgreement.problem_lines(finding)
-exit 1
+exit(Hecks::CLI::CheckEngineAgreement.call(root: ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || File.expand_path("..", __dir__)))

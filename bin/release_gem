@@ -1,40 +1,12 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
-# Builds the hecks gem and pushes it to rubygems.org, using a push-scoped
-# API key from 1Password instead of ~/.gem/credentials.
-#
-#   bin/release_gem   (pushes the version lib/hecks/version.rb declares)
+# Builds the hecks gem and pushes it to rubygems.org with a 1Password push key.
+# The body lives in lib/hecks/cli/release_gem.rb; this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("release_gem")
 
-require "json"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/release_gem"
 
-$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
-require "hecks/release/runner/commands"
-require "hecks/hecks/adapters/codebase/gem_registry"
-require_relative "../lib/hecks/version"
-
-ROOT_DIR = File.expand_path("..", __dir__)
-Dir.chdir(ROOT_DIR)
-
-commands = Hecks::Release::Runner::Commands.new
-registry = Hecks::Adapters::Codebase::GemRegistry.new(root: ROOT_DIR, commands: commands)
-
-unless Hecks::Adapters::Codebase::SecretVault.new(commands: commands).installed?
-  warn "1Password CLI (op) not found. Install: brew install 1password-cli"
-  exit 1
-end
-
-# packages/hecks-client is released alongside the gem at the same version;
-# spec/hecks_client_version_spec.rb pins this rule too.
-client_version = JSON.parse(File.read(File.join(ROOT_DIR, "packages/hecks-client/package.json"))).fetch("version")
-unless client_version == Hecks::VERSION
-  warn "packages/hecks-client is at #{client_version} but Hecks::VERSION is #{Hecks::VERSION}; bump the package first."
-  exit 1
-end
-
-puts "Building and pushing hecks-#{Hecks::VERSION}.gem to rubygems.org (1Password will prompt for Touch ID)..."
-registry.push!(Hecks::VERSION)
-puts "Released hecks #{Hecks::VERSION}."
+exit(Hecks::CLI::ReleaseGem.call(root: File.expand_path("..", __dir__)))

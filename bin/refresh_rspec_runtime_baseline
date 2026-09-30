@@ -1,104 +1,12 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
 # Regenerates the committed runtime baselines the sharded CI jobs group from.
-# Prefers one CI run's timings; a local run is the fallback.
-#
-#   bin/refresh_rspec_runtime_baseline --from-run <run-id>   # preferred: one CI run's own timings
-#   bin/refresh_rspec_runtime_baseline [workers]             # fallback: this machine, spec shards
-#   only
-#
-# --from-run reads the runtime-log artifacts of a successful run and writes a family only when
-# every leg uploaded one; a partial set would skew the split. Runner seconds differ from a
-# laptop's, so a local baseline misses subprocess-heavy specs. The local mode refuses a red run.
+# The body lives in lib/hecks/cli/refresh_rspec_runtime_baseline.rb; this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("refresh_rspec_runtime_baseline")
 
-require "fileutils"
-require "json"
-require "open3"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/refresh_rspec_runtime_baseline"
 
-ROOT  = File.expand_path("..", __dir__)
-REPO  = "heckslabs/hecks"
-USAGE = "usage: bin/refresh_rspec_runtime_baseline --from-run <run-id> | [workers]"
-
-# Only `spec/…_spec.rb:<seconds>` lines; RSpec's "Run options" line must not be copied
-# into a committed file. Seconds can arrive in exponent form (`9.69e-05`).
-RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+)?)\z}
-
-# Read from the workflow matrix so a resize cannot leave a stale count here.
-def matrix_legs(workflow, job)
-  require "yaml"
-  YAML.load_file(File.join(ROOT, ".github/workflows", workflow)).dig("jobs", job, "strategy", "matrix", "group").size
-end
-
-RSPEC_LEGS       = matrix_legs("ci-rspec.yml", "rspec_shard")
-POSTGRES_IO_LEGS = matrix_legs("ci-postgres-io-parallel.yml", "rspec_postgres_io_parallel_shard")
-
-FAMILIES = {
-  "rspec-runtime-group"       => { legs: RSPEC_LEGS, baseline: ".github/rspec_runtime_baseline.log" },
-  "postgres-io-runtime-group" => { legs: POSTGRES_IO_LEGS, baseline: ".github/postgres_io_runtime_baseline.log" }
-}.freeze
-
-def baseline_lines(paths)
-  seconds_by_file = paths.flat_map { |path| File.readlines(path) }.filter_map do |line|
-    match = RUNTIME_LINE.match(line.strip) or next
-    [match[:file], Float(match[:seconds])]
-  end.to_h
-  seconds_by_file.map { |file, seconds| format("%<file>s:%<seconds>.2f", file: file, seconds: seconds) }.sort
-end
-
-def write_baseline(relative, lines)
-  File.write(File.join(ROOT, relative), "#{lines.join("\n")}\n")
-  puts "wrote #{relative}: #{lines.size} spec files"
-end
-
-def refuse_unless_successful!(run_id)
-  out, status = Open3.capture2("gh", "run", "view", run_id, "-R", REPO, "--json", "conclusion")
-  abort "bin/refresh_rspec_runtime_baseline: could not read run #{run_id}" unless status.success?
-
-  conclusion = JSON.parse(out)["conclusion"]
-  return if conclusion == "success"
-
-  abort "bin/refresh_rspec_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} — " \
-        "refusing to write a baseline from anything but a successful run"
-end
-
-def from_run(run_id)
-  refuse_unless_successful!(run_id)
-  dir = File.join(ROOT, "tmp/ci-runtime-#{run_id}")
-  FileUtils.rm_rf(dir)
-
-  written = FAMILIES.count do |prefix, family|
-    system("gh", "run", "download", run_id, "-R", REPO, "-p", "#{prefix}-*", "-D", dir, out: File::NULL, err: File::NULL)
-    logs = Dir[File.join(dir, "#{prefix}-*", "*.log")]
-    legs = logs.map { |path| File.basename(File.dirname(path)) }.uniq.size
-    if legs == family[:legs]
-      write_baseline(family[:baseline], baseline_lines(logs))
-      true
-    else
-      warn "skipping #{family[:baseline]}: run #{run_id} has #{legs} of #{family[:legs]} #{prefix}-* artifacts"
-      false
-    end
-  end
-  abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family — nothing written" if written.zero?
-end
-
-def from_local(workers)
-  raw = "tmp/rspec_runtime_baseline.raw.log"
-  FileUtils.mkdir_p(File.join(ROOT, "tmp"))
-  FileUtils.rm_f(File.join(ROOT, raw))
-
-  formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{raw}"
-  green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: ROOT)
-  abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
-
-  write_baseline(FAMILIES.fetch("rspec-runtime-group")[:baseline], baseline_lines([File.join(ROOT, raw)]))
-end
-
-if ARGV.first == "--from-run"
-  from_run(ARGV.fetch(1) { abort USAGE })
-else
-  from_local(ARGV.fetch(0, "6"))
-end
+exit(Hecks::CLI::RefreshRspecRuntimeBaseline.call(ARGV, root: File.expand_path("..", __dir__)))
