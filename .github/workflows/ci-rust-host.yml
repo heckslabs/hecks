@@ -120,3 +120,6 @@ jobs:
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
+
+      - name: "rspec: Rust/Ruby expression parity (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_expr_json_conformance_spec.rb

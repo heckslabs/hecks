@@ -301,15 +301,31 @@ mod tests {
     }
 
     #[test]
-    fn an_operator_expr_json_does_not_yet_interpret_refuses_the_mint_rather_than_skipping_it() {
+    fn an_invariant_using_a_newer_operator_is_checked_not_refused() {
+        // `!cents.blank?` (presence): every node Ruby interprets is interpreted here too.
         let mut ir = order_ir();
+        ir["value_objects"][0]["attributes"][0]["optional"] = json!(true);
         ir["value_objects"][0]["invariants"][0]["ast"] = json!({
             "op": "presence", "receiver": {"op": "lookup", "path": ["cents"]}, "negated": false
+        });
+        let good = json!({ "pizza": { "cents": 1200, "size": "large" }, "toppings": [], "status": "available" });
+        assert_eq!(validate(&ir, "p1", &good), Vec::<String>::new());
+        let bad = json!({ "pizza": { "cents": null, "size": "large" }, "toppings": [], "status": "available" });
+        let violations = validate(&ir, "p1", &bad);
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("violates its own invariant"), "{violations:?}");
+    }
+
+    #[test]
+    fn an_invariant_whose_evaluation_errors_refuses_the_mint_with_rubys_wording() {
+        let mut ir = order_ir();
+        ir["value_objects"][0]["invariants"][0]["ast"] = json!({
+            "op": "empty", "receiver": {"op": "lookup", "path": ["cents"]}
         });
         let state = json!({ "pizza": { "cents": 1200, "size": "large" }, "toppings": [], "status": "available" });
         let violations = validate(&ir, "p1", &state);
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].contains("could not be checked"), "{violations:?}");
+        assert!(violations[0].contains("could not be checked — empty? expects a list or string, got 1200"), "{violations:?}");
     }
 
     #[test]
