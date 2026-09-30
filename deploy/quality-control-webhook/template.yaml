@@ -216,7 +216,7 @@ Resources:
       # "lambda_handler") whenever `dispatch "None"` moved CodeUri off
       # qa itself — see that variable's own comment, above.
       Handler: qa/lambda_handler.QaWebhookLambdaHandler.lambda_handler
-      CodeUri: /home/user/hecks/.claude/worktrees/agent-af90cbaa8aed8a219
+      CodeUri: /Users/christopheryoung/Projects/hecks/.claude/worktrees/agent-a7ac753ca2c223e76
       MemorySize: 512
       Timeout: 15
       Environment:
