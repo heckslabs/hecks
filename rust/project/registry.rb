@@ -122,7 +122,20 @@ module RustProjection
         prefix = "#{a[:domain_name]}::#{a[:name]}"
         <<~RUST.rstrip
                   if aggregate == #{prefix.inspect} {
-                      return Some(self.#{a[:mod]}.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+                      return Some(self.#{a[:mod]}.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());
+                  }
+        RUST
+      end
+
+      # Borrowed twin of `query_arms`: the same prefixes, visiting each cached row in place.
+      scan_each_arms = aggregates.map do |a|
+        prefix = "#{a[:domain_name]}::#{a[:name]}"
+        <<~RUST.rstrip
+                  if aggregate == #{prefix.inspect} {
+                      for (id, json) in self.#{a[:mod]}.json_entries(|record| record.to_json()) {
+                          visit(id, json);
+                      }
+                      return true;
                   }
         RUST
       end
@@ -335,6 +348,7 @@ module RustProjection
         "tmpl_dump_arm_placeholder();" => dump_arms.join("\n"),
         "tmpl_seed_arm_placeholder();" => seed_arms.join("\n"),
         "tmpl_query_arm_placeholder();" => query_arms.join("\n"),
+        "tmpl_scan_each_arm_placeholder();" => scan_each_arms.join("\n"),
         '"tmpl_verb" => { tmpl_dispatch_arm_placeholder() }' => dispatch_arms.join("\n")
       )
 

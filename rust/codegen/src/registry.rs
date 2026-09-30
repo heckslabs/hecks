@@ -312,7 +312,19 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         .map(|a| {
             let prefix = format!("{}::{}", a.domain_name, a.name);
             format!(
-                "if aggregate == {} {{\n    return Some(self.{}.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());\n}}",
+                "if aggregate == {} {{\n    return Some(self.{}.json_entries(|record| record.to_json()).map(|(id, json)| (id.clone(), json.clone())).collect());\n}}",
+                naming::ruby_inspect_string(&prefix),
+                a.module_name
+            )
+        })
+        .collect();
+
+    let scan_each_arms: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let prefix = format!("{}::{}", a.domain_name, a.name);
+            format!(
+                "if aggregate == {} {{\n    for (id, json) in self.{}.json_entries(|record| record.to_json()) {{\n        visit(id, json);\n    }}\n    return true;\n}}",
                 naming::ruby_inspect_string(&prefix),
                 a.module_name
             )
@@ -717,6 +729,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             ("tmpl_dump_arm_placeholder();", dump_arms.join("\n")),
             ("tmpl_seed_arm_placeholder();", seed_arms.join("\n")),
             ("tmpl_query_arm_placeholder();", query_arms.join("\n")),
+            ("tmpl_scan_each_arm_placeholder();", scan_each_arms.join("\n")),
             (
                 "\"tmpl_verb\" => { tmpl_dispatch_arm_placeholder() }",
                 dispatch_arms.join("\n"),
