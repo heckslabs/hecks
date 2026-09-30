@@ -3,6 +3,7 @@ require "json"
 require_relative "../../../../adapters/driven/sql_query_builder"
 require_relative "../../../../adapters/driven/postgres/outbox"
 require_relative "../../../../adapters/driven/postgres/reconnect"
+require_relative "../../../../adapters/driven/postgres/shared_connection"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
 require_relative "postgres_era/events"
@@ -118,8 +119,10 @@ module Hecks
               "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip}"
       end
 
-      # Connects and provisions the journal, this aggregate's head and field caches, and the
-      # event, saga and outbox tables. Every step is idempotent.
+      # Joins the process's shared connection for the declared database and schema, so every
+      # aggregate of a domain runs on one connection, then provisions the journal, this
+      # aggregate's head and field caches, and the event, saga and outbox tables. Every step is
+      # idempotent.
       #
       # @param settings [Hash{Symbol, String => Object}] world settings plus what
       #   `RepositoryFactory.build` merges in: `domain`, `era` and `superseded_by`
@@ -127,7 +130,7 @@ module Hecks
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
-        @db = self.class.connect_for(aggregate.name, settings)
+        @db = PostgresSharedConnection.for(aggregate.name, settings)
         # Journal name: the owning bluebook's declared name, matching the key rust/host derives its
         # advisory lock from (ADR 0036). A bare aggregate with no owner falls back to its own name.
         @domain = self.class.setting(

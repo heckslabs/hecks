@@ -38,8 +38,12 @@ module Hecks
       # The failing call still raises and is never retried: it may have reached the server.
       # A failed reconnect is swallowed so it does not mask the original error.
       def reconnect!
-        @db = self.class.connect_for(@aggregate.name, @settings)
-      rescue PG::Error
+        if @db.respond_to?(:reconnect!)
+          @db.reconnect!
+        else
+          @db = self.class.connect_for(@aggregate.name, @settings)
+        end
+      rescue PG::Error, Runtime::WiringError
         nil
       end
     end
