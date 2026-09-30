@@ -9,6 +9,14 @@ if ENV["COVERAGE"]
 end
 
 require "hecks"
+require "tmpdir"
+
+# The suite runs with the verdict cache on but never reads or writes the
+# user's real one: a stale file there could hide a judging regression, and a
+# run should not leave a megabyte behind. Each run gets a private directory.
+VERDICT_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-verdict-cache-spec")
+at_exit { FileUtils.rm_rf(VERDICT_CACHE_SPEC_DIR) }
+Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VERDICT_CACHE_SPEC_DIR }
 require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
