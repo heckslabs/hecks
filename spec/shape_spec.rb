@@ -38,9 +38,10 @@ RSpec.describe "hecks ask shape" do
     Hecks::Runtime::StorageShape.mint_label(registry.bluebooks.values.first)
   end
 
-  # Answers [stdout, error message]: the adapter's text, or the refusal it raised.
+  # Answers [stdout, error message]: the `Document` answer's text, or the refusal it raised.
   def run_shape(path)
-    [Hecks::Adapters::InProcessBoot.new.shape(domain: path), nil]
+    answer = Hecks::Adapters::InProcessBoot.new.shape(domain: path)
+    [answer.is_a?(Hash) ? answer.fetch(:text) : answer, nil]
   rescue Hecks::Runtime::NotFound => e
     ["", e.message]
   end
