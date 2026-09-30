@@ -1,4 +1,5 @@
 require_relative "../../bluebook/dsl/hecksagon_builder"
+require_relative "../../bluebook/dsl/world_builder"
 require_relative "../../bluebook/dsl/domain_port_builder"
 require_relative "../../bluebook/dsl/const_shim"
 require_relative "../../bluebook/dsl/binding_proxy"
@@ -123,6 +124,9 @@ module Hecks
             return Bluebook::DSL::AttributePath.new(fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
 
             collector = Bluebook::DSL::HecksagonBuilder.collector
+            world     = Bluebook::DSL::WorldBuilder.current
+            # Inside a `.world` block the same qualified spelling records a world setting.
+            return world.record_binding(verb, args, kwargs, block) if world && !collector
             return super(verb, *args, **kwargs, &block) unless collector
 
             collector << Bluebook::Bind.new(
@@ -136,7 +140,8 @@ module Hecks
           end
 
           door.define_singleton_method(:respond_to_missing?) do |name, include_private = false|
-            !Bluebook::DSL::HecksagonBuilder.collector.nil? || super(name, include_private)
+            !Bluebook::DSL::HecksagonBuilder.collector.nil? || !Bluebook::DSL::WorldBuilder.current.nil? ||
+              super(name, include_private)
           end
 
           # Uses `aggregate.hecks_name`, not the qualified `fqn`: qualifying it here
