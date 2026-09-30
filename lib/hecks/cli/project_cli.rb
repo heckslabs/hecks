@@ -163,7 +163,7 @@ module Hecks
           LEGACY = %w[#{legacy.join(' ')}].freeze
           if LEGACY.include?(ARGV.first)
             require "hecks/cli"
-            exit Hecks::CLI.start(ARGV)
+            exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
           end
         RUBY
       end

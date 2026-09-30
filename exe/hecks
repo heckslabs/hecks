@@ -15,7 +15,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 LEGACY = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
 if LEGACY.include?(ARGV.first)
   require "hecks/cli"
-  exit Hecks::CLI.start(ARGV)
+  exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
 end
 
 require "hecks"

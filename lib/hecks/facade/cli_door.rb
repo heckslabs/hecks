@@ -76,8 +76,8 @@ module Hecks
         options.key?(name) ? pair : "#{name.tr('-', '_')}=#{value}"
       end
 
-      # A `--name` flag, as the path of the Boolean argument it stands for. A dashed name (`--gem-only`) is the
-      # argument spelled with underscores (`gem_only`).
+      # A `--name` flag, as the path of the Boolean argument it stands for. A dashed name
+      # (`--gem-only`) is the argument spelled with underscores (`gem_only`).
       def flag(name, options)
         name = name.tr("-", "_") unless options.key?(name) || options.keys.any? { |key| key.start_with?("#{name}.") }
         path = options.key?(name) ? name : expand(name, options)
