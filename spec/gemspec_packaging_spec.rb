@@ -24,6 +24,54 @@ RSpec.describe "gem packaging" do
     expect(missing).to be_empty, message
   end
 
+  # A scratch tree holding the gemspec and its version file, with the given files written into it.
+  def gemspec_in(dir, files)
+    FileUtils.mkdir_p(File.join(dir, "lib/hecks"))
+    FileUtils.cp(File.join(root, "hecks.gemspec"), dir)
+    File.write(File.join(dir, "lib/hecks/version.rb"), "module Hecks\n  VERSION = \"0.0.0\" unless defined?(VERSION)\nend\n")
+    files.each do |file, text|
+      FileUtils.mkdir_p(File.join(dir, File.dirname(file)))
+      File.write(File.join(dir, file), text)
+    end
+    yield if block_given?
+    Gem::Specification.load(File.join(dir, "hecks.gemspec"))
+  end
+
+  it "ships only tracked files in a git checkout, so untracked and gitignored files stay out" do
+    Dir.mktmpdir("gemspec-git") do |tmp|
+      dir = File.realpath(tmp)
+      spec = gemspec_in(dir, ".gitignore" => "lib/ignored.rb\n", "lib/tracked.rb" => "", "exe/hecks" => "",
+                             "qa/settings.yml" => "", "lib/untracked.rb" => "", "lib/ignored.rb" => "") do
+        Dir.chdir(dir) do
+          system("git", "init", "-q", exception: true)
+          system("git", "add", ".gitignore", "lib/hecks/version.rb", "lib/tracked.rb", "exe/hecks", "qa/settings.yml",
+                 exception: true)
+        end
+      end
+
+      expect(spec.files).to include("lib/tracked.rb", "lib/hecks/version.rb", "exe/hecks")
+      expect(spec.files).not_to include("lib/untracked.rb", "lib/ignored.rb")
+    end
+  end
+
+  it "falls back to globbing when there is no git checkout" do
+    Dir.mktmpdir("gemspec-plain") do |tmp|
+      spec = gemspec_in(File.realpath(tmp), "lib/plain.rb" => "", "exe/hecks" => "", "qa/settings.yml" => "")
+
+      expect(spec.files).to include("lib/plain.rb", "exe/hecks", "qa/settings.yml")
+    end
+  end
+
+  it "leaves out every crate's own tests/, which only the corpus needs" do
+    Dir.mktmpdir("gemspec-tests") do |tmp|
+      spec = gemspec_in(File.realpath(tmp), "rust/host/tests/fixtures/a.rb" => "", "rust/parser/tests/b.rs" => "",
+                                            "rust/tests/c.rs" => "", "rust/host/src/lib.rs" => "")
+
+      expect(spec.files).to include("rust/host/src/lib.rs")
+      expect(spec.files.grep(%r{\Arust/(.+/)?tests/})).to be_empty
+    end
+  end
+
   it "carries no symlink under lib/ — one pointing outside it is silently dropped by `gem build`" do
     symlinked = Dir.glob(File.join(root, "lib/**/*"), File::FNM_DOTMATCH).select { |path| File.symlink?(path) }
     names = symlinked.map { |path| Pathname.new(path).relative_path_from(root) }
@@ -90,7 +138,7 @@ RSpec.describe "gem packaging" do
       end
 
       it "ships no build output, no corpus tests and no generated corpus domain" do
-        stray = rust.grep(%r{\Arust/(tests/|src/generated/)|(\A|/)target/})
+        stray = rust.grep(%r{\Arust/(tests/|[^/]+/tests/|src/generated/)|(\A|/)target/})
         expect(stray).to be_empty, "in the packaged gem: #{stray.first(5).join(', ')}"
         expect(Dir.exist?(File.join(root, "rust/src/generated"))).to be(true), "the corpus's generated modules moved"
       end

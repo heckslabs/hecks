@@ -1,6 +1,7 @@
 require "json"
 require_relative "commands"
 require_relative "git"
+require_relative "clean_tree"
 
 module Hecks
   module Release
@@ -78,9 +79,11 @@ module Hecks
         end
 
         def check_clean
-          return if git("status", "--porcelain").strip.empty?
+          unless git("status", "--porcelain").strip.empty?
+            raise Refusal, "the working tree has uncommitted changes; commit or discard them before releasing"
+          end
 
-          raise Refusal, "the working tree has uncommitted changes; commit or discard them before releasing"
+          CleanTree.new(git: @git).check!
         end
 
         def declared_version
