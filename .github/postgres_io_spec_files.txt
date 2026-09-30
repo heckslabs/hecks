@@ -47,6 +47,7 @@ spec/project_deploy_rename_schema_spec.rb
 spec/project_deploy_shared_rust_oauth_spec.rb
 spec/project_deploy_smoke_spec.rb
 spec/project_deploy_tenant_spec.rb
+spec/project_deploy_world_lookup_spec.rb
 spec/qa_log_bug_spec.rb
 spec/qa_open_pr_spec.rb
 spec/qa_postgres_migration_spec.rb
@@ -73,7 +74,9 @@ spec/referral_chain_spec.rb
 spec/runtime/boot_loads_bound_plugins_spec.rb
 spec/runtime/era_check_postgres_vendored_bluebook_spec.rb
 spec/runtime/outbox_postgres_spec.rb
+spec/runtime/postgres_era_shared_connection_spec.rb
 spec/runtime/postgres_era_storage_name_collision_spec.rb
+spec/runtime/postgres_shared_connection_spec.rb
 spec/runtime/saga_durability_postgres_spec.rb
 spec/rust_conformance_dry_runs_spec.rb
 spec/rust_project/has_many_spec.rb

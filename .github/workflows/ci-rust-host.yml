@@ -123,3 +123,6 @@ jobs:
 
       - name: "rspec: Rust/Ruby expression parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_expr_json_conformance_spec.rb
+
+      - name: "rspec: Rust host query step (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_query_step_spec.rb
