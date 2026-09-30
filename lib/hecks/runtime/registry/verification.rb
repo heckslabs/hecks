@@ -238,51 +238,118 @@ module Hecks
           end
         end
 
-        # A query is answered from the aggregate's stored records or from outside the domain, and
-        # the bluebook only ever says which records. One that takes arguments but filters, orders
-        # and bounds nothing reads none of them, so only an outside answer could use them: unless
-        # the hecksagon binds it to a port it is refused. (A query with no arguments and no clause
-        # is the plain list of every record, and stays one.) A binding on a query that also
-        # filters records says two things, and one must name a query its aggregate declares, once.
+        # A query has exactly one answer path. It is derivable when the bluebook says which of the
+        # aggregate's own records it wants (a where, order_by, limit or offset, or no arguments at
+        # all: the plain list) and returns no value object of its own; it is bound when it
+        # `returns` a value object and the hecksagon names the port whose adapter answers it. None
+        # of the two is "no answer path"; both is "two answer paths". A bound query also needs an
+        # adapter behind its port that implements it, found here so it fails at boot rather than
+        # on the first ask.
         def refuse_unanswerable_queries!
           @bluebooks.each_value do |chapter|
             chapter.aggregates.each do |aggregate|
-              bound = refuse_misbound_queries!(chapter, aggregate)
+              refuse_misbound_queries!(chapter, aggregate)
 
-              aggregate.queries.each do |query|
-                next if bound.include?(query.hecks_name) || filters_records?(query) || query.attributes.empty?
-
-                raise WiringError,
-                      "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name} declares no where " \
-                      "and no hecksagon binds it — its arguments (#{query.attributes.map(&:name).join(', ')}) " \
-                      "select nothing, so no one can answer it. Add a where, or bind it in the " \
-                      "hecksagon: `#{chapter.name}::#{aggregate.hecks_name}.port \"Port\" do " \
-                      "answers_query \"#{query.hecks_name}\", shape: :text end`."
+              aggregate.queries.each { |query| refuse_answer_paths!(chapter, aggregate, query) }
+              aggregate.entities.each do |entity|
+                entity.queries.each { |query| refuse_entity_answer_path!(chapter, aggregate, entity, query) }
               end
             end
           end
         end
 
-        # The bound names of `aggregate`'s queries, refusing a binding that names no query, names
-        # one twice, or names one that also filters stored records.
-        def refuse_misbound_queries!(chapter, aggregate)
-          bound = []
-          aggregate.ports.each do |port|
-            port.answered_queries.each do |answer|
-              query = aggregate.query(answer.name)
-              where = "#{chapter.name}::#{aggregate.hecks_name}.#{answer.name}"
-              raise WiringError, "the #{port.name} port binds #{where}, which the aggregate does not declare" unless query
-              raise WiringError, "#{where} is bound by more than one port" if bound.include?(answer.name)
-              if filters_records?(query)
-                raise WiringError, "#{where} is bound to the #{port.name} port but also declares where, " \
-                                   "order_by or limit over stored records — a query is answered from " \
-                                   "records or from outside, not both"
-              end
+        # Counts the query's answer paths (the bindings, plus the derived answer when it exists)
+        # and refuses any count but one, then checks a bound query's shape and adapter.
+        def refuse_answer_paths!(chapter, aggregate, query)
+          where  = "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name}"
+          ports  = aggregate.query_bindings(query.hecks_name)
+          paths  = ports.size + (derivable?(query) ? 1 : 0)
 
-              bound << answer.name
+          if paths > 1
+            raise WiringError, "#{where} has two answer paths: #{answer_path_names(query, ports)} — " \
+                               "a query is answered from records or from outside, not both"
+          end
+          return check_bound_query!(chapter, aggregate, query, ports.first) if ports.any?
+          return if paths == 1
+
+          raise WiringError, no_answer_path_message(chapter, aggregate, query, where)
+        end
+
+        # A query that returns nothing and says something about which records it wants, or wants
+        # all of them. One that takes arguments but filters, orders and bounds nothing reads none
+        # of them, so it derives no answer.
+        def derivable?(query)
+          return false if query.returns
+
+          filters_records?(query) || query.attributes.empty?
+        end
+
+        def answer_path_names(query, ports)
+          names = ports.map { |port| "the #{port.name} port" }
+          names.unshift("its records") if derivable?(query)
+          names.join(" and ")
+        end
+
+        def no_answer_path_message(chapter, aggregate, query, where)
+          if query.returns
+            "#{where} has no answer path: it returns #{query.returns}, which only an adapter can " \
+              "answer, and no hecksagon port binds it. Bind it: `#{chapter.name}::#{aggregate.hecks_name}" \
+              ".port \"Port\" do answers_query \"#{query.hecks_name}\" end`."
+          else
+            "#{where} has no answer path: it declares no where and returns nothing, and no hecksagon " \
+              "binds it — its arguments (#{query.attributes.map(&:name).join(', ')}) select nothing. " \
+              "Add a where, or declare what it returns and bind it in the hecksagon."
+          end
+        end
+
+        # Checks what a binding needs to be answerable: a returned value object the aggregate
+        # declares, and one adapter behind the port that implements the query's method.
+        def check_bound_query!(chapter, aggregate, query, port)
+          where = "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name}"
+          unless query.returns
+            raise WiringError, "#{where} is bound to the #{port.name} port but returns nothing — " \
+                               "declare the value object its answer takes with `returns`"
+          end
+          if filters_records?(query)
+            raise WiringError, "#{where} has two answer paths: it is bound to the #{port.name} port but " \
+                               "also declares where, order_by or limit over stored records"
+          end
+          unless Value.value_object_for(aggregate, query.returns_name)
+            raise WiringError, "#{where} returns #{query.returns_name}, but #{aggregate.hecks_name} " \
+                               "declares no such value object"
+          end
+
+          klass  = AdapterLookup.adapter_class(self, port.name, asked: where)
+          method = Naming.snake(query.hecks_name)
+          return if klass.public_method_defined?(method)
+
+          raise WiringError, "#{klass} implements the #{port.name} port but not ##{method}, " \
+                             "which answers #{where}"
+        end
+
+        # An entity's query reads the elements of its aggregate's list, and nothing outside can
+        # be bound to one, so declaring a value object to return leaves it no answer.
+        def refuse_entity_answer_path!(chapter, aggregate, entity, query)
+          return unless query.returns
+
+          raise WiringError, "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}." \
+                             "#{query.hecks_name} has no answer path: it returns #{query.returns}, but " \
+                             "only an aggregate's queries can be bound to a port"
+        end
+
+        # Refuses a binding that names a query its aggregate does not declare, or names one twice
+        # on a single port (the DSL already refuses that, so this guards a hand-built port).
+        def refuse_misbound_queries!(chapter, aggregate)
+          aggregate.ports.each do |port|
+            names = port.answered_queries.map(&:name)
+            names.each do |name|
+              where = "#{chapter.name}::#{aggregate.hecks_name}.#{name}"
+              unless aggregate.query(name)
+                raise WiringError, "the #{port.name} port binds #{where}, which the aggregate does not declare"
+              end
+              raise WiringError, "#{where} has two answer paths: the #{port.name} port twice" if names.count(name) > 1
             end
           end
-          bound
         end
 
         # A query that says anything about which stored records it wants.

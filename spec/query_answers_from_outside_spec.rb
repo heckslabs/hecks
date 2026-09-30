@@ -2,11 +2,16 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "digest"
+require "json"
+require "open3"
 require "hecks/behaviors/rspec"
+require "hecks/bluebook/model_check"
 
-# A query answered from outside the domain is bound in the hecksagon, never in the bluebook:
-# the port's adapter answers in a declared shape, every row says when it was taken, and a query
-# that selects nothing and is bound to nothing is refused at boot.
+# A query answered from outside the domain is declared in the bluebook, which owns the meaning:
+# the question and the value object its answer takes (`returns`). The hecksagon owns the
+# capability and binds the query to a port (`answers_query "Name"`), and the world configures the
+# adapter. Every row an adapter answers is built as the value object before it enters the domain,
+# and a query has exactly one answer path, checked at boot.
 RSpec.describe "a query answered by a port the hecksagon binds" do
   OUTSIDE_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Lookup" do
@@ -23,16 +28,40 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
           invariant("a note is titled") { !value.to_s.empty? }
         end
 
+        value_object "Heard" do
+          attribute :heard, Title
+        end
+
+        value_object "Listing" do
+          attribute :title, String
+          invariant("a listing is titled") { !title.to_s.empty? }
+        end
+
+        value_object "Sighting" do
+          attribute :seen,     String
+          attribute :taken_at, String
+        end
+
         query "Echo" do
           attribute :title, Title
+          returns Heard
         end
 
         query "Roster" do
           description "The notes the adapter lists."
+          returns list_of(Listing)
+        end
+
+        query "Sight" do
+          returns Sighting
         end
 
         query "Recent" do
           where(title: "x")
+        end
+
+        query "Everything" do
+          description "Every note on file."
         end
 
         command "Write" do
@@ -49,8 +78,9 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       persisted_by "Memory"
 
       Lookup::Note.port "Echoer" do
-        answers_query "Echo", shape: :row
-        answers_query "Roster", shape: :rows
+        answers_query "Echo"
+        answers_query "Roster"
+        answers_query "Sight"
       end
     end
   RUBY
@@ -63,19 +93,27 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     def roster
       [{ title: "a" }, { title: "b" }]
     end
+
+    def sight
+      { seen: "the heron", taken_at: Time.at(Hecks::Adapters::SystemClock.now).utc.iso8601 }
+    end
   RUBY
 
-  def adapter_files(dir, name:, klass:, body:)
+  ISO_8601 = /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/
+
+  def adapter_files(dir, name:, klass:, body:, port: "Echoer")
     FileUtils.mkdir_p(File.join(dir, "adapters"))
     File.write(File.join(dir, "adapters", "#{name}.adapter"), <<~RUBY)
       require_relative "#{name}"
 
       Hecks.adapter "#{klass}" do
-        port "Echoer"
+        port "#{port}"
       end
     RUBY
     methods = body.gsub(/^(?=.)/, "      ")
     File.write(File.join(dir, "adapters", "#{name}.rb"), <<~RUBY)
+      require "time"
+
       module Hecks
         module Adapters
           class #{klass}
@@ -88,17 +126,28 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     RUBY
   end
 
-  def write_domain(dir, bluebook: OUTSIDE_BLUEBOOK, hecksagon: OUTSIDE_HECKSAGON)
+  # One class name per call: a class reopened by a later example would keep the methods an
+  # earlier body defined, and hide a method the body under test leaves out.
+  def unique(prefix) = "#{prefix}#{Digest::SHA256.hexdigest(@dir)[0, 8]}#{@serial = @serial.to_i + 1}"
+
+  def write_domain(dir, bluebook: OUTSIDE_BLUEBOOK, hecksagon: OUTSIDE_HECKSAGON, body: ECHOER_BODY, extra: [])
     FileUtils.mkdir_p(File.join(dir, "bluebook"))
     File.write(File.join(dir, "bluebook/lookup.bluebook"), bluebook)
     File.write(File.join(dir, "bluebook/lookup.hecksagon"), hecksagon)
-    adapter_files(File.join(dir, "bluebook"), name: "answering_echoer", klass: "AnsweringEchoer", body: ECHOER_BODY)
+    name = unique("answering_echoer")
+    adapter_files(File.join(dir, "bluebook"), name: name, klass: name.split("_").map(&:capitalize).join, body: body)
+    extra.each { |file| adapter_files(File.join(dir, "bluebook"), **file) }
   end
 
   def boot_domain(**options)
     write_domain(@dir, **options)
     Hecks.boot(@dir, install_facade: false)
   end
+
+  # The bluebook with `returns Heard` swapped for another line of Echo's body.
+  def echo_with(line) = OUTSIDE_BLUEBOOK.sub("returns Heard", line)
+
+  def without_binding(name) = OUTSIDE_HECKSAGON.sub(%(    answers_query "#{name}"\n), "")
 
   around do |example|
     Dir.mktmpdir("outside") do |dir|
@@ -107,85 +156,227 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
   end
 
-  it "answers from the adapter, handing it plain data, and says when it was taken" do
-    row = boot_domain.query("Lookup::Note.Echo", title: "hello").first
+  describe "an answer that is its declared shape" do
+    it "comes from the adapter, which is handed plain data, and arrives as the value object's fields" do
+      row = boot_domain.query("Lookup::Note.Echo", title: "hello").first
 
-    expect(row[:heard]).to eq(value: "hello")
-    expect(row[:taken_at]).to match(/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/)
-  end
-
-  it "stamps every row of a rows answer" do
-    rows = boot_domain.query("Lookup::Note.Roster")
-
-    expect(rows.map { |row| row[:title] }).to eq(%w[a b])
-    expect(rows.map { |row| row[:taken_at] }.uniq.size).to eq(1)
-  end
-
-  it "reads no record and writes no event" do
-    runtime = boot_domain
-    runtime.query("Lookup::Note.Echo", title: "hello")
-
-    expect(runtime.registry.event_log.to_a).to be_empty
-  end
-
-  it "gives the reference oracle the adapter's rows unstamped" do
-    expect(boot_domain.reference_query("Lookup::Note.Echo", title: "hello"))
-      .to eq([{ heard: { value: "hello" } }])
-  end
-
-  it "carries the binding in the hecksagon's IR, on the port, and not in the bluebook's queries" do
-    note    = boot_domain.registry.bluebook("Lookup").aggregate("Note")
-    emitted = note.queries.to_h { |query| [query.name, query.to_h] }
-
-    expect(note.port("Echoer").to_h[:answered_queries])
-      .to eq([{ name: "Echo", shape: "row" }, { name: "Roster", shape: "rows" }])
-    expect(emitted.values.flat_map(&:keys)).not_to include(:answered_by)
-    expect(note.query_binding("Recent")).to be_nil
-  end
-
-  it "refuses an answer that is not the declared shape, naming the query" do
-    runtime = boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub("shape: :row", "shape: :text"))
-
-    expect { runtime.query("Lookup::Note.Echo", title: "hello") }
-      .to raise_error(Hecks::Runtime::WiringError, /Note\.Echo is bound as :text, but its adapter answered Hash/)
-  end
-
-  it "refuses a port no adapter implements, naming the port and the query" do
-    runtime = boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub('port "Echoer"', 'port "Nobody"'))
-
-    expect { runtime.query("Lookup::Note.Echo", title: "hello") }
-      .to raise_error(Hecks::Runtime::WiringError, /no adapter implements the Nobody port.*Note\.Echo/)
-  end
-
-  describe "at boot" do
-    it "refuses a query whose arguments select nothing and that is bound by no port" do
-      hecksagon = OUTSIDE_HECKSAGON.sub(%(    answers_query "Echo", shape: :row\n), "")
-
-      expect { boot_domain(hecksagon: hecksagon) }
-        .to raise_error(Hecks::Runtime::WiringError,
-                        /Lookup::Note\.Echo declares no where and no hecksagon binds it.*\(title\)/)
+      expect(row).to eq(heard: { value: "hello" })
     end
 
-    it "keeps a query with no arguments and no clause as the plain list of records" do
-      hecksagon = OUTSIDE_HECKSAGON.sub(%(    answers_query "Roster", shape: :rows\n), "")
+    it "builds every row of a list_of answer" do
+      rows = boot_domain.query("Lookup::Note.Roster")
 
-      expect(boot_domain(hecksagon: hecksagon).query("Lookup::Note.Roster")).to eq([])
+      expect(rows).to eq([{ title: "a" }, { title: "b" }])
+    end
+
+    it "stamps no time of its own: a query that wants one declares taken_at and its adapter fills it" do
+      runtime = boot_domain
+
+      expect(runtime.query("Lookup::Note.Echo", title: "hello").first.keys).to eq([:heard])
+      expect(runtime.query("Lookup::Note.Sight").first[:taken_at]).to match(ISO_8601)
+    end
+
+    it "reads no record and writes no event" do
+      runtime = boot_domain
+      runtime.query("Lookup::Note.Echo", title: "hello")
+      runtime.query("Lookup::Note.Roster")
+
+      expect(runtime.registry.event_log.to_a).to be_empty
+    end
+
+    it "gives the reference oracle the same rows, through the same shape check" do
+      expect(boot_domain.reference_query("Lookup::Note.Echo", title: "hello"))
+        .to eq([{ heard: { value: "hello" } }])
+    end
+  end
+
+  describe "an answer that is not its declared shape" do
+    def answering_with(echo: "{ heard: title }", roster: "[]")
+      boot_domain(body: "def echo(title:) = #{echo}\ndef roster = #{roster}\ndef sight = {}")
+    end
+
+    it "is refused when a field has the wrong type, naming the query" do
+      runtime = answering_with(echo: "{ heard: 7 }")
+
+      expect { runtime.query("Lookup::Note.Echo", title: "hello") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /Note\.Echo answered outside the domain, but not as its Heard/)
+    end
+
+    it "is refused when a field the value object requires is missing" do
+      runtime = answering_with(echo: "{}")
+
+      expect { runtime.query("Lookup::Note.Echo", title: "hello") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /Note\.Echo answered outside the domain.*heard/)
+    end
+
+    it "is refused when the adapter answers a field the value object does not declare" do
+      runtime = answering_with(echo: "{ heard: title, taken_at: 'now' }")
+
+      expect { runtime.query("Lookup::Note.Echo", title: "hello") }
+        .to raise_error(Hecks::Runtime::UnknownArgument, /Note\.Echo answered outside the domain/)
+    end
+
+    it "is refused when a row breaks the value object's invariant" do
+      runtime = answering_with(roster: "[{ title: 'a' }, { title: '' }]")
+
+      expect { runtime.query("Lookup::Note.Roster") }
+        .to raise_error(Hecks::Runtime::InvariantViolation,
+                        /Note\.Roster answered outside the domain.*a listing is titled/)
+    end
+
+    it "is refused when it is not a row at all" do
+      runtime = answering_with(echo: "'hello'")
+
+      expect { runtime.query("Lookup::Note.Echo", title: "hello") }
+        .to raise_error(Hecks::Runtime::TypeMismatch,
+                        /Note\.Echo answered outside the domain, but String is not a Heard row/)
+    end
+
+    it "is refused when it is one row where a list was declared" do
+      runtime = answering_with(roster: "{ title: 'a' }")
+
+      expect { runtime.query("Lookup::Note.Roster") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /Note\.Roster.*Hash is not a list of Listing row/)
+    end
+
+    it "is refused by the reference oracle as well" do
+      runtime = answering_with(echo: "{ heard: 7 }")
+
+      expect { runtime.reference_query("Lookup::Note.Echo", title: "hello") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /Note\.Echo answered outside the domain/)
+    end
+  end
+
+  describe "the IR" do
+    it "carries the shape on the query, in the bluebook, and only the binding on the hecksagon's port" do
+      note    = boot_domain.registry.bluebook("Lookup").aggregate("Note")
+      emitted = note.queries.to_h { |query| [query.name, query.to_h] }
+
+      expect(emitted["Echo"]).to include(returns: "Heard")
+      expect(emitted["Roster"]).to include(returns: "list_of(Listing)")
+      expect(emitted["Recent"]).not_to have_key(:returns)
+      expect(note.query("Roster")).to have_attributes(returns_name: "Listing", returns_list?: true)
+      expect(note.port("Echoer").to_h[:answered_queries])
+        .to eq([{ name: "Echo" }, { name: "Roster" }, { name: "Sight" }])
+      expect(emitted.values.flat_map(&:keys)).not_to include(:answered_by)
+      expect(note.query_binding("Recent")).to be_nil
+    end
+  end
+
+  describe "at boot, a query has exactly one answer path" do
+    def expect_refusal(message, **options)
+      expect { boot_domain(**options) }.to raise_error(Hecks::Runtime::WiringError, message)
+    end
+
+    it "refuses a query that returns a value object and is bound to no port" do
+      expect_refusal(/Lookup::Note\.Echo has no answer path: it returns Heard.*answers_query "Echo"/,
+                     hecksagon: without_binding("Echo"))
+    end
+
+    it "refuses a query with arguments that select nothing, returns nothing and is bound to no port" do
+      expect_refusal(/Lookup::Note\.Echo has no answer path: it declares no where and returns nothing.*\(title\)/,
+                     bluebook: echo_with(""), hecksagon: without_binding("Echo"))
+    end
+
+    it "refuses a bound query that returns nothing, since its answer would have no shape" do
+      expect_refusal(/Lookup::Note\.Echo is bound to the Echoer port but returns nothing/,
+                     bluebook: echo_with(""))
+    end
+
+    it "refuses a query bound by two ports" do
+      twin = OUTSIDE_HECKSAGON.sub(/\nend\n\z/, "\n\n  Lookup::Note.port \"Twin\" do\n    answers_query \"Echo\"\n  end\nend\n")
+
+      expect_refusal(/Lookup::Note\.Echo has two answer paths: the Echoer port and the Twin port/, hecksagon: twin)
+    end
+
+    it "refuses a query that filters stored records and is bound too" do
+      expect_refusal(/Lookup::Note\.Recent has two answer paths: its records and the Echoer port/,
+                     hecksagon: OUTSIDE_HECKSAGON.sub(%(answers_query "Sight"),
+                                                      %(answers_query "Sight"\n        answers_query "Recent")))
+    end
+
+    it "refuses a returning query that also declares a where, since the where could not be used" do
+      expect_refusal(/Lookup::Note\.Echo has two answer paths: it is bound to the Echoer port but also declares where/,
+                     bluebook: echo_with("where(title: :title)\n      returns Heard"))
+    end
+
+    it "refuses a returned value object the aggregate does not declare" do
+      expect_refusal(/Lookup::Note\.Echo returns Ghost, but Note declares no such value object/,
+                     bluebook: echo_with("returns Ghost"))
     end
 
     it "refuses a binding that names a query the aggregate does not declare" do
-      expect { boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub('"Roster"', '"Census"')) }
-        .to raise_error(Hecks::Runtime::WiringError, /binds Lookup::Note\.Census, which the aggregate does not declare/)
+      expect_refusal(/binds Lookup::Note\.Census, which the aggregate does not declare/,
+                     hecksagon: OUTSIDE_HECKSAGON.sub('"Roster"', '"Census"'))
     end
 
-    it "refuses a binding on a query that also filters stored records" do
-      expect { boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub('"Roster"', '"Recent"')) }
-        .to raise_error(Hecks::Runtime::WiringError,
-                        /Lookup::Note\.Recent is bound to the Echoer port but also declares where/)
+    it "refuses a port no adapter implements, naming the port and the query" do
+      expect_refusal(/no adapter implements the Nobody port.*Note\.Echo/,
+                     hecksagon: OUTSIDE_HECKSAGON.sub('port "Echoer"', 'port "Nobody"'))
     end
 
-    it "refuses a shape the language does not know" do
-      expect { boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub("shape: :rows", "shape: :xml")) }
-        .to raise_error(Hecks::Bluebook::DSL::Malformed, /answers as :xml/)
+    it "refuses a port two adapters implement" do
+      twin = { name: "answering_second_echoer", klass: "AnsweringSecondEchoer", body: ECHOER_BODY }
+
+      expect_refusal(/2 adapters implement the Echoer port.*the runtime will not choose for you/, extra: [twin])
+    end
+
+    it "refuses an adapter that lacks the method a bound query is asked by" do
+      body = ECHOER_BODY.sub(/def roster.*?end\n/m, "")
+
+      expect_refusal(/implements the Echoer port but not #roster, which answers Lookup::Note\.Roster/, body: body)
+    end
+
+    it "refuses the old spelling, which took the shape the bluebook now declares" do
+      expect { boot_domain(hecksagon: OUTSIDE_HECKSAGON.sub('"Echo"', '"Echo", shape: :row')) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /takes only the query's name.*returns/)
+    end
+
+    it "refuses an entity's query that returns a value object, since nothing can be bound to it" do
+      bluebook = OUTSIDE_BLUEBOOK.sub("    command \"Write\" do", <<~RUBY.chomp)
+        entity "Line" do
+          attribute :text, Title
+          identified_by :text
+
+          query "Spoken" do
+            returns Heard
+          end
+        end
+
+        command "Write" do
+      RUBY
+
+      expect_refusal(/Lookup::Note\.Line\.Spoken has no answer path: it returns Heard/, bluebook: bluebook)
+    end
+  end
+
+  describe "a query answered from the aggregate's records" do
+    it "keeps a query with no arguments, no clause and no return as the plain list of records" do
+      runtime = boot_domain
+
+      expect(runtime.query("Lookup::Note.Everything")).to eq([])
+      runtime.dispatch("Lookup::Note.Write", with: { title: { value: "kept" } })
+      expect(runtime.query("Lookup::Note.Everything").map { |row| row[:title].to_h }).to eq([{ value: "kept" }])
+    end
+
+    it "still filters stored records for a query with a where" do
+      runtime = boot_domain
+      runtime.dispatch("Lookup::Note.Write", with: { title: { value: "x" } })
+      runtime.dispatch("Lookup::Note.Write", with: { title: { value: "y" } })
+
+      expect(runtime.query("Lookup::Note.Recent").map { |row| row[:title].to_h }).to eq([{ value: "x" }])
+    end
+  end
+
+  describe "model_check" do
+    it "refuses the outside-answered queries of a domain with a Rust target, which the Rust host cannot serve" do
+      bluebook = boot_domain.registry.bluebook("Lookup")
+
+      findings = Hecks::Bluebook::ModelCheck.call(bluebook, rust_target: true).select { |f| f.kind == :external_query }
+
+      expect(findings.map(&:subject)).to eq(%w[Note.Echo Note.Roster Note.Sight])
+      expect(findings.map(&:severity).uniq).to eq([:error])
+      expect(Hecks::Bluebook::ModelCheck.call(bluebook).map(&:kind)).not_to include(:external_query)
     end
   end
 
@@ -202,6 +393,10 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
         def echo(title:)
           { heard: "fake" }
         end
+
+        def roster = []
+
+        def sight = { seen: "nothing", taken_at: "then" }
       RUBY
       File.write(File.join(fake, "lookup.behaviors"), <<~RUBY)
         Hecks.behaviors "Lookup" do
@@ -212,7 +407,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
           test "Echo answers what the fake heard" do
             tests "Echo", on: "Note", kind: :query
             input title: { value: "hi" }
-            expect heard: "fake"
+            expect heard: { value: "fake" }
           end
         end
       RUBY
@@ -229,6 +424,34 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       expect(outcome.parse_error).to be_nil
       expect(outcome.runs.map(&:status)).to eq([:pass]), outcome.runs.map(&:message).inspect
       expect(fingerprint).to eq(before)
+    end
+  end
+
+  describe "the Rust parser", :io do
+    PARSER_DIR    = File.expand_path("../rust/parser", __dir__)
+    PARSER_BINARY = File.join(PARSER_DIR, "target", "debug", "hecks-parse")
+
+    it "emits the same IR for returns as the Ruby exporter, byte for byte" do
+      built = system("cargo", "build", chdir: PARSER_DIR, out: File::NULL, err: File::NULL)
+      raise "cargo build failed in rust/parser" unless built
+
+      path = File.join(@dir, "lookup.bluebook")
+      File.write(path, OUTSIDE_BLUEBOOK)
+      stdout, stderr, status = Open3.capture3(PARSER_BINARY, "chapter", "--chapter", "Lookup", path)
+      expect(status.exitstatus).to eq(0), stderr
+
+      registry = Hecks::Runtime::Registry.new(root: @dir)
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        InMemoryDomain.load_bluebook_files([path])
+      end
+      expected = "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch('Lookup'))}\n"
+
+      expect(stdout).to eq(expected)
+      expect(stdout).to include('"returns": "list_of(Listing)"')
     end
   end
 end
