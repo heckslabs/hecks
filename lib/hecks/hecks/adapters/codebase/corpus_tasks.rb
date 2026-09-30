@@ -4,7 +4,7 @@ require "hecks/corpus"
 require "hecks/query_ir"
 require "hecks/query_ir_mcp"
 require_relative "tree"
-require_relative "../shell"
+require_relative "../../../rust_build"
 require_relative "../console_capture"
 
 module Hecks
@@ -14,18 +14,16 @@ module Hecks
       # feature, what the language's IR holds, and the two doors that serve it.
       #
       # The questions are pure reads and run in this process, with the code `bin/corpus` and
-      # `bin/query_ir` run (`Hecks::Corpus`, `Hecks::QueryIR`); the coverage question starts one
-      # `bin/rust_coverage` child for each generated module. The two doors run until they are
-      # closed: the query MCP server on stdio, and the forms app on a local port.
+      # `bin/query_ir` run (`Hecks::Corpus`, `Hecks::QueryIR`); the coverage question runs
+      # `Hecks::RustBuild`'s coverage tool over each generated module, also in this process. The
+      # two doors run until they are closed: the query MCP server on stdio, and the forms app on a
+      # local port.
       module CorpusTasks
         # Every operation this family carries out.
         OPERATIONS = %w[serve_query_ir_mcp present].freeze
 
         # The port `present` listens on when none is named.
         DEFAULT_PORT = 4567
-
-        # How many coverage children run at once; each is a separate `bundle exec` boot.
-        COVERAGE_WORKERS = 4
 
         class << self
           # @return [#call, nil] serves the MCP door; `Hecks::QueryIrMcp.start` when nil. A spec
@@ -35,6 +33,10 @@ module Hecks
           # @return [#call, nil] takes `app:` and `port:` and serves until stopped; a WEBrick
           #   server through Rack when nil.
           attr_accessor :web_server
+
+          # @return [#capture, nil] runs each coverage check, as `capture(tool, argv, env:)`
+          #   answering an object with `out`, `err` and `ok?`; `Hecks::RustBuild` when nil.
+          attr_accessor :coverage_runner
         end
 
         module_function
@@ -59,14 +61,15 @@ module Hecks
         # @param operation [String] a query's name in snake case
         # @param args [Hash] the query's plain arguments
         # @param tree [Tree] the checkout
-        # @param shell [#capture, nil] starts each coverage child; a `Shell` when nil
+        # @param shell [#capture, nil] unused; the coverage checks run in this process
         # @return [String] the answer, one line for each row
         # @raise [ConsoleCapture::Failure] when a coverage check fails, or a query is refused
         def report(operation, args, tree, shell: nil)
+          _ = shell
           case operation
           when "rust_domains" then rust_domains(tree)
           when "regen_order" then regen_order(tree)
-          when "corpus_rust_coverage" then coverage(tree, shell || Shell.new)
+          when "corpus_rust_coverage" then coverage(tree)
           else ir_query(operation, args)
           end
         end
@@ -118,21 +121,20 @@ module Hecks
           Corpus.rust_regen_order(root: tree.root).map { |domain| tree.relative(domain.dir) }.join("\n")
         end
 
-        # Runs `bin/rust_coverage` over every generated module. A module named in
+        # Runs the coverage tool over every generated module. A module named in
         # `Corpus::RUST_COVERAGE_PENDING` must still fail; every other one must pass.
         #
         # @param tree [Tree] the checkout
-        # @param shell [#capture] starts each child
         # @return [String] one line for each module, and how many were checked
         # @raise [ConsoleCapture::Failure] with every module that failed, or that passes now while
         #   still listed as pending
-        def coverage(tree, shell)
+        def coverage(tree)
           modules = Corpus.generated_modules(root: tree.root)
           pending = Corpus::RUST_COVERAGE_PENDING
           unknown = pending.keys - modules
           raise ConsoleCapture::Failure, "pending names #{unknown.join(', ')}, with no generated module" if unknown.any?
 
-          lines, problems = judge(modules, pending, coverage_results(modules, tree, shell))
+          lines, problems = judge(modules, pending, coverage_results(modules, tree))
           raise ConsoleCapture::Failure, [*lines, "", *problems].join("\n") if problems.any?
 
           [*lines, "#{modules.size} generated modules checked"].join("\n")
@@ -159,23 +161,14 @@ module Hecks
 
         # @param modules [Array<String>] the generated modules
         # @param tree [Tree] the checkout
-        # @param shell [#capture] starts each child
         # @return [Hash{String => Array}] each module's `[passed, output]`
-        def coverage_results(modules, tree, shell)
-          queue = Queue.new
-          modules.each { |name| queue << name }
-          queue.close
-          results = {}
-          lock = Mutex.new
-          Array.new(COVERAGE_WORKERS) do
-            Thread.new do
-              while (name = queue.pop)
-                result = shell.capture("bundle", "exec", tree.path("bin", "rust_coverage"), name, chdir: tree.root)
-                lock.synchronize { results[name] = [result.ok?, [result.out, result.err].join] }
-              end
-            end
-          end.each(&:join)
-          results
+        def coverage_results(modules, tree)
+          runner = CorpusTasks.coverage_runner || RustBuild
+          env = { "HECKS_RUST_DIR" => tree.path("rust") }
+          modules.to_h do |name|
+            result = runner.capture("rust_coverage", [name], env: env)
+            [name, [result.ok?, [result.out, result.err].join]]
+          end
         end
 
         # @param operation [String] `ir_constructs`, `ir_duplicates` or `ir_impact`

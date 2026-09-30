@@ -21,12 +21,28 @@ RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
     expect(described_class.new(tree, shell: shell).regenerate(confirm: false)).to include("sqlite3 is not installed")
   end
 
-  it "runs the regeneration script from the checkout's root when confirmed" do
-    shell = FakeCodebaseShell.new("wrote spec/fixtures/persistence_legacy\n")
+  it "regenerates in this process, into the checkout's fixture directory, when confirmed" do
+    written = []
+    regenerator = lambda do |dir:|
+      written << dir
+      "wrote #{dir}"
+    end
 
-    described_class.new(tree, shell: shell).regenerate(confirm: true)
+    report = described_class.new(tree, shell: FakeCodebaseShell.new, regenerator: regenerator).regenerate(confirm: true)
 
-    expect(shell.command).to eq([tree.path("bin/regenerate_persistence_legacy_fixtures")])
-    expect(shell.asked.first[:chdir]).to eq(tree.root)
+    expect(written).to eq([tree.path("spec/fixtures/persistence_legacy")])
+    expect(report).to eq("wrote #{tree.path('spec/fixtures/persistence_legacy')}")
+  end
+
+  it "refuses with the reason when the regeneration cannot run" do
+    regenerator = ->(dir:) { raise LoadError, "cannot load such file -- pg (#{dir})" }
+    fixture = described_class.new(tree, shell: FakeCodebaseShell.new, regenerator: regenerator)
+
+    expect { fixture.regenerate(confirm: true) }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /LoadError: cannot load such file -- pg/)
+  end
+
+  it "defaults to the gem's own regeneration, so an installed gem needs no bin/ script" do
+    expect(described_class.new(tree).send(:regenerator)).to eq(Hecks::PersistenceLegacyFixture::Regenerate)
   end
 end

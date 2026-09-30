@@ -1,89 +1,16 @@
 #!/usr/bin/env ruby
 
-# Regenerates the domain with bin/project_rust and cross-compiles it to wasm32-wasip1
-# (docs/decisions/0012-wasm-via-wasi-stdio.md).
+# Regenerates the domain and cross-compiles it to wasm32-wasip1 (rust/dist/<domain>.wasm).
 #
 #   bin/project_wasm <domain>
 #
-# Produces rust/dist/<domain>.wasm; run with `wasmtime run rust/dist/<domain>.wasm < script.json`.
+# A shim: the work is Hecks::RustBuild (lib/hecks/rust_build/).
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("project_wasm")
 
-domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-root = File.expand_path("..", __dir__)
-target_mod_name = File.basename(domain)
+require "hecks/rust_build"
 
-# HECKS_RUST_DIR names the workspace to build in (the Custodian's Build sets it to a copy of the
-# packaged workspace); unset, it is this checkout's own rust/. CARGO_TARGET_DIR keeps build output
-# where the caller put it, and by default beside the workspace.
-rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(root, "rust"))
-target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target"))
-
-# HECKS_PARSER=rust with HECKS_CODEGEN=rust (as in bin/project_rust) delegates to hecks-build,
-# whose build_wasm runs the same steps below and writes the same rust/dist outputs.
-if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
-  hecks_build_dir = File.join(root, "rust", "build")
-  hecks_build_bin = File.join(hecks_build_dir, "target", "debug", "hecks-build")
-
-  puts "== cargo build (hecks-build) =="
-  system("cargo", "build", chdir: hecks_build_dir, out: $stdout, err: $stderr, exception: true)
-
-  puts "== hecks-build #{domain} --wasm =="
-  # No chdir: `domain` resolves against the current directory, as in the Ruby path below.
-  system(hecks_build_bin, domain, "--wasm", out: $stdout, err: $stderr, exception: true)
-  exit 0
-end
-
-unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-wasip1")
-  abort <<~MSG
-    wasm32-wasip1 isn't installed for this toolchain. Install it once with:
-
-        rustup target add wasm32-wasip1
-
-    then re-run bin/project_wasm.
-  MSG
-end
-
-# Built in a scratch copy because bin/project_rust rewrites rust/Cargo.toml and
-# rust/src/generated/, which would dirty tracked files. HECKS_RUST_DIR points it at the copy;
-# CARGO_TARGET_DIR keeps build output and the dependency cache in rust/target.
-require "fileutils"
-scratch = if ENV.key?("HECKS_RUST_DIR")
-            File.join(rust_dir, "scratch", "project_wasm")
-          else
-            File.join(root, "tmp", "project_wasm", "rust")
-          end
-FileUtils.rm_rf(scratch)
-FileUtils.mkdir_p(scratch)
-%w[Cargo.toml Cargo.lock src].each { |entry| FileUtils.cp_r(File.join(rust_dir, entry), scratch) }
-
-puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
-system({ "HECKS_RUST_DIR" => scratch }, File.join(root, "bin", "project_rust"), domain, exception: true)
-
-puts "== cargo build --release --target wasm32-wasip1 =="
-Dir.chdir(scratch) do
-  # `rustup run`, not bare `cargo`: a Homebrew cargo earlier on PATH never saw
-  # `rustup target add` and fails with "can't find crate for `std`".
-  system({ "CARGO_TARGET_DIR" => target_dir },
-         "rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-wasip1", exception: true)
-end
-
-dist_dir = File.join(rust_dir, "dist")
-FileUtils.mkdir_p(dist_dir)
-
-built = File.join(target_dir, "wasm32-wasip1", "release", "rust.wasm")
-out   = File.join(dist_dir, "#{target_mod_name}.wasm")
-FileUtils.cp(built, out)
-
-puts "wrote #{out}"
-puts %(run it: wasmtime run #{out} < script.json)
-
-# The ir.json sidecar is copied beside the .wasm because rust/host reads it at runtime.
-ir_json = File.join(scratch, "src", "generated", target_mod_name, "ir.json")
-if File.exist?(ir_json)
-  ir_out = File.join(dist_dir, "#{target_mod_name}.ir.json")
-  FileUtils.cp(ir_json, ir_out)
-  puts "wrote #{ir_out}"
-end
+exit Hecks::RustBuild.run("project_wasm", ARGV)

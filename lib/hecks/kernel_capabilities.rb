@@ -63,6 +63,34 @@ module Hecks
               "Grammar.admitted_operators's own category field")
     end
 
+    # The coverage check as text: one line for each capability, then a verdict.
+    #
+    # @param root [String] the checkout
+    # @return [Array(String, String, Boolean)] the lines of the check, the closing verdict (the
+    #   complaint, when a file is missing), and whether every file is present
+    def coverage_report(root: ProjectionFiles::ROOT)
+      rows = coverage(root: root)
+      prefix = "#{root}/"
+      lines = rows.map do |row|
+        "#{row.present ? 'OK  ' : 'MISS'}  #{row.path.delete_prefix(prefix)}  (#{row.source}: #{row.name.inspect})"
+      end
+      missing = rows.reject(&:present)
+      return [lines.join("\n"), coverage_verdict(rows.size), true] if missing.empty?
+
+      gaps = missing.map { |row| "  #{row.path.delete_prefix(prefix)}" }
+      head = "#{missing.size} capability file(s) missing — the grammar admits these but no " \
+             "hand-written Rust interpretation exists for them yet:"
+      [lines.join("\n"), [head, *gaps].join("\n"), false]
+    end
+
+    # @param count [Integer] how many capabilities there are
+    # @return [String] the clean verdict
+    def coverage_verdict(count)
+      "#{count}/#{count} kernel capability files present — every attribute shape and " \
+        "expression-operator category the live Ruby grammar admits has a rust/src/kernel/ file " \
+        "at its conventional path."
+    end
+
     # @param name [String, Symbol] a snake_case capability name
     # @return [String] the PascalCase Rust variant
     def pascal(name)

@@ -1,26 +1,27 @@
 # frozen_string_literal: true
 
 require "rbconfig"
-require_relative "shell"
 require_relative "console_capture"
 require_relative "rust_workspace"
 require_relative "process_pool"
+require_relative "../../rust_build"
 
 module Hecks
   module Adapters
     # The `RustToolchain` port's adapter: generates a domain's Rust source, compiles it (native,
     # WASI, browser) and checks the build against the Ruby engine.
     #
-    # Each ask runs the script that already does the work, in a child process, in the workspace
+    # Each ask runs one of the `Hecks::RustBuild` tools in this process, in the workspace
     # `RustWorkspace` names: the checkout's own `rust/`, or a copy of the packaged workspace under
-    # the client's `.hecks/rust/<version>/`. The child is told that workspace and a `target/`
-    # beside it, so a build never writes into the installed gem. A child that ends non-zero is a
-    # refusal whose reason is what it printed.
+    # the client's `.hecks/rust/<version>/`. The tool is told that workspace and a `target/`
+    # beside it, so a build never writes into the installed gem. A tool that ends non-zero is a
+    # refusal whose reason is what it printed. The benchmark is the exception: it can run for
+    # minutes, so it starts as a child through `ProcessPool`.
     class RustToolchain
-      # The hecks tools a build asks to run, by ask.
-      SCRIPTS = { generate: "project_rust", wasm: "project_wasm", browser_wasm: "project_wasm_browser",
-                  conform: "rust_conformance", replay: "rust_conformance_fuzz",
-                  coverage: "rust_coverage" }.freeze
+      # The `Hecks::RustBuild` tool each ask runs.
+      TOOLS = { generate: "project_rust", wasm: "project_wasm", browser_wasm: "project_wasm_browser",
+                conform: "rust_conformance", replay: "rust_conformance_fuzz",
+                coverage: "rust_coverage" }.freeze
 
       # `bin/bench`'s flag for each `FuzzRun` field a benchmark takes.
       BENCH_FLAGS = { "--domain" => :domains, "--targets" => :targets, "--iterations" => :iterations,
@@ -31,9 +32,10 @@ module Hecks
         # @return [#run, nil] starts the long-running benchmark; a `ProcessPool` when nil
         attr_accessor :pool
 
-        # @return [#capture, nil] starts each child; a `Shell` when nil. A spec replaces it, so no
-        #   toolchain is needed to test what is asked of it.
-        attr_accessor :shell
+        # @return [#capture, nil] runs each tool, as `capture(tool, argv, env:)` answering an
+        #   object with `out`, `err`, `status` and `ok?`; `Hecks::RustBuild` when nil. A spec
+        #   replaces it, so no toolchain is needed to test what is asked of it.
+        attr_accessor :runner
 
         # @return [RustWorkspace, nil] the workspace to build in; `RustWorkspace.new` when nil
         attr_accessor :workspace
@@ -153,15 +155,15 @@ module Hecks
 
       def run(ask, argv)
         space = self.class.workspace || RustWorkspace.new
-        env = space.environment.merge("HECKS_NO_3_0_NOTICE" => "1")
-        (self.class.shell || Shell.new).capture(RbConfig.ruby, script(SCRIPTS.fetch(ask)), *argv, env: env)
+        env = space.environment
+        (self.class.runner || RustBuild).capture(TOOLS.fetch(ask), argv, env: env)
       rescue RustWorkspace::Unavailable => e
         raise ConsoleCapture::Failure, e.message
       end
 
       def message_of(result)
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-        text.empty? ? "the build ended with status #{result.status.exitstatus}" : text
+        text.empty? ? "the build ended with status #{result.status}" : text
       end
 
       def script(name) = File.expand_path("../../../../bin/#{name}", __dir__)

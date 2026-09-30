@@ -1,43 +1,16 @@
 #!/usr/bin/env ruby
 
-# Runs generated fuzz sequences through bin/rust_conformance against a native or .wasm artifact.
-# Exits non-zero on the first diverging seed and prints a reproduction command (ADR 0039).
+# Runs generated fuzz sequences through rust_conformance against a native or .wasm artifact.
 #
 #   bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]
+#
+# A shim: the work is Hecks::RustBuild (lib/hecks/rust_build/).
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("rust_conformance_fuzz")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecks"
-require "hecks/fuzzing"
-require "json"
-require "fileutils"
+require "hecks/rust_build"
 
-domain   = ARGV.shift or abort "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
-artifact = ARGV.shift or abort "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
-seeds    = Integer(ARGV.shift || ENV["SEEDS"] || 10)
-steps    = Integer(ARGV.shift || ENV["STEPS"] || 25)
-
-rust_conformance = File.expand_path("rust_conformance", __dir__)
-
-# Under the repo's tmp/ rather than Dir.mktmpdir so a failing seed's script outlives the process.
-scratch_dir = File.expand_path("../tmp/rust_conformance_fuzz/#{File.basename(domain)}", __dir__)
-FileUtils.rm_rf(scratch_dir)
-FileUtils.mkdir_p(scratch_dir)
-
-(1..seeds).each do |seed|
-  sequence    = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
-  script_path = File.join(scratch_dir, "seed-#{seed}.json")
-  File.write(script_path, JSON.generate({ "steps" => sequence }))
-
-  next if system(rust_conformance, domain, script_path, artifact)
-
-  abort "bin/rust_conformance_fuzz: seed #{seed}/#{seeds} diverged against #{artifact} " \
-        "(see bin/rust_conformance's own output above) — " \
-        "reproduce with: bin/rust_conformance #{domain} #{script_path} #{artifact}"
-end
-
-FileUtils.rm_rf(scratch_dir)
-puts "#{domain}: #{seeds} generated sequence(s) x #{steps} step(s) each, all matched #{artifact}."
+exit Hecks::RustBuild.run("rust_conformance_fuzz", ARGV)

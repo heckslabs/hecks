@@ -3,16 +3,15 @@ require "tmpdir"
 require "fileutils"
 require_relative "../../../lib/hecks/hecks/adapters/rust_toolchain"
 
-# The RustToolchain port's adapter asks the scripts that generate, compile and check a build, in
-# the workspace RustWorkspace names. A fake shell stands in for every child, so what is asked of
-# the toolchain is tested without one.
+# The RustToolchain port's adapter asks the Hecks::RustBuild tools that generate, compile and
+# check a build, in the workspace RustWorkspace names. A fake runner stands in for every tool, so
+# what is asked of the toolchain is tested without one.
 RSpec.describe Hecks::Adapters::RustToolchain do
-  # Records each child it is asked to start, and answers a queued result.
-  class FakeShell
+  # Records each tool it is asked to run, and answers a queued result.
+  class FakeRunner
     Result = Struct.new(:out, :err, :status) do
-      def ok? = status.success?
+      def ok? = status.zero?
     end
-    Status = Struct.new(:success?, :exitstatus)
 
     attr_reader :calls
 
@@ -22,22 +21,22 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     end
 
     def answer(out: "", err: "", passed: true)
-      @answers << Result.new(out, err, Status.new(passed, passed ? 0 : 1))
+      @answers << Result.new(out, err, passed ? 0 : 1)
     end
 
-    def capture(*command, env: {}, chdir: nil)
-      @calls << { command: command, env: env, chdir: chdir }
-      @answers.shift || Result.new("", "", Status.new(true, 0))
+    def capture(tool, argv, env: {})
+      @calls << { tool: tool, argv: argv, env: env }
+      @answers.shift || Result.new("", "", 0)
     end
   end
 
   let(:dir) { Dir.mktmpdir("rust_toolchain") }
-  let(:shell) { FakeShell.new }
+  let(:runner) { FakeRunner.new }
   let(:workspace) { Hecks::Adapters::RustWorkspace.new(gem_root: File.join(dir, "gem"), project_root: File.join(dir, "app"), version: "9.9.9") }
   let(:toolchain) { described_class.new }
 
   before do
-    described_class.shell = shell
+    described_class.runner = runner
     described_class.workspace = workspace
     FileUtils.mkdir_p(File.join(dir, "gem/lib"))
     FileUtils.mkdir_p(File.join(dir, "gem/rust/src/generated/pizzas"))
@@ -55,7 +54,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
   end
 
   after do
-    described_class.shell = nil
+    described_class.runner = nil
     described_class.workspace = nil
     FileUtils.rm_rf(dir)
   end
@@ -92,7 +91,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     it "points the child at the copy and its own target directory, never at the gem" do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
-      env = shell.calls.first.fetch(:env)
+      env = runner.calls.first.fetch(:env)
       copy = File.join(dir, "app/.hecks/rust/9.9.9")
       expect(env).to include("HECKS_RUST_DIR" => copy, "CARGO_TARGET_DIR" => File.join(copy, "target"))
       expect(env.values.join).not_to include(File.join(dir, "gem"))
@@ -135,7 +134,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
       expect { toolchain.generate(domain: { value: "domains/pizzas" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no Rust workspace/)
-      expect(shell.calls).to be_empty
+      expect(runner.calls).to be_empty
     end
   end
 
@@ -145,7 +144,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     it "builds in the checkout's own rust/ and copies nothing" do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
-      expect(shell.calls.first.fetch(:env)).to eq("HECKS_NO_3_0_NOTICE" => "1")
+      expect(runner.calls.first.fetch(:env)).to eq({})
       expect(File.exist?(File.join(dir, "app"))).to be(false)
       expect(workspace.directory).to eq(File.join(dir, "gem/rust"))
     end
@@ -154,54 +153,54 @@ RSpec.describe Hecks::Adapters::RustToolchain do
   describe "what each ask runs" do
     before { File.write(File.join(dir, "gem/hecks.gemspec"), "") }
 
-    def script_of(call) = File.basename(call.fetch(:command)[1])
+    def script_of(call) = call.fetch(:tool)
 
-    def arguments_of(call) = call.fetch(:command)[2..]
+    def arguments_of(call) = call.fetch(:argv)
 
     it "generates a domain through project_rust" do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
-      expect([script_of(shell.calls.first), arguments_of(shell.calls.first)]).to eq(["project_rust", ["domains/pizzas"]])
+      expect([script_of(runner.calls.first), arguments_of(runner.calls.first)]).to eq(["project_rust", ["domains/pizzas"]])
     end
 
     it "builds a WASI module and a browser module through their scripts" do
       toolchain.wasm(domain: { value: "domains/pizzas" })
       toolchain.browser_wasm(domain: { value: "domains/pizzas" })
 
-      expect(shell.calls.map { |call| script_of(call) }).to eq(%w[project_wasm project_wasm_browser])
+      expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_wasm project_wasm_browser])
     end
 
     it "replays a script against an artifact, or against Ruby alone when none is named" do
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" }, artifact: { value: "native" })
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" })
 
-      expect(arguments_of(shell.calls[0])).to eq(%w[d/pizzas steps.json native])
-      expect(arguments_of(shell.calls[1])).to eq(%w[d/pizzas steps.json])
+      expect(arguments_of(runner.calls[0])).to eq(%w[d/pizzas steps.json native])
+      expect(arguments_of(runner.calls[1])).to eq(%w[d/pizzas steps.json])
     end
 
     it "replays generated sequences ten seeds of twenty-five steps unless told otherwise" do
       toolchain.replay(domain: { value: "d/pizzas" }, artifact: { value: "native" })
       toolchain.replay(domain: { value: "d/pizzas" }, artifact: { value: "native" }, seeds: { value: 3 }, steps: { value: 7 })
 
-      expect(script_of(shell.calls[0])).to eq("rust_conformance_fuzz")
-      expect(arguments_of(shell.calls[0])).to eq(%w[d/pizzas native 10 25])
-      expect(arguments_of(shell.calls[1])).to eq(%w[d/pizzas native 3 7])
+      expect(script_of(runner.calls[0])).to eq("rust_conformance_fuzz")
+      expect(arguments_of(runner.calls[0])).to eq(%w[d/pizzas native 10 25])
+      expect(arguments_of(runner.calls[1])).to eq(%w[d/pizzas native 3 7])
     end
 
     it "checks the coverage allowlist through rust_coverage" do
       toolchain.audit
 
-      expect([script_of(shell.calls.first), arguments_of(shell.calls.first)]).to eq(["rust_coverage", ["--check-allowlist"]])
+      expect([script_of(runner.calls.first), arguments_of(runner.calls.first)]).to eq(["rust_coverage", ["--check-allowlist"]])
     end
 
-    it "answers a child's output as the answer" do
-      shell.answer(out: "wrote rust/dist/pizzas.wasm\n")
+    it "answers a tool's output as the answer" do
+      runner.answer(out: "wrote rust/dist/pizzas.wasm\n")
 
       expect(toolchain.wasm(domain: { value: "d/pizzas" })).to eq(output: { value: "wrote rust/dist/pizzas.wasm\n" })
     end
 
-    it "refuses with what a failed child printed, its own stderr first" do
-      shell.answer(out: "partial\n", err: "the domain name is not a module name\n", passed: false)
+    it "refuses with what a failed tool printed, its own stderr first" do
+      runner.answer(out: "partial\n", err: "the domain name is not a module name\n", passed: false)
 
       expect { toolchain.generate(domain: { value: "d/pizzas" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "the domain name is not a module name\npartial")
@@ -264,7 +263,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       FileUtils.cp(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"), gem_rust)
       File.write(File.join(gem_rust, "src/lib.rs"), "")
       FileUtils.mkdir_p(File.join(dir, "real_gem/lib"))
-      described_class.shell = nil
+      described_class.runner = nil
       described_class.workspace = Hecks::Adapters::RustWorkspace.new(
         gem_root: File.join(dir, "real_gem"), project_root: File.join(dir, "app"), version: "9.9.9"
       )
@@ -284,22 +283,22 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     before { File.write(File.join(dir, "gem/hecks.gemspec"), "") }
 
     it "answers the report as text, and passes the generator it was asked to read" do
-      shell.answer(out: "#{'=' * 72}\nPizzas - 3 constructs\n")
+      runner.answer(out: "#{'=' * 72}\nPizzas - 3 constructs\n")
 
       answer = toolchain.rust_coverage(module_name: { value: "pizzas" }, codegen: { value: "rust" })
 
       expect(answer).to start_with("=" * 72)
-      expect(shell.calls.first.fetch(:command).last(2)).to eq(%w[pizzas --codegen=rust])
+      expect(runner.calls.first.fetch(:argv).last(2)).to eq(%w[pizzas --codegen=rust])
     end
 
     it "answers a report that found gaps, since the gaps are what it reports" do
-      shell.answer(out: "#{'=' * 72}\nGAP (2)\n", passed: false)
+      runner.answer(out: "#{'=' * 72}\nGAP (2)\n", passed: false)
 
       expect(toolchain.rust_coverage(module_name: { value: "pizzas" })).to include("GAP (2)")
     end
 
     it "refuses when the script stopped before it could report at all" do
-      shell.answer(err: "rust/src/generated/none: no such generated module\n", passed: false)
+      runner.answer(err: "rust/src/generated/none: no such generated module\n", passed: false)
 
       expect { toolchain.rust_coverage(module_name: { value: "none" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no such generated module/)
