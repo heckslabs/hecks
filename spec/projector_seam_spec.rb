@@ -46,15 +46,15 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   end
 
   # Each entry is a construct that genuinely is an export or state projection, not an escape hatch.
-  KNOWN_NON_PROJECTIONS = {
-    "lib/hecks/projector/exporter.rb" =>
-        "registry-WIDE (call(registry), not call(bluebook:, options:)) — consumed directly by hecks ir, hecks project_rust, " \
-        "and translation's own approval digest; narrower single-bluebook registration would be the wrong " \
-        "shape for what actually calls it",
-    "rust/project.rb"                 =>
-        "an EXPORT — RustProjection::Projector needs a declaration's BINDINGS (.world/.hecksagon), which call(bluebook:, " \
-        "options:) has no channel for; a whole second toolchain, not a registry entry"
-  }.freeze
+  KNOWN_NON_PROJECTIONS = [
+    ["lib/hecks/projector/exporter.rb",
+     "registry-WIDE (call(registry), not call(bluebook:, options:)) — consumed directly by hecks ir, hecks project_rust, " \
+     "and translation's own approval digest; narrower single-bluebook registration would be the wrong " \
+     "shape for what actually calls it"],
+    ["rust/project.rb",
+     "an EXPORT — RustProjection::Projector needs a declaration's BINDINGS (.world/.hecksagon), which call(bluebook:, " \
+     "options:) has no channel for; a whole second toolchain, not a registry entry"]
+  ].to_h.freeze
 
   it "never lets the known-non-projection roster rot — every named file still exists" do
     missing = KNOWN_NON_PROJECTIONS.keys.reject { |path| File.exist?(File.join(InMemoryDomain::ROOT, path)) }
