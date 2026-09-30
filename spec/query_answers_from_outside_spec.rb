@@ -305,6 +305,14 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       expect_refusal(/Lookup::Note\.Echo has two answer paths: the Echoer port and the Twin port/, hecksagon: twin)
     end
 
+    it "merges a port declared twice under one name, as an environment overlay repeats it" do
+      repeated = OUTSIDE_HECKSAGON.sub(/\nend\n\z/, "\n\n  Lookup::Note.port \"Echoer\" do\n    answers_query \"Echo\"\n  end\nend\n")
+      runtime  = boot_domain(hecksagon: repeated)
+
+      expect(runtime.registry.bluebook("Lookup").aggregate("Note").ports.map(&:name)).to eq(["Echoer"])
+      expect(runtime.query("Lookup::Note.Echo", title: "hello")).to eq([{ heard: { value: "hello" } }])
+    end
+
     it "refuses a query that filters stored records and is bound too" do
       expect_refusal(/Lookup::Note\.Recent has two answer paths: its records and the Echoer port/,
                      hecksagon: OUTSIDE_HECKSAGON.sub(%(answers_query "Sight"),
