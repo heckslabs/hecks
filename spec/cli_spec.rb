@@ -4,7 +4,7 @@ require "rbconfig"
 require "stringio"
 
 # The `hecks` router (ADR 0066): what it answers without running anything, and
-# that a routed subcommand prints what its `bin/` script prints.
+# that a routed subcommand prints what its library entry point prints.
 RSpec.describe Hecks::CLI do
   let(:root) { File.expand_path("..", __dir__) }
   let(:out) { StringIO.new }
@@ -33,11 +33,12 @@ RSpec.describe Hecks::CLI do
     expect(out.string).to start_with("usage: hecks mcp [--stdio]")
   end
 
-  it "routes to the same entry point bin/ runs", :io do
+  it "routes to the library entry point `hecks ir` runs", :io do
+    entry = '$LOAD_PATH.unshift("lib"); require "hecks/cli/ir"; Hecks::CLI::Ir.call(ARGV, program: "hecks ir")'
     hecks, = Open3.capture3(RbConfig.ruby, "exe/hecks", "ir", "examples/banking", chdir: root)
-    bin, = Open3.capture3(RbConfig.ruby, "bin/ir", "examples/banking", chdir: root)
+    library, = Open3.capture3(RbConfig.ruby, "-e", entry, "--", "examples/banking", chdir: root)
 
     expect(hecks).to start_with("{")
-    expect(hecks).to eq(bin)
+    expect(hecks).to eq(library)
   end
 end

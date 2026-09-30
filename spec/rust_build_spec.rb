@@ -3,8 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks/rust_build"
 
-# The build tools the gem carries, reached in this process. The bin/ scripts of the same names are
-# shims over `Hecks::RustBuild.run`.
+# The build tools the gem carries, reached in this process through `Hecks::RustBuild.run`.
 RSpec.describe Hecks::RustBuild do
   let(:root) { File.expand_path("..", __dir__) }
 
@@ -104,15 +103,6 @@ RSpec.describe Hecks::RustBuild do
       offenders = code.select { |_, text| text.match?(%r{spec/support|"bin"|RbConfig\.ruby}) }
       expect(files).not_to be_empty
       expect(offenders.keys.map { |file| file.delete_prefix("#{root}/") }).to be_empty
-    end
-
-    it "are what the bin/ scripts of the same names run" do
-      shims = Hecks::RustBuild::TOOLS.keys.to_h { |name| [name, File.read(File.join(root, "bin", name))] }
-
-      shims.each do |name, text|
-        expect(text).to include(%(Hecks::RustBuild.run("#{name}", ARGV)))
-        expect(text.lines.size).to be < 25
-      end
     end
 
     it "build the native binary through the gem's own helper, which the spec helper delegates to" do

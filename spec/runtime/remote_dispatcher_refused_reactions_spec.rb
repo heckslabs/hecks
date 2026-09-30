@@ -53,4 +53,27 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
     expect(Hecks::Facade::CliRunner.refused_answer(result))
       .to eq(refused_reactions: [{ policy: "Gate", trigger: "D::Admit", reason: "no" }])
   end
+
+  describe "which refusals block the run" do
+    let(:match)   { { "policy" => "RecordTheMatch", "on" => "Answered", "trigger" => "D::Cmp.Match", "delivered" => true } }
+    let(:drift)   { { "policy" => "RecordTheDrift", "on" => "Answered", "trigger" => "D::Cmp.Drift",
+                      "delivered" => false, "reason" => "Drift refused — the templates differ" } }
+    let(:accept)  { { "policy" => "Accept", "on" => "Examined", "trigger" => "D::Run.Accept",
+                      "delivered" => false, "reason" => "Accept refused — the working tree is clean" } }
+
+    it "does not count a given-gated pair's declined half, but counts a refusal with no alternative" do
+      result = dispatcher_answering(response([[match, drift, accept]])).dispatch_flat(verb, {})
+
+      expect(result.refused_reactions.map { |r| r[:trigger] }).to eq(%w[D::Cmp.Drift D::Run.Accept])
+      expect(result.blocking_reactions.map { |r| r[:trigger] }).to eq(["D::Run.Accept"])
+    end
+
+    it "exits 1 under --wait for a remote result with a blocking refusal, 0 for a benign one" do
+      blocked = dispatcher_answering(response([[accept]])).dispatch_flat(verb, {})
+      benign  = dispatcher_answering(response([[match, drift]])).dispatch_flat(verb, {})
+
+      expect(Hecks::Facade::CliRunner.blocked?(blocked)).to be(true)
+      expect(Hecks::Facade::CliRunner.blocked?(benign)).to be(false)
+    end
+  end
 end

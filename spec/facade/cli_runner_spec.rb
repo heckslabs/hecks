@@ -140,6 +140,21 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(described_class.refused_answer(Struct.new(:events).new([]))).to eq({})
     end
 
+    it "blocks --wait on a refusal with no alternative, not on a given-gated pair's declined half" do
+      delivered = { policy: "Match", on: "Answered", trigger: "D::Cmp.Match", delivered: true }
+      declined  = { policy: "Drift", on: "Answered", trigger: "D::Cmp.Drift", delivered: false, reason: "no" }
+      alone     = { policy: "Accept", on: "Examined", trigger: "D::Run.Accept", delivered: false, reason: "no" }
+      defect    = alone.merge(defect: true)
+      blocking  = ->(entries) { Hecks::Runtime::ReactionOutcome.blocking(entries).map { |r| r[:trigger] } }
+
+      expect(blocking.([delivered, declined])).to eq([])
+      expect(blocking.([delivered, declined, alone])).to eq(["D::Run.Accept"])
+      expect(blocking.([defect])).to eq([])
+      exists = alone.merge(reason: "Register creates a Tenant that already exists — slug.value \"a\"")
+      expect(blocking.([exists])).to eq([])
+      expect(blocking.([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
+    end
+
     it "leaves a dispatch that caused no refusal answered exactly as before" do
       expect(JSON.parse(a_pizza.first)).not_to have_key("refused_reactions")
     end

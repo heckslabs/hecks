@@ -104,6 +104,8 @@ RSpec.describe "the Deploy rows of the ADR command table" do
         expect(json.dig("state", "status")).to eq("matching")
         expect(json.dig("state", "report", "value")).to eq("no differences\n")
         expect(json.fetch("events")).to eq(%w[ComparisonRequested ComparisonAnswered TemplatesMatched])
+        # The Drift half of the given-gated pair declines by design: shown, but not a failure.
+        expect(json.fetch("refused_reactions").map { |r| r["reason"] }).to all(include("Drift refused"))
       end
     end
 

@@ -3,8 +3,8 @@ require "tmpdir"
 require "hecks/tools"
 require "hecks/hecks/adapters/codebase/source_tree"
 
-# The scripts of `bin/` whose bodies live in `lib/hecks/tools/`: the library carries each one, a
-# `bin/` script is a shim over it, and an adapter runs it in this process.
+# The repository tools whose bodies live in `lib/hecks/tools/`: the library carries each one, and
+# an adapter runs it in this process.
 RSpec.describe Hecks::Tools do
   let(:root) { InMemoryDomain::ROOT }
 
@@ -14,15 +14,6 @@ RSpec.describe Hecks::Tools do
 
       expect(tool).to respond_to(:main), "#{name} has no main"
       expect(tool.name).to start_with("Hecks::Tools::")
-    end
-  end
-
-  it "leaves each replaced script a shim: it requires the library and hands over its arguments" do
-    described_class::REGISTRY.each_key do |name|
-      source = File.read(File.join(root, "bin", name))
-
-      expect(source).to include(%(Hecks::Tools.script("#{name}", ARGV))), "bin/#{name} is not a shim"
-      expect(source.lines.grep_v(/^\s*(#|$)/).size).to be <= 8, "bin/#{name} still holds a body"
     end
   end
 

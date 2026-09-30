@@ -8,7 +8,7 @@ require_relative "support/fenced_owner"
 
 # The Hecks domain's journal outlives the process. One process runs a journaled command through
 # the launcher against a real Postgres; a second, started afterwards, reads it back with
-# `bin/history` and `exe/hecks stores`. Needs a reachable Postgres.
+# `hecks ask history` and `exe/hecks stores`. Needs a reachable Postgres.
 RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   JOURNAL_DB = "hecks_journal_survives_spec".freeze
   HECKS_ROOT = InMemoryDomain::ROOT
@@ -81,7 +81,8 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
     expect(status.success?).to be(true), "#{out}\n#{err}"
     expect(JSON.parse(out).fetch("events")).to eq(["ModelCheckRequested"])
 
-    history, err, status = child(File.join(HECKS_ROOT, "bin/history"), File.join(HECKS_ROOT, "lib/hecks/hecks"))
+    history, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "ask", "history",
+                                 "domain=#{File.join(HECKS_ROOT, 'lib/hecks/hecks')}")
     expect(status.success?).to be(true), err
     entries = JSON.parse(history.lines.last).fetch("model_check_run")
     expect(entries.map { |entry| entry.fetch("operation") }).to eq(%w[save save])

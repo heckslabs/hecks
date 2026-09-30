@@ -1,16 +1,17 @@
 require "tmpdir"
 require "fileutils"
 require "open3"
+require "rbconfig"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
-# bin/project_tenant is a script, not a library: run it as a subprocess against a tmpdir fixture
-# and read back what it generated.
-RSpec.describe "bin/project_tenant", :io do
-  # Not aliased to a local `ROOT`: a bare `ROOT` collides with word_coverage_spec.rb's
-  # (caught by load_hygiene_spec.rb).
-  SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
+# `hecks deploy provision` (Hecks::Tools::TenantProvisioning) runs as a subprocess against a
+# tmpdir fixture, and what it generated is read back.
+RSpec.describe "hecks deploy provision", :io do
+  # The child's whole program: the tool the launcher's `deploy provision` runs. A prefixed
+  # constant name: a bare one collides with another spec's (caught by load_hygiene_spec.rb).
+  TENANT_CHILD = 'require "hecks/tools"; Hecks::Tools.script("project_tenant", ARGV)'.freeze
   DB = "hecks_project_tenant_spec".freeze
   # The overlay binds the database by URL as a non-superuser owner: PostgresEra refuses to boot
   # as a superuser (see support/fenced_owner.rb).
@@ -19,7 +20,7 @@ RSpec.describe "bin/project_tenant", :io do
   def fixture(dir)
     File.write(File.join(dir, "scratch.bluebook"), <<~BLUEBOOK)
       Hecks.bluebook "Scratch" do
-        vision "one aggregate, enough to exercise bin/project_tenant end to end"
+        vision "one aggregate, enough to exercise tenant provisioning end to end"
         core
 
         aggregate "Widget" do
@@ -61,9 +62,9 @@ RSpec.describe "bin/project_tenant", :io do
   end
 
   def run_project_tenant(dir, slug, **opts)
-    args = [SCRIPT, dir, slug]
+    args = [RbConfig.ruby, "-I", File.join(InMemoryDomain::ROOT, "lib"), "-e", TENANT_CHILD, "--", dir, slug]
     opts.each { |k, v| args << "--#{k}=#{v}" }
-    Open3.capture3(*args)
+    Open3.capture3(*args, chdir: InMemoryDomain::ROOT)
   end
 
   before(:context) do
