@@ -60,25 +60,9 @@ RSpec.describe "QualityControl" do
          QualityControl::Clearance].each do |aggregate|
           aggregate.persisted_by("Memory")
         end
-
-        QualityControl::Ticket.port "IssueTracker" do
-          asks "File", to: Ticket do
-            answers "IssueFiled"
-            refuses "IssueFilingRefused"
-          end
-
-          tells "Closed", to: Ticket do
-            emits "IssueClosedUpstream"
-          end
-        end
-
-        QualityControl::Clearance.port "CI" do
-          asks "Run", to: Clearance do
-            answers "SuitePassed"
-            refuses "SuiteFailed"
-          end
-        end
       end
+      # The chapter's own ports, so its IssueTracker, CI and tool-query bindings are the real ones.
+      Kernel.load(File.join(QC_ROOT, "quality_control.ports.hecksagon"))
       sibling_governance!
     end
 
