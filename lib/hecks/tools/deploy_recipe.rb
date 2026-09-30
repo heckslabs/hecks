@@ -77,9 +77,10 @@ module Hecks
         options
       end
 
-      # Falls back to the sole `*.world` file under `<domain>/bluebook/` when it isn't named after
-      # the directory (QualityControl is the one domain that isn't), and never picks one when
-      # there is more than one candidate: guessing which is the domain is not this generator's call.
+      # The `.world` file named after the directory; failing that, the sole `*.world` file under
+      # `<domain>/bluebook/`; failing that, the one named after the chapter the domain's hecksagon
+      # attaches by name (`qa/` attaches QualityControl and also holds a Governance `.world`).
+      # It picks by no other rule: guessing which is the domain is not this generator's call.
       #
       # @param domain [String] the domain directory
       # @return [String] the `.world` file
@@ -88,13 +89,27 @@ module Hecks
         world_file = File.join(domain, "bluebook", "#{File.basename(domain)}.world")
         unless File.exist?(world_file)
           candidates = Dir.glob(File.join(domain, "bluebook", "*.world"))
-          world_file = candidates.first if candidates.size == 1
+          named = candidates.select { |path| attached_stems(domain).include?(File.basename(path, ".world")) }
+          pick = candidates.size == 1 ? candidates : named
+          world_file = pick.first if pick.size == 1
         end
 
         File.exist?(world_file) or
           abort "#{world_file} does not exist — a domain needs a .world file to declare " \
                 "deployed_to(\"AwsLambda\") or deployed_to(\"AwsFargate\")"
         world_file
+      end
+
+      # The snake-cased names of the chapters a domain's hecksagons attach by name
+      # (`Hecks::Chapters.load!("QualityControl")`), which its `.world` and `.hecksagon` files
+      # are named after.
+      #
+      # @param domain [String] the domain directory
+      # @return [Array<String>] such as `["quality_control"]`
+      def attached_stems(domain)
+        Dir.glob(File.join(domain, "bluebook", "*.hecksagon"))
+           .flat_map { |path| File.read(path).scan(/Chapters\.load!\(\s*"([^"]+)"\s*\)/).flatten }
+           .map { |name| Hecks::Naming.snake(name) }.uniq
       end
 
       # @param world_file [String] the base `.world` file
@@ -133,8 +148,10 @@ module Hecks
       end
 
       # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
-      # cross-domain invoke grant can live in any attached chapter. `root:` is required or
-      # `uses_embryonaut_bluebook` refuses with "needs a registry with a root to vendor from".
+      # cross-domain invoke grant can live in any attached chapter. A domain with no bluebook of
+      # its own (the QA ledger) gets its chapter from the hecksagon's `Chapters.load!`. `root:` is
+      # required or `uses_embryonaut_bluebook` refuses with "needs a registry with a root to
+      # vendor from".
       #
       # @param domain [String] the domain directory
       # @param bluebook_basename [String] the file name the domain's bluebook and hecksagon share
@@ -145,7 +162,8 @@ module Hecks
         Hecks.with_registry(registry) do
           %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
              adapters/driven/prism.adapter].each { |file| Kernel.load(File.join(lib_hecks, file)) }
-          Kernel.load(File.join(domain, "bluebook", "#{bluebook_basename}.bluebook"))
+          bluebook_file = File.join(domain, "bluebook", "#{bluebook_basename}.bluebook")
+          Kernel.load(bluebook_file) if File.exist?(bluebook_file)
           hecksagon_file = File.join(domain, "bluebook", "#{bluebook_basename}.hecksagon")
           Kernel.load(hecksagon_file) if File.exist?(hecksagon_file)
         end

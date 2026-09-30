@@ -636,7 +636,7 @@ module Hecks
                   PasswordLength: 64
                   ExcludePunctuation: true
 
-            #{webhook_secret_env ? <<-WEBHOOKSECRET : ""}
+            #{webhook_secret_env ? <<~WEBHOOKSECRET.rstrip : ""}
           # Auto-generated, never typed or seen — the SAME
           # ManageMasterUserPassword/SessionSecret pattern above, applied to
           # `secret_env`'s own webhook secret instead (deploy_settings' own
