@@ -1,3 +1,4 @@
+require_relative "../chapters"
 require_relative "surface/chapter"
 require_relative "surface/aggregate_door"
 
@@ -21,6 +22,7 @@ module Hecks
       # closing over `dispatcher`, so `Pizzas::Pizza` and the bare `Pizza` both open the
       # door of the boot that ran last.
       #
+      # A gem chapter a hecksagon `attaches` installs nothing (`Query`, `Port` stay free).
       # An aggregate sharing its chapter's name gets no second constant. A name that user
       # code or the stdlib already owns is left alone with a warning (see `Namespace.install`).
       #
@@ -30,6 +32,8 @@ module Hecks
       # @raise [NameError] if a chapter or aggregate name is not a valid constant name
       def install(dispatcher)
         dispatcher.registry.bluebooks.each_value do |bluebook|
+          next if attached_chapter?(dispatcher.registry, bluebook)
+
           chapter = chapter_module(dispatcher, bluebook)
           Namespace.install(*placement(bluebook), chapter)
           # A namespaced chapter keeps its aggregates inside its namespace: top-level
@@ -43,6 +47,15 @@ module Hecks
           end
         end
         dispatcher
+      end
+
+      # Whether `bluebook` is a gem chapter that a hecksagon attached rather than a domain's own.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @param bluebook [Bluebook::Chapter] the chapter under test
+      # @return [Boolean]
+      def attached_chapter?(registry, bluebook)
+        registry.bounded?(bluebook.name) && Hecks::Chapters.index.key?(bluebook.name)
       end
 
       # Where a chapter's module installs: `Object::<name>`, or the constant path its
