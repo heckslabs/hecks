@@ -7,14 +7,14 @@ require "open3"
 # in the words Ruby's own refusals use. rust/host/src/query_step.rs pins the routing decision
 # against a hand-written IR; this spec pins the wording against Ruby's.
 RSpec.describe "Rust host query step", :io do
-  HOST_DIR = File.expand_path("../rust/host", __dir__)
+  QUERY_STEP_HOST_DIR = File.expand_path("../rust/host", __dir__)
 
   it "words an undeclared query exactly as the Ruby runtime does" do
     ruby = Hecks::Runtime::RefusalWording.render_site("UnknownVerb", "no_query",
                                                       aggregate: "Ledger", query: "Nope")
 
     expect(ruby).to eq('Ledger has no query "Nope"')
-    expect(File.read(File.join(HOST_DIR, "src", "query_step.rs"))).to include('Ledger has no query \"Nope\"')
+    expect(File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))).to include('Ledger has no query \"Nope\"')
   end
 
   it "refuses an outside-answered query with the tail Ruby's adapter lookup ends on" do
@@ -25,12 +25,12 @@ RSpec.describe "Rust host query step", :io do
     end
 
     expect(ruby).to end_with("nothing can answer Note.Echo")
-    source = File.read(File.join(HOST_DIR, "src", "query_step.rs"))
+    source = File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))
     expect(source).to include("answered outside the domain").and include("nothing can answer {short}")
   end
 
   it "routes derivable queries to the kernel and refuses outside-answered ones (cargo unit tests)" do
-    stdout, stderr, status = Open3.capture3("cargo", "test", "--bin", "bootstrap", "query_step", chdir: HOST_DIR)
+    stdout, stderr, status = Open3.capture3("cargo", "test", "--bin", "bootstrap", "query_step", chdir: QUERY_STEP_HOST_DIR)
 
     expect(status).to be_success, "cargo test failed:\n#{stdout}\n#{stderr}"
     expect(stdout).to match(/test result: ok\. 5 passed/)
