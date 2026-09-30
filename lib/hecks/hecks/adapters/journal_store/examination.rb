@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+require "json"
 require_relative "held_domain"
 require_relative "edge_audit"
 require_relative "compaction"
@@ -14,7 +16,8 @@ module Hecks
         # What every fact is until an examination finds otherwise.
         NEUTRAL = {
           capable: false, held: 0, forks: 0, contested: 0, edges: 0, bound: 0, candidates: 0,
-          audited: false, rehearsal_needed: false, rehearsal_recorded: false
+          audited: false, rehearsal_needed: false, rehearsal_recorded: false,
+          drifted: false, loadable: false, shape_kept: false
         }.freeze
 
         # Examines the domain a change was asked for.
@@ -54,8 +57,21 @@ module Hecks
           return {} unless domain.capable?
 
           ordinal = plain(held[:era])
-          domain.reading { |lineage| raw_era(domain, lineage, ordinal) }
-          { capable: true }
+          era = domain.reading { |lineage| raw_era(domain, lineage, ordinal) }
+          { capable: true }.merge(text_facts(era))
+        end
+
+        # Whether the held text drifted from its digest and, if so, whether it still loads and
+        # still projects to the shape the era froze with. A text that matches its digest has
+        # nothing to attest, so its shape is not examined.
+        def text_facts(era)
+          return {} if era[:held_digest] == Digest::SHA256.hexdigest(era[:held_text])
+
+          found = Translation::Reattest.verdict(
+            text: era[:held_text], stored_hash: era[:hash],
+            stored_projection: era[:held_projection] && JSON.parse(era[:held_projection])
+          )
+          { drifted: true, loadable: found != :unloadable, shape_kept: %i[cosmetic unnamed].include?(found) }
         end
 
         def examine_backfill_projections(held)

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "json"
-require "digest"
 require "time"
 require_relative "held_domain"
 require_relative "edge_audit"
@@ -13,7 +12,8 @@ module Hecks
     class JournalStore
       # The changes the journal store makes once `Era.Permit` has let one through.
       #
-      # The rules that need no database are `given`s of the Era commands. What stays here is what
+      # The rules that need no database are `given`s of the Era commands, including that a
+      # re-attested text differs from its digest and keeps the era's shape. What stays here is what
       # only the database can enforce: the connection's write fence, the per-domain advisory lock
       # and its timeout, the append-only re-attestation, the audit that rolls a merge back, the
       # monotonic `compacted_through` floor and the row-level-security delete check.
@@ -64,15 +64,7 @@ module Hecks
         end
 
         def reattest(domain, lineage, ordinal)
-          era = lineage.raw_era(ordinal) or raise Runtime::NotFound, "#{domain.bluebook.name} holds no era #{ordinal}"
-          if era[:held_digest] == Digest::SHA256.hexdigest(era[:held_text])
-            return "#{domain.bluebook.name} era #{ordinal}: the held text matches its digest — nothing to re-attest."
-          end
-
-          Translation::Reattest.shape_guard!(
-            domain: domain.bluebook.name, ordinal: ordinal, text: era[:held_text], stored_hash: era[:hash],
-            stored_projection: era[:held_projection] && JSON.parse(era[:held_projection])
-          )
+          lineage.raw_era(ordinal) or raise Runtime::NotFound, "#{domain.bluebook.name} holds no era #{ordinal}"
           fresh = lineage.reattest!(ordinal)
           "ATTESTED: era #{ordinal} re-frozen as #{fresh[0, 12]}… — the old and new digests are recorded."
         end

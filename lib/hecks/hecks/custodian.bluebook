@@ -301,6 +301,10 @@ Hecks.bluebook "Hecks" do
       attribute :verb,    Verb,          optional: true
       attribute :arguments, list_of(Word), optional: true
 
+      given("exactly one of a script and a verb is named: pass script= or verb=, not both") do
+        (script.set? && verb.unset?) || (script.unset? && verb.set?)
+      end
+
       sets :run
       sets :subject
       sets :script
@@ -674,6 +678,9 @@ policy "RecordTheEra" do
     attribute :audited,             Switch,        optional: true
     attribute :rehearsal_needed,    Switch,        optional: true
     attribute :rehearsal_recorded,  Switch,        optional: true
+    attribute :drifted,             Switch,        optional: true
+    attribute :loadable,            Switch,        optional: true
+    attribute :shape_kept,          Switch,        optional: true
     attribute :report,              Report,        optional: true
     attribute :refusal,             Report,        optional: true
     identified_by :run
@@ -906,6 +913,9 @@ policy "RecordTheEra" do
       attribute :audited,            Switch
       attribute :rehearsal_needed,   Switch
       attribute :rehearsal_recorded, Switch
+      attribute :drifted,            Switch
+      attribute :loadable,           Switch
+      attribute :shape_kept,         Switch
 
       given("the store keeps eras") do
         capable.value || operation.value == "compact" || operation.value == "compact_heki"
@@ -931,6 +941,15 @@ policy "RecordTheEra" do
       given("a rehearsal that passed is recorded for an edge with a compute or rekey rule") do
         operation.value != "approve_translation" || !rehearsal_needed.value || rehearsal_recorded.value
       end
+      given("the held text no longer matches its digest: there is nothing to re-attest") do
+        operation.value != "reattest" || drifted.value
+      end
+      given("the edited text loads as a bluebook: restore a loadable text") do
+        operation.value != "reattest" || loadable.value
+      end
+      given("the edit kept the era's shape, not just its text: restore a text with the original shape") do
+        operation.value != "reattest" || shape_kept.value
+      end
 
       sets :capable
       sets :held
@@ -942,6 +961,9 @@ policy "RecordTheEra" do
       sets :audited
       sets :rehearsal_needed
       sets :rehearsal_recorded
+      sets :drifted
+      sets :loadable
+      sets :shape_kept
 
       emits EraPermitted
     end
@@ -1052,7 +1074,8 @@ policy "RecordTheEra" do
     trigger Era::Permit, with: {
       capable: :capable, held: :held, forks: :forks, contested: :contested, edges: :edges,
       bound: :bound, candidates: :candidates, audited: :audited,
-      rehearsal_needed: :rehearsal_needed, rehearsal_recorded: :rehearsal_recorded
+      rehearsal_needed: :rehearsal_needed, rehearsal_recorded: :rehearsal_recorded,
+      drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept
     }
   end
 

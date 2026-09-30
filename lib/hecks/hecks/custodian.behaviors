@@ -21,6 +21,18 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[RunRequested OperationRefused OperationFailed]
   end
 
+  test "Run refuses a request that names neither a script nor a verb" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }
+    expect refused: "exactly one of a script and a verb is named"
+  end
+
+  test "Run refuses a request that names both a script and a verb" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }, script: { value: "steps.json" }, verb: { value: "create_pizza" }
+    expect refused: "exactly one of a script and a verb is named"
+  end
+
   test "SmokeHttp refuses a scheme it cannot sign with" do
     tests "SmokeHttp", on: "Operation"
     input run: { value: "hook" }, path: { value: "/webhooks/events" }, scheme: { value: "md5" }
