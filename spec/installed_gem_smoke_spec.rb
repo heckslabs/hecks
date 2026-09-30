@@ -97,7 +97,8 @@ RSpec.describe "the installed hecks gem", :io do
   it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal" do
     out, err, code = hecks("build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
     text = code.zero? ? out : err
-    record = JSON.parse(text[text.index("{")..])
+    # The launcher prints the record, then warnings and the failure state after it.
+    record = JSON.parse(text[/^\{.*?^\}$/m])
 
     expect(record.fetch("events")).to include("WasmBuildRequested")
     if code.zero?
