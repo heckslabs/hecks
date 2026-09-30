@@ -1,3 +1,4 @@
+require "monitor"
 require "prism"
 require_relative "../../bluebook/expression/canonical_form"
 
@@ -18,6 +19,11 @@ module Hecks
       # walk of the tree the first time a block in its file is looked up. Dropped with its tree
       # by #forget/#forget_all.
       BLOCKS_BY_LINE = {}.compare_by_identity
+
+      # Guards `TREES` and `BLOCKS_BY_LINE` together, so a parse or an index build never
+      # interleaves with a `forget` that drops the same tree. Reentrant: `block_node_at`
+      # calls `tree_for` under it.
+      LOCK = Monitor.new
 
       module_function
 
@@ -52,9 +58,11 @@ module Hecks
       # @return [Prism::BlockNode, nil] the first block node found starting on `line`, or nil
       #   if none does
       def block_node_at(file, line)
-        tree = tree_for(file)
-        BLOCKS_BY_LINE[tree] ||= blocks_by_line(tree)
-        BLOCKS_BY_LINE[tree][line]
+        LOCK.synchronize do
+          tree = tree_for(file)
+          BLOCKS_BY_LINE[tree] ||= blocks_by_line(tree)
+          BLOCKS_BY_LINE[tree][line]
+        end
       end
 
       # Indexes a tree's block nodes by the line they start on, keeping the first in walk order.
@@ -79,7 +87,7 @@ module Hecks
         # ::Prism.parse_file reads the file at the C-extension level, bypassing
         # Ruby's File/IO layer — invisible to tools that virtualize the filesystem
         # there (e.g. tebako's memfs). Read through File.read first so they intercept it.
-        TREES[file] ||= ::Prism.parse(File.read(file)).value
+        LOCK.synchronize { TREES[file] ||= ::Prism.parse(File.read(file)).value }
       end
 
       # Drops one file from the process-wide parse cache, for a caller (`Hecks::Codemod`)
@@ -89,17 +97,21 @@ module Hecks
       # @return [Prism::ProgramNode, nil] the cached tree that was removed, or nil if
       #   nothing was cached for `file`
       def forget(file)
-        tree = TREES.delete(file)
-        BLOCKS_BY_LINE.delete(tree)
-        tree
+        LOCK.synchronize do
+          tree = TREES.delete(file)
+          BLOCKS_BY_LINE.delete(tree)
+          tree
+        end
       end
 
       # Drops every cached parse tree.
       #
       # @return [Hash] the now-empty cache
       def forget_all
-        BLOCKS_BY_LINE.clear
-        TREES.clear
+        LOCK.synchronize do
+          BLOCKS_BY_LINE.clear
+          TREES.clear
+        end
       end
 
       # Visits `node` and every descendant depth-first, calling `visit` on each.
