@@ -98,6 +98,42 @@ module RustProjection
         "Rust keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
     end
 
+    # Every declared `name` in the IR, in document order. The `fields` maps under
+    # `mutations` are skipped: their keys are attribute names and their values
+    # are source text, not declarations.
+    def declared_names(node, out = [])
+      case node
+      when Hash
+        node.each do |key, value|
+          if key.to_s == "fields"
+            next
+          elsif key.to_s == "name" && value.is_a?(String)
+            out << value
+          else
+            declared_names(value, out)
+          end
+        end
+      when Array
+        node.each { |item| declared_names(item, out) }
+      end
+      out
+    end
+
+    # Returns nil when every declared name is a plain identifier, else the
+    # message `DomainGenerator.call` raises. Attribute, command, event, query
+    # and port names are written into the generated crate as field, struct and
+    # function names, so a name like "a: String, pub evil: u8" would otherwise
+    # inject code into it. Must return the identical string as hecks-codegen's
+    # `naming::unsafe_name_refusal` (rust/codegen/src/naming.rs).
+    def unsafe_name_refusal(source_label, ir)
+      refused = declared_names(ir).uniq.reject { |name| name.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/) }
+      return nil if refused.empty?
+
+      "#{source_label}: declared name(s) #{refused.map(&:inspect).join(', ')} can't be used as-is — each is " \
+        "written into the generated Rust as an identifier, and at least one is not a plain identifier (letters, " \
+        "digits and underscores, not starting with a digit). Rename it in the bluebook."
+    end
+
     # `r#crate`/`r#self`/`r#super`/`r#Self` are not valid raw-identifier
     # syntax in Rust at all, so these four can't be escaped the way
     # `rust_ident_field` escapes every other `RUST_KEYWORDS` entry.

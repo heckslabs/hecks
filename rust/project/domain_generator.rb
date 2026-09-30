@@ -239,6 +239,9 @@ module RustProjection
       refusal = Projector.reserved_name_refusal(source_label, mod_name, ir[:aggregates].map { |a| a[:name] })
       raise refusal if refusal
 
+      unsafe = Projector.unsafe_name_refusal(source_label, ir)
+      raise unsafe if unsafe
+
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
       generated_aggregates = []

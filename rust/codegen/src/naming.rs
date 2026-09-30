@@ -1,5 +1,7 @@
 //! Port of `rust/project/naming.rb`, mirrored function for function.
 
+use crate::json::Json;
+
 pub fn scalar_rust_type(type_name: &str) -> Option<&'static str> {
     match type_name {
         "String" => Some("String"),
@@ -112,6 +114,55 @@ pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names
         "{source_label}: domain module name {mod_name:?} can't be used as-is — it has to double as a Rust module \
          identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, is a Rust \
          keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
+    ))
+}
+
+/// `/\A[A-Za-z_][A-Za-z0-9_]*\z/` — a declared name that is safe to write into generated Rust.
+fn plain_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c == '_' || c.is_ascii_alphabetic())
+        && chars.all(|c| c == '_' || c.is_ascii_alphanumeric())
+}
+
+/// Every declared `name` in the IR, in document order. The `fields` maps under `mutations` are
+/// skipped: their keys are attribute names and their values are source text, not declarations.
+fn declared_names<'a>(ir: &'a Json, out: &mut Vec<&'a str>) {
+    match ir {
+        Json::Object(pairs) => {
+            for (key, value) in pairs {
+                match (key.as_str(), value) {
+                    ("fields", _) => {}
+                    ("name", Json::String(name)) => out.push(name),
+                    _ => declared_names(value, out),
+                }
+            }
+        }
+        Json::Array(items) => items.iter().for_each(|item| declared_names(item, out)),
+        _ => {}
+    }
+}
+
+/// `None` when every declared name is a plain identifier, else the refusal text the Ruby generator
+/// raises, byte for byte. Attribute, command, event, query and port names are written into the
+/// generated crate as field, struct and function names, so a name like `"a: String, pub evil: u8"`
+/// would otherwise inject code into it.
+pub fn unsafe_name_refusal(source_label: &str, ir: &Json) -> Option<String> {
+    let mut names = Vec::new();
+    declared_names(ir, &mut names);
+    let mut refused: Vec<&str> = Vec::new();
+    for name in names.into_iter().filter(|name| !plain_identifier(name)) {
+        if !refused.contains(&name) {
+            refused.push(name);
+        }
+    }
+    if refused.is_empty() {
+        return None;
+    }
+    let list = refused.iter().map(|name| ruby_inspect_string(name)).collect::<Vec<_>>().join(", ");
+    Some(format!(
+        "{source_label}: declared name(s) {list} can't be used as-is — each is written into the generated Rust as \
+         an identifier, and at least one is not a plain identifier (letters, digits and underscores, not starting \
+         with a digit). Rename it in the bluebook."
     ))
 }
 
@@ -263,6 +314,25 @@ mod tests {
         assert!(refusal.starts_with("shop: aggregate name(s) \"Match\", \"Type\" can't be used as-is"), "{refusal}");
         assert!(refusal.contains("`pub mod match;`"), "{refusal}");
         assert!(refusal.contains("Rust keyword"), "{refusal}");
+    }
+
+    #[test]
+    fn refuses_a_declared_name_that_would_inject_code_into_the_generated_crate() {
+        let ir = Json::parse(
+            r#"{"name":"Shop","aggregates":[{"name":"Pizza","attributes":[{"name":"size"},{"name":"a: String, pub evil: u8"}]}]}"#,
+        )
+        .unwrap();
+        let refusal = unsafe_name_refusal("shop", &ir).expect("refused");
+        assert!(refusal.starts_with("shop: declared name(s) \"a: String, pub evil: u8\" can't be used as-is"), "{refusal}");
+    }
+
+    #[test]
+    fn accepts_plain_identifiers_and_ignores_mutation_field_maps() {
+        let ir = Json::parse(
+            r#"{"name":"Shop","aggregates":[{"name":"Pizza","commands":[{"name":"AddTopping","mutations":[{"fields":{"name":":topping"}}]}]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(unsafe_name_refusal("shop", &ir), None);
     }
 
     #[test]
