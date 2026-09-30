@@ -169,7 +169,7 @@ module Hecks
       #
       # @param handle [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the outcome
       # @return [Hash] `refused_reactions:` each with the `policy`, its `trigger` and the `reason`;
-      #   empty when every reaction was delivered (or the runtime is remote and keeps no log)
+      #   empty when every reaction was delivered (or a remote host sent no per-step log)
       def refused_answer(handle)
         refused = handle.respond_to?(:refused_reactions) ? handle.refused_reactions : []
         refused.empty? ? {} : { refused_reactions: refused }
