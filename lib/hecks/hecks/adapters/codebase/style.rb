@@ -71,7 +71,8 @@ module Hecks
           flags = ["--report", *only_flags(args)]
           flags << "--json" if args[:json]
           flags.push("--top", args[:top].to_s) if args[:top]
-          RubyChild.new(tree, shell: shell).answer(script_of(operation), *flags, *paths_of(args))
+          paths = after_separator(paths_of(args))
+          RubyChild.new(tree, shell: shell).answer(script_of(operation), *flags, *paths)
         end
 
         # @param args [Hash] the record's plain fields
@@ -93,7 +94,8 @@ module Hecks
         # @return [String] the linter's clean verdict
         # @raise [ConsoleCapture::Failure] with every violation, when there is one
         def check(operation, args, child)
-          answer = child.answer(script_of(operation), "--check", *only_flags(args), *paths_of(args))
+          paths = after_separator(paths_of(args))
+          answer = child.answer(script_of(operation), "--check", *only_flags(args), *paths)
           answer.empty? ? "no comment violations" : answer
         end
 
@@ -104,9 +106,10 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
         def fix(operation, args, child)
           script = script_of(operation)
-          return child.answer(script, "--fix", *only_flags(args), *paths_of(args)) if args[:confirm] == true
+          paths = after_separator(paths_of(args))
+          return child.answer(script, "--fix", *only_flags(args), *paths) if args[:confirm] == true
 
-          found = child.capture(script, "--check", "--only", FIXABLE, *paths_of(args)).out.strip
+          found = child.capture(script, "--check", "--only", FIXABLE, *paths).out.strip
           return "dry run: nothing a fix would rewrite" if found.empty?
 
           "dry run, #{found.lines.size} violations a fix would rewrite (add --confirm to rewrite):\n#{found}"
@@ -116,7 +119,7 @@ module Hecks
         # @param child [RubyChild] the linter's runner
         # @return [String] what the baseline recorded, or (unconfirmed) the blocks it would record
         def baseline(args, child)
-          paths = args[:paths] ? paths_of(args) : BASELINE_PATHS
+          paths = after_separator(args[:paths] ? paths_of(args) : BASELINE_PATHS)
           return child.answer("standardize_comments", "--write-baseline", *paths) if args[:confirm] == true
 
           found = child.capture("standardize_comments", "--check", "--only", "long_block", *paths).out.strip
@@ -128,10 +131,15 @@ module Hecks
         # @param args [Hash] the record's plain fields: `ref`, and `paths` (`lib` when absent)
         # @param child [RubyChild] the linter's runner
         # @return [String] "code unchanged"
-        # @raise [ConsoleCapture::Failure] naming each file whose code differs from the ref
+        # @raise [ConsoleCapture::Failure] naming each file whose code differs from the ref, or when
+        #   the ref is blank or begins with `-`
         def unchanged(args, child)
+          ref = args[:ref].to_s.strip
+          raise ConsoleCapture::Failure, "a ref to compare with is required" if ref.empty?
+          raise ConsoleCapture::Failure, "a ref may not begin with '-': #{ref}" if ref.start_with?("-")
+
           paths = args[:paths] ? paths_of(args) : UNCHANGED_PATHS
-          child.answer("standardize_comments", "--code-unchanged", args[:ref].to_s, *paths)
+          child.answer("standardize_comments", "--code-unchanged", ref, *after_separator(paths))
         end
 
         # @param operation [String] an operation
@@ -145,6 +153,18 @@ module Hecks
         # @param args [Hash] the record's plain fields
         # @return [Array<String>] the paths, from a comma-separated list
         def paths_of(args) = args[:paths].to_s.split(",").map(&:strip).reject(&:empty?)
+
+        # Paths as the linter takes them: after `--`, so no path is read as a flag.
+        #
+        # @param paths [Array<String>] the paths a query names, or its default paths
+        # @return [Array<String>] `--` and the paths
+        # @raise [ConsoleCapture::Failure] when a path begins with `-`
+        def after_separator(paths)
+          flagged = paths.select { |path| path.start_with?("-") }
+          raise ConsoleCapture::Failure, "paths may not begin with '-': #{flagged.join(', ')}" if flagged.any?
+
+          ["--", *paths]
+        end
       end
     end
   end
