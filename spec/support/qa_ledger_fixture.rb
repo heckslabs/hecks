@@ -8,8 +8,10 @@ require_relative "qa_ledger_role"
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
-  # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, with the ports unbound.
+  # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, chapter ports included.
   HECKSAGON = <<~RUBY.freeze
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -21,24 +23,6 @@ module QaLedgerFixture
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   RUBY
 
@@ -57,8 +41,6 @@ module QaLedgerFixture
       @root = Dir.mktmpdir("qa_ledger_fixture")
       @dir  = File.join(@root, "bluebook")
       FileUtils.mkdir_p(@dir)
-      FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
-                     File.join(@dir, "quality_control.bluebook"))
       File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
       File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
       # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.

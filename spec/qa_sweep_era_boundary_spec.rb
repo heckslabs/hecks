@@ -14,6 +14,8 @@ RSpec.describe "qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
 
   LEDGER_HECKSAGON_FOR_ERA_BOUNDARY_SPEC = <<~RUBY.freeze
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -25,24 +27,6 @@ RSpec.describe "qa_sweep era_boundary", :io do
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   RUBY
 
@@ -108,8 +92,6 @@ RSpec.describe "qa_sweep era_boundary", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_era_boundary_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
-                   File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ERA_BOUNDARY_SPEC)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
     url = QaLedgerRole.url(QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE)
