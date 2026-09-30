@@ -1,11 +1,12 @@
 require "tmpdir"
 require "open3"
+require "rbconfig"
 require "fileutils"
 
-# The linter is `Hecks::Tools::CommentStyle`; `bin/standardize_comments` is its shim.
+# The linter is `Hecks::Tools::CommentStyle`, which `hecks check_comments` runs.
 require "hecks/tools/comment_style"
 
-RSpec.describe "bin/standardize_comments" do
+RSpec.describe "Hecks::Tools::CommentStyle" do
   describe "design_history" do
     def history_found(comment)
       source = "# #{comment}\nclass Example\nend\n"
@@ -158,17 +159,19 @@ RSpec.describe "bin/standardize_comments" do
       end
 
       it "makes --check exit non-zero for a new long block and zero for a short one" do
-        script = File.join(InMemoryDomain::ROOT, "bin/standardize_comments")
+        lib = File.join(InMemoryDomain::ROOT, "lib")
+        entry = 'require "hecks/tools"; Hecks::Tools.script("standardize_comments", ARGV)'
+        script = [RbConfig.ruby, "-I", lib, "-e", entry, "--"]
         long = File.join(@dir, "long.rb")
         short = File.join(@dir, "short.rb")
         File.write(long, source_with_block(limit + 1))
         File.write(short, source_with_block(limit))
 
-        output, status = Open3.capture2e(script, "--check", "--only", "long_block", long)
+        output, status = Open3.capture2e(*script, "--check", "--only", "long_block", long)
         expect(status.exitstatus).to eq(1)
         expect(output).to include("[long_block]")
 
-        _, status = Open3.capture2e(script, "--check", "--only", "long_block", short)
+        _, status = Open3.capture2e(*script, "--check", "--only", "long_block", short)
         expect(status.exitstatus).to eq(0)
       end
     end

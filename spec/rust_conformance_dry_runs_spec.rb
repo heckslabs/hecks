@@ -4,15 +4,19 @@ require "open3"
 require "tmpdir"
 require_relative "support/rust_conformance_helpers"
 
-# bin/rust_conformance must compare `dry_runs`, or a dry-run split found by bin/qa_sweep
-# cannot be reproduced. The fixture binary answers one phantom dry run per step, so a
-# dry-run script disagrees on `dry_runs` alone.
-RSpec.describe "bin/rust_conformance", :io do
+# `hecks check_conformance` (Hecks::RustBuild's rust_conformance) must compare `dry_runs`, or a
+# dry-run split found by a QualityControl sweep cannot be reproduced. The fixture binary answers
+# one phantom dry run per step, so a dry-run script disagrees on `dry_runs` alone.
+RSpec.describe "rust conformance dry_runs", :io do
   # Helper methods, not constants: a constant in a describe block lands at top level
   # and can collide with other specs (spec/load_hygiene_spec.rb enforces this).
   def fixture_domain = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_dry_run_fixture")
   def fixture_crate  = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust")
-  def conformance    = File.join(InMemoryDomain::ROOT, "bin/rust_conformance")
+
+  # The child's whole program: the library entry point that `hecks check_conformance` runs.
+  def conformance_child
+    '$LOAD_PATH.unshift("lib"); require "hecks/rust_build"; exit Hecks::RustBuild.run("rust_conformance", ARGV)'
+  end
 
   let(:binary) do
     Object.new.extend(RustConformanceHelpers).build_rust_for("qa_sweep_all_dry_run_fixture", fixture_crate) or
@@ -23,7 +27,7 @@ RSpec.describe "bin/rust_conformance", :io do
     Dir.mktmpdir("rust_conformance_spec") do |dir|
       script = File.join(dir, "script.json")
       File.write(script, JSON.generate(name: "spec", steps: steps))
-      Open3.capture2e("bundle", "exec", "ruby", conformance, fixture_domain, script, *other,
+      Open3.capture2e("bundle", "exec", "ruby", "-e", conformance_child, "--", fixture_domain, script, *other,
                       chdir: InMemoryDomain::ROOT)
     end
   end

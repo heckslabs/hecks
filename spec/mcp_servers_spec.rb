@@ -6,19 +6,33 @@ require "socket"
 require "stringio"
 require "tmpdir"
 
-# Process-level checks for the stdio MCP doors (bin/hecks_mcp_door,
-# bin/hecks_query_ir_mcp): what they refuse, print, and require of a caller.
+# Process-level checks for the stdio MCP doors (`hecks mcp`, `hecks serve_query_ir_mcp`): what
+# they refuse, print, and require of a caller. Each runs as a child whose whole program is the
+# library entry point the verb calls.
 # Identity here is self-asserted only; nothing in this file claims otherwise.
 RSpec.describe "the stdio MCP servers" do
   let(:root)               { File.expand_path("..", __dir__) }
-  let(:door)               { File.join(root, "bin/hecks_mcp_door") }
-  let(:query_ir)           { File.join(root, "bin/hecks_query_ir_mcp") }
+  let(:door)               { child_program("mcp") }
+  let(:query_ir)           { child_program("serve_query_ir_mcp") }
   let(:initialize_request) { { jsonrpc: "2.0", id: 1, method: "initialize" } }
+
+  # The programs the two verbs run, by verb name.
+  MCP_CHILD_PROGRAMS = {
+    "mcp"                => 'require "hecks/cli/mcp"; Hecks::CLI::Mcp.call(ARGV)',
+    "serve_query_ir_mcp" => 'require "hecks/mcp_stdio_guard"; ' \
+                            'Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-query-ir"); ' \
+                            'require "hecks"; require "hecks/query_ir_mcp"; Hecks::QueryIrMcp.start(argv: ARGV)'
+  }.freeze
+
+  # @return [Array<String>] the command that starts the verb's server
+  def child_program(verb)
+    [RbConfig.ruby, "-I", File.join(root, "lib"), "-e", MCP_CHILD_PROGRAMS.fetch(verb), "--"]
+  end
 
   # Runs a server to completion over pipes, feeding it one JSON-RPC request per line.
   def run_over_pipes(script, requests = [], args: [], env: {})
     input = requests.map { |request| "#{JSON.generate(request)}\n" }.join
-    out, err, status = Open3.capture3(env, RbConfig.ruby, script, *args, chdir: root, stdin_data: input)
+    out, err, status = Open3.capture3(env, *script, *args, chdir: root, stdin_data: input)
     { out: out, err: err, status: status, responses: out.lines.map { |line| JSON.parse(line) } }
   end
 
@@ -30,7 +44,7 @@ RSpec.describe "the stdio MCP servers" do
   def run_over_socket(script, socket)
     out_read, out_write = IO.pipe
     err_read, err_write = IO.pipe
-    pid = Process.spawn(RbConfig.ruby, script, chdir: root, in: socket, out: out_write, err: err_write)
+    pid = Process.spawn(*script, chdir: root, in: socket, out: out_write, err: err_write)
     out_write.close
     err_write.close
     _, status = Process.wait2(pid)
@@ -39,9 +53,9 @@ RSpec.describe "the stdio MCP servers" do
     [out_read, err_read].compact.each(&:close)
   end
 
-  %w[hecks_mcp_door hecks_query_ir_mcp].each do |name|
-    describe "bin/#{name}" do
-      let(:script) { File.join(root, "bin", name) }
+  %w[mcp serve_query_ir_mcp].each do |name|
+    describe "hecks #{name}" do
+      let(:script) { child_program(name) }
 
       it "starts over pipes with --stdio, answers on stdout with protocol only, and warns on stderr" do
         result = run_over_pipes(script, [initialize_request], args: ["--stdio"])
@@ -112,7 +126,7 @@ RSpec.describe "the stdio MCP servers" do
     "pizzas"
   end
 
-  describe "bin/hecks_mcp_door" do
+  describe "hecks mcp" do
     let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-root") }
 
     after { FileUtils.rm_rf(sandbox_root) }
@@ -140,7 +154,7 @@ RSpec.describe "the stdio MCP servers" do
 
   # Reader mode (ADR 0072 decision 2): a spawner narrows the door to reader tools over the
   # domains it names. It limits reach and identifies no one.
-  describe "bin/hecks_mcp_door in reader mode" do
+  describe "hecks mcp in reader mode" do
     let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-reader") }
     let(:domain)       { memory_pizzas_under(sandbox_root) }
     let(:marker)       { File.join(sandbox_root, "unnamed-domain-loaded") }
@@ -240,7 +254,7 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
-  describe "bin/hecks_query_ir_mcp" do
+  describe "hecks serve_query_ir_mcp" do
     it "refuses a domains directory outside the project root rather than loading Ruby from it" do
       outside = Dir.mktmpdir("hecks-mcp-outside")
       marker  = File.join(outside, "loaded")

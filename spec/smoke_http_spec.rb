@@ -1,15 +1,28 @@
 require "open3"
+require "rbconfig"
 require "tmpdir"
 require "openssl"
 require "socket"
 require "json"
 
-# bin/smoke_http against a fake receiver on a local port. The fake verifies
-# signatures the way a real receiver does, so the script's checks are proven both
-# to pass a correct receiver and to catch one that verifies badly.
-RSpec.describe "bin/smoke_http", :io do
-  SMOKE_HTTP_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/smoke_http").freeze
+# `hecks smoke_http` (Hecks::CLI::SmokeHttp) against a fake receiver on a local port. The fake
+# verifies signatures the way a real receiver does, so the check is proven both to pass a
+# correct receiver and to catch one that verifies badly.
+RSpec.describe "hecks smoke_http", :io do
+  # The child's whole program: the library entry point, refusing as the launcher does.
+  SMOKE_HTTP_CHILD = <<~RUBY.freeze
+    $LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/smoke_http"
+    begin
+      exit Hecks::CLI::SmokeHttp.new(Hecks::CLI::SmokeHttp.settings(ARGV, ENV)).run
+    rescue ArgumentError, OptionParser::ParseError, Errno::ENOENT => e
+      abort "smoke_http: \#{e.message}"
+    end
+  RUBY
   SMOKE_HTTP_SECRET = "webhook-secret".freeze
+
+  def smoke_http(env, *args)
+    Open3.capture3(env, RbConfig.ruby, "-e", SMOKE_HTTP_CHILD, "--", *args, chdir: InMemoryDomain::ROOT)
+  end
 
   # A minimal HTTP/1.1 server on a thread: `handler` answers [status, body] for each
   # parsed request, and `seen` collects what was delivered.
@@ -97,7 +110,7 @@ RSpec.describe "bin/smoke_http", :io do
 
   def run_script(receiver, *args, secret: SMOKE_HTTP_SECRET)
     env = { "SMOKE_WEBHOOK_SECRET" => secret }
-    Open3.capture3(env, SMOKE_HTTP_SCRIPT, "--url", "http://127.0.0.1:#{receiver.port}", "--path", "/hooks", *args)
+    smoke_http(env, "--url", "http://127.0.0.1:#{receiver.port}", "--path", "/hooks", *args)
   end
 
   around do |example|
@@ -194,17 +207,16 @@ RSpec.describe "bin/smoke_http", :io do
   end
 
   it "refuses to run without a secret, a path, or with an unknown scheme" do
-    stdout, stderr, status = Open3.capture3({ "SMOKE_WEBHOOK_SECRET" => "" }, SMOKE_HTTP_SCRIPT, "--path", "/hooks")
+    stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "" }, "--path", "/hooks")
     expect(status).not_to be_success
     expect(stdout).to eq("")
     expect(stderr).to include("no signing secret")
 
-    _stdout, stderr, status = Open3.capture3({ "SMOKE_WEBHOOK_SECRET" => "s" }, SMOKE_HTTP_SCRIPT)
+    _stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "s" })
     expect(status).not_to be_success
     expect(stderr).to include("no webhook path")
 
-    _stdout, stderr, status = Open3.capture3({ "SMOKE_WEBHOOK_SECRET" => "s" }, SMOKE_HTTP_SCRIPT,
-                                             "--path", "/x", "--scheme", "md5")
+    _stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "s" }, "--path", "/x", "--scheme", "md5")
     expect(status).not_to be_success
     expect(stderr).to include("unknown scheme \"md5\"")
   end

@@ -5,14 +5,9 @@ require "hecks/three_zero"
 
 RSpec.describe Hecks::ThreeZero do
   let(:root) { File.expand_path("..", __dir__) }
-  let(:scripts) { Dir[File.join(root, "bin/*")].map { |path| File.basename(path) }.sort }
 
   def terminal
     StringIO.new.tap { |io| io.define_singleton_method(:tty?) { true } }
-  end
-
-  it "names a 3.0 form for every bin/ script, and for nothing else" do
-    expect(described_class::FORMS.keys.sort).to eq(scripts)
   end
 
   it "gives every form as a launcher call, except the one script that is not user-facing" do
@@ -48,12 +43,6 @@ RSpec.describe Hecks::ThreeZero do
     expect(described_class::FORMS.fetch("project_diagrams")).to eq(
       "hecks project_diagrams <domain-path> <ChapterName>"
     )
-  end
-
-  it "is announced by every bin/ script, under its own name" do
-    scripts.each do |name|
-      expect(File.read(File.join(root, "bin", name))).to include("Hecks::ThreeZero.notice(#{name.inspect})"), name
-    end
   end
 
   it "tells a terminal what a script becomes" do

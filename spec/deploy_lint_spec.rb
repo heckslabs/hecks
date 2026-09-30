@@ -1,12 +1,13 @@
 require "tmpdir"
 require "open3"
+require "rbconfig"
 
 require "hecks/tools/deploy_recipe_lint"
 
-# Proves bin/lint_deploy_recipes catches the H13/H14 bug class
+# Proves `hecks deploy lint` (Hecks::Tools::DeployRecipeLint) catches the H13/H14 bug class
 # (docs/audits/2026-08-11-bug-triage.md) on fabricated recipes, and finds zero
 # violations across every target of the generated own/shared/oauth Makefiles.
-RSpec.describe "bin/lint_deploy_recipes", :io do
+RSpec.describe "hecks deploy lint", :io do
   def self.root = File.expand_path("..", __dir__)
 
   def self.lint(text, source: "fixture")
@@ -170,12 +171,20 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
 
     it "prints its usage for --help" do
       expect { expect(Hecks::Tools::DeployRecipeLint.main(["--help"])).to eq(0) }
-        .to output(%r{usage: bin/lint_deploy_recipes}).to_stdout
+        .to output(/usage: .*lint_deploy_recipes/).to_stdout
     end
   end
 
   describe "the CLI itself" do
-    def self.script = File.join(root, "bin/lint_deploy_recipes")
+    # The child's whole program: the tool the launcher's `deploy lint` runs, as a process.
+    def self.lint_command
+      lib = File.join(root, "lib")
+      [RbConfig.ruby, "-I", lib, "-e", 'require "hecks/tools"; Hecks::Tools.script("lint_deploy_recipes", ARGV)', "--"]
+    end
+
+    def self.run_lint(*args)
+      Open3.capture3(*lint_command, *args, chdir: root)
+    end
 
     it "exits 0 and prints 'no violations found' for a Makefile containing only clean targets" do
       Dir.mktmpdir do |dir|
@@ -188,7 +197,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
           \texit $$BOOT_STATUS
         MAKEFILE
 
-        stdout, _stderr, status = Open3.capture3("ruby", self.class.script, path)
+        stdout, _stderr, status = self.class.run_lint(path)
         expect(status.success?).to be(true)
         expect(stdout).to include("no violations found")
       end
@@ -203,7 +212,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
           \texit 0
         MAKEFILE
 
-        stdout, stderr, status = Open3.capture3("ruby", self.class.script, path)
+        stdout, stderr, status = self.class.run_lint(path)
         expect(status.success?).to be(false)
         report = stdout + stderr
         expect(report).to include("UNVERIFIED_EXIT_ZERO")
@@ -215,13 +224,13 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
     describe "with no arguments" do
       # One real no-arguments run shared by both examples below.
       before(:context) do
-        stdout, stderr, @no_args_status = Open3.capture3("ruby", self.class.script)
+        stdout, stderr, @no_args_status = self.class.run_lint
         @no_args_report = stdout + stderr
       end
 
-      it "generates its own fixture domains and lints them (real bin/project_deploy output)" do
+      it "generates its own fixture domains and lints them (real `hecks deploy project` output)" do
         # A clean run is expected; a violation here is a regression in
-        # bin/project_deploy's generated recipes.
+        # the generated recipes of `hecks deploy project`.
         expect(@no_args_status.success?).to be(true), @no_args_report
         expect(@no_args_report).to include("no violations found")
       end
@@ -232,7 +241,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
         leftover = Dir.children(File.join(self.class.root, "deploy")).grep(/\Alint_deploy_recipes_fixture_/)
 
         expect(leftover).to be_empty,
-                            "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
+                            "the recipe lint must not leave its own generated fixture domains behind " \
                             "under deploy/ after it finishes -- found: #{leftover.inspect}"
       end
     end

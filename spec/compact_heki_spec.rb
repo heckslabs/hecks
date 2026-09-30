@@ -1,12 +1,11 @@
 require "tmpdir"
-require "open3"
 require "fileutils"
+require "hecks/hecks/adapters/journal_store/compaction"
 
-# Runs bin/heki_compact as a subprocess (Open3) against on-disk fixtures: a Heki
-# aggregate with no `projected_by` (safe to compact) and examples/banking (refused,
-# since a projection worker reads the full journal).
-RSpec.describe "bin/heki_compact" do
-  HEKI_COMPACT_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/heki_compact").freeze
+# `hecks compact_heki` (Era.CompactHeki) through the compaction it runs, against on-disk
+# fixtures: a Heki aggregate with no `projected_by` (safe to compact) and examples/banking
+# (refused, since a projection worker reads the full journal).
+RSpec.describe "hecks compact_heki" do
   HEKI_COMPACT_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/heki_compact_fixture/bluebook").freeze
   BANKING_FIXTURE = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook").freeze
 
@@ -23,6 +22,10 @@ RSpec.describe "bin/heki_compact" do
     target
   end
 
+  def compaction(dir, *aggregates)
+    Hecks::Adapters::JournalStore::Compaction.new(dir, aggregates: aggregates, kind: :heki)
+  end
+
   def seed_gadget(bluebook_dir, writes: 5)
     runtime    = Hecks.boot(bluebook_dir, install_facade: false)
     registry   = runtime.registry
@@ -37,24 +40,14 @@ RSpec.describe "bin/heki_compact" do
     end
   end
 
-  it "requires a domain argument at all" do
-    _stdout, _stderr, status = Open3.capture3(HEKI_COMPACT_SCRIPT)
-
-    expect(status).not_to be_success
-  end
-
-  it "exits non-zero with a clear message for a nonexistent domain path" do
+  it "refuses a nonexistent domain path, naming it" do
     missing = File.join(@dir, "no-such-domain")
 
-    stdout, stderr, status = Open3.capture3(HEKI_COMPACT_SCRIPT, missing)
-
-    expect(status).not_to be_success
-    expect(stdout).to eq("")
-    expect(stderr).to include(missing)
+    expect { compaction(missing) }.to raise_error(Hecks::Runtime::NotFound, /#{Regexp.escape(missing)}/)
   end
 
   describe "against an aggregate nothing projects from" do
-    it "dry-runs without touching the journal, then compacts for real under --force" do
+    it "dry-runs without touching the journal, then compacts for real once applied" do
       bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
       seed_gadget(bluebook_dir)
       # Heki resolves paths against the boot root (the bluebook directory's parent),
@@ -62,15 +55,10 @@ RSpec.describe "bin/heki_compact" do
       journal_path = File.join(@dir, "data", "gadget.heki.journal")
       expect(File.size(journal_path)).to be > 0
 
-      dry_stdout, _stderr, dry_status = Open3.capture3(HEKI_COMPACT_SCRIPT, bluebook_dir)
-      expect(dry_status).to be_success
-      expect(dry_stdout).to include("DRY RUN gadget")
-      expect(dry_stdout).to include("Re-run with --force")
+      expect(compaction(bluebook_dir).preview.join("\n")).to include("DRY RUN gadget")
       expect(File.size(journal_path)).to be > 0 # untouched by the dry run
 
-      force_stdout, _stderr, force_status = Open3.capture3(HEKI_COMPACT_SCRIPT, bluebook_dir, "--force")
-      expect(force_status).to be_success
-      expect(force_stdout).to include("COMPACTED gadget")
+      expect(compaction(bluebook_dir).apply!.join("\n")).to include("COMPACTED gadget")
       expect(File.size(journal_path)).to eq(0)
 
       runtime    = Hecks.boot(bluebook_dir, install_facade: false)
@@ -84,25 +72,22 @@ RSpec.describe "bin/heki_compact" do
       bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
       seed_gadget(bluebook_dir, writes: 1)
 
-      Open3.capture3(HEKI_COMPACT_SCRIPT, bluebook_dir, "--force")
-      stdout, _stderr, status = Open3.capture3(HEKI_COMPACT_SCRIPT, bluebook_dir, "--force")
+      compaction(bluebook_dir).apply!
+      lines = compaction(bluebook_dir).apply!
 
-      expect(status).to be_success
-      expect(stdout).to include("SKIP gadget: journal already empty")
+      expect(lines.join("\n")).to include("SKIP gadget: journal already empty")
     end
   end
 
   describe "against a real, live example that projects from Heki (examples/banking)" do
-    it "refuses every projected aggregate outright, even with --force, and exits non-zero" do
+    it "refuses every projected aggregate outright, even when applied" do
       bluebook_dir = copy_fixture(BANKING_FIXTURE, "banking")
 
-      stdout, stderr, status = Open3.capture3(HEKI_COMPACT_SCRIPT, bluebook_dir, "--force")
-
-      expect(status).not_to be_success
-      expect(stdout).to eq("")
-      %w[customer account transfer].each do |storage_name|
-        expect(stderr).to include("REFUSED #{storage_name}")
-        expect(stderr).to include("projected_by binding")
+      expect { compaction(bluebook_dir).apply! }.to raise_error(Hecks::Runtime::WiringError) do |error|
+        %w[customer account transfer].each do |storage_name|
+          expect(error.message).to include("REFUSED #{storage_name}")
+          expect(error.message).to include("projected_by binding")
+        end
       end
 
       # Nothing was compacted; this spec never seeds banking data, so no journal exists.
