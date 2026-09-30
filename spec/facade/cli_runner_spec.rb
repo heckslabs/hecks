@@ -147,13 +147,13 @@ RSpec.describe Hecks::Facade::CliRunner do
       defect    = alone.merge(defect: true)
       blocking  = ->(entries) { Hecks::Runtime::ReactionOutcome.blocking(entries).map { |r| r[:trigger] } }
 
-      expect(blocking.([delivered, declined])).to eq([])
-      expect(blocking.([delivered, declined, alone])).to eq(["D::Run.Accept"])
-      expect(blocking.([defect])).to eq([])
+      expect(blocking.call([delivered, declined])).to eq([])
+      expect(blocking.call([delivered, declined, alone])).to eq(["D::Run.Accept"])
+      expect(blocking.call([defect])).to eq([])
       exists = alone.merge(trigger: "D::Tenant.Register",
                            reason:  "Register creates a Tenant that already exists — slug.value \"a\"")
-      expect(blocking.([exists])).to eq([])
-      expect(blocking.([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
+      expect(blocking.call([exists])).to eq([])
+      expect(blocking.call([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
     end
 
     it "fails --wait on a reaction that crashed, and shows the defect" do

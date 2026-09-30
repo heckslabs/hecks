@@ -10,10 +10,8 @@ module Hecks
     module CliProjector
       module_function
 
-      # Projects the verb and question tables and the usage text.
-      #
-      # Commands and queries are separate namespaces because a chapter may declare both
-      # under one name; questions are asked with `ask`.
+      # Projects the verb and question tables and the usage text. Commands and queries are
+      # separate namespaces (a chapter may declare both under one name); ask a query with `ask`.
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
@@ -27,24 +25,7 @@ module Hecks
         verbs     = {}
         questions = {}
 
-        bluebook.aggregates.each do |aggregate|
-          aggregate.commands.each { |c| claim(verbs, name_for(aggregate, c), command_spec(bluebook, aggregate, nil, c)) }
-          aggregate.queries.each  { |q| claim(questions, name_for(aggregate, q), query_spec(bluebook, aggregate, nil, q)) }
-
-          aggregate.entities.each do |entity|
-            entity.commands.each do |c|
-              claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
-            end
-            entity.queries.each do |q|
-              claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q))
-            end
-          end
-
-          # Port operations dispatch by the same name as a command, so they are verbs too.
-          aggregate.ports.each do |port|
-            port.operations.each { |o| claim(verbs, name_for(aggregate, o), port_spec(bluebook, aggregate, port, o)) }
-          end
-        end
+        bluebook.aggregates.each { |aggregate| claim_aggregate(verbs, questions, bluebook, aggregate) }
 
         # A report belongs to the chapter, not an aggregate, so it is addressed
         # `Chapter.Report` (one dot) where a query is `Chapter::Aggregate.Query`.
@@ -60,6 +41,32 @@ module Hecks
         { verbs: verbs, questions: questions,
           names: { command: aliases(verbs), question: aliases(questions) },
           usage: usage(bluebook, verbs, questions, options) }
+      end
+
+      # Claims the verbs and questions of one aggregate and its entities and ports.
+      #
+      # @param verbs [Hash{String => Hash}] the verb map, mutated in place
+      # @param questions [Hash{String => Hash}] the question map, mutated in place
+      # @param bluebook [Bluebook::Chapter] the booted domain
+      # @param aggregate [Bluebook::Aggregate] the aggregate to claim
+      # @return [void]
+      def claim_aggregate(verbs, questions, bluebook, aggregate)
+        aggregate.commands.each { |c| claim(verbs, name_for(aggregate, c), command_spec(bluebook, aggregate, nil, c)) }
+        aggregate.queries.each  { |q| claim(questions, name_for(aggregate, q), query_spec(bluebook, aggregate, nil, q)) }
+
+        aggregate.entities.each do |entity|
+          entity.commands.each do |c|
+            claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
+          end
+          entity.queries.each do |q|
+            claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q))
+          end
+        end
+
+        # Port operations dispatch by the same name as a command, so they are verbs too.
+        aggregate.ports.each do |port|
+          port.operations.each { |o| claim(verbs, name_for(aggregate, o), port_spec(bluebook, aggregate, port, o)) }
+        end
       end
 
       # Sets `:short` on each spec: the last segment when exactly one verb ends in it,

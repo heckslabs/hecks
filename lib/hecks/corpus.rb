@@ -199,13 +199,8 @@ module Hecks
     # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.
     FUZZ_UNBOOTABLE = {
-      "lib/hecks/hecks" =>
-        "the gem's own chapter, which the boot accepts only from the gem's directory " \
-        "(`Registry::Verification::GEM_CHAPTER_DIR`); `hecks model_check` and the chapter's own " \
-        "specs cover it",
-      "spec/fixtures/qa_discover_external_domains/projects/hecks" =>
-        "a sibling-repo fixture that declares the reserved chapter name `Hecks`, which the boot " \
-        "refuses by design; the discovery tool's spec reads it as a directory"
+      "lib/hecks/hecks"                                           => "the gem's own chapter; model_check covers it",
+      "spec/fixtures/qa_discover_external_domains/projects/hecks" => "declares the reserved chapter name `Hecks`"
     }.freeze
 
     # Every sweepable domain a fuzz can boot: `sweepable_domains` less `FUZZ_UNBOOTABLE`.

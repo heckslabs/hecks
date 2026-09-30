@@ -208,6 +208,25 @@ module Hecks
       form  = LAUNCHER_FORMS[name]
       return [words, nil] unless form && words.any? { |word| word.match?(NAME_VALUE) }
 
+      slots, extra, refusal = bind_named_words(form, words)
+      return [nil, refusal] if refusal
+
+      missing = slots.first.find { |path| !File.exist?(path) } if form[:exists]
+      return [nil, "no such domain #{missing.inspect}"] if missing
+
+      [words.grep_v(NAME_VALUE) + extra + slots.flatten, nil]
+    rescue Runtime::TypeMismatch => e
+      [nil, e.message]
+    end
+
+    # Sorts the `name=value` words of `words` into the form's positional slots and its flags.
+    # @api private
+    #
+    # @param form [Hash] an entry of `LAUNCHER_FORMS`
+    # @param words [Array<String>] the words after the subcommand, generic flags removed
+    # @return [Array(Array<Array<String>>, Array<String>, String)] the slot contents, the extra
+    #   flag words, and a refusal (nil when there is none)
+    def bind_named_words(form, words)
       slots = Array.new(form[:slots].length) { [] }
       extra = []
       words.grep(NAME_VALUE).each do |word|
@@ -216,21 +235,26 @@ module Hecks
         slot = form[:slots].index { |names| names.include?(key) }
         if slot
           slots[slot].concat(form[:many] ? value.split(",") : [value])
-        elsif Array(form[:flags]).include?(key)
-          extra << "--#{key.tr('_', '-')}" if Facade::CliDoor.boolean(value)
-        elsif Array(form[:options]).include?(key)
-          extra.push("--#{key}", value)
-        elsif !Array(form[:ignored]).include?(key)
-          known = form[:slots].flatten + Array(form[:flags]) + Array(form[:options])
-          return [nil, "no argument #{key.inspect} — this verb takes #{known.sort.join(', ')}"]
+        elsif (refusal = bind_flag_or_option(form, key, value, extra))
+          return [nil, nil, refusal]
         end
       end
-      missing = slots.first.find { |path| !File.exist?(path) } if form[:exists]
-      return [nil, "no such domain #{missing.inspect}"] if missing
+      [slots, extra, nil]
+    end
 
-      [words.grep_v(NAME_VALUE) + extra + slots.flatten, nil]
-    rescue Runtime::TypeMismatch => e
-      [nil, e.message]
+    # Appends the flag or option word for one `name=value` into `extra`.
+    # @api private
+    #
+    # @return [String, nil] a refusal when the form takes no such argument
+    def bind_flag_or_option(form, key, value, extra)
+      if Array(form[:flags]).include?(key)
+        extra << "--#{key.tr('_', '-')}" if Facade::CliDoor.boolean(value)
+      elsif Array(form[:options]).include?(key)
+        extra.push("--#{key}", value)
+      elsif !Array(form[:ignored]).include?(key)
+        known = form[:slots].flatten + Array(form[:flags]) + Array(form[:options])
+        "no argument #{key.inspect} — this verb takes #{known.sort.join(', ')}"
+      end
     end
 
     # Takes `--wait` and `--confirm`, each with an optional Boolean word, out of `words`.

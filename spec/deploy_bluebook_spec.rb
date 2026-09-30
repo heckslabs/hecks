@@ -162,8 +162,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   # End-to-end: hecks deploy project must dispatch into this domain, not a parallel check.
   describe "hecks deploy project, driven through a scratch fixture domain", :io do
-    # hecks deploy project always writes to <repo_root>/deploy/<basename>, wherever the source lives,
-    # so the basename is unique and the generated directory is removed after every run.
+    # hecks deploy project always writes to <repo_root>/deploy/<basename>, wherever the source
+    # lives, so the basename is unique and the generated directory is removed after every run.
     FIXTURE_BASENAME = "deploy_bluebook_spec_fixture".freeze
 
     # Shared with the owner_stack test, which must read the Makefile before cleanup removes it.

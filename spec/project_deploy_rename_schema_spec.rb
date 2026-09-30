@@ -4,7 +4,8 @@ require "fileutils"
 require "open3"
 
 # Pins the `^[A-Za-z_][A-Za-z0-9_]*$` allowlist guard on `make rename-schema OLD=.. NEW=..`.
-# Reads a generated fixture Makefile, since the recipe generator writes files rather than returning them.
+# Reads a generated fixture Makefile, since the recipe generator writes files rather than
+# returning them.
 RSpec.describe "hecks deploy project's rename-schema OLD/NEW allowlist, in its own generated Makefile", :io do
   RENAME_SCHEMA_FIXTURE_BASENAME = "project_deploy_rename_schema_spec_fixture".freeze
 
