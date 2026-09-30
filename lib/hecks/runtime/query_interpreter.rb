@@ -34,7 +34,9 @@ module Hecks
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
-        return answered_by_port(aggregate, declared, args) if declared.answered_by
+        if (binding = aggregate.query_binding(declared.name))
+          return answered_from_outside(aggregate, declared, args, binding, taken_at: Time.now.utc.iso8601)
+        end
 
         declared = TenantScope.apply(declared, args)
         # Applied after TenantScope so its tenant clause rides through as an ordinary
@@ -69,8 +71,10 @@ module Hecks
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
-        # No records to interpret: the adapter is the only answer there is.
-        return answered_by_port(aggregate, declared, args) if declared.answered_by
+        # No records to interpret: the adapter is the only answer there is, and the reference
+        # takes it as given, unstamped, so a diff against #call sees only the adapter's rows.
+        binding = aggregate.query_binding(declared.name)
+        return answered_from_outside(aggregate, declared, args, binding, taken_at: nil) if binding
 
         declared = TenantScope.apply(declared, args)
         reference_interpret(@registry.repository(domain, aggregate).all, declared, args,
@@ -79,24 +83,39 @@ module Hecks
 
       private
 
-      # Asks the query's port for the answer, by the query's snake-cased name, handing it plain
-      # data. A Hash answers as one row and any other non-Array answer as `{ answered: answer }`.
-      # The aggregate's records are never read.
-      def answered_by_port(aggregate, declared, args)
+      # Asks the port's adapter the question the hecksagon bound to this query, by the query's
+      # snake-cased name and with its arguments as plain data. The answer must take the declared
+      # shape; each row carries `taken_at`, the moment the adapter looked, since nothing here
+      # replays it. The aggregate's records are never read.
+      #
+      # @return [Array<Hash>] the rows, frozen; a `:text` answer is the one row `{ answered: text }`
+      # @raise [Runtime::WiringError] if no adapter answers the port, the adapter lacks the
+      #   method, or its answer is not the declared shape
+      def answered_from_outside(aggregate, declared, args, binding, taken_at:)
+        port, answer = binding
         asked   = "#{aggregate.hecks_name}.#{declared.name}"
-        adapter = AdapterLookup.call(@registry, declared.answered_by.port, asked: asked)
+        adapter = AdapterLookup.call(@registry, port.name, asked: asked)
         method  = Naming.snake(declared.name)
         unless adapter.respond_to?(method)
-          raise WiringError, "#{adapter.class} implements the #{declared.answered_by.port} port but not " \
+          raise WiringError, "#{adapter.class} implements the #{port.name} port but not " \
                              "##{method}, which answers #{asked}"
         end
 
-        answer = adapter.public_send(method, **Value.materialize(args))
-        Freezer.deep(if answer.is_a?(Array)
-                       answer
-                     else
-                       [answer.is_a?(Hash) ? answer : { answered: answer }]
-                     end)
+        rows = shaped(adapter.public_send(method, **Value.materialize(args)), answer, asked)
+        rows = rows.map { |row| row.merge(taken_at: taken_at) } if taken_at
+        Freezer.deep(rows)
+      end
+
+      def shaped(answer, declared_shape, asked)
+        rows = case declared_shape.shape
+               when :text then [{ answered: answer }] if answer.is_a?(String)
+               when :row  then [answer] if answer.is_a?(Hash)
+               when :rows then answer if answer.is_a?(Array) && answer.all?(Hash)
+               end
+        return rows if rows
+
+        raise WiringError, "#{asked} is bound as #{declared_shape.shape.inspect}, but its adapter answered " \
+                           "#{answer.class}"
       end
 
       def declared_query(aggregate, query_name)

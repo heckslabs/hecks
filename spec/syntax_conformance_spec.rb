@@ -171,6 +171,7 @@ RSpec.describe "the declared syntax" do
       tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
                           "— also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:          "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
+      answers_query_impl: "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
       rename_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       move_impl:          "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       convert_impl:       "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",

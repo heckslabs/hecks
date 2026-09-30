@@ -249,7 +249,9 @@ RSpec.describe "the Hecks command table through the launcher" do
       out, status = run_verb("follow", @shelf)
 
       expect(status).to eq(0)
-      expect(JSON.parse(out).first).to eq("cursor" => 0, "events" => [])
+      row = JSON.parse(out).first
+      expect(row).to include("cursor" => 0, "events" => [])
+      expect(row["taken_at"]).to match(/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/)
       expect(@hecks.registry.event_log.to_a.size).to eq(before)
     end
 

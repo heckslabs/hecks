@@ -52,7 +52,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `tells`/`asks` are `_impl` dispatch targets; both "operation" and "tells"
       # Keyword rows name `tells_impl` in `calls:`, so `operation` is not a
       # directly-defined method here.
-      %i[tells_impl asks_impl verb signal answers]
+      %i[tells_impl asks_impl answers_query_impl verb signal answers]
     ],
     "PortOperationBuilder"        => [
       Hecks::Bluebook::DSL::PortOperationBuilder,

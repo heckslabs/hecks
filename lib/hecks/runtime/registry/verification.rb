@@ -15,6 +15,7 @@ module Hecks
           refuse_cross_package_bluebook_merge!
           refuse_membership_without_identity!
           refuse_unresolved_port_operations!
+          refuse_unanswerable_queries!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -227,6 +228,58 @@ module Hecks
                     "`#{chapter.name}::Aggregate.port \"Port\" do operation \"Operation\" ... end`."
             end
           end
+        end
+
+        # A query is answered from the aggregate's stored records or from outside the domain, and
+        # the bluebook only ever says which records. One that takes arguments but filters, orders
+        # and bounds nothing reads none of them, so only an outside answer could use them: unless
+        # the hecksagon binds it to a port it is refused. (A query with no arguments and no clause
+        # is the plain list of every record, and stays one.) A binding on a query that also
+        # filters records says two things, and one must name a query its aggregate declares, once.
+        def refuse_unanswerable_queries!
+          @bluebooks.each_value do |chapter|
+            chapter.aggregates.each do |aggregate|
+              bound = refuse_misbound_queries!(chapter, aggregate)
+
+              aggregate.queries.each do |query|
+                next if bound.include?(query.hecks_name) || filters_records?(query) || query.attributes.empty?
+
+                raise WiringError,
+                      "#{chapter.name}::#{aggregate.hecks_name}.#{query.hecks_name} declares no where " \
+                      "and no hecksagon binds it — its arguments (#{query.attributes.map(&:name).join(', ')}) " \
+                      "select nothing, so no one can answer it. Add a where, or bind it in the " \
+                      "hecksagon: `#{chapter.name}::#{aggregate.hecks_name}.port \"Port\" do " \
+                      "answers_query \"#{query.hecks_name}\", shape: :text end`."
+              end
+            end
+          end
+        end
+
+        # The bound names of `aggregate`'s queries, refusing a binding that names no query, names
+        # one twice, or names one that also filters stored records.
+        def refuse_misbound_queries!(chapter, aggregate)
+          bound = []
+          aggregate.ports.each do |port|
+            port.answered_queries.each do |answer|
+              query = aggregate.query(answer.name)
+              where = "#{chapter.name}::#{aggregate.hecks_name}.#{answer.name}"
+              raise WiringError, "the #{port.name} port binds #{where}, which the aggregate does not declare" unless query
+              raise WiringError, "#{where} is bound by more than one port" if bound.include?(answer.name)
+              if filters_records?(query)
+                raise WiringError, "#{where} is bound to the #{port.name} port but also declares where, " \
+                                   "order_by or limit over stored records — a query is answered from " \
+                                   "records or from outside, not both"
+              end
+
+              bound << answer.name
+            end
+          end
+          bound
+        end
+
+        # A query that says anything about which stored records it wants.
+        def filters_records?(query)
+          !(query.wheres.empty? && query.order_by.nil? && query.limit.nil? && query.offset.nil?)
         end
 
         def port_operation_declared?(chapter, verb)

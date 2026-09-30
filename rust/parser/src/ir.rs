@@ -150,8 +150,6 @@ pub struct QueryOptions {
     // `None` both when never declared and when `:native`; Ruby drops the default mode key.
     pub null_semantics: Option<String>,
     pub inspection: Option<String>,
-    // The port whose bound adapter answers the query; Ruby-only, no Rust runtime serves it.
-    pub answered_by: Option<String>,
 }
 
 /// ADR 0055's `on:` — which many-side `include`d aggregate (by TYPE, demodulised, not by its
