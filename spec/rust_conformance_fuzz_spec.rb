@@ -124,7 +124,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           end
         end
 
-        # A divergence is a finding: shrink it with `bin/fuzz shrink <domain> <seed>` first.
+        # A divergence is a finding: shrink it with `hecks fuzz shrink <domain> <seed>` first.
         # Printed so the seed and field are not buried in a large diff.
         message = divergences.map do |d|
           "seed #{d[:seed]} — #{d[:field]}" +

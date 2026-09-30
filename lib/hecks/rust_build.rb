@@ -13,7 +13,7 @@ module Hecks
   # `ENV` for its settings, and answers an exit status. `run` and `capture` are the entry points:
   # they hand a tool the streams and environment it is asked to use for the length of one call,
   # and turn a refusal (`Failure`, `abort`, an unexpected error) into a status and a message. The
-  # `bin/` scripts of the same names are shims over `run`.
+  # `hecks project_rust` family of verbs runs them through `run`.
   module RustBuild
     # The gem's root directory, where `lib/` and `rust/` live.
     ROOT = File.expand_path("../..", __dir__)

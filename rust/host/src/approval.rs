@@ -198,13 +198,13 @@ pub async fn check<C: GenericClient>(client: &C, domain: &str, edge: &Value, ord
         ),
         _ => anyhow::bail!(
             "cannot mint era {ordinal} of {domain}: this edge carries a compute or rekey rule, and the audit's \
-             human-approved sample is its only verification — run bin/translation_audit with --approve, then boot again"
+             human-approved sample is its only verification — run hecks audit_translation with --approve, then boot again"
         ),
     };
 
     anyhow::bail!(
         "cannot mint era {ordinal} of {domain}: the journal advanced past the approved review (ordinal {} \
-         reviewed, {tip} now) — the samples a human approved no longer cover the data; re-run bin/translation_audit with --approve",
+         reviewed, {tip} now) — the samples a human approved no longer cover the data; re-run hecks audit_translation with --approve",
         approval.reviewed_ordinal
     )
 }
@@ -402,7 +402,7 @@ mod tests {
 
         let refused = check(&client, domain, &edge, 2, &[]).await;
         assert!(refused.is_err(), "an unapproved compute/rekey edge must refuse to mint");
-        assert!(format!("{:#}", refused.unwrap_err()).contains("bin/translation_audit"), "the refusal should name the tool that fixes it");
+        assert!(format!("{:#}", refused.unwrap_err()).contains("hecks audit_translation"), "the refusal should name the tool that fixes it");
 
         let digest = edge_digest(&edge);
         client

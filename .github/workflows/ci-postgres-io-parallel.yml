@@ -22,7 +22,7 @@ jobs:
   # provisioning too, not just the rspec step. Runs on every trigger, push included; with
   # every leg skipped the workflow still concludes `success` for the ci.yml aggregator.
   #
-  # The skip list is exclude-shaped: specs `require "hecks"`, shell out to bin/, build the
+  # The skip list is exclude-shaped: specs `require "hecks"`, shell out to `exe/hecks`, build the
   # shared rust/ crate and read examples/ and qa/, so those, Gemfile*, hecks.gemspec and
   # .rspec stay in scope. Skippable: docs, editors, release, deploy, .claude, .githooks,
   # local-dev files and rubocop config. `.github/**` is not skippable: a workflow change

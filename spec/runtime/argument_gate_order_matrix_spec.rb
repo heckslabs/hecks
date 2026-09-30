@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "json"
 
-# Argument-gate ordering: each row of the generated matrix (bin/argument_gate_matrix) violates
+# Argument-gate ordering: each row of the generated matrix (hecks argument_gate_matrix) violates
 # two adjacent gates, and the earlier declared gate's refusal must win.
 #
 # Rows and expected refusals are recorded from Ruby, the oracle (ADR 0010); the Rust port

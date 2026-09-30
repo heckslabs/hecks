@@ -3,7 +3,7 @@ require "open3"
 require "tmpdir"
 require_relative "../../rust/project/naming"
 
-# String-level tests for bin/project_rust's domain-name handling and string-literal escaping;
+# String-level tests for hecks project_rust's domain-name handling and string-literal escaping;
 # domain_feature_exclusivity_spec.rb covers the real build. Reserved-word collisions are pinned
 # by spec/model_check_spec.rb ("Rust reserved names").
 RSpec.describe RustProjection::Projector do

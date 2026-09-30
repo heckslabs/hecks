@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# ADR 0080, section 7: the whole command table in one place. Every script `bin/` holds is a row;
-# each row names the chapter, the aggregate and the command (or query) that replaces it, and the
-# launcher verb that answers it. A row passes when the command is declared in its chapter and
-# `hecks <verb> --help` answers through the launcher. A row whose command does not exist yet is a
-# `gap:` row: it is pending, so the report names it, and the moment the command lands the example
-# fails until the `gap:` is removed. Nothing here replaces the per-section specs
-# (hecks_custodian_table_spec.rb, hecks_codebase_adr_rows_spec.rb, hecks_deploy_table_spec.rb),
-# which check their rows in more depth.
+# ADR 0080, section 7: the whole command table in one place. Every script the retired `bin/`
+# held is a row; each row names the chapter, the aggregate and the command (or query) that
+# replaces it, and the launcher verb that answers it. A row passes when the command is declared
+# in its chapter and `hecks <verb> --help` answers through the launcher. A row whose command
+# does not exist yet is a `gap:` row: it is pending, so the report names it, and the moment the
+# command lands the example fails until the `gap:` is removed. Nothing here replaces the
+# per-section specs (hecks_custodian_table_spec.rb, hecks_codebase_adr_rows_spec.rb,
+# hecks_deploy_table_spec.rb), which check their rows in more depth.
 RSpec.describe "the ADR 0080 command table, every row" do
   # One command of the table. `verb` is the command's snake name; `launch` is the spelling the
   # launcher answers to when it differs; `gap` says why the command is not declared yet.
@@ -166,15 +166,13 @@ RSpec.describe "the ADR 0080 command table, every row" do
     end
   end
 
-  it "accounts for every script bin/ holds, and names no script bin/ lacks" do
-    bin = File.join(InMemoryDomain::ROOT, "bin")
-    skip "bin/ is gone" unless Dir.exist?(bin)
-
+  it "accounts for every retired script forms.yml holds, and names no script it lacks" do
+    require "hecks/three_zero"
     listed = ALL_ROWS.map(&:script).uniq - ["(new)"]
-    held = Dir.children(bin).reject { |entry| File.directory?(File.join(bin, entry)) }
+    held = Hecks::ThreeZero::FORMS.keys
 
     expect(held - listed).to eq([]), "scripts with no row: #{(held - listed).join(', ')}"
-    expect(listed - held).to eq([]), "rows for scripts bin/ lacks: #{(listed - held).join(', ')}"
+    expect(listed - held).to eq([]), "rows for scripts forms.yml lacks: #{(listed - held).join(', ')}"
   end
 
   it "lists each command once" do

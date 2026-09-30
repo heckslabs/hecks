@@ -87,7 +87,7 @@ module Hecks
         end
       end
 
-      # Read lazily: bin/project_vocabulary boots this file before it writes these rows.
+      # Read lazily: hecks project_vocabulary boots this file before it writes these rows.
       def argument_rows(refusal, site)
         @argument_rows ||= Hecks::Vocabulary.rows("RefusalSiteArgument")
                                             .group_by { |row| [row["refusal"], row["site"]] }

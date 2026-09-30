@@ -2,8 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/grammar/evolve"
 
-# The file surgery under bin/evolve, run against throwaway copies of the syntax tables.
-# The tool's gates are proven by driving bin/evolve itself, not here.
+# The file surgery under hecks propose, run against throwaway copies of the syntax tables.
+# The tool's gates are proven by driving hecks propose itself, not here.
 RSpec.describe "the evolve surgery" do
   EVOLVE = Hecks::Grammar::Evolve
 

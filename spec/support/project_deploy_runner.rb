@@ -4,7 +4,7 @@ require "stringio"
 require "hecks/tools"
 
 # Runs the deploy recipe generator (`hecks deploy project`) in this process, the way the
-# `hecks` launcher would, so a spec needs neither a `bin/` script nor a subprocess.
+# `hecks` launcher would, so a spec needs no launcher script and no subprocess.
 module ProjectDeployRunner
   # What the run finished with; answers like a `Process::Status` for the specs that check it.
   Result = Struct.new(:exit_code) do

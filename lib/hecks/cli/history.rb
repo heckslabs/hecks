@@ -5,7 +5,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/history` and `hecks history`: every journal entry a domain's
+    # The command behind `hecks history` and `hecks history`: every journal entry a domain's
     # append-only adapters hold, as JSON, the full write history rather than the current head.
     module History
       module_function
@@ -16,7 +16,7 @@ module Hecks
       # @param program [String] the name the usage message calls this command by
       # @return [void]
       # @raise [SystemExit] when `argv` is empty
-      def call(argv, program: "bin/history")
+      def call(argv, program: "hecks history")
         domain = argv.first or abort "usage: #{program} <domain>"
         puts JSON.generate(document(Hecks.boot(domain).registry))
       end

@@ -1,4 +1,4 @@
-//! The coverage manifest `manifest.json` that `bin/rust_coverage` reads, built as
+//! The coverage manifest `manifest.json` that `hecks rust_coverage` reads, built as
 //! `domain_generator.rb` builds it; the parity spec holds the bytes identical.
 
 use crate::json::Json;

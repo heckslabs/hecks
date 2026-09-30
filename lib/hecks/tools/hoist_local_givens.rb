@@ -15,7 +15,7 @@ module Hecks
     # The `given` is inserted right after the owner's opening line: `command` calls are deferred
     # to `drain_pending!`, so the position of `given` inside the owner does not matter (ADR 0028).
     #
-    #   bin/codemod_hoist_local_givens [--dry-run]
+    #   hecks hoist_local_givens [--dry-run]
     module HoistLocalGivens
       # One rule several commands of an owner repeat.
       Candidate = Struct.new(:description, :canonical, :owner, :locations, keyword_init: true)

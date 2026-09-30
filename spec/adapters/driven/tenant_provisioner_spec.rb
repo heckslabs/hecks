@@ -3,7 +3,7 @@ require "tmpdir"
 require_relative "../../../lib/hecks/adapters/driven/tenant_provisioner"
 
 # The TenantProvisioning port's adapter writes the overlay world a tenant boots under. It is asked
-# through `Tenant.Provision` and `bin/project_tenant`, with the record's other fields alongside.
+# through `Tenant.Provision` and `hecks deploy provision`, with the record's other fields alongside.
 RSpec.describe Hecks::Adapters::TenantProvisioner do
   let(:adapter) { described_class.new }
   let(:tenant) do

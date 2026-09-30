@@ -1,9 +1,8 @@
 module Hecks
   # The `hecks` command an installed gem puts on the path: one router over the
-  # domain-operator tools, each also runnable from a checkout as `bin/<name>`.
+  # domain-operator tools, each also runnable from a checkout as `exe/hecks <name>`.
   #
-  # Every subcommand's logic lives under `cli/`, with `bin/<name>` a thin wrapper
-  # over the same entry point, so the two can't drift apart.
+  # Every subcommand's logic lives under `cli/`, and `exe/hecks` routes to it.
   #
   # See `docs/decisions/0066-the-gem-ships-a-hecks-executable-and-dev-tooling-stays-in-the-repo.md`.
   module CLI
@@ -285,8 +284,6 @@ module Hecks
     # @raise [SystemExit] when the subcommand exits the process itself
     def dispatch(name, argv)
       command = COMMANDS.fetch(name)
-      require_relative "three_zero"
-      ThreeZero.route_notice(name)
       require_relative command.file
       command.run.call(argv, "hecks #{name}", name)
     end

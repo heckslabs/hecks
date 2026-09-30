@@ -84,7 +84,7 @@ impl TmplStore2 {
 
     /// Every aggregate this domain declared, dumped as
     /// "Domain::Aggregate#id" -> its own to_json() — the exact key
-    /// shape bin/rust_conformance's own comparable["instances"]
+    /// shape hecks check_conformance's own comparable["instances"]
     /// builds from Ruby (Fuzzing::Replay.call's own instance key
     /// format, read directly).
     pub fn instances(&self) -> Vec<(String, crate::kernel::Json)> {

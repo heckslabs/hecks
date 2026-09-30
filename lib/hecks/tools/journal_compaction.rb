@@ -10,8 +10,8 @@ module Hecks
     # needs them. A `:strict` projection catch-up refuses loudly on its own if it is ever behind
     # what this deletes (see `Ports::Projection::Worker#catch_up!`).
     #
-    #   bin/compact <domain> [aggregate_name ...]           # dry run
-    #   bin/compact <domain> [aggregate_name ...] --force   # apply
+    #   hecks compact <domain> [aggregate_name ...]           # dry run
+    #   hecks compact <domain> [aggregate_name ...] --force   # apply
     module JournalCompaction
       module_function
 
@@ -25,8 +25,8 @@ module Hecks
         force = argv.delete("--force")
         domain = argv.shift
         if domain.nil? || !Dir.exist?(domain)
-          warn "bin/compact: no such domain #{domain.inspect}"
-          warn "usage: bin/compact <domain> [aggregate_name ...] [--force]"
+          warn "hecks compact: no such domain #{domain.inspect}"
+          warn "usage: hecks compact <domain> [aggregate_name ...] [--force]"
           return 1
         end
         wanted = argv.dup
@@ -34,7 +34,7 @@ module Hecks
         registry = Hecks.boot(domain).registry
         candidates = candidates(registry, wanted)
         if candidates.empty?
-          puts "bin/compact: no Postgres/Sqlite-backed aggregate matched " \
+          puts "hecks compact: no Postgres/Sqlite-backed aggregate matched " \
                "#{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
           return 0
         end

@@ -312,7 +312,7 @@ The first publish, before that can be configured, and any emergency when CI is
 down, is `hecks publish --npm-local`. It publishes from this machine with a
 token held in 1Password: the "publish token" field on the "npmjs.com" item in
 the Hecks vault (`release/npm_publish.env` names the vault, item and field;
-the setup is in the header of `bin/release`). That token must be a granular
+the setup is in the header of `hecks publish`). That token must be a granular
 token scoped Read and write to the `@hecks` scope with "Bypass two-factor
 authentication" enabled, and short-lived: the account's second factor is a
 passkey, so a token that requires a one-time code cannot publish (npm answers

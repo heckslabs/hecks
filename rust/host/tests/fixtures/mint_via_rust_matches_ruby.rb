@@ -113,7 +113,7 @@ from_label = label_of(V1)
 to_label = label_of(V2)
 edge_src = edge_source(from: from_label, to: to_label)
 
-# Real Exporter output, the same calls bin/project_rust makes.
+# Real Exporter output, the same calls hecks project_rust makes.
 def export_ir(source, translation_source:)
   registry = load_registry(source, translation_source: translation_source)
   domain_name = registry.bluebooks.keys.first

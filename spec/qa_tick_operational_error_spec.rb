@@ -15,8 +15,8 @@ RSpec.describe "hecks quality_control tick", :io do
     stdout, _stderr, status = tick
 
     expect(status.exitstatus).to eq(1)
-    expect(stdout).to include("bin/qa_pr_check:   clean (exit 0)",
-                              "bin/qa_sweep --all: operational error (exit 1)",
+    expect(stdout).to include("hecks quality_control check_pull_requests:   clean (exit 0)",
+                              "hecks quality_control ask run --all: operational error (exit 1)",
                               "tick: operational error (exit 1)")
   end
 end

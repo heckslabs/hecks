@@ -5,7 +5,7 @@ require_relative "../projections/deploy/template_diff"
 
 module Hecks
   module CLI
-    # The command behind `bin/deploy_template_diff` and `hecks deploy diff`: compares two
+    # The command behind `hecks deploy diff` and `hecks deploy diff`: compares two
     # CloudFormation templates offline and reports differences by logical id; `--strict` also
     # counts cosmetic differences (comments, key order).
     module DeployTemplateDiff
@@ -17,7 +17,7 @@ module Hecks
       # @param program [String] the name the usage message calls this command by
       # @return [Integer] 0 when the templates match, 1 when they differ, 2 for bad input
       # @raise [SystemExit] when there are not exactly two templates
-      def call(argv, program: "bin/deploy_template_diff")
+      def call(argv, program: "hecks deploy diff")
         options = { json: false, strict: false }
         parser = OptionParser.new do |opts|
           opts.banner = "usage: #{program} <before.yaml> <after.yaml> [--json] [--strict]"

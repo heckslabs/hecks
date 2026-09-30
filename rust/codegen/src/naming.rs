@@ -62,7 +62,7 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
 }
 
 /// Generated from the `RustReservedWord`/`CargoReservedName` vocabularies by
-/// `bin/project_reserved_names` — the same tables `naming.rb` reads.
+/// `hecks project_reserved_names` — the same tables `naming.rb` reads.
 pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
 
 /// `/\A[a-z_][a-z0-9_]*\z/` — a plain lowercase Rust identifier.

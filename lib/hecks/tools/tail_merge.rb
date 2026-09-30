@@ -10,9 +10,9 @@ module Hecks
     #
     # A record touched by both worlds since the cut refuses until it has an explicit winner:
     #
-    #   bin/merge_tail <domain> [--winner <id>=old] [--winner <id>=new] ...
+    #   hecks merge_tail <domain> [--winner <id>=old] [--winner <id>=new] ...
     module TailMerge
-      USAGE = "usage: bin/merge_tail <domain> [--winner <id>=old|new] ..."
+      USAGE = "usage: hecks merge_tail <domain> [--winner <id>=old|new] ..."
 
       module_function
 

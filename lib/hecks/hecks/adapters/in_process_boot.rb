@@ -15,7 +15,7 @@ module Hecks
     # The `DomainRuntime` port's adapter: boots a target domain in this process and answers what
     # Custodian's Introspection queries ask about it.
     #
-    # Each method returns the text the matching `bin/` script prints, so the launcher shows the
+    # Each method returns the text the matching tool prints, so the launcher shows the
     # same bytes; a projection that would have written files answers a map of file name to text
     # instead. Arguments arrive materialized, so a value object is `{ value: "x" }`. A domain or
     # chapter that cannot be found raises `Runtime::NotFound`, which the launcher words as a

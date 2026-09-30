@@ -3,7 +3,7 @@
 # KeywordSeed under lib/hecks/language/).
 #
 # Do not edit. spec/bootstrap_table_spec.rb re-projects this in memory
-# and refuses a diff — run bin/project_bootstrap_table instead.
+# and refuses a diff — run hecks project_bootstrap_table instead.
 #
 # Plain data, no requires: this is read while the grammar table it was
 # projected from is still being built (`MetaValidator.bootstrapping?`).

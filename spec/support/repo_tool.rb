@@ -6,7 +6,7 @@ require "hecks/rust_build"
 require "hecks/quality_control/cli/child"
 
 # The repository's own tools as a child process, for a spec that needs a real process (a
-# separate boot, its own exit status) without a `bin/` script to start.
+# separate boot, its own exit status) without a launcher script to start.
 #
 # @example
 #   Open3.capture3(*RepoTool.argv("project_deploy"), domain_dir, "--out=#{out}")
@@ -21,7 +21,7 @@ module RepoTool
 
   # The command that starts a tool, before its own arguments.
   #
-  # @param name [String] the tool, by the name its `bin/` script had: a `Hecks::Tools` tool, a
+  # @param name [String] the tool, by the name of the script it replaced: a `Hecks::Tools` tool, a
   #   `Hecks::RustBuild` tool or a `Hecks::QualityControlCli::Child` command
   # @param root [String] the checkout a QA command runs against
   # @return [Array<String>] the program and its leading arguments

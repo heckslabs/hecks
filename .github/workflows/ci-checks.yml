@@ -166,12 +166,12 @@ jobs:
 
       # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
       # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
-      # (long_block, now 12 lines) also runs over bin/, spec/, and examples/ — the same scope
+      # (long_block, now 12 lines) also runs over spec/ and examples/ — the same scope
       # .githooks/pre-push checks locally before a push.
       - name: comment style
         run: |
           bundle exec exe/hecks check_comments paths=lib/hecks --wait
-          bundle exec exe/hecks check_comments paths=lib,bin,spec,examples only=long_block --wait
+          bundle exec exe/hecks check_comments paths=lib,spec,examples only=long_block --wait
 
       # Also here, not only in .githooks/pre-push: the hook is opt-in per
       # clone and bypassable with `git push --no-verify`, so a branch that

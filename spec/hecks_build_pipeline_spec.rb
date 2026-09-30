@@ -48,7 +48,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   def run_project_rust_opt_in!(domain)
     env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
     _out, err, status = Open3.capture3(env, *RepoTool.argv("project_rust"), domain, chdir: HB_ROOT)
-    raise "bin/project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
+    raise "hecks project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
   end
 
   def run_hecks_build!(domain)
@@ -101,8 +101,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     end
   end
 
-  describe "bin/project_wasm, opted into the all-Rust pipeline" do
-    # Opted in, bin/project_wasm must delegate to `hecks-build --wasm` and yield the same .wasm.
+  describe "hecks build_wasm, opted into the all-Rust pipeline" do
+    # Opted in, hecks build_wasm must delegate to `hecks-build --wasm` and yield the same .wasm.
     def run_hecks_build_wasm!(domain)
       _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--wasm",
                                          chdir: HB_ROOT)
@@ -118,7 +118,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
 
       env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
       _out, err, status = Open3.capture3(env, *RepoTool.argv("project_wasm"), domain, chdir: HB_ROOT)
-      raise "bin/project_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
+      raise "hecks build_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
 
       expect(File.binread(dist_wasm)).to eq(direct_wasm)
     end

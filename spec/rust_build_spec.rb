@@ -97,7 +97,7 @@ RSpec.describe Hecks::RustBuild do
       names.flat_map { |name| Dir.glob(File.join(root, "lib/hecks", name)) }
     end
 
-    it "read nothing from spec/ and start no bin/ script, so an installed gem carries them whole" do
+    it "read nothing from spec/ and start no child Ruby, so an installed gem carries them whole" do
       code = files.to_h { |file| [file, File.readlines(file).reject { |line| line.strip.start_with?("#") }.join] }
 
       offenders = code.select { |_, text| text.match?(%r{spec/support|"bin"|RbConfig\.ruby}) }

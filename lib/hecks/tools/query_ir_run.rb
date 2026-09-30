@@ -5,18 +5,18 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Structured queries against the language's own IR: construct diffs, duplicate rules, impact.
-    # A thin front end over `Hecks::QueryIR`, which `bin/hecks_query_ir_mcp` shares; needs no
+    # A thin front end over `Hecks::QueryIR`, which `hecks serve_query_ir_mcp` shares; needs no
     # Postgres.
     #
-    #   bin/query_ir constructs [Name ...]
-    #   bin/query_ir duplicates [--meta] [domain_dir ...]
-    #   bin/query_ir impact Name field     (advisory, not a gate)
+    #   hecks query_ir constructs [Name ...]
+    #   hecks query_ir duplicates [--meta] [domain_dir ...]
+    #   hecks query_ir impact Name field     (advisory, not a gate)
     module QueryIrRun
       USAGE = <<~USAGE
         Usage:
-          bin/query_ir constructs [Name ...]
-          bin/query_ir duplicates [--meta] [domain_dir ...]
-          bin/query_ir impact Name field
+          hecks query_ir constructs [Name ...]
+          hecks query_ir duplicates [--meta] [domain_dir ...]
+          hecks query_ir impact Name field
       USAGE
 
       module_function
@@ -66,7 +66,7 @@ module Hecks
       def impact(args)
         name, field = args
         unless name && field
-          warn "usage: bin/query_ir impact Name field"
+          warn "usage: hecks query_ir impact Name field"
           return 1
         end
 

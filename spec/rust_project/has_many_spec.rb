@@ -26,7 +26,7 @@ RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :i
       "args" => { "id" => { "value" => "c1" }, "members" => [{ "value" => "alice" }, { "value" => "bob" }] } }
   ].freeze
 
-  it "bin/project_rust's own generated circle.rs no longer collapses the has_many list with the scalar .value fallback" do
+  it "hecks project_rust's own generated circle.rs no longer collapses the has_many list with the scalar .value fallback" do
     # Pinned against the generated source: the scalar `.value` unwrap must not be applied to a
     # whole `Vec`, and this fails before any cargo build does.
     source = File.read(GENERATED_CIRCLE)

@@ -10,9 +10,9 @@ module Hecks
     # Refuses without `--accept`; each attestation (old digest, new digest, when) is logged. The
     # digest is tamper-evidence against drift, not against an adversary.
     #
-    #   bin/reattest_era <domain> <era ordinal> [--accept]
+    #   hecks reattest <domain> <era ordinal> [--accept]
     module EraReattest
-      USAGE = "usage: bin/reattest_era <domain> <era ordinal> [--accept]"
+      USAGE = "usage: hecks reattest <domain> <era ordinal> [--accept]"
 
       module_function
 

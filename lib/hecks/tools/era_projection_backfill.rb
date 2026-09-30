@@ -8,7 +8,7 @@ module Hecks
     # Backfills `hecks_eras.held_projection` for rows that predate it, by calling the same path
     # `EraStore#eras` already takes on boot, explicitly. Idempotent.
     #
-    #   bin/backfill_era_projections <domain path>
+    #   hecks backfill_projections <domain path>
     module EraProjectionBackfill
       module_function
 
@@ -20,7 +20,7 @@ module Hecks
       # @raise [SystemExit] when the domain cannot be loaded or its adapter holds no eras
       def main(argv, **)
         domain_path = argv.first
-        abort "usage: bin/backfill_era_projections <domain path>" unless domain_path
+        abort "usage: hecks backfill_projections <domain path>" unless domain_path
 
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)
@@ -80,7 +80,7 @@ module Hecks
         rescue Hecks::Runtime::WiringError => e
           puts "#{bluebook.name}: stopped at a row that isn't merely legacy — it fails its own integrity check:"
           puts "  #{e.message}"
-          puts "  resolve that first (see bin/reattest_era), then run this again for the remaining rows."
+          puts "  resolve that first (see hecks reattest), then run this again for the remaining rows."
           return 1
         end
 

@@ -9,13 +9,14 @@ module Hecks
     module RefreshProjections
       module_function
 
-      # Boots the domain `argv` names and refreshes its projections, as `bin/project` does.
+      # Boots the domain `argv` names and refreshes its projections, as `hecks refresh_projections`
+      # does.
       #
       # @param argv [Array<String>] the domain directory, first
       # @param program [String] the name the usage message calls this command by
       # @return [Integer] 0
       # @raise [SystemExit] when `argv` is empty
-      def run(argv, program: "bin/project")
+      def run(argv, program: "hecks refresh_projections")
         domain = argv.first or abort "usage: #{program} <domain>"
         call(Hecks.boot(domain))
         0

@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe Hecks::Doors::CliRunner do
   let(:runtime) { boot_in_memory }
 
-  def run(*argv) = described_class.call(runtime: runtime, argv: argv, program: "bin/run")
+  def run(*argv) = described_class.call(runtime: runtime, argv: argv, program: "hecks run")
   def text(*argv) = run(*argv).first
   def status(*argv) = run(*argv).last
 
@@ -54,7 +54,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       output, code = run("governance")
 
       expect(code).to eq(0)
-      expect(output).to start_with("Governance").and include("bin/run governance <verb>")
+      expect(output).to start_with("Governance").and include("hecks run governance <verb>")
     end
 
     it "keeps to the domain's own chapter otherwise" do
@@ -114,7 +114,7 @@ RSpec.describe Hecks::Doors::CliRunner do
         runtime: banking,
         argv:    ["safe_deposit_box.visit.annotate", "to.aggregate=DOWNTOWN:12",
                   "to.entity=2026-01-05:1", "note.text=Flagged"],
-        program: "bin/run"
+        program: "hecks run"
       )
 
       expect(code).to eq(0), output
@@ -227,7 +227,7 @@ RSpec.describe Hecks::Doors::CliRunner do
 
       expect(code).to eq(1)
       expect(output).to include(%(no argument "nmae"))
-      expect(output).to include("bin/run order.create_pizza --help")
+      expect(output).to include("hecks run order.create_pizza --help")
     end
 
     it "refuses a value the declared type cannot hold" do

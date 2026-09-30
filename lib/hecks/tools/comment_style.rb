@@ -946,7 +946,7 @@ module Hecks
           $CHILD_STATUS.success? ? out : nil
         end
 
-        # `.rb` files, plus extensionless scripts (`bin/*`) with a Ruby shebang.
+        # `.rb` files, plus extensionless scripts with a Ruby shebang.
         def ruby_files(dir)
           scripts = Dir[File.join(dir, "**", "*")].select do |path|
             File.file?(path) && File.extname(path).empty? && File.open(path, &:gets).to_s.match?(/\A#!.*ruby/)

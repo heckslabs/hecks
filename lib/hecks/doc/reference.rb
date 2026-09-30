@@ -225,7 +225,6 @@ module Hecks
         {
           "guides"    => guide_index(root),
           "reference" => reference_index(root),
-          "tools"     => tool_table(root),
           "corpus"    => corpus_roster(root),
           "diagrams"  => diagram_showcase(root)
         }
@@ -249,36 +248,6 @@ module Hecks
         "[The DSL reference](docs/implemented/reference/index.md) — #{count} contexts, generated from " \
           "the aggregate-local tables under `lib/hecks/language/` and held to them by " \
           "`spec/reference_golden_spec.rb`."
-      end
-
-      # Lists every `bin/` script that opens with a comment, one row each.
-      def tool_table(root)
-        scripts = Dir.glob(File.join(root, "bin/*")).select { |p| File.file?(p) }.sort
-        rows = scripts.filter_map { |path| [path, tool_summary(path)] }.select { |_, desc| desc }
-        lines = ["| tool | |", "|---|---|"]
-        rows.each { |path, desc| lines << "| `bin/#{File.basename(path)}` | #{desc} |" }
-        lines.join("\n")
-      end
-
-      # The opening comment paragraph, truncated to 140 chars rather than
-      # split on sentence punctuation a code-bearing comment often contains.
-      def tool_summary(path)
-        comment_lines = []
-        started = false
-        File.foreach(path).first(10).each do |line|
-          if line.start_with?("#") && !line.start_with?("#!")
-            next if !started && line.strip == "#"
-
-            started = true
-            comment_lines << line.sub(/\A#\s?/, "").rstrip
-          elsif started
-            break
-          end
-        end
-        return nil if comment_lines.empty?
-
-        text = comment_lines.join(" ").squeeze(" ")
-        text.length > 140 ? "#{text[0, 137]}..." : text
       end
 
       # Quotes the real, committed diagram file rather than re-deriving one,

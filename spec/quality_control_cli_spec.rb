@@ -11,8 +11,8 @@ require "hecks/quality_control/cli/qa_postgres_migrate"
 require "hecks/quality_control/cli/qa_postgres_role"
 require "hecks/quality_control/cli/qa_concurrency_racer"
 
-# The bodies of the `bin/qa_*` scripts live in `Hecks::QualityControlCli`; each takes its argv and
-# the repository root and returns the exit status the script ends with. What needs the ledger's
+# The bodies of the former `qa_*` scripts live in `Hecks::QualityControlCli`; each takes its argv
+# and the repository root and returns the exit status the script ends with. What needs the ledger's
 # Postgres is proven by the `:io` specs that run the scripts; these cover what does not.
 RSpec.describe Hecks::QualityControlCli do
   let(:root) { InMemoryDomain::ROOT }

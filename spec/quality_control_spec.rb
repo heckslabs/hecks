@@ -306,9 +306,9 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # `bin/qa_sweep` does the streak arithmetic; these examples do it by hand. `Target::Release`
-  # trusts the `next_streak` it is given, so what is under test is that the field lands and
-  # `Check::Surprised`'s sticky bit survives a `Remake`.
+  # `hecks quality_control ask run` does the streak arithmetic; these examples do it by hand.
+  # `Target::Release` trusts the `next_streak` it is given, so what is under test is that the
+  # field lands and `Check::Surprised`'s sticky bit survives a `Remake`.
   describe "the clean streak" do
     it "starts at zero for a freshly identified target" do
       target = a_target
@@ -749,8 +749,8 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # The worklist `bin/qa_pr_check` reads instead of searching: a patch is recorded at
-  # `gh pr create`, when its number, branch and commit are already known.
+  # The worklist `hecks quality_control check_pull_requests` reads instead of searching: a patch
+  # is recorded at `gh pr create`, when its number, branch and commit are already known.
   describe "tracking a pull request" do
     def a_bug_needing_a_patch
       bug = a_bug(a_sweep)
@@ -1253,14 +1253,15 @@ RSpec.describe "QualityControl" do
 
       expect { target.restore! }.to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
 
-      restored = target.restore!(reason: { value: "bin/project_rust now covers it" })
+      restored = target.restore!(reason: { value: "hecks project_rust now covers it" })
       expect(restored.status).to eq("waiting")
-      expect(restored.reason.to_h[:value]).to eq("bin/project_rust now covers it")
+      expect(restored.reason.to_h[:value]).to eq("hecks project_rust now covers it")
     end
   end
 
-  # Not a lifecycle move, so it must reach a chapter whatever `bin/qa_sweep` currently has it
-  # doing: a stale path is exactly as wrong while a claim or a suspension is in progress.
+  # Not a lifecycle move, so it must reach a chapter whatever `hecks quality_control ask run`
+  # currently has it doing: a stale path is exactly as wrong while a claim or a suspension is
+  # in progress.
   describe "relocating a chapter" do
     it "refuses without a path" do
       target = a_target
@@ -1362,7 +1363,7 @@ RSpec.describe "QualityControl" do
     end
 
     # The invariant grammar reads literals, not constants, so `WaivedBy` spells "qa_sweep" where
-    # `bin/qa_sweep` reads `AUTOMATED_ENGINEER`; this pins the two together.
+    # `hecks quality_control ask run` reads `AUTOMATED_ENGINEER`; this pins the two together.
     it "refuses exactly the identity the loop runs as" do
       runtime
 
@@ -1557,7 +1558,7 @@ RSpec.describe "QualityControl" do
     end
 
     # A row from before the field existed hydrates at the epoch, before any midnight
-    # `bin/qa_open_pr` counts from.
+    # `hecks quality_control patch.open` counts from.
     it "never counts a PR recorded at the epoch against a later day" do
       open_patch(a_fixed_bug, 1, 0)
 

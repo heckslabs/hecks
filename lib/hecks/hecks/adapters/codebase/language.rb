@@ -12,7 +12,7 @@ module Hecks
       # What Codebase's `LanguageRun` asks of the working tree: projecting the language's tables
       # and walking a word through its lifecycle.
       #
-      # A projection is built in memory by {ProjectionFiles} (the same code the `bin/project_*`
+      # A projection is built in memory by {ProjectionFiles} (the same code the `hecks project_*`
       # scripts run) and compared with the tree; it writes only when confirmed. An evolution edits
       # the syntax tables through {Grammar::Evolve}: unconfirmed it is rehearsed against an
       # in-memory copy and reports the edit it would make; confirmed it regenerates the golden IR

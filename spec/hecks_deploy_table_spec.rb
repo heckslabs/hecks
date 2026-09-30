@@ -261,7 +261,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     it "records clean Makefiles as a clean lint" do
-      shell = FakeCodebaseShell.new("bin/lint_deploy_recipes: no violations found.\n")
+      shell = FakeCodebaseShell.new("hecks deploy lint: no violations found.\n")
       stub_tools(shell)
 
       json, status = answer(["lint", "makefiles=a/Makefile,b/Makefile", "--wait"])

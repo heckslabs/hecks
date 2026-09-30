@@ -9,8 +9,8 @@ module Hecks
     # Refuses any aggregate a `projected_by` binding reads, since projections replay the full
     # journal.
     #
-    #   bin/heki_compact <domain> [aggregate_name ...]           # dry run
-    #   bin/heki_compact <domain> [aggregate_name ...] --force   # apply
+    #   hecks compact_heki <domain> [aggregate_name ...]           # dry run
+    #   hecks compact_heki <domain> [aggregate_name ...] --force   # apply
     module HekiCompaction
       module_function
 
@@ -24,8 +24,8 @@ module Hecks
         force = argv.delete("--force")
         domain = argv.shift
         if domain.nil? || !Dir.exist?(domain)
-          warn "bin/heki_compact: no such domain #{domain.inspect}"
-          warn "usage: bin/heki_compact <domain> [aggregate_name ...] [--force]"
+          warn "hecks compact_heki: no such domain #{domain.inspect}"
+          warn "usage: hecks compact_heki <domain> [aggregate_name ...] [--force]"
           return 1
         end
         wanted = argv.dup
@@ -33,7 +33,7 @@ module Hecks
         registry = Hecks.boot(domain).registry
         candidates = candidates(registry, wanted)
         if candidates.empty?
-          puts "bin/heki_compact: no Heki-backed aggregate matched " \
+          puts "hecks compact_heki: no Heki-backed aggregate matched " \
                "#{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
           return 0
         end

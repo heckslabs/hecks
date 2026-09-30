@@ -33,7 +33,7 @@ module Hecks
         end
       end
 
-      # Runs the checks as the `bin/smoke_http` script does: settings from the arguments and the
+      # Runs the checks as the `hecks smoke_http` script does: settings from the arguments and the
       # environment, a refusal worded with the program's name.
       #
       # @param argv [Array<String>] the flags, consumed
@@ -41,7 +41,7 @@ module Hecks
       # @param program [String] the name a refusal is prefixed with
       # @return [Integer] the exit status: 1 when any check failed
       # @raise [SystemExit] when the settings are refused
-      def self.main(argv, env: ENV, program: "bin/smoke_http")
+      def self.main(argv, env: ENV, program: "hecks smoke_http")
         new(settings(argv, env)).run
       rescue ArgumentError, OptionParser::ParseError, Errno::ENOENT => e
         abort "#{program}: #{e.message}"

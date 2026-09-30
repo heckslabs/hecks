@@ -12,7 +12,7 @@ module Hecks
       # itself.
       #
       # The query-engine check and the reference-docs check read the tree in this process, with the
-      # code their `bin/` scripts run, and write nothing. The argument-gate matrix boots several
+      # code the verbs run elsewhere, and write nothing. The argument-gate matrix boots several
       # throwaway domains and replays them, so it runs in a child process; without `confirm` the
       # script only reports, and with it the script rewrites the committed matrix and its fixtures.
       module Conformance
@@ -26,7 +26,7 @@ module Hecks
         # @param operation [String] one of `OPERATIONS`
         # @param held [Hash] the `ConformanceRun` record's fields
         # @param tree [Tree] the working tree, already known to be a hecks checkout
-        # @param shell [#capture] starts the argument-gate matrix's child process
+        # @param shell [#capture, nil] unused: the matrix runs in this process
         # @return [String] what the check found
         # @raise [ConsoleCapture::Failure] when the check finds a disagreement
         def call(operation, held, tree, shell: nil)
@@ -59,12 +59,12 @@ module Hecks
 
         # @param held [Hash] the record's fields; `confirm` makes the script write
         # @param tree [Tree] the checkout
-        # @param shell [#capture, nil] starts the child process
+        # @param shell [#capture, nil] unused: the matrix runs in this process
         # @return [String] what the script printed: the rows kept and dropped, and what it wrote
         # @raise [ConsoleCapture::Failure] when the script ends badly
         def gate_matrix(held, tree, shell)
           confirm = held[:confirm].is_a?(Hash) ? held[:confirm][:value] : held[:confirm]
-          child = RubyChild.new(tree, shell: shell)
+          child = RubyChild.new(tree)
           child.answer("argument_gate_matrix", *("--write" if confirm == true))
         end
       end

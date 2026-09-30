@@ -5,7 +5,7 @@ require_relative "../forms/banking_presentation"
 
 module Hecks
   module CLI
-    # The command behind `bin/present` and `hecks present`: serves the banking example's rendered
+    # The command behind `hecks present` and `hecks present`: serves the banking example's rendered
     # forms and views, backed by the in-memory adapter
     # (docs/command-form-and-query-form-bluebook.md).
     #
@@ -24,7 +24,7 @@ module Hecks
       # @param root [String] the checkout whose examples are served
       # @return [void]
       # @raise [SystemExit] when the port argument is refused
-      def call(argv, program: "bin/present", root: ROOT)
+      def call(argv, program: "hecks present", root: ROOT)
         require "rackup"
         port, error = Hecks::Forms::PortArgument.parse(argv)
         abort "#{program}: #{error}" if error

@@ -6,7 +6,7 @@ require_relative "../../support/fake_codebase_shell"
 RSpec.describe Hecks::Adapters::Codebase::Regeneration do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
-  let(:plan) { "bin/regen_codegen_domains: regenerating 7 domain(s), in this fixed order:\n  examples/pizzas\n" }
+  let(:plan) { "hecks regenerate_corpus: regenerating 7 domain(s), in this fixed order:\n  examples/pizzas\n" }
 
   # Answers a fixed output and status, and remembers what was asked. The run happens in this
   # process, so what is stubbed is `Hecks::Tools.run`.

@@ -5,7 +5,7 @@ require "spec_helper"
 # re-project in memory from vocabulary.bluebook and refuse a diff, so a
 # committed Rust table that stopped matching the language fails the
 # ordinary suite, not only CI's checks_codegen_drift regeneration.
-RSpec.describe "the generated Rust vocabulary tables (bin/project_rust_vocabulary)" do
+RSpec.describe "the generated Rust vocabulary tables (hecks project_rust_vocabulary)" do
   let(:kernel) { File.join(InMemoryDomain::ROOT, "rust/src/kernel") }
   let(:projected) do
     Hecks::Projector.call(
@@ -14,7 +14,7 @@ RSpec.describe "the generated Rust vocabulary tables (bin/project_rust_vocabular
     )
   end
 
-  it "is exactly what bin/project_rust_vocabulary would regenerate right now" do
+  it "is exactly what hecks project_rust_vocabulary would regenerate right now" do
     stale = projected.reject do |relative, content|
       path = File.join(kernel, relative)
       File.exist?(path) && File.read(path) == content

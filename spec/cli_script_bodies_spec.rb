@@ -65,7 +65,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     it "reads its options after the domain" do
       argv = %w[--aggregate Order --interval 2 --from-now]
 
-      expect(described_class.parse(argv, "bin/follow")).to eq(interval: 2.0, from_now: true, aggregate: "Order")
+      expect(described_class.parse(argv, "hecks follow")).to eq(interval: 2.0, from_now: true, aggregate: "Order")
     end
   end
 

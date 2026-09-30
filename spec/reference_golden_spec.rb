@@ -3,7 +3,7 @@ require "hecks/doc/reference"
 
 # The reference pages must equal what the language declares: tables are projected from the
 # Syntax chapter, prose is hand-written between markers, and every live word needs prose.
-# Regenerate deliberately with `bin/reference` (or GOLDEN=rewrite).
+# Regenerate deliberately with `hecks project_reference` (or GOLDEN=rewrite).
 RSpec.describe "the DSL reference" do
   REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/implemented/reference").freeze
 

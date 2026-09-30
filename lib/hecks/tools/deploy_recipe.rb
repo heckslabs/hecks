@@ -3,7 +3,6 @@
 require "hecks"
 require "fileutils"
 require "optparse"
-require_relative "../three_zero"
 require_relative "../tools"
 
 module Hecks
@@ -220,14 +219,12 @@ module Hecks
         abort e.message
       end
 
-      # Names the 3.0.0 form of every `bin/` script the generated Makefile and scripts call, writes
-      # the files, and prints where the recipe deploys from.
+      # Writes the files, and prints where the recipe deploys from.
       #
       # @param artifact [Hash{String => String}] the files to write
       # @param out_dir [String] where they go
       # @return [void]
       def write(artifact, out_dir)
-        artifact = Hecks::ThreeZero.annotate_deploy_files(artifact)
         written = Hecks::Projector.write(artifact, out_dir, as: :files)
 
         written.each { |path| puts "wrote #{path}" }

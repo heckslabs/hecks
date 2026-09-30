@@ -3,7 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# Opt-in, all-Rust equivalent of bin/project_rust's default path, selected
+# Opt-in, all-Rust equivalent of hecks project_rust's default path, selected
 # when HECKS_PARSER=rust and HECKS_CODEGEN=rust; never boots a bluebook DSL.
 module RustProjectPipeline
   ROOT = File.expand_path("..", __dir__).freeze
@@ -21,13 +21,13 @@ module RustProjectPipeline
     # Becomes a directory name, Rust module identifier, and Cargo feature
     # name below (see Projector.valid_domain_mod_name?).
     unless RustProjection::Projector.valid_domain_mod_name?(target_mod_name)
-      abort "bin/project_rust (Rust path): domain name #{target_mod_name.inspect} (from #{domain.inspect}) can't be " \
+      abort "hecks project_rust (Rust path): domain name #{target_mod_name.inspect} (from #{domain.inspect}) can't be " \
             "used as-is — it has to double as a Rust module identifier and a Cargo feature name, and this one is " \
             "either not a plain lowercase identifier, is a Rust keyword, or collides with a reserved Cargo.toml " \
             "key (#{RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES.join(', ')}). Rename the domain directory."
     end
     bluebook_paths = Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort
-    abort "bin/project_rust (Rust path): #{domain} has no .bluebook files" if bluebook_paths.empty?
+    abort "hecks project_rust (Rust path): #{domain} has no .bluebook files" if bluebook_paths.empty?
     hecksagon_path = File.join(domain, "bluebook", "#{target_mod_name}.hecksagon")
     hecksagon_path = nil unless File.exist?(hecksagon_path)
 
@@ -48,15 +48,15 @@ module RustProjectPipeline
     # which never sets one on a framework chapter either.
     target_ir_text = derive_lineage(target_ir_text, hecksagon_path, sibling_world_path(domain, target_mod_name))
 
-    # Mirrors bin/project_rust's own Framework.load! resolution. A framework
+    # Mirrors hecks project_rust's own Framework.load! resolution. A framework
     # member has no .hecksagon of its own, only its .bluebook.
     chapters = uses_framework_names.map do |fw_name|
       fw_path = Hecks::Framework.members.fetch(fw_name) do
-        abort "bin/project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecks::Framework.members.keys.sort.join(', ')}"
+        abort "hecks project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecks::Framework.members.keys.sort.join(', ')}"
       end
       fw_chapter_name = header_chapter_name(fw_path)
       unless fw_chapter_name == fw_name
-        abort "bin/project_rust (Rust path): #{fw_path} declares chapter #{fw_chapter_name.inspect}, but uses_framework named #{fw_name.inspect}"
+        abort "hecks project_rust (Rust path): #{fw_path} declares chapter #{fw_chapter_name.inspect}, but uses_framework named #{fw_name.inspect}"
       end
       fw_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", fw_chapter_name, fw_path))
       {
@@ -73,13 +73,13 @@ module RustProjectPipeline
       pkg_dir = File.join(domain, "vendor", "embryonaut_bluebooks", pkg_name.to_s, "bluebook")
       pkg_files = Dir.glob(File.join(pkg_dir, "*.bluebook")).sort
       if pkg_files.empty?
-        abort "bin/project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} names no vendored " \
-              "bluebook at #{pkg_dir} — run bin/vendor_embryonaut_bluebooks #{pkg_name}"
+        abort "hecks project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} names no vendored " \
+              "bluebook at #{pkg_dir} — run hecks vendor #{pkg_name}"
       end
       pkg_chapter_name = header_chapter_name(pkg_files.first)
       expected_chapter_name = Hecks::Naming.pascal(pkg_name.to_s)
       unless pkg_chapter_name == expected_chapter_name
-        abort "bin/project_rust (Rust path): #{pkg_files.first} declares chapter #{pkg_chapter_name.inspect}, but " \
+        abort "hecks project_rust (Rust path): #{pkg_files.first} declares chapter #{pkg_chapter_name.inspect}, but " \
               "uses_embryonaut_bluebook #{pkg_name.inspect} expects #{expected_chapter_name.inspect}"
       end
       pkg_bluebooks = pkg_files.select { |path| header_chapter_name(path) == pkg_chapter_name }
@@ -99,7 +99,7 @@ module RustProjectPipeline
     chapters.group_by { |c| c[:mod_name] }.each_value do |group|
       next if group.size == 1
 
-      abort "bin/project_rust (Rust path): #{group.map { |c| c[:source_label] }.join(' and ')} both resolve to the " \
+      abort "hecks project_rust (Rust path): #{group.map { |c| c[:source_label] }.join(' and ')} both resolve to the " \
             "same generated module #{group.first[:mod_name].inspect} — attach #{target_chapter_name} to at most one " \
             "of them"
     end
@@ -109,7 +109,7 @@ module RustProjectPipeline
     meta_files = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
     meta_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", "Bluebook", *meta_files))
 
-    # `HECKS_RUST_DIR` picks the crate to project into, as it does for bin/project_rust's
+    # `HECKS_RUST_DIR` picks the crate to project into, as it does for hecks project_rust's
     # Ruby path; unset, it is this repository's own `rust/`.
     rust_dir = ENV.fetch("HECKS_RUST_DIR", File.expand_path("../rust", __dir__))
     out_root = File.join(rust_dir, "src/generated")
@@ -225,7 +225,7 @@ module RustProjectPipeline
   # The declared chapter name off a .bluebook file's own header line.
   def header_chapter_name(path)
     line = File.foreach(path).find { |l| l =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
-    (line && Regexp.last_match(1)) or abort "bin/project_rust (Rust path): #{path} has no 'Hecks.bluebook \"Name\"' header"
+    (line && Regexp.last_match(1)) or abort "hecks project_rust (Rust path): #{path} has no 'Hecks.bluebook \"Name\"' header"
   end
 
   # Writes ir.json byte-identical to hecks-parse's own output — never
@@ -239,7 +239,7 @@ module RustProjectPipeline
 
     metadata_path = File.join(mod_dir, "metadata.rs")
     File.open(metadata_path, "w") do |f|
-      f.puts "// GENERATED by bin/project_rust — #{source_label}'s own canonical IR,"
+      f.puts "// GENERATED by hecks project_rust — #{source_label}'s own canonical IR,"
       f.puts "// embedded for runtime self-description. Not read by any dispatch"
       f.puts "// function in this module — introspection only."
       f.puts "pub const IR_JSON: &str = #{RustProjection::Projector.rust_string_literal(ir_text)};"
@@ -254,21 +254,21 @@ module RustProjectPipeline
 
   def build!(crate_dir)
     ok = system("cargo", "build", chdir: crate_dir, out: $stdout, err: $stderr)
-    ok or abort "bin/project_rust (Rust path): cargo build failed in #{crate_dir} — run it there directly to see why"
+    ok or abort "hecks project_rust (Rust path): cargo build failed in #{crate_dir} — run it there directly to see why"
   end
 
   def run_capture!(*cmd)
     out, err, status = Open3.capture3(*cmd)
-    status.success? or abort "bin/project_rust (Rust path): #{cmd.join(' ')} failed:\n#{err}"
+    status.success? or abort "hecks project_rust (Rust path): #{cmd.join(' ')} failed:\n#{err}"
     out
   end
 
   def run!(*cmd)
     ok = system(*cmd)
-    ok or abort "bin/project_rust (Rust path): #{cmd.join(' ')} failed"
+    ok or abort "hecks project_rust (Rust path): #{cmd.join(' ')} failed"
   end
 
-  # Duplicates bin/project_rust's own default-path tail (root mod.rs +
+  # Duplicates hecks project_rust's own default-path tail (root mod.rs +
   # Cargo.toml feature sync) rather than extracting a shared method, so
   # the default path's own body stays byte-for-byte untouched.
   def sync_mod_and_cargo!(out_root, target_mod_name)
@@ -277,7 +277,7 @@ module RustProjectPipeline
 
     root_mod_path = File.join(out_root, "mod.rs")
     File.open(root_mod_path, "w") do |f|
-      f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
+      f.puts "// GENERATED by hecks project_rust — re-run it to refresh this list."
       f.puts "//"
       f.puts "// BUG#25 — every DOMAIN (an entry in `domains`, below: a directory"
       f.puts "// carrying its own merged.rs and therefore its own Cargo feature) is"
@@ -298,7 +298,7 @@ module RustProjectPipeline
       f.puts
       f.puts "// `active` is whichever ONE domain's own merged Store/dispatch table"
       f.puts "// is selected by Cargo feature (rust/Cargo.toml, kept in sync with this"
-      f.puts "// list by bin/project_rust) — kernel/cli.rs imports"
+      f.puts "// list by hecks project_rust) — kernel/cli.rs imports"
       f.puts "// `crate::generated::active::{dispatch_by_name, Store, ...}` unchanged"
       f.puts "// no matter which domain that resolves to."
       f.puts "//"
@@ -353,7 +353,7 @@ module RustProjectPipeline
       cargo_toml = cargo_toml.sub(/\A/, <<~TOML)
         # ONE FEATURE PER GENERATED DOMAIN — selects which domain's own
         # generated::<domain>::merged module `generated::active` re-exports
-        # (rust/src/generated/mod.rs). Kept in sync by bin/project_rust: a
+        # (rust/src/generated/mod.rs). Kept in sync by hecks project_rust: a
         # feature is added here whenever a new domain is generated, never
         # removed (the domain's own generated/<name>/ directory is the
         # source of truth for whether it still exists). `default` tracks

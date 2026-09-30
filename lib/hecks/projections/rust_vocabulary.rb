@@ -14,7 +14,7 @@ module Hecks
 
       projects_as :rust_vocabulary, declares: "Vocabulary", emits: :files
 
-      GENERATOR = "bin/project_rust_vocabulary".freeze
+      GENERATOR = "hecks project_rust_vocabulary".freeze
       SOURCE    = "lib/hecks/language/bluebook/vocabulary.bluebook".freeze
 
       # Table name => enum name, variant-naming fields, file stem and kind.

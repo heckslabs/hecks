@@ -3,7 +3,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/project_cli` and `hecks project_cli`: writes a
+    # The command behind `hecks project_cli` and `hecks project_cli`: writes a
     # command-line launcher beside each domain, named after its bluebook, so
     # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
     #

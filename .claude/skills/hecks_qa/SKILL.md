@@ -16,7 +16,7 @@ person). What is left here is judgment.
 
 ## The tick — dispatch it, don't run it inline
 
-The old `bin/qa_*` scripts are verbs on the launcher now: `exe/hecks quality_control <verb>`.
+The former `qa_*` scripts are verbs on the launcher now: `exe/hecks quality_control <verb>`.
 A `--flag` a script took goes inside `arguments="--flag …"` on the `ask` verbs, and the
 ledger-writing verbs (`log`, `patch.open`, `improvement.open`) take `name=value` words instead
 of flags (`exe/hecks quality_control <verb> --help` prints each one's words; the mapping is in

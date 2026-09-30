@@ -249,8 +249,8 @@ async fn main() -> Result<(), Error> {
         // `ir::ir()`) against held eras to decide the boot action: boot
         // at a matching era, mint era 1 if the domain is new, or mint
         // the next era if it has drifted -- refusing toward
-        // `bin/scaffold_translation` (no edge covers it) or
-        // `bin/translation_audit --approve` (needs review) otherwise.
+        // `hecks scaffold_translation` (no edge covers it) or
+        // `hecks audit_translation --approve` (needs review) otherwise.
         let era_phase = log::phase("era_resolve");
         let held = journal::held_eras(&client, &domain).await.map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
 
@@ -274,7 +274,7 @@ async fn main() -> Result<(), Error> {
             }
             mint::BootDecision::HoldFirst => {
                 let source_text =
-                    ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                    ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
                 let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
                 mint::hold_first(&client, &domain, source_text, ir, &aggregates, None).await.map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
                 phase.end();
@@ -295,8 +295,8 @@ async fn main() -> Result<(), Error> {
                 let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
                     format!(
                         "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
-                         ({my_label}) no translation edge covers -- {e} -- run bin/scaffold_translation, review it \
-                         with bin/translation_audit, then redeploy",
+                         ({my_label}) no translation edge covers -- {e} -- run hecks scaffold_translation, review it \
+                         with hecks audit_translation, then redeploy",
                     )
                 })?;
 
@@ -329,7 +329,7 @@ async fn main() -> Result<(), Error> {
                     .map_err(|e| format!("{e:#}"))?;
                 audit_phase.end();
 
-                let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
                 let mint_phase = log::phase_with("mint_era", serde_json::json!({ "era": ordinal, "edges": chain.len() }));
                 mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None, &mint::lifecycle_defaults(ir))
                     .await

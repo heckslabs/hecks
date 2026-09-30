@@ -1,9 +1,9 @@
 require "open3"
 
 # Runs a `Hecks::QualityControlCli` command as its own process, the way the launcher's
-# `hecks quality_control <verb>` reaches it, without going through `bin/`. A separate process keeps
-# the environment (`PATH`, `QA_SWEEP_DOMAIN_DIR`, `QA_REPO_DIR`), the exit status and stderr the
-# command's own.
+# `hecks quality_control <verb>` reaches it, without going through a script. A separate process
+# keeps the environment (`PATH`, `QA_SWEEP_DOMAIN_DIR`, `QA_REPO_DIR`), the exit status and
+# stderr the command's own.
 module QaLibCli
   ROOT = File.expand_path("../..", __dir__)
 

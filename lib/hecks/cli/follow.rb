@@ -6,7 +6,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `bin/follow`: live-tails a domain's persisted event log as JSON lines.
+    # The command behind `hecks follow`: live-tails a domain's persisted event log as JSON lines.
     #
     # Events are one table per domain, so this polls the first repository that answers `:events`
     # and diffs its size each tick, filtering client-side when `--aggregate` is given.
@@ -19,7 +19,7 @@ module Hecks
       # @param program [String] the name the usage message calls this command by
       # @return [void]
       # @raise [SystemExit] when no domain is named or no adapter persists an event log
-      def call(argv, program: "bin/follow")
+      def call(argv, program: "hecks follow")
         argv = argv.dup
         domain_name = argv.shift or abort "usage: #{program} <domain> [options]"
         options = parse(argv, program)

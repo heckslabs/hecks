@@ -122,7 +122,7 @@ RSpec.describe "the model checker's client profile" do
       expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
     end
 
-    # Pins bin/model_check reading every *.hecksagon in a directory, not just the
+    # Pins hecks model_check reading every *.hecksagon in a directory, not just the
     # alphabetically first, so a later file's projected_by is not invisible to this rule.
     it "is reached from hecks model_check when the projected_by is in a later hecksagon file" do
       Dir.mktmpdir do |root|

@@ -3,7 +3,7 @@ require "hecks/grammar"
 
 # Holds the generated kernel/attribute_shapes and kernel/expression_operators mod.rs
 # rosters to `Coercion::SHAPES` and `Grammar.admitted_operators`, both directions.
-RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
+RSpec.describe "kernel capability tables (hecks project_kernel_capabilities)" do
   def self.pub_mod_names(path)
     File.readlines(File.join(InMemoryDomain::ROOT, path))
         .filter_map { |line| line[/^pub mod (\w+);/, 1] }

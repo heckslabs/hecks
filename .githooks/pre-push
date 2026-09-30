@@ -78,7 +78,7 @@ run_check model_check bundle exec exe/hecks model_check --wait &
 run_check doc_coverage bundle exec exe/hecks measure_doc_coverage --wait &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
 run_check codegen_drift bundle exec exe/hecks regenerate_corpus --check --wait &
-run_check comment_blocks bundle exec exe/hecks check_comments paths=lib,bin,spec,examples only=long_block --wait &
+run_check comment_blocks bundle exec exe/hecks check_comments paths=lib,spec,examples only=long_block --wait &
 
 wait
 

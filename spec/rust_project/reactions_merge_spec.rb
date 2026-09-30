@@ -4,7 +4,7 @@ require_relative "../../rust/project/naming"
 require_relative "../../rust/project/reactions"
 
 # `emit_merged_policy_table`/`emit_merged_cross_domain_policy_table` —
-# building bin/project_rust's one merged Store's tables from only the
+# building hecks project_rust's one merged Store's tables from only the
 # target domain's own policies silently dropped every vendored chapter's
 # own. Invisible until a vendored chapter actually declares policies
 # (Governance/Identity, the only ones exercised before this, declare none).

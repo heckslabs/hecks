@@ -1,6 +1,6 @@
 # rust/host's checkout-route fixture (web.rs checkout_route,
 # registrations_route, webhook_route), trimmed to exactly what those
-# routes dispatch. Built into checkout_fixture.wasm by bin/project_wasm.
+# routes dispatch. Built into checkout_fixture.wasm by hecks build_wasm.
 Hecks.bluebook "CheckoutFixture" do
   vision "Scheduled sessions people register for, paid through a Payments chapter sharing one reference."
   core

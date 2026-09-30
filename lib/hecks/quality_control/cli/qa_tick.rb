@@ -192,7 +192,7 @@ module Hecks
         protected_block = raw[protect_from...protect_to]
         after =
           if trace_at
-            "\n(bin/qa_sweep's QA_SWEEP_TRACE output omitted here — routine per-phase timing, not a " \
+            "\n(hecks quality_control ask run's QA_SWEEP_TRACE output omitted here — routine per-phase timing, not a " \
               "finding; the full record is in the tick's log file)\n"
           else
             ""
@@ -206,17 +206,17 @@ module Hecks
         path = File.join(dir, "#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}.log")
         File.write(path, <<~LOG)
           #{'=' * 72}
-          bin/qa_pr_check -- full raw output
+          hecks quality_control check_pull_requests -- full raw output
           #{'=' * 72}
           #{pr_check_output}
 
           #{'=' * 72}
-          bin/qa_sweep --all -- full raw output
+          hecks quality_control ask run --all -- full raw output
           #{'=' * 72}
           #{sweep_output}
 
           #{'=' * 72}
-          bin/qa_generated_domains --from-dials -- full raw output
+          hecks quality_control check_generated_domains --from-dials -- full raw output
           #{'=' * 72}
           #{generated_output}
         LOG
@@ -233,16 +233,16 @@ module Hecks
       end
 
       def run_steps
-        banner "bin/qa_pr_check"
+        banner "hecks quality_control check_pull_requests"
         pr_check_output, pr_check_exit = run_step(->(argv) { QaPrCheck.call(argv, root: @root) })
         puts pr_check_output
 
-        banner "bin/qa_sweep --all"
+        banner "hecks quality_control ask run --all"
         sweep_output, sweep_exit = run_step(->(argv) { QaSweep.call(argv, root: @root) }, "--all")
         puts condense_sweep_output(sweep_output)
         reclaimed = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
 
-        banner "bin/qa_generated_domains --from-dials"
+        banner "hecks quality_control check_generated_domains --from-dials"
         generated_output, generated_exit = run_step(->(argv) { QaGeneratedDomains.call(argv, root: @root) },
                                                     "--from-dials")
         puts generated_output
@@ -254,9 +254,9 @@ module Hecks
       def report(exits, reclaimed, log_path)
         pr_check_exit, sweep_exit, generated_exit = exits
         banner "tick report"
-        puts "bin/qa_pr_check:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
-        puts "bin/qa_sweep --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
-        puts "bin/qa_generated_domains: #{verdict(generated_exit)} (exit #{generated_exit.inspect})"
+        puts "hecks quality_control check_pull_requests:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
+        puts "hecks quality_control ask run --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
+        puts "hecks quality_control check_generated_domains: #{verdict(generated_exit)} (exit #{generated_exit.inspect})"
         named = reclaimed.empty? ? "" : " (#{reclaimed.join(', ')})"
         puts "stale holds reclaimed: #{reclaimed.size}#{named}"
 

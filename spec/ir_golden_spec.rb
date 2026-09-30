@@ -56,7 +56,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   def golden_path(name) = File.join(GOLDEN_DIR, "#{name}.json")
 
-  # Sorted like bin/canonicalise (key order is not semantics), so a diff names the moved field.
+  # Sorted like hecks canonicalise (key order is not semantics), so a diff names the moved field.
   def rendered(bluebook) = "#{JSON.pretty_generate(sorted(bluebook.to_h))}\n"
 
   def sorted(value)

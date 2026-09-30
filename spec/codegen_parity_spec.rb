@@ -24,7 +24,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
 
   def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-  # Loads a domain the way bin/project_rust does, so the input cannot drift from the generator's.
+  # Loads a domain the way hecks project_rust does, so the input cannot drift from the generator's.
   def self.domain_ir(bluebook_path, domain_name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -94,7 +94,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
 
         # Only what the crate generates: metadata.rs, ir.json and manifest.json are not ported.
         # mod.rs is compared with `DomainGenerator.call`, not the checked-in file
-        # that bin/project_rust extends.
+        # that hecks project_rust extends.
         compared_names = generated_aggregate_basenames(ir) + ["registry.rs", "mod.rs"]
 
         compared_names.each do |basename|

@@ -65,7 +65,6 @@ Layout/ExtraSpacing:
 # SupportedLastArgumentHashStyles: always_inspect, always_ignore, ignore_implicit, ignore_explicit
 Layout/HashAlignment:
   Exclude:
-    - 'bin/project_deploy'
     - 'lib/hecks/projections/deploy/fargate.rb'
     - 'lib/hecks/projections/deploy/lambda.rb'
 
@@ -105,7 +104,6 @@ Layout/LineEndStringConcatenationIndentation:
 # URISchemes: http, https
 Layout/LineLength:
   Exclude:
-    - 'bin/project_deploy'
     - 'lib/hecks/projections/deploy/fargate.rb'
     - 'lib/hecks/projections/deploy/lambda.rb'
     - 'lib/hecks/projections/deploy/shared.rb'
@@ -200,9 +198,6 @@ Naming/AccessorMethodName:
 # WaywardPredicates: infinite?, nonzero?
 Naming/PredicateMethod:
   Exclude:
-    - 'bin/doc_coverage'
-    - 'bin/fuzz'
-    - 'bin/model_check'
     - 'lib/hecks/adapters/driven/d1.rb'
     - 'lib/hecks/adapters/driven/heki.rb'
     - 'lib/hecks/adapters/driven/postgres.rb'

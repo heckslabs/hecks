@@ -272,7 +272,7 @@ RSpec.describe Hecks::Release::Runner do
       push = commands.runs.find { |c| c.argv.first(3) == gem_push }
       expect(push.argv).to eq([*gem_push, "--", "gem", "push", "hecks-#{version}.gem"])
       expect([build.chdir, push.chdir]).to eq([root, root])
-      expect(commands.argvs.flatten).not_to include(File.join(root, "bin/release_gem"))
+      expect(commands.argvs.flatten).not_to include(File.join(root, "hecks publish_gem"))
     end
 
     it "runs npm ci first only when node_modules is missing" do

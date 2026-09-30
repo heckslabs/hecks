@@ -50,7 +50,7 @@ module Hecks
           args = held.transform_values { |value| value.is_a?(Hash) ? value[:value] : value }
           return canonical(args, tree) if operation == "canonicalise"
 
-          child = RubyChild.new(tree, shell: shell)
+          child = RubyChild.new(tree)
           case operation
           when "check_comments", "check_rust_comments" then check(operation, args, child)
           when "fix_comments", "fix_rust_comments" then fix(operation, args, child)
@@ -72,7 +72,7 @@ module Hecks
           flags << "--json" if args[:json]
           flags.push("--top", args[:top].to_s) if args[:top]
           paths = after_separator(paths_of(args))
-          RubyChild.new(tree, shell: shell).answer(script_of(operation), *flags, *paths)
+          RubyChild.new(tree).answer(script_of(operation), *flags, *paths)
         end
 
         # @param args [Hash] the record's plain fields

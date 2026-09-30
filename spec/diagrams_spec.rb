@@ -68,7 +68,7 @@ RSpec.describe "the generated diagrams" do
   let(:scratch_chapter) { boot_scratch_with_port_routing.bluebook("Scratch") }
   let(:order)           { pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" } }
 
-  # `hecksagon:` is only needed for frameworks.mmd — `bin/project_diagrams` always has
+  # `hecksagon:` is only needed for frameworks.mmd — `hecks project_diagrams` always has
   # one in hand, so drift detection must accept it too or frameworks.mmd never matches.
   def assert_undrifted(domain, chapter, hecksagon: nil)
     committed_dir = File.expand_path("../docs/generated/diagrams/#{domain}", __dir__)

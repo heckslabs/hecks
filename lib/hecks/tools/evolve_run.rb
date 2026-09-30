@@ -8,9 +8,9 @@ module Hecks
     # `status`, `propose`, `admit`, `deprecate`, `retire` and `rename` a word, and the
     # `argument-*` forms of the same for a keyword's arguments (see `USAGE`).
     #
-    #   bin/evolve propose <word> --context Aggregate  a row enters, proposed
-    #   bin/evolve admit   <word> --context Aggregate  proposed -> admitted
-    #   bin/evolve rename  <word> --context X --to new
+    #   hecks evolve propose <word> --context Aggregate  a row enters, proposed
+    #   hecks evolve admit   <word> --context Aggregate  proposed -> admitted
+    #   hecks evolve rename  <word> --context X --to new
     #
     # Mutating commands regenerate the golden and run the gates; a failing gate restores every file.
     module EvolveRun
@@ -28,9 +28,9 @@ module Hecks
       ARGUMENT_STATUS = { "argument-admit" => "admitted", "argument-deprecate" => "deprecated",
                           "argument-retire" => "retired" }.freeze
 
-      USAGE = "usage: bin/evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
+      USAGE = "usage: hecks evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
               "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]\n   " \
-              "or: bin/evolve argument-propose|argument-admit|argument-deprecate|argument-retire " \
+              "or: hecks evolve argument-propose|argument-admit|argument-deprecate|argument-retire " \
               "<keyword> --context <Context> [--kind K] [--at N] [--named NAME] [--required true|false] " \
               "[--fills F]"
 
@@ -127,7 +127,7 @@ module Hecks
                          opens: evolve.option(args, "opens", ""), fills: evolve.option(args, "fills", ""))
         end
         if ok
-          puts "Proposed. It reaches no projection until admitted. Before `bin/evolve admit`:"
+          puts "Proposed. It reaches no projection until admitted. Before `hecks evolve admit`:"
           puts "  1. teach the #{context} builder the word (and its spec/dsl_spec example)"
         end
         ok
@@ -169,7 +169,7 @@ module Hecks
                                   pairs_shape: evolve.option(args, "pairs-shape"))
         end
         if ok
-          puts "Proposed. It reaches no projection until admitted. Before `bin/evolve argument-admit`:"
+          puts "Proposed. It reaches no projection until admitted. Before `hecks evolve argument-admit`:"
           puts "  1. teach the #{context} builder's #{keyword} method the argument"
         end
         ok

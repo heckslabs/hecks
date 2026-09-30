@@ -8,7 +8,7 @@ module Hecks
     # target element already declares (see `CommandBuilder#resolve_append_fields!`). The
     # edit/reboot/diff-or-revert machinery lives in `Hecks::Codemod`.
     #
-    #   bin/codemod_implicit_append_fields [--dry-run]
+    #   hecks drop_implicit_append_fields [--dry-run]
     module DropImplicitAppendFields
       # One attribute a command repeats.
       Candidate = Struct.new(:command_name, :field, :type, keyword_init: true)

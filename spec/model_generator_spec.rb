@@ -10,7 +10,7 @@ RSpec.describe "the generated model" do
   let(:projected) { Hecks::Projector.call(:model, bluebook: chapter) }
 
   Hecks::Projections::Model::HOST.each_value do |host|
-    it "#{host.fetch(:file)} is exactly what bin/project_model would render" do
+    it "#{host.fetch(:file)} is exactly what hecks project_model would render" do
       committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook", host.fetch(:file)))
 
       expect(projected.fetch(host.fetch(:file))).to eq(committed),

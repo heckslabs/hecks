@@ -144,8 +144,7 @@ attached chapters add theirs (`hecks deploy project`, `hecks quality_control
 Codebase verbs (`regenerate_corpus`, `check_comments`, `measure_doc_coverage`,
 `publish` and the rest) need a checkout of this repository and refuse
 without one. The logic lives under `lib/hecks/cli/` and `lib/hecks/tools/`,
-so a change to a command goes there, and the `bin/` scripts that remain are
-thin shims over it. The fuzzing, bench,
+so a change to a command goes there; there is no `bin/` directory. The fuzzing, bench,
 corpus, codemod, query IR, grammar evolve and doc reference tooling ships in
 the gem but loads only when a command asks for it; `require "hecks"` loads
 none of it (`spec/gemspec_packaging_spec.rb`). The gem also ships `rust/`,
@@ -332,7 +331,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
 
    The gem's push key comes from 1Password (`op run`, Touch ID-gated;
    `release/gem_push.env`), and its one-time setup is in the header of
-   `bin/release_gem`.
+   `lib/hecks/cli/release_gem.rb`.
 
    One-time setup for CI publishing, by an owner of the `@hecks` scope on
    npmjs.com, possible only once the package exists: package
@@ -350,7 +349,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    scoped Read and write to the `@hecks` scope with "Bypass two-factor
    authentication" enabled, and short-lived: the account's second factor
    is a passkey, so a token that requires a one-time code cannot publish
-   (npm answers `EOTP`). The header of `bin/release` has the setup. The
+   (npm answers `EOTP`). The header of `lib/hecks/cli/release.rb` has the setup. The
    publish passes `--auth-type=web` as an interactive fallback: if npm
    does ask for a passkey or security key, it prints an approval link and
    waits.

@@ -1,6 +1,6 @@
 # Comment style guide
 
-The standard for comments in this repository's Ruby: `lib/`, `bin/`, `spec/`
+The standard for comments in this repository's Ruby: `lib/`, `spec/`
 and `examples/`. `hecks check_comments` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 

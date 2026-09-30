@@ -10,7 +10,7 @@ module Hecks
     # Diffs the held era against the current bluebook into an edge file: confident rules inline,
     # ambiguities as `unresolved` lines to resolve by hand.
     #
-    #   bin/scaffold_translation <domain>
+    #   hecks scaffold_translation <domain>
     module TranslationScaffold
       module_function
 
@@ -22,7 +22,7 @@ module Hecks
       # @raise [SystemExit] when the domain cannot be loaded or its adapter holds no eras
       def main(argv, **)
         argv = argv.dup
-        domain_path = argv.shift or abort "usage: bin/scaffold_translation <domain>"
+        domain_path = argv.shift or abort "usage: hecks scaffold_translation <domain>"
 
         registry, bluebook, directory = load_domain(domain_path)
         first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
@@ -120,7 +120,7 @@ module Hecks
         end
         if unresolved.zero? && unclaimed.empty?
           puts "0 unresolved — this shape change costs one extra boot and no typing. " \
-               "Check it with bin/translation_audit, then boot."
+               "Check it with hecks audit_translation, then boot."
         elsif unresolved.positive?
           puts "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or " \
                "compute on PostgresEra), then boot."

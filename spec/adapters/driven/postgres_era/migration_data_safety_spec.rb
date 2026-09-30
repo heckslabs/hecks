@@ -88,7 +88,7 @@ RSpec.describe "PostgresEra migration data safety", :io do
     with_db { |db| db.exec_params("SELECT count(*) FROM hecks_eras WHERE domain = $1", [domain])[0]["count"].to_i }
   end
 
-  # Records the human approval `bin/translation_audit --approve` would, for exactly this edge.
+  # Records the human approval `hecks audit_translation --approve` would, for exactly this edge.
   def approve!(domain, registry)
     edge = registry.translations.first
     with_db do |db|

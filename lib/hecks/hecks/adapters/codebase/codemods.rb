@@ -29,12 +29,12 @@ module Hecks
         # @param operation [String] one of `OPERATIONS`
         # @param held [Hash] the `CodemodRun` record's fields: `confirm`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
-        # @param shell [#capture, nil] starts the script's child process
+        # @param shell [#capture, nil] unused: the codemod runs in this process
         # @return [String] what the script found for each example, and whether it rewrote it
         # @raise [ConsoleCapture::Failure] when the script ends badly
         def call(operation, held, tree, shell: nil)
           confirm = held[:confirm].is_a?(Hash) ? held[:confirm][:value] : held[:confirm]
-          child = RubyChild.new(tree, shell: shell)
+          child = RubyChild.new(tree)
           return child.answer(SCRIPTS.fetch(operation)) if confirm == true
 
           "dry run, nothing kept (add --confirm to rewrite):\n#{child.answer(SCRIPTS.fetch(operation), '--dry-run')}"

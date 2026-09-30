@@ -3,7 +3,7 @@
 module Hecks
   module QualityControlCli
     # How one QA command starts another as its own OS process, from `lib/` rather than through a
-    # `bin/` script: a sweep spawns racers and generated-domain checks, and a launcher query runs
+    # launcher script: a sweep spawns racers and generated-domain checks, and a launcher query runs
     # any of them. A fresh process is the point: its own boot, its own Postgres connections, and a
     # crash that ends only itself.
     module Child

@@ -5,7 +5,7 @@ require "spec_helper"
 # The table is checked in, not built at boot, because sets like `Attribute::PRIMITIVES` are read
 # while a bluebook is parsed, before the framework could load.
 RSpec.describe "the generated vocabulary table" do
-  it "is exactly what bin/project_vocabulary would regenerate right now" do
+  it "is exactly what hecks project_vocabulary would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/vocabulary.rb"))
 
     projected = Hecks::Projector.call(

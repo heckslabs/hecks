@@ -1,7 +1,7 @@
 # The Deploy chapter: what `deployed_to(...)` may declare, and the commands that generate, check and
 # compare a deploy recipe, project the OIDC manifests and provision a tenant.
 #
-# `bin/project_deploy` and `bin/project_tenant` boot it directly; the Hecks domain attaches it, so
+# `hecks deploy project` and `hecks deploy provision` boot it directly; the Hecks domain attaches it, so
 # each command below is also `hecks deploy <verb>`. The targets validate the `deployed_to` shape
 # that `world.bluebook`'s untyped `Setting` map leaves open. Each run below records that it was
 # requested before its DeployToolchain port is asked, and what came of it after. No command
@@ -10,7 +10,7 @@ Hecks.bluebook "Deploy" do
   vision "Generate, check and compare deploy recipes, project OIDC manifests and provision tenants."
 
   aggregate "LambdaTarget" do
-    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
+    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before hecks deploy project generates anything from it."
 
     identified_by :domain
 
@@ -35,14 +35,14 @@ Hecks.bluebook "Deploy" do
     # (Serverless v2);
     # only the emitted CloudFormation resource differs, never the runtime adapter. "Shared" borrows
     # another domain's instance under its own Postgres schema and needs an `owner` setting, which
-    # `bin/project_deploy` checks, since the owning domain is a deploy-time fact.
+    # `hecks deploy project` checks, since the owning domain is a deploy-time fact.
     value_object "Database" do
       attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
     end
 
     # "None" (default) or "Rust": the domain's own Lambda (rust/host) also serves a public web UI
     # in-process (rust/host/src/web.rs). "Ruby" is not a member: a Ruby WebFunction comes from a
-    # `lambda_handler.rb` file, and `bin/project_deploy` refuses `web "Rust"` alongside one.
+    # `lambda_handler.rb` file, and `hecks deploy project` refuses `web "Rust"` alongside one.
     value_object "Web" do
       attribute :value, String, one_of: ["None", "Rust"]
     end
@@ -63,7 +63,7 @@ Hecks.bluebook "Deploy" do
 
     # All required, no `default:`: command-level defaults apply only at the JSON/Rust-codegen
     # boundary, not Ruby's direct dispatch (interpreting.rb `normalize_args`). Defaults are
-    # resolved by `bin/project_deploy` before it dispatches.
+    # resolved by `hecks deploy project` before it dispatches.
     command "Declare" do
       goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
 
@@ -88,7 +88,7 @@ Hecks.bluebook "Deploy" do
   # A sibling of `LambdaTarget` with its own value objects, since value objects are not
   # shared across aggregates.
   aggregate "FargateTarget" do
-    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before bin/project_deploy generates anything from it."
+    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before hecks deploy project generates anything from it."
 
     identified_by :domain
 
@@ -143,7 +143,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # All seven required for the same reason as `LambdaTarget.Declare`; this validates a
-    # target already resolved by `bin/project_deploy`'s defaults.
+    # target already resolved by `hecks deploy project`'s defaults.
     command "Declare" do
       goal "Validate one domain's AwsFargate deploy target before anything is generated from it"
 
@@ -167,10 +167,10 @@ Hecks.bluebook "Deploy" do
     end
   end
 
-  # The validated shape of `bin/project_tenant`, which does the generating and provisioning.
+  # The validated shape of `hecks deploy provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do
-    description "One tenant's validated identity — which realm and Postgres schema `bin/project_tenant` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
+    description "One tenant's validated identity — which realm and Postgres schema `hecks deploy provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
 
     identified_by :slug
 

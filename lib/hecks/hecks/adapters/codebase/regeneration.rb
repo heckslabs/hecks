@@ -28,14 +28,14 @@ module Hecks
         # @param _operation [String] `regenerate_corpus`
         # @param held [Hash] the `RegenerationRun` record's fields: `check`, `confirm`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
-        # @param shell [#capture, nil] starts the child of a script not yet moved into the library
+        # @param shell [#capture, nil] unused: the tool runs in this process
         # @return [String] how many domains were checked or regenerated
         # @raise [ConsoleCapture::Failure] with the difference, when a check finds drift, or with
         #   what the script printed when it ends badly
         def call(_operation, held, tree, shell: nil)
           flag = ->(name) { (held[name].is_a?(Hash) ? held[name][:value] : held[name]) == true }
           check = flag.call(:check) || !flag.call(:confirm)
-          child = RubyChild.new(tree, shell: shell)
+          child = RubyChild.new(tree)
           result = child.capture("regen_codegen_domains", *("--check" if check))
           raise ConsoleCapture::Failure, refusal(result) unless result.ok?
 

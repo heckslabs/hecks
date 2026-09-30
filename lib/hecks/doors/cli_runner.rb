@@ -9,7 +9,7 @@ require_relative "../ports/clock"
 module Hecks
   module Doors
     # Parses and dispatches a command line against a `Projector::CliProjector` projection.
-    # Does no IO: it answers `[text, status]` and leaves printing and exiting to `bin/` scripts.
+    # Does no IO: it answers `[text, status]` and leaves printing and exiting to its callers.
     module CliRunner
       # The class an adapter raises when the tool it wraps refuses.
       TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze

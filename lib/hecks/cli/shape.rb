@@ -8,7 +8,7 @@ require_relative "../ports/persistence/plugins/era"
 
 module Hecks
   module CLI
-    # The command behind `bin/shape` and `hecks shape`: a bluebook's storage-shape projection, the
+    # The command behind `hecks shape` and `hecks shape`: a bluebook's storage-shape projection, the
     # same hash PostgresEra mints an era's label from, so two runs diff to show whether a bluebook
     # change would bump an era.
     module Shape
@@ -21,7 +21,7 @@ module Hecks
       # @param program [String] the name the usage message calls this command by
       # @return [void]
       # @raise [SystemExit] when `argv` is empty, the path is missing or holds no bluebook
-      def call(argv, program: "bin/shape")
+      def call(argv, program: "hecks shape")
         target = argv.first or abort "usage: #{program} <bluebook | directory of *.bluebook files>"
         puts render(target)
       rescue Runtime::NotFound => e

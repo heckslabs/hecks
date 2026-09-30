@@ -98,7 +98,7 @@ pub fn vendored_bluebook_files(domain: &Path, pkg_name: &str) -> Result<Vec<Path
     let dir = domain.join("vendor").join("embryonaut_bluebooks").join(pkg_name).join("bluebook");
     if !dir.is_dir() {
         return Err(format!(
-            "uses_embryonaut_bluebook {pkg_name:?} names no vendored bluebook at {} — run bin/vendor_embryonaut_bluebooks {pkg_name}",
+            "uses_embryonaut_bluebook {pkg_name:?} names no vendored bluebook at {} — run hecks vendor {pkg_name}",
             dir.display()
         ));
     }

@@ -11,7 +11,7 @@ module Hecks
     # Runs the translation audit's three layers standalone against a domain's latest or pending
     # edge. Read-only except `--approve`, which records the human approval in the database.
     #
-    #   bin/translation_audit <domain> [--approve]
+    #   hecks audit_translation <domain> [--approve]
     module TranslationAudit
       module_function
 
@@ -24,7 +24,7 @@ module Hecks
       def main(argv, **)
         argv = argv.dup
         approve = argv.delete("--approve")
-        domain_path = argv.shift or abort "usage: bin/translation_audit <domain> [--approve]"
+        domain_path = argv.shift or abort "usage: hecks audit_translation <domain> [--approve]"
 
         registry, bluebook, directory = load_domain(domain_path)
         db, lineage = open_lineage(registry, bluebook)
@@ -124,7 +124,7 @@ module Hecks
             t.domain == bluebook.name && t.from == latest[:label] && t.to == to_label
           end
           pending or abort "no translation edge leads #{latest[:label]} to #{to_label} — " \
-                           "run bin/scaffold_translation first"
+                           "run hecks scaffold_translation first"
           chain = begin
             manager.edge_chain(registry, bluebook, eras, latest[:label])
           rescue StandardError

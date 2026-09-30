@@ -1,5 +1,5 @@
 {
-  "generated_by": "bin/argument_gate_matrix",
+  "generated_by": "hecks argument_gate_matrix",
   "aggregate_order": [
     "decode_arguments",
     "refuse_unknown_arguments",

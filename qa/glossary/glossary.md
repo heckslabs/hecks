@@ -744,7 +744,7 @@ Record that a deliberate, non-bugfix piece of work has been opened as a pull req
 
 ### Open (the list)
 
-Every PR we've landed for deliberate, non-bugfix work that's still open, by number — bin/qa_pr_check's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
 
 ### Opened since
 
@@ -824,7 +824,7 @@ Record that a fix has been opened as a pull request, the moment its number, bran
 
 ### Open (the list)
 
-Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+Every PR we've opened that's still open, by number — hecks quality_control check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
 
 ### Opened since
 
@@ -1328,7 +1328,7 @@ Take a chapter out of the rotation because a check surprised, until a person rel
 
 ### Suspended
 
-Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep <target> --release --notes is how one comes back.
+Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control ask run <target> --release --notes is how one comes back.
 
 ### Swept in
 

@@ -4,9 +4,9 @@ Every job the `bin/` scripts did is a command of the `Hecks` chapter or of a cha
 `hecks` launcher answers it: `hecks` lists the verbs, `hecks <verb> --help` prints one's usage, and
 `hecks <verb> name=value …` runs it. A verb that changes the tree, a database or a registry does nothing
 until it is given `--confirm`. The Custodian verbs ship in the installed gem; the Codebase verbs need a
-checkout of this repository and refuse without one. The `bin/` script named in the last column is a shim
-over the same command until `bin/` is removed. The QualityControl scripts (`bin/qa_*`) are commands of the
-attached QualityControl chapter, spelled `hecks quality_control <verb>`.
+checkout of this repository and refuse without one. The `bin/` script named in the last column is the
+script the command replaced: `bin/` was removed in 3.0.0. The QualityControl scripts (`bin/qa_*`) are commands
+of the attached QualityControl chapter, spelled `hecks quality_control <verb>`.
 
 Each launcher form below is the form `exe/hecks` executes, copied from `lib/hecks/three_zero/forms.yml`. Those
 are the positional spellings, which can differ from the ADR 0080 section 7 spelling of a command's arguments.

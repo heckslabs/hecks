@@ -6,14 +6,15 @@ require_relative "../corpus"
 module Hecks
   module Tools
     # Prints the Rust-facing corpus from `Hecks::Corpus`, for CI steps and for asking what CI walks.
+    # Takes one flag (`hecks corpus_rust_coverage <flag>`):
     #
-    #   bin/corpus --rust-domains      feature and path of every in-repo domain with a Cargo feature
-    #   bin/corpus --rust-regen-order  paths bin/regen_codegen_domains regenerates, in order
-    #   bin/corpus --rust-coverage     run the coverage tool over every generated module; a
-    #                                  Corpus::RUST_COVERAGE_PENDING module must still fail,
-    #                                  every other one must pass
+    #   --rust-domains      feature and path of every in-repo domain with a Cargo feature
+    #   --rust-regen-order  paths `hecks regenerate_corpus` regenerates, in order
+    #   --rust-coverage     run the coverage tool over every generated module; a
+    #                       Corpus::RUST_COVERAGE_PENDING module must still fail,
+    #                       every other one must pass
     module CorpusReport
-      USAGE = "usage: bin/corpus --rust-domains | --rust-regen-order | --rust-coverage"
+      USAGE = "usage: hecks corpus_rust_coverage --rust-domains | --rust-regen-order | --rust-coverage"
 
       module_function
 
@@ -59,7 +60,7 @@ module Hecks
         modules = Hecks::Corpus.generated_modules
         pending = Hecks::Corpus::RUST_COVERAGE_PENDING
         unknown = pending.keys - modules
-        abort "bin/corpus: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, which has no generated module" if unknown.any?
+        abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, which has no generated module" if unknown.any?
 
         results = coverage_results(modules)
         problems = modules.filter_map do |name|
@@ -73,7 +74,7 @@ module Hecks
           end
         end
 
-        return puts("bin/corpus: #{modules.size} generated modules checked").then { 0 } if problems.empty?
+        return puts("hecks corpus_rust_coverage: #{modules.size} generated modules checked").then { 0 } if problems.empty?
 
         warn problems.join("\n\n")
         1

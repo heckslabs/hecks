@@ -4,7 +4,7 @@ require_relative "../mcp_stdio_guard"
 
 module Hecks
   module CLI
-    # The command behind `bin/hecks_query_ir_mcp` and `hecks serve_query_ir_mcp`: an MCP server
+    # The command behind `hecks serve_query_ir_mcp` and `hecks serve_query_ir_mcp`: an MCP server
     # exposing `Hecks::QueryIR`'s queries as tools, over newline-delimited JSON-RPC on stdio.
     #
     # Stdio only and unauthenticated (ADR 0062); the protocol lives in `Hecks::QueryIrMcp` and the

@@ -42,7 +42,7 @@ RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
       .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /LoadError: cannot load such file -- pg/)
   end
 
-  it "defaults to the gem's own regeneration, so an installed gem needs no bin/ script" do
+  it "defaults to the gem's own regeneration, so an installed gem needs no script" do
     expect(described_class.new(tree).send(:regenerator)).to eq(Hecks::PersistenceLegacyFixture::Regenerate)
   end
 end
