@@ -61,6 +61,16 @@ pub async fn render(
         // Newsletter subscribe shares this gate (same hecksagon as the
         // registration aggregates) and is checked first since it needs none
         // of the Payments::Payment/Event context checkout requires.
+        // The subscriber list is PII (email, names, status): only an Admin or
+        // Owner holding the account cookie may read it, like sending does.
+        if method == "GET" && path == "/newsletter/subscribers" && ir().and_then(crate::ir::newsletter_provider).is_some() {
+            let Some(domain_ir) = ir() else {
+                return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
+            };
+            if let Err(response) = newsletter_send::require_admin(domain_ir, &extract_cookies(body), &session_secret(), client).await {
+                return Some(response);
+            }
+        }
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
