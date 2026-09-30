@@ -20,7 +20,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   # example fails once the domain agrees and the entry must be deleted.
   RUST_FUZZ_PENDING = {}.freeze
 
-  # A total spread across DOMAINS, so a longer domain list adds no wall-clock.
+  # A total spread across `DOMAINS`, so a longer domain list adds no wall-clock.
   # `SEEDS=` sets a per-domain count instead; keep it modest, each seed spawns a subprocess.
   SEED_BUDGET = 80
   SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || (SEED_BUDGET.to_f / DOMAINS.size).ceil)

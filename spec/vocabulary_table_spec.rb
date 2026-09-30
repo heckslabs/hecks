@@ -34,7 +34,7 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
-    # Derivable despite appearances: DOMAIN_REFUSALS maps to classes (one const_get), REFUSED is
+    # Derivable despite appearances: DOMAIN_REFUSALS maps to classes (one const_get), `REFUSED` is
     # one constant Trigger declares, and a separate gate resolves the DISPATCH_ORDER methods.
     it "DomainRefusal resolves to the exception classes the module defines" do
       expect(Hecks::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last })

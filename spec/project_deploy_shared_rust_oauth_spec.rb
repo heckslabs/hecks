@@ -121,7 +121,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
 
   # `deploy:` is several independent shell invocations, not one chain. A second '@' inside one
   # backslash-joined chain becomes literal invalid shell, so check per chain, not per recipe: a
-  # target may carry several independent '@' lines (see mint_era_recipe's OWNMINT branch).
+  # target may carry several independent '@' lines (see mint_era_recipe's `OWNMINT` branch).
   def self.shell_chains(lines)
     chains = []
     current = []
