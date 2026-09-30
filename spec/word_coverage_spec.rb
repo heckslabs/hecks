@@ -82,11 +82,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
-    "attaches (Hecksagon)"              =>
-                                           "its first real user is the `attaches` line in lib/hecks/hecks/hecks.hecksagon, " \
-                                           "which ADR 0080's 3.0 build adds when Hecks attaches the language chapters " \
-                                           "(commit 6 of 11); that commit drops this exemption. " \
-                                           "spec/hecksagon_attaches_spec.rb covers the word meanwhile.",
     "cursor (Query)"                    =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                            "implements cursor pagination, so any real declaration would refuse the bluebook " \
@@ -176,14 +171,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
                                            "unresolved always raises Malformed) — a real declaration exists only to be " \
                                            "refused, the same structural-impossibility shape `cursor (Query)` above " \
-                                           "already is, never to succeed and land in a corpus record.",
-    "translates (Hecksagon)"            =>
-                                           "used for real in lib/hecks/tenancy/bluebook/tenancy.hecksagon, a tooling-" \
-                                           "internal domain (booted centrally, never uses_framework-attached) in the " \
-                                           "same category CORPUS_GLOBS above already excludes for lib/hecks/deploy — " \
-                                           "neither is an example domain, a grammar chapter, or a framework member. " \
-                                           "Also directly, independently tested in spec/hecksagon_translates_spec.rb, " \
-                                           "which proves it builds a real Policy and fires end to end, not just parses."
+                                           "already is, never to succeed and land in a corpus record."
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do

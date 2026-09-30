@@ -106,7 +106,9 @@ module Hecks
       end
 
       # The answer `--wait` gives: the record re-read from its repository after every reaction
-      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure state.
+      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure state
+      # or a reaction was refused (a request a `given` held back records nothing more, so the
+      # refusal is the only sign it did not go through).
       #
       # @return [Array(String, Integer)] the JSON and the status
       def settled(runtime, spec, handle, bluebook, launcher, extra)
@@ -118,7 +120,8 @@ module Hecks
         events    = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
         answer    = { id: handle.id, state: JsonDoor.materialize(state),
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
-        [JSON.pretty_generate(answer), LauncherOptions.failed?(aggregate, state, launcher) ? 1 : 0]
+        failed = LauncherOptions.failed?(aggregate, state, launcher) || extra.key?(:refused_reactions)
+        [JSON.pretty_generate(answer), failed ? 1 : 0]
       end
 
       # The aggregate a top-level command belongs to; nil for an entity command or a port.

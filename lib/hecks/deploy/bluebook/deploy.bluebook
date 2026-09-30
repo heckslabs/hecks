@@ -1,5 +1,11 @@
-# Tooling-internal domain `bin/project_deploy` boots directly; never attached via `uses_framework`.
+# Deploying a domain: the `deployed_to` targets validated before a recipe is generated, the recipe
+# itself (Recipe, RecipeLint, OidcManifest) and provisioning a tenant. The Hecks domain attaches
+# this chapter (`hecks deploy ...`); `bin/project_deploy` and `bin/project_tenant` boot it directly.
 # It validates the `deployed_to` shape that `world.bluebook`'s untyped `Setting` map leaves open.
+#
+# The commands that render, lint or write follow the journaled-command pattern of
+# lib/hecks/hecks/custodian.bluebook: a creating command records the request, a policy asks the
+# port, and one policy per outcome records what came of it. The ports are in deploy_ports.hecksagon.
 Hecks.bluebook "Deploy" do
   aggregate "LambdaTarget" do
     description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
@@ -211,5 +217,477 @@ Hecks.bluebook "Deploy" do
 
       emits "TenantDeclared"
     end
+
+    # Where the tenant's overlay is written and what it binds; absent from a bare declaration.
+    attribute :database,  DatabaseName,  optional: true
+    attribute :adapter,   AdapterName,   optional: true
+    attribute :directory, DirectoryPath, optional: true
+    attribute :refusal,   Refusal,       optional: true
+
+    # A database name or URL; the overlay's `persisted_by` block carries it verbatim.
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+      invariant("a tenant database is named") { !value.to_s.empty? }
+    end
+
+    # The persistence adapter the overlay binds; PostgresEra when a request names none.
+    value_object "AdapterName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # Why the tenant could not be provisioned.
+    value_object "Refusal" do
+      attribute :value, String
+    end
+
+    # A bare declaration only validates; provisioning settles or refuses the tenant.
+    lifecycle :status, default: "declared" do
+      transition "Settle" => "provisioned", from: "declared"
+      transition "Refuse" => "refused",     from: "declared"
+    end
+
+    # The domain's own directory on disk, where `environments/<slug>.world` is written.
+    value_object "DirectoryPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+      invariant("a tenant's domain directory is named") { !value.to_s.empty? }
+    end
+
+    # Declares the tenant, then the TenantProvisioning port writes its overlay world and boots the
+    # domain under it, which also provisions the schema. `hecks deploy provision <domain_dir> ...`.
+    command "Provision" do
+      goal "Provision one tenant: validate its shape, write its overlay world and boot its domain under it"
+
+      attribute :directory, DirectoryPath
+      attribute :slug,      Slug
+      attribute :domain,    DomainName
+      attribute :realm,     Realm
+      attribute :schema,    Schema
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+
+      sets :directory
+      sets :slug
+      sets :domain
+      sets :realm
+      sets :schema
+      sets :database
+      sets :adapter
+
+      emits "TenantProvisionRequested"
+    end
+
+    command "Settle" do
+      goal "Record that the tenant's overlay is written and its domain boots under it"
+
+      reference_to Tenant
+      attribute :realm, Realm
+
+      sets :realm
+
+      emits "TenantSettled"
+    end
+
+    command "Refuse" do
+      goal "Record that the tenant could not be provisioned, and why"
+
+      reference_to Tenant
+      attribute :refusal, Refusal
+
+      sets :refusal
+
+      emits "TenantRefused"
+    end
+
+    query "Refused" do
+      description "Every tenant that could not be provisioned, and why."
+      where(status: "refused")
+      order_by :slug
+    end
+  end
+
+  # One rendering of a domain's deploy recipe: `hecks deploy project <domain>` (bin/project_deploy).
+  # The Workspace port reads the domain's world for its declared target, and only an AwsLambda or
+  # AwsFargate target is rendered; the recipe is written under `out`, or `deploy/<stack>`.
+  aggregate "Recipe" do
+    description "One rendering of a domain's deploy recipe, and the files it wrote: a deploy's history."
+
+    attribute :domain,      DomainPath
+    attribute :run,         RunKey
+    attribute :tenant,      TenantSlug,      optional: true
+    attribute :schema,      SchemaName,      optional: true
+    attribute :out,         OutDirectory,    optional: true
+    attribute :environment, EnvironmentName, optional: true
+    attribute :target,      TargetName,      optional: true
+    attribute :report,      Report,          optional: true
+    attribute :refusal,     Report,          optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a rendering is named") { !value.to_s.empty? }
+    end
+
+    # The domain directory, holding `bluebook/<name>.world`.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "TenantSlug" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    value_object "SchemaName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    value_object "OutDirectory" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "EnvironmentName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # The adapter the domain's world declares in `deployed_to`; empty when it declares none.
+    value_object "TargetName" do
+      attribute :value, String
+    end
+
+    # Paths, one per line for a report; a sentence for a refusal.
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "FilePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a template is named by its path") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "rendered",  from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    # `--schema` scopes a tenant's override, so it means nothing without one.
+    command "Project" do
+      goal "Render a domain's deploy recipe: its Makefile, template and scripts"
+
+      attribute :domain,      DomainPath
+      attribute :run,         RunKey
+      attribute :tenant,      TenantSlug,      optional: true
+      attribute :schema,      SchemaName,      optional: true
+      attribute :out,         OutDirectory,    optional: true
+      attribute :environment, EnvironmentName, optional: true
+
+      given("a schema names the tenant it scopes") { schema.value.to_s.empty? || !tenant.value.to_s.empty? }
+
+      sets :domain
+      sets :run
+      sets :tenant
+      sets :schema
+      sets :out
+      sets :environment
+
+      emits RecipeRequested
+    end
+
+    # What the world declared, held against the request: only a Lambda or Fargate target renders.
+    command "Accept" do
+      goal "Let a request through only when the domain declares an AwsLambda or AwsFargate target"
+
+      reference_to Recipe
+      attribute :target, TargetName
+
+      given("the domain declares deployed_to(\"AwsLambda\") or deployed_to(\"AwsFargate\")") do
+        target.value == "AwsLambda" || target.value == "AwsFargate"
+      end
+
+      sets :target
+
+      emits RecipeAccepted
+    end
+
+    command "Complete" do
+      goal "Record that the recipe was rendered, and the files it wrote"
+
+      reference_to Recipe
+      attribute :report, Report
+
+      sets :report
+
+      emits RecipeCompleted
+    end
+
+    command "Fault" do
+      goal "Record that the recipe was refused or could not be rendered, and why"
+
+      reference_to Recipe
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RecipeFaulted
+    end
+
+    # Compares two rendered CloudFormation templates offline, by logical id. `--strict` counts
+    # cosmetic differences (comments, key order) too; `--json` answers the report as JSON.
+    query "Diff" do
+      description "What differs between two rendered CloudFormation templates, by logical id."
+      attribute :before, FilePath
+      attribute :after,  FilePath
+      attribute :json,   Switch, optional: true
+      attribute :strict, Switch, optional: true
+      answered_by "Workspace"
+    end
+
+    query "Rendering" do
+      description "How one rendering ended: its status, the files it wrote, or why it was refused."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Unrendered" do
+      description "Every rendering that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  # `hecks deploy lint`: reads generated Makefiles as text (nothing runs `make`) for recipes that
+  # touch AWS or a database and hide a failure.
+  aggregate "RecipeLint" do
+    description "One lint of generated deploy Makefiles, and what it found."
+
+    attribute :run,       RunKey
+    attribute :makefiles, PathList, optional: true
+    attribute :report,    Report,   optional: true
+    attribute :refusal,   Report,   optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a lint is named") { !value.to_s.empty? }
+    end
+
+    # Makefile paths, comma separated; three generated fixture domains are linted when absent.
+    value_object "PathList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "clean",   from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    command "Lint" do
+      goal "Lint generated deploy Makefiles for prod-touching recipes that hide failure"
+
+      attribute :run,       RunKey
+      attribute :makefiles, PathList, optional: true
+
+      sets :run
+      sets :makefiles
+
+      emits RecipeLintRequested
+    end
+
+    command "Pass" do
+      goal "Record that the recipes left no violation"
+
+      reference_to RecipeLint
+      attribute :report, Report
+
+      sets :report
+
+      emits RecipeLintPassed
+    end
+
+    command "Flag" do
+      goal "Record that the recipes hold a violation, or could not be read, and what was found"
+
+      reference_to RecipeLint
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RecipeLintFlagged
+    end
+
+    query "Verdict" do
+      description "What one lint found: its status, and the report or the violations."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every lint that found a violation or could not read its Makefiles."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  # `hecks deploy project_oidc`: writes each domain's `oidc.json` beside it.
+  aggregate "OidcManifest" do
+    description "One projection of domains' OIDC client and scope manifests, and where they were written."
+
+    attribute :run,     RunKey
+    attribute :domains, DomainList, optional: true
+    attribute :report,  Report,     optional: true
+    attribute :refusal, Report,     optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a projection is named") { !value.to_s.empty? }
+    end
+
+    # Domain directories under the project, comma separated; every domain found when absent.
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Finish" => "written", from: "requested"
+      transition "Stop"   => "stopped", from: "requested"
+    end
+
+    command "ProjectOidc" do
+      goal "Write each domain's OIDC client and scope manifest into an oidc.json beside it"
+
+      attribute :run,     RunKey
+      attribute :domains, DomainList, optional: true
+
+      sets :run
+      sets :domains
+
+      emits OidcProjectionRequested
+    end
+
+    command "Finish" do
+      goal "Record the manifests written"
+
+      reference_to OidcManifest
+      attribute :report, Report
+
+      sets :report
+
+      emits OidcProjected
+    end
+
+    command "Stop" do
+      goal "Record that no manifest could be written, and why"
+
+      reference_to OidcManifest
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits OidcStopped
+    end
+
+    query "Manifest" do
+      description "How one projection ended: its status, and the manifests written or why it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Unwritten" do
+      description "Every projection that could not write a manifest."
+      where(status: "stopped")
+      order_by :run
+    end
+  end
+
+  policy "SurveyWhenProjectRequested" do
+    on      "Recipe.RecipeRequested"
+    trigger Recipe::Workspace::Survey, with: { run: :run }
+  end
+
+  policy "RenderWhenAccepted" do
+    on      "Recipe.RecipeAccepted"
+    trigger Recipe::Workspace::Render, with: { run: :run }
+  end
+
+  policy "AcceptWhenSurveyed" do
+    on      "Recipe.RecipeSurveyed"
+    trigger Recipe::Accept, with: { target: :target }
+  end
+
+  policy "RecordTheRecipe" do
+    on      "Recipe.RecipeAnswered"
+    trigger Recipe::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRecipeFault" do
+    on      "Recipe.RecipeRefused"
+    trigger Recipe::Fault, with: { refusal: :refusal }
+  end
+
+  policy "CheckWhenLintRequested" do
+    on      "RecipeLint.RecipeLintRequested"
+    trigger RecipeLint::Make::Check, with: { run: :run }
+  end
+
+  policy "RecordTheCleanRecipes" do
+    on      "RecipeLint.RecipeLintAnswered"
+    trigger RecipeLint::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheViolations" do
+    on      "RecipeLint.RecipeLintRefused"
+    trigger RecipeLint::Flag, with: { refusal: :refusal }
+  end
+
+  policy "WriteWhenOidcRequested" do
+    on      "OidcManifest.OidcProjectionRequested"
+    trigger OidcManifest::Workspace::WriteManifests, with: { run: :run }
+  end
+
+  policy "RecordTheManifests" do
+    on      "OidcManifest.OidcAnswered"
+    trigger OidcManifest::Finish, with: { report: :report }
+  end
+
+  policy "RecordTheStoppedManifests" do
+    on      "OidcManifest.OidcRefused"
+    trigger OidcManifest::Stop, with: { refusal: :refusal }
+  end
+
+  policy "ProvisionWhenRequested" do
+    on      "Tenant.TenantProvisionRequested"
+    trigger Tenant::TenantProvisioning::Establish,
+            with: { slug: :slug, database: :database, directory: :directory }
+  end
+
+  policy "SettleWhenProvisioned" do
+    on      "Tenant.TenantProvisioned"
+    trigger Tenant::Settle, with: { realm: :realm }
+  end
+
+  policy "RecordTheRefusedTenant" do
+    on      "Tenant.ProvisioningRefused"
+    trigger Tenant::Refuse, with: { refusal: :refusal }
   end
 end

@@ -1,5 +1,21 @@
 Hecks.hecksagon "Hecks" do
   uses_framework "Governance"
+
+  # The chapters that describe the framework itself (ADR 0080, section 4). Each keeps its own
+  # name, namespace and store; context_map.hecksagon holds the sibling hecksagon of each.
+  # Paging extends Bluebook (`attaches_to`) and so comes with it. Translation is the language's
+  # chapter (lib/hecks/language/translation), never the grammar's.
+  attaches "Bluebook"
+  attaches "Paging"
+  attaches "Hecksagon"
+  attaches "World"
+  attaches "Adapter"
+  attaches "Port"
+  attaches "Translation"
+  attaches "Expression"
+  attaches "Tenancy"
+  attaches "Deploy"
+
   # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
   # environments/memory.world can swap the whole domain without a double bind.
 
@@ -283,3 +299,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 end
+
+# The two attached chapters that name constants of their own (an event to react to, an aggregate
+# to ask through) are wired here, after `attaches` has loaded them; context_map.hecksagon
+# is read first.
+
+# Tenancy takes its store from hecks.world like the rest. The one seam where Deploy's "Tenant" (a
+# validated request) becomes Tenancy's "Tenant" (a fact): `on` omits the "Deploy::" prefix, since
+# PolicyInterpreter matches event and aggregate name only, and `with:` is required because the
+# event payload also carries the port's dispatch-time args, which `Register` does not declare.
+Hecks.hecksagon "Tenancy" do
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
+end
+
+# Deploy's ports are shared with the chapter's own boot; loading the file here binds them to this
+# domain's adapters.
+Kernel.load(File.expand_path("../deploy/bluebook/deploy_ports.hecksagon", __dir__))

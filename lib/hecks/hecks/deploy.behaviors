@@ -1,0 +1,55 @@
+Hecks.behaviors "Deploy" do
+  vision "A deploy request is recorded before anything is written, and a refusal is kept with its reason."
+
+  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+
+  test "Project refuses a schema that names no tenant" do
+    tests "Project", on: "Recipe"
+    input run: { value: "recipe" }, domain: { value: "examples/pizzas" }, schema: { value: "acme" }
+    expect refused: "a schema names the tenant it scopes"
+  end
+
+  test "Project keeps a domain with no world file as a faulted rendering" do
+    tests "Project", on: "Recipe"
+    input run: { value: "recipe" }, domain: { value: "examples/nowhere" }
+    expect emits: %w[RecipeRequested RecipeRefused RecipeFaulted]
+  end
+
+  test "Project refuses a tenant that is not lowercase" do
+    tests "Project", on: "Recipe"
+    input run: { value: "recipe" }, domain: { value: "examples/pizzas" }, tenant: { value: "Acme" }
+    expect refused: "must match"
+  end
+
+  test "Lint renders the fixture domains and keeps a clean verdict" do
+    tests "Lint", on: "RecipeLint"
+    input run: { value: "recipes" }
+    expect emits: %w[RecipeLintRequested RecipeLintAnswered RecipeLintPassed]
+  end
+
+  test "Lint keeps a Makefile it cannot read as flagged" do
+    tests "Lint", on: "RecipeLint"
+    input run: { value: "recipes" }, makefiles: { value: "examples/nowhere/Makefile" }
+    expect emits: %w[RecipeLintRequested RecipeLintRefused RecipeLintFlagged]
+  end
+
+  test "ProjectOidc keeps a domain it cannot find as a stopped projection" do
+    tests "ProjectOidc", on: "OidcManifest"
+    input run: { value: "manifests" }, domains: { value: "examples/nowhere" }
+    expect emits: %w[OidcProjectionRequested OidcRefused OidcStopped]
+  end
+
+  test "Provision refuses a slug that is not lowercase" do
+    tests "Provision", on: "Tenant"
+    input directory: { value: "examples/pizzas/bluebook" }, slug: { value: "Acme" }, domain: { value: "Pizzas" },
+          realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "pizzas" }
+    expect refused: "must match"
+  end
+
+  test "Provision keeps a directory that does not exist as a refused tenant" do
+    tests "Provision", on: "Tenant"
+    input directory: { value: "examples/nowhere" }, slug: { value: "acme" }, domain: { value: "Pizzas" },
+          realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "pizzas" }
+    expect emits: %w[TenantProvisionRequested ProvisioningRefused TenantRefused]
+  end
+end

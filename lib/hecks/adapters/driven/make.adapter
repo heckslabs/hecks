@@ -1,0 +1,3 @@
+Hecks.adapter "Make" do
+  port "Make"
+end

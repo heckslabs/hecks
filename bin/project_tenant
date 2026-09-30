@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-# Provisions a tenant: validates the declared shape, writes the `.world` overlay through the
-# TenantProvisioning port, boots once, and checks tenant_capable? and the Tenancy record.
+# Provisions a tenant: validates the declared shape, then the TenantProvisioning port's adapter
+# writes the `.world` overlay, boots once and checks tenant_capable?; the Tenancy record is checked.
 #
 # Deploy and Tenancy boot into one shared registry so the `translates` reaction in
 # tenancy.hecksagon can see Deploy's TenantProvisioned event.
@@ -48,6 +48,7 @@ dispatcher = Hecks.boot_files(
   [
     File.join(lib_hecks, "deploy/bluebook/deploy.bluebook"),
     File.join(lib_hecks, "deploy/bluebook/deploy.hecksagon"),
+    File.join(lib_hecks, "deploy/bluebook/deploy_ports.hecksagon"),
     File.join(lib_hecks, "tenancy/bluebook/tenancy.bluebook"),
     File.join(lib_hecks, "tenancy/bluebook/tenancy.hecksagon")
   ],
@@ -70,11 +71,13 @@ rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
-# Writes the overlay only; answers TenantProvisioned or ProvisioningRefused, never raises.
+# Writes the overlay, boots the domain under it and checks tenant_capable; answers
+# TenantProvisioned or ProvisioningRefused, never raises.
 reactions = dispatcher.dispatch_port(
-  "Deploy", "Tenant", "TenantProvisioning", "Provision",
+  "Deploy", "Tenant", "TenantProvisioning", "Establish",
   to:   slug,
   with: {
+    slug:      { value: slug },
     database:  { value: options[:database] },
     adapter:   { value: options[:adapter] },
     directory: { value: domain_directory }
@@ -89,14 +92,7 @@ end
 overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
 puts "wrote #{overlay_path}"
 
-# The boot also provisions the schema: PostgresEra#connect_for runs an idempotent CREATE SCHEMA.
-target_dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
 puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
-
-# Checked for every bluebook in the registry, not just --domain, after a real boot.
-target_dispatcher.registry.bluebooks.each_key do |name|
-  Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(target_dispatcher.registry, name)
-end
 
 # Confirm by query: a refused reaction never raises (see header).
 tenant = dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))

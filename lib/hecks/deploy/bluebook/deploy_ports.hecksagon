@@ -1,0 +1,52 @@
+# The outside the Deploy chapter reaches, kept apart from deploy.hecksagon's store so the Hecks
+# domain, which attaches the chapter and binds its stores from hecks.world, loads exactly this.
+# Standing alone, the Deploy domain loads it beside deploy.hecksagon.
+Hecks.hecksagon "Deploy" do
+  # `bin/project_tenant` and `hecks deploy provision` reach this after `Tenant.Declare` (or
+  # `Tenant.Provision`) validates; `directory` is a real filesystem path, which `Tenant`'s
+  # declared `domain` name cannot supply. The adapter writes the overlay, then boots the domain
+  # under it (which provisions the schema) and checks the domain is tenant_capable.
+  Deploy::Tenant.port "TenantProvisioning" do
+    asks "Establish", to: Tenant do
+      attribute :slug,      Slug
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+      attribute :directory, DirectoryPath
+      answers "TenantProvisioned"
+      refuses "ProvisioningRefused"
+    end
+  end
+
+  # Files on disk: a rendering reads the domain's world, then writes the recipe; a manifest
+  # projection writes each domain's oidc.json. `Recipe.Diff` is a query the same port answers.
+  Deploy::Recipe.port "Workspace" do
+    asks "Survey", to: Recipe do
+      attribute :run, RunKey
+      answers "RecipeSurveyed"
+      refuses "RecipeRefused"
+    end
+
+    asks "Render", to: Recipe do
+      attribute :run, RunKey
+      answers "RecipeAnswered"
+      refuses "RecipeRefused"
+    end
+  end
+
+  Deploy::OidcManifest.port "Workspace" do
+    asks "WriteManifests", to: OidcManifest do
+      attribute :run, RunKey
+      answers "OidcAnswered"
+      refuses "OidcRefused"
+    end
+  end
+
+  # Make: generated Makefiles are read as text and never run.
+  Deploy::RecipeLint.port "Make" do
+    asks "Check", to: RecipeLint do
+      attribute :run, RunKey
+      answers "RecipeLintAnswered"
+      refuses "RecipeLintRefused"
+    end
+  end
+end

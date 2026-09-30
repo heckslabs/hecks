@@ -1,16 +1,5 @@
-# The Deploy domain, bound so it boots standing alone.
+# The Deploy domain, bound so it boots standing alone. Its ports are in deploy_ports.hecksagon,
+# which the Hecks domain loads too (it binds the chapter's stores from hecks.world instead).
 Hecks.hecksagon "Deploy" do
   persisted_by "Memory"
-
-  # `bin/project_tenant` dispatches this after `Tenant.Declare` validates; `directory` is a real
-  # filesystem path, which `Tenant`'s declared `domain` name cannot supply.
-  Deploy::Tenant.port "TenantProvisioning" do
-    asks "Provision", to: Tenant do
-      attribute :database,  DatabaseName
-      attribute :adapter,   AdapterName
-      attribute :directory, DirectoryPath
-      answers "TenantProvisioned"
-      refuses "ProvisioningRefused"
-    end
-  end
 end

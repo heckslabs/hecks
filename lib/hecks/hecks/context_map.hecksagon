@@ -5,3 +5,11 @@
 # way the Hecks chapter's do, so the memory overlay swaps them together.
 Hecks.hecksagon "Governance" do
 end
+
+# The language chapters, attached to the Hecks domain: their aggregates take the store hecks.world's
+# `default_adapter` names, like the rest. Their `role` declarations are checked by Governance.
+%w[Bluebook Hecksagon World Adapter Port Translation Expression Paging].each do |chapter|
+  Hecks.hecksagon chapter do
+    uses_framework "Governance"
+  end
+end

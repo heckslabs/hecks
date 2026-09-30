@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
+require_relative "deploy_files"
 require_relative "../../cli/project_cli"
 
 module Hecks
@@ -9,7 +10,12 @@ module Hecks
     #
     # Custodian commands whose whole effect is files on disk ask it, so the journal records that a
     # write was requested and what came of it, and the writing happens here and nowhere else.
+    #
+    # It also does the Deploy chapter's file work (`DeployFiles`): a deploy recipe, the OIDC
+    # manifests and a template comparison.
     class LocalFiles
+      include DeployFiles
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused
