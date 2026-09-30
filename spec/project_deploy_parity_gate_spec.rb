@@ -2,7 +2,7 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# The generated `deploy:` target runs bin/rust_conformance against the built $(WASM) before
+# The generated `deploy:` target runs `hecks check_conformance` against the built $(WASM) before
 # `sam deploy`. Checks the Makefile wiring and that the conformance exit code is real.
 RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
   def self.repo_root = File.expand_path("..", __dir__)
@@ -56,9 +56,10 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       expect(@makefile).to match(/^verify-parity-\w+:$/)
     end
 
-    it "runs bin/rust_conformance against $(WASM) — the exact artifact build-<LogicalId> just produced" do
+    it "runs hecks check_conformance against $(WASM) — the exact artifact build-<LogicalId> just produced" do
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
-      expect(target_body).to include("bin/rust_conformance")
+      expect(target_body).to include("exe/hecks check_conformance")
+      expect(target_body).to include("--wait")
       expect(target_body).to include("$(WASM)")
     end
 

@@ -485,13 +485,13 @@ module Hecks
                           "          DB_SECRET_ARN: !Sub \"${#{secret_sub}}\""
                         end}
                       # `domain_name`, NOT `infra_name` — this names the actual
-                      # .wasm FILE bin/project_wasm writes (rust/dist/#{domain_name}.wasm,
+                      # .wasm FILE `hecks build_wasm` writes (rust/dist/#{domain_name}.wasm,
                       # its own target_mod_name convention, a Rust-build-pipeline
                       # concern unrelated to AWS resource identity) and what the
                       # Makefile below actually bundles into the Lambda package
                       # under. Confirmed the hard way: pinning this to infra_name
                       # alongside the real AWS-identity fields left it looking for
-                      # a file bin/project_wasm never produces.
+                      # a file `hecks build_wasm` never produces.
                       HECKS_WASM_PATH: !Sub "/var/task/#{domain_name}.wasm"
                       # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
                       # domain's own declared name, known at generation time the
@@ -1067,13 +1067,13 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               \techo "Tearing down the temporary bastion stack..."; \\
               \taws cloudformation delete-stack --stack-name $(BASTION_STACK); \\
               \taws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \\
-              \techo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \\
+              \techo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with hecks console or a Postgres query against hecks_eras."; \\
               \texit $$BOOT_STATUS
               OWNMINT
             end
 
           # Shares mint_era_recipe's bastion/tunnel/retry/teardown chain but
-          # runs bin/scaffold_translation or bin/translation_audit over it.
+          # runs `hecks ask scaffold_translation` or bin/translation_audit over it.
           #
           # Neither script actually reads DATABASE_URL/HECKS_SCHEMA (both call
           # `registry.binding_settings`, a lookup against the literal `database
@@ -1081,7 +1081,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           # recipe would open a real tunnel to production and silently
           # scaffold/audit the local dev database instead, reporting success.
           # `db_env_blind` refuses unless `ALLOW_LOCAL_DB=1` is set.
-          translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib", db_env_blind: false|
+          translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib", db_env_blind: false,
+                                          domain_arg: "$(DOMAIN) "|
             if shared
               <<~SHAREDTRANSLATION.rstrip
               \t@echo "#{verb} isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see mint-era's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
@@ -1130,7 +1131,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
               \t\t\tsleep 1; \\
               \t\tdone; \\
-              \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
+              \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? domain_arg : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
               \t\tRUN_STATUS=$$?; \\
               \t\techo "#{verb} attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
               \t\tsleep 3; \\
@@ -1145,7 +1146,11 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             end
           end
 
-          scaffold_translation_recipe = translation_recipe.call("scaffold-translation", "bin/scaffold_translation", db_env_blind: true)
+          # `hecks ask` answers the scaffold as text, and refuses (exit 1) where the script aborted.
+          scaffold_translation_recipe = translation_recipe.call(
+            "scaffold-translation", "exe/hecks ask scaffold_translation", db_env_blind: true,
+            run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
+          )
           translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit", db_env_blind: true)
 
           # Same chain, running an app-owned one-time migration script instead
@@ -1365,7 +1370,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # `brew install cargo-lambda`.
 
             HOST_DIR := #{File.join(root, "rust", "host")}
-            # `domain_name`, matching bin/project_wasm's own target_mod_name
+            # `domain_name`, matching `hecks build_wasm`'s own target_mod_name
             # (a Rust-build-pipeline naming convention, not AWS resource
             # identity — see HECKS_WASM_PATH's own comment above).
             WASM     := #{File.join(root, "rust", "dist", "#{domain_name}.wasm")}
@@ -1380,13 +1385,13 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # start of a work session silently kept getting deployed through
             # every later kernel change (a real, live bug: this cost a stale
             # deploy against a wasm that predated the kernel's own "mutations"
-            # field). `bin/project_wasm` recompiles fast enough that "always
+            # field). `hecks build_wasm` recompiles fast enough that "always
             # rebuild" is the safe default, matching rust/host's own bootstrap
             # build just below, which was never guarded this way to begin with.
-            \tcd #{root} && bin/project_wasm #{domain}
+            \tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build_wasm domain=#{domain} --wait
             \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
             # `rustup run stable`, not a bare `cargo lambda` — same reasoning
-            # bin/project_wasm's own Makefile-equivalent line holds itself to: a
+            # `hecks build_wasm`'s own Makefile-equivalent line holds itself to: a
             # `cargo`/`rustc` earlier on PATH than rustup's own shims (Homebrew
             # installs one; common on this kind of machine) is a DIFFERENT
             # toolchain that never saw `rustup target add`, and fails with
@@ -1452,26 +1457,26 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # `make verify-parity-#{logical_id}` — closes the exact gap the
             # equivalence-gap plan's own Phase 8 named: parity was checked ONLY
             # against CI's fixed test corpus, completely decoupled from what a
-            # real `sam deploy` actually ships — `bin/rust_conformance` (the
+            # real `sam deploy` actually ships — `hecks check_conformance` (the
             # differential harness, docs/decisions/0010-ruby-is-the-reference-
             # implementation.md) had never once been run against a specific
             # compiled deploy artifact. Runs it here, for real, against
             # $(WASM) -- the EXACT file `build-#{logical_id}` (above) just built
             # and `deploy:` (below) is about to ship -- not a corpus-wide `cargo
-            # build`'s own separate binary. `bin/rust_conformance` exits non-zero
+            # build`'s own separate binary. `hecks check_conformance --wait` exits non-zero
             # on any mismatch, which this target lets propagate uncaught: a real
             # divergence between THIS artifact and Ruby's own reading of the
             # identical source blocks `make deploy` before `sam deploy` ever
             # runs, the same way a failing build already would.
             #
             # `spec/corpus/#{domain_name}.json` is this domain's OWN pinned
-            # fuzzer-replay script (the same shape `bin/fuzz`/`bin/run` already
+            # fuzzer-replay script (the same shape `hecks fuzz`/`hecks run` already
             # use) -- if a domain doesn't have one yet, this warns LOUDLY and
             # continues rather than either silently skipping (this project's own
             # standing rule against a silent gap reading as full coverage) or
             # blocking every deploy of a domain nobody has written one for yet.
             #
-            # SECOND HALF, BELOW — `bin/rust_conformance_fuzz`, ADR 0037's own fuzz
+            # SECOND HALF, BELOW — `hecks fuzz_conformance`, ADR 0037's own fuzz
             # bridge pointed at this exact $(WASM). A pinned script only proves
             # "matches Ruby on the cases we thought to write down" (ADR 0039's own
             # honest framing); the fuzz bridge is what actually FOUND Findings 1-6.
@@ -1485,12 +1490,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             .PHONY: verify-parity-#{logical_id}
             verify-parity-#{logical_id}:
             \t@if [ -f #{root}/spec/corpus/#{domain_name}.json ]; then \\
-            \t\tcd #{root} && bin/rust_conformance #{domain} spec/corpus/#{domain_name}.json $(WASM); \\
+            \t\tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks check_conformance domain=#{domain} script=spec/corpus/#{domain_name}.json artifact=$(WASM) --wait; \\
             \telse \\
-            \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (bin/fuzz/bin/run's own script shape) before this domain's next deploy."; \\
+            \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (hecks fuzz/hecks run's own script shape) before this domain's next deploy."; \\
             \tfi
             \t@echo "verify-parity-#{logical_id}: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
-            \t-@cd #{root} && bin/rust_conformance_fuzz #{domain} $(WASM)
+            \t-@cd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks fuzz_conformance domain=#{domain} artifact=$(WASM) --wait
 
             # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
             # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
