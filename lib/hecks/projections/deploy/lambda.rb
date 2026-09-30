@@ -1073,7 +1073,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             end
 
           # Shares mint_era_recipe's bastion/tunnel/retry/teardown chain but
-          # runs `hecks ask scaffold_translation` or bin/translation_audit over it.
+          # runs `hecks ask scaffold_translation` or `hecks ask audit_translation` over it.
           #
           # Neither script actually reads DATABASE_URL/HECKS_SCHEMA (both call
           # `registry.binding_settings`, a lookup against the literal `database
@@ -1151,11 +1151,17 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             "scaffold-translation", "exe/hecks ask scaffold_translation", db_env_blind: true,
             run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
           )
-          translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit", db_env_blind: true)
+          # A refused audit is a refused query: `hecks ask` exits 1, so the target fails too.
+          translation_audit_recipe = translation_recipe.call(
+            "translation-audit", "exe/hecks ask audit_translation", db_env_blind: true,
+            run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
+          )
 
           # Same chain, running an app-owned one-time migration script instead
-          # of a hecks bin/ tool. Harmless when the domain has none: `bundle
-          # exec ruby` on a missing file just fails loudly.
+          # of a hecks tool. `bin/migrate_console_settings` belongs to the domain's own
+          # application, not to hecks, so it stays a `bin/` path when hecks drops its own.
+          # Harmless when the domain has none: `bundle exec ruby` on a missing file just fails
+          # loudly.
           migrate_console_settings_recipe = translation_recipe.call(
             "migrate-console-settings", "bin/migrate_console_settings", "",
             cwd: "$(DOMAIN)", run_prefix: "bundle exec ruby"
