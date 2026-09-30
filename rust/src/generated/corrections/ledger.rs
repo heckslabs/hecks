@@ -1127,7 +1127,7 @@ if !absent.is_empty() {
         declared: &["entries"],
     }.render_args()));
 }
-        let entries = match v.get("entries").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Entry::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), };
+        let entries = match v.get("entries") { Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ReplaceEntriesArgs.entries expects list_of(Entry), got {}", x.inspect())))?.iter().map(Entry::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, };
         Ok(Self {
         entries,
         })
