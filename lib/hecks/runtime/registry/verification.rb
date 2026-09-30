@@ -13,6 +13,7 @@ module Hecks
           verify_world_defaults!
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
+          refuse_reserved_chapter_names!
           refuse_membership_without_identity!
           refuse_unresolved_port_operations!
           refuse_unanswerable_queries!
@@ -95,6 +96,13 @@ module Hecks
         # persistence/projection/loading are per-aggregate bound and already checked via
         # each bind above; a singleton port is never bound to an aggregate at all.
         PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
+
+        # The directory holding the gem's own Hecks chapter, the only place a chapter named
+        # `Hecks` may be declared from.
+        GEM_CHAPTER_DIR = File.expand_path("../../hecks", __dir__).freeze
+
+        # The chapter names only the gem itself may declare (ADR 0080, section 9).
+        RESERVED_CHAPTER_NAMES = %w[Hecks].freeze
 
         # Checks every singleton port with exactly one wired adapter against its own
         # declared `answers` methods.
@@ -314,6 +322,32 @@ module Hecks
         # inside one — the same reach dispatch-time role checking needs.
         def commands_in(bluebook_ir)
           bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
+        end
+
+        # Refuses a chapter whose name is reserved unless every file that declared it sits under
+        # the gem's own chapter directory. A rename is the only fix, so the message says so.
+        #
+        # @raise [WiringError] naming the reserved word and the offending file(s)
+        def refuse_reserved_chapter_names!
+          RESERVED_CHAPTER_NAMES.each do |reserved|
+            next unless @bluebooks.key?(reserved)
+
+            sources = Array(@bluebook_sources[reserved]).compact
+            foreign = sources.reject { |path| gem_chapter_source?(path) }
+            next if foreign.empty? && !sources.empty?
+
+            where = foreign.empty? ? "" : " (declared in #{foreign.join(', ')})"
+            raise WiringError,
+                  "a chapter named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
+                  "word, the name of the gem's own chapter, and only the gem may declare it#{where}. " \
+                  "Rename the chapter (for example to your app's name) in its " \
+                  "`Hecks.bluebook #{reserved.inspect}` line and in its hecksagon."
+          end
+        end
+
+        # Whether `path` is a file of the gem's own chapter directory.
+        def gem_chapter_source?(path)
+          File.expand_path(path.to_s).start_with?("#{GEM_CHAPTER_DIR}/")
         end
 
         # Two packages can share a chapter name by coincidence (found live: a stale
