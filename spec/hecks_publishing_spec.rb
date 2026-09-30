@@ -47,7 +47,7 @@ RSpec.describe "publishing a release" do
   def outcome(run) = launch("publishing_outcome", "run=#{run}").first
 
   def registry_lists_the_gem_after_the_push!
-    commands.on_run(File.join(root, "bin/release_gem")) do
+    commands.on_run("op", "run", "--env-file=release/gem_push.env") do
       commands.answer("curl", "-fsS", stdout: JSON.generate([{ "number" => version }]))
     end
   end
@@ -79,7 +79,7 @@ RSpec.describe "publishing a release" do
 
     it "records the steps taken before a failure, and a rerun that finds nothing left verifies" do
       registry_lists_the_gem_after_the_push!
-      commands.fail_run("op")
+      commands.fail_run("op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}")
 
       launch("publish", "run=partial", "--npm-local", "--confirm")
 

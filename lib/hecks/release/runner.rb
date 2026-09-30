@@ -235,7 +235,8 @@ module Hecks
       rescue CommandFailed => e
         @console.warn("npm publish failed: #{e.message}")
         unless dry_run
-          @console.warn("Finish the release with: bin/release --npm-only --npm-local (published steps are not repeated)")
+          @console.warn("Finish the release with: hecks publish --npm-only --npm-local --confirm " \
+                        "(published steps are not repeated)")
         end
         raise
       end
