@@ -23,7 +23,7 @@ module Hecks
       # @param arguments [Hash, String, nil] the command's own flags, such as `--brief`
       # @return [Hash] `text:` the miner's report
       def mine_combinations(arguments: nil)
-        run_command("qa_mine_combinations", *words(arguments), answers: [0, 2])
+        run_command("qa_mine_combinations", *words(arguments), answers: [0, 1])
       end
 
       # @param domain [Hash, String] the candidate stress domain's path

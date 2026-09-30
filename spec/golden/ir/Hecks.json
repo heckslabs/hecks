@@ -324,6 +324,46 @@
       "commands": [
         {
           "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "digest",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Digest"
+            }
+          ],
+          "emits": [
+            "CacheRecorded"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record a boot cache as built from the grammar chapters that hash to this digest",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "digest"
+              },
+              "target": "digest"
+            }
+          ],
+          "name": "Record",
+          "provenance": null,
+          "references": null,
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
 
           ],
           "emits": [

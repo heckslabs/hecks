@@ -548,6 +548,13 @@ RSpec.describe "QualityControl" do
       expect(bug.verification.to_h[:value]).to include("seed 12345")
     end
 
+    it "withdraws a paused bug whose report proved something else" do
+      bug = a_bug(a_sweep)
+      bug.pause!(reason: { value: "architectural" }, next_step: { value: "review" })
+
+      expect(bug.withdraw!(reason: { value: "the test proved something else" }).status).to eq("withdrawn")
+    end
+
     it "cannot be fixed before anybody has looked at it" do
       expect { a_bug(a_sweep).fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
         .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "investigating"/)
@@ -674,6 +681,18 @@ RSpec.describe "QualityControl" do
         body: { value: "see the demonstration" }
       )
       runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
+    end
+
+    it "abandons a ticket that was raised and never sent" do
+      bug = a_paused_bug
+      raise_ticket(bug)
+      QualityControl::Ticket.raise!(
+        bug: bug.id, reference: { value: "TK-2" }, repository: { value: "chrisyoung/hecksagain" },
+        title: { value: "unsent" }, body: { value: "never submitted" }
+      )
+      runtime.dispatch_flat("QualityControl::Ticket.Abandon", id: "TK-2")
+
+      expect(QualityControl::Ticket.find("TK-2").status).to eq("abandoned")
     end
 
     it "cannot be raised for a bug that does not exist" do

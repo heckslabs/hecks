@@ -186,9 +186,9 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "writes the overlay for a tenant that was only declared, under `reprovision`" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        @hecks.dispatch("Deploy::Tenant.Declare", to: "declared",
-                        with: { slug: { value: "declared" }, domain: { value: "Scratch" },
-                                realm: { value: "Declared" }, schema: { value: "declared" } })
+        declared = { slug: { value: "declared" }, domain: { value: "Scratch" },
+                     realm: { value: "Declared" }, schema: { value: "declared" } }
+        @hecks.dispatch("Deploy::Tenant.Declare", to: "declared", with: declared)
         json, status = answer(["reprovision", "to=declared", "directory=#{dir}", "database=hecks_tenants", "--wait"])
 
         expect(status).to eq(0)

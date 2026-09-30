@@ -16,4 +16,47 @@ Hecks.behaviors "Hecks" do
     input  version: { value: "3.0.0" }
     expect emits: ["Published"]
   end
+
+  test "Verify advances a published release" do
+    tests "Verify", on: "Release"
+    setup  "Hecks::Release.Tag", version: { value: "3.0.0" }, ir_version: { value: "1.0.0" }, ships_from: { path: "/work/hecks" }
+    setup  "Hecks::Release.MarkPublished", version: { value: "3.0.0" }
+    input  version: { value: "3.0.0" }
+    expect state: "verified"
+  end
+
+  test "Verify refuses a release that is only tagged" do
+    tests "Verify", on: "Release"
+    setup  "Hecks::Release.Tag", version: { value: "3.0.0" }, ir_version: { value: "1.0.0" }, ships_from: { path: "/work/hecks" }
+    input  version: { value: "3.0.0" }
+    expect refused: "state"
+  end
+
+  test "Record keeps a boot cache as fresh" do
+    tests "Record", on: "SyntaxBootCache"
+    input digest: { value: "abc123" }
+    expect state: "fresh"
+  end
+
+  test "Invalidate marks a fresh grammar cache stale" do
+    tests "Invalidate", on: "SyntaxBootCache"
+    setup  "Hecks::SyntaxBootCache.Record", digest: { value: "abc123" }
+    input  digest: { value: "abc123" }
+    expect state: "stale"
+  end
+
+  test "Rebuild makes a stale grammar cache fresh again" do
+    tests "Rebuild", on: "SyntaxBootCache"
+    setup  "Hecks::SyntaxBootCache.Record", digest: { value: "abc123" }
+    setup  "Hecks::SyntaxBootCache.Invalidate", digest: { value: "abc123" }
+    input  digest: { value: "abc123" }
+    expect state: "fresh"
+  end
+
+  test "Rebuild refuses a cache that is still fresh" do
+    tests "Rebuild", on: "SyntaxBootCache"
+    setup  "Hecks::SyntaxBootCache.Record", digest: { value: "abc123" }
+    input  digest: { value: "abc123" }
+    expect refused: "state"
+  end
 end

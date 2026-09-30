@@ -435,8 +435,10 @@ RSpec.describe "the Hecks command table through the launcher" do
       target = seeded_heki("heki-apply")
       journal = File.join(@dir, "data", "gadget.heki.journal")
       none = Hecks::Adapters::JournalStore::Examination::NEUTRAL.merge(operation: "compact_heki")
-      allow_any_instance_of(Hecks::Adapters::JournalStore)
-        .to receive(:examine).and_return(none.transform_values { |fact| { value: fact } })
+      found = none.transform_values { |fact| { value: fact } }
+      allow(Hecks::Adapters::JournalStore).to receive(:new).and_wrap_original do |original, *args, **kwargs|
+        original.call(*args, **kwargs).tap { |store| allow(store).to receive(:examine).and_return(found) }
+      end
       run_verb("compact_heki", target, "run=apply-1", "--confirm")
       expect(settlement_of("apply-1").fetch("status")).to eq("refused")
       size = File.size(journal)

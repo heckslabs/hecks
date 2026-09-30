@@ -86,6 +86,17 @@ Hecks.bluebook "Hecks" do
       transition "Rebuild"    => "fresh", from: "stale"
     end
 
+    command "Record" do
+      role "Maintainer"
+      goal "Record a boot cache as built from the grammar chapters that hash to this digest"
+
+      attribute :digest, Digest
+
+      sets :digest
+
+      emits CacheRecorded
+    end
+
     command "Invalidate", from: "fresh" do
       role "Maintainer"
       goal "Record that the grammar changed under the cache"
