@@ -84,9 +84,8 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     [:leaf, "x.match?(/a/)", { "x" => false }],
     [:leaf, "x.match?(/a/)", { "x" => [1] }],
     [:leaf, "x.match?(/(/)", { "x" => "a" }],
-    # presence, set?; `[0].present?` is left out: `Resolver.blank?` calls `Array#to_h` first, which
-    # raises a raw TypeError on a list that is not pairs, so Ruby has no answer to match.
-    *[nil, false, "", [], " ", 0, true, [[1, 2]]].flat_map do |value|
+    # presence, set?; a non-empty list that is not pairs (`[0]`) is present in both hosts.
+    *[nil, false, "", [], " ", 0, true, [[1, 2]], [0], [1, 2]].flat_map do |value|
       [[:leaf, "x.present?", { "x" => value }], [:leaf, "x.blank?", { "x" => value }],
        [:leaf, "x.set?", { "x" => value }], [:leaf, "x.unset?", { "x" => value }]]
     end,

@@ -444,6 +444,15 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "present?/blank? on lists" do
+    it "answers a non-empty list is present, pairs or not, without raising" do
+      expect(evaluate("value.present?", value: [0])).to be(true)
+      expect(evaluate("value.blank?", value: [0])).to be(false)
+      expect(evaluate("value.present?", value: [[1, 2]])).to be(true)
+      expect(evaluate("value.blank?", value: [])).to be(true)
+    end
+  end
+
   describe "set?/unset? -- deliberately narrower than present?/blank?" do
     it "asks only whether the receiver is nil, never whether it is empty" do
       expect(evaluate("value.set?", value: nil)).to be(false)

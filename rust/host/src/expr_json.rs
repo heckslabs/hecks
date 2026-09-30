@@ -397,8 +397,8 @@ fn modulo(receiver: &Value, divisor: &Value) -> Result<Value, String> {
 
 /// `Resolver.blank?`: nil, false, and an empty string, list or object.
 ///
-/// Ruby's version calls `to_h` on a list first, so a non-empty list that is not pairs raises a
-/// raw `TypeError` there; this answers what that code intends, that a non-empty list is present.
+/// Ruby's version judges a list by its own emptiness, so a non-empty list is present in both
+/// hosts, whether or not it is made of pairs.
 fn blank(v: &Value) -> bool {
     match v {
         Value::Nil | Value::Bool(false) => true,
