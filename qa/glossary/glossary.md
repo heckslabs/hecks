@@ -188,6 +188,7 @@ stateDiagram-v2
     investigating --> paused: Pause
     logged --> withdrawn: Withdraw
     investigating --> withdrawn: Withdraw
+    paused --> withdrawn: Withdraw
     fixed --> investigating: Regress
     verified --> investigating: Regress
     paused --> investigating: Revisit
@@ -1421,6 +1422,8 @@ stateDiagram-v2
     submitting --> filed: Filed
     submitting --> refused: Refused
     refused --> submitting: Retry
+    raised --> abandoned: Abandon
+    submitting --> abandoned: Abandon
     refused --> abandoned: Abandon
     filed --> closed: Close
 ```

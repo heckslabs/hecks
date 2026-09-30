@@ -469,6 +469,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     investigating --&gt; paused: Pause
     logged --&gt; withdrawn: Withdraw
     investigating --&gt; withdrawn: Withdraw
+    paused --&gt; withdrawn: Withdraw
     fixed --&gt; investigating: Regress
     verified --&gt; investigating: Regress
     paused --&gt; investigating: Revisit</pre>
@@ -1549,6 +1550,8 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     submitting --&gt; filed: Filed
     submitting --&gt; refused: Refused
     refused --&gt; submitting: Retry
+    raised --&gt; abandoned: Abandon
+    submitting --&gt; abandoned: Abandon
     refused --&gt; abandoned: Abandon
     filed --&gt; closed: Close</pre>
 </figure>

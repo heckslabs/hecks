@@ -113,7 +113,7 @@ Hecks.behaviors "Custodian" do
 
   test "CompactHeki keeps a domain that is not there as a refused change" do
     tests "CompactHeki", on: "Era"
-    input domain: { value: "/no/such/domain" }, run: { value: "compact" }, confirm: { value: true }
+    input domain: { value: "/no/such/heki-domain" }, run: { value: "compact" }, confirm: { value: true }
     expect emits: %w[HekiCompactionRequested EraRefused EraAbandoned]
   end
 
