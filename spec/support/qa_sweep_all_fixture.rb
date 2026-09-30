@@ -17,8 +17,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
                                  "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
   end
 
-  # The fixture ledger's `.hecksagon`: quality_control.hecksagon minus a `CI` adapter.
+  # The fixture ledger's `.hecksagon`: quality_control.hecksagon, chapter ports included.
   FIXTURE_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_HECKSAGON)
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -30,24 +32,6 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   RUBY
 
@@ -135,8 +119,6 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     @fixture_root = Dir.mktmpdir("qa_sweep_all_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
-                   File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
     # Same URL shape as the real ledger; PostgresEra refuses to boot as the ambient superuser.

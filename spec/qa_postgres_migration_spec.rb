@@ -15,13 +15,14 @@ require_relative "support/qa_lib_cli"
 RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
   # A constant assigned in a describe block lands at top level, and
   # spec/oidc_manifest_spec.rb already owns the bare name `ROOT`.
-  BLUEBOOK_SOURCE  = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook")
   HECKSAGON_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.hecksagon")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze
 
   # Heki-backed wiring, inlined so it stays fixed whatever the real file says. Same as the
   # real hecksagon except for the seven `persisted_by` lines.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
+    Hecks::Chapters.load!("QualityControl")
+
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -32,24 +33,6 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
       QualityControl::Ticket.persisted_by("Heki")
       QualityControl::Patch.persisted_by("Heki")
       QualityControl::Clearance.persisted_by("Heki")
-
-      QualityControl::Ticket.port "IssueTracker" do
-        asks "File", to: Ticket do
-          answers "IssueFiled"
-          refuses "IssueFilingRefused"
-        end
-
-        tells "Closed", to: Ticket do
-          emits "IssueClosedUpstream"
-        end
-      end
-
-      QualityControl::Clearance.port "CI" do
-        asks "Run", to: Clearance do
-          answers "SuitePassed"
-          refuses "SuiteFailed"
-        end
-      end
     end
   HECKSAGON
 
@@ -78,8 +61,6 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     FileUtils.mkdir_p(heki_bluebook_dir)
     FileUtils.mkdir_p(@pg_dir)
 
-    FileUtils.cp(BLUEBOOK_SOURCE, heki_bluebook_dir)
-    FileUtils.cp(BLUEBOOK_SOURCE, @pg_dir)
     FileUtils.cp(HECKSAGON_SOURCE, @pg_dir)
     File.write(File.join(heki_bluebook_dir, "quality_control.hecksagon"), HEKI_HECKSAGON)
     File.write(File.join(heki_bluebook_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
