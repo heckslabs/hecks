@@ -42,6 +42,27 @@ RSpec.describe Hecks::Tools do
     end
   end
 
+  describe "a tool that crashes" do
+    let(:crashing) { Module.new { def self.main(*, **) = raise(ArgumentError, "bad flag") } }
+
+    before { allow(described_class).to receive(:fetch).with("crashing").and_return(crashing) }
+
+    it "answers status 1 with the error on stderr, without raising" do
+      status = nil
+
+      expect { status = described_class.run("crashing", []) }.to output("crashing: ArgumentError: bad flag\n").to_stderr
+      expect(status).to eq(1)
+    end
+
+    it "reads through `RubyChild` as a failure carrying the message" do
+      stub_const("Hecks::Tools::REGISTRY", described_class::REGISTRY.merge("crashing" => ["x", "X"]))
+      child = Hecks::Adapters::Codebase::RubyChild.new(Hecks::Adapters::Codebase::Tree.new(root: root))
+
+      expect { child.read("crashing") }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "crashing: ArgumentError: bad flag")
+    end
+  end
+
   describe "run through the Codebase adapters' `RubyChild`" do
     let(:child) { Hecks::Adapters::Codebase::RubyChild.new(Hecks::Adapters::Codebase::Tree.new(root: root)) }
 

@@ -2,6 +2,8 @@
 
 require "fileutils"
 require "json"
+require "tmpdir"
+require_relative "../cache_dir"
 require_relative "../rust_build"
 require_relative "conformance"
 
@@ -16,6 +18,9 @@ module Hecks
     module ConformanceFuzz
       USAGE = "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
 
+      # What a domain directory's basename may be: a plain identifier, never `.` or `..`.
+      DOMAIN_NAME = /\A[A-Za-z0-9][A-Za-z0-9_-]*\z/
+
       module_function
 
       # @param argv [Array<String>] the domain, the artifact, and optionally seeds and steps
@@ -29,15 +34,26 @@ module Hecks
 
         seeds = Integer(seeds || ENV["SEEDS"] || 10)
         steps = Integer(steps || ENV["STEPS"] || 25)
-        # Under tmp/, not a temp directory, so a failing seed's script outlives the run.
-        base = File.writable?(ROOT) ? ROOT : Dir.pwd
-        scratch = File.join(base, "tmp", "rust_conformance_fuzz", File.basename(domain))
-        FileUtils.rm_rf(scratch)
-        FileUtils.mkdir_p(scratch)
+        scratch = scratch_dir(domain)
         (1..seeds).each { |seed| replay(domain, artifact, seed, seeds, steps, scratch) }
         FileUtils.rm_rf(scratch)
         puts "#{domain}: #{seeds} generated sequence(s) x #{steps} step(s) each, all matched #{artifact}."
         0
+      end
+
+      # A fresh directory per run, under the cache root outside the gem, so concurrent runs never
+      # share one; it is kept when a seed diverges, so the failing script outlives the run.
+      #
+      # @param domain [String] the domain's directory; its basename names the scratch directory
+      # @return [String] the new directory
+      # @raise [Failure] when the basename cannot safely name a directory
+      def scratch_dir(domain)
+        name = File.basename(domain.to_s.chomp("/"))
+        raise Failure, "#{USAGE}\n`#{domain}` is not a domain directory name" unless name.match?(DOMAIN_NAME)
+
+        parent = Hecks::CacheDir.path("rust_conformance_fuzz")
+        FileUtils.mkdir_p(parent)
+        Dir.mktmpdir("#{name}-", parent)
       end
 
       def replay(domain, artifact, seed, seeds, steps, scratch)

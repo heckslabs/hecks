@@ -2,6 +2,7 @@
 
 require "monitor"
 require "tempfile"
+require_relative "hecks/adapters/console_capture"
 
 module Hecks
   # The tools that generate a domain's Rust source, compile it and check the build against the Ruby
@@ -36,7 +37,9 @@ module Hecks
       "rust_coverage"         => ["rust_build/coverage", :Coverage]
     }.freeze
 
-    LOCK = Monitor.new
+    # The process-wide lock a call holds while it swaps `ENV`, `$stdout` and `$stderr`; the same
+    # lock `ConsoleCapture` holds, so a build and a capture never interleave.
+    LOCK = Hecks::Adapters::ConsoleCapture::LOCK
     private_constant :LOCK
 
     class << self
@@ -103,8 +106,8 @@ module Hecks
       def with_env(env)
         LOCK.synchronize do
           saved = env.keys.to_h { |key| [key, ENV.fetch(key, nil)] }
-          env.each { |key, value| ENV[key] = value }
           begin
+            env.each { |key, value| ENV[key] = value }
             yield
           ensure
             saved.each { |key, value| ENV[key] = value }
@@ -132,7 +135,7 @@ module Hecks
         1
       rescue SystemExit => e
         e.status
-      rescue StandardError => e
+      rescue StandardError, ScriptError => e
         warn "#{tool}: #{e.class}: #{e.message}"
         1
       end

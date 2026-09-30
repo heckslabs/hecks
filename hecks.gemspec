@@ -19,9 +19,9 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = ">= 3.2"
 
-  # Dir.glob, not `git ls-files` — this has to build the same way inside a
-  # Bundler git checkout as it does in a plain working copy, and the former
-  # is not guaranteed to carry a usable .git directory.
+  # In a git checkout only tracked files ship (`git ls-files`), so an untracked or gitignored
+  # file never reaches the gem. Where there is no usable .git directory (a plain copy, some
+  # Bundler git installs), `Dir.glob` over the same paths is the fallback.
   #
   # `lib/` ships whole. `rust/` ships as the workspace a client project builds in: `Build` copies
   # it to `.hecks/rust/<version>/` and never writes into the gem. Left out is what a build makes
@@ -30,11 +30,23 @@ Gem::Specification.new do |spec|
   # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
   # spec/gemspec_packaging_spec.rb holds each of these.
   # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks chapter boots.
-  not_shipped =%r{\Arust/(tests/|src/generated/|(.+/)?target/)}
+  # Each crate's own `rust/<crate>/tests/` (fixtures, corpus tests) stays out with `rust/tests/`.
+  not_shipped = %r{\Arust/(tests/|[^/]+/tests/|src/generated/|(.+/)?target/)}
   spec.files = Dir.chdir(__dir__) do
-    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) + ["exe/hecks", "qa/settings.yml"])
-      .select { |f| File.file?(f) }
-      .grep_v(not_shipped)
+    shipped = %w[lib rust exe/hecks qa/settings.yml]
+    tracked = begin
+      listed = IO.popen(["git", "ls-files", "-z", "--", *shipped], err: File::NULL, &:read)
+      Process.last_status.success? ? listed.split("\0") : []
+    rescue SystemCallError
+      []
+    end
+    candidates = if tracked.empty?
+                   Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) +
+                     ["exe/hecks", "qa/settings.yml"]
+                 else
+                   tracked
+                 end
+    candidates.select { |f| File.file?(f) }.grep_v(not_shipped)
   end
   spec.bindir      = "exe"
   spec.executables = ["hecks"]

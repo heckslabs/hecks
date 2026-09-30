@@ -146,8 +146,28 @@ RSpec.describe Hecks::Adapters::PgAdmin do
       expect(report).to eq("dropped database scratch_1")
     end
 
+    it "refuses a name that is not a scratch database, before connecting" do
+      %w[hecks_ledger production scratch scratch_ postgres template1 scratch-1].each do |name|
+        expect { admin.drop_database(database: name) }
+          .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refusing to drop #{name}/)
+      end
+      expect(sql).to be_empty
+    end
+
+    it "refuses the ledger or production database the environment names, even under a scratch name" do
+      { "PGDATABASE" => "scratch_live", "HECKS_LEDGER_DATABASE" => "scratch_ledger",
+        "DATABASE_URL" => "postgres://u:p@host:5432/scratch_prod" }.each do |variable, value|
+        stub_const("ENV", ENV.to_h.merge(variable => value))
+        name = value.split("/").last
+
+        expect { admin.drop_database(database: name) }
+          .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /ledger, production or a system database/)
+      end
+      expect(sql).to be_empty
+    end
+
     it "says so when there is nothing to drop" do
-      expect(admin.drop_database(database: "gone")[:report][:value]).to eq("no database gone")
+      expect(admin.drop_database(database: "scratch_gone")[:report][:value]).to eq("no database scratch_gone")
       expect(sql.grep(/DROP/)).to be_empty
     end
   end

@@ -38,11 +38,15 @@ module Hecks
           saved = ENV.fetch("HECKS_RUST_DIR", nil)
           ENV["HECKS_RUST_DIR"] = scratch if scratch
           begin
-            regenerate(domains, root)
+            begin
+              regenerate(domains, root)
+            ensure
+              saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
+            end
+            scratch ? verdict(scratch) : 0
           ensure
-            saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
+            FileUtils.rm_rf(scratch) if scratch
           end
-          scratch ? verdict(scratch) : 0
         end
       end
 

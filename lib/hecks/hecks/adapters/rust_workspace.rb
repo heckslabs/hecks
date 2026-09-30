@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "find"
+require "securerandom"
 require_relative "../../version"
 
 module Hecks
@@ -90,12 +91,38 @@ module Hecks
           raise Unavailable, "this hecks #{@version} install carries no Rust workspace to build in"
         end
 
-        FileUtils.rm_rf(target)
-        FileUtils.mkdir_p(target)
-        PACKAGED.each { |entry| copy_entry(source, target, entry) }
-        clean_features(File.join(target, "Cargo.toml"))
-        File.write(File.join(target, MARKER), "#{@version}\n")
+        publish(target) { |staging| build(source, staging) }
+      end
+
+      # Builds the copy in a staging directory beside the target and renames it into place, so a
+      # second process never sees, or deletes, a half-made copy; the loser of a race discards its
+      # own staging directory and uses the winner's.
+      def publish(target)
+        FileUtils.mkdir_p(File.dirname(target))
+        staging = "#{target}.tmp-#{Process.pid}-#{SecureRandom.hex(4)}"
+        yield staging
+        install(staging, target)
+      ensure
+        FileUtils.rm_rf(staging) if staging
+      end
+
+      # Only a directory without the marker, left by an older interrupted copy, is cleared away.
+      def install(staging, target)
+        File.rename(staging, target)
         target
+      rescue Errno::ENOTEMPTY, Errno::EEXIST
+        return target if File.exist?(File.join(target, MARKER))
+
+        FileUtils.rm_rf(target)
+        File.rename(staging, target)
+        target
+      end
+
+      def build(source, staging)
+        FileUtils.mkdir_p(staging)
+        PACKAGED.each { |entry| copy_entry(source, staging, entry) }
+        clean_features(File.join(staging, "Cargo.toml"))
+        File.write(File.join(staging, MARKER), "#{@version}\n")
       end
 
       # The packaged manifest lists a feature per corpus domain, and `default` names one of them.

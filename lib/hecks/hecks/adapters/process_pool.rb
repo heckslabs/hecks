@@ -33,7 +33,7 @@ module Hecks
       ENTRY = 'require "hecks/tools"; Hecks::Tools.script("fuzz", ARGV)'
 
       # Signals passed on to a running child's process group.
-      FORWARDED = %w[INT TERM].freeze
+      FORWARDED = %w[INT TERM HUP QUIT].freeze
 
       class << self
         # @return [#call, nil] runs a child given `(command, env, chdir)` and answers a `Finished`;
@@ -81,8 +81,15 @@ module Hecks
         output = Tempfile.new("process-pool")
         options = { pgroup: true, out: output, err: output }
         options[:chdir] = chdir if chdir
+        # Traps go in before the spawn, so a signal that lands while the child is starting is held
+        # and passed on the moment its pid is known, instead of orphaning it.
+        pid = nil
+        held = []
+        previous = FORWARDED.to_h do |name|
+          [name, trap(name) { pid ? forward(name, pid) : held << name }]
+        end
         pid = spawn(env, *command, **options)
-        previous = FORWARDED.to_h { |name| [name, trap(name) { forward(name, pid) }] }
+        held.each { |name| forward(name, pid) }
         _, status = Process.wait2(pid)
         Finished.new(File.read(output.path), status)
       rescue Errno::ENOENT => e

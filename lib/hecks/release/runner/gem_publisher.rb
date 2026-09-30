@@ -1,4 +1,6 @@
 require_relative "commands"
+require_relative "clean_tree"
+require_relative "git"
 require_relative "../../cli/release_gem"
 require "hecks/hecks/adapters/codebase/gem_registry"
 
@@ -24,8 +26,11 @@ module Hecks
         # @param dry_run [Boolean] build and delete the gem, pushing nothing
         # @return [void]
         # @raise [CommandFailed] if the build or the push fails
+        # @raise [Refusal] if a packaged path holds a modified, untracked or ignored file
         def publish!(version, dry_run:)
           return build_only(version) if dry_run
+
+          CleanTree.new(git: Git.new(root: @root, commands: @commands)).check!
 
           @console.say("Publishing hecks #{version} to rubygems.org...")
           status = Hecks::CLI::ReleaseGem.call(root: @root, commands: @commands, out: @console.out,
