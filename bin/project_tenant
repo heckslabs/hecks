@@ -72,7 +72,7 @@ end
 
 # Writes the overlay only; answers TenantProvisioned or ProvisioningRefused, never raises.
 reactions = dispatcher.dispatch_port(
-  "Deploy", "Tenant", "TenantProvisioning", "Provision",
+  "Deploy", "Tenant", "TenantProvisioning", "WriteOverlay",
   to:   slug,
   with: {
     database:  { value: options[:database] },

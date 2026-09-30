@@ -1,5 +1,11 @@
-# Tooling-internal domain `bin/project_deploy` boots directly; never attached via `uses_framework`.
-# It validates the `deployed_to` shape that `world.bluebook`'s untyped `Setting` map leaves open.
+# The Deploy chapter: what `deployed_to(...)` may declare, and the commands that generate, check and
+# compare a deploy recipe, project the OIDC manifests and provision a tenant.
+#
+# `bin/project_deploy` and `bin/project_tenant` boot it directly; the Hecks domain attaches it, so
+# each command below is also `hecks deploy <verb>`. The targets validate the `deployed_to` shape
+# that `world.bluebook`'s untyped `Setting` map leaves open. Each run below records that it was
+# requested before its DeployToolchain port is asked, and what came of it after. No command
+# declares a role: the chapter boots standing alone, without Governance to check one against.
 Hecks.bluebook "Deploy" do
   aggregate "LambdaTarget" do
     description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
@@ -166,10 +172,15 @@ Hecks.bluebook "Deploy" do
 
     identified_by :slug
 
-    attribute :slug,   Slug
-    attribute :domain, DomainName
-    attribute :realm,  Realm
-    attribute :schema, Schema
+    attribute :slug,      Slug
+    attribute :domain,    DomainName
+    attribute :realm,     Realm
+    attribute :schema,    Schema
+    attribute :database,  DatabaseName,  optional: true
+    attribute :adapter,   AdapterName,   optional: true
+    attribute :directory, DirectoryPath, optional: true
+    attribute :output,    Report,        optional: true
+    attribute :refusal,   Report,        optional: true
 
     # Lowercase, no spaces: a slug becomes the `environments/<slug>.world` filename and, by
     # convention only, the schema name (`schema` is separate so a tenant can differ).
@@ -196,6 +207,31 @@ Hecks.bluebook "Deploy" do
       invariant("a schema is named") { !value.to_s.empty? }
     end
 
+    # A database name or a `postgres://` URL, whichever the overlay's `database` setting takes.
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The persistence adapter the overlay binds; PostgresEra when a request names none.
+    value_object "AdapterName" do
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
+    end
+
+    # The domain's own directory on disk, where `environments/<slug>.world` is written.
+    value_object "DirectoryPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Reprovision" => "requested",   from: %w[provisioned refused]
+      transition "Complete"    => "provisioned", from: "requested"
+      transition "Abandon"     => "refused",     from: "requested"
+    end
+
     command "Declare" do
       goal "Validate one tenant's shape before bin/project_tenant provisions its schema and overlay world"
 
@@ -211,5 +247,549 @@ Hecks.bluebook "Deploy" do
 
       emits "TenantDeclared"
     end
+
+    # `hecks deploy provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
+    # The shape is validated as `Declare` does, then the overlay is written through the
+    # TenantProvisioning port; the adapter answers PostgresEra when `adapter` is left out.
+    command "Provision" do
+      goal "Validate one tenant, write its environment overlay world, and register it"
+
+      attribute :directory, DirectoryPath
+      attribute :slug,      Slug
+      attribute :domain,    DomainName
+      attribute :realm,     Realm
+      attribute :schema,    Schema
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+
+      sets :directory
+      sets :slug
+      sets :domain
+      sets :realm
+      sets :schema
+      sets :database
+      sets :adapter
+
+      emits "TenantProvisionRequested"
+    end
+
+    # A tenant's slug names its record, so provisioning it again is its own command; the overlay
+    # is rewritten with the database and adapter given now.
+    command "Reprovision" do
+      goal "Write a provisioned or refused tenant's environment overlay world again"
+
+      reference_to Tenant
+      attribute :directory, DirectoryPath
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+
+      sets :directory
+      sets :database
+      sets :adapter
+
+      emits "TenantReprovisionRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the tenant's overlay was written, and where"
+
+      reference_to Tenant
+      attribute :output, Report
+
+      sets :output
+
+      emits "TenantRecorded"
+    end
+
+    command "Abandon" do
+      goal "Record that the tenant could not be provisioned, and why"
+
+      reference_to Tenant
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "ProvisioningAbandoned"
+    end
+
+    query "Provisioning" do
+      description "What provisioning one tenant did: its status, and the reason when it was refused."
+      attribute :slug, Slug
+      where(slug: :slug)
+      order_by :slug
+    end
+
+    query "Unprovisioned" do
+      description "Every tenant whose provisioning was refused."
+      where(status: "refused")
+      order_by :slug
+    end
+  end
+
+  # `TenantProvisioned` also reaches Tenancy's `RegisterProvisionedTenant` where that chapter is
+  # attached, so a provisioned tenant becomes a fact there.
+  policy "ProvisionWhenRequested" do
+    on      "Tenant.TenantProvisionRequested"
+    trigger Tenant::TenantProvisioning::WriteOverlay, with: { database: :database, directory: :directory }
+  end
+
+  policy "ReprovisionWhenRequested" do
+    on      "Tenant.TenantReprovisionRequested"
+    trigger Tenant::TenantProvisioning::WriteOverlay, with: { database: :database, directory: :directory }
+  end
+
+  policy "RecordTheTenant" do
+    on      "Tenant.TenantProvisioned"
+    trigger Tenant::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheRefusedTenant" do
+    on      "Tenant.ProvisioningRefused"
+    trigger Tenant::Abandon, with: { refusal: :refusal }
+  end
+
+  aggregate "Recipe" do
+    description "One generation of a domain's deploy recipe: the template, scripts and Makefile written from its deployed_to target."
+
+    attribute :domain,      DomainPath
+    attribute :run,         RunKey
+    attribute :tenant,      TenantSlug,      optional: true
+    attribute :schema,      SchemaName,      optional: true
+    attribute :out,         Location,        optional: true
+    attribute :environment, EnvironmentName, optional: true
+    attribute :output,      Report,          optional: true
+    attribute :refusal,     Report,          optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # A domain directory, whose `bluebook/` holds the `.world` that declares `deployed_to`.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    # A tenant of a shared-database domain: its stack is the domain's own, suffixed with the slug.
+    value_object "TenantSlug" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    value_object "SchemaName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # Where the recipe is written, for a domain that lives in a client's repository.
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # An `environments/<name>.world` overlay of the domain, which must exist.
+    value_object "EnvironmentName" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "projected", from: "requested"
+      transition "Fault"    => "faulted",   from: "requested"
+    end
+
+    # `hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
+    # needs its tenant; the generator says so, and a domain with no `deployed_to` target, or one
+    # whose settings conflict, is faulted with the generator's own sentence.
+    command "Project" do
+      goal "Generate a domain's AWS deploy recipe from its declared deployed_to target"
+
+      attribute :domain,      DomainPath
+      attribute :run,         RunKey
+      attribute :tenant,      TenantSlug,      optional: true
+      attribute :schema,      SchemaName,      optional: true
+      attribute :out,         Location,        optional: true
+      attribute :environment, EnvironmentName, optional: true
+
+      sets :domain
+      sets :run
+      sets :tenant
+      sets :schema
+      sets :out
+      sets :environment
+
+      emits "ProjectionRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the recipe was written, and where"
+
+      reference_to Recipe
+      attribute :output, Report
+
+      sets :output
+
+      emits "RecipeProjected"
+    end
+
+    command "Fault" do
+      goal "Record that the recipe could not be generated, and why"
+
+      reference_to Recipe
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "RecipeFaulted"
+    end
+
+    query "Outcome" do
+      description "What one generation did: its status, and the files written or the reason it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every generation that could not write its recipe."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "GenerateWhenRequested" do
+    on      "Recipe.ProjectionRequested"
+    trigger Recipe::DeployToolchain::Generate, with: { run: :run }
+  end
+
+  policy "RecordTheRecipe" do
+    on      "Recipe.RecipeAnswered"
+    trigger Recipe::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheFaultedRecipe" do
+    on      "Recipe.RecipeRefused"
+    trigger Recipe::Fault, with: { refusal: :refusal }
+  end
+
+  aggregate "MakefileCheck" do
+    description "One lint of generated deploy Makefiles for prod-touching recipes that hide failure."
+
+    attribute :run,       RunKey
+    attribute :makefiles, PathList, optional: true
+    attribute :report,    Report,   optional: true
+    attribute :refusal,   Report,   optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # Makefile paths, comma separated; three generated fixture domains when absent.
+    value_object "PathList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "clean",   from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # A pattern match over Make and shell text, not a static analyzer: the findings are the
+    # linter's own sentences, one per violation, and a run that finds any is flagged.
+    command "Lint" do
+      goal "Lint generated deploy Makefiles for recipes that hide the failure of a command that touches prod"
+
+      attribute :makefiles, PathList, optional: true
+      attribute :run,       RunKey
+
+      sets :makefiles
+      sets :run
+
+      emits "LintRequested"
+    end
+
+    command "Pass" do
+      goal "Record that no recipe hides a failure"
+
+      reference_to MakefileCheck
+      attribute :report, Report
+
+      sets :report
+
+      emits "LintPassed"
+    end
+
+    command "Flag" do
+      goal "Record that a recipe hides a failure, or that the lint could not run, and what it said"
+
+      reference_to MakefileCheck
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "LintFlagged"
+    end
+
+    query "Verdict" do
+      description "What one lint found: its status, and the report or the violations."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every lint that left a violation or could not run."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "LintWhenRequested" do
+    on      "MakefileCheck.LintRequested"
+    trigger MakefileCheck::DeployToolchain::Scan, with: { run: :run }
+  end
+
+  policy "RecordTheCleanLint" do
+    on      "MakefileCheck.LintAnswered"
+    trigger MakefileCheck::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedLint" do
+    on      "MakefileCheck.LintRefused"
+    trigger MakefileCheck::Flag, with: { refusal: :refusal }
+  end
+
+  aggregate "TemplateComparison" do
+    description "One offline comparison of two CloudFormation templates, by logical id."
+
+    attribute :before,  Location
+    attribute :after,   Location
+    attribute :run,     RunKey
+    attribute :json,    Switch, optional: true
+    attribute :strict,  Switch, optional: true
+    attribute :report,  Report, optional: true
+    attribute :refusal, Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a template is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Match"  => "matching", from: "requested"
+      transition "Drift"  => "drifted",  from: "requested"
+      transition "Refuse" => "refused",  from: "requested"
+    end
+
+    # `hecks deploy diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
+    # cosmetic differences (comments, key order); `--json` writes the report as JSON.
+    command "Diff" do
+      goal "Compare two CloudFormation templates and report what differs by logical id"
+
+      attribute :before, Location
+      attribute :after,  Location
+      attribute :run,    RunKey
+      attribute :json,   Switch, optional: true
+      attribute :strict, Switch, optional: true
+
+      sets :before
+      sets :after
+      sets :run
+      sets :json
+      sets :strict
+
+      emits "ComparisonRequested"
+    end
+
+    command "Match" do
+      goal "Record that the templates agree"
+
+      reference_to TemplateComparison
+      attribute :report,    Report
+      attribute :different, Switch
+
+      given("the templates agree") { !different.value }
+
+      sets :report
+
+      emits "TemplatesMatched"
+    end
+
+    command "Drift" do
+      goal "Record that the templates differ, and how"
+
+      reference_to TemplateComparison
+      attribute :report,    Report
+      attribute :different, Switch
+
+      given("the templates differ") { different.value }
+
+      sets :report
+
+      emits "TemplatesDrifted"
+    end
+
+    command "Refuse" do
+      goal "Record that a template could not be read, and why"
+
+      reference_to TemplateComparison
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "ComparisonRefused"
+    end
+
+    query "Verdict" do
+      description "What one comparison found: its status, and the report or the reason it could not run."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Drifted" do
+      description "Every comparison in which the templates differ."
+      where(status: "drifted")
+      order_by :run
+    end
+  end
+
+  policy "CompareWhenRequested" do
+    on      "TemplateComparison.ComparisonRequested"
+    trigger TemplateComparison::DeployToolchain::Compare, with: { run: :run }
+  end
+
+  policy "RecordTheMatch" do
+    on      "TemplateComparison.ComparisonAnswered"
+    trigger TemplateComparison::Match, with: { report: :report, different: :different }
+  end
+
+  policy "RecordTheDrift" do
+    on      "TemplateComparison.ComparisonAnswered"
+    trigger TemplateComparison::Drift, with: { report: :report, different: :different }
+  end
+
+  policy "RecordTheRefusedComparison" do
+    on      "TemplateComparison.ComparisonUnreadable"
+    trigger TemplateComparison::Refuse, with: { refusal: :refusal }
+  end
+
+  aggregate "OidcManifest" do
+    description "One projection of each domain's OIDC client and scope manifest into its oidc.json."
+
+    attribute :run,     RunKey
+    attribute :domains, DomainList, optional: true
+    attribute :output,  Report,     optional: true
+    attribute :refusal, Report,     optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # Domain directories, comma separated; every domain of the checkout when absent.
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "projected", from: "requested"
+      transition "Fault"    => "faulted",   from: "requested"
+    end
+
+    command "ProjectOidc" do
+      goal "Write each domain's OIDC client and scope manifest beside it as oidc.json"
+
+      attribute :domains, DomainList, optional: true
+      attribute :run,     RunKey
+
+      sets :domains
+      sets :run
+
+      emits "OidcProjectionRequested"
+    end
+
+    command "Complete" do
+      goal "Record which manifests were written"
+
+      reference_to OidcManifest
+      attribute :output, Report
+
+      sets :output
+
+      emits "OidcProjected"
+    end
+
+    command "Fault" do
+      goal "Record that the manifests could not be projected, and why"
+
+      reference_to OidcManifest
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "OidcFaulted"
+    end
+
+    query "Outcome" do
+      description "What one projection did: its status, and the manifests written or the reason it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every projection that could not write its manifests."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ProjectWhenRequested" do
+    on      "OidcManifest.OidcProjectionRequested"
+    trigger OidcManifest::DeployToolchain::Manifest, with: { run: :run }
+  end
+
+  policy "RecordTheManifests" do
+    on      "OidcManifest.ManifestAnswered"
+    trigger OidcManifest::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheFaultedManifests" do
+    on      "OidcManifest.ManifestRefused"
+    trigger OidcManifest::Fault, with: { refusal: :refusal }
   end
 end
