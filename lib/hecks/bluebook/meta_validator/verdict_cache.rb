@@ -10,23 +10,15 @@ module Hecks
       # Cross-process store of the meta-domain's chapter verdicts, so a boot
       # judges only the chapters no earlier process has judged.
       #
-      # Only `MetaValidator.call`'s chapter verdicts (`{refusals: [...]}` or
-      # `{refusals: [], declaration: Hash}`) live here. `Assembly.call` still
-      # runs on every boot, and a miss judges exactly as a cold process does.
+      # Only chapter verdicts live here; `Assembly.call` still runs every boot
+      # and a miss judges as a cold process does. The file name carries a digest
+      # of the judging code (every file under `lib/`, the Ruby and Hecks
+      # versions, `FORMAT`); each entry is keyed by the chapter IR's SHA-256.
+      # The file is tagged JSON, never `Marshal`, read only from a private,
+      # user-owned directory: a forged "no refusals" entry would skip validation.
       #
-      # The file name carries a digest of the judging code (every file under
-      # `lib/`, plus the Ruby and Hecks versions and `FORMAT`), so an edit to
-      # any validator, builder or grammar file selects a different file. Each
-      # entry inside is keyed by the SHA-256 of the chapter's own IR.
-      #
-      # The file is JSON with symbols and hash pairs tagged, never `Marshal`,
-      # so reading it cannot run code. It is still read only from a private,
-      # user-owned directory, since a forged "no refusals" entry would skip
-      # validation.
-      #
-      #   VerdictCache.seed   # => { "<chapter key>" => { refusals: [], declaration: {...} } }
       #   VerdictCache.record(key, held)
-      #   VerdictCache.flush  # writes new entries (also runs at process exit)
+      #   VerdictCache.flush  # also runs at process exit
       module VerdictCache
         module_function
 
@@ -214,7 +206,8 @@ module Hecks
           when Hash then { "$h" => obj.map { |key, value| [encode(key), encode(value)] } }
           when Array then obj.map { |item| encode(item) }
           when String
-            raise ArgumentError, "unencodable string" unless obj.valid_encoding? && (obj.ascii_only? || obj.encoding == Encoding::UTF_8)
+            plain = obj.valid_encoding? && (obj.ascii_only? || obj.encoding == Encoding::UTF_8)
+            raise ArgumentError, "unencodable string" unless plain
 
             obj
           when Integer, nil, true, false then obj

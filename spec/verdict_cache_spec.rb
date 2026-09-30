@@ -5,7 +5,7 @@ require "rbconfig"
 # The on-disk chapter-verdict cache lets a boot skip judging chapters an earlier process already
 # judged. Every example that touches a file uses its own directory, never the user's cache.
 RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
-  subject(:cache) { described_class }
+  let(:cache) { described_class }
 
   let(:scratch) { Dir.mktmpdir("hecks-verdict-cache") }
   let(:gem_root) { File.expand_path("..", __dir__) }
@@ -14,7 +14,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
 
   before do
     cache.reset!
-    allow(cache).to receive(:dir).and_return(File.join(scratch, "verdicts"))
+    allow(described_class).to receive(:dir).and_return(File.join(scratch, "verdicts"))
   end
 
   after do
@@ -79,7 +79,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     end
 
     it "is stable for an untouched tree" do
-      expect(cache.digest_of(lib)).to eq(cache.digest_of(lib))
+      first = cache.digest_of(lib)
+
+      expect(cache.digest_of(lib)).to eq(first)
     end
 
     it "changes when any file's bytes change" do
@@ -174,7 +176,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       cache.record("k1", accepted)
       cache.flush
       cache.reset!
-      allow_any_instance_of(File::Stat).to receive(:owned?).and_return(false)
+      stranger = instance_double(File::Stat, owned?: false, mode: 0o100600)
+      allow(File).to receive(:stat).and_call_original
+      allow(File).to receive(:stat).with(cache.path).and_return(stranger)
 
       expect(cache.seed).to eq({})
     end
@@ -184,7 +188,8 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       old = File.join(cache.dir, "verdicts-old.json")
       fresh = File.join(cache.dir, "verdicts-fresh.json")
       [old, fresh].each { |file| File.write(file, "{}") }
-      File.utime(Time.now - 2 * described_class::STALE_AFTER, Time.now - 2 * described_class::STALE_AFTER, old)
+      aged = Time.now - (2 * described_class::STALE_AFTER)
+      File.utime(aged, aged, old)
 
       cache.record("k1", accepted)
       cache.flush
@@ -197,7 +202,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     it "does not raise or write when the directory is unwritable" do
       blocker = File.join(scratch, "blocker")
       File.write(blocker, "a file where a directory is needed")
-      allow(cache).to receive(:dir).and_return(File.join(blocker, "verdicts"))
+      allow(described_class).to receive(:dir).and_return(File.join(blocker, "verdicts"))
 
       cache.record("k1", accepted)
 
