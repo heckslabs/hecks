@@ -194,6 +194,40 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
+  describe "check_suites from several GitHub Apps for one commit" do
+    def with_app(payload, slug)
+      payload["check_suite"]["app"] = { "id" => 1, "slug" => slug, "name" => slug }
+      payload
+    end
+
+    it "does not clear the commit on a passing suite from another app" do
+      a_fixed_bug(a_sweep(a_target), "8888888")
+
+      post_webhook(with_app(check_suite_payload("8888888", conclusion: "success"), "some-other-app"))
+
+      expect(JSON.parse(last_response.body)["ignored"]).to include("some-other-app")
+      expect(runtime.query("QualityControl::Clearance.All")).to be_empty
+    end
+
+    it "lets the failing Actions suite settle red after another app's passing suite" do
+      a_fixed_bug(a_sweep(a_target), "9999999")
+
+      post_webhook(with_app(check_suite_payload("9999999", conclusion: "success"), "some-other-app"))
+      post_webhook(check_suite_payload("9999999", conclusion: "failure"))
+
+      expect(JSON.parse(last_response.body)["status"]).to eq("red")
+    end
+
+    it "holds red when another app fails before Actions passes" do
+      a_fixed_bug(a_sweep(a_target), "aaaaaaa")
+
+      post_webhook(with_app(check_suite_payload("aaaaaaa", conclusion: "failure"), "some-other-app"))
+      post_webhook(check_suite_payload("aaaaaaa", conclusion: "success"))
+
+      expect(JSON.parse(last_response.body)["status"]).to eq("red")
+    end
+  end
+
   describe "a badly-signed payload" do
     it "is refused, loudly, and dispatches nothing" do
       payload = check_suite_payload("3333333", conclusion: "success")

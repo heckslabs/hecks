@@ -6,8 +6,9 @@ module Hecks
     module ClearanceRecorder
       module_function
 
-      # Conclusions that count as green; same vocabulary as `GithubChecks::PASSING`,
-      # since a `check_suite` conclusion is GitHub's aggregate over its check runs.
+      # Conclusions that count as green; same vocabulary as `GithubChecks::PASSING`.
+      # A `check_suite` conclusion aggregates one GitHub App's runs only, so callers decide
+      # which suites may pass a commit.
       PASSING = %w[success neutral skipped].freeze
 
       # Returns the Clearance for `commit`, starting one if none exists.
