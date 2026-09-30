@@ -189,9 +189,7 @@ RSpec.describe "gem packaging" do
           puts "loaded"
         RUBY
 
-        # The packaged child has no Bundler, so it cannot load `pg`: bind the Hecks domain in memory.
-        env = { "HECKS_ENVIRONMENT" => "memory" }
-        run = ->(*argv) { Bundler.with_unbundled_env { Open3.capture3(env, "ruby", *argv, chdir: dir) } }
+        run = ->(*argv) { Bundler.with_unbundled_env { Open3.capture3("ruby", *argv, chdir: dir) } }
         out, err, status = run.call("-I", File.join(dir, "lib"), "-e", script)
         expect(status).to be_success, "the packaged files do not load on their own:\n#{err}"
         expect(out).to eq("loaded\n")

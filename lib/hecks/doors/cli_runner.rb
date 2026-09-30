@@ -27,20 +27,48 @@ module Hecks
       # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
       # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
       def call(runtime:, argv:, program: "hecks run")
+        plan = resolve(runtime, argv, program)
+        return plan[:answer] if plan[:answer]
+
+        dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
+                 bluebook: plan[:bluebook], launcher: plan[:launcher])
+      end
+
+      # Answers a command line that asks only for usage, from the projection alone.
+      #
+      # Needs a registry and no bound adapter, so a `Runtime::Loader::Described` serves: the
+      # help text, the no-argument usage, a verb's `--help` and an unknown verb's hint all come
+      # out byte-identical to `call`'s.
+      #
+      # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
+      # @param argv [Array<String>] as for `call`
+      # @param program [String] how the caller was invoked
+      # @return [Array(String, Integer), nil] the text and status, or nil when the line would
+      #   run a verb or question and so needs a booted domain
+      def usage(runtime:, argv:, program: "hecks run")
+        resolve(runtime, argv, program)[:answer]
+      end
+
+      # Parses a command line against the projection: either the answer it gives without
+      # running anything, or the verb it would run.
+      #
+      # @return [Hash] `{answer: [text, status]}`, or `{spec:, name:, rest:, asking:, program:,
+      #   bluebook:, launcher:}` for a verb to dispatch
+      def resolve(runtime, argv, program)
         bluebook, argv, program = chapter_for(runtime, argv, program)
         launcher = LauncherOptions.settings(runtime, bluebook.name)
         options  = LauncherOptions.projection(launcher, program)
         cli = Projector.call(:cli, bluebook: bluebook, options: options)
 
         name = argv.first
-        return [cli[:usage], 0] if name.nil? || %w[--help -h help].include?(name)
+        return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
 
         # `ask` gives questions their own namespace; a chapter may declare a command and query
         # of one name.
         asking = name == "ask"
         argv   = argv[1..] if asking
         name   = argv.first
-        return [cli[:usage], 1] if name.nil?
+        return { answer: [cli[:usage], 1] } if name.nil?
 
         # A question answers to its bare name too; `ask` is needed only when a command shares it.
         asking ||= !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
@@ -49,16 +77,17 @@ module Hecks
         pool = asking ? cli[:questions] : cli[:verbs]
         key  = cli[:names][asking ? :question : :command][name]
         spec = pool[key]
-        return [unknown(cli, name, asking, program), 1] unless spec
+        return { answer: [unknown(cli, name, asking, program), 1] } unless spec
 
         rest = argv[1..]
         if rest.include?("--help")
           help = Projector.call(:cli, bluebook: bluebook,
                                       options:  options.merge(verb: name, ask: asking))[:usage]
-          return [help, 0]
+          return { answer: [help, 0] }
         end
 
-        dispatch(runtime, spec, name, rest, program, asking, bluebook: bluebook, launcher: launcher)
+        { spec: spec, name: name, rest: rest, asking: asking, program: program, bluebook: bluebook,
+          launcher: launcher }
       end
 
       # The chapter a command line speaks to: the booted domain's own, or, when the first word

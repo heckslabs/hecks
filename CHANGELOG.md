@@ -9,6 +9,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [3.0.0] - 2026-09-30
 
+**`hecks --help`, `hecks` and `hecks <verb> --help` bind no adapter.** `exe/hecks` answers usage and an unknown verb's hint from the projected bluebook alone (`Hecks.describe`, `Doors::CliRunner.usage`), in any environment: no Postgres, no `pg` gem and no `HECKS_ENVIRONMENT=memory` needed. A verb that runs still boots the domain as before; regenerate launchers with `hecks project_cli`.
+
 **The Rust host checks every expression node a value object's invariant can use at mint time.** `include?`, `+`, `.modulo`, `.all?`/`.any?`/`.none?`, `.find`, array literals, `.match?`, `.present?`/`.blank?`, `.set?`/`.unset?`, `.split`, `.first`/`.last` and `.start_with?`/`.end_with?` were refused by name; they now evaluate with the Ruby runtime's answers, null handling and error wording (`spec/rust_host_expr_json_conformance_spec.rb` diffs the two).
 
 **Breaking:** `Hecks::Facade` is now `Hecks::Doors` (`Surface` is `Doors::RubyDoor`, the MCP door lives beside it); `install_facade:` is now `install_doors:`. Both old names still work for one release and warn; regenerate launchers with `hecks project_cli`.

@@ -194,16 +194,39 @@ module Hecks
           #{handoff}
           require "hecks"
 
-          runtime = begin
-            Hecks.boot(#{boot}, install_doors: false)
+          #{entry(name, boot, shown, opted)}
+          #{ending}
+        RUBY
+      end
+
+      # @api private
+      # @return [String] the launcher's middle: usage answered from the projection, then a boot
+      #   only for a line that runs a verb
+      def entry(name, boot, shown, opted)
+        <<~RUBY.chomp
+          # Usage is answered from the projected chapter alone: no adapter is bound and no
+          # database is opened. Only a line that runs a verb boots the domain.
+          domain = #{boot}
+          program = "#{shown}"
+          described = begin
+            Hecks.describe(domain)
           rescue StandardError => e
             abort "cannot open #{name}: \#{e.message.lines.first.strip}"
           end
 
-          text, status#{', reason' if opted} = Hecks::Doors::CliRunner.call(
-            runtime: runtime, argv: ARGV, program: "#{shown}"
+          text, status#{', reason' if opted} = Hecks::Doors::CliRunner.usage(
+            runtime: described, argv: ARGV, program: program
           )
-          #{ending}
+          unless text
+            runtime = begin
+              Hecks.boot(domain, install_doors: false)
+            rescue StandardError => e
+              abort "cannot open #{name}: \#{e.message.lines.first.strip}"
+            end
+            text, status#{', reason' if opted} = Hecks::Doors::CliRunner.call(
+              runtime: runtime, argv: ARGV, program: program
+            )
+          end
         RUBY
       end
 

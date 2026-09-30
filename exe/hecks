@@ -23,15 +23,29 @@ end
 
 require "hecks"
 
-runtime = begin
-  Hecks.boot(File.expand_path("../lib/hecks/hecks", __dir__), install_doors: false)
+# Usage is answered from the projected chapter alone: no adapter is bound and no
+# database is opened. Only a line that runs a verb boots the domain.
+domain = File.expand_path("../lib/hecks/hecks", __dir__)
+program = "hecks"
+described = begin
+  Hecks.describe(domain)
 rescue StandardError => e
   abort "cannot open Hecks: #{e.message.lines.first.strip}"
 end
 
-text, status, reason = Hecks::Doors::CliRunner.call(
-  runtime: runtime, argv: ARGV, program: "hecks"
+text, status, reason = Hecks::Doors::CliRunner.usage(
+  runtime: described, argv: ARGV, program: program
 )
+unless text
+  runtime = begin
+    Hecks.boot(domain, install_doors: false)
+  rescue StandardError => e
+    abort "cannot open Hecks: #{e.message.lines.first.strip}"
+  end
+  text, status, reason = Hecks::Doors::CliRunner.call(
+    runtime: runtime, argv: ARGV, program: program
+  )
+end
 # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it
 # either way, and says why on stderr.
 if reason

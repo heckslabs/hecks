@@ -66,6 +66,16 @@ module Hecks
         install_facade: install_facade)
     end
 
+    # Loads a domain's declarations without binding any adapter or opening any store.
+    #
+    # @param path [String] path to a domain directory, or a file inside one
+    # @param shared [String, nil] a shared-root override; see `Runtime::Loader.describe`
+    # @param environment [String, nil] env overlay; defaults to `HECKS_ENVIRONMENT`
+    # @return [Runtime::Loader::Described] the loaded registry, answering `registry`
+    def describe(path, shared: nil, environment: Runtime::Loader::FROM_ENV)
+      Runtime.describe(path, shared: shared, environment: environment)
+    end
+
     # Boots a domain from an explicit list of files (a `.bluebook`, its
     # `.hecksagon`, optionally a `.world`) instead of a whole directory —
     # see `Runtime::Loader.boot_files` for why this exists beside `boot`.

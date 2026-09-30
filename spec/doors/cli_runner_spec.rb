@@ -250,4 +250,21 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(text("ask", "order.create_pizza")).to include("no such question")
     end
   end
+
+  describe ".usage" do
+    # Only the registry is needed, so what `Hecks.describe` answers serves as the runtime.
+    let(:described) { Struct.new(:registry).new(runtime.registry) }
+
+    def usage(*argv) = described_class.usage(runtime: described, argv: argv, program: "hecks run")
+
+    it "answers what `call` answers for help, no arguments, a verb's --help and an unknown verb" do
+      [[], ["--help"], ["order.create_pizza", "--help"], ["no_such_verb"]].each do |argv|
+        expect(usage(*argv)).to eq(run(*argv))
+      end
+    end
+
+    it "answers nil for a line that would run a verb" do
+      expect(usage("order.create_pizza", "name=Margherita")).to be_nil
+    end
+  end
 end

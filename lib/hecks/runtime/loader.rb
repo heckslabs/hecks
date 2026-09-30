@@ -46,6 +46,34 @@ module Hecks
         Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
       end
 
+      # What `describe` answers: the loaded declarations and nothing bound to run them.
+      Described = Struct.new(:registry)
+
+      # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
+      # persistence adapter is resolved or bound, nothing connects to a database.
+      #
+      # This is what answers a question about the domain's own shape (its verbs, arguments and
+      # usage) in any environment, including one where the bound adapter cannot load.
+      #
+      # @param path [String] a domain directory to read
+      # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
+      # @param environment [String, nil] environment overlay loaded after the domain
+      # @return [Described] answers `registry` like a booted dispatcher does
+      # @raise [Errno::ENOENT] if `path` names no domain directory
+      def self.describe(path, shared: nil, environment: FROM_ENV)
+        loading   = Ports::Loading.bootstrap
+        directory = loading.bluebook_directory(path)
+        root      = loading.shared_root(shared, directory)
+        registry  = Registry.new(root: File.dirname(directory))
+
+        Hecks.with_registry(registry) do
+          loading.load_library
+          loading.load_project(root)
+          loading.load_domain(directory, environment: selected_environment(environment))
+        end
+        Described.new(registry)
+      end
+
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the
       # `HECKS_ENVIRONMENT` variable when the caller left the keyword at its default. A domain
       # with no `environments/<name>.*` files ignores either.

@@ -52,6 +52,16 @@ module Hecks
           install_facade: install_facade)
       end
 
+      # Loads a domain's declarations without binding any adapter. See Loader.describe.
+      #
+      # @param path [String] path to a domain directory, or a file inside one
+      # @param shared [String, nil] a shared-root override
+      # @param environment [String, nil] the environment overlay; defaults to `HECKS_ENVIRONMENT`
+      # @return [Runtime::Loader::Described] the loaded registry, answering `registry`
+      def describe(path, shared: nil, environment: Runtime::Loader::FROM_ENV)
+        Loader.describe(path, shared: shared, environment: environment)
+      end
+
       # Loads only the given files of a domain; otherwise like `boot`. See Loader.boot_files.
       #
       # @param paths [String, Array<String>] one or more file paths within the domain
