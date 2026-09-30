@@ -25,6 +25,12 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator do
   end
 
   describe ".primitive" do
+    it "answers a Boolean-typed attribute with a boolean" do
+      draws = Array.new(20) { |seed| described_class.primitive("Boolean", random: Random.new(seed)) }
+
+      expect(draws).to all(satisfy { |value| [true, false].include?(value) })
+    end
+
     it "answers every declared primitive type" do
       random = Random.new(1)
       Hecks::Bluebook::Attribute::PRIMITIVES.each do |type_name|

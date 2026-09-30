@@ -2,7 +2,7 @@
 
 require "open3"
 require "shellwords"
-require_relative "../../runtime/errors"
+require "hecks/runtime/errors"
 require_relative "../cli/child"
 
 module Hecks
@@ -15,6 +15,11 @@ module Hecks
     # connections of their own, and a crash or an `exit` in one must end only that run. The answer
     # is the command's output, unchanged, so the launcher shows the bytes the script prints.
     class QaTool
+      # A command ended in an error. It is a refusal, since the launcher and the ledger's policies
+      # treat it as one, but not a `given`'s: no description of the command's guards quotes it, so
+      # the fuzzer's guard checks must not read it as one.
+      class ToolRefused < Runtime::GivenNotMet; end
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] the checkout the commands run in; this repository when nil
@@ -32,13 +37,13 @@ module Hecks
       #   judgment, is one, an operational error is not
       # @return [Hash] `text:` what the command printed, stdout and stderr in
       #   order
-      # @raise [Runtime::GivenNotMet] with what the command printed, when it ended with another
+      # @raise [ToolRefused] with what the command printed, when it ended with another
       #   status
       def run_command(command, *, answers: [0])
         output, status = Open3.capture2e(*QualityControlCli::Child.argv(@root, command, *), chdir: @root)
         return { text: output } if answers.include?(status.exitstatus)
 
-        raise Runtime::GivenNotMet, "#{output.strip}\n(#{command} ended with status #{status.exitstatus.inspect})"
+        raise ToolRefused, "#{output.strip}\n(#{command} ended with status #{status.exitstatus.inspect})"
       end
 
       # @param value [Hash, String, nil] a value object's materialized `{ value: "..." }`, or plain

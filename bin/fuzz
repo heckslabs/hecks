@@ -229,7 +229,7 @@ end
 
 # Every discoverable domain, so one added anywhere is swept without a list. Paths the sweep cannot
 # boot are routed by Hecks::Corpus::ROUTES to the check that owns them.
-domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
+domains = domain_arg ? [domain_arg] : Hecks::Corpus.fuzzable_domains(ROOT)
 
 # One child per core; a real Postgres runs one at a time.
 workers ||= adapter == :postgres ? 1 : Etc.nprocessors

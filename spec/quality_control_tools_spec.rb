@@ -88,7 +88,13 @@ RSpec.describe "the QualityControl tool queries" do
     it "refuses with the report and the status when it ends with any other" do
       ended_with(1, "the ledger did not boot\n")
 
-      expect { tool.tick }.to raise_error(Hecks::Runtime::GivenNotMet, /the ledger did not boot.*status 1/m)
+      expect { tool.tick }.to raise_error(Hecks::Adapters::QaTool::ToolRefused, /the ledger did not boot.*status 1/m)
+    end
+
+    it "refuses as a GivenNotMet, so the launcher reports it, though no guard description quotes it" do
+      ended_with(1, "the ledger did not boot\n")
+
+      expect { tool.tick }.to raise_error(Hecks::Runtime::GivenNotMet)
     end
 
     it "hands the command its arguments, a value object's text and a flag string split as a shell would" do
