@@ -1,28 +1,30 @@
 require "open3"
 require "rbconfig"
 
-# bin/release is a thin wrapper over Hecks::Release::Runner (spec/release/
-# runner_spec.rb covers the release itself), so this runs it as a real
+# `hecks publish` is `Hecks::CLI::Release` over Hecks::Release::Runner (spec/release/
+# runner_spec.rb covers the release itself), so this runs the library entry point as a real
 # subprocess only for the flag handling, which starts no git, gem or npm.
-RSpec.describe "bin/release" do
-  BIN_RELEASE_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/release").freeze
+RSpec.describe "Hecks::CLI::Release flags" do
+  # The child's whole program: the library entry point, given the checkout root.
+  RELEASE_CHILD = '$LOAD_PATH.unshift("lib"); require "hecks/cli/release"; ' \
+                  "exit(Hecks::CLI::Release.call(ARGV, root: Dir.pwd))".freeze
 
   def run_release(*args)
-    Open3.capture3(RbConfig.ruby, BIN_RELEASE_SCRIPT, *args)
+    Open3.capture3(RbConfig.ruby, "-e", RELEASE_CHILD, "--", *args, chdir: InMemoryDomain::ROOT)
   end
 
   it "--help prints the usage and exits 0" do
     stdout, _stderr, status = run_release("--help")
 
     expect(status.exitstatus).to eq(0)
-    expect(stdout).to include("Usage: bin/release", "--dry-run", "--gem-only", "--npm-only", "--npm-local", "--no-wait", "--yes")
+    expect(stdout).to include("Usage:", "--dry-run", "--gem-only", "--npm-only", "--npm-local", "--no-wait", "--yes")
   end
 
   it "exits 2 on an unknown flag, printing the usage" do
     _stdout, stderr, status = run_release("--frobnicate")
 
     expect(status.exitstatus).to eq(2)
-    expect(stderr).to include("--frobnicate", "Usage: bin/release")
+    expect(stderr).to include("--frobnicate", "Usage:")
   end
 
   it "exits 2 on a stray argument" do

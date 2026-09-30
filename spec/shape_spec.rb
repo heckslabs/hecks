@@ -1,13 +1,11 @@
 require "tmpdir"
-require "open3"
 require "json"
 require "hecks/ports/persistence/plugins/era"
+require "hecks/hecks/adapters/in_process_boot"
 
-# Runs bin/shape as a real subprocess against real files, covering both
-# modes: a single bluebook file (JSON) and a directory (one line per domain).
-RSpec.describe "bin/shape" do
-  BIN_SHAPE_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/shape").freeze
-
+# `hecks ask shape` (Introspection.Shape) against real files, through the adapter that answers
+# it, covering both modes: a single bluebook file (JSON) and a directory (one line per domain).
+RSpec.describe "hecks ask shape" do
   def bluebook_text(domain, aggregate)
     <<~BLUEBOOK
       Hecks.bluebook "#{domain}" do
@@ -29,7 +27,7 @@ RSpec.describe "bin/shape" do
   end
 
   # The label the era plugin would mint for the file, computed in this
-  # process from the same loading steps the script uses.
+  # process from the same loading steps the adapter uses.
   def label_of(path)
     registry = Hecks::Runtime::Registry.new
     loading = Hecks::Ports::Loading.bootstrap
@@ -40,8 +38,11 @@ RSpec.describe "bin/shape" do
     Hecks::Runtime::StorageShape.mint_label(registry.bluebooks.values.first)
   end
 
-  def run_shape(*args)
-    Open3.capture3(BIN_SHAPE_SCRIPT, *args)
+  # Answers [stdout, error message]: the adapter's text, or the refusal it raised.
+  def run_shape(path)
+    [Hecks::Adapters::InProcessBoot.new.shape(domain: path), nil]
+  rescue Hecks::Runtime::NotFound => e
+    ["", e.message]
   end
 
   around do |example|
@@ -55,9 +56,9 @@ RSpec.describe "bin/shape" do
     file = File.join(@dir, "zebras.bluebook")
     File.write(file, bluebook_text("Zebras", "Stripe"))
 
-    stdout, _stderr, status = run_shape(file)
+    stdout, error = run_shape(file)
 
-    expect(status).to be_success
+    expect(error).to be_nil
     expect(JSON.parse(stdout)["name"]).to eq("Zebras")
   end
 
@@ -67,10 +68,9 @@ RSpec.describe "bin/shape" do
     File.write(zebras, bluebook_text("Zebras", "Stripe"))
     File.write(apples, bluebook_text("Apples", "Pip"))
 
-    stdout, stderr, status = run_shape(@dir)
+    stdout, error = run_shape(@dir)
 
-    expect(stderr).to eq("")
-    expect(status).to be_success
+    expect(error).to be_nil
     expect(stdout.lines.map(&:chomp)).to eq(["Apples #{label_of(apples)}", "Zebras #{label_of(zebras)}"])
   end
 
@@ -92,33 +92,24 @@ RSpec.describe "bin/shape" do
     FileUtils.mkdir_p(File.join(@dir, "nested"))
     File.write(File.join(@dir, "nested", "zebras.bluebook"), bluebook_text("Zebras", "Stripe"))
 
-    stdout, _stderr, status = run_shape(@dir)
+    stdout, error = run_shape(@dir)
 
-    expect(status).to be_success
+    expect(error).to be_nil
     expect(stdout.lines.map { |line| line.split.first }).to eq(["Apples"])
   end
 
   it "refuses a directory with no *.bluebook files" do
-    stdout, stderr, status = run_shape(@dir)
+    stdout, error = run_shape(@dir)
 
-    expect(status).not_to be_success
     expect(stdout).to eq("")
-    expect(stderr).to include("no *.bluebook files in #{@dir}")
+    expect(error).to include("no *.bluebook files in #{@dir}")
   end
 
   it "refuses a path that does not exist" do
     missing = File.join(@dir, "nowhere")
 
-    _stdout, stderr, status = run_shape(missing)
+    _stdout, error = run_shape(missing)
 
-    expect(status).not_to be_success
-    expect(stderr).to include("#{missing} does not exist")
-  end
-
-  it "requires a path at all" do
-    _stdout, stderr, status = run_shape
-
-    expect(status).not_to be_success
-    expect(stderr).to include("usage: bin/shape")
+    expect(error).to include("#{missing} does not exist")
   end
 end
