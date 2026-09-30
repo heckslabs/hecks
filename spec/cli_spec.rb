@@ -38,6 +38,7 @@ RSpec.describe Hecks::CLI do
   end
 
   it "reads --wait as a flag to model_check, not as a domain name" do
+    require "hecks/cli/model_check"
     check = -> { described_class::ModelCheck.call(["--wait", File.join(root, "examples/pizzas")], program: "hecks") }
 
     expect { check.call }.to output(/── pizzas/).to_stdout.and raise_error(SystemExit) { |e| expect(e.status).to eq(0) }

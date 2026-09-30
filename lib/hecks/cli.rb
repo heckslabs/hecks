@@ -144,15 +144,6 @@ module Hecks
       command.run.call(argv, "hecks #{name}", name)
     end
 
-    # The checkout `hecks` runs from, when it runs from one: the repository whose `lib/` holds this
-    # file, which `model_check` sweeps when it is given no domain. An installed gem has none.
-    #
-    # @return [String, nil] the checkout's root, or nil when this is not a checkout
-    def checkout_root
-      root = File.expand_path("../..", __dir__)
-      root if File.exist?(File.join(root, "hecks.gemspec"))
-    end
-
     # @api private
     def overview(io)
       io.puts HERO

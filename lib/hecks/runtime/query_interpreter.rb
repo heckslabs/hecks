@@ -97,7 +97,9 @@ module Hecks
         refuse_offered_arguments!(declared, args, asked)
         adapter = AdapterLookup.call(@registry, port.name, asked: asked)
         method  = Naming.snake(declared.name)
-        AdapterLookup.check_answers!(adapter.class, port.name, method, declared, asked: asked)
+        # The real adapter's class is what must answer; a fuzz replay's stand-in refuses instead.
+        klass   = AdapterLookup.adapter_class(@registry, port.name, asked: asked)
+        AdapterLookup.check_answers!(klass, port.name, method, declared, asked: asked)
 
         answer = adapter.public_send(method, **Value.materialize(args))
         Freezer.deep(shaped(aggregate, declared, answer, asked))
