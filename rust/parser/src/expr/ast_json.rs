@@ -97,6 +97,23 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
             ("pattern", JsonValue::String(pattern.clone())),
             ("flags", JsonValue::String(flags.clone())),
         ]),
+        Resolver::Presence { receiver, negated } => {
+            obj(vec![op_tag("presence"), ("receiver", emit_resolver(receiver)), ("negated", JsonValue::Bool(*negated))])
+        }
+        Resolver::Assignment { receiver, negated } => {
+            obj(vec![op_tag("assignment"), ("receiver", emit_resolver(receiver)), ("negated", JsonValue::Bool(*negated))])
+        }
+        Resolver::Split { receiver, separator } => {
+            obj(vec![op_tag("split"), ("receiver", emit_resolver(receiver)), ("separator", JsonValue::String(separator.clone()))])
+        }
+        Resolver::StartsWith { receiver, substring } => {
+            obj(vec![op_tag("starts_with"), ("receiver", emit_resolver(receiver)), ("substring", JsonValue::String(substring.clone()))])
+        }
+        Resolver::EndsWith { receiver, substring } => {
+            obj(vec![op_tag("ends_with"), ("receiver", emit_resolver(receiver)), ("substring", JsonValue::String(substring.clone()))])
+        }
+        Resolver::First(receiver) => obj(vec![op_tag("first"), ("receiver", emit_resolver(receiver))]),
+        Resolver::Last(receiver) => obj(vec![op_tag("last"), ("receiver", emit_resolver(receiver))]),
         Resolver::BlockPredicate { mode, receiver, param, predicate } => obj(vec![
             op_tag("block_predicate"),
             ("mode", JsonValue::String(mode.json_name().to_string())),
