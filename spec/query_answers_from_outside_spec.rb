@@ -306,7 +306,8 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
 
     it "merges a port declared twice under one name, as an environment overlay repeats it" do
-      repeated = OUTSIDE_HECKSAGON.sub(/\nend\n\z/, "\n\n  Lookup::Note.port \"Echoer\" do\n    answers_query \"Echo\"\n  end\nend\n")
+      again    = %(\n\n  Lookup::Note.port "Echoer" do\n    answers_query "Echo"\n  end\nend\n)
+      repeated = OUTSIDE_HECKSAGON.sub(/\nend\n\z/, again)
       runtime  = boot_domain(hecksagon: repeated)
 
       expect(runtime.registry.bluebook("Lookup").aggregate("Note").ports.map(&:name)).to eq(["Echoer"])
