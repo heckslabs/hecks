@@ -3,13 +3,12 @@ require "hecks/fuzzing"
 
 RSpec.describe Hecks::Fuzzing::Properties::EngineGuarantees do
   let(:properties) { Hecks::Fuzzing::Properties }
+  let(:unchanged)  { { instances: { "Pizzas::Order#1" => { status: "open" } }, events: 1 } }
+  let(:changed)    { { instances: { "Pizzas::Order#1" => { status: "sold" } }, events: 2 } }
 
   def trace(verb, refused:, before:, after:)
     { verb: verb, refused: refused, before: before, after: after }
   end
-
-  let(:unchanged) { { instances: { "Pizzas::Order#1" => { status: "open" } }, events: 1 } }
-  let(:changed)   { { instances: { "Pizzas::Order#1" => { status: "sold" } }, events: 2 } }
 
   describe "#refusals_leave_state_untouched" do
     it "passes when a refused dispatch changed nothing" do

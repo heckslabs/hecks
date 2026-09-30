@@ -16,7 +16,7 @@ module Hecks
             changes = trace_changes(trace)
             next if changes.empty?
 
-            "refused #{trace[:verb]} left a trace: #{changes.join(", ")}"
+            "refused #{trace[:verb]} left a trace: #{changes.join(', ')}"
           end
 
           offenders.empty? || offenders.join("; ")
