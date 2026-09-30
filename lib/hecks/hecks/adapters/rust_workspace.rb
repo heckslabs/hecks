@@ -29,6 +29,9 @@ module Hecks
         relative.split("/").include?("target") || relative == "tests" || relative == "src/generated"
       end
 
+      # The `[features]` table of a Cargo manifest, up to the next table.
+      FEATURES_TABLE = /^\[features\](?:\n(?!\[).*)*/
+
       # Written into a copy once it is complete, so an interrupted copy is redone, not reused.
       MARKER = ".hecks-workspace"
 
@@ -90,8 +93,18 @@ module Hecks
         FileUtils.rm_rf(target)
         FileUtils.mkdir_p(target)
         PACKAGED.each { |entry| copy_entry(source, target, entry) }
+        clean_features(File.join(target, "Cargo.toml"))
         File.write(File.join(target, MARKER), "#{@version}\n")
         target
+      end
+
+      # The packaged manifest lists a feature per corpus domain, and `default` names one of them.
+      # None of those domains is in a copy, so the list starts empty and the generator adds the
+      # client's own.
+      def clean_features(manifest)
+        return unless File.exist?(manifest)
+
+        File.write(manifest, File.read(manifest).sub(FEATURES_TABLE, "[features]\ndefault = []\n"))
       end
 
       def copy_entry(source, target, entry)

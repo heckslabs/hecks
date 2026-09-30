@@ -73,6 +73,22 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(File.exist?(File.join(copy, "tests"))).to be(false)
     end
 
+    it "writes the copy's Cargo feature list clean, keeping the rest of the manifest" do
+      File.write(File.join(dir, "gem/rust/Cargo.toml"), <<~TOML)
+        [features]
+        default = ["pizzas"]
+        pizzas = []
+
+        [package]
+        name = "rust"
+      TOML
+
+      toolchain.generate(domain: { value: "domains/pizzas" })
+
+      manifest = File.read(File.join(dir, "app/.hecks/rust/9.9.9/Cargo.toml"))
+      expect(manifest).to eq("[features]\ndefault = []\n\n[package]\nname = \"rust\"\n")
+    end
+
     it "points the child at the copy and its own target directory, never at the gem" do
       toolchain.generate(domain: { value: "domains/pizzas" })
 

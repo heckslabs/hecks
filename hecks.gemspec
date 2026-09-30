@@ -23,16 +23,17 @@ Gem::Specification.new do |spec|
   # Bundler git checkout as it does in a plain working copy, and the former
   # is not guaranteed to carry a usable .git directory.
   #
-  # The dev tooling stays in the repository (ADR 0066): these read or
-  # rewrite `examples/`, `qa/`, `spec/`, `rust/` or `docs/`, which an
-  # install does not carry, and nothing `lib/hecks.rb` loads requires them.
-  # spec/gemspec_packaging_spec.rb holds both halves of that.
-  dev_tooling = %r{\Alib/hecks/(fuzzing/|fuzzing\.rb\z|bench/|bench\.rb\z|corpus\.rb\z|codemod\.rb\z|
-                   query_ir\.rb\z|grammar/evolve\.rb\z|doc/)}x
+  # `lib/` ships whole. `rust/` ships as the workspace a client project builds in: `Build` copies
+  # it to `.hecks/rust/<version>/` and never writes into the gem. Left out is what a build makes
+  # or only the corpus needs: `target/` anywhere, `rust/tests/`, and `rust/src/generated/`, the
+  # corpus domains' generated modules (a build generates the client's own). `rust/Cargo.toml`
+  # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
+  # spec/gemspec_packaging_spec.rb holds each of these.
+  not_shipped = %r{\Arust/(tests/|src/generated/|(.+/)?target/)}
   spec.files = Dir.chdir(__dir__) do
-    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + ["exe/hecks"])
+    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) + ["exe/hecks"])
       .select { |f| File.file?(f) }
-      .grep_v(dev_tooling)
+      .grep_v(not_shipped)
   end
   spec.bindir      = "exe"
   spec.executables = ["hecks"]

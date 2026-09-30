@@ -140,8 +140,11 @@ bin/run examples/banking spec/corpus/banking.json   # the refusals someone alrea
 `smoke_test`, `project_diagrams`, `project_cli` and `mcp`
 (`bin/hecks_mcp_door`). Those `bin/` scripts are thin wrappers over
 `lib/hecks/cli/`, so a change to one goes there. The fuzzing, bench,
-corpus, codemod, query IR, grammar evolve and doc reference tooling is
-repository-only and left out of the packaged gem (`hecks.gemspec`).
+corpus, codemod, query IR, grammar evolve and doc reference tooling ships in
+the gem but loads only when a command asks for it; `require "hecks"` loads
+none of it (`spec/gemspec_packaging_spec.rb`). The gem also ships `rust/`,
+without `target/`, `rust/tests/` or `rust/src/generated/`; `Build` copies it to
+`.hecks/rust/<version>/` in the client project and never writes into the gem.
 
 `spec/ir_golden_spec.rb` freezes the builder's `to_h` output per corpus
 member. If your change is a deliberate shape change (not a bug), you

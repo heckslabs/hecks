@@ -37,9 +37,8 @@ require_relative "hecks/framework"
 require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
 
-# Repository-only tooling: the corpus table walks `examples/`, `qa/` and
-# `spec/`, which only a checkout has, so it loads on first use and the
-# packaged gem leaves it out (ADR 0066).
+# The corpus table walks `examples/`, `qa/` and `spec/`, which only a checkout
+# has, so it loads on first use.
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
 # The chapters a hecksagon can `attaches` by name (ADR 0080); loads on first use.
