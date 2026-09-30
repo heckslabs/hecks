@@ -29,7 +29,7 @@ options = { group_by: :runtime, allowed_missing_percent: 100 }
 options[:runtime_log] = runtime_log if runtime_log && File.exist?(runtime_log)
 
 # `allowed_missing_percent` covers gaps inside a log, not a missing file (`Runner.runtimes`
-# raises ENOENT), so a cold cache falls back to file size.
+# raises `ENOENT`), so a cold cache falls back to file size.
 groups = begin
   ParallelTests::Test::Runner.tests_in_groups(files, num_groups, **options)
 rescue Errno::ENOENT

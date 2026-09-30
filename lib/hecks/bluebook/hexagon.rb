@@ -44,7 +44,7 @@ module Hecks
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
       # @param subscriptions [Array<String, Symbol>] the external events this domain
       #   subscribes to
-      # @param framework_members [Array<String, Symbol>] framework members (`Governance`, ...) attached
+      # @param framework_members [Array<String, Symbol>] attached framework members (`Governance`)
       # @param vendored_bluebooks [Array<String, Symbol>] the vendored embryonaut
       #   bluebook package names this domain attaches
       # @param attached_chapters [Array<String, Symbol>] chapters the gem carries, attached by name

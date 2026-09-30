@@ -494,8 +494,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   end
 
   # Targets the mechanism directly, since the pre-mint audit catches every DSL-level refusal
-  # first. PG::Connection#transaction is a bare BEGIN/COMMIT without savepoints, so
-  # ensure_head_snapshot! run mid-transaction must not commit it, or the ROLLBACK undoes nothing.
+  # first. PG::Connection#transaction is a bare `BEGIN`/`COMMIT` without savepoints, so
+  # ensure_head_snapshot! run mid-transaction must not commit it, or the `ROLLBACK` undoes nothing.
   it "ensure_head_snapshot! does not end an already-open transaction — a later rollback still undoes it" do
     check!(V1_SOURCE)
     registry = load_registry(V1_SOURCE)
@@ -1252,7 +1252,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   # Postgres exempts a superuser or BYPASSRLS role from every policy, force included, so boot
   # checks pg_roles and refuses by default; allow_superuser boots anyway and warns.
-  # The ambient connection is a superuser locally and on CI (PGUSER: postgres); the two boot
+  # The ambient connection is a superuser locally and on CI (`PGUSER` is postgres); the two boot
   # examples skip when it is not.
   def ambient_role
     db = PG.connect(dbname: LINEAGE_DB)

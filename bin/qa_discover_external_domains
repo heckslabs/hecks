@@ -134,7 +134,7 @@ usage!("--max-depth must be >= 0") if options[:max_depth].negative?
 usage!("#{options[:projects_dir]} is not a directory") unless File.directory?(options[:projects_dir])
 
 known_raw = options[:known_paths] || ledger_target_paths
-# Ledger paths may be stored ROOT-relative or absolute; normalize both to
+# Ledger paths may be stored `ROOT`-relative or absolute; normalize both to
 # compare.
 known_paths = known_raw.to_set { |path| path.start_with?("/") ? File.expand_path(path) : File.expand_path(path, ROOT) }
 

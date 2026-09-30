@@ -29,7 +29,7 @@ RSpec.describe "the declared syntax" do
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
 
   # Admitted/deprecated words are live and run every builder⇄row gate below.
-  # Proposed (no builder yet) and retired (no builder any more) get their own
+  # Proposed (no builder yet) and retired (no builder now) get their own
   # gates instead. An absent status reads as admitted (see syntax_lifecycle_spec).
   def self.status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
 
@@ -212,7 +212,7 @@ RSpec.describe "the declared syntax" do
   end
 
   # A GenericDispatch word has no real method to introspect — this reads its
-  # shape straight off the ARGUMENTS rows; `Hecks` is excluded outright.
+  # shape straight off the `ARGUMENTS` rows; `Hecks` is excluded outright.
   def generically_dispatched?(word, context)
     builder = BUILDER.fetch(context)
     return false if builder.equal?(Hecks)
@@ -279,7 +279,7 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # Grouped by BUILDER since ValueObject/OneOf share one and AttributeCollector
+  # Grouped by `BUILDER` since ValueObject/OneOf share one and AttributeCollector
   # mixes into five. A builder's own `one_of(&block)` shadows AttributeCollector's
   # `one_of(*values)`, so a mixed-in word counts as declared only while unshadowed.
   BUILDER.group_by { |_, builder| builder }.each do |builder, pairs|

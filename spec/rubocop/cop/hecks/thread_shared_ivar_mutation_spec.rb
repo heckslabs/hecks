@@ -16,7 +16,7 @@ RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
 
   subject(:cop) { described_class.new(config) }
 
-  # Off so offense messages match the cop's MSG without the cop-name badge.
+  # Off so offense messages match the cop's `MSG` without the cop-name badge.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
   # The cop matches by short class name; Dispatcher and Registry live in Hecks::Runtime.

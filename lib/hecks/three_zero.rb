@@ -49,7 +49,8 @@ module Hecks
     # Adds a comment naming the 3.0.0 form of every `bin/` script a generated deploy file calls.
     #
     # @param files [Hash{String => String}] generated files, keyed by relative path
-    # @return [Hash{String => String}] the same map, with a comment added to each file that calls one
+    # @return [Hash{String => String}] the same map, with a comment added to each file
+    #   that calls one
     def annotate_deploy_files(files)
       files.to_h do |path, text|
         called = text.is_a?(String) && DEPLOY_FILE.match?(path) ? scripts_called(text) : []

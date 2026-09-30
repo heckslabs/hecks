@@ -112,7 +112,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Inside the repo ROOT because `bin/qa_sweep` resolves a target `path` against it.
+    # Inside the repo `ROOT` because `bin/qa_sweep` resolves a target `path` against it.
     # The prefix omits the mode name: the basename is printed, and a full name would make the
     # mode-name assertions pass whether or not the mode ran.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-aps-target-", InMemoryDomain::ROOT)
