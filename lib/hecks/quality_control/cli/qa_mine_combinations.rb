@@ -8,6 +8,8 @@ require_relative "../../fuzzing/combination_miner"
 require_relative "../../fuzzing/domain_generator"
 require_relative "../adapters/agent"
 require_relative "child"
+require_relative "../../cache_dir"
+require_relative "../../hecks/adapters/codebase/tree"
 
 module Hecks
   module QualityControlCli
@@ -57,7 +59,7 @@ module Hecks
         @options = parse(argv.dup)
         return EXIT_OK if @options == :help
 
-        @run_dir = File.join(@root, "tmp/qa-mined/run-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}")
+        @run_dir = File.join(runs_root, "run-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}")
         @out_dir = @options[:from] || File.join(@run_dir, "candidates")
         @agent_log = File.join(@run_dir, "agent.log")
         @agent = Hecks::Adapters::Agent.new
@@ -110,6 +112,13 @@ module Hecks
       end
 
       def relative(path) = path.delete_prefix("#{@root}/")
+
+      # Runs are kept under the checkout's `tmp/`; an installed gem, or a root that cannot be
+      # written, keeps them under the cache root instead.
+      def runs_root
+        checkout = Hecks::Adapters::Codebase::Tree.new(root: @root).checkout? && File.writable?(@root)
+        checkout ? File.join(@root, "tmp/qa-mined") : Hecks::CacheDir.path("qa-mined")
+      end
 
       # Returns nil when the agent finished, else why it did not.
       def ask_agent(prompt)

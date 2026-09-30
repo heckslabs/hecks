@@ -65,11 +65,11 @@ module Hecks
 
       # Built in a scratch copy because generating rewrites `Cargo.toml` and `src/generated/`,
       # which would dirty tracked files in a checkout.
-      def scratch_copy(rust_dir)
+      def scratch_copy(rust_dir, name = "project_wasm")
         scratch = if ENV.key?("HECKS_RUST_DIR")
-                    File.join(rust_dir, "scratch", "project_wasm")
+                    File.join(rust_dir, "scratch", name)
                   else
-                    File.join(ROOT, "tmp", "project_wasm", "rust")
+                    File.join(ROOT, "tmp", name, "rust")
                   end
         FileUtils.rm_rf(scratch)
         FileUtils.mkdir_p(scratch)

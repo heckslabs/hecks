@@ -3,6 +3,7 @@
 require "fileutils"
 require_relative "../rust_build"
 require_relative "project_rust"
+require_relative "wasm"
 
 module Hecks
   module RustBuild
@@ -26,16 +27,32 @@ module Hecks
       #   fails
       def call(argv)
         domain = argv.first or raise Failure, "usage: bin/project_wasm_browser <domain>"
-        web_dir = File.join(RustBuild.rust_dir, "web")
+        rust_dir = RustBuild.rust_dir
+        web_dir = File.join(rust_dir, "web")
         name = File.basename(domain)
         require_target!
         require_cli!(web_dir)
-        puts "== regenerating rust/src/generated/ for #{domain} =="
-        raise Failure, "project_rust failed for #{domain}" unless ProjectRust.call([domain]).zero?
+        scratch = scratch_copy(rust_dir)
+        puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
+        status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
+        raise Failure, "project_rust failed for #{domain}" unless status.zero?
 
-        compile(web_dir)
+        compile(File.join(scratch, "web"), web_dir)
         bind(web_dir, name)
         0
+      end
+
+      # Generated in a scratch copy, as `Wasm` does, because generating rewrites `Cargo.toml` and
+      # `src/generated/`, which would dirty tracked files in a checkout. The web crate's path
+      # dependency `..` resolves to the scratch workspace.
+      def scratch_copy(rust_dir)
+        scratch = Wasm.scratch_copy(rust_dir, "project_wasm_browser")
+        FileUtils.mkdir_p(File.join(scratch, "web"))
+        %w[Cargo.toml Cargo.lock src].each do |entry|
+          from = File.join(rust_dir, "web", entry)
+          FileUtils.cp_r(from, File.join(scratch, "web")) if File.exist?(from)
+        end
+        scratch
       end
 
       def require_target!
@@ -67,10 +84,11 @@ module Hecks
         MSG
       end
 
-      def compile(web_dir)
+      def compile(scratch_web, web_dir)
         puts "== cargo build --release --target #{TARGET} (rust/web) =="
+        target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(web_dir, "target"))
         RustBuild.command!("rustup", "run", "stable", "cargo", "build", "--release", "--target", TARGET,
-                           chdir: web_dir)
+                           chdir: scratch_web, env: { "CARGO_TARGET_DIR" => target_dir })
       end
 
       def bind(web_dir, name)
