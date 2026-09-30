@@ -20,11 +20,20 @@ module Hecks
       module Changes
         # Makes the change the record asks for.
         #
+        # A change is made only for a record `Era.Permit` admitted, whichever way `apply` is asked.
+        #
         # @param held [Hash] the `Era` record
         # @return [Hash{Symbol => Hash}] `report:` what was done, as the script said it
-        # @raise [Runtime::WiringError] if the database or an era's own guard refuses the change
+        # @raise [Runtime::WiringError] if the record was not admitted, or the database or an
+        #   era's own guard refuses the change
         # @raise [Runtime::NotFound] if the domain cannot be loaded
         def apply(**held)
+          unless plain(held[:status]) == "admitted"
+            raise Runtime::WiringError,
+                  "the change was not admitted (status #{plain(held[:status]).inspect}): " \
+                  "only an admitted change is made"
+          end
+
           { report: { value: send(:"apply_#{plain(held[:operation])}", held) } }
         end
 

@@ -999,7 +999,7 @@ Hecks.bluebook "QualityControl" do
       transition "Verify"      => "verified",      from: "fixed"
       transition "Pause"       => "paused",        from: ["logged", "investigating"]
       # `withdrawn` is for a report whose test proved something other than what it claimed.
-      transition "Withdraw"    => "withdrawn",     from: ["logged", "investigating"]
+      transition "Withdraw"    => "withdrawn",     from: ["logged", "investigating", "paused"]
       transition "Regress"     => "investigating", from: ["fixed", "verified"]
       transition "Revisit"     => "investigating", from: "paused"
     end
@@ -1551,7 +1551,7 @@ Hecks.bluebook "QualityControl" do
       transition "Filed"   => "filed",      from: "submitting"
       transition "Refused" => "refused",    from: "submitting"
       transition "Retry"   => "submitting", from: "refused"
-      transition "Abandon" => "abandoned",  from: "refused"
+      transition "Abandon" => "abandoned",  from: ["raised", "submitting", "refused"]
       transition "Close"   => "closed",     from: "filed"
     end
 

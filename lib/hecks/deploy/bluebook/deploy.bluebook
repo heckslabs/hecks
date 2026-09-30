@@ -227,11 +227,13 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
-      transition "Reprovision" => "requested",   from: %w[provisioned refused]
+      transition "Reprovision" => "requested",   from: %w[requested provisioned refused]
       transition "Complete"    => "provisioned", from: "requested"
       transition "Abandon"     => "refused",     from: "requested"
     end
 
+    # A declared tenant is a `requested` record on its slug, so `Provision` (a creating command)
+    # cannot run on that slug again: `Reprovision` writes the overlay for it.
     command "Declare" do
       goal "Validate one tenant's shape before bin/project_tenant provisions its schema and overlay world"
 
@@ -276,7 +278,7 @@ Hecks.bluebook "Deploy" do
     # A tenant's slug names its record, so provisioning it again is its own command; the overlay
     # is rewritten with the database and adapter given now.
     command "Reprovision" do
-      goal "Write a provisioned or refused tenant's environment overlay world again"
+      goal "Write a declared, provisioned or refused tenant's environment overlay world again"
 
       reference_to Tenant
       attribute :directory, DirectoryPath

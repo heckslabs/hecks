@@ -605,6 +605,12 @@ Hecks.bluebook "Hecks" do
     trigger LanguageRun::Accept, with: { checkout: :checkout }
   end
 
+  policy "FaultLanguageWhenNotAccepted" do
+    on      "LanguageRun.LanguageExamined"
+    where   { !checkout.value }
+    trigger LanguageRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
   policy "PerformLanguageWhenAccepted" do
     on      "LanguageRun.LanguageAccepted"
     trigger LanguageRun::SourceTree::Perform, with: { run: :run }
@@ -750,6 +756,12 @@ Hecks.bluebook "Hecks" do
   policy "AcceptKernelWhenExamined" do
     on      "KernelRun.KernelExamined"
     trigger KernelRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultKernelWhenNotAccepted" do
+    on      "KernelRun.KernelExamined"
+    where   { !checkout.value }
+    trigger KernelRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
   end
 
   policy "PerformKernelWhenAccepted" do
@@ -917,6 +929,12 @@ Hecks.bluebook "Hecks" do
     trigger ConformanceRun::Accept, with: { checkout: :checkout }
   end
 
+  policy "FaultConformanceWhenNotAccepted" do
+    on      "ConformanceRun.ConformanceExamined"
+    where   { !checkout.value }
+    trigger ConformanceRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
   policy "PerformConformanceWhenAccepted" do
     on      "ConformanceRun.ConformanceAccepted"
     trigger ConformanceRun::SourceTree::Perform, with: { run: :run }
@@ -1049,6 +1067,12 @@ Hecks.bluebook "Hecks" do
   policy "AcceptRegenerationWhenExamined" do
     on      "RegenerationRun.RegenerationExamined"
     trigger RegenerationRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultRegenerationWhenNotAccepted" do
+    on      "RegenerationRun.RegenerationExamined"
+    where   { !checkout.value }
+    trigger RegenerationRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
   end
 
   policy "PerformRegenerationWhenAccepted" do
@@ -1370,6 +1394,12 @@ Hecks.bluebook "Hecks" do
     trigger StyleRun::Accept, with: { checkout: :checkout }
   end
 
+  policy "FaultStyleWhenNotAccepted" do
+    on      "StyleRun.StyleExamined"
+    where   { !checkout.value }
+    trigger StyleRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
   policy "PerformStyleWhenAccepted" do
     on      "StyleRun.StyleAccepted"
     trigger StyleRun::SourceTree::Perform, with: { run: :run }
@@ -1518,6 +1548,12 @@ Hecks.bluebook "Hecks" do
   policy "AcceptCodemodWhenExamined" do
     on      "CodemodRun.CodemodExamined"
     trigger CodemodRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultCodemodWhenNotAccepted" do
+    on      "CodemodRun.CodemodExamined"
+    where   { !checkout.value }
+    trigger CodemodRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
   end
 
   policy "PerformCodemodWhenAccepted" do
@@ -1845,6 +1881,12 @@ Hecks.bluebook "Hecks" do
     trigger TestSuiteRun::Accept, with: { checkout: :checkout }
   end
 
+  policy "FaultTestSuiteWhenNotAccepted" do
+    on      "TestSuiteRun.TestSuiteExamined"
+    where   { !checkout.value }
+    trigger TestSuiteRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
   policy "PerformTestSuiteWhenAccepted" do
     on      "TestSuiteRun.TestSuiteAccepted"
     trigger TestSuiteRun::SourceTree::Perform, with: { run: :run }
@@ -2067,6 +2109,12 @@ Hecks.bluebook "Hecks" do
   policy "AcceptCorpusWhenExamined" do
     on      "CorpusRun.CorpusExamined"
     trigger CorpusRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultCorpusWhenNotAccepted" do
+    on      "CorpusRun.CorpusExamined"
+    where   { !checkout.value }
+    trigger CorpusRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
   end
 
   policy "PerformCorpusWhenAccepted" do
@@ -2333,6 +2381,24 @@ Hecks.bluebook "Hecks" do
     trigger PublishingRun::AcceptGem, with: { checkout: :checkout, version: :version,
                                               client_version: :client_version, ir_version: :ir_version,
                                               ships_from: :ships_from }
+  end
+
+  policy "FaultTheReleaseWhenNotAccepted" do
+    on      "PublishingRun.PublishingExamined"
+    where do
+      operation.value == "publish" &&
+        (!checkout.value || branch.value != "main" || !on_origin.value || !clean.value ||
+          client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere")
+    end
+    trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG and tag" }
+  end
+
+  policy "FaultTheGemWhenNotAccepted" do
+    on      "PublishingRun.PublishingExamined"
+    where do
+      operation.value == "publish_gem" && (!checkout.value || client_version.value != version.value)
+    end
+    trigger PublishingRun::Fault, with: { refusal: "a gem push rule is not met: needs a checkout and the client at the gem's version" }
   end
 
   policy "PerformPublishingWhenAccepted" do
