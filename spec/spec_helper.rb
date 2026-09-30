@@ -20,6 +20,7 @@ Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VER
 require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
+require_relative "support/facade_constant_isolation"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
