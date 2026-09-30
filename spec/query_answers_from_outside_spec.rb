@@ -190,6 +190,22 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
   end
 
+  describe "the arguments an adapter is asked with" do
+    it "refuses a required argument left out, as the derived path does, before the adapter is asked" do
+      runtime = boot_domain
+
+      expect { runtime.query("Lookup::Note.Echo") }
+        .to raise_error(Hecks::Runtime::AbsentArgument, /Note\.Echo was not given title/)
+    end
+
+    it "refuses an argument the query does not declare" do
+      runtime = boot_domain
+
+      expect { runtime.query("Lookup::Note.Echo", title: "hello", extra: 1) }
+        .to raise_error(Hecks::Runtime::UnknownArgument, /extra/)
+    end
+  end
+
   describe "an answer that is not its declared shape" do
     def answering_with(echo: "{ heard: title }", roster: "[]")
       boot_domain(body: "def echo(title:) = #{echo}\ndef roster = #{roster}\ndef sight = {}")
@@ -325,6 +341,11 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       body = ECHOER_BODY.sub(/def roster.*?end\n/m, "")
 
       expect_refusal(/implements the Echoer port but not #roster, which answers Lookup::Note\.Roster/, body: body)
+    end
+
+    it "refuses a bound query that declares authorize, since an outside answer is never scoped" do
+      expect_refusal(/Lookup::Note\.Echo is bound to the Echoer port but declares authorize/,
+                     bluebook: echo_with("authorize :readers, tenant: :title\n      returns Heard"))
     end
 
     it "refuses the old spelling, which took the shape the bluebook now declares" do
