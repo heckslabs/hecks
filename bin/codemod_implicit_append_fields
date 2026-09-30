@@ -10,63 +10,6 @@ require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("codemod_implicit_append_fields")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecks"
-require "hecks/codemod"
+require "hecks/tools"
 
-DRY_RUN = ARGV.include?("--dry-run")
-
-Candidate = Struct.new(:command_name, :field, :type, keyword_init: true)
-
-def identical_attribute?(candidate, owner_attr)
-  return false unless owner_attr
-
-  %i[type pattern optional? admits].all? { |m| candidate.public_send(m) == owner_attr.public_send(m) }
-end
-
-# Replays CommandBuilder#resolve_append_fields!'s lookup against the booted IR.
-find_candidates = lambda do |registry|
-  found = []
-  Hecks::Codemod.each_command(registry) do |construct, command|
-    command.mutations.select { |m| m.op == :append }.each do |mutation|
-      element = Hecks::Codemod.element_construct_for(construct, mutation.target)
-      next unless element
-
-      mutation.source.each do |field, value|
-        next unless value.is_a?(Symbol) && value.to_s == field.to_s
-
-        local = command.attributes.find { |attr| attr.name.to_s == field.to_s }
-        next unless local
-
-        owner_attr = Hecks::Codemod.owner_attribute(element, field)
-        next unless identical_attribute?(local, owner_attr)
-
-        found << Candidate.new(command_name: command.hecks_name, field: field.to_s, type: local.type)
-      end
-    end
-  end
-  found
-end
-
-# Returns [new_text, true] on a single clean match, [text, false] when ambiguous or absent.
-apply_candidate = lambda do |text, candidate|
-  window_start = text.index(/^\s*command\s+"#{Regexp.escape(candidate.command_name)}"/)
-  next [text, false] unless window_start
-
-  window_end = text.index(/^\s*emits\s/, window_start)
-  next [text, false] unless window_end
-
-  before = text[0...window_start]
-  window = text[window_start...window_end]
-  after = text[window_end..]
-
-  pattern = /^[ \t]*attribute\s+:#{Regexp.escape(candidate.field)}\s*,[^\n]*\n/
-  next [text, false] unless window.scan(pattern).size == 1
-
-  [before + window.sub(pattern, "") + after, true]
-end
-
-label = ->(c) { "#{c.command_name}##{c.field} (#{c.type})" }
-
-runner  = Hecks::Codemod::Runner.new(find_candidates: find_candidates, apply_candidate: apply_candidate, label: label)
-results = runner.run(dry_run: DRY_RUN)
-runner.report(results, dry_run: DRY_RUN)
+Hecks::Tools.script("codemod_implicit_append_fields", ARGV)
