@@ -16,6 +16,7 @@ mod mint;
 mod payments;
 mod presentation;
 mod presentation_write;
+mod query_step;
 mod rate_limit;
 mod reference_transform;
 mod reference_validate;
