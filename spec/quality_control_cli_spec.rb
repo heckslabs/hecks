@@ -109,6 +109,16 @@ RSpec.describe Hecks::QualityControlCli do
       expect(condensed).not_to include("  x\n")
     end
 
+    it "re-execs on macOS through Child.argv, since $PROGRAM_NAME of a `ruby -e` child is not a script" do
+      stub_const("RUBY_PLATFORM", "arm64-darwin23")
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("OBJC_DISABLE_INITIALIZE_FORK_SAFETY").and_return(nil)
+      allow(ENV).to receive(:[]=)
+      expect(tick).to receive(:exec).with(*Hecks::QualityControlCli::Child.argv(root, "qa_tick"))
+
+      tick.send(:reexec_with_fork_safety)
+    end
+
     it "ends 2 if any step found something, 0 if all are clean, else 1" do
       expect(tick.send(:verdict, 0)).to eq("clean")
       expect(tick.send(:verdict, 2)).to eq("FOUND SOMETHING")

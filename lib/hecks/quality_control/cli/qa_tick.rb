@@ -5,6 +5,7 @@ require "json"
 require "open3"
 require "rbconfig"
 require "tempfile"
+require_relative "child"
 
 module Hecks
   module QualityControlCli
@@ -74,13 +75,15 @@ module Hecks
       # Spring's preload-and-fork test runner sets this same flag for the same reason. It has to
       # be in the environment before the Ruby interpreter itself starts, since setting it via
       # `ENV[]` from inside an already-running process is too late (libobjc has already decided by
-      # then), so a bare macOS run re-execs itself once with it set. Linux has no Objective-C
+      # then), so a bare macOS run re-execs itself once with it set,
+      # through the same launch form `Child.argv` uses (the process may be a `ruby -e` child,
+      # whose `$PROGRAM_NAME` is not a script). Linux has no Objective-C
       # runtime, so this never runs there.
       def reexec_with_fork_safety
         return unless RUBY_PLATFORM.include?("darwin") && !ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"]
 
         ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-        exec(RbConfig.ruby, $PROGRAM_NAME, *ARGV)
+        exec(*Child.argv(@root, "qa_tick"))
       end
 
       # **Loaded once, here.** The three steps each `require "hecks"` (plus their own era and
