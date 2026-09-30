@@ -92,35 +92,80 @@ module Hecks
         output(ConsoleCapture.answer { CLI::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
       end
 
-      # A domain's event log past a cursor, waiting up to `wait` seconds for the first entry.
-      # A launcher answers once, so a follow is a bounded poll: pass the answered `cursor` back
-      # as `since` to keep tailing.
+      # A domain's event log past a cursor, answered once: what the stream yielded before it
+      # ended. Pass the answered `cursor` back as `since` to keep tailing. `wait` bounds the stream
+      # and it ends at the first entries, so a call returns as soon as there is something to say.
       #
       # @param domain [Hash, String] a domain directory
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] how many entries were already seen; all when absent
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
       # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 60
-      # @param interval [Hash, Float, nil] seconds between polls
+      # @param interval [Hash, Float, nil] seconds between checks of the log
       # @return [Hash] `cursor:` the count to pass as `since`, and `events:` the entries
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
+        entries = []
+        cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
+                        timeout: [plain(wait).to_f, MAX_FOLLOW_WAIT].min, interval: interval) do |entry|
+          entries << entry
+          :batch
+        end
+        { cursor: cursor, events: entries }
+      end
+
+      # Tails a domain's event log, handing each entry to the block as the log shows it, until
+      # the block returns `:stop` (or `:batch`: after this check's entries), `limit` entries were
+      # handed over, `timeout` seconds pass, or the reader goes away. With no bound it runs until
+      # interrupted, as a terminal tail wants.
+      #
+      # @param domain [Hash, String] a domain directory
+      # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
+      # @param since [Hash, Integer, nil] entries already seen; `from_now` skips what exists
+      # @param limit [Hash, Integer, nil] entries to hand over at most, or `timeout` seconds
+      # @param interval [Hash, Float, nil] seconds between checks (0.5 when absent)
+      # @return [Integer] the count of log entries seen, to pass back as `since`
+      # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
+      def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil, &block)
         repository = event_repository(domain)
-        seen = plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0)
-        limit = Process.clock_gettime(Process::CLOCK_MONOTONIC) + [plain(wait).to_f, MAX_FOLLOW_WAIT].min
+        tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
+        cap = plain(limit)&.to_i
+        deadline = plain(timeout) && (monotonic + plain(timeout).to_f)
 
         loop do
-          events = repository.events
-          fresh  = (events[seen..] || []).select { |event| followed?(event, plain(aggregate)) }
-          seen   = events.size
-          done   = Process.clock_gettime(Process::CLOCK_MONOTONIC) >= limit
-          return { cursor: seen, events: fresh.map { |event| JSON.parse(JSON.generate(event.to_h)) } } if fresh.any? || done
+          verdict = drain(repository, tail, plain(aggregate), cap, &block)
+          return tail.seen if verdict == :stop || tail.batch_done || (deadline && monotonic >= deadline)
 
           sleep((plain(interval) || 0.5).to_f)
         end
+      rescue Errno::EPIPE, Interrupt
+        tail.seen
       end
 
       private
+
+      # Where a stream stands: log entries seen, entries handed over, whether a batch ended it.
+      Tail = Struct.new(:seen, :handed, :batch_done)
+
+      # Hands over what the log holds past the tail, one entry at a time; answers `:stop` when the
+      # block or the limit ends the stream, so the tail's `seen` stays just past the last entry
+      # handed over.
+      def drain(repository, tail, filter, cap)
+        events = repository.events
+        while tail.seen < events.size
+          event = events[tail.seen]
+          tail.seen += 1
+          next unless followed?(event, filter)
+
+          verdict = yield JSON.parse(JSON.generate(event.to_h))
+          tail.handed += 1
+          tail.batch_done ||= verdict == :batch
+          return :stop if verdict == :stop || (cap && tail.handed >= cap)
+        end
+        nil
+      end
+
+      def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       def output(text) = { output: { value: text } }
 

@@ -192,6 +192,76 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
   end
 
+  describe "#stream" do
+    let(:entries) do
+      [Hecks::Runtime::Event.new(name: "Shelved", aggregate: "Shelf::Book", id: "Dune", payload: {}, occurred_at: "now")]
+    end
+
+    before { allow(adapter).to receive(:event_repository).and_return(double(events: entries)) }
+
+    def appended(name) = Hecks::Runtime::Event.new(name: name, aggregate: "Shelf::Book", id: "x", payload: {}, occurred_at: "now")
+
+    it "hands over each entry the moment the log shows it, not when the read ends" do
+      seen = []
+      writer = Thread.new do
+        sleep 0.15
+        entries << appended("Lent")
+        sleep 0.15
+        entries << appended("Returned")
+      end
+
+      cursor = adapter.stream(domain: @dir, from_now: true, limit: 2, timeout: 5, interval: 0.02) do |entry|
+        seen << [entry["name"], entries.size]
+      end
+      writer.join
+
+      expect(seen).to eq([["Lent", 2], ["Returned", 3]])
+      expect(cursor).to eq(3)
+    end
+
+    it "stops at the limit and answers a cursor just past the last entry handed over" do
+      entries.push(appended("Lent"), appended("Returned"))
+      names = []
+
+      cursor = adapter.stream(domain: @dir, limit: 2) { |entry| names << entry["name"] }
+
+      expect(names).to eq(%w[Shelved Lent])
+      expect(cursor).to eq(2)
+    end
+
+    it "stops when the block says so, and resumes from the cursor it answered" do
+      entries.push(appended("Lent"))
+      first = []
+      cursor = adapter.stream(domain: @dir) { |entry| first << entry["name"] and :stop }
+      rest = []
+      adapter.stream(domain: @dir, since: cursor, timeout: 0) { |entry| rest << entry["name"] }
+
+      expect([first, rest]).to eq([["Shelved"], ["Lent"]])
+    end
+
+    it "ends at its timeout when nothing arrives" do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      cursor = adapter.stream(domain: @dir, since: 1, timeout: 0.3, interval: 0.05) { raise "no entry expected" }
+
+      expect(cursor).to eq(1)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be_between(0.25, 2)
+    end
+
+    it "ends quietly when the reader goes away" do
+      cursor = adapter.stream(domain: @dir, timeout: 5) { raise Errno::EPIPE }
+
+      expect(cursor).to eq(1)
+    end
+
+    it "keeps only the aggregate asked for" do
+      entries << Hecks::Runtime::Event.new(name: "Lent", aggregate: "Shelf::Loan", id: "1", payload: {}, occurred_at: "now")
+      names = []
+      adapter.stream(domain: @dir, aggregate: "loan", timeout: 0) { |entry| names << entry["name"] }
+
+      expect(names).to eq(["Lent"])
+    end
+  end
+
   it "refuses to follow a domain that is not there" do
     expect { adapter.follow(domain: "/no/such/domain") }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
   end
