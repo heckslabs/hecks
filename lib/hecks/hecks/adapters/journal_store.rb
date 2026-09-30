@@ -42,11 +42,15 @@ module Hecks
         end
       end
 
-      # The rehearsal a compute or rekey edge is approved on, as the block the file carries.
+      # The rehearsal a compute or rekey edge is approved on, as the block the file carries. A
+      # rehearsal that names no host version ran on this one, so it records this release.
       def rehearsal_block(held)
         block = { "snapshot" => plain(held[:snapshot]), "host_version" => plain(held[:host_version]),
                   "result" => plain(held[:rehearsal]), "at" => plain(held[:rehearsed_at]) }.compact
-        block.empty? ? nil : block
+        return nil if block.empty?
+
+        block["host_version"] ||= Hecks::VERSION
+        block
       end
 
       # The era as stored, digest unchecked: a text that drifted is what re-attesting is for.

@@ -2,6 +2,7 @@ require "json"
 require "date"
 require "fileutils"
 require_relative "audit/approval_digest"
+require_relative "../../../../../version"
 
 module Hecks
   module Translation
@@ -17,10 +18,19 @@ module Hecks
 
       # The keys of a rehearsal block; every one is required when the block is required.
       #
-      # `host_version` is recorded for the reviewer and not checked against the running host: the
-      # rehearsal is a person's claim about a run, and a host that gates on its own version would
-      # void every approval at each release. Only that it is named is required.
+      # `host_version` is the Hecks release the rehearsal ran on, and the gate checks it: a
+      # rehearsal counts only on a host whose release shares its `major.minor` (see
+      # `host_compatible?`).
       REHEARSAL_KEYS = %w[snapshot host_version result at].freeze
+
+      # How a `host_version` reads: `major.minor`, an optional patch, an optional pre-release or
+      # build suffix. Only the first two numbers take part in the comparison.
+      HOST_LINE = /\A(\d+)\.(\d+)(?:\.\d+)?(?:[-+][0-9A-Za-z.+-]+)?\z/
+
+      # The release the running host reports: the Hecks release this code was built for. The Rust
+      # host embeds the same string from `rust/host/HECKS_RELEASE`, and a spec fails when the two
+      # drift.
+      HOST_RELEASE = Hecks::VERSION
 
       # An ISO 8601 time: `2026-09-28T12:30:00Z`, with optional fraction and `+HH:MM` offset. The
       # host's approval.rs accepts the same shape.
@@ -60,6 +70,41 @@ module Hecks
         return false unless rehearsal.is_a?(Hash)
 
         REHEARSAL_KEYS.all? { |key| named?(rehearsal[key]) } && rehearsal["result"] == "pass"
+      end
+
+      # The `major.minor` a version names.
+      #
+      # @param version [Object] a `host_version` as it reads from JSON
+      # @return [Array<Integer>, nil] `[major, minor]`, or nil when it is not a version
+      def release_line(version)
+        match = HOST_LINE.match(version) if version.is_a?(String)
+        match && [match[1].to_i, match[2].to_i]
+      end
+
+      # Whether a rehearsal ran on a host compatible with the running one.
+      #
+      # The rule is the smallest sound one: equal `major.minor`. A patch release does not change
+      # what a mint does, so a rehearsal survives it; a minor or major release may, so a rehearsal
+      # from an older host (or a newer one, which proves nothing about this one) does not.
+      #
+      # @param rehearsal [Hash] a rehearsal block, string-keyed
+      # @param host_version [String] the running host's release
+      # @return [Boolean] true when both versions parse and share `major.minor`
+      def host_compatible?(rehearsal, host_version = HOST_RELEASE)
+        line = release_line(rehearsal["host_version"])
+        !line.nil? && line == release_line(host_version)
+      end
+
+      # The refusal for a rehearsal that ran on another host line; rust/host words it the same.
+      #
+      # @param rehearsal [Hash] a rehearsal block, string-keyed
+      # @param host_version [String] the running host's release
+      # @return [String] names both versions
+      def host_refusal(rehearsal, host_version = HOST_RELEASE)
+        line = release_line(host_version)&.join(".")
+        "the rehearsal ran on Hecks #{rehearsal['host_version']}, but this host is Hecks #{host_version}; " \
+          "a rehearsal counts only on a host of the same major.minor (#{line}.x) — " \
+          "re-run the rehearsal on this host and approve again"
       end
 
       # Whether a value is a String with something in it; a number or nil names nothing.
@@ -145,17 +190,37 @@ module Hecks
       #
       # @param directory [String, nil] the domain's bluebook directory
       # @param edge [Bluebook::Translation] the parsed translation edge
+      # @param host_version [String] the running host's release
       # @return [Hash{String => Object}, nil] an approval whose digest is the edge's, that names
-      #   who approved it and when, and whose rehearsal passed when the edge needs one; nil when
-      #   none applies
-      def applicable(directory, edge)
+      #   who approved it and when, and whose rehearsal passed on a compatible host when the edge
+      #   needs one; nil when none applies
+      def applicable(directory, edge, host_version: HOST_RELEASE)
         return unless directory
 
         digest = edge_digest(edge)
         read_all(directory).find do |approval|
           approval["edge_digest"] == digest && attributed?(approval) &&
-            (!needs_rehearsal?(edge) || rehearsed?(approval["rehearsal"]))
+            (!needs_rehearsal?(edge) ||
+              (rehearsed?(approval["rehearsal"]) && host_compatible?(approval["rehearsal"], host_version)))
         end
+      end
+
+      # Why a committed approval that covers the edge was still not applied, when the only thing
+      # wrong is the host it was rehearsed on.
+      #
+      # @param directory [String, nil] the domain's bluebook directory
+      # @param edge [Bluebook::Translation] the parsed translation edge
+      # @param host_version [String] the running host's release
+      # @return [String, nil] `host_refusal`'s text, or nil when no such approval exists
+      def host_mismatch(directory, edge, host_version: HOST_RELEASE)
+        return unless directory && needs_rehearsal?(edge)
+
+        digest = edge_digest(edge)
+        stale = read_all(directory).find do |approval|
+          approval["edge_digest"] == digest && attributed?(approval) && rehearsed?(approval["rehearsal"]) &&
+            !host_compatible?(approval["rehearsal"], host_version)
+        end
+        host_refusal(stale["rehearsal"], host_version) if stale
       end
     end
   end

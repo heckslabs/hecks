@@ -60,7 +60,7 @@ module Hecks
           # A compute or rekey's only verification is a human-approved audit sample. Two approvals
           # satisfy it: one recorded in the journal that matches the edge and the journal's current
           # tip, or a committed `translations/<edge>.approval` that matches the edge's digest and
-          # records a passed rehearsal. A committed approval that applies is written into the
+          # records a passed rehearsal on a compatible host release. A committed approval that applies is written into the
           # journal, so the journal stays the single history.
           def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: nil)
             return unless Translation::ApprovalFile.needs_rehearsal?(edge)
@@ -76,6 +76,12 @@ module Hecks
             end
 
             unless approval && approval[:edge_digest] == digest
+              if (mismatch = Translation::ApprovalFile.host_mismatch(directory, edge))
+                raise Runtime::WiringError,
+                      "cannot mint era #{ordinal} of #{bluebook.name}: the committed approval does not " \
+                      "apply — #{mismatch}"
+              end
+
               raise Runtime::WiringError,
                     "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
                     "rule, and the audit's human-approved sample is its only verification — run " \
