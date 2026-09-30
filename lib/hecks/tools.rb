@@ -23,7 +23,14 @@ module Hecks
       "project_deploy"            => ["tools/deploy_recipe", "DeployRecipe"],
       "lint_deploy_recipes"       => ["tools/deploy_recipe_lint", "DeployRecipeLint"],
       "project_oidc"              => ["tools/oidc_manifests", "OidcManifests"],
-      "project_tenant"            => ["tools/tenant_provisioning", "TenantProvisioning"]
+      "project_tenant"            => ["tools/tenant_provisioning", "TenantProvisioning"],
+      "translation_audit"         => ["tools/translation_audit", "TranslationAudit"],
+      "scaffold_translation"      => ["tools/translation_scaffold", "TranslationScaffold"],
+      "reattest_era"              => ["tools/era_reattest", "EraReattest"],
+      "merge_tail"                => ["tools/tail_merge", "TailMerge"],
+      "backfill_era_projections"  => ["tools/era_projection_backfill", "EraProjectionBackfill"],
+      "compact"                   => ["tools/journal_compaction", "JournalCompaction"],
+      "heki_compact"              => ["tools/heki_compaction", "HekiCompaction"]
     }.freeze
 
     module_function
