@@ -126,6 +126,16 @@ RSpec.describe "the launcher's opt-in options" do
       expect(out).to include("must match")
     end
 
+    it "accepts --wait=true, --wait=false and --wait yes, and refuses --wait=maybe" do
+      spec = { arguments: [] }
+      take = Hecks::Facade::LauncherOptions.method(:take_wait)
+
+      expect(take.call(spec, ["--wait=true", "x=1"])).to eq([["x=1"], true])
+      expect(take.call(spec, ["--wait=false"])).to eq([[], false])
+      expect(take.call(spec, ["--wait", "yes"])).to eq([[], true])
+      expect { take.call(spec, ["--wait=maybe"]) }.to raise_error(Hecks::Runtime::TypeMismatch, /not Boolean/)
+    end
+
     it "is left to a verb that declares its own wait argument" do
       spec = { arguments: [{ path: "wait", type: "Integer" }] }
 

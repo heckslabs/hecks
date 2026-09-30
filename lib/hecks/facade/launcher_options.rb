@@ -1,5 +1,6 @@
 require_relative "../ports/identity_generation"
 require_relative "../runtime/errors"
+require_relative "cli_door"
 
 module Hecks
   module Facade
@@ -35,14 +36,32 @@ module Hecks
 
       # Takes `--wait` out of a verb's words, unless the verb declares a `wait` argument of its own.
       #
+      # `--wait=false` (or `no`, `0`, `off`) is a `--wait` that was switched off; a bare `--wait`
+      # may be followed by its Boolean word.
+      #
       # @param spec [Hash] the verb's projected spec
       # @param words [Array<String>] the words after the verb
       # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--wait` was given
+      # @raise [Runtime::TypeMismatch] if `--wait=` carries something that is not a Boolean word
       def take_wait(spec, words)
-        return [words, false] unless words.include?(WAIT)
+        return [words, false] unless words.any? { |word| word == WAIT || word.start_with?("#{WAIT}=") }
         return [words, false] if spec[:arguments].any? { |argument| argument[:path].split(".").first == "wait" }
 
-        [words - [WAIT], true]
+        wait  = false
+        rest  = []
+        queue = words.dup
+        until queue.empty?
+          word = queue.shift
+          if word == WAIT
+            value = CliDoor::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
+            wait ||= CliDoor.boolean(value)
+          elsif word.start_with?("#{WAIT}=")
+            wait ||= CliDoor.boolean(word.split("=", 2).last)
+          else
+            rest << word
+          end
+        end
+        [rest, wait]
       end
 
       # Mints the `run` key a creating command was not given, when the domain opted in.

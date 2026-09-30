@@ -5,6 +5,10 @@ module Hecks
     # Turns `path=value` command-line words into a nested, typed argument Hash.
     # Types come from the projection, never from guessing at the value ("99" may be a String).
     module CliDoor
+      # The words a Boolean is spelled with, and what each means.
+      BOOLEAN_WORDS = { "true" => true, "yes" => true, "1" => true, "on" => true,
+                        "false" => false, "no" => false, "0" => false, "off" => false }.freeze
+
       module_function
 
       # Builds a verb's nested, typed argument Hash from its `name=value` words.
@@ -37,19 +41,32 @@ module Hecks
         end
       end
 
-      # Rewrites the short forms into `name=value`: `--name` for a Boolean, `--name=value` as
-      # `name=value`, and one bare word as the verb's first argument (`to` for a command on an
-      # existing aggregate, the first attribute for one that creates).
+      # Rewrites the short forms into `name=value`: `--name` for a Boolean (a following `yes`,
+      # `no`, `true`, `false`, `on`, `off`, `1` or `0` is that flag's value, not an argument),
+      # `--name=value` as `name=value`, and one bare word as the verb's first argument (`to` for
+      # a command on an existing aggregate, the first attribute for one that creates).
       def normalize(spec, words, options)
-        bare = words.reject { |word| word.include?("=") || word.start_with?("--") }
+        queue = words.dup
+        pairs = []
+        bare  = []
+        until queue.empty?
+          word = queue.shift
+          if word.start_with?("--") && word.include?("=")
+            pairs << underscored(word.delete_prefix("--"), options)
+          elsif word.start_with?("--")
+            path  = flag(word.delete_prefix("--"), options)
+            value = BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
+            pairs << "#{path}=#{value}"
+          elsif word.include?("=")
+            pairs << word
+          else
+            bare << word
+            pairs << word
+          end
+        end
         raise Runtime::NotFound, too_many_bare(bare) if bare.length > 1
 
-        words.map do |word|
-          next underscored(word.delete_prefix("--"), options) if word.start_with?("--") && word.include?("=")
-          next flag(word.delete_prefix("--"), options) if word.start_with?("--")
-
-          bare.include?(word) ? positional(word, spec) : word
-        end
+        pairs.map { |pair| bare.include?(pair) && !pair.include?("=") ? positional(pair, spec) : pair }
       end
 
       # A `name=value` pair whose name is spelled with dashes (`seed-start=3`), as the argument
@@ -59,12 +76,12 @@ module Hecks
         options.key?(name) ? pair : "#{name.tr('-', '_')}=#{value}"
       end
 
-      # A `--name` flag, as the `name=true` pair it stands for. A dashed name (`--gem-only`) is the
+      # A `--name` flag, as the path of the Boolean argument it stands for. A dashed name (`--gem-only`) is the
       # argument spelled with underscores (`gem_only`).
       def flag(name, options)
         name = name.tr("-", "_") unless options.key?(name) || options.keys.any? { |key| key.start_with?("#{name}.") }
         path = options.key?(name) ? name : expand(name, options)
-        return "#{path}=true" if options.dig(path, :type) == "Boolean"
+        return path if options.dig(path, :type) == "Boolean"
 
         raise Runtime::NotFound, "--#{name} is a flag, but this verb has no Boolean argument #{name.inspect}"
       end
@@ -98,16 +115,29 @@ module Hecks
       end
 
       # Converts one value to its declared type; only Integer, Float and Boolean convert.
-      # A Boolean is true only for `true`, `yes` or `1` in any letter case.
       def cast(value, type)
         case type
         when "Integer" then Integer(value)
         when "Float"   then Float(value)
-        when "Boolean" then %w[true yes 1].include?(value.downcase)
+        when "Boolean" then boolean(value)
         else value
         end
       rescue ArgumentError
         raise Runtime::TypeMismatch, "#{value.inspect} is not #{type} — the chapter declares this field as #{type}"
+      end
+
+      # Reads a Boolean word: `true`, `yes`, `1` or `on` is true; `false`, `no`, `0` or `off` is
+      # false; case does not matter. Anything else is refused, since guessing would turn a typo
+      # (`dry_run=ture`) into a silent false.
+      #
+      # @param value [String] the word
+      # @return [Boolean]
+      # @raise [Runtime::TypeMismatch] if the word is not one of those eight
+      def boolean(value)
+        BOOLEAN_WORDS.fetch(value.to_s.downcase) do
+          raise Runtime::TypeMismatch,
+                "#{value.inspect} is not Boolean — use true, false, yes, no, 1, 0, on or off"
+        end
       end
 
       # Appends one element to a list argument, creating the list on first use.
