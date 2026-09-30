@@ -1,10 +1,11 @@
+require_relative "support/project_deploy_runner"
 require "hecks"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
 # Deploy settings for deployed_to("AwsLambda") are validated by the Deploy domain itself.
-# Also pins that bin/project_deploy dispatches into it rather than hand-rolled checks.
+# Also pins that hecks deploy project dispatches into it rather than hand-rolled checks.
 RSpec.describe "the self-hosted Deploy bluebook" do
   DEPLOY_DOMAIN = File.expand_path("../lib/hecks/deploy", __dir__)
 
@@ -18,7 +19,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       region:   { value: "us-east-1" },
       memory:   { value: 512 },
       timeout:  { value: 10 },
-      # Same defaults bin/project_deploy applies when a domain names neither.
+      # Same defaults hecks deploy project applies when a domain names neither.
       database: { value: "Postgres" },
       web:      { value: "None" }
     }.merge(overrides)
@@ -159,9 +160,9 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at most 65535/)
   end
 
-  # End-to-end: bin/project_deploy must dispatch into this domain, not a parallel check.
-  describe "bin/project_deploy, driven through a scratch fixture domain", :io do
-    # bin/project_deploy always writes to <repo_root>/deploy/<basename>, wherever the source lives,
+  # End-to-end: hecks deploy project must dispatch into this domain, not a parallel check.
+  describe "hecks deploy project, driven through a scratch fixture domain", :io do
+    # hecks deploy project always writes to <repo_root>/deploy/<basename>, wherever the source lives,
     # so the basename is unique and the generated directory is removed after every run.
     FIXTURE_BASENAME = "deploy_bluebook_spec_fixture".freeze
 
@@ -201,7 +202,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
         File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), world_body)
 
-        Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+        ProjectDeployRunner.run(domain_dir, root: root)
       end
     ensure
       FileUtils.rm_rf(generated_dir)
@@ -270,8 +271,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
           end
         WORLD
 
-        _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-        status.success? or raise "bin/project_deploy failed: #{stderr}"
+        _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+        status.success? or raise "hecks deploy project failed: #{stderr}"
 
         makefile = File.read(File.join(generated_dir, "Makefile"))
         expect(makefile).to include("--stack-name hecksagain-embryonaut")
@@ -298,8 +299,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
           File.write(File.join(domain_dir, ".env.local"), "GOOGLE_CLIENT_ID=placeholder\n")
         end
 
-        _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-        status.success? or raise "bin/project_deploy failed: #{stderr}"
+        _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+        status.success? or raise "hecks deploy project failed: #{stderr}"
 
         %w[template.yaml Makefile samconfig.toml].to_h { |f| [f, File.read(File.join(generated_dir, f))] }
       end

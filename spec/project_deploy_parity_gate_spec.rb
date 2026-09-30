@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -42,8 +43,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
           end
         WORLD
 
-        _stdout, stderr, status = Open3.capture3("ruby", File.join(self.class.repo_root, "bin/project_deploy"), domain_dir)
-        status.success? or raise "bin/project_deploy failed: #{stderr}"
+        _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: self.class.repo_root)
+        status.success? or raise "hecks deploy project failed: #{stderr}"
       end
       @generated_dir = File.join(self.class.repo_root, "deploy", PARITY_GATE_FIXTURE_BASENAME)
       @makefile = File.read(File.join(@generated_dir, "Makefile"))
@@ -77,15 +78,18 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     end
   end
 
-  describe "bin/rust_conformance itself, against real compiled artifacts (the exact command the Makefile target runs)" do
+  describe "hecks check_conformance itself, against real compiled artifacts (the exact command the Makefile target runs)" do
     def self.wasm_for(domain_path)
       domain_name = File.basename(domain_path)
-      _stdout, stderr, status = Open3.capture3("ruby", "bin/project_wasm", domain_path, chdir: repo_root)
-      status.success? or raise "bin/project_wasm #{domain_path} failed: #{stderr}"
+      _stdout, stderr, status = Open3.capture3(
+        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build_wasm",
+        "domain=#{domain_path}", "--wait", chdir: repo_root
+      )
+      status.success? or raise "hecks build_wasm #{domain_path} failed: #{stderr}"
       File.join(repo_root, "rust", "dist", "#{domain_name}.wasm")
     end
 
-    # bin/project_wasm builds in a scratch copy of the crate; this snapshots the real
+    # `hecks build_wasm` builds in a scratch copy of the crate; this snapshots the real
     # crate paths (tracked and untracked) to prove they stay untouched.
     def self.crate_status
       `git -C #{repo_root} status --porcelain -- rust/Cargo.toml rust/src`.split("\n")
@@ -102,7 +106,10 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     end
 
     def rust_conformance(domain, script, artifact)
-      Open3.capture3("bin/rust_conformance", domain, script, artifact, chdir: self.class.repo_root)
+      Open3.capture3(
+        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "check_conformance",
+        "domain=#{domain}", "script=#{script}", "artifact=#{artifact}", "--wait", chdir: self.class.repo_root
+      )
     end
 
     # Not the fuzzer's broader spec/corpus/roster.json, which hits a known

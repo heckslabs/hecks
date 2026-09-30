@@ -1,10 +1,11 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
-# `bin/project_deploy --environment=<name>` layers `bluebook/environments/<name>.world`
+# `hecks deploy project environment==<name>` layers `bluebook/environments/<name>.world`
 # over the base `.world`. Runs the script against a throwaway domain and reads its output.
-RSpec.describe "bin/project_deploy --environment", :io do
+RSpec.describe "hecks deploy project environment=", :io do
   ENV_FIXTURE_BASENAME = "project_deploy_environment_spec_fixture".freeze
 
   def root = File.expand_path("..", __dir__)
@@ -52,7 +53,7 @@ RSpec.describe "bin/project_deploy --environment", :io do
   end
 
   def run_project_deploy(domain_dir, *flags)
-    Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir, *flags)
+    ProjectDeployRunner.run(domain_dir, *flags, root: root)
   end
 
   it "names the stack from the overlay when --environment is given, and from the base when not" do
@@ -62,9 +63,9 @@ RSpec.describe "bin/project_deploy --environment", :io do
       overlay_out = File.join(dir, "overlay")
 
       _out, err, status = run_project_deploy(domain_dir, "--out=#{base_out}")
-      status.success? or raise "bin/project_deploy failed: #{err}"
+      status.success? or raise "hecks deploy project failed: #{err}"
       _out, err, status = run_project_deploy(domain_dir, "--environment=production", "--out=#{overlay_out}")
-      status.success? or raise "bin/project_deploy --environment failed: #{err}"
+      status.success? or raise "hecks deploy project environment= failed: #{err}"
 
       expect(File.read(File.join(base_out, "template.yaml"))).to include("FunctionName: hecks-#{ENV_FIXTURE_BASENAME}")
       expect(File.read(File.join(overlay_out, "template.yaml"))).to include("FunctionName: pinned-#{ENV_FIXTURE_BASENAME}")

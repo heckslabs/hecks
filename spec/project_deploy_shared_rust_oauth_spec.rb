@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -5,7 +6,7 @@ require "yaml"
 
 # A Shared-mode domain with real Google OAuth must declare both Parameter sets: the
 # google_oauth_present and shared branches must not be mutually exclusive.
-RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAuth", :io do
+RSpec.describe "hecks deploy project — Shared mode + rust_web + real Google OAuth", :io do
   SHARED_RUST_OAUTH_FIXTURE_BASENAME = "project_deploy_shared_rust_oauth_spec_fixture".freeze
 
   before(:context) do
@@ -51,8 +52,8 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
         GOOGLE_CLIENT_SECRET=test-secret
       ENV
 
-      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-      status.success? or raise "bin/project_deploy failed: #{stderr}"
+      _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+      status.success? or raise "hecks deploy project failed: #{stderr}"
     end
 
     @template = YAML.unsafe_load_file(File.join(@generated_dir, "template.yaml"))

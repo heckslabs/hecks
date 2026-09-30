@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -5,14 +6,14 @@ require "yaml"
 
 # End-to-end coverage for the `deployed_to("AwsFargate")` path: a scratch
 # domain built under a tmpdir, generated for real through the CLI, read back off disk.
-RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
+RSpec.describe "hecks deploy project — deployed_to(\"AwsFargate\")", :io do
   FARGATE_FIXTURE_BASENAME = "project_deploy_fargate_spec_fixture".freeze
 
   def generated_dir
     File.join(File.expand_path("..", __dir__), "deploy", FARGATE_FIXTURE_BASENAME)
   end
 
-  # Runs `bin/project_deploy` for real against a scratch domain declaring
+  # Runs `hecks deploy project` for real against a scratch domain declaring
   # `world_body`; both `generate` and the refusal test below build fixtures from this.
   def run_project_deploy(world_body)
     root = File.expand_path("..", __dir__)
@@ -43,13 +44,13 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
 
       File.write(File.join(bluebook_dir, "#{FARGATE_FIXTURE_BASENAME}.world"), world_body)
 
-      Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+      ProjectDeployRunner.run(domain_dir, root: root)
     end
   end
 
   def generate(world_body)
     _stdout, stderr, status = run_project_deploy(world_body)
-    status.success? or raise "bin/project_deploy failed: #{stderr}"
+    status.success? or raise "hecks deploy project failed: #{stderr}"
 
     Dir.children(generated_dir).to_h { |name| [name, File.read(File.join(generated_dir, name))] }
   ensure
