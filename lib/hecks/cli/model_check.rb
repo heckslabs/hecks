@@ -43,10 +43,14 @@ module Hecks
         end
 
         options = Options.new(strict, profile, root && File.join(root, "rust"))
-        ok = if argv.any? then check_domains(argv, options)
-             elsif root then check_corpus(root, options)
-             else abort "usage: #{program} [--strict] [--profile client] <domain> [<domain> …]"
-             end
+        ok = begin
+          if argv.any? then check_domains(argv, options)
+          elsif root then check_corpus(root, options)
+          else abort "usage: #{program} [--strict] [--profile client] <domain> [<domain> …]"
+          end
+        rescue Bluebook::DSL::Malformed => e
+          abort "#{program}: #{e.message}"
+        end
 
         puts
         puts ok ? "No dead states, no unreachable protocol steps." : "THE MODEL HAS FINDINGS."

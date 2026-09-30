@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Binding Postgres or PostgresEra without the `pg` gem now says so.** `connect_for` raises a `LoadError` naming the domain and telling the project to add `gem "pg"`; before, a `rescue PG::Error` clause evaluated `PG` while the `LoadError` propagated and replaced it with `uninitialized constant ...::PG`. `hecks project_cli` reports the missing gem as "cannot boot" instead of crashing. `hecks model_check` reports a malformed bluebook on stderr and exits 1 instead of printing a stack trace.
+
 ## [3.0.0] - 2026-09-30
 
 **`hecks --help`, `hecks` and `hecks <verb> --help` bind no adapter.** `exe/hecks` answers usage and an unknown verb's hint from the projected bluebook alone (`Hecks.describe`, `Doors::CliRunner.usage`), in any environment: no Postgres, no `pg` gem and no `HECKS_ENVIRONMENT=memory` needed. A verb that runs still boots the domain as before; regenerate launchers with `hecks project_cli`.

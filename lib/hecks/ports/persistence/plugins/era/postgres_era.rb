@@ -85,7 +85,11 @@ module Hecks
       # @raise [Runtime::WiringError] if `database` is missing or Postgres refuses a statement
       def self.connect_for(name, settings)
         # Lazy so a domain that never wires PostgresEra does not need the pg gem.
-        require "pg"
+        begin
+          require "pg"
+        rescue LoadError
+          raise LoadError, "#{name} binds PostgresEra, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
+        end
 
         declared = setting(settings, :database)
         if declared.to_s.empty?
@@ -114,7 +118,10 @@ module Hecks
         # Warnings and above still surface.
         connection.exec("SET client_min_messages = warning")
         connection
-      rescue PG::Error => e
+      rescue StandardError => e
+        # PG is only defined once the gem loads, so the clause cannot name it.
+        raise unless defined?(PG::Error) && e.is_a?(PG::Error)
+
         raise Runtime::WiringError,
               "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip}"
       end
