@@ -53,9 +53,30 @@ module Hecks
         raise
       end
 
+      # Where the language's own bluebooks live: this checkout's, unless a block is running under
+      # `with_language_dir`.
+      #
+      # @return [String] the directory holding the syntax tables
+      def language_dir = @language_dir || File.expand_path("../language", __dir__)
+
+      # Runs the block with every table read and edit aimed at `dir`, so a caller can try real
+      # edits on a copy. The language's own files are what other processes load, so an edit that
+      # lands on them, even one put back afterwards, can be loaded half-made.
+      #
+      # @param dir [String] a directory laid out like `lib/hecks/language`
+      # @yield the work to run against `dir`
+      # @return [Object] what the block returns
+      def with_language_dir(dir)
+        previous = @language_dir
+        @language_dir = dir
+        yield
+      ensure
+        @language_dir = previous
+      end
+
       # Every syntax-table file declaring a KeywordSeed or ArgumentSeed value object.
       def syntax_paths
-        Dir.glob(File.expand_path("../language/**/*.bluebook", __dir__)).select do |path|
+        Dir.glob(File.join(language_dir, "**/*.bluebook")).select do |path|
           source = read_source(path)
           source.include?('value_object "KeywordSeed"') || source.include?('value_object "ArgumentSeed"')
         end

@@ -84,16 +84,26 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
   end
 
   describe "an evolution" do
+    let(:tree) { @copy }
     let(:tables) { Hecks::Grammar::Evolve.syntax_paths }
     let(:golden) { tree.path(described_class::GOLDEN) }
 
     def snapshot = (tables + [golden]).to_h { |path| [path, File.read(path)] }
 
+    # The edits are real, so they land on a copy of the language's bluebooks and golden. Run on
+    # the checkout's own files they were visible, half-made, to every other process loading the
+    # grammar while this one ran, which showed up as a syntax error or a missing aggregate there.
     around do |example|
-      before = snapshot
-      example.run
-    ensure
-      before.each { |path, text| File.write(path, text) }
+      Dir.mktmpdir do |dir|
+        language = File.join(dir, "lib/hecks/language")
+        FileUtils.mkdir_p(File.dirname(language))
+        FileUtils.cp_r(Hecks::Grammar::Evolve.language_dir, language)
+        FileUtils.mkdir_p(File.join(dir, File.dirname(described_class::GOLDEN)))
+        FileUtils.cp(Hecks::Adapters::Codebase::Tree.new.path(described_class::GOLDEN),
+                     File.join(dir, described_class::GOLDEN))
+        @copy = Hecks::Adapters::Codebase::Tree.new(root: dir)
+        Hecks::Grammar::Evolve.with_language_dir(language) { example.run }
+      end
     end
 
     it "rehearses the edit without writing when it is not confirmed" do
