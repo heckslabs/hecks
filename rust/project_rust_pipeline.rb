@@ -70,6 +70,10 @@ module RustProjectPipeline
     # vendor/embryonaut_bluebooks/<name>/bluebook/, sorted. A vendored
     # package has no .hecksagon of its own either, just its .bluebook(s).
     chapters += uses_embryonaut_bluebook_names.map do |pkg_name|
+      unless pkg_name.to_s.match?(Hecks::EmbryonautBluebook::PACKAGE_NAME)
+        abort "hecks project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} is not a package " \
+              "name — it must match [a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
+      end
       pkg_dir = File.join(domain, "vendor", "embryonaut_bluebooks", pkg_name.to_s, "bluebook")
       pkg_files = Dir.glob(File.join(pkg_dir, "*.bluebook")).sort
       if pkg_files.empty?

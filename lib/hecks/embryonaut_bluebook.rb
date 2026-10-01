@@ -7,6 +7,10 @@ module Hecks
     autoload :Vendor, File.join(__dir__, "embryonaut_bluebook/vendor")
     autoload :VendorCli, File.join(__dir__, "embryonaut_bluebook/vendor_cli")
 
+    # The shape `hecks vendor` accepts for a package directory name. The name is joined into a
+    # path that `load!` evaluates as Ruby, so `../x` or an absolute path must never reach it.
+    PACKAGE_NAME = /\A[a-z][a-z0-9_]*\z/
+
     # Loads a vendored embryonaut bluebook package's `.bluebook` files, once
     # per registry.
     #
@@ -21,6 +25,12 @@ module Hecks
       unless registry&.root
         raise Runtime::WiringError,
               "uses_embryonaut_bluebook(#{name.inspect}) needs a registry with a root to vendor from"
+      end
+
+      unless name.to_s.match?(PACKAGE_NAME)
+        raise Runtime::WiringError,
+              "uses_embryonaut_bluebook(#{name.inspect}) is not a package name — it must match " \
+              "[a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
       end
 
       return if registry.bluebook(Naming.pascal(name.to_s))
