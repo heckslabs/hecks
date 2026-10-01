@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The host can refuse a caller that holds no role (`HECKS_ROLE_ENFORCEMENT=off|shadow|enforce`).** Until now a dispatch that stated no role skipped the check, and the host never passed an `actor_id`, so Governance assignments were not consulted. A `POST /dispatch` body may now carry `actor_id`; an identified caller that states no role is held to what Governance assigned them (the kernel's `check_role_via`), and unchecked only when no Governance provider is compiled in. With `shadow` an unidentified caller is dispatched as role `Anonymous`, and a refusal that would follow is logged as `would_refuse_role` while the command goes through; with `enforce` it is refused. The default is `off`, so nothing changes until a deploy sets it. Host-internal steps (the registration pipeline, the Stripe and newsletter routes) remain unchecked.
+
 ## [3.0.3] - 2026-10-01
 
 **Security: `GET /members` requires an Admin or Owner.** It returned every admitted person's name, email and role to any member holding an active account cookie. It now answers 403 to a member who is not an active Admin or Owner, the same check sending the newsletter uses, and matches what `docs/running-a-rules-service.md` already said. A client that lists the roster from a plain member's cookie must use an admin's.
