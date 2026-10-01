@@ -373,10 +373,11 @@ async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>,
     }
 }
 
-// GET /members: admitted people as JSON, for a caller holding the
-// account cookie but not the Governance session /admin/members needs.
+// GET /members: admitted people as JSON, for an Admin or Owner holding the
+// account cookie but not the Governance session /admin/members needs. The list
+// is every person's name, email and role, so a plain member does not get it.
 async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
-    if let Err(response) = active_session_email(domain_ir, cookies, secret, client).await {
+    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, client).await {
         return response;
     }
     match auth::all_people(client, domain_ir).await {
@@ -2299,6 +2300,32 @@ mod tests {
             for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
                 assert!(!body.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {body}");
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn members_route_refuses_a_plain_member_with_a_403_and_no_people() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_403").await;
+        client
+            .lock()
+            .await
+            .execute(
+                "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                &[
+                    &"max@example.com",
+                    &json!({"name": {"value": "Max"}, "email": {"value": "max@example.com"},
+                            "role": {"value": "Member"}, "identity_id": {"value": "id-2"}}),
+                ],
+            )
+            .await
+            .unwrap();
+
+        let response = members_route(&domain_ir, &session_cookies(secret, "max@example.com"), secret, &client).await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+        let body = response["body"].as_str().unwrap();
+        for leaked in ["zed@example.com", "amy@example.com", "Zed"] {
+            assert!(!body.contains(leaked), "{leaked:?} leaked to a plain member: {body}");
         }
     }
 
