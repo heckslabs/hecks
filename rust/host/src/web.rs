@@ -2835,9 +2835,15 @@ mod tests {
             } else {
                 assert_eq!((add, registrations, disable, enable), (403, 403, 403, 403), "{caller} is refused everywhere");
             }
-            // Listing needs access, not admin: a Member may list, a stranger may not.
+            // Listing is an admin gate too: it carries every person's email and role, so an
+            // Admin or Owner lists, a Member is refused, and a stranger has no session at all.
             let listing = status_of(members_route(&domain_ir, &cookies, secret, &client).await).await;
-            assert_eq!(listing, if caller == "stranger@example.com" { 401 } else { 200 }, "{caller} listing");
+            let expected = match caller {
+                "stranger@example.com" => 401,
+                _ if admits => 200,
+                _ => 403,
+            };
+            assert_eq!(listing, expected, "{caller} listing");
         }
 
         // Anonymous: 401 on every route, before any role is looked at.
