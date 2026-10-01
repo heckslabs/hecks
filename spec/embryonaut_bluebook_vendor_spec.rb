@@ -221,6 +221,15 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect { described_class.load!("widgets", registry: registry) }
         .to raise_error(Hecks::Runtime::WiringError, /hecks vendor widgets/)
     end
+
+    it "refuses a package name that is a path, before it is joined into one that gets loaded as Ruby" do
+      registry = Hecks::Runtime::Registry.new(root: root)
+
+      ["../x", "a/b", "/etc", "X", ""].each do |name|
+        expect { described_class.load!(name, registry: registry) }
+          .to raise_error(Hecks::Runtime::WiringError, /is not a package name/)
+      end
+    end
   end
 
   describe Hecks::EmbryonautBluebook::VendorCli do

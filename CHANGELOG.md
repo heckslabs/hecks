@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Security: `uses_embryonaut_bluebook` refuses a package name that is not a plain name.** The name was joined into a path under `vendor/embryonaut_bluebooks/` with no check, so `uses_embryonaut_bluebook "../x"` loaded `*.bluebook` files from outside `vendor/` as Ruby, and in the Rust build deleted and rewrote a `rust/src/generated/<name>` directory chosen by the hecksagon. `EmbryonautBluebook.load!`, `project_rust_pipeline.rb` and `hecks-build` now refuse any name outside `[a-z][a-z0-9_]*`, the shape `hecks vendor` already accepted, before touching a path.
+
 ## [3.0.2] - 2026-09-30
 
 **Security: `GET /newsletter/subscribers` requires an Admin or Owner.** The route returned every subscriber's email, names and status to any caller; it now answers 401 without an active account cookie and 403 without the Admin/Owner role, the same check sending the newsletter uses. A client that read the list without a cookie must send the account cookie.
