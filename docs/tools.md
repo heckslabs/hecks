@@ -32,7 +32,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks refresh_projections subject=<domain>` | `bin/project` |
 | `hecks run_behaviors subject=<path>` | `bin/behaviors` |
 | `hecks console [subject=<domain>]` | `bin/console` |
-| `hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now]` | `bin/follow` |
+| `hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]` | `bin/follow` |
 | `hecks smoke_test [domain]` | `bin/smoke_test` |
 | `hecks smoke_http path=/p [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
 | `hecks check_era <url> expected=era-file [timeout=10]` | `bin/check_era` |

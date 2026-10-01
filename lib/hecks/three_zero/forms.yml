@@ -23,7 +23,7 @@ evolve: hecks word_status; hecks propose <word> context=X [body=none] [inner=] [
   [named=] [fills=] [pairs_shape=]; hecks admit_argument|deprecate_argument|retire_argument
   <word> context=X [at=N] [named=]
 expression_projection: hecks project_expression_tables [--stdout]
-follow: hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now]
+follow: hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]
 fuzz: hecks fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]
 generate: hecks generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]
 hecks_mcp_door: hecks mcp [--stdio]

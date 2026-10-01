@@ -15,9 +15,11 @@ module Hecks
     # - **run_keys** mints the `run` key of a creating command that was given none.
     # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
+    # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
     module LauncherOptions
       SETTING = "launcher".freeze
       WAIT    = "--wait".freeze
+      STREAM  = "--stream".freeze
       RUN_KEY = "run.value".freeze
 
       module_function
@@ -65,6 +67,27 @@ module Hecks
           wait_word?(word) ? wait ||= CliDoor.boolean(wait_value(word, queue)) : rest << word
         end
         [rest, wait]
+      end
+
+      # Whether a question may be tailed with `--stream`: the chapter's `launcher` setting lists it
+      # under `streams`, by the question's own name.
+      #
+      # @param launcher [Hash, nil] the chapter's `launcher` setting
+      # @param spec [Hash] the question's projected spec
+      # @return [Boolean] true for a question the setting names
+      def streams?(launcher, spec)
+        return false unless launcher && spec[:kind] == :query
+
+        Array(launcher[:streams]).map(&:to_s).include?(spec[:verb].to_s.split(/[.:]+/).last)
+      end
+
+      # Takes `--stream` out of a question's words.
+      #
+      # @param words [Array<String>] the words after the question
+      # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--stream` was
+      #   given
+      def take_stream(words)
+        [words.reject { |word| word == STREAM }, words.include?(STREAM)]
       end
 
       # @api private

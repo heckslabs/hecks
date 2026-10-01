@@ -14,6 +14,8 @@ under `--wait` exits 1 when the run is `faulted`; the hook calls the same tool, 
 checks lives in one place. It is a `GateRun` aggregate on the Codebase chapter, so each run is in
 the journal. `hecks gate --list` shows the stages. CI workflows are still hand-written.
 
+**`hecks follow <domain> --stream` tails an event log.** The launcher asks again from each answer's cursor and prints every new entry as one JSON line (its payload as an object), until you interrupt it or the reader goes away; `from_now` applies to the first ask only, and each ask waits for the first new entry (the question's `wait`, 30 seconds when absent). A question is tailable when the world's `launcher` setting lists it under `streams` (`Follow` is). Without `--stream`, `follow` is the bounded poll it was.
+
 **`docs/migrating-2-to-3.md`** collects what a 2.x project changes to move to 3.x.
 
 ## [3.0.3] - 2026-10-01
