@@ -19,6 +19,7 @@ module Hecks
       "standardize_comments"           => ["tools/comment_style", "CommentStyle"],
       "standardize_comments_rust"      => ["tools/rust_comment_style", "RustCommentStyle"],
       "regen_codegen_domains"          => ["tools/regeneration_run", "RegenerationRun"],
+      "gate"                           => ["tools/gate", "Gate"],
       "argument_gate_matrix"           => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
       "lint_deploy_recipes"            => ["tools/deploy_recipe_lint", "DeployRecipeLint"],

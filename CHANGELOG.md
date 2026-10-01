@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the
+pre-push hook ran as shell are the `pre_push` stage of `lib/hecks/gate/stages.yml` (an id, a title,
+the command, and what a red check means). `gate` starts them together, prints every red one, and
+under `--wait` exits 1 when the run is `faulted`; the hook calls the same tool, so the list of
+checks lives in one place. It is a `GateRun` aggregate on the Codebase chapter, so each run is in
+the journal. `hecks gate --list` shows the stages. CI workflows are still hand-written.
+
+**`docs/migrating-2-to-3.md`** collects what a 2.x project changes to move to 3.x.
+
 ## [3.0.3] - 2026-10-01
 
 **Security: `GET /members` requires an Admin or Owner.** It returned every admitted person's name, email and role to any member holding an active account cookie. It now answers 403 to a member who is not an active Admin or Owner, the same check sending the newsletter uses, and matches what `docs/running-a-rules-service.md` already said. A client that lists the roster from a plain member's cookie must use an admin's.
