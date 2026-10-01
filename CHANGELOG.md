@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Security: `GET /members` requires an Admin or Owner.** It returned every admitted person's name, email and role to any member holding an active account cookie. It now answers 403 to a member who is not an active Admin or Owner, the same check sending the newsletter uses, and matches what `docs/running-a-rules-service.md` already said. A client that lists the roster from a plain member's cookie must use an admin's.
+
 **Security: `uses_embryonaut_bluebook` refuses a package name that is not a plain name.** The name was joined into a path under `vendor/embryonaut_bluebooks/` with no check, so `uses_embryonaut_bluebook "../x"` loaded `*.bluebook` files from outside `vendor/` as Ruby, and in the Rust build deleted and rewrote a `rust/src/generated/<name>` directory chosen by the hecksagon. `EmbryonautBluebook.load!`, `project_rust_pipeline.rb` and `hecks-build` now refuse any name outside `[a-z][a-z0-9_]*`, the shape `hecks vendor` already accepted, before touching a path.
 
 ## [3.0.2] - 2026-09-30
