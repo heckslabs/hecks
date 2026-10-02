@@ -155,11 +155,11 @@ Wrap at a word boundary. Do not break inside a backtick span or a URL.
 
 ## 7. Comment blocks stay short
 
-A run of more than 50 consecutive comment lines is a `long_block`. The linter fails a
+A run of more than 12 consecutive comment lines is a `long_block`. The linter fails a
 new one, and fails an old one that grows. Put the rationale in an ADR under
 `docs/decisions/` and cite it, or split the block into comments that sit next to the
 code each one explains. The threshold is the named constant `MAX_BLOCK` in
-`lib/hecks/tools/comment_style.rb`, and 50 is provisional: ADR 0069 leaves the number open.
+`lib/hecks/tools/comment_style.rb`, set by ADR 0075.
 
 The blocks that already exceed it are listed in `.standardize_comments_baseline.json`, so
 that only new and grown blocks fail. The file maps a path to its long blocks, and each
