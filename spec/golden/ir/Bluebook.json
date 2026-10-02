@@ -30835,6 +30835,129 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "workflow",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "mode",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "push",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "label",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "runtime_changed"
+              ],
+              [
+                "workflow",
+                "ci.yml"
+              ],
+              [
+                "mode",
+                "touches"
+              ],
+              [
+                "pattern",
+                "^lib/hecks/runtime/"
+              ],
+              [
+                "push",
+                "skip"
+              ],
+              [
+                "label",
+                "does this change touch lib/hecks/runtime/**?"
+              ]
+            ],
+            [
+              [
+                "name",
+                "postgres_io_relevant_changed"
+              ],
+              [
+                "workflow",
+                "ci-postgres-io-parallel.yml"
+              ],
+              [
+                "mode",
+                "skips_unless"
+              ],
+              [
+                "pattern",
+                "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\\.rb$|rust/project_rust_pipeline\\.rb$|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)"
+              ],
+              [
+                "push",
+                "before_sha"
+              ],
+              [
+                "label",
+                "does this change touch anything rspec_postgres_io_parallel covers?"
+              ]
+            ]
+          ],
+          "name": "CiGate"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "word",
               "optional": false,
               "pattern": null,
