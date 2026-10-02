@@ -22,6 +22,7 @@ module Hecks
       "gate"                           => ["tools/gate", "Gate"],
       "argument_gate_matrix"           => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
       "project_ci_gates"               => ["tools/ci_gates", "CiGates"],
+      "decide_ci_gate"                 => ["tools/ci_gate_decision", "CiGateDecision"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
       "lint_deploy_recipes"            => ["tools/deploy_recipe_lint", "DeployRecipeLint"],
       "project_oidc"                   => ["tools/oidc_manifests", "OidcManifests"],
