@@ -166,7 +166,7 @@ module Hecks
       # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted in
       def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
         rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
-        args = stamp_time(runtime, spec, CliDoor.arguments(spec, rest))
+        args = CliDoor.arguments(spec, rest)
 
         return answer_query(runtime, spec, args, wait) if spec[:kind] == :query
 
@@ -285,17 +285,6 @@ module Hecks
         return unless rows.first[:text].is_a?(String)
 
         rows.first[:text]
-      end
-
-      # Fills in a `now` argument the caller left out, from the clock port; an explicit one wins.
-      #
-      # Done at the door, not in the runtime: a clock read inside the interpreter would give a
-      # replayed corpus step the replay day's time. Matched by the argument's name alone.
-      def stamp_time(runtime, spec, args)
-        return args unless spec[:arguments].any? { |argument| argument[:path].start_with?("now.") }
-        return args if args.key?(:now)
-
-        args.merge(now: { value: Ports::Clock.now(runtime.registry) })
       end
 
       # The reactions one dispatch caused that the domain refused, as `refused_reactions:`.

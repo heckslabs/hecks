@@ -211,6 +211,11 @@ Hecks.bluebook "Expression" do
 
       member strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1
       member strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2
+      # A duration written as a call on a whole number is that many seconds: `days(730)` is
+      # `63072000`. `source_token` names the call and `replacement` the seconds one unit is worth.
+      member strategy: "scale_call", source_token: "days",    replacement: "86400", boundary: "word", position: 3
+      member strategy: "scale_call", source_token: "hours",   replacement: "3600",  boundary: "word", position: 4
+      member strategy: "scale_call", source_token: "minutes", replacement: "60",    boundary: "word", position: 5
     end
 
     value_object "Reading" do
@@ -233,7 +238,7 @@ Hecks.bluebook "Expression" do
       attribute :position,     Position, optional: true
 
       given("a rule must name a linked strategy") do
-        strategy.value == "collapse_whitespace" || strategy.value == "replace"
+        strategy.value == "collapse_whitespace" || strategy.value == "replace" || strategy.value == "scale_call"
       end
 
       given("a rule must state its boundary") { boundary.value == "none" || boundary.value == "word" }

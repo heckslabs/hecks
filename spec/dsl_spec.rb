@@ -490,6 +490,44 @@ RSpec.describe "the DSL surface" do
       expect(row[:ast]).to eq(Hecks::Bluebook::Expression::AstJson.emit_predicate(row[:canonical]))
     end
 
+    it "records a needed outside fact on the command and in its IR" do
+      needing = build_command("Stamped") do
+        attribute :now, Instant
+        needs :now
+      end
+
+      expect(needing.needs).to eq([:now])
+      expect(needing.to_h[:needs]).to eq([{ fact: "now" }])
+    end
+
+    it "carries no needs on a command that names none" do
+      expect(build_command("Plain") { emits "Done" }.to_h[:needs]).to eq([])
+    end
+
+    it "refuses a fact the runtime cannot supply" do
+      expect do
+        build_command("Weathered") do
+          attribute :weather, Instant
+          needs :weather
+        end
+      end.to raise_error(Malformed, /cannot supply/)
+    end
+
+    it "refuses a need declared twice" do
+      expect do
+        build_command("Twice") do
+          attribute :now, Instant
+          needs :now
+          needs :now
+        end
+      end.to raise_error(Malformed, /twice/)
+    end
+
+    it "refuses a need with no attribute of that name to fill" do
+      expect { build_command("Unfilled") { needs :now } }
+        .to raise_error(Malformed, /declares no attribute :now/)
+    end
+
     it "sets alone, with no operation named at all, means to: the same field — the omittable case" do
       # `to:` is omittable when it would only repeat the target (ADR 0025) —
       # `sets :status` alone means exactly `sets :status, to: :status`.

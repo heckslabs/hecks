@@ -3,7 +3,9 @@ require_relative "../runtime/registry"
 module Hecks
   module Ports
     # What time it is, as one registry-wide adapter answers it.
-    # Predicates cannot read the clock (replays must be deterministic), so the door fills `now`.
+    # Predicates cannot read the clock (replays must be deterministic), so a command that declares
+    # `needs :now` has the runtime read it once, before any given runs, into the command's own
+    # `now` argument (ADR 0081). The recorded argument is what a replay sees.
     module Clock
       NAME = "clock".freeze
 

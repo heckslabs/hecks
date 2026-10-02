@@ -73,7 +73,7 @@ Hecks.bluebook "Bluebook" do
 
     # Expression::CanonicalForm::STRATEGIES
     value_object "NormalisationStrategy" do
-      attribute :name, String, one_of: ["collapse_whitespace", "replace"]
+      attribute :name, String, one_of: ["collapse_whitespace", "replace", "scale_call"]
     end
 
     # Ops Runtime::CommandInterpreter applies. `sign` is the arithmetic delta

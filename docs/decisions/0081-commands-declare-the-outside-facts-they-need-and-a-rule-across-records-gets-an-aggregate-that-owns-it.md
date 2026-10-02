@@ -1,6 +1,6 @@
 # Commands declare the outside facts they need, and a rule across records gets an aggregate that owns it
 
-**Status:** Proposed. Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Nothing below is built yet.
+**Status:** Partly built (section 1, for `now` on commands; section 2 and port-answered facts are not). Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Section 1 is built for `needs :now` on commands, as the first slice (see "What is built"); the rest below is not.
 
 ## Context
 
@@ -70,11 +70,24 @@ One aggregate saves atomically, so two requests cannot both take the last seat. 
 - **A `count(...)` expression in givens.** Rejected: it races with concurrent saves unless the store counts inside the save's transaction, and it leaves the owning aggregate unnamed.
 - **Keep these rules in adapters.** Rejected: they have already drifted between engines and been copied four times.
 
+## What is built
+
+The first slice, `needs :now` on commands, in Ruby and Rust:
+
+- **The word is `needs`.** A command writes `needs :now` and declares the attribute it fills (`attribute :now, Instant`); the builder refuses a fact other than `now`, a repeated one, and a need with no attribute to fill. The Command IR carries `"needs": [{"fact": "now"}]` (an empty list on a command with none).
+- **Where it runs.** The interpreter answers a needed fact in the existing `decode_arguments` step, before any argument refusal or `given` reads the arguments, so the dispatch-order vocabulary did not change. The strict `with:` envelope no longer counts a needed fact as absent.
+- **A caller's value wins.** The runtime fills a needed fact only when the caller left it out. Nothing in the event marks which it was: the recorded arguments carry the value used, which is all a replay needs.
+- **Time is whole epoch seconds, UTC.** `Ports::Clock.now` already answers that. "Since midnight" needs a zone and stays a separate, later fact.
+- **Durations fold at canonicalisation.** `days(730)`, `hours(2)` and `minutes(15)`, written on a whole-number literal, become seconds when a predicate is stored (`issued_at + days(730) > now` is `issued_at + 63072000 > now`), by a new `scale_call` normalisation strategy. Both engines read one table of cases (`spec/fixtures/canonical_form_cases.json`). No timestamp type was added.
+- **Door fill retired.** The CLI door no longer stamps a `now` argument; QualityControl's six commands and the `lease_clock` stress domain's four declare `needs :now` instead.
+- **The Rust runtime.** The host fills a needed fact before the kernel's gates run and before the step is journaled, from the `needs` list in the IR, behind a small clock seam. It also passes the kernel a table of which commands need which facts, so a command a policy or saga triggers is answered the same way. Commands declared on entities are filled by Ruby but not yet by the Rust host or kernel, and a kernel-run binary relies on the host passing the table: generation would have to emit it for the kernel to fill on its own.
+- **Not covered.** Queries cannot `needs` yet (the one query with a `now` argument still takes it from its caller). Port-answered facts (`needs :fix_on_head, from: ...`) are not built, and a replay refuses them. The seat and daily-cap aggregates (section 2) are not built.
+
 ## Open items
 
-- The word that declares a fact (`needs` above is a placeholder) and how a port answer is written in it.
-- Whether a declared fact may be supplied by the caller instead of the port (for tests or back-fills), and how that is marked in the recorded event.
+- How a port-answered fact is written in `needs`, and how a replay answers one (the recorded value, or a refusal).
 - The timestamp type's resolution and time zone, since "since midnight" needs a zone.
+- Whether a query may declare `needs`.
 - The smaller gaps the same audit found, each for its own ADR:
   - `sets` that compute a value or clear a field
   - scheduled or deferred commands
