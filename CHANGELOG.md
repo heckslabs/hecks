@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.

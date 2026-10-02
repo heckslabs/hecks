@@ -28,18 +28,21 @@ module Hecks
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
       def self.boot(path, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
-        loading   = Ports::Loading.bootstrap
-        directory = loading.bluebook_directory(path)
-        root      = loading.shared_root(shared, directory)
-        registry  = Registry.new(root: File.dirname(directory))
+        described = describe(path, shared: shared, environment: environment)
+        boot_described(described, install_doors: install_doors, install_facade: install_facade)
+      end
 
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(root)
-          loading.load_domain(directory, environment: selected_environment(environment))
-        end
-
-        run_boot_gates!(registry, directory)
+      # Finishes a boot from declarations `describe` already loaded: runs every boot gate and binds
+      # the dispatcher, without reading the domain's files again.
+      #
+      # @param described [Described] what `describe` answered for the domain to boot
+      # @param install_doors [Boolean] install the `Widget::Item.Add(...)` global facade sugar
+      # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+      # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
+      def self.boot_described(described, install_doors: true, install_facade: nil)
+        registry = described.registry
+        run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
@@ -47,7 +50,7 @@ module Hecks
       end
 
       # What `describe` answers: the loaded declarations and nothing bound to run them.
-      Described = Struct.new(:registry)
+      Described = Struct.new(:registry, :directory)
 
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
       # persistence adapter is resolved or bound, nothing connects to a database.
@@ -71,7 +74,7 @@ module Hecks
           loading.load_project(root)
           loading.load_domain(directory, environment: selected_environment(environment))
         end
-        Described.new(registry)
+        Described.new(registry, directory)
       end
 
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the
