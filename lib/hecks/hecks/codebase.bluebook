@@ -1005,6 +1005,22 @@ Hecks.bluebook "Hecks" do
       emits RegenerateCorpusRequested
     end
 
+    command "ProjectCiGates" do
+      role "Maintainer"
+      goal "Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_ci_gates"
+
+      emits ProjectCiGatesRequested
+    end
+
     # What the tree reported about itself, held against every request: nothing here runs
     # outside a hecks checkout (hecks.gemspec beside lib/).
     command "Accept" do
@@ -1061,6 +1077,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenRegenerateCorpusRequested" do
     on      "RegenerationRun.RegenerateCorpusRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectCiGatesRequested" do
+    on      "RegenerationRun.ProjectCiGatesRequested"
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 
