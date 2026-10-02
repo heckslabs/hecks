@@ -22,6 +22,7 @@ module Hecks
           @owner             = owner
           @givens            = []
           @ensures           = []
+          @needs             = []
           @mutations         = []
           @emits             = []
           @named_givens      = named_givens
@@ -65,6 +66,30 @@ module Hecks
         # @param value [String] the description text
         # @return [String] the description as stored
         def goal(value) = @goal = value
+
+        # The outside facts a command may declare it needs, each the name of the attribute the
+        # runtime fills when the caller leaves it out. `now` is the clock port's answer, in epoch
+        # seconds.
+        NEEDABLE_FACTS = %i[now].freeze
+
+        # Declares an outside fact the runtime supplies before any given runs (ADR 0081): `needs :now`
+        # fills the command's own `now` attribute from the clock port when the caller names none.
+        #
+        # @param fact [Symbol] one of `NEEDABLE_FACTS`
+        # @return [Array<Symbol>] the facts declared so far
+        # @raise [Bluebook::DSL::Malformed] if the fact is not one the runtime can supply, or is
+        #   declared twice
+        def needs_impl(fact)
+          fact = fact.to_sym
+          unless NEEDABLE_FACTS.include?(fact)
+            raise Malformed,
+                  "#{@name} needs :#{fact}, which the runtime cannot supply — it supplies " \
+                  "#{NEEDABLE_FACTS.map { |known| ":#{known}" }.join(', ')}"
+          end
+          raise Malformed, "#{@name} declares needs :#{fact} twice" if @needs.include?(fact)
+
+          @needs << fact
+        end
 
         # Names where a concept adopted from a canonical source came from.
         #
@@ -292,6 +317,7 @@ module Hecks
         def build
           resolve_implicit_attributes!
           refuse_duplicate_targets!
+          refuse_undeclared_needs!
 
           delegation = @mutations.find { |mutation| mutation.op == :delegate }
           if delegation && (@mutations.size > 1 || @emits.any?)
@@ -308,12 +334,26 @@ module Hecks
             attributes: attributes,
             givens:     @givens,
             ensures:    @ensures,
+            needs:      @needs,
             mutations:  @mutations,
             emits:      @emits,
             references: @references,
             from:       @from,
             provenance: @provenance
           )
+        end
+
+        # A fact is filled into the argument of the same name, so the command declares one.
+        #
+        # @raise [Bluebook::DSL::Malformed] if a needed fact has no attribute to fill
+        def refuse_undeclared_needs!
+          declared = attributes.map { |attribute| attribute.name.to_s }
+          missing  = @needs.reject { |fact| declared.include?(fact.to_s) }
+          return if missing.empty?
+
+          raise Malformed,
+                "#{@name} needs :#{missing.first} but declares no attribute :#{missing.first} " \
+                "for the runtime to fill — add `attribute :#{missing.first}, <type>`"
         end
 
         # Evaluates a `command` block against a fresh builder and returns what it built.

@@ -62,6 +62,7 @@ module Hecks
             attributes: [:attributes, [:each, :shape_field]],
             givens:     [:givens,     [:each, :given]],
             ensures:    [:ensures,    [:each, :given]],
+            needs:      [:needs,      [:each, :need]],
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain],
             # Lifecycle state as a command guard: one state, an array, or nil (ADR 0025).
@@ -70,7 +71,8 @@ module Hecks
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
-                  mutations: [:call, :mutations], emits: :names, provenance: :provenance, from: :from },
+                  needs: [:each, :need], mutations: [:call, :mutations], emits: :names, provenance: :provenance,
+                  from: :from },
           derived: { position: :walk }
         ),
 

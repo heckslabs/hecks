@@ -489,6 +489,18 @@ account.debit!(amount: { cents: 2_000 }, narrative: { text: "rent" })
 account.balance.cents  # => 3000
 ```
 
+## needs
+
+<!-- generated:begin word=needs -->
+`needs fact` — fills `needs`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | fact |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## corrects
 
 <!-- generated:begin word=corrects -->
