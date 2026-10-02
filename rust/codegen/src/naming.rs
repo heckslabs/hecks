@@ -125,13 +125,15 @@ fn plain_identifier(name: &str) -> bool {
 }
 
 /// Every declared `name` in the IR, in document order. The `fields` maps under `mutations` are
-/// skipped: their keys are attribute names and their values are source text, not declarations.
+/// skipped: their keys are attribute names and their values are source text, not declarations. So is
+/// `translations`: an era edge names data paths (`attendee.first_name`, a backfill into a nested
+/// value object), which the host applies to stored rows and which are never written into Rust.
 fn declared_names<'a>(ir: &'a Json, out: &mut Vec<&'a str>) {
     match ir {
         Json::Object(pairs) => {
             for (key, value) in pairs {
                 match (key.as_str(), value) {
-                    ("fields", _) => {}
+                    ("fields" | "translations", _) => {}
                     ("name", Json::String(name)) => out.push(name),
                     _ => declared_names(value, out),
                 }
@@ -330,6 +332,15 @@ mod tests {
     fn accepts_plain_identifiers_and_ignores_mutation_field_maps() {
         let ir = Json::parse(
             r#"{"name":"Shop","aggregates":[{"name":"Pizza","commands":[{"name":"AddTopping","mutations":[{"fields":{"name":":topping"}}]}]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(unsafe_name_refusal("shop", &ir), None);
+    }
+
+    #[test]
+    fn ignores_data_paths_named_by_a_translation_edge() {
+        let ir = Json::parse(
+            r#"{"name":"Shop","aggregates":[{"name":"Pizza"}],"translations":[{"aggregates":[{"name":"Pizza","backfills":[{"name":"attendee.first_name"}]}]}]}"#,
         )
         .unwrap();
         assert_eq!(unsafe_name_refusal("shop", &ir), None);
