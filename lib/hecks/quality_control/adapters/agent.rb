@@ -2,6 +2,7 @@
 
 require "open3"
 require "shellwords"
+require_relative "agent_profile"
 
 module Hecks
   module Adapters
@@ -27,10 +28,11 @@ module Hecks
       # The command an ask runs.
       #
       # @param command [String, Array<String>, nil] a command line, or its words
-      # @return [Array<String>] `command` as words; `QA_MINER_AGENT` else `DEFAULT_COMMAND` when nil
-      def command_for(command = nil)
+      # @param profile [AgentProfile, nil] when given, the default command takes its tools, budget
+      # @return [Array<String>] `command` as words; `QA_MINER_AGENT` else the default when nil
+      def command_for(command = nil, profile = nil)
         command ||= ENV.fetch("QA_MINER_AGENT", nil)
-        return DEFAULT_COMMAND unless command
+        return default_command(profile) unless command
 
         command.is_a?(String) ? Shellwords.split(command) : command
       end
@@ -41,17 +43,63 @@ module Hecks
       # @param command [String, Array<String>, nil] the agent's command; see `command_for`
       # @param chdir [String] the directory the agent works in
       # @param log [String, nil] a file the agent's output is appended to
+      # @param profile [AgentProfile, nil] what the run may do; nil runs it as the caller could
       # @return [String] the agent's output
-      # @raise [Failed] when the agent cannot start or exits non-zero
-      def ask(prompt:, chdir:, command: nil, log: nil)
-        words = command_for(command)
-        output, status = Open3.capture2e(*words, stdin_data: prompt, chdir: chdir)
+      # @raise [Failed] when the agent cannot start, runs past its timeout or exits non-zero
+      def ask(prompt:, chdir:, command: nil, log: nil, profile: nil)
+        words = command_for(command, profile)
+        output, status = run(words, prompt, chdir, profile)
         File.open(log, "a") { |file| file.puts(output) } if log
         return output if status.success?
 
         raise Failed, "agent exited #{status.exitstatus}: #{output.lines.last(5).join.strip}"
       rescue SystemCallError => e
         raise Failed, "agent could not start (#{words.first}): #{e.message}"
+      end
+
+      private
+
+      def run(words, prompt, chdir, profile)
+        return run_confined(words, prompt, chdir, profile) if profile
+
+        Open3.capture2e(*words, stdin_data: prompt, chdir: chdir)
+      end
+
+      def default_command(profile)
+        return DEFAULT_COMMAND unless profile
+
+        %w[claude -p --permission-mode acceptEdits] + profile.tool_flags
+      end
+
+      # Runs `words` under the profile's sandbox with only the environment it names, in its own
+      # process group so a timeout takes the agent's children with it.
+      def run_confined(words, prompt, chdir, profile)
+        raise Failed, "no sandbox here; refusing to run an agent unconfined" unless profile.available?
+
+        Open3.popen2e(profile.environment, *profile.confine(words),
+                      chdir: chdir, unsetenv_others: true, pgroup: true) do |stdin, out, waiter|
+          feed(stdin, prompt)
+          reader = Thread.new { out.read }
+          finish(waiter, reader, profile.timeout)
+        end
+      end
+
+      def feed(stdin, prompt)
+        stdin.write(prompt)
+      rescue Errno::EPIPE
+        nil
+      ensure
+        stdin.close
+      end
+
+      def finish(waiter, reader, timeout)
+        unless waiter.join(timeout)
+          Process.kill("KILL", -waiter.pid)
+          waiter.join
+          reader.join
+          raise Failed, "agent timed out after #{timeout}s"
+        end
+        [reader.value, waiter.value]
       end
     end
   end

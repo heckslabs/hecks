@@ -15,6 +15,13 @@ CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::D
 carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
 `boot_described`.
 
+**The `Agent` adapter can run an agent under a profile.** `Agent#ask(profile: AgentProfile.new(...))`
+names the tools the agent holds, the directories it may write, whether it may reach the network
+(`none`, `https` or `any`), the environment variables it sees, a timeout and a spending cap. On macOS
+the run goes under the sandbox with that policy, reads of credentials are refused, and the agent
+starts with only the environment it was given; where there is no sandbox, a confined run refuses to
+start. Without a profile an ask behaves as before. `https` is written but not exercised by the specs.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
