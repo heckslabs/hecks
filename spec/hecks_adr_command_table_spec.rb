@@ -70,6 +70,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     ["doc_coverage", "ConformanceRun", %w[measure_doc_coverage]],
     ["argument_gate_matrix", "ConformanceRun", %w[argument_gate_matrix]],
     ["regen_codegen_domains", "RegenerationRun", %w[regenerate_corpus]],
+    ["(new)", "GateRun", %w[gate]],
     ["standardize_comments", "StyleRun", %w[report_comments check_comments fix_comments
                                             write_comment_baseline check_comments_unchanged]],
     ["standardize_comments_rust", "StyleRun", %w[report_rust_comments check_rust_comments fix_rust_comments]],

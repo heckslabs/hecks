@@ -50,6 +50,8 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["doc_coverage", "ConformanceRun", "MeasureDocCoverage", "measure_doc_coverage"],
     ["argument_gate_matrix", "ConformanceRun", "ArgumentGateMatrix", "argument_gate_matrix"],
     ["regen_codegen_domains", "RegenerationRun", "RegenerateCorpus", "regenerate_corpus"],
+    ["(new)", "GateRun", "Gate", "gate",
+     { args: %w[pre_push], renamed: "no script ran a stage's checks as data: the pre-push hook did, in shell" }],
     ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
      { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
                 "verb only compares" }],
@@ -102,7 +104,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   end.freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
-  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun
+  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun CodemodRun
                            TestSuiteRun CorpusRun PublishingRun].freeze
 
   before(:all) do

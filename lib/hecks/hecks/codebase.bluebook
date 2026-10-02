@@ -1111,6 +1111,154 @@ Hecks.bluebook "Hecks" do
     trigger RegenerationRun::Fault, with: { refusal: :refusal }
   end
 
+  # Gate: the checks a stage holds a change against before it is let through. The checks are data
+  # (lib/hecks/gate/stages.yml), run together, and a red one faults the run, so `--wait` fails the
+  # push or the build that asked, and the journal keeps when the gate went red.
+  aggregate "GateRun" do
+    description "One run of a stage's checks: every check of the stage, or the ones named."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :stage,     Stage
+    attribute :only,      CheckList, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Stage" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+
+      invariant("a stage is named") { !value.to_s.empty? }
+    end
+
+    value_object "CheckList" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Gate" do
+      role "Maintainer"
+      goal "Run every check of a stage, or the ones named, and keep whether the gate is green"
+
+      attribute :stage, Stage
+      attribute :only,  CheckList, optional: true
+      attribute :run,   RunKey
+
+      sets :stage
+      sets :only
+      sets :run
+      sets :operation, to: "gate"
+
+      emits GateRequested
+    end
+
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to GateRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits GateAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that every check passed, and which"
+
+      reference_to GateRun
+      attribute :report, Report
+
+      sets :report
+
+      emits GateCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that a check was red or the run could not be made, and why"
+
+      reference_to GateRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits GateFaulted
+    end
+
+    query "GateOutcome" do
+      description "How one run ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "GateFaulted" do
+      description "Every run that went red or could not be made."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenGateRequested" do
+    on      "GateRun.GateRequested"
+    trigger GateRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptGateWhenExamined" do
+    on      "GateRun.GateExamined"
+    trigger GateRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultGateWhenNotAccepted" do
+    on      "GateRun.GateExamined"
+    where   { !checkout.value }
+    trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformGateWhenAccepted" do
+    on      "GateRun.GateAccepted"
+    trigger GateRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordGateOutcome" do
+    on      "GateRun.GateAnswered"
+    trigger GateRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordGateFault" do
+    on      "GateRun.GateRefused"
+    trigger GateRun::Fault, with: { refusal: :refusal }
+  end
+
   # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
   # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless
   # it is confirmed. The baseline of tolerated long blocks is written only when confirmed.
