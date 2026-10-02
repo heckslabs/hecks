@@ -463,13 +463,11 @@ jobs:
         with:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
       - id: diff
-        uses: ./.github/actions/changed-paths
-        with:
-          mode: touches
-          pattern: '^lib/hecks/runtime/'
-          push: skip
-          label: 'does this change touch lib/hecks/runtime/**?'
+        name: 'does this change touch lib/hecks/runtime/**?'
+        run: bundle exec exe/hecks decide_ci_gate gate=runtime_changed --wait
   # END GENERATED ci_gate runtime_changed
 
   stress_concurrency:

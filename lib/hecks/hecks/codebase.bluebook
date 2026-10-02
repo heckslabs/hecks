@@ -960,6 +960,7 @@ Hecks.bluebook "Hecks" do
     attribute :operation, Operation, optional: true
     attribute :confirm,   Switch, optional: true
     attribute :check,     Switch, optional: true
+    attribute :gate,      GateName, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -981,6 +982,11 @@ Hecks.bluebook "Hecks" do
 
     value_object "Report" do
       attribute :value, String
+    end
+
+    # A `CiGate` row of the Vocabulary chapter, by name.
+    value_object "GateName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
     end
 
     lifecycle :status, default: "requested" do
@@ -1019,6 +1025,20 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "project_ci_gates"
 
       emits ProjectCiGatesRequested
+    end
+
+    command "DecideCiGate" do
+      role "Maintainer"
+      goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
+
+      attribute :gate, GateName
+      attribute :run,  RunKey
+
+      sets :gate
+      sets :run
+      sets :operation, to: "decide_ci_gate"
+
+      emits DecideCiGateRequested
     end
 
     # What the tree reported about itself, held against every request: nothing here runs
@@ -1082,6 +1102,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDecideCiGateRequested" do
+    on      "RegenerationRun.DecideCiGateRequested"
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 
