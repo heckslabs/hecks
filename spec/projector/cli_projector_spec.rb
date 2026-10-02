@@ -138,6 +138,53 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
   end
 
+  # One journaled run: a system-role command, the pair of questions every run has, and two real
+  # questions on the same aggregate. Defined here rather than as a fixture file, which the
+  # corpus accounting spec would ask to be accounted for.
+  def journaled_runs # rubocop:disable Metrics/MethodLength
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.bluebook "Runs" do
+        vision "A journaled run"
+        aggregate "Job" do
+          description "One job, from request to end."
+          attribute :run, RunKey
+          attribute :note, Note, optional: true
+          identified_by :run
+          value_object("RunKey") { attribute :value, String }
+          value_object("Note") { attribute :value, String }
+          value_object("Document") { attribute :text, String }
+          lifecycle(:status, default: "requested") { transition "Fault" => "faulted", from: "requested" }
+          command "Fault" do
+            role "System"
+            goal "Record the failure"
+            reference_to Job
+            emits JobFaulted
+          end
+          query "JobOutcome" do
+            description "How one job ended."
+            attribute :run, RunKey
+            where(run: :run)
+          end
+          query "JobFaulted" do
+            description "Every job that failed."
+            where(status: "faulted")
+          end
+          query "JobsByNote" do
+            description "Jobs by note."
+            attribute :note, Note
+            where(note: :note)
+          end
+          query "JobDigest" do
+            description "A digest."
+            returns Document
+          end
+        end
+      end
+    end
+    registry
+  end
+
   describe "the help" do
     it "lists verbs and questions separately, with what each is for" do
       expect(banking[:usage]).to include("verbs:")
@@ -160,13 +207,11 @@ RSpec.describe Hecks::Projector::CliProjector do
     # identity or its status counts; a query that filters on anything else, or returns a document,
     # is a real question even on the same aggregate.
     it "sets a run's own outcome and fault questions apart, and keeps real questions listed" do
-      registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) { Kernel.load(File.join(InMemoryDomain::ROOT, "spec/projector/fixtures/journaled_runs.bluebook")) }
-      runs = described_class.call(bluebook: registry.bluebook("Runs"))
+      runs = described_class.call(bluebook: journaled_runs.bluebook("Runs"))
       internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
 
       expect(internal).to contain_exactly("job_outcome", "job_faulted")
-      expect(runs[:usage]).to match(/^\s+jobs_by_report\s+/)
+      expect(runs[:usage]).to match(/^\s+jobs_by_note\s+/)
       expect(runs[:usage]).to match(/^\s+job_digest\s+/)
       expect(runs[:usage]).not_to match(/^\s+job_outcome\s{2,}How one job ended/)
     end
