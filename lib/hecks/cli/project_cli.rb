@@ -212,7 +212,8 @@ module Hecks
       def described_entry(name, boot, shown)
         <<~RUBY.chomp
           # Usage is answered from the projected chapter alone: no adapter is bound and no
-          # database is opened. Only a line that runs a verb boots the domain.
+          # database is opened. Only a line that runs a verb boots the domain,
+          # and it boots from what the usage check already loaded.
           domain = #{boot}
           program = "#{shown}"
           described = begin
@@ -226,7 +227,7 @@ module Hecks
           )
           unless text
             runtime = begin
-              Hecks.boot(domain, install_doors: false)
+              Hecks.boot_described(described, install_doors: false)
             rescue StandardError => e
               abort "cannot open #{name}: \#{e.message.lines.first.strip}"
             end
