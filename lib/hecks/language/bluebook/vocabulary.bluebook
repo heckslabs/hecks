@@ -605,8 +605,8 @@ Hecks.bluebook "Bluebook" do
     # The path gates the workflows run before an expensive job: one detector job
     # per row, answering `touched` from the diff of the change against its base.
     # hecks project_ci_gates writes each row into the marked region of its
-    # `workflow` (.github/workflows/<workflow>); the base-commit logic every gate
-    # shares lives once, in .github/actions/changed-paths.
+    # `workflow` (.github/workflows/<workflow>), and the job it writes runs
+    # `hecks decide_ci_gate gate=<name>`, which makes the decision from the row.
     #
     # `mode` is how `pattern` (an extended regex over changed paths) decides:
     # `touches` runs the job when any changed path matches, `skips_unless` runs it

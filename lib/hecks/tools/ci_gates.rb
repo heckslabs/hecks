@@ -6,17 +6,15 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Projects the `CiGate` rows of the Vocabulary chapter into the workflows: each row becomes a
-    # detector job between a pair of marker comments in its `workflow`, and the base-commit logic
-    # every gate shares stays in one place, `.github/actions/changed-paths`.
+    # detector job between a pair of marker comments in its `workflow`. The job runs
+    # `hecks decide_ci_gate gate=<name>` (`CiGateDecision`), so the decision is made by the binary
+    # from the same row, never by shell the workflow carries.
     #
     # Everything outside the markers is hand-written and left alone. With `--check` nothing is
     # written: the tool answers 1 and names each workflow whose region differs from the rows.
     module CiGates
       # Where the workflows live, relative to the checkout.
       WORKFLOWS = ".github/workflows"
-
-      # The action each detector job calls.
-      ACTION = "./.github/actions/changed-paths"
 
       module_function
 
@@ -100,13 +98,11 @@ module Hecks
           "        with:",
           "          # Full history: the diff needs both endpoints present as real objects.",
           "          fetch-depth: 0",
+          "      - uses: ./.github/actions/setup-ruby",
+          "      - uses: ./.github/actions/hecks-environment",
           "      - id: diff",
-          "        uses: #{ACTION}",
-          "        with:",
-          "          mode: #{gate.fetch('mode')}",
-          "          pattern: #{quoted(gate.fetch('pattern'))}",
-          "          push: #{gate.fetch('push')}",
-          "          label: #{quoted(gate.fetch('label'))}",
+          "        name: #{quoted(gate.fetch('label'))}",
+          "        run: bundle exec exe/hecks decide_ci_gate gate=#{name} --wait",
           "  # END GENERATED ci_gate #{name}"
         ].join("\n")
       end
