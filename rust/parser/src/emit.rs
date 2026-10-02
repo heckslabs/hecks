@@ -305,6 +305,17 @@ fn command_json(c: &ir::Command) -> JsonValue {
             JsonValue::Array(c.ensures.iter().map(given_json).collect()),
         ),
         (
+            "needs".to_string(),
+            JsonValue::Array(
+                c.needs
+                    .iter()
+                    .map(|fact| {
+                        JsonValue::Object(vec![("fact".to_string(), JsonValue::str(fact.clone()))])
+                    })
+                    .collect(),
+            ),
+        ),
+        (
             "mutations".to_string(),
             JsonValue::Array(c.mutations.iter().map(mutation_json).collect()),
         ),
