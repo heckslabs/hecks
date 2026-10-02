@@ -258,6 +258,22 @@ module Hecks
           summary: model.description, arguments: arguments }
       end
 
+      # A question that only reads the aggregate's own records back: it returns no document and
+      # filters on nothing but the record's identity ("how one request ended") or its lifecycle
+      # status ("every request that was refused"). Each journaled run has such a pair, which a
+      # person reads through `hecks <verb> --wait` rather than asking for by name, so the help
+      # sets them apart with the bookkeeping verbs. A query that returns a document, or filters
+      # on anything else, is a real question. Only an aggregate that journals its own runs (it has
+      # system-role commands, the ones `internal` verbs are made of) has such a pair: a release's
+      # "every version that was shipped" is a question worth asking by name.
+      def bookkeeping_query?(aggregate, query)
+        return false if query.returns || query.wheres.empty?
+        return false unless aggregate.commands.any? { |command| command.role.to_s == "System" }
+
+        own = Array(aggregate.identified_by).map(&:to_s) + [aggregate.lifecycle&.field.to_s]
+        query.wheres.all? { |clause| own.include?(clause.field.to_s) }
+      end
+
       def query_spec(bluebook, aggregate, entity, query)
         arguments = Array(query.to_h[:attributes]).flat_map do |declared|
           attribute = query.attributes.find { |a| a.name.to_s == declared[:name].to_s }
@@ -265,6 +281,7 @@ module Hecks
         end
 
         { verb: fqn(bluebook, aggregate, query, entity), kind: :query, group: aggregate.hecks_name,
+          internal: entity.nil? && bookkeeping_query?(aggregate, query),
           summary: query.description, arguments: arguments, returns: query.returns }
       end
 

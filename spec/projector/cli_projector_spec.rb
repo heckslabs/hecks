@@ -155,6 +155,22 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:verbs]["account.freeze_account"][:group]).to eq("Account")
     end
 
+    # The pair every journaled run has -- how one run ended, and which ones failed -- is read through
+    # `--wait`, not asked for by name. Only a query that reads the run's own records back by its
+    # identity or its status counts; a query that filters on anything else, or returns a document,
+    # is a real question even on the same aggregate.
+    it "sets a run's own outcome and fault questions apart, and keeps real questions listed" do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) { Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/journaled_runs.bluebook")) }
+      runs = described_class.call(bluebook: registry.bluebook("Runs"))
+      internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
+
+      expect(internal).to contain_exactly("job_outcome", "job_faulted")
+      expect(runs[:usage]).to match(/^\s+jobs_by_report\s+/)
+      expect(runs[:usage]).to match(/^\s+job_digest\s+/)
+      expect(runs[:usage]).not_to match(/^\s+job_outcome\s{2,}How one job ended/)
+    end
+
     it "titles a heading after its aggregate, without a Run suffix" do
       heading = described_class.send(:heading, "TestSuiteRun")
 
