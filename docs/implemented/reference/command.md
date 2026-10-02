@@ -499,7 +499,74 @@ account.balance.cents  # => 3000
 | positional 1 | symbol | true | fact |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+A fact the command needs from outside the record, answered by the runtime before any `given` runs. `needs :now` fills the command's own `now` argument with the time the clock port gives, in whole epoch seconds (UTC), unless the caller passed a time of its own. The command must declare an attribute of that name: `needs :now` with no `attribute :now` is refused when the bluebook is built, as is a fact the runtime cannot supply (`now` is the only one).
+
+Because the answer is written into the command's own arguments, a `given` reads it like any argument, the event records it, and a replay re-dispatches the recorded value instead of asking the clock again. A rule about lifetimes is therefore written once, in the bluebook, and both engines read the same integer. Write a duration as a call on a whole number (`days(730)`, `hours(2)`, `minutes(15)`) and it is folded to seconds when the predicate is stored.
+
+A link is issued at the time the clock gives, and is only honoured for a fixed number of days afterwards. The `given` reads `now` and the duration like any other argument:
+
+```ruby bluebook
+Hecks.bluebook "NeedsLifetime" do
+  vision "A link that carries the time it was issued and judges its own age."
+
+  aggregate "Link" do
+    attribute :ref, Ref
+    attribute :issued_at, Instant, optional: true
+
+    identified_by :ref
+    value_object("Ref")     { attribute :value, String }
+    value_object("Instant") { attribute :value, Integer }
+
+    command "Issue" do
+      attribute :ref, Ref
+      attribute :now, Instant
+      needs :now
+
+      given("the link is issued after the epoch") { now.value + days(1) > days(1) }
+
+      sets :ref
+      sets :issued_at, to: :now
+      emits "LinkIssued"
+    end
+  end
+end
+```
+
+A fixed clock stands in for the real one, so the example does not depend on today's date. The
+`corrects` section below runs against `examples/banking` again, so this boot loads it alongside:
+
+```ruby boot
+module LifetimeClock
+  module_function
+
+  def now = 1_700_000_000
+end
+Hecks::Adapters.const_set(:LifetimeClock, LifetimeClock)
+Hecks.adapter("LifetimeClock") { port "clock" }
+Hecks.hecksagon("NeedsLifetime") { NeedsLifetime::Link.persisted_by("Memory") }
+
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+```
+
+Left out, `now` is read from the clock. Named, the caller's time is kept, so a test or a back-fill can choose its own:
+
+```ruby
+from_clock = NeedsLifetime::Link.issue!(ref: { value: "a" })
+from_clock.issued_at.value  # => 1700000000
+
+named = NeedsLifetime::Link.issue!(ref: { value: "b" }, now: { value: 42 })
+named.issued_at.value  # => 42
+```
 
 ## corrects
 
