@@ -31,6 +31,6 @@ RSpec.describe "the comment style guides' thresholds" do
   end
 
   it "call no threshold provisional while the linter enforces it" do
-    expect(ruby_guide).not_to match(/is provisional/)
+    expect(ruby_guide).not_to include("is provisional")
   end
 end
