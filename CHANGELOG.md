@@ -9,6 +9,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [3.0.4] - 2026-10-02
 
+**Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
+
 **`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the
 pre-push hook ran as shell are the `pre_push` stage of `lib/hecks/gate/stages.yml` (an id, a title,
 the command, and what a red check means). `gate` starts them together, prints every red one, and

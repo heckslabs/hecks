@@ -28,6 +28,13 @@ RSpec.describe RustProjection::Projector, ".unsafe_name_refusal" do
     expect(described_class.unsafe_name_refusal("shop", ir)).to be_nil
   end
 
+  it "ignores the data paths an era edge names (a backfill into a nested value object)" do
+    edge = { aggregates: [{ name: "Registration", backfills: [{ name: "attendee.first_name" }] }] }
+    ir = { name: "Shop", aggregates: [{ name: "Pizza" }], translations: [edge] }
+
+    expect(described_class.unsafe_name_refusal("shop", ir)).to be_nil
+  end
+
   it "refuses a name that starts with a digit" do
     expect(described_class.unsafe_name_refusal("shop", ir_with_attribute("1st"))).to include('"1st"')
   end
