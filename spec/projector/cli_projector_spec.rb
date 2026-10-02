@@ -161,7 +161,7 @@ RSpec.describe Hecks::Projector::CliProjector do
     # is a real question even on the same aggregate.
     it "sets a run's own outcome and fault questions apart, and keeps real questions listed" do
       registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) { Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/journaled_runs.bluebook")) }
+      Hecks.with_registry(registry) { Kernel.load(File.join(InMemoryDomain::ROOT, "spec/projector/fixtures/journaled_runs.bluebook")) }
       runs = described_class.call(bluebook: registry.bluebook("Runs"))
       internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
 
