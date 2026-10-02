@@ -52,6 +52,9 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["regen_codegen_domains", "RegenerationRun", "RegenerateCorpus", "regenerate_corpus"],
     ["(new)", "GateRun", "Gate", "gate",
      { args: %w[pre_push], renamed: "no script ran a stage's checks as data: the pre-push hook did, in shell" }],
+    ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
+     { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
+                "verb only compares" }],
     ["standardize_comments", "StyleRun", "ReportComments", "report_comments",
      { args: %w[paths=lib], query: true }],
     ["standardize_comments", "StyleRun", "CheckComments", "check_comments", { args: %w[paths=lib] }],

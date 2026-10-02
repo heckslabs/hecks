@@ -85,7 +85,9 @@ module Hecks
                 memory:   { value: deploy_settings.fetch(:memory, 512) },
                 timeout:  { value: deploy_settings.fetch(:timeout, 10) },
                 database: { value: deploy_settings.fetch(:database, "Postgres") },
-                web: { value: deploy_settings.fetch(:web, "None") }
+                web: { value: deploy_settings.fetch(:web, "None") },
+                **%i[dispatch handler_module secret_env].select { |key| deploy_settings.key?(key) }
+                                                        .to_h { |key| [key, { value: deploy_settings[key].to_s }] }
               }
             ).instance
           rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
@@ -105,9 +107,6 @@ module Hecks
           # The module name `lambda_handler.rb` actually defines; named here
           # since `dispatch "None"` domains may each pick their own.
           webhook_handler_module = deploy_settings.fetch(:handler_module, "WebLambdaHandler")
-          if dispatch_none && !deploy_settings.key?(:handler_module)
-            raise ArgumentError, "#{world_file}'s deployed_to(\"AwsLambda\") declares dispatch \"None\" but no handler_module — add handler_module \"YourModuleName\" naming the module #{domain}/lambda_handler.rb defines."
-          end
 
           # Scans every loaded chapter, not just this domain's own — a
           # `uses_framework`-attached chapter can itself declare a cross-domain
