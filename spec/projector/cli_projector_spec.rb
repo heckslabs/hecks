@@ -145,6 +145,28 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("freeze")
     end
 
+    # A chapter with several aggregates reads as a table of contents: a heading per aggregate, its
+    # verbs beneath it, instead of one flat list in declaration order.
+    it "groups the verbs and questions under a heading per aggregate" do
+      usage = banking[:usage]
+
+      expect(usage).to match(/^  Customer:\n    register\s+Take on a new customer/)
+      expect(usage).to match(/^  Account:\n    account\.open\s+/)
+      expect(banking[:verbs]["account.freeze_account"][:group]).to eq("Account")
+    end
+
+    # What a run records about itself (system-role commands, port operations) is never typed by a
+    # person, so the help names it on a line of its own instead of spending a described line each.
+    it "sets bookkeeping verbs apart as names only" do
+      usage = payments[:usage]
+      port_verb = payments[:verbs].values.find { |spec| spec[:verb].include?("PaymentGateway") }
+
+      expect(port_verb[:internal]).to be(true)
+      expect(usage).to include("internal — what a run records about itself")
+      expect(usage).not_to include("#{port_verb[:short].ljust(5)}  #{port_verb[:summary]}")
+      expect(usage).to include(port_verb[:short])
+    end
+
     # The short spelling where unambiguous: `pizzas create_pizza`, not `pizzas order.create_pizza`.
     it "shortens a verb no other aggregate declares, and keeps both spellings" do
       expect(pizzas[:verbs]["order.create_pizza"][:short]).to eq("create_pizza")
