@@ -255,6 +255,49 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(@hecks.registry.event_log.to_a.size).to eq(before)
     end
 
+    describe "--stream" do
+      def tail_row(cursor, *events)
+        entries = events.map do |name|
+          { name: name, aggregate: "Shelf::Book", id: "b1", payload: "{\"title\":\"Dune\"}",
+            occurred_at: "2026-10-01T00:00:00Z" }
+        end
+        [{ cursor: cursor, taken_at: "2026-10-01T00:00:00Z", events: entries }]
+      end
+
+      it "asks again from the cursor each answer gives and prints every entry as one line" do
+        asked = []
+        answers = [tail_row(2, "Shelved", "Borrowed"), tail_row(2), tail_row(3, "Returned")]
+        allow(@hecks).to receive(:query) do |_verb, **args|
+          asked << args
+          answers.shift
+        end
+        out = StringIO.new
+
+        status = Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["follow", @shelf, "from_now=true", "--stream"],
+                                                program: "hecks", out: out, max_polls: 3)
+
+        lines = out.string.lines.map { |line| JSON.parse(line) }
+        expect(status).to eq(0)
+        expect(lines.map { |line| line["name"] }).to eq(%w[Shelved Borrowed Returned])
+        expect(lines.first["payload"]).to eq("title" => "Dune")
+        expect(asked.map { |args| args.dig(:since, :value) }).to eq([nil, 2, 2])
+        expect(asked.map { |args| args.key?(:from_now) }).to eq([true, false, false])
+        expect(asked).to all(include(wait: { value: 30 }))
+      end
+
+      it "is not a stream without --stream, or for a question the world does not list" do
+        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["follow", @shelf], program: "hecks")).to be_nil
+        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["verdict", "x", "--stream"], program: "hecks")).to be_nil
+      end
+
+      it "ends with status 0 when the reader interrupts" do
+        allow(@hecks).to receive(:query).and_raise(Interrupt)
+
+        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["follow", @shelf, "--stream"], program: "hecks",
+                                              out: StringIO.new)).to eq(0)
+      end
+    end
+
     it "words a domain that is not there as a refusal" do
       out, status = run_verb("follow", File.join(@dir, "nowhere"))
 

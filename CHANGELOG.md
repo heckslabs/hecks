@@ -7,6 +7,17 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the
+pre-push hook ran as shell are the `pre_push` stage of `lib/hecks/gate/stages.yml` (an id, a title,
+the command, and what a red check means). `gate` starts them together, prints every red one, and
+under `--wait` exits 1 when the run is `faulted`; the hook calls the same tool, so the list of
+checks lives in one place. It is a `GateRun` aggregate on the Codebase chapter, so each run is in
+the journal. `hecks gate --list` shows the stages. CI workflows are still hand-written.
+
+**`hecks follow <domain> --stream` tails an event log.** The launcher asks again from each answer's cursor and prints every new entry as one JSON line (its payload as an object), until you interrupt it or the reader goes away; `from_now` applies to the first ask only, and each ask waits for the first new entry (the question's `wait`, 30 seconds when absent). A question is tailable when the world's `launcher` setting lists it under `streams` (`Follow` is). Without `--stream`, `follow` is the bounded poll it was.
+
+**`docs/migrating-2-to-3.md`** collects what a 2.x project changes to move to 3.x.
+
 **The host can refuse a caller that holds no role (`HECKS_ROLE_ENFORCEMENT=off|shadow|enforce`).** Until now a dispatch that stated no role skipped the check, and the host never passed an `actor_id`, so Governance assignments were not consulted. A `POST /dispatch` body may now carry `actor_id`; an identified caller that states no role is held to what Governance assigned them (the kernel's `check_role_via`), and unchecked only when no Governance provider is compiled in. With `shadow` an unidentified caller is dispatched as role `Anonymous`, and a refusal that would follow is logged as `would_refuse_role` while the command goes through; with `enforce` it is refused. The default is `off`, so nothing changes until a deploy sets it. Host-internal steps (the registration pipeline, the Stripe and newsletter routes) remain unchecked.
 
 **The host can set a Reply-To on newsletter email (`RESEND_REPLY_TO`).** A site that sends from a Resend-verified address it has no mailbox for (`news@mail.example.com`) can still have replies reach a real inbox: set `RESEND_REPLY_TO` and each email carries `reply_to`. Blank or unset sends no `reply_to`, as before. The mock mailer ignores it.

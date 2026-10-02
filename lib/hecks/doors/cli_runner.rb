@@ -34,6 +34,62 @@ module Hecks
                  bluebook: plan[:bluebook], launcher: plan[:launcher])
       end
 
+      # Tails a question: asks, prints each new entry as one JSON line, and asks again from the
+      # cursor the answer gave, until the reader interrupts. Only for a question the `launcher`
+      # setting lists under `streams`, given `--stream`; `from_now` applies to the first ask only.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+      # @param argv [Array<String>] as for `call`, with `--stream`
+      # @param program [String] how the caller was invoked
+      # @param out [IO] where each entry's line goes
+      # @param err [IO] where a refusal goes
+      # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
+      # @return [Integer, nil] 0 or 1 for a stream, nil when `call` should run the line
+      def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil)
+        plan = resolve(runtime, argv, program)
+        return if plan[:answer] || !LauncherOptions.streams?(plan[:launcher], plan[:spec])
+
+        words, streaming = LauncherOptions.take_stream(plan[:rest])
+        return unless streaming
+
+        tail(runtime, plan[:spec], CliDoor.arguments(plan[:spec], words), out, max_polls)
+        0
+      rescue Interrupt, Errno::EPIPE
+        0
+      rescue Runtime::NotFound, Runtime::TypeMismatch => e
+        err.puts("#{e.message}\n\n  #{program} #{plan[:name]} --help")
+        1
+      rescue *Runtime::DOMAIN_REFUSALS => e
+        err.puts(e.message)
+        1
+      end
+
+      # One ask after another, each from the cursor the last gave.
+      def tail(runtime, spec, args, out, max_polls)
+        args   = args.merge(wait: { value: 30 }) unless args.key?(:wait)
+        polls  = 0
+        cursor = nil
+        loop do
+          ask  = cursor ? args.except(:from_now).merge(since: { value: cursor }) : args
+          rows = runtime.query(spec[:verb], **ask)
+          row  = rows.first || {}
+          Array(row[:events]).each { |event| out.puts(JSON.generate(entry_line(JsonDoor.materialize(event)))) }
+          out.flush
+          cursor = row[:cursor]
+          polls += 1
+          break if cursor.nil? || (max_polls && polls >= max_polls)
+        end
+      end
+
+      # An entry as a line: its payload, which the answer holds as JSON text, back as an object.
+      def entry_line(event)
+        line = JSON.parse(JSON.generate(event))
+        line["payload"] = JSON.parse(line["payload"]) if line["payload"].is_a?(String)
+        line
+      rescue JSON::ParserError
+        line
+      end
+
       # Answers a command line that asks only for usage, from the projection alone.
       #
       # Needs a registry and no bound adapter, so a `Runtime::Loader::Described` serves: the

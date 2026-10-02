@@ -44,6 +44,7 @@ module DoctestNames
     future-features.md
     fuzzer-property-expansion-plan.md
     HECKS_IMPLEMENTATION_PLAN.md
+    migrating-2-to-3.md
     query-dsl.md
     rails-integration.md
     rubocop-custom-cops.md

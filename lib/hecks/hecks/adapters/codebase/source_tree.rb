@@ -5,6 +5,7 @@ require_relative "language"
 require_relative "kernel_tables"
 require_relative "conformance"
 require_relative "regeneration"
+require_relative "gate"
 require_relative "style"
 require_relative "codemods"
 require_relative "test_suite"
@@ -178,7 +179,8 @@ module Hecks
 
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite, Codebase::CorpusTasks, Codebase::Publishing].freeze
+                  Codebase::Gate, Codebase::Style, Codebase::Codemods, Codebase::TestSuite,
+                  Codebase::CorpusTasks, Codebase::Publishing].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

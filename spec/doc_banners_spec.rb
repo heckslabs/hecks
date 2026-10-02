@@ -22,6 +22,7 @@ module DocBanners
     benchmarks.md
     COMMENT_STYLE_GUIDE.md
     COMMENT_STYLE_GUIDE_RUST.md
+    migrating-2-to-3.md
     rubocop-custom-cops.md
     tools.md
   ].freeze

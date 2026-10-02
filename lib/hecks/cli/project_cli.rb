@@ -230,6 +230,9 @@ module Hecks
             rescue StandardError => e
               abort "cannot open #{name}: \#{e.message.lines.first.strip}"
             end
+            # A question the world lists under `streams`, given `--stream`, tails until interrupted.
+            streamed = Hecks::Doors::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
+            exit streamed unless streamed.nil?
             text, status, reason = Hecks::Doors::CliRunner.call(
               runtime: runtime, argv: ARGV, program: program
             )
