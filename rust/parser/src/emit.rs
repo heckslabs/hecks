@@ -43,25 +43,20 @@ pub fn write(value: &JsonValue) -> String {
 /// The pinned `Expression::CanonicalForm.table` rules from projection.json, in Ruby's field
 /// order; `position` is a string.
 fn canonical_form_table() -> JsonValue {
-    JsonValue::Array(vec![
-        JsonValue::Object(vec![
-            (
-                "strategy".to_string(),
-                JsonValue::str("collapse_whitespace"),
-            ),
-            ("source_token".to_string(), JsonValue::str("")),
-            ("replacement".to_string(), JsonValue::str("")),
-            ("boundary".to_string(), JsonValue::str("none")),
-            ("position".to_string(), JsonValue::str("1")),
-        ]),
-        JsonValue::Object(vec![
-            ("strategy".to_string(), JsonValue::str("replace")),
-            ("source_token".to_string(), JsonValue::str(".length")),
-            ("replacement".to_string(), JsonValue::str(".size")),
-            ("boundary".to_string(), JsonValue::str("word")),
-            ("position".to_string(), JsonValue::str("2")),
-        ]),
-    ])
+    JsonValue::Array(
+        crate::canonical::TABLE
+            .iter()
+            .map(|(strategy, token, replacement, boundary, position)| {
+                JsonValue::Object(vec![
+                    ("strategy".to_string(), JsonValue::str(*strategy)),
+                    ("source_token".to_string(), JsonValue::str(*token)),
+                    ("replacement".to_string(), JsonValue::str(*replacement)),
+                    ("boundary".to_string(), JsonValue::str(*boundary)),
+                    ("position".to_string(), JsonValue::str(*position)),
+                ])
+            })
+            .collect(),
+    )
 }
 
 /// `IR::Bluebook#to_h`; field order is pinned there.
