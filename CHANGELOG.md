@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.0.4] - 2026-10-02
+
 **`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the
 pre-push hook ran as shell are the `pre_push` stage of `lib/hecks/gate/stages.yml` (an id, a title,
 the command, and what a red check means). `gate` starts them together, prints every red one, and
