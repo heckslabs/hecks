@@ -35,6 +35,34 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     expect(state[:timeout].value).to eq(10)
   end
 
+  it "accepts a webhook target that skips the dispatch Lambda and names its handler module" do
+    state = declare(dispatch: { value: "None" }, handler_module: { value: "QaWebhookLambdaHandler" },
+                    secret_env: { value: "GITHUB_WEBHOOK_SECRET" }).instance.state
+
+    expect(state[:dispatch].value).to eq("None")
+    expect(state[:handler_module].value).to eq("QaWebhookLambdaHandler")
+    expect(state[:secret_env].value).to eq("GITHUB_WEBHOOK_SECRET")
+  end
+
+  it "accepts dispatch \"Rust\" with no handler module" do
+    expect(declare(dispatch: { value: "Rust" }).instance.state[:dispatch].value).to eq("Rust")
+  end
+
+  it "refuses dispatch \"None\" with no handler module" do
+    expect { declare(dispatch: { value: "None" }) }
+      .to raise_error(Hecks::Runtime::GivenNotMet, /dispatch "None" names its handler_module/)
+  end
+
+  it "refuses a dispatch other than Rust or None" do
+    expect { declare(dispatch: { value: "Ruby" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /Ruby|one of/i)
+  end
+
+  it "refuses an empty handler module" do
+    expect { declare(handler_module: { value: "" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a handler module is named/)
+  end
+
   # C3.7 (docs/semantics/bluebook-semantics.md): required fields are checked before invariants,
   # so an explicit nil is TypeMismatch while an empty string reaches the invariant.
   it "refuses an absent region" do
