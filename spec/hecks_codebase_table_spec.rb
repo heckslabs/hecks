@@ -50,6 +50,9 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["doc_coverage", "ConformanceRun", "MeasureDocCoverage", "measure_doc_coverage"],
     ["argument_gate_matrix", "ConformanceRun", "ArgumentGateMatrix", "argument_gate_matrix"],
     ["regen_codegen_domains", "RegenerationRun", "RegenerateCorpus", "regenerate_corpus"],
+    ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
+     { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
+                "verb only compares" }],
     ["standardize_comments", "StyleRun", "ReportComments", "report_comments",
      { args: %w[paths=lib], query: true }],
     ["standardize_comments", "StyleRun", "CheckComments", "check_comments", { args: %w[paths=lib] }],
