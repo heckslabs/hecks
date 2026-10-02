@@ -404,9 +404,10 @@ module Hecks
         lines
       end
 
-      # "LanguageRun" reads "Language run".
+      # "LanguageRun" reads "Language": the Run suffix names the journaled-command shape every one of
+      # these aggregates shares, so it adds nothing under a heading ("Test suite", "Model check").
       def heading(group)
-        words = Naming.snake(group).tr("_", " ")
+        words = Naming.snake(group.sub(/Run\z/, "")).tr("_", " ")
         "#{words.capitalize}:"
       end
 

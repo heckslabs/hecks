@@ -155,6 +155,13 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:verbs]["account.freeze_account"][:group]).to eq("Account")
     end
 
+    it "titles a heading after its aggregate, without a Run suffix" do
+      heading = described_class.send(:heading, "TestSuiteRun")
+
+      expect(heading).to eq("Test suite:")
+      expect(described_class.send(:heading, "Operation")).to eq("Operation:")
+    end
+
     # What a run records about itself (system-role commands, port operations) is never typed by a
     # person, so the help names it on a line of its own instead of spending a described line each.
     it "sets bookkeeping verbs apart as names only" do
