@@ -7,14 +7,6 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
-and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
-`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
-generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
-CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
-carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
-`boot_described`.
-
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
@@ -33,6 +25,21 @@ the journal. `hecks gate --list` shows the stages. CI workflows are still hand-w
 **The host can refuse a caller that holds no role (`HECKS_ROLE_ENFORCEMENT=off|shadow|enforce`).** Until now a dispatch that stated no role skipped the check, and the host never passed an `actor_id`, so Governance assignments were not consulted. A `POST /dispatch` body may now carry `actor_id`; an identified caller that states no role is held to what Governance assigned them (the kernel's `check_role_via`), and unchecked only when no Governance provider is compiled in. With `shadow` an unidentified caller is dispatched as role `Anonymous`, and a refusal that would follow is logged as `would_refuse_role` while the command goes through; with `enforce` it is refused. The default is `off`, so nothing changes until a deploy sets it. Host-internal steps (the registration pipeline, the Stripe and newsletter routes) remain unchecked.
 
 **The host can set a Reply-To on newsletter email (`RESEND_REPLY_TO`).** A site that sends from a Resend-verified address it has no mailbox for (`news@mail.example.com`) can still have replies reach a real inbox: set `RESEND_REPLY_TO` and each email carries `reply_to`. Blank or unset sends no `reply_to`, as before. The mock mailer ignores it.
+
+**A command can declare `needs :now` (ADR 0081, first slice).** A fact the command needs from
+outside the record, answered by the runtime before any `given` runs: `needs :now` fills the command's
+own `now` argument with the time the clock gives. The answer is written into the arguments, so a
+`given` reads it like any argument, the event records it, and a replay re-dispatches the recorded
+value. `days()`, `hours()` and `minutes()` fold to seconds, in Ruby and in the Rust kernel. Rules
+that need a record other than the command's own are the next slice (see the ADR).
+
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
 
 ## [3.0.3] - 2026-10-01
 
