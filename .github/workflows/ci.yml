@@ -450,51 +450,27 @@ jobs:
   # times to catch schedule-dependent races, so it runs only when `lib/hecks/runtime/**`
   # changes. Split in two so an unrelated PR skips the Postgres setup too: that needs a
   # job-level `if:`, and so a diff computed in a job that finished first.
+  # BEGIN GENERATED ci_gate runtime_changed (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
   runtime_changed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
-    # Cache-warming push doesn't need this job; stress_concurrency skips via its `needs:`.
+    # A push is a cache-warming run; the jobs that need this one skip through their `needs:`.
     if: github.event_name != 'push'
-
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
-
     steps:
       - uses: actions/checkout@v4
         with:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
-
-      # BASE is the PR's base commit, or the merge group's merge-base with its target branch.
-      - name: does this change touch lib/hecks/runtime/**?
-        id: diff
-        run: |
-          # A MERGE GROUP DIFFS AGAINST THE TARGET BRANCH, NEVER AGAINST
-          # `merge_group.base_sha`. base_sha is the PREVIOUS QUEUE ENTRY, so
-          # a PR queued behind another one diffs as its own files only — and
-          # the queue's HEADGREEN grouping merges the whole group on the
-          # last entry's run alone. #729 (docs only) rode behind a red #730
-          # that way on 2026-09-18: its gate skipped, its run went green,
-          # and both merged. The group's head carries every earlier entry,
-          # so its diff has to as well.
-          BASE="${{ github.event.pull_request.base.sha }}"
-          if [ "${{ github.event_name }}" = "merge_group" ]; then
-            BASE_REF="${{ github.event.merge_group.base_ref }}"
-            BASE="$(git merge-base "origin/${BASE_REF#refs/heads/}" "${{ github.sha }}")" || BASE=""
-          fi
-
-          CHANGED="$(git diff --name-only "$BASE" "${{ github.sha }}")" || {
-            echo "no usable diff against '$BASE' — running stress_concurrency rather than guessing" >&2
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          if echo "$CHANGED" | grep -q '^lib/hecks/runtime/'; then
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "touched=false" >> "$GITHUB_OUTPUT"
-          fi
+      - id: diff
+        uses: ./.github/actions/changed-paths
+        with:
+          mode: touches
+          pattern: '^lib/hecks/runtime/'
+          push: skip
+          label: 'does this change touch lib/hecks/runtime/**?'
+  # END GENERATED ci_gate runtime_changed
 
   stress_concurrency:
     needs: runtime_changed

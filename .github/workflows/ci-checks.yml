@@ -225,6 +225,12 @@ jobs:
           bundle exec exe/hecks project_reserved_names --confirm --wait
           git diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs
 
+      # The path gates (the CiGate rows in vocabulary.bluebook) are written into marked regions of
+      # ci.yml and ci-postgres-io-parallel.yml. Without --confirm the verb only compares, so a row
+      # edited with no matching projection, or a region edited by hand, fails here.
+      - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
+        run: bundle exec exe/hecks project_ci_gates --wait
+
       # Checks whether hecks project_rust generated something for every
       # construct each domain's own IR declares, from the already-committed
       # manifest.json + ir.json — no build needed first (see
