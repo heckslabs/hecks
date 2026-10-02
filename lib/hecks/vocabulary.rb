@@ -127,7 +127,8 @@ module Hecks
       ].freeze,
       "NormalisationStrategy" => [
         {"name"=>"collapse_whitespace"}.freeze,
-        {"name"=>"replace"}.freeze
+        {"name"=>"replace"}.freeze,
+        {"name"=>"scale_call"}.freeze
       ].freeze,
       "Primitive" => [
         {"name"=>"String"}.freeze,
