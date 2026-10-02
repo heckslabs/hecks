@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
+
 ## [3.0.4] - 2026-10-02
 
 **`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the

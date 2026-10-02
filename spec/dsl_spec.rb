@@ -305,6 +305,14 @@ RSpec.describe "the DSL surface" do
       expect(described.registry.bluebooks.values.map(&:name)).to include("Pizzas")
     end
 
+    it ".boot_described finishes a boot from what describe loaded, reading nothing again" do
+      described = Hecks.describe(File.expand_path("../examples/pizzas", __dir__))
+
+      runtime = Hecks.boot_described(described, install_doors: false)
+
+      expect(runtime.registry).to be(described.registry)
+    end
+
     it ".boot refuses a declaration loaded outside a boot" do
       expect { Hecks.bluebook("Orphan") { vision "x" } }
         .to raise_error(Hecks::LoadOutsideBoot, /outside a boot/)

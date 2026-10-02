@@ -87,6 +87,7 @@ RSpec.describe "the declared syntax" do
       boot:             "the runtime facade, not a declaration",
       boot_files:       "the runtime facade, not a declaration — the explicit-file sibling of boot",
       describe:         "the runtime facade, not a declaration — boot's declarations-only sibling",
+      boot_described:   "the runtime facade, not a declaration — finishes a boot from what describe loaded",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
