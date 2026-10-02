@@ -198,7 +198,8 @@ pub fn holds_role_via(
 
 /// Refuses with `Unauthorized` when the caller's role does not satisfy `command_role`.
 ///
-/// Unchecked unless both a caller and a command role are present. With `caller_actor_id` and an
+/// Unchecked unless both a caller and a command role are present, except that an identified caller
+/// (`caller_actor_id`) with no stated role is held to what Governance assigned them. With `caller_actor_id` and an
 /// authorization provider compiled in (`assignments` names a query in `queries`), the role must be
 /// held through `holds_role_via`; otherwise the caller's stated role is compared as a string.
 /// Governance's own commands get no exemption: the running Ruby checks them like any other,
@@ -213,9 +214,19 @@ pub fn check_role_via(
     queries: &[super::QueryDef],
     assignments: Option<&str>,
 ) -> Result<(), super::Refusal> {
+    let attached = assignments.and_then(|verb| super::named_query::find(queries, verb)).is_some();
+    // An identified caller with no stated role is checked against what Governance assigned them: the
+    // caller need not claim a role it may not hold. Unchecked without a Governance provider, as ever.
+    if let (None, Some(role), Some(actor_id)) = (caller_role, command_role, caller_actor_id) {
+        if !attached || holds_role_via(store, queries, assignments, actor_id, role) {
+            return Ok(());
+        }
+        return Err(super::Refusal::Unauthorized(
+            super::refusal_wording::UnauthorizedRoleMismatchArgs { command: command_name, role, caller_role: "no assigned role" }.render_args(),
+        ));
+    }
     let (Some(caller), Some(role)) = (caller_role, command_role) else { return Ok(()) };
 
-    let attached = assignments.and_then(|verb| super::named_query::find(queries, verb)).is_some();
     let authorized = match caller_actor_id {
         Some(actor_id) if attached => holds_role_via(store, queries, assignments, actor_id, role),
         _ => caller == role,
@@ -387,6 +398,36 @@ mod check_role_actor_id_tests {
         let result = check_role(Some("Chef"), "Prepare", Some("Chef"), Some("u1"), &store, &queries);
 
         assert!(result.is_err(), "a revoked grant must not authorize: {result:?}");
+    }
+
+    // An identified caller that states no role is held to what Governance assigned them.
+    #[test]
+    fn an_identified_caller_with_no_stated_role_needs_a_live_assignment_of_the_commands_role() {
+        let store = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Chef", None))] };
+        let queries = [assignments_for_actor_query()];
+
+        assert!(check_role(Some("Chef"), "Prepare", None, Some("u1"), &store, &queries).is_ok(), "an assigned actor needs no stated role");
+        assert!(check_role(Some("Waiter"), "Serve", None, Some("u1"), &store, &queries).is_err(), "an actor not assigned the role is refused");
+        assert!(check_role(Some("Chef"), "Prepare", None, Some("u2"), &store, &queries).is_err(), "an unassigned actor is refused");
+    }
+
+    // Revoked assignments do not count for a caller with no stated role either.
+    #[test]
+    fn an_identified_caller_with_no_stated_role_is_refused_on_a_revoked_assignment() {
+        let store = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Chef", Some("2026-06-01")))] };
+        let queries = [assignments_for_actor_query()];
+
+        assert!(check_role(Some("Chef"), "Prepare", None, Some("u1"), &store, &queries).is_err());
+    }
+
+    // No Governance provider attached: an actor with no stated role stays unchecked, as before.
+    #[test]
+    fn an_identified_caller_with_no_stated_role_is_unchecked_when_governance_is_not_attached() {
+        let store = FakeStore { role_assignments: vec![] };
+
+        let result = check_role_via(Some("Chef"), "Prepare", None, Some("u1"), &store, &[], None);
+
+        assert!(result.is_ok(), "no provider, nothing to check against: {result:?}");
     }
 
     // A caller with only `role:` keeps the plain string comparison, whatever grants exist.

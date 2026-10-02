@@ -53,25 +53,29 @@ pub async fn dispatch_body(
         .ok_or("event missing \"verb\"")?
         .to_string();
     let role = body.get("role").and_then(|v| v.as_str()).map(|s| s.to_string());
+    // Who the caller is, for Governance. Honored only where the internal protocol is: from this
+    // host's own peers (`trusts_internal_dispatch`), never from a public caller.
+    let actor_id = body.get("actor_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let caller = dispatch::Caller { role: role.as_deref(), actor_id: actor_id.as_deref() };
 
     let outcome = if let Some(to) = body.get("to").cloned() {
         if body.get("args").is_some() {
             return Err("cannot combine to/with with legacy args".into());
         }
         let facts = body.get("with").cloned().unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle_routed(client, wasm_path, &verb, to, facts, role.as_deref(), config, invoker)
+        dispatch::handle_routed_as(client, wasm_path, &verb, to, facts, caller, config, invoker)
             .await
             .map_err(|e| format!("{e:#}"))?
     } else if let Some(facts) = body.get("with").cloned() {
         if body.get("args").is_some() {
             return Err("cannot combine \"with\" with legacy args".into());
         }
-        dispatch::handle_facts(client, wasm_path, &verb, facts, role.as_deref(), config, invoker)
+        dispatch::handle_facts_as(client, wasm_path, &verb, facts, caller, config, invoker)
             .await
             .map_err(|e| format!("{e:#}"))?
     } else {
         let args = body.get("args").cloned().unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle(client, wasm_path, &verb, args, role.as_deref(), config, invoker)
+        dispatch::handle_as(client, wasm_path, &verb, args, caller, config, invoker)
             .await
             .map_err(|e| format!("{e:#}"))?
     };
