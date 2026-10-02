@@ -2872,6 +2872,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "bluebook",
@@ -2965,6 +2968,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3074,6 +3080,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3192,6 +3201,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -3308,6 +3320,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -3362,6 +3377,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3433,6 +3451,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "transitions",
@@ -3480,6 +3501,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -3510,6 +3534,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3600,6 +3627,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "invariants",
@@ -3687,6 +3717,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3806,6 +3839,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -6274,6 +6310,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "name",
@@ -6396,6 +6435,9 @@
               }
             }
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attaches_to",
@@ -6453,6 +6495,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -6534,6 +6579,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -6711,6 +6759,16 @@
           "relationship": null
         },
         {
+          "name": "needs",
+          "type": "Need",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "mutations",
           "type": "Change",
           "list": true,
@@ -6863,6 +6921,28 @@
           "attributes": [
             {
               "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Need",
+          "attributes": [
+            {
+              "name": "fact",
               "type": "String",
               "list": false,
               "default": null,
@@ -7218,6 +7298,28 @@
         },
         {
           "name": "OpName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "FactName",
           "attributes": [
             {
               "name": "value",
@@ -7702,6 +7804,36 @@
             [
               [
                 "word",
+                "needs"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "needs"
+              ],
+              [
+                "calls",
+                "needs_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "corrects"
               ],
               [
@@ -8132,6 +8264,36 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "needs"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "fact"
               ]
             ],
             [
@@ -9285,6 +9447,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "aggregate",
@@ -9458,6 +9623,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -9574,6 +9742,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -9669,6 +9840,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "givens",
@@ -9756,6 +9930,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -9877,6 +10054,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "mutations",
@@ -9956,6 +10136,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "references",
@@ -10015,6 +10198,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "emits",
@@ -10027,6 +10213,67 @@
           ],
           "emits": [
             "AnnouncementNamed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Need",
+          "role": "Language",
+          "goal": "Name an outside fact the runtime supplies before any given runs",
+          "references": null,
+          "attributes": [
+            {
+              "name": "fact",
+              "type": "FactName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a fact is named",
+              "canonical": "!fact.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "fact",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "needs",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "fact": ":fact"
+              }
+            }
+          ],
+          "emits": [
+            "NeedNamed"
           ],
           "from": null,
           "provenance": null
@@ -12195,6 +12442,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "aggregate",
@@ -12290,6 +12540,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "identified_by",
@@ -12333,6 +12586,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -12435,6 +12691,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -12553,6 +12812,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -12669,6 +12931,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -12764,6 +13029,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "preconditions",
@@ -12853,6 +13121,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "invariants",
@@ -12901,6 +13172,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -12970,6 +13244,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -14048,6 +14325,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "bluebook",
@@ -14177,6 +14457,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -15562,6 +15845,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "bluebook",
@@ -15647,6 +15933,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "states",
@@ -15704,6 +15993,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -15817,6 +16109,9 @@
 
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -15934,6 +16229,9 @@
                   "ensures": [
 
                   ],
+                  "needs": [
+
+                  ],
                   "mutations": [
                     {
                       "target": "with_spec",
@@ -15972,6 +16270,9 @@
 
                   ],
                   "ensures": [
+
+                  ],
+                  "needs": [
 
                   ],
                   "mutations": [
@@ -16022,6 +16323,9 @@
 
                   ],
                   "ensures": [
+
+                  ],
+                  "needs": [
 
                   ],
                   "mutations": [
@@ -18094,6 +18398,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "bluebook",
@@ -18208,6 +18515,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "aggregate_heads",
@@ -18268,6 +18578,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "group_by",
@@ -18305,6 +18618,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -18366,6 +18682,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "median_field",
@@ -18423,6 +18742,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -18484,6 +18806,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "avg_field",
@@ -18543,6 +18868,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "min_field",
@@ -18600,6 +18928,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -18671,6 +19002,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "percentile_field",
@@ -18739,6 +19073,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "any_field",
@@ -18796,6 +19133,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -18885,6 +19225,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -20516,6 +20859,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "aggregate",
@@ -20648,6 +20994,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "wheres",
@@ -20736,6 +21085,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -20848,6 +21200,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -22318,6 +22673,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "aggregate",
@@ -22446,6 +22804,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attributes",
@@ -22512,6 +22873,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -22603,6 +22967,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "invariants",
@@ -22641,6 +23008,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -22750,6 +23120,9 @@
                 }
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -23461,6 +23834,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "bluebook",
@@ -23608,6 +23984,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -23809,6 +24188,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "arguments",
@@ -23985,6 +24367,9 @@
               "ensures": [
 
               ],
+              "needs": [
+
+              ],
               "mutations": [
 
               ],
@@ -24006,6 +24391,9 @@
 
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -24235,6 +24623,9 @@
               "ensures": [
 
               ],
+              "needs": [
+
+              ],
               "mutations": [
 
               ],
@@ -24256,6 +24647,9 @@
 
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [

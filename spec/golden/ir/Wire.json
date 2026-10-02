@@ -54,6 +54,9 @@
 
           ],
           "name": "Open",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Clerk"
@@ -115,6 +118,9 @@
             }
           ],
           "name": "Put",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
@@ -202,6 +208,9 @@
             }
           ],
           "name": "Take",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
@@ -225,6 +234,9 @@
 
           ],
           "name": "Shut",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
@@ -248,6 +260,9 @@
 
           ],
           "name": "Reopen",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
@@ -488,6 +503,9 @@
             }
           ],
           "name": "Ask",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Customer"
@@ -511,6 +529,9 @@
 
           ],
           "name": "Moved",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Wire",
           "role": "System"
@@ -534,6 +555,9 @@
 
           ],
           "name": "Landed",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Wire",
           "role": "System"
@@ -557,6 +581,9 @@
 
           ],
           "name": "Returned",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Wire",
           "role": "System"

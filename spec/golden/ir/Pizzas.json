@@ -99,6 +99,9 @@
             }
           ],
           "name": "CreatePizza",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Chef"
@@ -173,6 +176,9 @@
             }
           ],
           "name": "AddTopping",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Order",
           "role": "Chef"
@@ -289,6 +295,9 @@
             }
           ],
           "name": "Purchase",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Order",
           "role": "Customer"

@@ -56,6 +56,7 @@ Hecks.bluebook "LeaseClock" do
       reference_to Lease
       attribute :holder, LeaseHolder
       attribute :now,    LeaseInstant
+      needs :now
       attribute :expiry, LeaseInstant
 
       given("a live lease is not taken from its own holder") { status != "held" || expires_at.value <= now.value }
@@ -73,6 +74,7 @@ Hecks.bluebook "LeaseClock" do
 
       reference_to Lease
       attribute :now,    LeaseInstant
+      needs :now
       attribute :expiry, LeaseInstant
 
       given("only a still-live lease is renewed") { expires_at.value > now.value }
@@ -98,6 +100,7 @@ Hecks.bluebook "LeaseClock" do
 
       reference_to Lease
       attribute :now, LeaseInstant
+      needs :now
 
       given("only a lease whose own recorded expiry the passed clock has reached is reaped") { expires_at.value <= now.value }
 

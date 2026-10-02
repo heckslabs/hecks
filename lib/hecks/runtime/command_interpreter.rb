@@ -83,10 +83,12 @@ module Hecks
 
       private
 
-      # No-op: `Routing` has already handed `call` a decoded argument hash,
-      # so there is nothing left to decode here yet. Kept as a step so the
-      # generated step enum has a slot to move the real decoder into later.
-      def step_decode_arguments(_ctx); end
+      # `Routing` has already handed `call` a decoded argument hash, so the one thing left to do
+      # here is answer the outside facts the command `needs`, before any refusal or given reads
+      # its arguments. Not traced: the step has always been invisible to a trace observer.
+      def step_decode_arguments(ctx)
+        ctx.args = enrich_arguments(ctx.command, ctx.args)
+      end
 
       def step_refuse_unknown_arguments(ctx)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args) }

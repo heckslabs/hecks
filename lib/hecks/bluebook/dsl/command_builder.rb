@@ -355,6 +355,7 @@ module Hecks
                 "#{@name} needs :#{missing.first} but declares no attribute :#{missing.first} " \
                 "for the runtime to fill — add `attribute :#{missing.first}, <type>`"
         end
+        private :refuse_undeclared_needs!
 
         # Evaluates a `command` block against a fresh builder and returns what it built.
         #

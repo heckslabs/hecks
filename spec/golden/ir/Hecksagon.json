@@ -214,6 +214,9 @@
             }
           ],
           "name": "Bind",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1408,6 +1411,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1447,6 +1453,9 @@
             }
           ],
           "name": "Subscribe",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1486,6 +1495,9 @@
             }
           ],
           "name": "UsesFramework",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1525,6 +1537,9 @@
             }
           ],
           "name": "UsesEmbryonautBluebook",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1564,6 +1579,9 @@
             }
           ],
           "name": "Attaches",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"

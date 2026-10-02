@@ -327,6 +327,9 @@
 
           ],
           "name": "Propose",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language designer"
@@ -398,6 +401,9 @@
             }
           ],
           "name": "Render",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -445,6 +451,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -468,6 +477,9 @@
 
           ],
           "name": "Retire",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -1180,6 +1192,9 @@
 
           ],
           "name": "Propose",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language designer"
@@ -1251,6 +1266,9 @@
             }
           ],
           "name": "Read",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1298,6 +1316,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1321,6 +1342,9 @@
 
           ],
           "name": "Retire",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1916,6 +1940,9 @@
 
           ],
           "name": "Extract",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "System"
@@ -1966,6 +1993,9 @@
             }
           ],
           "name": "Note",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"
@@ -2028,6 +2058,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"
@@ -2060,6 +2093,9 @@
 
           ],
           "name": "Reject",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"

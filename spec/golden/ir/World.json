@@ -166,6 +166,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -235,6 +238,9 @@
             }
           ],
           "name": "Set",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -489,6 +495,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Deployment"

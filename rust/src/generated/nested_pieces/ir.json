@@ -241,6 +241,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -271,6 +274,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -363,6 +369,9 @@
               "ensures": [
 
               ],
+              "needs": [
+
+              ],
               "mutations": [
                 {
                   "target": "cards",
@@ -400,6 +409,9 @@
 
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -474,6 +486,9 @@
 
                   ],
                   "ensures": [
+
+                  ],
+                  "needs": [
 
                   ],
                   "mutations": [

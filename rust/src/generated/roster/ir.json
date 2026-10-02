@@ -433,6 +433,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "name",
@@ -500,6 +503,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "last_marked",
@@ -540,6 +546,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -570,6 +579,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -657,6 +669,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -794,6 +809,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1111,6 +1129,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "assignments",
@@ -1158,6 +1179,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1383,6 +1407,9 @@
                     }
                   }
                 }
+              ],
+              "needs": [
+
               ],
               "mutations": [
 

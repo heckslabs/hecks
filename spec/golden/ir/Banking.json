@@ -118,6 +118,9 @@
             }
           ],
           "name": "Register",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Branch clerk"
@@ -158,6 +161,9 @@
             }
           ],
           "name": "Suspend",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Customer",
           "role": "Compliance officer"
@@ -191,6 +197,9 @@
             }
           ],
           "name": "Reinstate",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Customer",
           "role": "Compliance officer"
@@ -217,6 +226,9 @@
 
           ],
           "name": "Close",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Customer",
           "role": "Branch clerk"
@@ -708,6 +720,9 @@
             }
           ],
           "name": "Open",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Branch clerk"
@@ -789,6 +804,9 @@
             }
           ],
           "name": "Credit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Teller"
@@ -996,6 +1014,9 @@
             }
           ],
           "name": "Debit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Teller"
@@ -1040,6 +1061,9 @@
 
           ],
           "name": "FreezeAccount",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Compliance officer"
@@ -1084,6 +1108,9 @@
 
           ],
           "name": "Unfreeze",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Compliance officer"
@@ -1150,6 +1177,9 @@
 
           ],
           "name": "CloseAccount",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Branch clerk"
@@ -1256,6 +1286,9 @@
             }
           ],
           "name": "ApplyFee",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "System"
@@ -1362,6 +1395,9 @@
             }
           ],
           "name": "CorrectFee",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Back office"
@@ -1432,6 +1468,9 @@
             }
           ],
           "name": "AccrueInterest",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "System"
@@ -1554,6 +1593,9 @@
             }
           ],
           "name": "CorrectInterest",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Account",
           "role": "Back office"
@@ -1760,6 +1802,9 @@
                 }
               ],
               "name": "Amend",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Back office"
@@ -1867,6 +1912,9 @@
                 }
               ],
               "name": "Reverse",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Back office"
@@ -2818,6 +2866,9 @@
             }
           ],
           "name": "Open",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Branch clerk"
@@ -2862,6 +2913,9 @@
 
           ],
           "name": "Clear",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "OnboardingCase",
           "role": "Compliance officer"
@@ -2906,6 +2960,9 @@
 
           ],
           "name": "Decline",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "OnboardingCase",
           "role": "Compliance officer"
@@ -3273,6 +3330,9 @@
             }
           ],
           "name": "Issue",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Branch clerk"
@@ -3337,6 +3397,9 @@
             }
           ],
           "name": "Rename",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ATMCard",
           "role": "Customer"
@@ -3430,6 +3493,9 @@
             }
           ],
           "name": "Withdraw",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ATMCard",
           "role": "Customer"
@@ -3474,6 +3540,9 @@
 
           ],
           "name": "Activate",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ATMCard",
           "role": "Customer"
@@ -3521,6 +3590,9 @@
 
           ],
           "name": "Retire",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ATMCard",
           "role": "Back office"
@@ -3666,6 +3738,9 @@
                 }
               ],
               "name": "Dispute",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Customer"
@@ -4347,6 +4422,9 @@
             }
           ],
           "name": "Authorize",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": null
@@ -4413,6 +4491,9 @@
 
           ],
           "name": "Capture",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "System"
@@ -4479,6 +4560,9 @@
 
           ],
           "name": "Void",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "System"
@@ -4545,6 +4629,9 @@
 
           ],
           "name": "Refund",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "System"
@@ -4611,6 +4698,9 @@
 
           ],
           "name": "Reverse",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "System"
@@ -4698,6 +4788,9 @@
             }
           ],
           "name": "Dispute",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "Customer"
@@ -4764,6 +4857,9 @@
 
           ],
           "name": "Chargeback",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "Compliance officer"
@@ -4830,6 +4926,9 @@
 
           ],
           "name": "RejectDispute",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "CardPayment",
           "role": "Compliance officer"
@@ -5395,6 +5494,9 @@
             }
           ],
           "name": "Rent",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Branch clerk"
@@ -5440,6 +5542,9 @@
 
           ],
           "name": "Surrender",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SafeDepositBox",
           "role": "Customer"
@@ -5522,6 +5627,9 @@
             }
           ],
           "name": "LogVisit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SafeDepositBox",
           "role": "Vault officer"
@@ -5582,6 +5690,9 @@
             }
           ],
           "name": "IssueKey",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SafeDepositBox",
           "role": "Vault officer"
@@ -5704,6 +5815,9 @@
                 }
               ],
               "name": "Annotate",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Vault officer"
@@ -5919,6 +6033,9 @@
 
               ],
               "name": "Return",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Vault officer"
@@ -6541,6 +6658,9 @@
             }
           ],
           "name": "Generate",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "System"
@@ -7028,6 +7148,9 @@
             }
           ],
           "name": "Request",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Customer"
@@ -7094,6 +7217,9 @@
 
           ],
           "name": "Debited",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Transfer",
           "role": "System"
@@ -7160,6 +7286,9 @@
 
           ],
           "name": "Settle",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Transfer",
           "role": "System"
@@ -7226,6 +7355,9 @@
 
           ],
           "name": "Credited",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Transfer",
           "role": "System"
@@ -7292,6 +7424,9 @@
 
           ],
           "name": "Reverse",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Transfer",
           "role": "System"
@@ -7358,6 +7493,9 @@
 
           ],
           "name": "Reject",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Transfer",
           "role": "System"
@@ -7920,6 +8058,9 @@
             }
           ],
           "name": "Request",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Customer"
@@ -7986,6 +8127,9 @@
 
           ],
           "name": "SendTransfer",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ExternalTransfer",
           "role": "System"
@@ -8052,6 +8196,9 @@
 
           ],
           "name": "Recall",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ExternalTransfer",
           "role": "Customer"
@@ -8118,6 +8265,9 @@
 
           ],
           "name": "Return",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ExternalTransfer",
           "role": "System"
@@ -8637,6 +8787,9 @@
             }
           ],
           "name": "Schedule",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Customer"
@@ -8703,6 +8856,9 @@
 
           ],
           "name": "Execute",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ScheduledPayment",
           "role": "System"
@@ -8769,6 +8925,9 @@
 
           ],
           "name": "Cancel",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ScheduledPayment",
           "role": "Customer"
@@ -8835,6 +8994,9 @@
 
           ],
           "name": "Fail",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ScheduledPayment",
           "role": "System"
@@ -8970,6 +9132,9 @@
             }
           ],
           "name": "Retry",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ScheduledPayment",
           "role": "System"
@@ -9062,6 +9227,9 @@
 
           ],
           "name": "Abandon",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "ScheduledPayment",
           "role": "Back office"

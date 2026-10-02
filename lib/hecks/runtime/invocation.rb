@@ -207,8 +207,12 @@ module Hecks
                                            declared: declared)
         end
 
+        # A fact the command `needs` is not absent: the interpreter answers it before any refusal
+        # reads the arguments.
         def refuse_absent_facts!(declaring, offered, declared)
-          absent = declaring.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym } - offered.keys
+          needed = declaring.respond_to?(:needs) ? declaring.needs.map(&:to_sym) : []
+          absent = declaring.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym } -
+                   offered.keys - needed
           return if absent.empty?
 
           raise AbsentArgument,

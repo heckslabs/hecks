@@ -82,6 +82,9 @@
             }
           ],
           "name": "OpenTill",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Clerk"
@@ -150,6 +153,9 @@
             }
           ],
           "name": "TakeIn",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Till",
           "role": "Clerk"
@@ -199,6 +205,9 @@
             }
           ],
           "name": "PayOut",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Till",
           "role": "Clerk"
@@ -232,6 +241,9 @@
             }
           ],
           "name": "Bump",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Till",
           "role": "Clerk"
