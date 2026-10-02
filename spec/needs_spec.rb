@@ -26,13 +26,8 @@ RSpec.describe "a command that needs :now" do
           attribute :issued_at, Instant, optional: true
           identified_by :ref
 
-          value_object "Ref" do
-            attribute :value, String
-          end
-
-          value_object "Instant" do
-            attribute :value, Integer
-          end
+          value_object("Ref")     { attribute :value, String }
+          value_object("Instant") { attribute :value, Integer }
 
           command "Issue" do
             attribute :ref, Ref

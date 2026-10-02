@@ -287,7 +287,6 @@ module Hecks
         rows.first[:text]
       end
 
-
       # The reactions one dispatch caused that the domain refused, as `refused_reactions:`.
       #
       # A policy's trigger that a `given` refuses is not the command's own refusal: the command

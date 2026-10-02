@@ -72,8 +72,7 @@ module Hecks
         # @param role [String, nil] the declared role text; `goal` is the goal text
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
-        # @param ensures [Array<Bluebook::Given>] the declared postconditions
-        # @param needs [Array<Symbol>] the outside facts the runtime supplies before any given runs
+        # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
         # @param mutations [Array<Bluebook::Mutation>] the state changes it applies
         # @param emits [Array<String>] the event names it may emit
         # @param references [String, Symbol, nil] the aggregate its `reference_to` addresses

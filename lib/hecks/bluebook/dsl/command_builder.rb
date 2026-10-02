@@ -72,8 +72,9 @@ module Hecks
         # seconds.
         NEEDABLE_FACTS = %i[now].freeze
 
-        # Declares an outside fact the runtime supplies before any given runs (ADR 0081): `needs :now`
-        # fills the command's own `now` attribute from the clock port when the caller names none.
+        # Declares an outside fact the runtime supplies before any given runs (ADR 0081):
+        # `needs :now` fills the command's own `now` attribute from the clock port when the caller
+        # names none.
         #
         # @param fact [Symbol] one of `NEEDABLE_FACTS`
         # @return [Array<Symbol>] the facts declared so far
