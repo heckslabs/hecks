@@ -50,6 +50,47 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
     it "treats single-quoted literals the same way" do
       expect(described_class.apply("name   ==   'a  b'")).to eq("name == 'a  b'")
     end
+
+    # A duration written as a call on a whole number is that many seconds (ADR 0081), so a
+    # lifetime reads as `issued_at + days(730) > now` and both engines see the same integer.
+    describe "durations" do
+      it "folds days, hours and minutes into seconds" do
+        expect(described_class.apply("issued_at.value + days(730) > now.value"))
+          .to eq("issued_at.value + 63072000 > now.value")
+        expect(described_class.apply("a + hours(2) < b")).to eq("a + 7200 < b")
+        expect(described_class.apply("since + minutes(15) <= now")).to eq("since + 900 <= now")
+      end
+
+      it "reads the call whatever the spacing inside it" do
+        expect(described_class.apply("a + days( 1 ) < b")).to eq("a + 86400 < b")
+      end
+
+      it "leaves a call on anything but a whole-number literal as written" do
+        expect(described_class.apply("days(n) > 0")).to eq("days(n) > 0")
+        expect(described_class.apply("days(1.5) > 0")).to eq("days(1.5) > 0")
+      end
+
+      it "leaves a method call and a longer name alone" do
+        expect(described_class.apply("x.days(3) == 1")).to eq("x.days(3) == 1")
+        expect(described_class.apply("workdays(3) > 0")).to eq("workdays(3) > 0")
+      end
+
+      it "does not fold inside a string literal" do
+        expect(described_class.apply('label == "days(3)"')).to eq('label == "days(3)"')
+      end
+    end
+  end
+
+  # The cases the Rust parser's tests read too: one table, so the two engines' canonical forms
+  # cannot drift apart on a case written there.
+  describe "the cases both engines read" do
+    cases = JSON.parse(File.read(File.join(__dir__, "fixtures/canonical_form_cases.json"))).fetch("cases")
+
+    cases.each do |row|
+      it "gives #{row['source'].inspect} the canonical form #{row['canonical'].inspect}" do
+        expect(described_class.apply(row["source"])).to eq(row["canonical"])
+      end
+    end
   end
 
   describe ".step" do

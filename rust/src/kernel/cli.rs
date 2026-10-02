@@ -16,6 +16,9 @@ pub fn run(input: &str) -> String {
         Err(e) => return error_output(&format!("invalid JSON on stdin: {e}")),
     };
 
+    // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.
+    super::needs::install(parsed.get("needs"));
+
     let steps = match parsed.get("steps").and_then(Json::as_array) {
         Some(s) => s,
         None => return error_output("expected a top-level {\"steps\": [...]} object"),

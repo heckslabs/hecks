@@ -238,6 +238,7 @@ Hecks.bluebook "QualityControl" do
       reference_to Target
       attribute :held_by,    Engineer
       attribute :now,        Instant
+      needs :now
 
       given("a live claim is not taken from the agent holding it") do
         status != "held" || claimed_at.value + window.value <= now.value
@@ -265,6 +266,7 @@ Hecks.bluebook "QualityControl" do
       # carry it. Required, so an omitted streak can neither blank the counter nor guess at it.
       reference_to Target
       attribute :now,          Instant
+      needs :now
       attribute :next_streak,  CleanStreak
       # Required: an in-process dispatch does not fill defaults for absent arguments, so an omitted
       # list refuses rather than blanks. `capabilities.value=""` is an honest value.
@@ -1115,6 +1117,7 @@ Hecks.bluebook "QualityControl" do
       reference_to Bug
       attribute :held_by, Engineer
       attribute :now,     Instant
+      needs :now
 
       given("a live claim is not taken from the agent holding it") do
         held_by.value == "nobody" || claimed_at.value + window.value <= now.value
@@ -1388,6 +1391,7 @@ Hecks.bluebook "QualityControl" do
       attribute :proposer,  Proposer
       # `now:` is filled from the clock port, as in `Target.Claim`; an explicit value wins.
       attribute :now,       Instant
+      needs :now
 
       sets :proposed_at, to: :now
 
@@ -1784,6 +1788,7 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
       attribute :title,  PatchTitle
       attribute :now,    Instant
+      needs :now
 
       given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
       given("the bug is fixed") { bug.status == "fixed" }
@@ -1921,6 +1926,7 @@ Hecks.bluebook "QualityControl" do
       attribute :branch, ImprovementBranch
       attribute :title,  ImprovementTitle
       attribute :now,    Instant
+      needs :now
 
       given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
       given("the angle is under investigation") { angle.unset? || angle.status == "investigating" }

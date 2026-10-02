@@ -108,6 +108,9 @@
             }
           ],
           "name": "Tag",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Maintainer"
@@ -131,6 +134,9 @@
 
           ],
           "name": "MarkPublished",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
@@ -157,6 +163,9 @@
 
           ],
           "name": "Verify",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
@@ -358,6 +367,9 @@
             }
           ],
           "name": "Record",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Maintainer"
@@ -381,6 +393,9 @@
 
           ],
           "name": "Invalidate",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SyntaxBootCache",
           "role": "Maintainer"
@@ -404,6 +419,9 @@
 
           ],
           "name": "Rebuild",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SyntaxBootCache",
           "role": "Maintainer"
@@ -528,6 +546,27 @@
       "replacement": ".size",
       "source_token": ".length",
       "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
     }
   ],
   "classification": null,

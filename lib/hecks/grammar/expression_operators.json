@@ -1645,6 +1645,141 @@
       }
     },
     {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": {
+          "value": "days_to_seconds"
+        },
+        "strategy": {
+          "value": "scale_call"
+        },
+        "source_token": {
+          "value": "days"
+        },
+        "replacement": {
+          "value": "86400"
+        },
+        "boundary": {
+          "value": "word"
+        },
+        "position": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "days_to_seconds"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "text.gsub(/(?<![[:alnum:]_.])days\\(\\s*(\\d+)\\s*\\)/) { $1.to_i * 86400 }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": {
+          "value": "days_to_seconds"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": {
+          "value": "hours_to_seconds"
+        },
+        "strategy": {
+          "value": "scale_call"
+        },
+        "source_token": {
+          "value": "hours"
+        },
+        "replacement": {
+          "value": "3600"
+        },
+        "boundary": {
+          "value": "word"
+        },
+        "position": {
+          "value": 4
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "hours_to_seconds"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "text.gsub(/(?<![[:alnum:]_.])hours\\(\\s*(\\d+)\\s*\\)/) { $1.to_i * 3600 }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": {
+          "value": "hours_to_seconds"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": {
+          "value": "minutes_to_seconds"
+        },
+        "strategy": {
+          "value": "scale_call"
+        },
+        "source_token": {
+          "value": "minutes"
+        },
+        "replacement": {
+          "value": "60"
+        },
+        "boundary": {
+          "value": "word"
+        },
+        "position": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "minutes_to_seconds"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "text.gsub(/(?<![[:alnum:]_.])minutes\\(\\s*(\\d+)\\s*\\)/) { $1.to_i * 60 }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": {
+          "value": "minutes_to_seconds"
+        }
+      }
+    },
+    {
       "verb": "Expression::Operator.Propose",
       "args": {
         "symbol": {

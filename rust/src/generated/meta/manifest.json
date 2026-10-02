@@ -159,6 +159,12 @@
     "routed": true
   },
   {
+    "kind": "command",
+    "id": "Bluebook::Command.Need",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "aggregate",
     "id": "Bluebook::Entity",
     "generated": true

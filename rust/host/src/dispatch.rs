@@ -282,6 +282,12 @@ async fn run(
     // carries whatever role it was dispatched with. Built as a mutable
     // step, not inlined into the `json!` literal, so a roleless call
     // still omits the `"role"` key entirely rather than sending null.
+    // A fact the command `needs` is answered here, before the kernel's gates read the arguments and
+    // before the step is journaled, so a replay re-dispatches the recorded answer (ADR 0081).
+    let mut args = args;
+    if let Some(domain_ir) = crate::ir::ir() {
+        crate::needs::fill_needs(domain_ir, verb, &mut args, &crate::needs::ProcessClock);
+    }
     let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
     if let Some(role) = role {
         step["role"] = serde_json::Value::String(role.to_string());
@@ -317,7 +323,15 @@ async fn run(
         }))
         .collect::<Vec<_>>());
 
-    let input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed }).to_string();
+    let mut input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed });
+    // Lets the kernel answer a reaction's command that needs a fact the same way (ADR 0081).
+    if let Some(domain_ir) = crate::ir::ir() {
+        let table = crate::needs::table(domain_ir);
+        if table.as_object().is_some_and(|t| !t.is_empty()) {
+            input["needs"] = table;
+        }
+    }
+    let input = input.to_string();
     // `wasm_runner::run` is sync, and wasmtime-wasi's sync bridge spins up
     // its own tokio runtime internally — fatal on a thread already
     // driving one. `spawn_blocking` moves it off this async runtime.

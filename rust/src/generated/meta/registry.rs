@@ -559,6 +559,18 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::command::dispatch_announce(&mut store.command, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::Command.Need" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::command::NeedArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::command::NeedArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::command::NeedArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::command::NeedArgs::from_json(v)?; args.fact.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Need", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::command::NeedArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::command::NeedArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::command::NeedArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::command::NeedArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::command::NeedArgs::from_json(v)?; args.fact.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Need", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::command::NeedArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Need", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::command::dispatch_need(&mut store.command, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::Entity.Declare" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -1280,6 +1292,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Command.Change" => false,
         "Bluebook::Command.ActsOn" => false,
         "Bluebook::Command.Announce" => false,
+        "Bluebook::Command.Need" => false,
         "Bluebook::Entity.Declare" => true,
         "Bluebook::Entity.Identify" => false,
         "Bluebook::Entity.Seal" => false,
@@ -1374,6 +1387,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Bluebook::Command.Change" => &["target", "op", "field", "kind", "source"],
         "Bluebook::Command.ActsOn" => &["root"],
         "Bluebook::Command.Announce" => &["announces"],
+        "Bluebook::Command.Need" => &["fact"],
         "Bluebook::Entity.Declare" => &["aggregate", "owner", "name", "description", "position"],
         "Bluebook::Entity.Identify" => &["path"],
         "Bluebook::Entity.Seal" => &[],

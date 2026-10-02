@@ -487,3 +487,68 @@ fn usage_errors_exit_2() {
     let output = run(&["bogus-subcommand"]);
     assert_eq!(output.status.code(), Some(2));
 }
+
+/// Parses `body` (a Command's inner lines) as a one-command chapter; returns (exit code, stdout, stderr).
+fn parse_command_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
+    let dir = std::env::temp_dir().join(format!("hecks_parse_{tag}_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("needs.bluebook");
+    let source = format!(
+        "Hecks.bluebook \"NeedsFixture\" do\n  aggregate \"Clock\" do\n    command \"Stamp\" do\n{body}    end\n  end\nend\n"
+    );
+    std::fs::write(&path, source).unwrap();
+    let output = run(&["chapter", "--chapter", "NeedsFixture", path.to_str().unwrap()]);
+    std::fs::remove_dir_all(&dir).ok();
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn needs_now_emits_a_needs_array_after_ensures() {
+    let (code, stdout, stderr) =
+        parse_command_body("needs_ok", "      attribute :now, Integer\n      needs :now\n");
+    assert_eq!(code, Some(0), "stderr={stderr}");
+    let compact: String = stdout.split_whitespace().collect();
+    assert!(compact.contains("\"needs\":[{\"fact\":\"now\"}]"), "got: {stdout}");
+    assert!(
+        compact.find("\"ensures\"").unwrap() < compact.find("\"needs\"").unwrap()
+            && compact.find("\"needs\"").unwrap() < compact.find("\"mutations\"").unwrap(),
+        "needs must sit between ensures and mutations: {stdout}"
+    );
+}
+
+#[test]
+fn a_command_without_needs_emits_an_empty_needs_array() {
+    let (code, stdout, stderr) = parse_command_body("needs_none", "      attribute :now, Integer\n");
+    assert_eq!(code, Some(0), "stderr={stderr}");
+    let compact: String = stdout.split_whitespace().collect();
+    assert!(compact.contains("\"needs\":[]"), "got: {stdout}");
+}
+
+#[test]
+fn needs_refuses_a_fact_the_runtime_cannot_supply() {
+    let (code, _, stderr) =
+        parse_command_body("needs_bad", "      attribute :user, String\n      needs :user\n");
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("cannot supply"), "got: {stderr}");
+}
+
+#[test]
+fn needs_refuses_a_need_with_no_attribute_to_fill() {
+    let (code, _, stderr) = parse_command_body("needs_undeclared", "      needs :now\n");
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("declares no attribute :now"), "got: {stderr}");
+}
+
+#[test]
+fn needs_refuses_the_same_fact_twice() {
+    let (code, _, stderr) = parse_command_body(
+        "needs_twice",
+        "      attribute :now, Integer\n      needs :now\n      needs :now\n",
+    );
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("twice"), "got: {stderr}");
+}

@@ -39,7 +39,7 @@ module Hecks
         query_answers_match_reference:                    %w[Query#wheres Query#order_field Query#order_way Query#limit],
         paging_offset_partitions_correctly:               %w[Query#options],
         authorize_scopes_or_refuses:                      %w[Query#options],
-        guard_refusals_are_declared:                      %w[Command#givens Command#ensures],
+        guard_refusals_are_declared:                      %w[Command#givens Command#ensures Command#needs],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions Entity#preconditions],
         # Dispatch#command_name/with_spec aren't claimable feature names — the
         # coverage walk only reaches one level of entity nesting and Dispatch

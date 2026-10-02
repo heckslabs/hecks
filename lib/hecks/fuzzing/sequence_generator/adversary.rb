@@ -212,9 +212,10 @@ module Hecks
           if mapped.empty? && !entry.key?(:entity) && command.creates?
             mapped = command.attributes.map { |attribute| attribute.name.to_s }
           end
+          needed = needed_facts_of(entry)
           command.attributes.select do |attribute|
             name = attribute.name.to_s
-            mapped.include?(name) && args.key?(name) && !heads.include?(name)
+            mapped.include?(name) && args.key?(name) && !heads.include?(name) && !needed.include?(name)
           end
         end
 
@@ -352,11 +353,18 @@ module Hecks
         end
 
         def droppable_required_attributes(args, entry)
-          heads = identity_heads_of(entry)
+          heads  = identity_heads_of(entry)
+          needed = needed_facts_of(entry)
           entry[:command].attributes.reject(&:optional?).select do |attribute|
-            args.key?(attribute.name.to_s) && !heads.include?(attribute.name.to_s)
+            name = attribute.name.to_s
+            args.key?(name) && !heads.include?(name) && !needed.include?(name)
           end
         end
+
+        # The facts the command `needs`: the runtime answers them when a step leaves them out
+        # (each engine from its own clock), so a recorded step carries them and dropping one is not
+        # an absent-argument case.
+        def needed_facts_of(entry) = entry[:command].needs.map(&:to_s)
 
         # Aims a grant at a role some command declares; random role text would make `actor_known`
         # unreachable. Does nothing without the role draw.

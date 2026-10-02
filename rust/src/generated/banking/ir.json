@@ -272,6 +272,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "reference",
@@ -330,6 +333,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "standing",
@@ -359,6 +365,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -392,6 +401,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1051,6 +1063,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "customer",
@@ -1147,6 +1162,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1356,6 +1374,9 @@
               }
             }
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -1418,6 +1439,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -1460,6 +1484,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1523,6 +1550,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1615,6 +1645,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1713,6 +1746,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "FeeApplied",
@@ -1791,6 +1827,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1913,6 +1952,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -2229,6 +2271,9 @@
               "ensures": [
 
               ],
+              "needs": [
+
+              ],
               "mutations": [
                 {
                   "target": "amount",
@@ -2343,6 +2388,9 @@
                 }
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -2881,6 +2929,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "customer",
@@ -2951,6 +3002,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -2993,6 +3047,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3479,6 +3536,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "account",
@@ -3556,6 +3616,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -3654,6 +3717,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "withdrawals",
@@ -3706,6 +3772,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -3748,6 +3817,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -4017,6 +4089,9 @@
                 }
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -4453,6 +4528,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "account",
@@ -4563,6 +4641,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -4627,6 +4708,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -4695,6 +4779,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -4759,6 +4846,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -4835,6 +4925,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -4914,6 +5007,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -4978,6 +5074,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -5629,6 +5728,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "customer",
@@ -5708,6 +5810,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -5782,6 +5887,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "visits",
@@ -5842,6 +5950,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -6018,6 +6129,9 @@
                 }
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -6240,6 +6354,9 @@
                 }
               ],
               "ensures": [
+
+              ],
+              "needs": [
 
               ],
               "mutations": [
@@ -6683,6 +6800,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "account",
@@ -7112,6 +7232,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "amount",
@@ -7222,6 +7345,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -7286,6 +7412,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -7354,6 +7483,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -7420,6 +7552,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -7484,6 +7619,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -8008,6 +8146,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "account",
@@ -8118,6 +8259,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -8184,6 +8328,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -8248,6 +8395,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -8824,6 +8974,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "account",
@@ -8934,6 +9087,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -9000,6 +9156,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -9064,6 +9223,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -9191,6 +9353,9 @@
               }
             }
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "attempts",
@@ -9291,6 +9456,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -10165,6 +10333,27 @@
       "replacement": ".size",
       "boundary": "word",
       "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
     }
   ],
   "lineage": {

@@ -343,6 +343,71 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Need {
+    pub fact: String,
+}
+
+impl crate::kernel::Fielded for Need {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "fact" => Some(Field::Value(Value::Str(self.fact.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("fact") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+
+impl Need {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Need {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("fact".to_string(), crate::kernel::Json::Str(self.fact.clone())),
+        ])
+    }
+}
+
+impl Need {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Need expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["fact"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Need",
+        unknown: &unknown,
+        declared: &["fact"],
+    }.render_args()));
+}
+        Ok(Self {
+        fact: { let x = v.get("fact").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Need.fact expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Need.fact expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Need.fact: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Argument {
     pub name: String,
     pub r#type: String,
@@ -1055,6 +1120,71 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct FactName {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for FactName {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+
+impl FactName {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl FactName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl FactName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FactName expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "FactName",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
+}
+        Ok(Self {
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FactName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("FactName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("FactName.value: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeywordSeed {
     pub word: &'static str,
     pub context: &'static str,
@@ -1081,6 +1211,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "state", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "attribute", context: "Command", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "needs", context: "Command", body: "none", inner: "", opens: "", fills: "needs", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "corrects", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
 
@@ -1138,6 +1269,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "reference_to", context: "Command", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "given", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "ensures", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "needs", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "fact", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "sets", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "to", kind: "literal", required: "false", fills: "source", selects: "op=set", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "append", kind: "literal", required: "false", fills: "source", selects: "op=append", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
@@ -1216,6 +1348,7 @@ pub struct Command {
     pub attributes: Vec<Argument>,
     pub givens: Vec<Rule>,
     pub ensures: Vec<Rule>,
+    pub needs: Vec<Need>,
     pub mutations: Vec<Change>,
     pub provenance: Option<CommandText>,
     pub from: Option<CommandText>,
@@ -1236,6 +1369,7 @@ impl crate::kernel::Fielded for Command {
             "attributes" => Some(Field::Value(Value::List(self.attributes.len()))),
             "givens" => Some(Field::Value(Value::List(self.givens.len()))),
             "ensures" => Some(Field::Value(Value::List(self.ensures.len()))),
+            "needs" => Some(Field::Value(Value::List(self.needs.len()))),
             "mutations" => Some(Field::Value(Value::List(self.mutations.len()))),
             "provenance" => self.provenance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "from" => self.from.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -1252,6 +1386,7 @@ impl crate::kernel::Fielded for Command {
             "attributes" => Some(self.attributes.iter().map(|v| Field::Nested(v)).collect()),
             "givens" => Some(self.givens.iter().map(|v| Field::Nested(v)).collect()),
             "ensures" => Some(self.ensures.iter().map(|v| Field::Nested(v)).collect()),
+            "needs" => Some(self.needs.iter().map(|v| Field::Nested(v)).collect()),
             "mutations" => Some(self.mutations.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
@@ -1275,6 +1410,7 @@ impl Command {
         ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
         ("givens".to_string(), crate::kernel::Json::Array(self.givens.iter().map(|x| x.to_json()).collect())),
         ("ensures".to_string(), crate::kernel::Json::Array(self.ensures.iter().map(|x| x.to_json()).collect())),
+        ("needs".to_string(), crate::kernel::Json::Array(self.needs.iter().map(|x| x.to_json()).collect())),
         ("mutations".to_string(), crate::kernel::Json::Array(self.mutations.iter().map(|x| x.to_json()).collect())),
         ("provenance".to_string(), self.provenance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("from".to_string(), self.from.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -1299,6 +1435,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         givens: match v.get("givens").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         ensures: match v.get("ensures").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        needs: match v.get("needs").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| Need::from_json(&item.coerce_single_field("fact"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         mutations: match v.get("mutations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Change::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), },
         from: match v.get("from") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), },
@@ -1427,6 +1564,7 @@ pub fn dispatch_declare(
             attributes: vec![],
             givens: vec![],
             ensures: vec![],
+            needs: vec![],
             mutations: vec![],
             provenance: args.provenance.clone(),
             from: args.from.clone(),
@@ -1448,6 +1586,7 @@ pub fn dispatch_declare(
             attributes: vec![],
             givens: vec![],
             ensures: vec![],
+            needs: vec![],
             mutations: vec![],
             provenance: args.provenance.clone(),
             from: args.from.clone(),
@@ -2707,6 +2846,146 @@ if !absent.is_empty() {
         command: "Announce",
         absent: &absent,
         declared: &["announces"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for NeedArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "fact" => Some(Field::Nested(&self.fact)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct NeedArgs {
+    pub fact: FactName,
+}
+
+pub fn dispatch_need(
+    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: NeedArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Command> {
+        args.fact.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, COMMAND_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Need",
+        "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a fact is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("fact.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.needs.push(Need { fact: args.fact.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &command_invariants(),
+        &["NeedNamed"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl NeedArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("fact".to_string(), self.fact.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl NeedArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NeedArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["fact", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Need",
+        unknown: &unknown,
+        declared: &["fact"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["fact"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Need",
+        absent: &absent,
+        declared: &["fact"],
+    }.render_args()));
+}
+        let fact = FactName::from_json(&(match v.get("fact").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NeedArgs.fact expects FactName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        fact.check_invariants()?;
+        Ok(Self {
+        fact,
+        })
+    }
+}
+
+impl NeedArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NeedArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["fact", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Need",
+        unknown: &unknown,
+        declared: &["fact"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["fact"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Need",
+        absent: &absent,
+        declared: &["fact"],
     }.render_args()));
 }
         Ok(())

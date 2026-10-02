@@ -327,6 +327,9 @@
 
           ],
           "name": "Propose",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language designer"
@@ -398,6 +401,9 @@
             }
           ],
           "name": "Render",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -445,6 +451,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -468,6 +477,9 @@
 
           ],
           "name": "Retire",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Operator",
           "role": "Language designer"
@@ -1107,26 +1119,48 @@
                 },
                 "op": "or",
                 "right": {
-                  "cmp": {
-                    "equal": true,
-                    "less_than": false,
-                    "negated": false
-                  },
                   "left": {
-                    "op": "lookup",
-                    "path": [
-                      "strategy",
-                      "value"
-                    ]
+                    "cmp": {
+                      "equal": true,
+                      "less_than": false,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "strategy",
+                        "value"
+                      ]
+                    },
+                    "op": "compare",
+                    "right": {
+                      "op": "str",
+                      "value": "replace"
+                    }
                   },
-                  "op": "compare",
+                  "op": "or",
                   "right": {
-                    "op": "str",
-                    "value": "replace"
+                    "cmp": {
+                      "equal": true,
+                      "less_than": false,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "strategy",
+                        "value"
+                      ]
+                    },
+                    "op": "compare",
+                    "right": {
+                      "op": "str",
+                      "value": "scale_call"
+                    }
                   }
                 }
               },
-              "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\"",
+              "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\" || strategy.value == \"scale_call\"",
               "description": "a rule must name a linked strategy"
             },
             {
@@ -1180,6 +1214,9 @@
 
           ],
           "name": "Propose",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language designer"
@@ -1251,6 +1288,9 @@
             }
           ],
           "name": "Read",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1298,6 +1338,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1321,6 +1364,9 @@
 
           ],
           "name": "Retire",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
@@ -1719,6 +1765,72 @@
                 "position",
                 2
               ]
+            ],
+            [
+              [
+                "strategy",
+                "scale_call"
+              ],
+              [
+                "source_token",
+                "days"
+              ],
+              [
+                "replacement",
+                86400
+              ],
+              [
+                "boundary",
+                "word"
+              ],
+              [
+                "position",
+                3
+              ]
+            ],
+            [
+              [
+                "strategy",
+                "scale_call"
+              ],
+              [
+                "source_token",
+                "hours"
+              ],
+              [
+                "replacement",
+                3600
+              ],
+              [
+                "boundary",
+                "word"
+              ],
+              [
+                "position",
+                4
+              ]
+            ],
+            [
+              [
+                "strategy",
+                "scale_call"
+              ],
+              [
+                "source_token",
+                "minutes"
+              ],
+              [
+                "replacement",
+                60
+              ],
+              [
+                "boundary",
+                "word"
+              ],
+              [
+                "position",
+                5
+              ]
             ]
           ],
           "name": "Rule"
@@ -1916,6 +2028,9 @@
 
           ],
           "name": "Extract",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "System"
@@ -1966,6 +2081,9 @@
             }
           ],
           "name": "Note",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"
@@ -2028,6 +2146,9 @@
 
           ],
           "name": "Admit",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"
@@ -2060,6 +2181,9 @@
 
           ],
           "name": "Reject",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Expression",
           "role": "System"
@@ -2539,6 +2663,27 @@
       "replacement": ".size",
       "source_token": ".length",
       "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
     }
   ],
   "classification": "generic",

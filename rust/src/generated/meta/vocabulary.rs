@@ -455,13 +455,14 @@ impl Primitive {
 pub enum NormalisationStrategy {
     CollapseWhitespace,
     Replace,
+    ScaleCall,
 }
 
 impl crate::kernel::Fielded for NormalisationStrategy {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { NormalisationStrategy::CollapseWhitespace => "collapse_whitespace".to_string(), NormalisationStrategy::Replace => "replace".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { NormalisationStrategy::CollapseWhitespace => "collapse_whitespace".to_string(), NormalisationStrategy::Replace => "replace".to_string(), NormalisationStrategy::ScaleCall => "scale_call".to_string(), }))),
             _ => None,
         }
     }
@@ -475,6 +476,7 @@ impl NormalisationStrategy {
         let member = match self {
             NormalisationStrategy::CollapseWhitespace => "collapse_whitespace",
             NormalisationStrategy::Replace => "replace",
+            NormalisationStrategy::ScaleCall => "scale_call",
         };
         crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
     }
@@ -522,10 +524,11 @@ impl NormalisationStrategy {
         match candidate.ruby_to_s().as_str() {
             "collapse_whitespace" => Ok(NormalisationStrategy::CollapseWhitespace),
             "replace" => Ok(NormalisationStrategy::Replace),
+            "scale_call" => Ok(NormalisationStrategy::ScaleCall),
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                     r#type: "NormalisationStrategy",
-                    admitted: &["collapse_whitespace", "replace"],
+                    admitted: &["collapse_whitespace", "replace", "scale_call"],
                     offered: candidate.inspect().as_str(),
                 }
                 .render_args(),

@@ -63,6 +63,30 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
+  # `Command.Need` is real DSL surface only a command that asks the runtime for a fact reaches,
+  # and no corpus chapter the judge walks declares one that way, so a small fixture does (ADR 0081).
+  def needs_chapter
+    @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage") do
+      aggregate "Clocked" do
+        attribute :ref, ClockedRef
+        attribute :issued_at, ClockedInstant, optional: true
+        identified_by :ref
+
+        value_object("ClockedRef")     { attribute :value, String }
+        value_object("ClockedInstant") { attribute :value, Integer }
+
+        command "Issue" do
+          attribute :ref, ClockedRef
+          attribute :now, ClockedInstant
+          needs :now
+          sets :ref
+          sets :issued_at, to: :now
+          emits "ClockedIssued"
+        end
+      end
+    end
+  end
+
   attr_reader :banking
   attr_reader :paging
   attr_reader :governance
@@ -96,7 +120,7 @@ RSpec.describe "the judge's coverage of the language" do
   # another chapter is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
     offered_in_order + offered_in_order(paging) + offered_in_order(grammar) +
-      offered_in_order(relationships) + offered_in_order(governance)
+      offered_in_order(relationships) + offered_in_order(governance) + offered_in_order(needs_chapter)
   end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge would

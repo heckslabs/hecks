@@ -7,6 +7,7 @@ pub mod expr;
 pub mod expression_operators;
 pub mod json;
 pub mod named_query;
+pub mod needs;
 pub mod orchestrate;
 pub mod pattern;
 pub mod query_ordering;

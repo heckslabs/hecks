@@ -226,6 +226,10 @@ pub fn orchestrate<S: AggregateScan>(
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
 ) -> Result<(), Refusal> {
+    // A fact the command `needs` is answered ahead of every gate (ADR 0081), for a reaction's
+    // dispatch as for the outermost one.
+    let enriched = super::needs::enrich(verb, args, occurred_at);
+    let args = enriched.as_ref().unwrap_or(args);
     let mut events = dispatch_fn(store, verb, args, caller_role, caller_actor_id, mutations)?;
 
     if let Some(stamp) = saga_correlation {
@@ -1269,6 +1273,86 @@ mod tests {
              then B's and A's own forward dispatches to be logged delivered once their \
              downstream cascade returns — saga_log was: {saga_log:?}"
         );
+    }
+
+    // Stands in for a command whose generated `refuse_absent_arguments` lists `now` as declared
+    // and non-optional: it refuses when `now` is missing and records what the gates saw.
+    thread_local! { static SEEN: std::cell::RefCell<Option<Json>> = const { std::cell::RefCell::new(None) }; }
+    fn strict_now_dispatch(
+        _store: &mut MultiLegTestStore,
+        _verb: &str,
+        args: &Json,
+        _caller_role: Option<&str>,
+        _caller_actor_id: Option<&str>,
+        _mutations: &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal> {
+        let facts = args.get("with").unwrap_or(args);
+        if facts.get("now").is_none() {
+            return Err(Refusal::GivenNotMet("absent argument: now".to_string()));
+        }
+        SEEN.with(|s| *s.borrow_mut() = Some(facts.clone()));
+        Ok(vec![])
+    }
+
+    fn run_strict_now(verb: &str, args: &Json, occurred_at: Option<&str>) -> Result<(), Refusal> {
+        static NONE_P: &[PolicyRule] = &[];
+        static NONE_X: &[CrossDomainPolicyRule] = &[];
+        static NONE_M: &[ProcessManagerDef] = &[];
+        static NONE_Q: &[crate::kernel::QueryDef] = &[];
+        let tables = Tables {
+            policies: NONE_P,
+            cross_domain_policies: NONE_X,
+            process_managers: NONE_M,
+            reference_key_fn: multi_leg_no_reference_key,
+            queries: NONE_Q,
+            command_creates_fn: multi_leg_always_creates,
+            identity_head_fn: multi_leg_no_identity_head,
+            command_attributes_fn: multi_leg_no_declared_attributes,
+            entity_identity_head_fn: multi_leg_no_entity_identity_head,
+        };
+        SEEN.with(|s| *s.borrow_mut() = None);
+        orchestrate(
+            &mut MultiLegTestStore,
+            strict_now_dispatch,
+            tables,
+            &mut HashMap::new(),
+            verb,
+            args,
+            None,
+            None,
+            None,
+            occurred_at,
+            0,
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+        )
+    }
+
+    // Both kernel-path guarantees at once: the fill lands before the absent-argument gate runs, so
+    // the strict refusal does not fire for a needed fact, and a supplied value is the one the
+    // gates see.
+    #[test]
+    fn a_needed_fact_is_answered_before_the_absent_argument_gate_and_a_supplied_one_is_kept() {
+        let table = Json::parse(r#"{"T::Slot.Lease": [{"fact": "now", "type": "Integer"}]}"#).unwrap();
+        crate::kernel::needs::install(Some(&table));
+        crate::kernel::needs::fix_clock(Some(77));
+
+        let args = Json::obj(vec![("with", Json::obj(vec![("holder", Json::str("a"))]))]);
+        assert!(run_strict_now("T::Slot.Lease", &args, None).is_ok());
+        SEEN.with(|s| assert_eq!(s.borrow().as_ref().unwrap().get("now"), Some(&Json::int(77))));
+
+        let supplied = Json::obj(vec![("with", Json::obj(vec![("now", Json::int(5))]))]);
+        assert!(run_strict_now("T::Slot.Lease", &supplied, None).is_ok());
+        SEEN.with(|s| assert_eq!(s.borrow().as_ref().unwrap().get("now"), Some(&Json::int(5))));
+
+        // A command that declares no need keeps the strict refusal.
+        assert!(run_strict_now("T::Slot.Other", &args, None).is_err());
+
+        crate::kernel::needs::fix_clock(None);
+        crate::kernel::needs::install(None);
     }
 
     // Pins domain-qualifying a same-domain entity command (`Manifest::Slot.Fill`): its leftover

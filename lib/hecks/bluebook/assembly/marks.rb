@@ -74,6 +74,9 @@ module Hecks
           Given.new(description: rule[:description], canonical: rule[:canonical])
         end
 
+        # One outside fact a command needs, as the Symbol `Command#needs` holds.
+        def need(row) = row[:fact].to_sym
+
         # All three fields are identifiers, unlike Invariant/Given's free text, so they
         # come back as Symbols.
         def projected_field(row)

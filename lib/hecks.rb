@@ -27,8 +27,7 @@ require_relative "hecks/projector"
 # every target registers itself as it loads, so this require is the
 # installation of them.
 require_relative "hecks/projections"
-# After `Projector` (dispatches against the `:cli` projection) and
-# `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
+# After `Projector`, which dispatches against the `:cli` projection.
 require_relative "hecks/doors/cli_door"
 require_relative "hecks/doors/cli_runner"
 require_relative "hecks/storehouse"

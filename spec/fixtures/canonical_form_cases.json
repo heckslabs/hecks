@@ -1,0 +1,24 @@
+{
+  "note": "Predicate source and the canonical text both engines must give it. Read by spec/canonical_form_spec.rb (Ruby) and rust/parser/tests (Rust), so the two canonical forms cannot drift apart on a case written here.",
+  "cases": [
+    { "source": "a   <   b", "canonical": "a < b" },
+    { "source": "a\t<\n\nb", "canonical": "a < b" },
+    { "source": "  a < b  ", "canonical": "a < b" },
+    { "source": "items.length > 0", "canonical": "items.size > 0" },
+    { "source": "dims.length_cm > 0", "canonical": "dims.length_cm > 0" },
+    { "source": "name   ==   \"a  b\"", "canonical": "name == \"a  b\"" },
+    { "source": "label == \"x.length\"", "canonical": "label == \"x.length\"" },
+    { "source": "name   ==   'a  b'", "canonical": "name == 'a  b'" },
+    { "source": "issued_at.value + days(730) > now.value", "canonical": "issued_at.value + 63072000 > now.value" },
+    { "source": "a + hours(2) < b", "canonical": "a + 7200 < b" },
+    { "source": "since + minutes(15) <= now", "canonical": "since + 900 <= now" },
+    { "source": "a + days( 1 ) < b", "canonical": "a + 86400 < b" },
+    { "source": "a +   hours( 2 )  <  b", "canonical": "a + 7200 < b" },
+    { "source": "days(n) > 0", "canonical": "days(n) > 0" },
+    { "source": "days(1.5) > 0", "canonical": "days(1.5) > 0" },
+    { "source": "x.days(3) == 1", "canonical": "x.days(3) == 1" },
+    { "source": "workdays(3) > 0", "canonical": "workdays(3) > 0" },
+    { "source": "label == \"days(3)\"", "canonical": "label == \"days(3)\"" },
+    { "source": "a + days(1) < b + hours(1)", "canonical": "a + 86400 < b + 3600" }
+  ]
+}

@@ -133,8 +133,11 @@ module Hecks
 
       private
 
-      # No-op — entities have no `decode_arguments` step of their own.
-      def step_decode_arguments(_ctx); end
+      # Answers the outside facts the entity command `needs`, as the aggregate interpreter does;
+      # the arguments are otherwise already decoded.
+      def step_decode_arguments(ctx)
+        ctx.args = enrich_arguments(ctx.command, ctx.args)
+      end
 
       # `extra_identity_heads:` covers every entity in `ctx.chain`, not just
       # the root — each hop is addressed by its own identity fields, which

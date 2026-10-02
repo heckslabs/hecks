@@ -273,6 +273,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -315,6 +318,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -551,6 +557,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -595,6 +604,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -637,6 +649,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1044,6 +1059,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -1127,6 +1145,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "processor",
@@ -1206,6 +1227,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -1248,6 +1272,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1333,6 +1360,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "processor",
@@ -1412,6 +1442,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -1454,6 +1487,9 @@
             }
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -1596,6 +1632,27 @@
       "replacement": ".size",
       "boundary": "word",
       "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
     }
   ],
   "lineage": {

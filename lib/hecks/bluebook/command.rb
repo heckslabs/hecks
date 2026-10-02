@@ -54,6 +54,7 @@ module Hecks
         attributes: many(:attributes),
         givens:     -> { givens.map { |rule| Expression::AstJson.rule_row(rule) } },
         ensures:    -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
+        needs:      -> { needs.map { |fact| { fact: fact.to_s } } },
         mutations:  many(:mutations),
         emits:      :emits,
         # The lifecycle state this command is admissible from: a guard, not a transition.
@@ -62,7 +63,7 @@ module Hecks
       )
 
       class << self
-        attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references,
+        attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
                     :from, :provenance
 
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
@@ -71,18 +72,18 @@ module Hecks
         # @param role [String, nil] the declared role text; `goal` is the goal text
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
-        # @param ensures [Array<Bluebook::Given>] the declared postconditions
+        # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
         # @param mutations [Array<Bluebook::Mutation>] the state changes it applies
         # @param emits [Array<String>] the event names it may emit
         # @param references [String, Symbol, nil] the aggregate its `reference_to` addresses
         # @param from [String, Array<String>, nil] the lifecycle states it is admissible from
         # @param provenance [Object, nil] the declared canonical source, as written
-        def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [],
+        def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [], needs: [],
                     mutations: [], emits: [], references: nil, from: nil, provenance: nil)
           verb = Class.new(self)
           verb.hecks_name = name.to_s
           verb.absorb(role: role, goal: goal, attributes: attributes, givens: givens,
-                      ensures: ensures, mutations: mutations, emits: emits, references: references&.to_s,
+                      ensures: ensures, needs: needs, mutations: mutations, emits: emits, references: references&.to_s,
                       from: from, provenance: provenance)
           verb
         end
@@ -93,12 +94,13 @@ module Hecks
         #
         # @return [Class] self
         def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:,
-                   from: nil, provenance: nil)
+                   needs: [], from: nil, provenance: nil)
           @role       = role
           @goal       = goal
           @attributes = attributes
           @givens     = givens
           @ensures    = ensures
+          @needs      = needs
           @mutations  = mutations
           @emits      = emits
           @references = references

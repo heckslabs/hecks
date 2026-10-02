@@ -41,6 +41,7 @@ module Hecks
           ["Command", "then_set"] => :then_set_impl,
           ["Command", "delegates_to"] => :delegates_to_impl,
           ["Command", "attribute"] => :attribute_impl,
+          ["Command", "needs"] => :needs_impl,
           ["Command", "corrects"] => :corrects_impl,
           ["Entity", "identified_by"] => :identified_by_impl,
           ["Entity", "given"] => :given_impl,

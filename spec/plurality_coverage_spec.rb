@@ -29,7 +29,12 @@ RSpec.describe "every list the language declares, filled more than once" do
     # "authorization"`), a framework member with no golden IR fixture.
     "provides"    =>
                      "Governance provides authorization with three rows (assignments, grant, " \
-                     "transitions) — a framework member, so no golden IR fixture reaches it."
+                     "transitions) — a framework member, so no golden IR fixture reaches it.",
+    # `now` is the one fact a command can need (ADR 0081) and the builder refuses a fact declared
+    # twice, so no bluebook can fill the list with more than one until a second fact exists.
+    "needs"       =>
+                     "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
+                     "needs hold at most one row until a second fact is admitted."
   }.freeze
 
   # The corpus is every frozen IR, the same set `ir_golden_spec` walks.
