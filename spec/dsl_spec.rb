@@ -306,7 +306,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it ".boot_described finishes a boot from what describe loaded, reading nothing again" do
-      described = Hecks.describe(File.expand_path("../examples/pizzas", __dir__))
+      described = Hecks.describe(File.expand_path("../examples/banking", __dir__))
 
       runtime = Hecks.boot_described(described, install_doors: false)
 
