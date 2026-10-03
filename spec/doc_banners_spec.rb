@@ -24,6 +24,7 @@ module DocBanners
     COMMENT_STYLE_GUIDE_RUST.md
     migrating-2-to-3.md
     rubocop-custom-cops.md
+    site-routes.md
     tools.md
   ].freeze
 

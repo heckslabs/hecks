@@ -1,0 +1,5 @@
+# The Site domain, bound so it boots standing alone. The SiteToolchain port every attaching
+# hecksagon shares is in site.ports.hecksagon.
+Hecks.hecksagon "Site" do
+  persisted_by "Memory"
+end

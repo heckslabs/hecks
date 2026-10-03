@@ -1,0 +1,38 @@
+# A studio's one domain chapter: a visitor sends an inquiry. The route table in
+# studio_site.bluebook reaches its command through the forms scheme.
+Hecks.bluebook "Studio" do
+  vision "A studio takes inquiries from visitors."
+
+  aggregate "Inquiry" do
+    description "One message a visitor sent the studio."
+
+    attribute :email,   EmailAddress
+    attribute :message, MessageText
+    identified_by :email
+
+    value_object "EmailAddress" do
+      attribute :value, String, pattern: '[^@ ]+@[^@ ]+'
+    end
+
+    value_object "MessageText" do
+      attribute :value, String
+    end
+
+    command "Submit" do
+      goal "Record a visitor's inquiry"
+
+      attribute :email,   EmailAddress
+      attribute :message, MessageText
+
+      sets :email
+      sets :message
+
+      emits "InquirySubmitted"
+    end
+
+    query "Recent" do
+      description "Every inquiry, newest first."
+      order_by :email
+    end
+  end
+end
