@@ -113,9 +113,9 @@ RSpec.describe "the launcher's opt-in options" do
     it "lists the alias, not the internal name, and keeps both spellings working" do
       help = run_verb.first
 
-      expect(help).to match(/^  mcp /)
-      expect(help).to match(/^  console /)
-      expect(help).not_to match(/^  serve_mcp /)
+      expect(help).to match(/^\s+mcp /)
+      expect(help).to match(/^\s+console /)
+      expect(help).not_to match(/^\s+serve_mcp /)
       expect(run_verb("serve_mcp", "--help").first).to include("dispatches")
       expect(run_verb("mcp", "--help").first).to start_with("mcp")
     end

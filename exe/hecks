@@ -21,6 +21,10 @@ if LEGACY.include?(ARGV.first)
   exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
 end
 
+# These verbs keep nothing worth a database, so they run on Memory unless told otherwise.
+MEMORY_VERBS = %w[console].freeze
+ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
+
 require "hecks"
 
 # Usage is answered from the projected chapter alone: no adapter is bound and no

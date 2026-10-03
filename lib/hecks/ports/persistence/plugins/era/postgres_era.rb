@@ -123,7 +123,8 @@ module Hecks
         raise unless defined?(PG::Error) && e.is_a?(PG::Error)
 
         raise Runtime::WiringError,
-              "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip}"
+              "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip} " \
+              "(a domain with an environments/memory overlay runs without a database under HECKS_ENVIRONMENT=memory)"
       end
 
       # Joins the process's shared connection for the declared database and schema, so every
