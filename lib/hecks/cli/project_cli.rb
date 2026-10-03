@@ -40,6 +40,22 @@ module Hecks
         status.zero? ? puts(text) : abort(text)
       LAUNCHER_TAIL
 
+      # What a memory verb does when refused: say why, from the record's `refusal`, not the record.
+      MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
+        if MEMORY_VERBS.include?(ARGV.first)
+          why = begin
+            require "json"
+            JSON.parse(text).dig("state", "refusal", "value")
+          rescue JSON::ParserError
+            nil
+          end
+          warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+        else
+          puts text
+          warn reason
+        end
+      LAUNCHER_REFUSAL
+
       # The generator's name as an executable launcher's header states it, whoever ran it.
       GENERATOR = "hecks project_cli".freeze
 
@@ -270,10 +286,11 @@ module Hecks
 
       # @api private
       # @param ending [String] the launcher's closing lines
-      # @return [String] the same lines, except that a memory verb that ended well prints nothing: a
-      #   person is at it, so the settled record is noise after the session
+      # @return [String] the same lines, except that a memory verb prints no settled record, only
+      #   the reason it was refused: a person is at it, so the record is noise
       def quiet_ending(ending)
-        ending.sub("status.zero? ? puts(text)",
+        ending.sub("  puts text\n  warn reason\n", MEMORY_REFUSAL)
+              .sub("status.zero? ? puts(text)",
                    "exit 0 if status.zero? && MEMORY_VERBS.include?(ARGV.first)\nstatus.zero? ? puts(text)")
       end
 
@@ -286,10 +303,12 @@ module Hecks
 
         <<~RUBY
 
-          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise, and
-          # print nothing when they end well.
+          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise.
+          # A person is at them: they wait for their result, say why when they are refused, and print
+          # no record when they end well.
           MEMORY_VERBS = %w[#{verbs.join(' ')}].freeze
           ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
+          ARGV << "--wait" if MEMORY_VERBS.include?(ARGV.first) && !ARGV.include?("--wait")
         RUBY
       end
 

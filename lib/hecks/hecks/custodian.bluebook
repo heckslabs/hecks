@@ -1277,6 +1277,9 @@ policy "RecordTheEra" do
     attribute :run,     DoorKey
     attribute :domains, DomainList, optional: true
     attribute :stdio,   Switch,     optional: true
+    attribute :name,    DomainName, optional: true
+    attribute :adapter, AdapterName, optional: true
+    attribute :dir,     TargetDir,  optional: true
     attribute :output,  Note,       optional: true
     attribute :refusal, Note,       optional: true
     identified_by :run
@@ -1294,6 +1297,21 @@ policy "RecordTheEra" do
 
     value_object "Switch" do
       attribute :value, Boolean
+    end
+
+    # What a new domain is called, as its bluebook spells it: a capital and then letters and digits.
+    value_object "DomainName" do
+      attribute :value, String, pattern: '[A-Z][A-Za-z0-9]*'
+    end
+
+    # A persistence adapter a stub can be bound to; `Hecks::CLI::DomainStub` names the ones it knows.
+    value_object "AdapterName" do
+      attribute :value, String, pattern: '[A-Za-z]+'
+    end
+
+    # Where the new domain goes; the domain's snake-cased name under the current directory when absent.
+    value_object "TargetDir" do
+      attribute :value, String, pattern: '[^\t\n\r]'
     end
 
     value_object "Note" do
@@ -1318,6 +1336,25 @@ policy "RecordTheEra" do
       sets :domains
 
       emits LaunchersRequested
+    end
+
+    # Writes the stub files of a new domain (ADR 0087). It asks nothing and replaces nothing: a
+    # directory that already holds any file it would write is refused, with that file named.
+    command "Init" do
+      role "Operator"
+      goal "Write the stub files of a new domain"
+
+      attribute :run,     DoorKey
+      attribute :name,    DomainName
+      attribute :adapter, AdapterName, optional: true
+      attribute :dir,     TargetDir,   optional: true
+
+      sets :run
+      sets :name
+      sets :adapter
+      sets :dir
+
+      emits StubRequested
     end
 
     # A stdio server runs until its client closes stdin, so it cannot be asked and answered
@@ -1379,6 +1416,11 @@ policy "RecordTheEra" do
   policy "WriteWhenRequested" do
     on      "Door.LaunchersRequested"
     trigger Door::Workspace::Write, with: { run: :run }
+  end
+
+  policy "ScaffoldWhenRequested" do
+    on      "Door.StubRequested"
+    trigger Door::Workspace::Scaffold, with: { run: :run }
   end
 
   policy "ServeWhenRequested" do

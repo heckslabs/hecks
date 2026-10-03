@@ -40,7 +40,7 @@ Hecks.world "Hecks" do
                        names: { "mcp" => "serve_mcp", "console" => "open_console" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
-                       memory_verbs: %w[console],
+                       memory_verbs: %w[console init],
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]
 end

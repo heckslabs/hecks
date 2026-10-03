@@ -9,10 +9,18 @@ require "hecks/cli/project_cli"
 RSpec.describe "the launcher's memory verbs" do
   it "is projected into exe/hecks from the world, so the committed launcher is current" do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
-                                             executable: "exe/hecks", memory_verbs: %w[console], opted: true)
+                                             executable: "exe/hecks", memory_verbs: %w[console init], opted: true)
 
-    expect(source).to include("MEMORY_VERBS = %w[console].freeze")
-    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_VERBS = %w[console].freeze")
+    expect(source).to include("MEMORY_VERBS = %w[console init].freeze")
+    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_VERBS = %w[console init].freeze")
+  end
+
+  it "makes a memory verb wait for its result, and say why it was refused instead of printing the record" do
+    source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
+                                             executable: "exe/hecks", memory_verbs: %w[init], opted: true)
+
+    expect(source).to include('ARGV << "--wait" if MEMORY_VERBS.include?(ARGV.first)')
+    expect(source).to include('JSON.parse(text).dig("state", "refusal", "value")')
   end
 
   it "refuses a verb that is not a plain word" do
