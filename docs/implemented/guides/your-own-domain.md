@@ -17,18 +17,32 @@ needs a database until you deploy:
 
 ```sh
 export HECKS_ENVIRONMENT=memory
-mkdir -p "$HOME/lending/bluebook/environments"
 ```
 
-`hecks console` sets this for itself; the other commands below do not.
+`hecks console` and `hecks init` set this for themselves; the other commands below do not.
 Skip it and `hecks deploy project` stops with `cannot bind PostgresEra`,
 which means hecks went looking for that local Postgres.
 
 ## 1. Write it
 
-A domain lives in a directory that is not inside the clone. The
-declaration is a `.bluebook` file, named after the domain, inside a
-`bluebook` folder. Save this as `$HOME/lending/bluebook/lending.bluebook`:
+A domain lives in a directory that is not inside the clone, and the
+layout matters: a `bluebook` folder holding a `.bluebook` file named after
+the domain, with its `.world` beside it. `hecks init` writes that layout
+for you as a stub:
+
+```sh
+bundle exec hecks init Lending --dir="$HOME/lending" --adapter=Postgres
+```
+
+It writes `lending.bluebook`, `lending.world` and an
+`environments/memory.world`, tells you what to type next, and never
+replaces a file that is already there. `--adapter` says where the data will
+live; Postgres is what the AWS Lambda host serves, which is why it is
+chosen here (leave it out and you get SQLite, which needs no server). The
+stub boots as it is, with a placeholder aggregate called `Example`.
+
+Replace the contents of `$HOME/lending/bluebook/lending.bluebook` with
+this:
 
 ```ruby bluebook
 Hecks.bluebook "Lending" do
@@ -116,29 +130,22 @@ is where it is named.
 
 ## 2. Run it
 
-Say where the data lives. That is a separate file, because it is a
-decision about a deployment and not about the domain. Save this as
+Where the data lives is a separate file, because it is a decision about a
+deployment and not about the domain. `hecks init` wrote it as
 `$HOME/lending/bluebook/lending.world`:
 
 ```text
 Hecks.world "Lending" do
-  realm "Guides"
+  realm "Lending"
   default_adapter "Postgres"
   default_database "postgres://localhost/lending"
-
-  deployed_to("AwsLambda") do
-    region "us-east-1"
-    memory 512
-    timeout 10
-    database "Postgres"
-  end
 end
 ```
 
 `default_adapter` binds every aggregate in one line, so this domain needs
 no `.hecksagon` file. It names Postgres because that is what runs on
-Lambda. To run on your laptop without a database, add an overlay that
-swaps the adapter. Save this as
+Lambda. To run on your laptop without a database, `init` also wrote an
+overlay that swaps the adapter, as
 `$HOME/lending/bluebook/environments/memory.world`:
 
 ```text
@@ -204,8 +211,21 @@ slow. If the build reports a missing target, `rustup target add
 wasm32-wasip1` adds the WebAssembly one (the build adds the Lambda target
 itself).
 
-Turn the domain into a deployable stack. This writes files and touches
-nothing in AWS:
+First say where it deploys. Add this inside `Hecks.world "Lending" do ... end`
+in `lending.world`; `init` leaves it out on purpose, since it commits you
+to a region:
+
+```text
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+    database "Postgres"
+  end
+```
+
+Then turn the domain into a deployable stack. This writes files and
+touches nothing in AWS:
 
 ```sh
 bundle exec hecks deploy project "$HOME/lending" --out="$HOME/lending-deploy"

@@ -22,10 +22,10 @@ require_relative "qa_sweep/finding_report"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control ask run`: runs one claim, sweep, conclude and
-    # release cycle against a `QualityControl` target (`USAGE` lists the forms, from a bare sweep
-    # of the least recently swept target to `--all` and `--release`). It stops with a report and
-    # exit 2 on the first surprised check, and never logs a `Bug` itself.
+    # The command behind `hecks quality_control query sweep.run`: runs one claim, sweep, conclude
+    # and release cycle against a `QualityControl` target (`USAGE` lists the forms, from a bare
+    # sweep of the least recently swept target to `--all` and `--release`). It stops with a report
+    # and exit 2 on the first surprised check, and never logs a `Bug` itself.
     #
     # Exit codes: 0 clean; 1 operational error; 2 found something (the sweep stays open and the
     # target is suspended by the ledger's `SuspendOnSurprise` policy until `--release`).
@@ -136,11 +136,12 @@ module Hecks
         path.start_with?("/") ? File.expand_path(path) : File.expand_path(path, @root)
       end
 
-      # A target reference may itself contain `/` (`hecks quality_control discover_external_domains`
-      # suggests `repo/entity`-shaped references for an external domain), but every reference also
-      # gets folded into a single filename component: a log prefix, a shrunk-repro filename, a
-      # coverage-corpus filename. Left raw, an embedded `/` is read as an extra path segment that
-      # nothing creates, breaking the write. This never changes what is stored as the
+      # A target reference may itself contain `/` (`hecks quality_control
+      # target.discover_external_domains` suggests `repo/entity`-shaped references for an external
+      # domain), but every reference also gets folded into a single filename component: a log
+      # prefix, a shrunk-repro filename, a coverage-corpus filename. Left raw, an embedded `/` is
+      # read as an extra path segment that nothing creates, breaking the write. This never changes
+      # what is stored as the
       # `Target`/`Sweep` reference itself.
       def filesystem_safe_component(reference)
         reference.gsub(/[^A-Za-z0-9_.-]/, "-")

@@ -95,6 +95,12 @@ Hecks.hecksagon "Hecks" do
       answers "DoorAnswered"
       refuses "DoorRefused"
     end
+
+    asks "Scaffold", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
   end
 
   Hecks::Door.port "Terminal" do
@@ -394,7 +400,7 @@ Hecks.hecksagon "Hecks" do
 end
 
 # The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
-# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy provision`
+# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy tenant.provision`
 # registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
 Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do

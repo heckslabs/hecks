@@ -25,10 +25,10 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
     expect(default_of(command("TestSuiteRun", "RefreshRuntimeBaseline"), :workers)).to eq(6)
   end
 
-  it "shows each default in the verb's own help" do
-    expect(help("check_era")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
-    expect(help("recheck")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
-    expect(help("refresh_runtime_baseline")).to match(/workers\.value\s+Integer; defaults to 6/)
+  it "shows each default in the command's own help" do
+    expect(help("host.check_era")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
+    expect(help("host.recheck")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
+    expect(help("test_suite_run.refresh_runtime_baseline")).to match(/workers\.value\s+Integer; defaults to 6/)
   end
 
   it "has the baseline launcher refuse a local run it was not told the worker count for" do
