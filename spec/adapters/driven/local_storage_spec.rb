@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::LocalStorage do
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
       Hecks.hecksagon("Pizzas") do
-        uses_framework "Governance"
+        attaches "Governance"
         Pizzas::Order.persisted_by("LocalStorage")
       end
       Hecks.hecksagon("Governance") do

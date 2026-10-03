@@ -15,13 +15,13 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   HECKS_BUILD_DIR = File.join(HB_ROOT, "rust/build")
   HECKS_BUILD_BINARY = File.join(HECKS_BUILD_DIR, "target", "debug", "hecks-build")
 
+  # Built when an example of this file runs, not when the file loads: a shard that excludes
+  # `:io` loads every spec file, and a cargo hiccup at load aborted the whole shard.
   def self.build_hecks_build!
-    built = system("cargo", "build", chdir: HECKS_BUILD_DIR, out: File::NULL, err: File::NULL)
-    raise "cargo build failed for rust/build — run `cargo build` there directly to see why" unless built
+    out, status = Open3.capture2e("cargo", "build", chdir: HECKS_BUILD_DIR)
+    raise "cargo build failed for rust/build:\n#{out}" unless status.success?
     raise "cargo build did not produce #{HECKS_BUILD_BINARY}" unless File.executable?(HECKS_BUILD_BINARY)
   end
-
-  build_hecks_build!
 
   # [domain, dirs its run touches]: the target, `meta`, and any framework chapter it attaches.
   HB_PARITY_DOMAINS = {
@@ -33,6 +33,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   }.freeze
 
   before(:context) do
+    self.class.build_hecks_build!
     @generated_backup = Dir.mktmpdir("hecks-build-pipeline-spec-backup")
     FileUtils.cp_r(HB_GENERATED_ROOT, File.join(@generated_backup, "generated"))
     FileUtils.cp(HB_CARGO_TOML, File.join(@generated_backup, "Cargo.toml"))

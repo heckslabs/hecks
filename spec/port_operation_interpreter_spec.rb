@@ -13,7 +13,7 @@ RSpec.describe "a port operation, dispatched" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
       Hecks.hecksagon("Payments") do
-        uses_framework "Governance"
+        attaches "Governance"
         Payments::Payment.persisted_by("Memory")
 
         # No given, no sets: the port only translates an external fact (a Stripe webhook).

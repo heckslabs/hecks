@@ -15,7 +15,7 @@ RSpec.describe "dispatch takes no loose keyword facts" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
       Hecks.hecksagon("Pizzas") do
-        uses_framework "Governance"
+        attaches "Governance"
         Pizzas::Order.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do

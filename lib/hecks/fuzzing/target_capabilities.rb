@@ -16,7 +16,7 @@ module Hecks
       POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
 
       # Captures the member a hecksagon attaches; authorization is read off its declaration.
-      FRAMEWORK_ATTACHED = /uses_framework\s*\(?\s*"([^"]+)"/
+      FRAMEWORK_ATTACHED = /(?:attaches|uses_framework)\s*\(?\s*"([^"]+)"/
 
       # A command-level `role "..."`, the only construct a role check can compare a caller against.
       ROLE_GATED = /^\s*role\s+"/
@@ -41,8 +41,8 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
-      # The modes `hecks quality_control ask run` can run; one absent here is refused at start, not
-      # resolved.
+      # The modes `hecks quality_control query sweep.run` can run; one absent here is refused at
+      # start, not resolved.
       RUNNABLE_MODES = %i[differential ruby_only self_consistency properties_in_differential
                           structural_skip_report adapter_parity_sqlite persistence_parity
                           era_boundary concurrency].freeze

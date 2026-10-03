@@ -27,7 +27,7 @@ RSpec.describe "durable saga/process-manager state" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
       Hecks.hecksagon("Wire") do
-        uses_framework "Governance"
+        attaches "Governance"
         persisted_by "SqlitePersistence"
       end
       Hecks.hecksagon("Governance") do
@@ -108,7 +108,7 @@ RSpec.describe "durable saga/process-manager state" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(WIRE_BLUEBOOK)
         Hecks.hecksagon("Wire") do
-          uses_framework "Governance"
+          attaches "Governance"
           persisted_by "Memory"
         end
         Hecks.hecksagon("Governance") do

@@ -306,7 +306,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     Ok(bluebook)
 }
 
-/// Lists the chapters `<Name>`'s block pulls in via `uses_framework`/`uses_embryonaut_bluebook`.
+/// Lists the chapters `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
 /// Every block is still gated; the IR accumulator is a throwaway.
 pub fn resolve_hecksagon_dependencies(
     chapter_name: &str,

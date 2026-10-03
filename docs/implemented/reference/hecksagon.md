@@ -5,11 +5,11 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-`port`, `subscribe`, and `uses_framework` are wiring, so they run against
+`port`, `subscribe`, and `attaches` are wiring, so they run against
 `examples/banking` with a hecksagon written here rather than the one the
 example ships. `translates` and `bounded` get their own small boot further
 down — they need two cooperating domains, which this page's own Banking
@@ -19,7 +19,7 @@ boot never declares two of:
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   subscribe "Compliance.AccountFreezeReviewOpened"
 
   Banking::Customer.persisted_by("Memory")
@@ -75,7 +75,7 @@ runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("Accoun
 runtime — the example just above proves that, and it stays true. What
 changed is that it is now checked at model-check time: a cross-domain
 `policy ... across: "X"` with nothing acknowledging `X` (neither
-`subscribe "X.*"` nor `uses_framework "X"`) is a real, static finding
+`subscribe "X.*"` nor `attaches "X"`) is a real, static finding
 (`:unacknowledged_relationship`, `Hecks::Bluebook::ModelCheck`). Banking's
 own `subscribe "Compliance.AccountFreezeReviewOpened"` line, above, is
 exactly what makes its `across "Compliance"` policy clean:
@@ -94,7 +94,7 @@ behavior:
 
 ```ruby
 # A PLAIN Hecksagon, built directly rather than through Hecks.hecksagon
-# (which only runs inside a boot) — no subscribe, no uses_framework, so
+# (which only runs inside a boot) — no subscribe, no attaches, so
 # Compliance goes unacknowledged.
 unacknowledging = Hecks::Bluebook::Hecksagon.new(domain: "Banking")
 findings = Hecks::Bluebook::ModelCheck.call(banking, hecksagon: unacknowledging)
@@ -102,59 +102,86 @@ findings.find { |f| f.subject == compliance_policy.name }.kind  # => :unacknowle
 ```
 
 See `docs/implemented/reference/policy.md`'s own `## across` section for
-the other half — `uses_framework` and `across` on the SAME target
+the other half — `attaches` and `across` on the SAME target
 (`:contradictory_relationship`) — and the model-checker's own file for
 why this needs no new keyword at all.
 
-## uses_framework
+## attaches
 
-<!-- generated:begin word=uses_framework -->
-`uses_framework framework_members` — fills `framework_members`
+<!-- generated:begin word=attaches -->
+`attaches attachments, from:` — fills `attachments`
 
 | argument | kind | required | fills |
 |---|---|---|---|
-| positional 1 | text | true | framework_members |
+| positional 1 | text | true | attachments |
+| `from:` | symbol | false | source |
 <!-- generated:end -->
 
-Names a `lib/hecks/framework/bluebook/` member this domain wants attached — `uses_framework "Governance"`, say. Attaching one is a deployment decision, the same kind `persisted_by`/`projected_by` already are, so it lives in the hecksagon rather than as a fact stated in the domain's own bluebook. Loads that member's own bluebook into whatever registry this one is loading into — always from its own real location, never a copy, so it keeps working even when this domain is itself copied somewhere else first (a fuzz run's isolated tmp boot, for instance). Persistence is NOT part of what this loads — a member's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever is attaching it, the same as any other binding decision.
+Attaches a chapter to this domain by name, from one of two places. It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a chapter's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.
 
-The member is recorded on the hecksagon that asked for it:
+Without `from:`, the name is a chapter the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a chapter of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy` or `QualityControl`. A gem chapter loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A chapter that ships `<chapter_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
 
 ```ruby
-runtime.registry.hecksagon("Banking").framework_members  # => ["Governance"]
+Hecks::Chapters.table.keys.sort  # => ["Adapter", "Bluebook", "Compliance", "ConsoleSettings", "Deploy", "Expression", "Governance", "Hecksagon", "Identity", "Paging", "Port", "Privacy", "QualityControl", "Site", "Tenancy", "Translation", "World"]
 ```
 
-And its chapter is really loaded — `Governance` is a domain in this
-registry now, dispatchable like any other, though nothing in
-`banking.bluebook` mentions it:
+With `from: :vendor`, the name is a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout*: `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. It loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. `from: :vendor` is never a fallback: a vendored name written without it is not found among the chapters the gem carries and refuses, so a typo cannot silently pick a vendored package over a gem chapter.
+
+The attachment is recorded on the hecksagon that asked for it, with its source:
+
+```ruby
+runtime.registry.hecksagon("Banking").attachments.map { |a| [a.name, a.source] }  # => [["Governance", :gem]]
+```
+
+And its chapter is really loaded: `Governance` is a domain in this registry now, dispatchable like any other, though nothing in `banking.bluebook` mentions it:
 
 ```ruby
 runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => ["RoleAssignment", "RoleTransition"]
 ```
 
-## uses_embryonaut_bluebook
+Outside a real, rooted project (the doctest registry above, say) there is nowhere to vendor from, and `from: :vendor` refuses rather than silently finding nothing:
 
-<!-- generated:begin word=uses_embryonaut_bluebook -->
-`uses_embryonaut_bluebook vendored_bluebooks` — fills `vendored_bluebooks`
+```ruby
+Hecks.hecksagon("Widgets") { attaches "payments", from: :vendor }  # ~> WiringError: needs a registry with a root to vendor from
+```
+
+The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::Chapters.load!("QualityControl")` and binds it to its own PostgresEra database.
+
+## uses_framework
+
+<!-- generated:begin word=uses_framework -->
+`uses_framework attachments` — fills `attachments`, **status: deprecated**
 
 | argument | kind | required | fills |
 |---|---|---|---|
-| positional 1 | text | true | vendored_bluebooks |
+| positional 1 | text | true | attachments |
 <!-- generated:end -->
 
-One level further out than `uses_framework`: not a member shipped inside hecks's own `lib/`, but a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout* — `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. Loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. Persistence is NOT part of what this loads, the same restriction `uses_framework` already draws — a consuming project declares its own separate `Hecks.hecksagon` block to bind the vendored aggregates' real storage.
-
-Real, external use: the domain of a client project (a hecks-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
-
-Outside a real, rooted project — the doctest registry above, say — there is nowhere to vendor from, and it refuses rather than silently finding nothing:
+The deprecated spelling of `attaches "Name"` for a framework member. It behaves as before and prints a one-line warning; it is removed in 3.1.0.
 
 ```ruby
-Hecks.hecksagon("Widgets") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
+Hecks.with_registry(runtime.registry) { Hecks.hecksagon("Legacy") { uses_framework "Governance" } }  # warns: use `attaches "Governance"`
+```
+
+## uses_embryonaut_bluebook
+
+<!-- generated:begin word=uses_embryonaut_bluebook -->
+`uses_embryonaut_bluebook attachments` — fills `attachments`, **status: deprecated**
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | attachments |
+<!-- generated:end -->
+
+The deprecated spelling of `attaches "name", from: :vendor`. It behaves as before and prints a one-line warning; it is removed in 3.1.0.
+
+```ruby
+Hecks.hecksagon("Legacy") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
 ```
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -172,7 +199,7 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 
@@ -182,30 +209,6 @@ A release pin also carries two refusals, because a production project binds `Pos
 A release must also be a real one: the `<package>/bluebook.yml` at the tag has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The last line of the command reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
-
-## attaches
-
-<!-- generated:begin word=attaches -->
-`attaches attached_chapters` — fills `attached_chapters`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | attached_chapters |
-<!-- generated:end -->
-
-Attaches a chapter hecks itself carries, by name: one of the chapters of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy` or `QualityControl`. It works like `uses_framework`:
-- It loads the files of the chapter into the registry, from their real location, even when the chapter spans several files.
-- It loads what the chapter ships beside its bluebook: `<chapter_name>.ports.hecksagon`, the ports it declares (a `Hecks.hecksagon` block that merges into the attaching one), and every `adapters/*.adapter`, the adapters that bind them. Persistence is never in either: it is the attaching hecksagon's, or its world's `default_adapter`.
-- It records the name on the hecksagon that asked for it.
-- It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter.
-
-`Framework` members stay with `uses_framework`, and a name hecks does not carry refuses, listing the names it does. The chapters on offer:
-
-```ruby
-Hecks::Chapters.index.keys.sort  # => ["Adapter", "Bluebook", "Deploy", "Expression", "Hecksagon", "Paging", "Port", "QualityControl", "Tenancy", "Translation", "World"]
-```
-
-The Hecks domain (ADR 0080) is its main user, attaching the language, Tenancy, Deploy and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::Chapters.load!("QualityControl")` and binds it to its own PostgresEra database.
 
 ## port
 
@@ -238,7 +241,7 @@ account.ports.first.operations.map(&:hecks_name)  # => ["Flag"]
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-A translation boundary between two domains, not a business rule — the exact same `Policy` shape a `policy` block inside a `.bluebook` builds (same `on`/`trigger`, same `PolicyInterpreter` at runtime), just declared here instead, because reacting to a FOREIGN domain's event is a wiring/context-mapping decision (this chapter conforming to another chapter's published fact), the same kind of decision `port`/`uses_framework` already are — not something this domain's own model states about itself.
+A translation boundary between two domains, not a business rule — the exact same `Policy` shape a `policy` block inside a `.bluebook` builds (same `on`/`trigger`, same `PolicyInterpreter` at runtime), just declared here instead, because reacting to a FOREIGN domain's event is a wiring/context-mapping decision (this chapter conforming to another chapter's published fact), the same kind of decision `port`/`attaches` already are — not something this domain's own model states about itself.
 
 Only `on`/`trigger` are meaningful inside the block; `where`/`for_each`/`across` all still work exactly as they do inside an ordinary `policy`, since it's the identical builder underneath.
 
@@ -312,8 +315,8 @@ Once `Deploy::Tenant.Provision` emits `TenantProvisioned`, this reaction dispatc
 <!-- generated:end -->
 
 A consumer-owned bounded-context mark. Framework and vendored packages
-never write this word in their own files — `uses_framework` /
-`uses_embryonaut_bluebook` mark those chapters bounded automatically.
+never write this word in their own files — `attaches` marks those
+chapters bounded automatically.
 A bounded chapter wraps in its own module (`Domain::Aggregate`) and does
 not install Object shortcuts, so two BCs can both declare `Person`.
 

@@ -15,7 +15,7 @@ RSpec.describe "role-based command rejections" do
       Kernel.load(File.expand_path("../../lib/hecks/adapters/driven/governance_authorization.adapter", __dir__))
       Hecks.bluebook("Cafeteria", &block)
       Hecks.hecksagon("Cafeteria") do
-        uses_framework "Governance"
+        attaches "Governance"
         Cafeteria::Order.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do

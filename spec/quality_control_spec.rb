@@ -53,7 +53,7 @@ RSpec.describe "QualityControl" do
       Hecks.adapter("QcClock") { port "clock" }
 
       Hecks.hecksagon "QualityControl" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
          QualityControl::Ticket, QualityControl::Patch, QualityControl::Improvement,
@@ -592,7 +592,7 @@ RSpec.describe "QualityControl" do
       runtime
       text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, program: "bin/qc",
-        argv: ["propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
+        argv: ["angle.propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]
       )
 

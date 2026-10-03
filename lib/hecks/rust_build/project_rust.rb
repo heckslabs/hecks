@@ -5,7 +5,9 @@ require "json"
 require_relative "../../hecks"
 require_relative "../bluebook/meta_validator"
 require_relative "../ports/persistence/plugins/era"
-require_relative "../../../rust/project"
+require_relative "append_optionals"
+require_relative "domain_name"
+require_relative "write_if_changed"
 
 module Hecks
   module RustBuild
@@ -45,6 +47,7 @@ module Hecks
       def call
         validate_name!
         if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
+          require_relative "../../../rust/project"
           require_relative "../../../rust/project_rust_pipeline"
           RustProjectPipeline.call(@domain)
         else
@@ -58,13 +61,13 @@ module Hecks
       # The name becomes a directory, a `pub mod` identifier and a Cargo feature, so it is checked
       # before any side effect (the `meta/` directory is rewritten below).
       def validate_name!
-        return if RustProjection::Projector.valid_domain_mod_name?(@mod_name)
+        return if DomainName.valid?(@mod_name)
 
         raise Failure, "hecks project_rust: domain name #{@mod_name.inspect} (from #{@domain.inspect}) can't " \
                        "be used as-is — it has to double as a Rust module identifier and a Cargo feature " \
                        "name, and this one is either not a plain lowercase identifier, is a Rust keyword, " \
                        "or collides with a reserved Cargo.toml key " \
-                       "(#{RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES.join(', ')}). " \
+                       "(#{DomainName::CARGO_RESERVED.join(', ')}). " \
                        "Rename the domain directory."
       end
 
@@ -82,6 +85,7 @@ module Hecks
 
       # The rollback path (ADR 0086): the Ruby generator in `rust/project`, until it is deleted.
       def generate_with_ruby
+        require_relative "../../../rust/project"
         write_meta
         write_target
       end
@@ -90,7 +94,7 @@ module Hecks
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
         meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_bluebooks)
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         chapters = (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
           CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", prepared_ir(ir))
@@ -104,20 +108,14 @@ module Hecks
       # The IR as `rust/project` hands it to its generators: string-keyed through JSON, with the
       # append-optional fields marked, since `ir.json` records them.
       def prepared_ir(tree, shaped: true)
-        tree = json_shaped(tree) if shaped
-        value_objects = tree[:aggregates].flat_map { |aggregate| aggregate[:value_objects] }.to_h { |vo| [vo[:name], vo] }
-        tree[:aggregates].each do |aggregate|
-          local = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
-          RustProjection::Projector.mark_append_optional_fields!(aggregate, value_objects.merge(local))
-        end
-        tree
+        AppendOptionals.mark(shaped ? json_shaped(tree) : tree)
       end
 
       # Round-trips a value through JSON so generators see the string-keyed shape a real `ir.json`
       # carries, never live Ruby symbols.
       def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-      # `root:` is the domain's own directory: a domain that declares `uses_embryonaut_bluebook`
+      # `root:` is the domain's own directory: a domain that declares `attaches ... from: :vendor`
       # resolves its vendored chapters beneath it.
       def load_registry
         @registry = Hecks::Runtime::Registry.new(root: File.expand_path(@domain))
@@ -135,7 +133,7 @@ module Hecks
         @domain_name = @registry.bluebooks.keys.first
       end
 
-      # Translation edges, hecksagons (whose `uses_framework` loads a framework chapter into the
+      # Translation edges, hecksagons (whose `attaches` loads a framework chapter into the
       # same registry) and worlds (whose `default_adapter` binds what a hecksagon leaves out), in
       # the order the language loads them.
       def load_siblings
@@ -169,7 +167,7 @@ module Hecks
         if !seams[:membership].empty? && seams[:identity].empty?
           raise Failure, "#{@domain_name} provides membership but not identity — rust/host Google sign-in " \
                          "cannot register or link an identity from ir.json. Attach Identity " \
-                         "(`uses_framework \"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
+                         "(`attaches \"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
                          "hecksagon, not a deploy-time guess, names the identity verbs."
         end
         add_edges_and_source
@@ -198,7 +196,7 @@ module Hecks
         # Tracked per directory: several domains coexist on disk, and `pop_and_prune` deletes only
         # the files this run never touched. `active` is a set of feature re-exports in the root
         # `mod.rs`, never a directory.
-        RustProjection::WriteIfChanged.push_directory(dir)
+        WriteIfChanged.push_directory(dir)
         result = RustProjection::DomainGenerator.call(
           meta_ir, "the self-hosted language (lib/hecks/language/bluebook)", dir, "meta"
         )
@@ -210,12 +208,12 @@ module Hecks
                      managers: meta_ir[:process_managers],
                      keys:     [[meta_ir[:name], result[:aggregates].map { |a| a[:name] }]])
         append_merged_mod(File.join(dir, "mod.rs"))
-        RustProjection::WriteIfChanged.pop_and_prune(dir)
+        WriteIfChanged.pop_and_prune(dir)
       end
 
       def write_target
         dir = File.join(@out_root, @mod_name)
-        RustProjection::WriteIfChanged.push_directory(dir)
+        WriteIfChanged.push_directory(dir)
         result = RustProjection::DomainGenerator.call(@ir, @domain, dir, @mod_name)
         chapters = write_chapters
         aggregates = result[:aggregates] + chapters[:aggregates]
@@ -226,10 +224,10 @@ module Hecks
                      managers: @ir[:process_managers] + chapters[:process_managers],
                      keys:     reference_keys(result[:aggregates], chapters))
         append_merged_mod(File.join(dir, "mod.rs"))
-        RustProjection::WriteIfChanged.pop_and_prune(dir)
+        WriteIfChanged.pop_and_prune(dir)
       end
 
-      # Every other bluebook the target's `uses_framework` calls pulled into the registry, each
+      # Every other bluebook the target's `attaches` calls pulled into the registry, each
       # generated into its own module. A framework chapter is a function of its bluebook alone, so
       # regenerating one is safe whichever domain last touched it.
       def write_chapters
@@ -237,7 +235,7 @@ module Hecks
                    policy_sources: [{ domain_name: @domain_name, policies: @ir[:policies],
                                       aggregates: @ir[:aggregates] }],
                    mod_names: { @mod_name => @domain_name } }
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_bluebooks)
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         (@registry.bluebooks.keys - [@domain_name]).each { |chapter| write_chapter(chapter, vendored, totals) }
         totals
       end
@@ -247,7 +245,7 @@ module Hecks
         totals[:mod_names][mod_name] = chapter_name
         chapter_ir = json_shaped(Hecks::Projector::Exporter.call(@registry).fetch(chapter_name))
         result = nil
-        RustProjection::WriteIfChanged.track_directory(File.join(@out_root, mod_name)) do
+        WriteIfChanged.track_directory(File.join(@out_root, mod_name)) do
           result = RustProjection::DomainGenerator.call(chapter_ir, "#{@domain} (#{attachment(chapter_name, vendored)})",
                                                         File.join(@out_root, mod_name), mod_name,
                                                         merged_module: false)
@@ -264,7 +262,7 @@ module Hecks
       # sibling hecksagon vendors in is labelled as vendored.
       def attachment(chapter_name, vendored)
         name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
-        name ? "uses_embryonaut_bluebook #{name.inspect}" : "uses_framework #{chapter_name.inspect}"
+        name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{chapter_name.inspect}"
       end
 
       def reference_keys(target_aggregates, chapters)
@@ -277,7 +275,7 @@ module Hecks
       # Writes a module's `merged.rs`: the registry and every dispatch table over its aggregates.
       def write_merged(path, aggregates, queries, read_models, policies:, cross:, managers:, keys:)
         projector = RustProjection::Projector
-        wrote = RustProjection::WriteIfChanged.block(path) do |file|
+        wrote = WriteIfChanged.block(path) do |file|
           [projector.emit_registry(aggregates), projector.emit_reference_lookup(aggregates), policies, cross,
            projector.emit_process_manager_table(managers), projector.emit_reference_key_table(keys),
            projector.emit_creates_table(aggregates), projector.emit_identity_head_table(aggregates),
@@ -314,7 +312,7 @@ module Hecks
         all_dirs = Dir.children(@out_root).select { |name| File.directory?(File.join(@out_root, name)) }.sort
         @domains = all_dirs.select { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
         path = File.join(@out_root, "mod.rs")
-        wrote = RustProjection::WriteIfChanged.block(path) do |file|
+        wrote = WriteIfChanged.block(path) do |file|
           RootMod.new(file, all_dirs, @domains, @mod_name).write
         end
         puts(wrote ? "wrote #{path}" : "#{path} unchanged")
@@ -330,7 +328,7 @@ module Hecks
         @domains.each { |name| manifest = add_feature(manifest, name) }
         manifest = manifest.sub(/^default\s*=.*$/, "default = [#{@mod_name.inspect}]")
         # An unchanged manifest is not rewritten: a new mtime makes Cargo rebuild the whole crate.
-        if RustProjection::WriteIfChanged.call(path, manifest)
+        if WriteIfChanged.call(path, manifest)
           puts "wrote #{path} (default feature: #{@mod_name})"
         else
           puts "#{path} unchanged (default feature already #{@mod_name})"

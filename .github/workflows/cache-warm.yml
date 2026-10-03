@@ -44,9 +44,9 @@ jobs:
 
       - name: Warm wasm cross-compile builds (banking, pizzas, roster)
         run: |
-          bundle exec exe/hecks build_wasm domain=examples/banking --wait
-          bundle exec exe/hecks build_wasm domain=examples/pizzas --wait
-          bundle exec exe/hecks build_wasm domain=examples/roster --wait
+          bundle exec exe/hecks build.build_wasm domain=examples/banking --wait
+          bundle exec exe/hecks build.build_wasm domain=examples/pizzas --wait
+          bundle exec exe/hecks build.build_wasm domain=examples/roster --wait
 
   # Mirrors rspec_rust_io_build's cache step.
   warm_build_crate:

@@ -11,7 +11,7 @@ module Hecks
     # target and dispatches to the matching `Projector` export, writing the recipe (template,
     # scripts and Makefile) under `deploy/<stack>/` of the checkout.
     #
-    #   hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>]
+    #   hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
     #       [--out=<dir>] [--environment=<name>]
     #
     # `--environment` layers an overlay `.world` file over the base one; a missing overlay is an
@@ -150,7 +150,7 @@ module Hecks
       # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
       # cross-domain invoke grant can live in any attached chapter. A domain with no bluebook of
       # its own (the QA ledger) gets its chapter from the hecksagon's `Chapters.load!`. `root:` is
-      # required or `uses_embryonaut_bluebook` refuses with "needs a registry with a root to
+      # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
       # vendor from".
       #
       # @param domain [String] the domain directory

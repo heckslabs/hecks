@@ -1,3 +1,4 @@
+require "digest"
 require "json"
 require "fileutils"
 require "time"
@@ -59,13 +60,42 @@ module Hecks
     # and query never drift from what a human typing hecks run sees.
     # :nodoc:
     def resolve!(cli, name, asking:)
-      pool = asking ? cli[:questions] : cli[:verbs]
+      pool = asking ? cli[:questions] : cli[:commands]
       key  = cli[:names][asking ? :question : :command][name]
       spec = pool[key]
       return spec if spec
 
       known = cli[:names][asking ? :question : :command].keys.sort.join(", ")
       raise Runtime::NotFound, "no such #{asking ? 'query' : 'command'}: #{name.inspect} — known: #{known}"
+    end
+
+    # A fingerprint of a domain directory: every file's relative path, size and modification time.
+    # Equal fingerprints mean no file was added, removed, resized or rewritten between two looks.
+    #
+    # @param path [String] the domain directory
+    # @return [String] a hex SHA-256
+    def fingerprint(path)
+      files = Dir.glob(File.join(path, "**", "*"), File::FNM_DOTMATCH).sort.select { |file| File.file?(file) }
+      state = files.map do |file|
+        stat = File.stat(file)
+        "#{file.delete_prefix(path)}\0#{stat.size}\0#{stat.mtime.to_f}"
+      end
+      Digest::SHA256.hexdigest(state.join("\n"))
+    end
+
+    # The qualified verb each command name resolves to, by the alias map `dispatch` resolves
+    # through; nil for a name that resolves to no command.
+    #
+    # @param runtime [Runtime::Dispatcher] the booted domain
+    # @param names [Array<String, nil>] short or qualified command names
+    # @return [Array<String, nil>] one verb or nil per name, in order
+    def verbs_for(runtime, names)
+      cli = Projector.call(:cli, bluebook: bluebook_for(runtime), options: { program: "mcp" })
+      names.map do |name|
+        resolve!(cli, name.to_s, asking: false)[:command]
+      rescue Runtime::NotFound
+        nil
+      end
     end
 
     # Required on dispatch/query/state: what makes an audit row legible later.
@@ -109,7 +139,7 @@ module Hecks
       return unless spec[:role_gated] && role.nil?
 
       raise Runtime::Unauthorized,
-            "#{spec[:verb]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
+            "#{spec[:command]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
             "(role:/actor_id:) is bound; dispatching it unbound is refused, not silently unchecked"
     end
 
@@ -192,12 +222,12 @@ module Hecks
       result = with_caller(role, actor_id) do
         dry_run ? dry_run_outcome(runtime, spec, envelope, summary: summary) : real_dispatch(runtime, spec, envelope, summary)
       end
-      result.merge(verb: spec[:verb])
+      result.merge(verb: spec[:command])
     end
 
     # :nodoc:
     def real_dispatch(runtime, spec, envelope, summary)
-      result = runtime.dispatch_flat(spec[:verb], envelope)
+      result = runtime.dispatch_flat(spec[:command], envelope)
       ok(summary: summary,
          id:      result.id,
          state:   result.state.nil? ? nil : Doors::JsonDoor.materialize(result.state),
@@ -207,7 +237,7 @@ module Hecks
     # :nodoc:
     def dry_run_outcome(runtime, spec, envelope, summary:)
       flat = flatten_legacy(envelope, spec[:receiver], spec[:legacy_receiver])
-      runtime.dry_run?(spec[:verb], **flat)
+      runtime.dry_run?(spec[:command], **flat)
       ok(summary: summary, would_succeed: true)
     rescue Runtime::WiringError, *Runtime::DOMAIN_REFUSALS => e
       ok(summary: summary, would_succeed: false, error: e.message)
@@ -268,9 +298,9 @@ module Hecks
       valid_caller!(role, actor_id)
       cli  = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
       spec = resolve!(cli, question, asking: true)
-      rows = with_caller(role, actor_id) { runtime.query(spec[:verb], **Doors::JsonDoor.deep_symbolize(args)) }
+      rows = with_caller(role, actor_id) { runtime.query(spec[:command], **Doors::JsonDoor.deep_symbolize(args)) }
 
-      ok(summary: summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
+      ok(summary: summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:command])
     end
 
     # Reads one aggregate's stored records directly, bypassing any declared

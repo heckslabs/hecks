@@ -20,8 +20,7 @@ module Hecks
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
-            refuse_unwired_framework_members!(hexagon)
-            refuse_unwired_vendored_bluebooks!(hexagon)
+            refuse_unwired_attachments!(hexagon)
             refuse_bounded_without_acl!(hexagon)
 
             hexagon.binds.each do |bind|
@@ -153,7 +152,7 @@ module Hecks
         private
 
         # Checked once against the merged hecksagon so a domain split across multiple
-        # hecksagon files sees every uses_framework declaration first. A role is real
+        # hecksagon files sees every `attaches` declaration first. A role is real
         # access control only once an authorization provider exists to check it against
         # (ADR 0025); a provider is recognized by declaring authorization, not by name.
         def refuse_ungoverned_roles!(hexagon)
@@ -172,16 +171,18 @@ module Hecks
                 "without that it is silent decoration, the exact defect this refusal exists to catch"
         end
 
-        # `uses_embryonaut_bluebook` only loads a package's `.bluebook` files; persistence,
-        # Governance and the `translates` ACL live on a sibling hecksagon the consumer must
-        # declare, or cross-context field mapping has nowhere to be written.
-        def refuse_unwired_vendored_bluebooks!(hexagon)
-          Array(hexagon.vendored_bluebooks).each do |package|
-            chapter_name = Naming.pascal(package)
+        # `attaches` loads a bounded context; the consumer must declare the sibling hecksagon
+        # that is its ACL (Governance/Identity/Privacy already do). A vendored package only
+        # loads its `.bluebook` files, so persistence, Governance and the `translates` ACL live
+        # on that sibling too, or cross-context field mapping has nowhere to be written.
+        def refuse_unwired_attachments!(hexagon)
+          hexagon.attachments.each do |attachment|
+            chapter_name = attachment.chapter_name
             next if hecksagon(chapter_name)
 
+            what = attachment.vendor? ? "vendored bluebook #{attachment.name.inspect}" : chapter_name.inspect
             raise WiringError,
-                  "#{hexagon.domain} attaches vendored bluebook #{package.inspect} " \
+                  "#{hexagon.domain} attaches #{what} " \
                   "(bounded context #{chapter_name}) but never declared " \
                   "Hecks.hecksagon #{chapter_name.inspect} — put that sibling " \
                   "(and any `translates` ACL) in context_map.hecksagon; " \
@@ -189,23 +190,8 @@ module Hecks
           end
         end
 
-        # `uses_framework` and `attaches` load a bounded context; the consumer must declare the
-        # sibling hecksagon that is its ACL (Governance/Identity/Privacy already do).
-        def refuse_unwired_framework_members!(hexagon)
-          hexagon.member_chapters.each do |member|
-            next if hecksagon(member)
-
-            raise WiringError,
-                  "#{hexagon.domain} attaches #{member.inspect} " \
-                  "(bounded context) but never declared Hecks.hecksagon " \
-                  "#{member.inspect} — put that sibling (and any `translates` " \
-                  "ACL) in context_map.hecksagon; same-name blocks merge, " \
-                  "order-independent."
-          end
-        end
-
-        # An explicit `bounded` mark on a consumer chapter always needs an ACL. `uses_framework`
-        # / `uses_embryonaut_bluebook` mark the attached chapter bounded and require the sibling
+        # An explicit `bounded` mark on a consumer chapter always needs an ACL. `attaches`
+        # marks the attached chapter bounded and requires the sibling
         # hecksagon above; they don't require a `translates` on it unless the consumer also
         # wrote `bounded`.
         # rust/host Google sign-in reads ir.json's membership/identity keys, never a deploy-time
@@ -217,7 +203,7 @@ module Hecks
           raise WiringError,
                 "a chapter that provides \"membership\" is loaded, but none provides " \
                 "\"identity\" — rust/host Google sign-in cannot register or link an " \
-                "identity from the hecksagon/world. Attach Identity (`uses_framework " \
+                "identity from the hecksagon/world. Attach Identity (`attaches " \
                 "\"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
                 "identity verbs are exported onto ir.json, not guessed at deploy."
         end
@@ -387,7 +373,7 @@ module Hecks
           providers = Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION)
           return "attaches a chapter that provides \"authorization\" (no framework member declares one)" if providers.empty?
 
-          providers.map { |name| "uses_framework #{name.inspect}" }.join(" or ")
+          providers.map { |name| "attaches #{name.inspect}" }.join(" or ")
         end
 
         # Every command this domain declares, an aggregate's own and every entity nested

@@ -48,7 +48,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
         write(dir, "overlaid.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
-            uses_framework "Governance"
+            attaches "Governance"
             Overlaid::Thing.persisted_by("Memory")
           end
         HECKSAGON
@@ -70,7 +70,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     it "checks the ungoverned-role refusal against the MERGED hecksagon, not each block alone" do
       Dir.mktmpdir do |dir|
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
-        # Base declares no Governance — an overlay-only `uses_framework
+        # Base declares no Governance — an overlay-only `attaches
         # "Governance"` must still be enough. Checking each block in
         # isolation would wrongly refuse the base block, even though the
         # final, merged hecksagon is fine.
@@ -81,7 +81,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         HECKSAGON
         write(dir, "environments/production.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
-            uses_framework "Governance"
+            attaches "Governance"
           end
         HECKSAGON
         write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
@@ -100,7 +100,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         HECKSAGON
 
         expect { Hecks.boot(dir) }
-          .to raise_error(Hecks::Runtime::WiringError, /never uses_framework "Governance"/)
+          .to raise_error(Hecks::Runtime::WiringError, /never attaches "Governance"/)
       end
     end
   end
@@ -114,7 +114,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
         write(dir, "overlaid.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
-            uses_framework "Governance"
+            attaches "Governance"
             Overlaid::Thing.persisted_by("Memory")
           end
         HECKSAGON
@@ -142,7 +142,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     end
   end
 
-  describe "uses_embryonaut_bluebook" do
+  describe "attaches ... from: :vendor" do
     # One real boot over a vendored package's own bluebook plus a consumer
     # hecksagon; the three expects each inspect a different facet of that
     # same successful boot (registry contents, recorded vendor list, vendor
@@ -182,8 +182,8 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         domain_dir = File.join(root, "bluebook")
         write(root, "bluebook/consumer.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Widgets" do
-            uses_embryonaut_bluebook "widgets"
-            uses_framework "Governance"
+            attaches "widgets", from: :vendor
+            attaches "Governance"
             Widgets::Widget.persisted_by("Memory")
           end
         HECKSAGON
@@ -192,7 +192,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         dispatcher = Hecks.boot(domain_dir, install_doors: false)
 
         expect(dispatcher.registry.bluebook("Widgets")).not_to be_nil
-        expect(dispatcher.registry.hecksagon("Widgets").vendored_bluebooks).to eq(["widgets"])
+        expect(dispatcher.registry.hecksagon("Widgets").vendored_packages).to eq(["widgets"])
         expect(File.directory?(vendor_dir)).to be true
       end
     end

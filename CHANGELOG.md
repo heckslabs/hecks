@@ -9,6 +9,67 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **`AwsBox` can render its Compose file from an ECS task definition.** `task_definition "<family>"` makes `render-compose.sh` read each container's image, environment and secrets from that task at deploy time, so a project running on Fargate moves its box by pointing it at the task it already has; the world lists only names and ports, and no ECR repositories are made. `deploy-box.sh` and `make deploy TASKDEF=family:revision` take a revision. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
+**A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
+once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
+`hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
+dependency-free TypeScript module with the table as `as const` data and a few pure helpers: `pageIsOn`,
+`isOffPath`, `notForSearch`, `previewUrl`, the middleware rules as data, the desktop, mobile, footer and
+admin navigation, the sitemap paths, the robots prefixes, and a map from each CMS global to its page. A row
+whose source is a `command:` or `query:` takes its path from the forms scheme (`/Chapter/Aggregate/Verb`)
+and is checked against the chapters the project attaches. The closed sets a row's values come from (kind,
+render, auth, cache class, origin, preview) are value objects of the Site chapter, so a row naming a cache
+class that is not a member is refused with the members listed, and so are a path declared twice, an off page
+in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
+that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
+
+**`project_site` also projects the CDN.** A route table that declares an edge (`Edge`, `EdgePolicy`,
+`EdgeOrigin` and `EdgeRule` rows beside its `Route` rows) has the same command rewrite two marked regions,
+`BEGIN`/`END GENERATED site_cdn behaviors` and `listener_rules`, of the CloudFormation template the project
+owns: the distribution's default and ordered cache behaviours, and the load balancer's listener rules with their
+priorities and origin-secret condition. A route gets a behaviour only when CloudFront would otherwise apply a
+different one; the order is the order the rows are declared in, and a pattern that a broader earlier one would
+shadow is refused. Rows gain `compress`, `alb_rule` and `cdn`. The refusals name an unknown or unmapped origin,
+a cache class with no policy, a duplicate priority and a rule that carries no route. `--check` covers the
+regions, `out=<dir>` writes a copy of the template, and the catch-all row `/*` hides nothing from `NOT_FOR_SEARCH`.
+`Fargate::Cdn.behavior_lines` is public and renders a `ResponseHeadersPolicyId`.
+
+**One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
+(a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
+name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package
+vendored into the project at `vendor/embryonaut_bluebooks/<name>/bluebook`. `from: :vendor` is
+required for a vendored package, so a typo cannot silently pick one over a gem chapter; an unknown
+name refuses with a `WiringError` that lists the gem's chapters and says how to attach a vendored
+package. A hecksagon now holds one list, `attachments`, each with its source (`:gem` or `:vendor`),
+in place of `framework_members`, `vendored_bluebooks` and `attached_chapters`. The Rust parser and
+build accept the same forms. `hecks model_check` now also flags `across "X"` on a hecksagon that
+attaches a chapter the gem carries beyond the framework members, which it missed before.
+
+Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
+They behave as before, print a one-line warning, and are removed in 3.1.0. Generated Rust files
+now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
+
+**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
+is optional on the command line. Queries are read with
+`hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
+and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
+field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, not `hecks gate`. A bare name
+is refused with the qualified names that end in it. A chapter's `names` table still gives
+explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
+names: qualify them (the bare-name refusal lists the candidates).
+
+**`HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
+
+**`hecks mcp` has a commands scope, and a restricted door stays booted.** With
+`HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
+the door serves the reader tools and `dispatch` for those commands only. A command is admitted by the
+verb it resolves to, so a short name shared by several aggregates (`complete`, `accept`) cannot reach
+another aggregate's command, and every step of a batch is checked before any runs. `tools/list` shows
+the allowed commands as an enum. The list admits commands, not argument values, so leave off any
+command whose arguments name a binary, a URL or a path outside the checkout (ADR 0089). A restricted
+door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
+call after the first no longer pays the boot; an unrestricted door still boots on every call.
+
 **`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
@@ -31,6 +92,8 @@ now carries a frozen `expect` (instances, events, refusals with kind, queries, s
 reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
 `spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
 against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
+`hecks test_suite_run.seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+
 `hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing). A test-suite change; the runtime is unchanged (#951).
 
 **`hecks help` groups verbs by aggregate and sets the bookkeeping verbs apart.** Output change only; no verb is renamed or removed (#947).

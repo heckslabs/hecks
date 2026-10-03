@@ -9,6 +9,12 @@ module Hecks
     # Rewrites a copied domain's persistence bindings before an ephemeral
     # fuzz/replay boot; a directory copy alone does not isolate Postgres state.
     module IsolatedBoot
+      # A vendored package named by `attaches "name", from: :vendor`.
+      VENDORED_ATTACHED = /attaches\s*\(?\s*"([\w-]+)"\s*\)?\s*,\s*from:\s*:vendor/
+
+      # A vendored package named by the deprecated `uses_embryonaut_bluebook "name"`.
+      VENDORED_DEPRECATED = /uses_embryonaut_bluebook\s*\(?\s*"([\w-]+)"/
+
       module_function
 
       # Copies `domain_path` to a tmpdir, rebinds its persistence to `adapter`, and
@@ -67,7 +73,8 @@ module Hecks
       # `Hecks.boot` only sees the domain directory itself, not `vendor/`.
       def carry_vendored_bluebooks!(source, destination)
         names = Dir.glob(File.join(destination, "**", "*.hecksagon")).flat_map do |path|
-          File.read(path).scan(/uses_embryonaut_bluebook\s*\(?\s*"([\w-]+)"/).flatten
+          text = File.read(path)
+          (text.scan(VENDORED_DEPRECATED) + text.scan(VENDORED_ATTACHED)).flatten
         end
         names.uniq.each do |name|
           package = File.join(File.dirname(source), "vendor", "embryonaut_bluebooks", name)
@@ -161,8 +168,8 @@ module Hecks
       # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
       # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
       # scratch constant here — `database:`/`schema:` are required keyword args because
-      # the caller (`hecks quality_control ask run --persistence-parity`) owns that database's
-      # lifecycle.
+      # the caller (`hecks quality_control query sweep.run --persistence-parity`) owns that
+      # database's lifecycle.
       def rebind_to_postgres_era!(copy, database:, schema:)
         require "pg"
         if database.to_s.empty? || schema.to_s.empty?

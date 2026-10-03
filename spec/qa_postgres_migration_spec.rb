@@ -24,7 +24,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     Hecks::Chapters.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
-      uses_framework "Governance"
+      attaches "Governance"
 
       QualityControl::Target.persisted_by("Heki")
       QualityControl::Sweep.persisted_by("Heki")

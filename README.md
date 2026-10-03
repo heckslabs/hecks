@@ -32,13 +32,13 @@ gem install hecks
 
 Or in a Gemfile: `gem "hecks"`.
 
-The gem installs a `hecks` command for a domain you supply: `run`,
-`docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+The gem installs a `hecks` command for a domain you supply: `init`
+(writes the stub of a new one), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
 `project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the
-maintainer commands (`hecks publish`, `hecks regenerate_corpus`,
-`hecks measure_doc_coverage`, and the rest of the Codebase chapter).
+maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
+`hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase chapter).
 
 The gem carries no sample domain, so the quickstart below starts from a
 clone of this repository.
@@ -64,7 +64,7 @@ leaves it):
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do
@@ -97,7 +97,8 @@ harness.
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and
 [Your own domain](docs/implemented/guides/your-own-domain.md) has you write
-a bluebook of your own, run it, and deploy it to AWS Lambda. The
+a bluebook of your own (starting from `hecks init`), run it, and deploy it
+to AWS Lambda. The
 [Glossary](#glossary) at the end of this page defines the project's own
 words. `bundle exec hecks console subject=<domain>` boots any other domain
 directory as that directory is wired.
@@ -333,7 +334,7 @@ end
 
 ```ruby boot
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Account.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do
@@ -433,7 +434,7 @@ Only what this repository actually does today, checked, not aspired to:
   over a domain's own IR — unreachable lifecycle states, transitions
   nothing can fire, saga states no handler chain reaches — before
   anything boots against real data.
-- **Property-based fuzzing, including determinism.** `hecks fuzz`
+- **Property-based fuzzing, including determinism.** `hecks fuzz_run.fuzz`
   generates random-but-valid command/query sequences from a domain's
   own IR and checks four properties: every lifecycle value a replay
   produces was declared, every saga advance follows a declared handler,
@@ -441,7 +442,7 @@ Only what this repository actually does today, checked, not aspired to:
   actually matters for an event-sourced system — **replaying the same
   steps against a fresh boot produces byte-identical history.** This
   runs against the Memory adapter by default and against real Sqlite
-  and Postgres with `hecks fuzz adapter=sqlite` (or `adapter=postgres`) (see
+  and Postgres with `hecks fuzz_run.fuzz adapter=sqlite` (or `adapter=postgres`) (see
   [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
@@ -533,7 +534,7 @@ vendored [embryonaut bluebook](#embryonaut-bluebook):
 - **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **directory** — A staff directory: members once addressed by the name they walked in with, now by the email that actually identifies them one person to one row.
-- **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
+- **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through `attaches ... from: :vendor`, exercising the same dispatch-table merge a gem `attaches` already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
@@ -552,7 +553,7 @@ hecks DSL (`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
 
 A `.hecksagon` file: the wiring for a bluebook — which adapter persists
 each aggregate (`Pizzas::Order.persisted_by("Memory")`), which framework
-chapters it attaches (`uses_framework "Governance"`), and its ports. See
+chapters it attaches (`attaches "Governance"`), and its ports. See
 [Wiring](docs/implemented/guides/wiring.md).
 
 ### World
@@ -573,7 +574,7 @@ One named `Hecks.bluebook` declaration and the module the door installs
 for it (`Pizzas`). The language's framework chapters (`Governance`,
 `Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
 and its grammar chapters in `lib/hecks/grammar/`; a hecksagon attaches a
-framework chapter with `uses_framework`.
+framework chapter with `attaches`.
 
 ### Heki
 
@@ -616,8 +617,8 @@ development](docs/implemented/guides/ai-native-development.md).
 
 A bluebook package vendored into a consuming domain's own
 `vendor/embryonaut_bluebooks/<name>/` directory and attached from its
-hecksagon with `uses_embryonaut_bluebook "<name>"`, the same way
-`uses_framework` attaches a framework chapter.
+hecksagon with `attaches "<name>", from: :vendor`, the same way
+`attaches` attaches a framework chapter.
 `examples/embryonaut_vendoring_demo` is the worked example.
 
 ## Contributing
@@ -626,7 +627,7 @@ Issues, examples, and runtime/adapter work are all welcome — the gaps
 in [Project status](docs/implemented/guides/project-status.md) are real
 starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `hecks model_check`, and
-`hecks fuzz` are what CI runs, and every `ruby`-fenced example in a guide
+`hecks fuzz_run.fuzz` are what CI runs, and every `ruby`-fenced example in a guide
 or this README is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 the full checklist. To check the whole claim, not just the demo:
@@ -634,7 +635,7 @@ the full checklist. To check the whole claim, not just the demo:
 ```sh
 bundle exec rspec       # the whole suite
 bundle exec hecks model_check   # static analysis over a domain's IR
-bundle exec hecks fuzz          # generated sequences, checked against declared properties
+bundle exec hecks fuzz_run.fuzz          # generated sequences, checked against declared properties
 ```
 
 ## License

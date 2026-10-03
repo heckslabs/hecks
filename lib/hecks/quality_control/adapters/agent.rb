@@ -6,8 +6,8 @@ require "shellwords"
 module Hecks
   module Adapters
     # The `Agent` port's adapter: hands a prompt to an agent on the command line and lets it work
-    # in the checkout, the way `hecks quality_control mine_combinations` asks one for candidate
-    # domains.
+    # in the checkout, the way `hecks quality_control target.mine_combinations` asks one for
+    # candidate domains.
     #
     # Not the interviewer behind the framework's `agent` port (`ClaudeCode`), which reads one
     # JSON answer back: this agent edits files, so the only answer is whether it finished.

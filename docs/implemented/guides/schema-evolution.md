@@ -45,7 +45,7 @@ does. The evidence follows below rather than a description of it:
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.world"))
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("PostgresEra")
 end
 Hecks.hecksagon("Governance") do
@@ -93,14 +93,14 @@ real-corpus guide.
 
 Three pieces, and you will use all three every time your shape changes:
 
-- **`hecks scaffold_translation <domain>`** — diffs the shape your
+- **`hecks era.scaffold_translation <domain>`** — diffs the shape your
   bluebook currently declares against the shape the database holds,
   and writes an edge file with whatever it can infer confidently. What
   it cannot infer — an aggregate that vanished and a differently-named
   one that appeared, which look identical to "deleted, then created" —
   it refuses to guess at. That refusal is not a bug you work around; it
   is the one decision only you can make.
-- **`hecks audit_translation <domain>`** — replays your edge against
+- **`hecks era.audit_translation <domain>`** — replays your edge against
   every record the database actually holds and shows you a before/after
   sample. It is the difference between "the rules type-check" and having
   actually reviewed what happens to the data.
@@ -181,7 +181,7 @@ Now the requirement lands: a crate's weight is going to grow more
 fields (a unit, eventually a tare), so it earns its own value object.
 At the same time, `Crate` becomes `Bin` — closer to what the warehouse
 actually calls it. Two changes at once, on purpose: this is the
-discriminating case, the one `hecks scaffold_translation` cannot resolve
+discriminating case, the one `hecks era.scaffold_translation` cannot resolve
 alone.
 
 ```ruby
@@ -223,7 +223,7 @@ File.write(File.join(GRANGE_DIR, "bluebook/grange.hecksagon"), <<~HECKSAGON)
   end
 HECKSAGON
 
-scaffold = `bundle exec #{File.join(InMemoryDomain::ROOT, "exe/hecks")} scaffold_translation #{GRANGE_DIR} 2>&1`
+scaffold = `bundle exec #{File.join(InMemoryDomain::ROOT, "exe/hecks")} query era.scaffold_translation #{GRANGE_DIR} 2>&1`
 scaffold.include?("UNCLAIMED: Crate existed and now doesn't")   # => true
 ```
 
@@ -262,7 +262,7 @@ that turns "this type-checks" into confirmation of what actually
 happens to the data:
 
 ```ruby
-audit = `bundle exec #{File.join(InMemoryDomain::ROOT, "exe/hecks")} audit_translation #{GRANGE_DIR} 2>&1`
+audit = `bundle exec #{File.join(InMemoryDomain::ROOT, "exe/hecks")} query era.audit_translation #{GRANGE_DIR} 2>&1`
 audit.include?('"weight":{"value":10}')      # => true
 audit.include?('"contents":{"weight"')       # => true
 audit.include?("AUDIT PASSED")               # => true
@@ -393,7 +393,7 @@ retyped field, read on the addition side instead.
 all — its SQL expression is its only meaning, run inside the era's own
 compiled view, and `Lineage#translate` passes a computed field through
 untouched on purpose. That is exactly why minting an edge with a
-`compute` rule requires `hecks approve_translation --confirm` first: a
+`compute` rule requires `hecks era.approve_translation --confirm` first: a
 human has to look at the before/after sample, because nothing else can
 verify it. If you reach for `compute`, budget the review — it is not
 optional, and the mint refuses without it.
@@ -405,7 +405,7 @@ old key, and nothing in the other seven rule kinds says "these rows are
 the same entity under a new key." A `rekey` rule is exactly that
 declaration — SQL-only, like `compute`, with no in-process reference
 implementation (`Lineage#translate` never touches an entry's `id`,
-only its `state`) and the same `hecks approve_translation --confirm`
+only its `state`) and the same `hecks era.approve_translation --confirm`
 requirement before it can mint. Unlike every other rule here, it takes
 no `from:`/`to:` path — it isn't moving or consuming a `state` field,
 only recomputing what identifies the record:
@@ -420,7 +420,7 @@ The journal row itself never changes — `aggregate_id` stays whatever it
 was minted under, forever, the same immutability every other rule here
 already holds itself to. What changes is what the *next* era's
 compiled view resolves that row as, and what a fresh dispatch mints for
-a brand-new record going forward. One known gap: `hecks merge_tail`'s own
+a brand-new record going forward. One known gap: `hecks era.merge_tail`'s own
 conflict detection (`tail_merge.rb#conflict_ids`) does not yet
 recognize a pre-rekey and post-rekey row as the same entity — merging a
 domain whose history includes a rekey may leave both surviving as
@@ -474,9 +474,9 @@ check is the one that holds when the fence cannot.
 
 ## What to actually do
 
-Change the bluebook. Run `hecks scaffold_translation`. Resolve every
+Change the bluebook. Run `hecks era.scaffold_translation`. Resolve every
 `unresolved` line it leaves you — that is where the real decisions
-live, not busywork to get through. Run `hecks audit_translation` and
+live, not busywork to get through. Run `hecks era.audit_translation` and
 read the sample; do not skim it. Then boot. If a `compute` or `rekey`
 rule is involved, run the audit with `--approve` first, and mean it.
 

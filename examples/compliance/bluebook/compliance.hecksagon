@@ -4,7 +4,7 @@ Hecks.hecksagon "Compliance" do
   # A genuine standalone deploy (this domain's own Lambda, per this
   # file's own header two files up), so this attaches AND binds
   # Governance itself, the same sibling shape banking.hecksagon uses.
-  uses_framework "Governance"
+  attaches "Governance"
 
   # NO PER-AGGREGATE BINDS — compliance.world's own `default_adapter
   # "PostgresEra"` binds every aggregate this hecksagon leaves out, so
