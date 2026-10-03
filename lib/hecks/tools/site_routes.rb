@@ -5,18 +5,23 @@ require "fileutils"
 require "optparse"
 require_relative "../tools"
 require_relative "../projections/site/routes_ts"
+require_relative "../projections/site/site_cdn"
+require_relative "../projections/site/regions"
 
 module Hecks
   module Tools
-    # Projects a project's route table (the `Route` rows of its bluebook, read against the Site
-    # chapter) into `routes.ts` (`Hecks::Projections::Site::RoutesTs`).
+    # Projects a project's route table into `routes.ts` (`Projections::Site::RoutesTs`) and, when
+    # it declares an edge, into the behaviours and listener rules of its template
+    # (`Projections::Site::SiteCdn`).
     #
     #   hecks project_site [<project>] [--out=<dir>] [--check]
     #
     # `<project>` is the directory whose `bluebook/` holds the chapter that declares the rows and a
     # hecksagon that attaches Site; it defaults to the checkout. `routes.ts` is written to
-    # `<project>/generated` unless `--out` names another directory. With `--check` nothing is
-    # written: the tool answers 1 and names each file that differs from the table.
+    # `<project>/generated` unless `--out` names another directory. The template is rewritten in
+    # place between its `BEGIN`/`END GENERATED site_cdn` markers, or under `--out` a copy of it is
+    # written at the same relative path. With `--check` nothing is written: the tool answers 1 and
+    # names each file that differs from the table.
     module SiteRoutes
       # Where the files go, relative to the project, when `--out` names no directory.
       DEFAULT_OUT = "generated"
@@ -52,7 +57,7 @@ module Hecks
           File.write(path, files.fetch(path))
           puts "wrote #{display(path, project)}"
         end
-        puts "project_site: #{files.size} file, current" if stale.empty?
+        puts "project_site: #{files.size} #{files.size == 1 ? 'file' : 'files'}, current" if stale.empty?
         0
       end
 
@@ -63,11 +68,41 @@ module Hecks
       def projection(root, out: nil)
         registry = registry_for(root)
         chapter = Projections::Site::Table.chapter(registry)
-        files = Projector.call(:site_routes_ts, bluebook: chapter, options: { registry: registry })
+        table = Projections::Site::Table.read(chapter, registry: registry)
+        files = Projector.call(:site_routes_ts, bluebook: chapter, options: { table: table })
         dir = out ? File.expand_path(out) : File.join(root, DEFAULT_OUT)
-        files.to_h { |name, text| [File.join(dir, name), text] }
+        written = files.to_h { |name, text| [File.join(dir, name), text] }
+        written.merge(template_files(root, out, chapter, table, registry))
       rescue Projections::Site::Table::Invalid => e
         abort "project_site: #{e.message}"
+      end
+
+      # The template with the edge's regions rewritten, when the project declares an edge.
+      #
+      # @param root [String] the project directory
+      # @param out [String, nil] the directory to write to, or nil to rewrite the template in place
+      # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+      # @param table [Projections::Site::Table] the checked table
+      # @param registry [Hecks::Runtime::Registry] the registry the project booted into
+      # @return [Hash{String => String}] the template's path to its text; empty with no edge
+      # @raise [SystemExit] when the template is missing or lacks a region
+      def template_files(root, out, chapter, table, registry)
+        edge = Projections::Site::Edge.read(chapter, table: table, vocabulary: Projections::Site::Table.vocabulary(registry))
+        return {} unless edge
+
+        regions = Projector.call(:site_cdn, bluebook: chapter, options: { table: table, edge: edge })
+        relative = edge.setting.template
+        source = File.join(root, relative)
+        abort "project_site: the template #{relative} does not exist in #{root}" unless File.file?(source)
+
+        text = regions.reduce(File.read(source)) do |current, (name, block)|
+          unless Projections::Site::Regions.region?(current, name)
+            abort "project_site: #{relative} has no BEGIN/END GENERATED site_cdn #{name} region"
+          end
+
+          Projections::Site::Regions.replace(current, name, block)
+        end
+        { (out ? File.join(File.expand_path(out), relative) : source) => text }
       end
 
       # Loads the project's chapters the way a deploy does: the bluebooks, then the hecksagons that

@@ -65,12 +65,12 @@ module Hecks
         end
 
         # @param chapter [Bluebook::Chapter] a chapter to search
-        # @return [Array<Hash{Symbol => Object}>] the member rows of its `Route` value objects
-        def self.rows_of(chapter)
+        # @param object [String] the name of the value object whose rows are wanted
+        # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
+        def self.rows_of(chapter, object = ROW_OBJECT)
           chapter.aggregates.flat_map(&:value_objects)
-                 .select { |object| object.hecks_name == ROW_OBJECT }.flat_map(&:members)
+                 .select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
         end
-        private_class_method :rows_of
 
         # @param members [Array<Hash{Symbol => Object}>] the declared member rows
         # @param vocabulary [Hash{Symbol => Array<String>}] the closed sets

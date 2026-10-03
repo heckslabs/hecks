@@ -39,7 +39,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
     it "writes to generated/ of the project when --out names no directory" do
       files = described_class.projection(project)
 
-      expect(files.keys).to eq([File.join(project, "generated", "routes.ts")])
+      expect(files.keys).to eq([File.join(project, "generated", "routes.ts"), File.join(project, "deploy/template.yaml")])
     end
 
     it "derives a domain route from a command with the forms scheme, /Chapter/Aggregate/Verb" do
@@ -82,16 +82,16 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       $stderr = STDERR
     end
 
-    it "writes routes.ts, names it, and answers 0; a second run writes nothing" do
+    it "writes routes.ts and the template, names them, and answers 0; a second run writes nothing" do
       status, out, = run("--out=#{work}")
 
       expect(status).to eq(0)
-      expect(out).to eq("wrote #{File.join(work, 'routes.ts')}\n")
+      expect(out).to eq("wrote #{File.join(work, 'routes.ts')}\nwrote #{File.join(work, 'deploy/template.yaml')}\n")
       expect(File.read(File.join(work, "routes.ts"))).to eq(File.read(golden))
 
       status, out, = run("--out=#{work}")
 
-      expect([status, out]).to eq([0, "project_site: 1 file, current\n"])
+      expect([status, out]).to eq([0, "project_site: 2 files, current\n"])
     end
 
     it "with --check writes nothing, answers 1 and names the stale file" do
@@ -99,7 +99,8 @@ RSpec.describe Hecks::Tools::SiteRoutes do
 
       expect(status).to eq(1)
       expect(out).to eq("")
-      expect(err).to include("out of date: #{File.join(work, 'routes.ts')}", "run hecks project_site")
+      expect(err).to include("out of date: #{File.join(work, 'routes.ts')}, #{File.join(work, 'deploy/template.yaml')}",
+                             "run hecks project_site")
       expect(Dir.children(work)).to be_empty
     end
 
@@ -273,7 +274,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       expect(JSON.parse(out)).to eq(
         "off" => [true, true, false], "switch" => [false, true], "search" => [true, true, false],
         "preview" => ["/about", "/admin-preview/blog/hello%20world"], "globals" => "/about",
-        "match" => [true, false], "nav" => [5, "inbox", 2], "routes" => 21
+        "match" => [true, false], "nav" => [5, "inbox", 2], "routes" => 35
       )
     end
 
