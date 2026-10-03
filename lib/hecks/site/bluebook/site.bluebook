@@ -3,7 +3,7 @@
 #
 # A client declares its routes as `member` rows of a `value_object "Route"` in its own chapter (the
 # Route aggregate below names every field a row may carry and the closed sets its values come from),
-# attaches this chapter, and runs `hecks site project_site`. The projection (`:site_routes_ts`)
+# attaches this chapter, and runs `hecks site site_projection.project_site`. The projection (`:site_routes_ts`)
 # writes one `routes.ts` the site's middleware, navigation, sitemap, robots file and CMS all import,
 # so a route is declared once. The Route aggregate's value objects are the one place the closed
 # vocabularies live: the projector reads them from here, so a row naming a cache class that is
@@ -134,7 +134,7 @@ Hecks.bluebook "Site" do
       transition "Fault"    => "faulted",   from: "requested"
     end
 
-    # `hecks site project_site <project> [out=<dir>] [--check]`. With `check` nothing is written: a
+    # `hecks site site_projection.project_site <project> [out=<dir>] [--check]`. With `check` nothing is written: a
     # routes.ts that differs from the table is faulted, naming the file, so a CI job fails on drift.
     command "ProjectSite" do
       goal "Project a site's route table into routes.ts, or with check only compare it with the file on disk"

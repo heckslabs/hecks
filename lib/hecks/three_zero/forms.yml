@@ -1,127 +1,127 @@
 # Each bin/ script and exe/hecks route, and the hecks 3.0 form that replaces it: the verb spelling the
 # 3.0 launcher answers to (ADR 0080, section 7), with QualityControl verbs after `hecks quality_control`.
 ---
-argument_gate_matrix: hecks argument_gate_matrix [--confirm] (writes only with --confirm)
-backfill_era_projections: hecks backfill_projections <domain>
-behaviors: hecks run_behaviors subject=<path>
-bench: hecks bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup=200]
+argument_gate_matrix: hecks conformance_run.argument_gate_matrix [--confirm] (writes only with --confirm)
+backfill_era_projections: hecks era.backfill_projections <domain>
+behaviors: hecks operation.run_behaviors subject=<path>
+bench: hecks fuzz_run.bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup=200]
   [runs=3] [rust_binary=] [format=markdown] [output=]
-canonicalise: hecks canonicalise <file.json>
-check_engine_agreement: hecks check_engine_agreement
-check_era: hecks check_era <url> expected=era-file [timeout=10]
-codemod_hoist_local_givens: hecks hoist_local_givens --confirm
-codemod_implicit_append_fields: hecks drop_implicit_append_fields --confirm
-compact: hecks compact <domain> [aggregates=A,B] --confirm
+canonicalise: hecks style_run.canonicalise <file.json>
+check_engine_agreement: hecks conformance_run.check_engine_agreement
+check_era: hecks host.check_era <url> expected=era-file [timeout=]
+codemod_hoist_local_givens: hecks codemod_run.hoist_local_givens --confirm
+codemod_implicit_append_fields: hecks codemod_run.drop_implicit_append_fields --confirm
+compact: hecks era.compact <domain> [aggregates=A,B] --confirm
 console: hecks console [subject=<domain>]
-corpus: hecks rust_domains; hecks regen_order; hecks corpus_rust_coverage
-deploy_template_diff: hecks deploy diff before=a.yaml after=b.yaml [--json] [--strict]
-doc_coverage: hecks measure_doc_coverage
+corpus: hecks corpus_run.rust_domains; hecks corpus_run.regen_order; hecks corpus_run.corpus_rust_coverage
+deploy_template_diff: hecks deploy template_comparison.diff before=a.yaml after=b.yaml [--json] [--strict]
+doc_coverage: hecks conformance_run.measure_doc_coverage
 docs: hecks docs [domain-path] [aggregate]
-evolve: hecks word_status; hecks propose <word> context=X [body=none] [inner=] [opens=]
-  [fills=]; hecks admit|deprecate|retire <word> context=X; hecks rename <word> context=X
-  new_name=Y; hecks propose_argument <word> context=X kind=K [required=false] [at=N]
-  [named=] [fills=] [pairs_shape=]; hecks admit_argument|deprecate_argument|retire_argument
+evolve: hecks language_run.word_status; hecks language_run.propose <word> context=X [body=none] [inner=] [opens=]
+  [fills=]; hecks language_run.admit|deprecate|retire <word> context=X; hecks language_run.rename <word> context=X
+  new_name=Y; hecks language_run.propose_argument <word> context=X kind=K [required=false] [at=N]
+  [named=] [fills=] [pairs_shape=]; hecks language_run.admit_argument|deprecate_argument|retire_argument
   <word> context=X [at=N] [named=]
-expression_projection: hecks project_expression_tables [--stdout]
-follow: hecks follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]
-fuzz: hecks fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]
-generate: hecks generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]
+expression_projection: hecks language_run.project_expression_tables [--stdout]
+follow: hecks operation.follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]
+fuzz: hecks fuzz_run.fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]
+generate: hecks fuzz_run.generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]
 hecks_mcp_door: hecks mcp [--stdio]
-hecks_query_ir_mcp: hecks serve_query_ir_mcp
-heki_compact: hecks compact_heki <domain> [aggregates=A,B] --confirm
-history: hecks history <domain>
+hecks_query_ir_mcp: hecks corpus_run.serve_query_ir_mcp
+heki_compact: hecks era.compact_heki <domain> [aggregates=A,B] --confirm
+history: hecks introspection.history <domain>
 ir: hecks ir <domain> [--translations] | hecks ir --meta
-lint_deploy_recipes: hecks deploy lint [makefiles=a,b]
-merge_tail: hecks merge_tail <domain> winners=id:old,id:new --confirm
+lint_deploy_recipes: hecks deploy makefile_check.lint [makefiles=a,b]
+merge_tail: hecks era.merge_tail <domain> winners=id:old,id:new --confirm
 model_check: hecks model_check [--strict] [--profile client] [<domain> …]
 narrate: hecks narrate [domain-path] [aggregate]
-pattern-cases: hecks record_pattern_cases
-present: hecks present [port=4567]
-project: hecks refresh_projections subject=<domain>
-project_bootstrap_table: hecks project_bootstrap_table
+pattern-cases: hecks test_suite_run.record_pattern_cases
+present: hecks corpus_run.present [port=4567]
+project: hecks operation.refresh_projections subject=<domain>
+project_bootstrap_table: hecks language_run.project_bootstrap_table
 project_cli: hecks project_cli [domain-path …]
-project_deploy: hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]
+project_deploy: hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]
 project_diagrams: hecks project_diagrams <domain-path> <ChapterName>
-project_field_hints: hecks project_field_hints
-project_glossary: hecks glossary <domain> chapter=Name
-project_kernel_capabilities: hecks project_kernel_capabilities
-project_model: hecks project_model
-project_oidc: hecks deploy project_oidc [domains=a,b]
-project_parser_table: hecks project_parser_table
-project_refusal_wording: hecks project_refusal_wording
-project_reserved_names: hecks project_reserved_names
-project_rust: hecks project_rust <domain>
-project_rust_vocabulary: hecks project_rust_vocabulary
-project_tenant: hecks deploy provision <domain_dir> slug=s domain= realm= schema=
-  database= [adapter=PostgresEra]; hecks deploy reprovision <tenant> directory= database=
+project_field_hints: hecks language_run.project_field_hints
+project_glossary: hecks introspection.glossary <domain> chapter=Name
+project_kernel_capabilities: hecks kernel_run.project_kernel_capabilities
+project_model: hecks language_run.project_model
+project_oidc: hecks deploy oidc_manifest.project_oidc [domains=a,b]
+project_parser_table: hecks language_run.project_parser_table
+project_refusal_wording: hecks language_run.project_refusal_wording
+project_reserved_names: hecks language_run.project_reserved_names
+project_rust: hecks build.project_rust <domain>
+project_rust_vocabulary: hecks language_run.project_rust_vocabulary
+project_tenant: hecks deploy tenant.provision <domain_dir> slug=s domain= realm= schema=
+  database= [adapter=PostgresEra]; hecks deploy tenant.reprovision <tenant> directory= database=
   [adapter=PostgresEra]
-project_vocabulary: hecks project_vocabulary
-project_wasm: hecks build_wasm <domain>
-project_wasm_browser: hecks build_browser_wasm <domain>
+project_vocabulary: hecks language_run.project_vocabulary
+project_wasm: hecks build.build_wasm <domain>
+project_wasm_browser: hecks build.build_browser_wasm <domain>
 qa_concurrency_racer: not user-facing; ProcessPool starts it as hecks quality_control
-  race domain= database= schema= verb= step_arguments=
-qa_discover_external_domains: hecks quality_control discover_external_domains [arguments="--projects-dir
+  sweep.race domain= database= schema= verb= step_arguments=
+qa_discover_external_domains: hecks quality_control target.discover_external_domains [arguments="--projects-dir
   ~/Projects --max-depth 3 --known-path PATH …"]
-qa_domain_novelty: hecks quality_control judge_novelty <domain> [arguments="--against
+qa_domain_novelty: hecks quality_control target.judge_novelty <domain> [arguments="--against
   PATH …"]
-qa_generated_domains: hecks quality_control check_generated_domains [arguments="--domains
+qa_generated_domains: hecks quality_control target.check_generated_domains [arguments="--domains
   3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget
   200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F
   --source F"]
-qa_log_bug: hecks quality_control log sweep=<sweep id> reference= sequence=N title=
+qa_log_bug: hecks quality_control bug.log sweep=<sweep id> reference= sequence=N title=
   demonstration= symptom= expectation= submitter= [tags=a,b] [name=] [reproduced=yes|no]
-qa_mine_combinations: hecks quality_control mine_combinations [arguments="--candidates
+qa_mine_combinations: hecks quality_control target.mine_combinations [arguments="--candidates
   3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from
   DIR --against PATH --brief"]
 qa_open_pr: hecks quality_control patch.open bug=BUG#n number=N url=… branch=… commit=SHA
   title=… [now=]; hecks quality_control improvement.open [angle=ANGLE-n] number=N
   url=… branch=… title=… [now=]
-qa_postgres_migrate: hecks quality_control migrate_ledger_from_heki domain=<domain_dir>
+qa_postgres_migrate: hecks quality_control sweep.migrate_ledger_from_heki domain=<domain_dir>
   data=<heki_dir> [arguments="[aggregate …] --force"] (a dry run without --force)
-qa_postgres_role: hecks quality_control create_ledger_role <database> [role=hecks_qa]
-qa_pr_check: hecks quality_control check_pull_requests
+qa_postgres_role: hecks quality_control sweep.create_ledger_role <database> [role=hecks_qa]
+qa_pr_check: hecks quality_control clearance.check_pull_requests
 qa_seed_angles: hecks quality_control angle.seed
 qa_seed_targets: hecks quality_control target.seed
-qa_sweep: hecks quality_control ask run [target=] [arguments="--all --seeds N --steps
+qa_sweep: hecks quality_control query sweep.run [target=] [arguments="--all --seeds N --steps
   N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b
-  --persistence-parity --no-parity"]; hecks quality_control release <target> [now=]
+  --persistence-parity --no-parity"]; hecks quality_control target.release <target> [now=]
   [next_streak=] [capabilities=] [yield_score=]
-qa_tick: hecks quality_control tick
-query_ir: hecks ir_constructs [names=a,b]; hecks ir_duplicates [domains=a,b] [--meta];
-  hecks ir_impact name=N field=F
-reattest_era: hecks reattest <domain> era=N --confirm
-reference: hecks project_reference
-refresh_rspec_runtime_baseline: hecks refresh_runtime_baseline [workers=6] [from_run=ID]
-regen_codegen_domains: hecks regenerate_corpus [--check]
-regenerate_persistence_legacy_fixtures: hecks regenerate_legacy_fixtures --confirm
-release: hecks publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm
+qa_tick: hecks quality_control sweep.tick
+query_ir: hecks corpus_run.ir_constructs [names=a,b]; hecks corpus_run.ir_duplicates [domains=a,b] [--meta];
+  hecks corpus_run.ir_impact name=N field=F
+reattest_era: hecks era.reattest <domain> era=N --confirm
+reference: hecks language_run.project_reference
+refresh_rspec_runtime_baseline: hecks test_suite_run.refresh_runtime_baseline [workers=] [from_run=ID]
+regen_codegen_domains: hecks regeneration_run.regenerate_corpus [--check]
+regenerate_persistence_legacy_fixtures: hecks test_suite_run.regenerate_legacy_fixtures --confirm
+release: hecks publishing_run.publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm
   (without --confirm, the old --dry-run)
-release_gem: hecks publish_gem --confirm
-rspec_io_parallel_files: hecks list_io_parallel_specs exclude=REGEX [tags=] [check=file];
-  hecks write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm
-rspec_shard_files: hecks shard_specs group=1 groups=N [runtime_log=]
+release_gem: hecks publishing_run.publish_gem --confirm
+rspec_io_parallel_files: hecks test_suite_run.list_io_parallel_specs exclude=REGEX [tags=] [check=file];
+  hecks test_suite_run.write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm
+rspec_shard_files: hecks test_suite_run.shard_specs group=1 groups=N [runtime_log=]
 run: hecks run [domain] <verb [name=value …] | script.json | - | '{"steps":[…]}'>
-rust_conformance: hecks check_conformance <domain> script=steps.json [artifact=native]
-rust_conformance_fuzz: hecks fuzz_conformance <domain> artifact=native [seeds=10]
+rust_conformance: hecks build.check_conformance <domain> script=steps.json [artifact=native]
+rust_conformance_fuzz: hecks build.fuzz_conformance <domain> artifact=native [seeds=10]
   [steps=25]
-rust_coverage: hecks rust_coverage <module> [codegen=ruby]; hecks check_coverage_allowlist
-rust_kernel_coverage: hecks measure_kernel_coverage
-scaffold_translation: hecks scaffold_translation <domain>
-seed_semantics_corpus: hecks seed_semantics_corpus [fixture=name]
-shape: hecks shape <domain>
-smoke_http: hecks smoke_http path=/p [url=] [header=] [scheme=timestamped]
+rust_coverage: hecks build.rust_coverage <module> [codegen=ruby]; hecks build.check_coverage_allowlist
+rust_kernel_coverage: hecks kernel_run.measure_kernel_coverage
+scaffold_translation: hecks era.scaffold_translation <domain>
+seed_semantics_corpus: hecks test_suite_run.seed_semantics_corpus [fixture=name]
+shape: hecks introspection.shape <domain>
+smoke_http: hecks operation.smoke_http path=/p [url=] [header=] [scheme=timestamped]
   [payload=] [payload_file=] [health_path=] [state_path=]
 smoke_test: hecks smoke_test [domain]
-spec_example: hecks run_spec_example file=path example=text
-standardize_comments: hecks report_comments paths=a,b [only=] [--json] [top=20]; hecks
-  check_comments paths=…; hecks fix_comments paths=… --confirm; hecks write_comment_baseline
-  --confirm; hecks check_comments_unchanged ref=REF
-standardize_comments_rust: hecks report_rust_comments paths=a,b [only=] [--json] [top=N];
-  hecks check_rust_comments paths=… [only=]; hecks fix_rust_comments paths=… [only=]
+spec_example: hecks test_suite_run.run_spec_example file=path example=text
+standardize_comments: hecks style_run.report_comments paths=a,b [only=] [--json] [top=20]; hecks
+  style_run.check_comments paths=…; hecks style_run.fix_comments paths=… --confirm; hecks style_run.write_comment_baseline
+  --confirm; hecks style_run.check_comments_unchanged ref=REF
+standardize_comments_rust: hecks style_run.report_rust_comments paths=a,b [only=] [--json] [top=N];
+  hecks style_run.check_rust_comments paths=… [only=]; hecks style_run.fix_rust_comments paths=… [only=]
   --confirm
-statements: hecks statements <domain> chapter=Name
+statements: hecks introspection.statements <domain> chapter=Name
 stores: hecks stores <domain>
-stress_concurrency_specs: hecks stress_concurrency [runs=] [parallel=] [seed_start=]
-translation_audit: hecks audit_translation <domain>; hecks approve_translation <domain>
+stress_concurrency_specs: hecks test_suite_run.stress_concurrency [runs=] [parallel=] [seed_start=]
+translation_audit: hecks era.audit_translation <domain>; hecks era.approve_translation <domain>
   [snapshot=] [host_version=] [rehearsal=pass|fail] [rehearsed_at=] --confirm
-vendor_bluebook: hecks vendor <package[@version]> [from=path] [root=path]
+vendor_bluebook: hecks package.vendor <package[@version]> [from=path] [root=path]

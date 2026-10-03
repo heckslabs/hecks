@@ -1,3 +1,5 @@
+require "hecks/rust_build/append_optionals"
+
 module RustProjection
   module Projector
     module_function
@@ -60,13 +62,7 @@ module RustProjection
 
     # Resolves an `append` target to its entity or value object, or nil if it is neither.
     def append_element(aggregate, target_type, value_objects_by_name)
-      # LOCAL FIRST — an aggregate's own nested entity is scoped to that
-      # Local entities win over the domain-wide value objects: Syntax's local `Argument` entity
-      # shares a name with Command's `Argument` value object.
-      local = aggregate[:entities].find { |e| e[:name] == target_type }
-      return local if local
-
-      value_objects_by_name[target_type]
+      Hecks::RustBuild::AppendOptionals.element(aggregate, target_type, value_objects_by_name)
     end
 
     # Identity attribute and its single-field value object for an auto-minted entity element,
@@ -454,29 +450,7 @@ module RustProjection
     # attribute
     # hash once, before the emitters read it, and never resets a `true`.
     def mark_append_optional_fields!(aggregate, value_objects_by_name)
-      aggregate[:attributes].each do |target_attr|
-        element = append_element(aggregate, target_attr[:type], value_objects_by_name)
-        next unless element
-
-        aggregate[:commands].each do |command|
-          command[:mutations].each do |m|
-            next unless m[:op].to_s == "append" && m[:target].to_s == target_attr[:name].to_s
-
-            m[:fields].each do |field_name, source|
-              # A Symbol is an argument name (optional ones are what this pass wants); else a
-              # literal.
-              parsed = append_field_source(source)
-              next unless parsed.is_a?(Symbol)
-
-              source_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
-              next unless source_attr && source_attr[:optional]
-
-              field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
-              field_attr[:optional] = true if field_attr
-            end
-          end
-        end
-      end
+      Hecks::RustBuild::AppendOptionals.mark_aggregate(aggregate, value_objects_by_name)
     end
 
     # Derives the mutations of a `corrects EVENT, reverses: true` command from the commands that

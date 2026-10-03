@@ -24,7 +24,7 @@ RSpec.describe "the semantics corpus" do
     expect(SEMANTICS_FIXTURES).not_to be_empty
     SEMANTICS_FIXTURES.each do |path|
       expect(load_fixture(path)).to have_key("expect"),
-                                    "#{File.basename(path)} has no expect — run hecks seed_semantics_corpus, " \
+                                    "#{File.basename(path)} has no expect — run hecks test_suite_run.seed_semantics_corpus, " \
                                     "review the seed against the clauses, and commit it"
     end
   end
@@ -122,7 +122,7 @@ RSpec.describe "the semantics corpus" do
 
         feature = File.basename(fixture.fetch("domain")).downcase
         binary  = build_rust_for(feature)
-        skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
+        skip "rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first" unless binary
 
         rust, failure = rust_answer(binary, fixture)
         expect(failure).to be_nil, failure

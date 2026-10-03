@@ -20,7 +20,7 @@ Resources:
           FixedResponseConfig:
             StatusCode: "403"
 
-  # BEGIN GENERATED site_cdn listener_rules (hecks project_site; edit the Route and Edge rows). Do not hand-edit.
+  # BEGIN GENERATED site_cdn listener_rules (hecks site site_projection.project_site; edit the Route and Edge rows). Do not hand-edit.
   ListenerRuleCms:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -95,7 +95,7 @@ Resources:
           - Id: AssetsOrigin
             DomainName: studio-assets.s3.amazonaws.com
             S3OriginConfig: { OriginAccessIdentity: "" }
-        # BEGIN GENERATED site_cdn behaviors (hecks project_site; edit the Route and Edge rows). Do not hand-edit.
+        # BEGIN GENERATED site_cdn behaviors (hecks site site_projection.project_site; edit the Route and Edge rows). Do not hand-edit.
         DefaultCacheBehavior:
           TargetOriginId: ServerOrigin
           ViewerProtocolPolicy: redirect-to-https

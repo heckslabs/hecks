@@ -14,7 +14,7 @@ module Hecks
     # it declares an edge, into the behaviours and listener rules of its template
     # (`Projections::Site::SiteCdn`).
     #
-    #   hecks project_site [<project>] [--out=<dir>] [--check]
+    #   hecks site site_projection.project_site [<project>] [--out=<dir>] [--check]
     #
     # `<project>` is the directory whose `bluebook/` holds the chapter that declares the rows and a
     # hecksagon that attaches Site; it defaults to the checkout. `routes.ts` is written to
@@ -26,7 +26,7 @@ module Hecks
       # Where the files go, relative to the project, when `--out` names no directory.
       DEFAULT_OUT = "generated"
 
-      USAGE = "usage: hecks project_site [<project>] [--out=<dir>] [--check]"
+      USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] [--check]"
 
       module_function
 
@@ -139,7 +139,7 @@ module Hecks
         end
 
         warn "project_site: out of date: #{stale.map { |path| display(path, project) }.join(', ')} " \
-             "(run hecks project_site)"
+             "(run hecks site site_projection.project_site)"
         1
       end
 

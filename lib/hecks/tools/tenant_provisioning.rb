@@ -16,7 +16,7 @@ module Hecks
     # merge) the base `persisted_by` settings, so `--database` is required. A policy's refusal is
     # swallowed by `PolicyInterpreter#deliver`, so success is confirmed by query.
     #
-    #   hecks deploy provision <domain-directory> <slug> --domain=name --realm=name \
+    #   hecks deploy tenant.provision <domain-directory> <slug> --domain=name --realm=name \
     #     --schema=name --database=name [--adapter=PostgresEra]
     module TenantProvisioning
       USAGE = "usage: hecks deploy provision <domain-directory> <slug> --domain=NAME --realm=NAME " \

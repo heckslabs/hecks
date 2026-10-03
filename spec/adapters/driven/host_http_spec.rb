@@ -81,7 +81,7 @@ RSpec.describe Hecks::Adapters::HostHttp do
     it "answers the era and version a host reports, with the verdict on a listed era", :io do
       serve(era: "abc123") do |url|
         eras("# eras\nabc123\n") do |file|
-          answer = adapter.fetch(host: { value: url }, expected: { value: file })
+          answer = adapter.fetch(host: { value: url }, expected: { value: file }, timeout: { value: 10 })
 
           expect(answer.transform_values { |field| field[:value] }).to eq(
             era: "abc123", version: "3.0.0", verdict: "match", report: "era abc123 is expected (abc123)"
@@ -104,26 +104,33 @@ RSpec.describe Hecks::Adapters::HostHttp do
     it "answers unlisted when the file names no era", :io do
       serve(era: "abc123") do |url|
         eras("# none\n") do |file|
-          expect(adapter.fetch(host: { value: url }, expected: { value: file }).dig(:verdict, :value))
-            .to eq("unlisted")
+          answer = adapter.fetch(host: { value: url }, expected: { value: file }, timeout: { value: 10 })
+
+          expect(answer.dig(:verdict, :value)).to eq("unlisted")
         end
       end
     end
 
     it "refuses a host that cannot be reached" do
       eras("abc123\n") do |file|
-        expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: file }) }
+        expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: file }, timeout: { value: 10 }) }
           .to raise_error(Hecks::Runtime::EraCheck::ExpectedEra::Unreachable, /could not be reached/)
       end
     end
 
     it "refuses an allow-list file that is not there" do
-      expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: "/no/such/eras" }) }
-        .to raise_error(Errno::ENOENT)
+      expect do
+        adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: "/no/such/eras" }, timeout: { value: 10 })
+      end.to raise_error(Errno::ENOENT)
     end
 
     it "refuses when no file was named" do
       expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }) }.to raise_error(ArgumentError, /allow-list/)
+    end
+
+    it "refuses when no timeout was given, since the command's declared default fills it" do
+      expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: "/no/such/eras" }) }
+        .to raise_error(ArgumentError, /timeout/)
     end
   end
 end

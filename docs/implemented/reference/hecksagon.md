@@ -5,7 +5,7 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -119,7 +119,7 @@ why this needs no new keyword at all.
 
 Attaches a chapter to this domain by name, from one of two places. It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a chapter's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.
 
-Without `from:`, the name is a chapter the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a chapter of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy`, `Site` or `QualityControl`. A gem chapter loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A chapter that ships `<chapter_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
+Without `from:`, the name is a chapter the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a chapter of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy`, `Deploy` or `QualityControl`. A gem chapter loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A chapter that ships `<chapter_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
 
 ```ruby
 Hecks::Chapters.table.keys.sort  # => ["Adapter", "Bluebook", "Compliance", "ConsoleSettings", "Deploy", "Expression", "Governance", "Hecksagon", "Identity", "Paging", "Port", "Privacy", "QualityControl", "Site", "Tenancy", "Translation", "World"]
@@ -181,7 +181,7 @@ Hecks.hecksagon("Legacy") { uses_embryonaut_bluebook "payments" }  # ~> WiringEr
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -199,7 +199,7 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 

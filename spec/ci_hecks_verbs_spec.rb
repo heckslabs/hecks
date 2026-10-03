@@ -3,6 +3,9 @@ require "spec_helper"
 # ADR 0080, step 10: the workflows and the pre-push hook call `hecks <verb>`, not `bin/`. Every
 # verb they name must resolve through the launcher, and none of them starts a `bin/` script.
 RSpec.describe "CI and hook calls of the hecks launcher" do
+  # Words exe/hecks hands to Hecks::CLI before the launcher; they are not qualified names.
+  LEGACY_WORDS = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
+
   CI_VERBS_ROOT = File.expand_path("..", __dir__)
   CI_VERBS_FILES = (Dir[File.join(CI_VERBS_ROOT, ".github/workflows/*.yml")] +
                     [File.join(CI_VERBS_ROOT, ".githooks/pre-push")]).freeze
@@ -20,17 +23,19 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
     expect(called).to be_empty
   end
 
-  it "names only verbs the launcher resolves" do
-    calls = code_lines.flat_map do |_, line|
-      line.scan(%r{exe/hecks ((?:ask |deploy )?)([a-z_]+)}).map { |kind, verb| [kind.strip, verb] }
-    end.uniq
+  it "names only commands the launcher resolves, each with its aggregate" do
+    found = code_lines.flat_map do |_, line|
+      line.scan(%r{exe/hecks ((?:ask |query |deploy )?)([a-z_.]+)!?}).map { |kind, verb| [kind.strip, verb] }
+    end
+    calls = found.uniq.reject { |_, verb| LEGACY_WORDS.include?(verb) }
     hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
 
     expect(calls).not_to be_empty
     calls.each do |kind, verb|
-      argv = [*(kind == "ask" ? [] : [kind]), verb, "--help"].reject(&:empty?)
+      argv = [kind, verb, "--help"].reject(&:empty?)
       _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
 
+      expect(verb).to include("."), "hecks #{verb} is not qualified with its aggregate"
       expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(' ')} does not resolve"
     end
   end
