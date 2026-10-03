@@ -2,6 +2,7 @@ require "spec_helper"
 require "json"
 require "open3"
 require "hecks/fuzzing"
+require "hecks/rust_build/kernel_input"
 require_relative "support/rust_conformance_helpers"
 
 # The executable half of docs/semantics/bluebook-semantics.md: both runtimes are held to each
@@ -102,7 +103,8 @@ RSpec.describe "the semantics corpus" do
     end
 
     def rust_answer(binary, fixture)
-      stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => fixture.fetch("steps") }))
+      domain_path = File.join(InMemoryDomain::ROOT, fixture.fetch("domain"))
+      stdout, status = Open3.capture2(binary, stdin_data: Hecks::RustBuild::KernelInput.json(domain_path, fixture.fetch("steps")))
       return [nil, "#{binary} exited #{status.exitstatus}:\n#{stdout}"] unless status.success?
 
       rust = JSON.parse(stdout)

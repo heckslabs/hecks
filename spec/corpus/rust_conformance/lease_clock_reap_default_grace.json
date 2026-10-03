@@ -1,0 +1,204 @@
+{
+  "domain": "qa/stress_domains/lease_clock",
+  "note": "A command attribute's declared default fills an argument the caller left out, in both engines. `Reap` declares `grace` with `default: { value: 0 }`: the first lease is reaped with no `grace` named (the default of none applies, so its expiry alone decides), and the second names a `grace` of 50, which the caller's own value wins over the default and holds the reap back.",
+  "steps": [
+    {
+      "verb": "LeaseClock::Lease.Register",
+      "args": {
+        "key": {
+          "value": "L1"
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Acquire",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "now": {
+          "value": 100
+        },
+        "expiry": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Reap",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "now": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Register",
+      "args": {
+        "key": {
+          "value": "L2"
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Acquire",
+      "args": {
+        "key": {
+          "value": "L2"
+        },
+        "holder": {
+          "value": "bob"
+        },
+        "now": {
+          "value": 100
+        },
+        "expiry": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Reap",
+      "args": {
+        "key": {
+          "value": "L2"
+        },
+        "now": {
+          "value": 200
+        },
+        "grace": {
+          "value": 50
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "LeaseClock::Lease.Reap",
+        "error": "Reap refused — only a lease whose own recorded expiry, plus any grace, the passed clock has reached is reaped",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "LeaseClock::Lease#L1": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "expires_at": {
+          "value": 200
+        },
+        "status": "free"
+      },
+      "LeaseClock::Lease#L2": {
+        "key": {
+          "value": "L2"
+        },
+        "holder": {
+          "value": "bob"
+        },
+        "expires_at": {
+          "value": 200
+        },
+        "status": "held"
+      }
+    },
+    "events": [
+      {
+        "name": "LeaseRegistered",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          }
+        }
+      },
+      {
+        "name": "LeaseAcquired",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          },
+          "holder": {
+            "value": "ann"
+          },
+          "now": {
+            "value": 100
+          },
+          "expiry": {
+            "value": 200
+          }
+        }
+      },
+      {
+        "name": "LeaseReaped",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          },
+          "now": {
+            "value": 200
+          },
+          "grace": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "name": "LeaseRegistered",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L2",
+        "payload": {
+          "key": {
+            "value": "L2"
+          }
+        }
+      },
+      {
+        "name": "LeaseAcquired",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L2",
+        "payload": {
+          "key": {
+            "value": "L2"
+          },
+          "holder": {
+            "value": "bob"
+          },
+          "now": {
+            "value": 100
+          },
+          "expiry": {
+            "value": 200
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}
