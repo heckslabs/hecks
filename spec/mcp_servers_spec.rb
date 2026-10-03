@@ -252,7 +252,7 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
-  # Commands mode (ADR 0087): reader mode plus `dispatch` for a closed list of commands.
+  # Commands mode (ADR 0089): reader mode plus `dispatch` for a closed list of commands.
   describe "hecks mcp in commands mode" do
     let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-commands") }
     let(:domain)       { memory_pizzas_under(sandbox_root) }

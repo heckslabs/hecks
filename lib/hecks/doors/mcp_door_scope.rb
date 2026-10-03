@@ -4,7 +4,7 @@ module Hecks
   module Doors
     # What a spawned hecks mcp may do: every tool by default; only reader tools against named
     # domains in reader mode; and in commands mode those plus `dispatch` of a closed list of
-    # commands — reach, not identity (ADR 0072, ADR 0087).
+    # commands — reach, not identity (ADR 0072, ADR 0089).
     class McpDoorScope
       ENV_PREFIX         = "HECKS_DOOR_".freeze
       TOOLS_VARIABLE     = "HECKS_DOOR_TOOLS".freeze

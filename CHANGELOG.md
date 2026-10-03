@@ -13,7 +13,7 @@ the door serves the reader tools and `dispatch` for those commands only. A comma
 verb it resolves to, so a short name shared by several aggregates (`complete`, `accept`) cannot reach
 another aggregate's command, and every step of a batch is checked before any runs. `tools/list` shows
 the allowed commands as an enum. The list admits commands, not argument values, so leave off any
-command whose arguments name a binary, a URL or a path outside the checkout (ADR 0087). A restricted
+command whose arguments name a binary, a URL or a path outside the checkout (ADR 0089). A restricted
 door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
 call after the first no longer pays the boot; an unrestricted door still boots on every call.
 
