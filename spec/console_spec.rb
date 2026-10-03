@@ -1,5 +1,6 @@
 require "open3"
 require "rbconfig"
+require "hecks/cli/console"
 
 # `Hecks::CLI::Console` (Operation.OpenConsole) runs as a real subprocess with its
 # IRB session fed on stdin. Postgres is pointed at a port nothing listens
@@ -45,5 +46,18 @@ RSpec.describe "Hecks::CLI::Console" do
 
     expect(status).not_to be_success
     expect(stderr).to include("cannot bind PostgresEra")
+  end
+
+  describe ".banner" do
+    it "offers the pizzas session, in the bare form the README uses, only for the pizzas domain" do
+      shown = Hecks::CLI::Console.banner
+
+      expect(shown).to include('Order.create_pizza!(name: "Margherita"')
+      expect(shown).not_to include("{ value:")
+    end
+
+    it "names no pizzas for any other domain" do
+      expect(Hecks::CLI::Console.banner("examples/banking")).not_to include("pizza")
+    end
   end
 end

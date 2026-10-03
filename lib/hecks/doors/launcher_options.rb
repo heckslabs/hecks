@@ -1,3 +1,4 @@
+require "stringio"
 require_relative "../ports/identity_generation"
 require_relative "../runtime/errors"
 require_relative "cli_door"
@@ -44,6 +45,23 @@ module Hecks
       # @return [Hash{Symbol => Object}] the options `Projector::CliProjector` reads
       def projection(settings, program)
         { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
+      end
+
+      # Runs the block with standard error held back, so the wiring notes hecks prints about its own
+      # chapters (a Memory journal loses sagas on restart) do not open a console session. They are
+      # for an operator running a stored journal. A raised error still surfaces, unchanged.
+      #
+      # @param hold [Boolean] whether to hold standard error back; false runs the block as it is
+      # @yield the boot
+      # @return [Object] the block's value
+      def quietly(hold: true)
+        return yield unless hold
+
+        shown = $stderr
+        $stderr = StringIO.new
+        yield
+      ensure
+        $stderr = shown if hold
       end
 
       # Takes `--wait` out of a verb's words, unless the verb declares a `wait` argument of its own.

@@ -20,7 +20,7 @@ directly from the declaration. A domain is data, so it can be read,
 diffed, statically checked, run against generated fuzz sequences, and
 compiled into another language, the same way any other data can.
 
-**Status:** Current release: `3.0.4`. See [Project status](#project-status)
+**Status:** Current release: `3.0.5`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
 
@@ -45,7 +45,9 @@ clone of this repository.
 
 ## Quickstart
 
-About ten minutes, and no database server:
+About ten minutes, and no database server. You need Ruby 3.2 or newer and
+Bundler. If `bundle install` fails building the `pg` gem, install Postgres's
+client library (`libpq`) and run it again; nothing here connects to a database.
 
 ```sh
 git clone https://github.com/heckslabs/hecks
@@ -56,7 +58,8 @@ bundle exec hecks console
 
 `console` boots the `examples/pizzas` domain on the in-memory adapter
 and drops you into IRB with its [door](#door) installed. Nothing needs a
-database, and `git status` stays clean. Type this at the prompt:
+database, and `git status` stays clean. Type this at the prompt (`exit`
+leaves it):
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
@@ -465,7 +468,7 @@ through.
 
 ## Project status
 
-Current release: `3.0.4`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
+Current release: `3.0.5`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
 states plainly what the stability promise made at `1.0.0` covers — the DSL
 and runtime API in [the DSL reference](docs/implemented/reference/index.md)
 won't change in a breaking way without a major-version bump — and what it
