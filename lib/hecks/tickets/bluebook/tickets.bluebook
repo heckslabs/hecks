@@ -1,21 +1,24 @@
 # The Tickets chapter: what a maintainer observed about Hecks that needs a decision or a fix, the
-# decisions that settle them, and the releases that ship them.
+# and the decisions that settle them.
 #
-# A Ticket is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
-# separate aggregates. Hecks owns the ticket's state; GitHub is driven from it through the
-# GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A ticket exists whether
+# QualityControl has its own Ticket, the issue raised for a Bug in an outside tracker, and the
+# Hecks domain has its own Release, the record of a gem version. A Finding sits before both: it is
+# any observation, not yet a proven bug, and it needs no sweep or failing test to be recorded.
+#
+# A Finding is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
+# separate aggregates. Hecks owns the finding's state; GitHub is driven from it through the
+# GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A finding exists whether
 # or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
-# ticket as a sync failure that a later run retries.
+# finding as a sync failure that a later run retries.
 #
-# An Adr is a decision record with its own lifecycle, linked to the tickets it settles. A Release
-# is a version cut, linked to the tickets it closed.
+# An Adr is a decision record with its own lifecycle, linked to the finding it settles.
 Hecks.bluebook "Tickets" do
   vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
 
-  aggregate "Ticket" do
+  aggregate "Finding" do
     description "One thing observed about Hecks that needs a decision or a fix: reported, triaged, then resolved or dismissed."
 
-    attribute :ticket,         TicketKey
+    attribute :finding,         FindingKey
     attribute :title,          Title
     attribute :body,           Body, optional: true
     attribute :kind,           Kind, optional: true
@@ -26,25 +29,25 @@ Hecks.bluebook "Tickets" do
     attribute :fix_pr_number,  Number, optional: true
     attribute :dismissal,      Body, optional: true
     attribute :sync_failure,   Body, optional: true
-    identified_by :ticket
+    identified_by :finding
 
-    value_object "TicketKey" do
+    value_object "FindingKey" do
       attribute :value, String, pattern: '[^ \t\n\r]'
 
-      invariant("a ticket is named") { !value.to_s.empty? }
+      invariant("a finding is named") { !value.to_s.empty? }
     end
 
     value_object "Title" do
       attribute :value, String
 
-      invariant("a ticket has a title") { !value.to_s.strip.empty? }
+      invariant("a finding has a title") { !value.to_s.strip.empty? }
     end
 
     value_object "Body" do
       attribute :value, String
     end
 
-    # What the ticket is: a `gap` Hecks cannot yet express, a `parity` divergence between the Ruby
+    # What the finding is: a `gap` Hecks cannot yet express, a `parity` divergence between the Ruby
     # and Rust runtimes, a `qa` finding from the QA loop, or an `idea`.
     value_object "Kind" do
       attribute :value, String, one_of: ["gap", "parity", "qa", "idea"]
@@ -60,7 +63,7 @@ Hecks.bluebook "Tickets" do
     end
 
     # The same finding refiled by the QA loop carries the same fingerprint, so a report of it while an
-    # open ticket holds it changes nothing.
+    # open finding holds it changes nothing.
     value_object "Fingerprint" do
       attribute :value, String, pattern: '[^ \t\n\r]'
     end
@@ -79,59 +82,59 @@ Hecks.bluebook "Tickets" do
     end
 
     command "Report" do
-      goal "Record something observed about Hecks as a ticket"
+      goal "Record something observed about Hecks as a finding"
 
-      attribute :ticket,      TicketKey
+      attribute :finding,      FindingKey
       attribute :title,       Title
       attribute :body,        Body, optional: true
       attribute :source,      Source
       attribute :fingerprint, Fingerprint, optional: true
 
-      sets :ticket
+      sets :finding
       sets :title
       sets :body
       sets :source
       sets :fingerprint
 
-      emits "TicketReported"
+      emits "FindingReported"
     end
 
-    # A failed Codebase run reports itself: the run's key names the ticket and doubles as its
-    # fingerprint, so the same run failing again while its ticket is open changes nothing.
+    # A failed Codebase run reports itself: the run's key names the finding and doubles as its
+    # fingerprint, so the same run failing again while its finding is open changes nothing.
     command "ReportFailedRun" do
-      goal "Record a failed conformance or gate run as a ticket"
+      goal "Record a failed conformance or gate run as a finding"
 
-      attribute :ticket, TicketKey
+      attribute :finding, FindingKey
       attribute :body,   Body
 
-      sets :ticket
+      sets :finding
       sets :body
       sets :fingerprint, to: "run"
       sets :title,  to: "A Codebase run failed"
       sets :source, to: "qa_loop"
 
-      emits "RunTicketReported"
+      emits "RunFindingReported"
     end
 
     command "Triage" do
       role "Maintainer"
-      goal "Give a ticket its kind and severity"
+      goal "Give a finding its kind and severity"
 
-      reference_to Ticket
+      reference_to Finding
       attribute :kind,     Kind
       attribute :severity, Severity
 
       sets :kind
       sets :severity
 
-      emits "TicketTriaged"
+      emits "FindingTriaged"
     end
 
     command "LinkFix" do
       role "Maintainer"
-      goal "Record the pull request that fixes a triaged ticket"
+      goal "Record the pull request that fixes a triaged finding"
 
-      reference_to Ticket
+      reference_to Finding
       attribute :fix_pr_number, Number
 
       sets :fix_pr_number
@@ -141,38 +144,38 @@ Hecks.bluebook "Tickets" do
 
     command "Resolve" do
       role "Maintainer"
-      goal "Close a triaged ticket as resolved"
+      goal "Close a triaged finding as resolved"
 
-      reference_to Ticket
+      reference_to Finding
 
-      emits "TicketResolved"
+      emits "FindingResolved"
     end
 
     command "Dismiss" do
       role "Maintainer"
-      goal "Close a ticket without a fix, with the reason"
+      goal "Close a finding without a fix, with the reason"
 
-      reference_to Ticket
+      reference_to Finding
       attribute :dismissal, Body
 
       sets :dismissal
 
-      emits "TicketDismissed"
+      emits "FindingDismissed"
     end
 
     command "Reopen" do
       role "Maintainer"
-      goal "Take a resolved or dismissed ticket back to triaged, as when a fix regresses"
+      goal "Take a resolved or dismissed finding back to triaged, as when a fix regresses"
 
-      reference_to Ticket
+      reference_to Finding
 
-      emits "TicketReopened"
+      emits "FindingReopened"
     end
 
     command "RecordIssue" do
       goal "Record the GitHub issue number once the issue is opened"
 
-      reference_to Ticket
+      reference_to Finding
       attribute :issue_number, Number
 
       sets :issue_number
@@ -183,7 +186,7 @@ Hecks.bluebook "Tickets" do
     command "RecordSyncFailure" do
       goal "Record that GitHub could not be driven, so a later run retries"
 
-      reference_to Ticket
+      reference_to Finding
       attribute :sync_failure, Body
 
       sets :sync_failure
@@ -192,9 +195,9 @@ Hecks.bluebook "Tickets" do
     end
 
     query "Open" do
-      description "Every ticket not yet resolved or dismissed."
+      description "Every finding not yet resolved or dismissed."
       where(status: %w[reported triaged])
-      order_by :ticket
+      order_by :finding
     end
   end
 
@@ -204,7 +207,7 @@ Hecks.bluebook "Tickets" do
     attribute :adr,       AdrNumber
     attribute :title,     AdrTitle
     attribute :supersedes, AdrNumber, optional: true
-    attribute :settles,   TicketKey, optional: true
+    attribute :settles,   FindingKey, optional: true
     identified_by :adr
 
     value_object "AdrNumber" do
@@ -217,7 +220,7 @@ Hecks.bluebook "Tickets" do
       invariant("a decision has a title") { !value.to_s.strip.empty? }
     end
 
-    value_object "TicketKey" do
+    value_object "FindingKey" do
       attribute :value, String, pattern: '[^ \t\n\r]'
     end
 
@@ -228,11 +231,11 @@ Hecks.bluebook "Tickets" do
 
     command "Draft" do
       role "Maintainer"
-      goal "Open a decision record, optionally for the ticket it settles"
+      goal "Open a decision record, optionally for the finding it settles"
 
       attribute :adr,       AdrNumber
       attribute :title,     AdrTitle
-      attribute :settles,   TicketKey, optional: true
+      attribute :settles,   FindingKey, optional: true
 
       sets :adr
       sets :title
@@ -269,118 +272,60 @@ Hecks.bluebook "Tickets" do
     end
   end
 
-  aggregate "Release" do
-    description "A version cut, linked to the tickets it closed."
-
-    attribute :version, Version
-    attribute :closes,  TicketKey, optional: true
-    identified_by :version
-
-    value_object "Version" do
-      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
-    end
-
-    value_object "TicketKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
-    end
-
-    lifecycle :status, default: "planned" do
-      transition "Ship" => "shipped", from: "planned"
-    end
-
-    command "Plan" do
-      role "Maintainer"
-      goal "Open a release for a version"
-
-      attribute :version, Version
-
-      sets :version
-
-      emits "ReleasePlanned"
-    end
-
-    command "Include" do
-      role "Maintainer"
-      goal "Record a ticket the release closes"
-
-      reference_to Release
-      attribute :closes, TicketKey
-
-      sets :closes
-
-      emits "TicketIncluded"
-    end
-
-    command "Ship" do
-      role "Maintainer"
-      goal "Record that the version was published"
-
-      reference_to Release
-
-      emits "ReleaseShipped"
-    end
-
-    query "Shipped" do
-      description "Every release that was published."
-      where(status: "shipped")
-      order_by :version
-    end
-  end
-
-  # Each lifecycle event drives GitHub. A ticket's own state never waits on the answer.
+  # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
   policy "OpenIssueWhenReported" do
-    on      "Ticket.TicketReported"
-    trigger Ticket::GitHubIssues::OpenIssue, with: { ticket: :ticket }
+    on      "Finding.FindingReported"
+    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
   end
 
   policy "OpenIssueWhenRunReported" do
-    on      "Ticket.RunTicketReported"
-    trigger Ticket::GitHubIssues::OpenIssue, with: { ticket: :ticket }
+    on      "Finding.RunFindingReported"
+    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
   end
 
   policy "LabelIssueWhenTriaged" do
-    on      "Ticket.TicketTriaged"
-    trigger Ticket::GitHubIssues::LabelIssue, with: { ticket: :ticket }
+    on      "Finding.FindingTriaged"
+    trigger Finding::GitHubIssues::LabelIssue, with: { finding: :finding }
   end
 
   policy "CommentWhenFixLinked" do
-    on      "Ticket.FixLinked"
-    trigger Ticket::GitHubIssues::CommentOnIssue, with: { ticket: :ticket }
+    on      "Finding.FixLinked"
+    trigger Finding::GitHubIssues::CommentOnIssue, with: { finding: :finding }
   end
 
   policy "CloseIssueWhenResolved" do
-    on      "Ticket.TicketResolved"
-    trigger Ticket::GitHubIssues::CloseIssue, with: { ticket: :ticket }
+    on      "Finding.FindingResolved"
+    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
   end
 
   policy "CloseIssueWhenDismissed" do
-    on      "Ticket.TicketDismissed"
-    trigger Ticket::GitHubIssues::CloseIssue, with: { ticket: :ticket }
+    on      "Finding.FindingDismissed"
+    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
   end
 
   policy "ReopenIssueWhenReopened" do
-    on      "Ticket.TicketReopened"
-    trigger Ticket::GitHubIssues::ReopenIssue, with: { ticket: :ticket }
+    on      "Finding.FindingReopened"
+    trigger Finding::GitHubIssues::ReopenIssue, with: { finding: :finding }
   end
 
-  # A conformance or gate run that faults files its own ticket.
+  # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
-    trigger Ticket::ReportFailedRun, with: { ticket: :run, body: :refusal }
+    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
-    trigger Ticket::ReportFailedRun, with: { ticket: :run, body: :refusal }
+    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
   policy "RecordTheIssue" do
-    on      "Ticket.GitHubAnswered"
-    trigger Ticket::RecordIssue, with: { issue_number: :issue_number }
+    on      "Finding.GitHubAnswered"
+    trigger Finding::RecordIssue, with: { issue_number: :issue_number }
   end
 
   policy "RecordTheSyncFailure" do
-    on      "Ticket.GitHubRefused"
-    trigger Ticket::RecordSyncFailure, with: { sync_failure: :refusal }
+    on      "Finding.GitHubRefused"
+    trigger Finding::RecordSyncFailure, with: { sync_failure: :refusal }
   end
 end
