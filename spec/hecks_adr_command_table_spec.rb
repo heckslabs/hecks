@@ -26,7 +26,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     end
   end
 
-  # Custodian and Codebase rows live in the Hecks chapter, Deploy and QualityControl in the
+  # Custodian and Codebase rows live in the Hecks chapter, Deploy, Site and QualityControl in the
   # attached chapters of the same names.
   CUSTODIAN = [
     ["ir", "Introspection", "ir"], ["shape", "Introspection", "shape"],
@@ -99,6 +99,11 @@ RSpec.describe "the ADR 0080 command table, every row" do
     ["project_tenant", "Tenant", "provision"], ["project_tenant", "Tenant", "reprovision"]
   ].flat_map { |script, aggregate, verb| rows(script, "Deploy", aggregate, verb) }.freeze
 
+  # Site is new in 3.0: no `bin/` script preceded it, so its row names none.
+  SITE = [
+    ["(new)", "SiteProjection", "project_site"]
+  ].flat_map { |script, aggregate, verb| rows(script, "Site", aggregate, verb) }.freeze
+
   # QualityControl names each command by its aggregate where two aggregates share a verb
   # (`patch.open`, `improvement.open`, `angle.seed`, `target.seed`), and by the bare verb otherwise.
   # The table's launcher spellings (`open_patch`, `log_bug`) are the ADR's; the chapter answers to
@@ -124,7 +129,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     rows("qa_concurrency_racer", "QualityControl", "Sweep", "race")
   ].flatten.freeze
 
-  ALL_ROWS = (CUSTODIAN + CODEBASE + DEPLOY + QUALITY_CONTROL).freeze
+  ALL_ROWS = (CUSTODIAN + CODEBASE + DEPLOY + SITE + QUALITY_CONTROL).freeze
 
   # The table gives `console` and `mcp` as the launcher's names for OpenConsole and ServeMcp.
   LAUNCHER_HELP_NAME = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze

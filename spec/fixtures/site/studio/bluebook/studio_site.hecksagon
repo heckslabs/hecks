@@ -1,0 +1,3 @@
+Hecks.hecksagon "StudioSite" do
+  attaches "Site"
+end

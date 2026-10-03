@@ -82,11 +82,15 @@ RSpec.describe Hecks::Tools do
   end
 
   describe "the tools the codebase adapters name" do
-    before { require "hecks/hecks/adapters/deploy_toolchain" }
+    before do
+      require "hecks/hecks/adapters/deploy_toolchain"
+      require "hecks/hecks/adapters/site_toolchain"
+    end
 
     let(:child) { Hecks::Adapters::Codebase::RubyChild.new(Hecks::Adapters::Codebase::Tree.new(root: root)) }
     let(:named) do
-      [Hecks::Adapters::Codebase::Style, Hecks::Adapters::Codebase::Codemods, Hecks::Adapters::DeployToolchain]
+      [Hecks::Adapters::Codebase::Style, Hecks::Adapters::Codebase::Codemods, Hecks::Adapters::DeployToolchain,
+       Hecks::Adapters::SiteToolchain]
         .flat_map { |adapter| adapter::SCRIPTS.values }
         .grep(String)
     end

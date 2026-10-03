@@ -1,0 +1,73 @@
+# A studio site's route table: every page, endpoint and redirect the site serves, declared once.
+Hecks.bluebook "StudioSite" do
+  vision "The routes of a studio's website."
+
+  aggregate "SiteMap" do
+    description "The studio site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,          String
+      attribute :kind,          String
+      attribute :render,        String
+      attribute :auth,          String
+      attribute :methods,       String
+      attribute :cache,         String
+      attribute :origin,        String
+      attribute :source,        String
+      attribute :indexable,     Boolean
+      attribute :switch,        String
+      attribute :off,           Boolean
+      attribute :preview,       String
+      attribute :label,         String
+      attribute :seo,           String
+      attribute :redirect_to,   String
+      attribute :aliases,       String
+      attribute :nav_group,     String
+      attribute :nav_order,     Integer
+      attribute :mobile_order,  Integer
+      attribute :footer_column, String
+      attribute :footer_order,  Integer
+      attribute :admin_key,     String
+      attribute :admin_order,   Integer
+
+      member path: "/",                 label: "Home",     cache: "home", source: "global:home", seo: "home", nav_order: 1, mobile_order: 1
+      member path: "/about",            label: "About",     source: "global:about", seo: "about", nav_order: 2, mobile_order: 2, aliases: "/about-us,/who-we-are"
+      member path: "/services",         label: "Services",  source: "global:services", seo: "services", nav_group: "Work", nav_order: 3, mobile_order: 3
+      member path: "/portfolio",        label: "Portfolio", source: "global:portfolio", seo: "portfolio", nav_group: "Work", nav_order: 4, mobile_order: 4
+      member path: "/blog",             label: "Blog",      source: "global:blog", seo: "blog", nav_order: 5, mobile_order: 5
+      member path: "/blog/:slug.html",  source: "collection:posts", preview: "draft", seo: "post"
+      member path: "/contact",          label: "Contact",   source: "global:contact", seo: "contact", nav_order: 6, mobile_order: 6
+      member path: "/terms",            label: "Terms",     source: "global:terms", seo: "terms", footer_column: "Studio", footer_order: 1
+      member path: "/privacy",          label: "Privacy",   source: "global:privacy", seo: "privacy", footer_column: "Studio", footer_order: 2
+      member path: "/podcast",          label: "Podcast",   source: "global:podcast", switch: "podcast", off: true
+      member path: "/inquiry-received", render: "ssr", indexable: false
+      member path: "/pay/:id",          kind: "page", render: "ssr", auth: "signed"
+      member path: "/old-portfolio",    kind: "redirect", redirect_to: "/portfolio"
+      member path: "/sitemap.xml",      kind: "endpoint", indexable: false, cache: "page"
+      member path: "/robots.txt",       kind: "endpoint", indexable: false, cache: "static"
+      member path: "/assets/*",         kind: "proxy", origin: "assets"
+      member source: "command:Studio.Inquiry.Submit"
+      member source: "query:Studio.Inquiry.Recent", auth: "admin"
+      member path: "/admin-inbox",      label: "Inbox",     auth: "admin", render: "ssr", admin_key: "inbox", admin_order: 1
+      member path: "/admin-posts",      label: "Posts",     auth: "admin", render: "ssr", admin_key: "posts", admin_order: 2
+      member path: "/admin-analytics",  label: "Analytics", auth: "admin", render: "ssr", admin_key: "analytics", admin_order: 3
+    end
+
+    command "Name" do
+      goal "Name the studio's route table"
+
+      attribute :name, MapName
+
+      sets :name
+
+      emits "SiteMapNamed"
+    end
+  end
+end

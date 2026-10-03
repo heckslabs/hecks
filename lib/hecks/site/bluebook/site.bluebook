@@ -1,0 +1,200 @@
+# The Site chapter: the route table a client declares for its website, and the command that
+# projects it into the TypeScript the site reads.
+#
+# A client declares its routes as `member` rows of a `value_object "Route"` in its own chapter (the
+# Route aggregate below names every field a row may carry and the closed sets its values come from),
+# attaches this chapter, and runs `hecks site project_site`. The projection (`:site_routes_ts`)
+# writes one `routes.ts` the site's middleware, navigation, sitemap, robots file and CMS all import,
+# so a route is declared once. The Route aggregate's value objects are the one place the closed
+# vocabularies live: the projector reads them from here, so a row naming a cache class that is
+# not a member is refused with the members listed.
+#
+# Each run records that it was requested before the SiteToolchain port is asked, and what came of
+# it after. No command declares a role: the chapter boots standing alone.
+Hecks.bluebook "Site" do
+  vision "Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS read."
+
+  aggregate "Route" do
+    description "The shape of one row of a site's route table: where a path is served from, who may reach it, how it is cached, and where it appears in the navigation."
+
+    identified_by :path
+
+    attribute :path,   Path
+    attribute :kind,   Kind
+    attribute :render, Render
+    attribute :auth,   Auth
+    attribute :cache,  CacheClass, optional: true
+    attribute :origin, Origin
+    attribute :source, Source,  optional: true
+    attribute :http_method, HttpMethod, optional: true
+    attribute :preview, Preview, optional: true
+
+    # `/blog/:slug.html` names a parameter; a trailing `/*` matches everything beneath a prefix. A
+    # row with a `command:` or `query:` source may leave its path out, and the projection derives it
+    # from the forms scheme (`/Chapter/Aggregate/Verb`).
+    value_object "Path" do
+      attribute :value, String, pattern: '\A(/[^ \t\n\r]*)?\z'
+    end
+
+    # What the route is: a `page` the site renders, an `endpoint` that answers data, a `redirect` to
+    # another path, a `rewrite` that serves another path's page under this one, or a `proxy` to
+    # another origin.
+    value_object "Kind" do
+      attribute :value, String, one_of: ["page", "endpoint", "redirect", "rewrite", "proxy"]
+    end
+
+    # When a page's HTML is made: at build time (`prerender`) or on each request (`ssr`).
+    value_object "Render" do
+      attribute :value, String, one_of: ["prerender", "ssr"]
+    end
+
+    # Who may reach the route: anyone (`public`), an admin session (`admin`), or the holder of a
+    # signed link (`signed`).
+    value_object "Auth" do
+      attribute :value, String, one_of: ["public", "admin", "signed"]
+    end
+
+    # How long a CDN may keep a route's response. `no_store` is never cached, `immutable` is cached
+    # for as long as the CDN allows. A row that names none gets `no_store` for an admin or signed
+    # route or an endpoint, `immutable` from the `assets` origin, and `page` otherwise.
+    value_object "CacheClass" do
+      attribute :value, String, one_of: ["page", "home", "static", "media", "immutable", "no_store"]
+    end
+
+    # Which server answers: the `website`, the `cms`, the `domain` (a Hecks host) or the `assets`
+    # store.
+    value_object "Origin" do
+      attribute :value, String, one_of: ["website", "cms", "domain", "assets"]
+    end
+
+    # `public` previews a route at its own URL; `draft` previews it under the preview prefix, where
+    # unpublished content is visible to an admin.
+    value_object "Preview" do
+      attribute :value, String, one_of: ["public", "draft"]
+    end
+
+    # The HTTP verbs a route answers.
+    value_object "HttpMethod" do
+      attribute :value, String, one_of: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    end
+
+    # Where a page's content comes from, one of `none`, `global:<slug>` (a CMS global),
+    # `collection:<name>` (a CMS collection, whose rows fill the path's parameter),
+    # `command:<Chapter>.<Aggregate>.<Command>` or `query:<Chapter>.<Aggregate>.<Query>`. The last
+    # two are checked against the chapters the project attaches.
+    value_object "Source" do
+      attribute :value, String, pattern: '\A(none|(global|collection):[a-z0-9_-]+|(command|query):[A-Za-z0-9_]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\z'
+    end
+  end
+
+  aggregate "SiteProjection" do
+    description "One projection of a site's route table into its routes.ts, or the check that the file on disk is current."
+
+    attribute :domain,  DomainPath
+    attribute :run,     RunKey
+    attribute :out,     Location, optional: true
+    attribute :check,   Switch,   optional: true
+    attribute :output,  Report,   optional: true
+    attribute :refusal, Report,   optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # A project directory, whose `bluebook/` holds the chapter that declares the route table.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project is named by its path") { !value.to_s.empty? }
+    end
+
+    # Where routes.ts is written, when not beside the project's bluebook.
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "projected", from: "requested"
+      transition "Fault"    => "faulted",   from: "requested"
+    end
+
+    # `hecks site project_site <project> [out=<dir>] [--check]`. With `check` nothing is written: a
+    # routes.ts that differs from the table is faulted, naming the file, so a CI job fails on drift.
+    command "ProjectSite" do
+      goal "Project a site's route table into routes.ts, or with check only compare it with the file on disk"
+
+      attribute :domain, DomainPath
+      attribute :run,    RunKey
+      attribute :out,    Location, optional: true
+      attribute :check,  Switch,   optional: true
+
+      sets :domain
+      sets :run
+      sets :out
+      sets :check
+
+      emits "SiteProjectionRequested"
+    end
+
+    command "Complete" do
+      goal "Record that routes.ts was written, or found current, and where"
+
+      reference_to SiteProjection
+      attribute :output, Report
+
+      sets :output
+
+      emits "SiteProjected"
+    end
+
+    command "Fault" do
+      goal "Record that routes.ts could not be projected, or was out of date, and why"
+
+      reference_to SiteProjection
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "SiteFaulted"
+    end
+
+    query "Outcome" do
+      description "What one projection did: its status, and the files written or the reason it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every projection that could not write routes.ts, or found it out of date."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ProjectWhenRequested" do
+    on      "SiteProjection.SiteProjectionRequested"
+    trigger SiteProjection::SiteToolchain::Project, with: { run: :run }
+  end
+
+  policy "RecordTheProjection" do
+    on      "SiteProjection.SiteAnswered"
+    trigger SiteProjection::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheFaultedProjection" do
+    on      "SiteProjection.SiteRefused"
+    trigger SiteProjection::Fault, with: { refusal: :refusal }
+  end
+end
