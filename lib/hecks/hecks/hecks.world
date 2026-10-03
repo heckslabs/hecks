@@ -37,10 +37,11 @@ Hecks.world "Hecks" do
   launcher "Launcher", run_keys: true,
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
                                           abandoned red needs_fix],
-                       names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init" },
+                       names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
+                                "interview" => "door.interview" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
-                       memory_commands: %w[console init],
+                       memory_commands: %w[console init interview],
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]
 end
