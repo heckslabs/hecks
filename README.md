@@ -45,7 +45,9 @@ clone of this repository.
 
 ## Quickstart
 
-About ten minutes, and no database server:
+About ten minutes, and no database server. You need Ruby 3.2 or newer and
+Bundler. If `bundle install` fails building the `pg` gem, install Postgres's
+client library (`libpq`) and run it again; nothing here connects to a database.
 
 ```sh
 git clone https://github.com/heckslabs/hecks
@@ -56,7 +58,8 @@ bundle exec hecks console
 
 `console` boots the `examples/pizzas` domain on the in-memory adapter
 and drops you into IRB with its [door](#door) installed. Nothing needs a
-database, and `git status` stays clean. Type this at the prompt:
+database, and `git status` stays clean. Type this at the prompt (`exit`
+leaves it):
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))

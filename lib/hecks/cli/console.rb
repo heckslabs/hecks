@@ -28,7 +28,7 @@ module Hecks
       def call(domain = nil, launcher: -> { irb_session })
         runtime = domain ? Hecks.boot(domain) : Hecks.boot_files(DEFAULT_FILES)
         puts overview(runtime)
-        puts banner
+        puts banner(domain)
         launcher.call
         runtime
       end
@@ -59,16 +59,19 @@ module Hecks
         end.join
       end
 
-      # @return [String] the version and a first session to try against the pizzas domain
-      def banner
+      # @param domain [String, nil] a domain directory, or nil for the bundled pizzas domain
+      # @return [String] the version, and for the pizzas domain a first session to try
+      def banner(domain = nil)
+        return "\nhecks #{Hecks::VERSION}\n\n" if domain
+
         <<~BANNER
 
           hecks #{Hecks::VERSION}
 
           try:
-            order = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-            order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-            order.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+            order = Order.create_pizza!(name: "Margherita", pizza: { price_cents: { cents: 1200 }, size: "large" })
+            order.add_topping!(topping: "Basil", amount: 3)
+            order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
             order.status
             order.events.last
 

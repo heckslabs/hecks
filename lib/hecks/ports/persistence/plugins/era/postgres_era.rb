@@ -124,7 +124,7 @@ module Hecks
 
         raise Runtime::WiringError,
               "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip} " \
-              "(a domain with an environments/memory overlay runs without a database under HECKS_ENVIRONMENT=memory)"
+              "-- to run without a database, set HECKS_ENVIRONMENT=memory (a domain needs an environments/memory overlay)"
       end
 
       # Joins the process's shared connection for the declared database and schema, so every
