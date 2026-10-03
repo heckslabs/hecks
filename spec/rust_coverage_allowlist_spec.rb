@@ -9,7 +9,7 @@ require "rbconfig"
 RSpec.describe "hecks check_coverage_allowlist" do
   it "finds every allowlist rule still excusing a real gap under rust/src/generated" do
     output, status = Open3.capture2e(RbConfig.ruby, File.join(InMemoryDomain::ROOT, "exe/hecks"),
-                                     "check_coverage_allowlist", "--wait", chdir: InMemoryDomain::ROOT)
+                                     "build.check_coverage_allowlist", "--wait", chdir: InMemoryDomain::ROOT)
 
     expect(status).to be_success, output
   end

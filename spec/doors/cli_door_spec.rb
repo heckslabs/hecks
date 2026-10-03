@@ -111,9 +111,9 @@ RSpec.describe Hecks::Doors::CliDoor do
   end
 
   describe "refusals" do
-    it "names an argument the verb does not take, and lists the ones it does" do
+    it "names an argument the command does not take, and lists the ones it does" do
       expect { described_class.arguments(spec, ["hwo=x"]) }
-        .to raise_error(Hecks::Runtime::NotFound, /no argument "hwo".*this verb takes .*id/m)
+        .to raise_error(Hecks::Runtime::NotFound, /no argument "hwo".*this command takes .*id/m)
     end
 
     it "refuses more than one bare word, asking for the rest by name" do
@@ -121,14 +121,14 @@ RSpec.describe Hecks::Doors::CliDoor do
         .to raise_error(Hecks::Runtime::NotFound, /only one argument may go unnamed/)
     end
 
-    it "refuses a bare word for a verb that takes no arguments" do
+    it "refuses a bare word for a command that takes no arguments" do
       expect { described_class.arguments({ arguments: [] }, ["A-1"]) }
-        .to raise_error(Hecks::Runtime::NotFound, /is not name=value, and this verb takes no arguments/)
+        .to raise_error(Hecks::Runtime::NotFound, /is not name=value, and this command takes no arguments/)
     end
 
     it "refuses a flag for an argument that is not Boolean" do
       expect { described_class.arguments(spec, ["--reference"]) }
-        .to raise_error(Hecks::Runtime::NotFound, /--reference is a flag, but this verb has no Boolean/)
+        .to raise_error(Hecks::Runtime::NotFound, /--reference is a flag, but this command has no Boolean/)
     end
 
     it "keeps an = inside the value" do

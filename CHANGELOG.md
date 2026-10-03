@@ -7,6 +7,17 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
+is optional on the command line. Queries are read with
+`hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
+and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
+field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, not `hecks gate`. A bare name
+is refused with the qualified names that end in it. A chapter's `names` table still gives
+explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
+names: qualify them (the bare-name refusal lists the candidates).
+
+
 **`hecks mcp` has a commands scope, and a restricted door stays booted.** With
 `HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
 the door serves the reader tools and `dispatch` for those commands only. A command is admitted by the
@@ -39,6 +50,8 @@ now carries a frozen `expect` (instances, events, refusals with kind, queries, s
 reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
 `spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
 against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
+`hecks test_suite_run.seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+
 `hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing). A test-suite change; the runtime is unchanged (#951).
 
 **`hecks help` groups verbs by aggregate and sets the bookkeeping verbs apart.** Output change only; no verb is renamed or removed (#947).
