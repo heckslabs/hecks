@@ -233,10 +233,10 @@ module Hecks
     Elsewhere = Struct.new(:check, :destination, :names, :why)
 
     RUST_ELSEWHERE = {
-      "meta" => Elsewhere.new(:named_in, "spec/codegen_parity_spec.rb", "bluebook_language",
+      "meta" => Elsewhere.new(:named_in, "lib/hecks/tools/regeneration_run.rb", "rust/src/generated",
                               "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
-                              "hecks project_rust run rewrites it (so the drift check diffs it), codegen parity " \
-                              "checks it as bluebook_language, and there is no directory to fuzz")
+                              "hecks project_rust run rewrites it, so the drift check diffs it with the rest " \
+                              "of rust/src/generated, and there is no directory to fuzz")
     }.freeze
 
     # Every place a Rust-facing domain's own `uses_framework`/
