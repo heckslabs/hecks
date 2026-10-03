@@ -280,7 +280,7 @@ fn hecksagon_fixtures_resolve_for_real() {
         stdout.contains("\"domain\": \"FixtureHecksagon\""),
         "hecksagon.hecksagon: expected the chapter's own name, got: {stdout}"
     );
-    assert!(stdout.contains("\"Governance\""), "hecksagon.hecksagon: expected its own uses_framework \"Governance\" to be reported, got: {stdout}");
+    assert!(stdout.contains("\"Governance\""), "hecksagon.hecksagon: expected its own attaches \"Governance\" to be reported, got: {stdout}");
 
     let path = fixture("domain_port.hecksagon");
     let output = run(&[
@@ -299,7 +299,7 @@ fn hecksagon_fixtures_resolve_for_real() {
     );
     assert!(
         !stdout.contains("Governance") && !stdout.contains("Identity"),
-        "domain_port.hecksagon: declares no uses_framework at all, got: {stdout}"
+        "domain_port.hecksagon: declares no attaches at all, got: {stdout}"
     );
 }
 

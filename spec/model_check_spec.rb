@@ -9,7 +9,7 @@ RSpec.describe "the model checker" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
 
   def boot(bluebook)
-    # `root:` lets a corpus member using `uses_embryonaut_bluebook` vendor from its own root
+    # `root:` lets a corpus member using `attaches ... from: :vendor` vendor from its own root
     # (the parent of its `bluebook/` folder); a bare `.bluebook` file has none.
     root = File.directory?(bluebook) ? File.dirname(bluebook) : nil
     registry = Hecks::Runtime::Registry.new(root: root)
@@ -172,9 +172,14 @@ RSpec.describe "the model checker" do
       expect(finding.message).to include('across "Elsewhere"')
     end
 
-    it "finds a domain both uses_framework'd (Shared Kernel) AND reached via across (Customer/Supplier)" do
+    it "finds a domain both attached (Shared Kernel) AND reached via across (Customer/Supplier)" do
       finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnGovernance" }
-      expect(finding.message).to include('across "Governance"').and include('uses_framework "Governance"')
+      expect(finding.message).to include('across "Governance"').and include('attaches "Governance"')
+    end
+
+    it "finds a chapter the gem carries, not only a framework member, attached and reached via across" do
+      finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnTenancy" }
+      expect(finding.message).to include('across "Tenancy"').and include('attaches "Tenancy"')
     end
 
     it "does not flag a well-formed across: matched by a subscribe — OnKnown is clean" do

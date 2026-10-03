@@ -22,7 +22,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     Hecks::Chapters.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
-      uses_framework "Governance"
+      attaches "Governance"
 
       QualityControl::Target.persisted_by("PostgresEra")
       QualityControl::Sweep.persisted_by("PostgresEra")

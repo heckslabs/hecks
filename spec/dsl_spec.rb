@@ -116,17 +116,17 @@ RSpec.describe "the DSL surface" do
         .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
     end
 
-    it ".hecksagon's uses_framework loads a framework member into the same registry" do
+    it ".hecksagon's attaches loads a framework member into the same registry" do
       registry = in_registry do
         Hecks.hecksagon("Hexed") do
-          uses_framework "Governance"
+          attaches "Governance"
           Hexed::Thing.posted_by("Carrier")
         end
       end
 
       expect(registry.bluebook("Governance")).not_to be_nil
       expect(registry.bluebook("Governance").aggregate("RoleAssignment")).not_to be_nil
-      expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
+      expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
     end
 
     it ".hecksagon's bounded marks this chapter as a bounded context" do
@@ -140,14 +140,14 @@ RSpec.describe "the DSL surface" do
       expect(registry.hecksagon("Hexed").bounded?).to be true
     end
 
-    it ".hecksagon's uses_embryonaut_bluebook records the name and needs a registry root to vendor from" do
+    it ".hecksagon's attaches ... from: :vendor records the name and needs a registry root to vendor from" do
       # `in_registry`'s bare `Registry.new` sets no root, so this exercises
       # the real refusal a registry with nowhere to vendor from must
       # raise, not a fixture stand-in for it.
       expect do
         in_registry do
           Hecks.hecksagon("Hexed") do
-            uses_embryonaut_bluebook "payments"
+            attaches "payments", from: :vendor
             Hexed::Thing.posted_by("Carrier")
           end
         end

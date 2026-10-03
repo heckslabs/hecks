@@ -5,7 +5,7 @@ require "hecks/fuzzing"
 require_relative "../support/postgres_probe"
 
 # `IsolatedBoot` copies a target's domain directory into a tmpdir and boots the
-# copy. A hecksagon's `uses_embryonaut_bluebook "<name>"` loads from
+# copy. A hecksagon's `attaches "<name>", from: :vendor` loads from
 # `<root>/vendor/embryonaut_bluebooks/<name>/bluebook`, where the root is the
 # parent of the directory booted, so the copy has to carry the packages the
 # hecksagons name and nothing else from `vendor/`.
@@ -42,19 +42,19 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     File.write(path, content)
   end
 
-  def consumer_hecksagon(*uses)
-    lines = uses.map { |name| %(  uses_embryonaut_bluebook "#{name}") }
+  def consumer_hecksagon(*uses, word: %(attaches "%s", from: :vendor))
+    lines = uses.map { |name| "  #{format(word, name)}" }
     <<~HECKSAGON
       Hecks.hecksagon "Widgets" do
       #{lines.join("\n")}
-        uses_framework "Governance"
+        attaches "Governance"
         Widgets::Widget.persisted_by("Memory")
       end
     HECKSAGON
   end
 
-  def project(root, uses:, vendored: %w[widgets])
-    write(root, "bluebook/consumer.hecksagon", consumer_hecksagon(*uses))
+  def project(root, uses:, vendored: %w[widgets], word: nil)
+    write(root, "bluebook/consumer.hecksagon", consumer_hecksagon(*uses, **{ word: word }.compact))
     write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     vendored.each do |name|
       write(root, "vendor/embryonaut_bluebooks/#{name}/bluebook/#{name}.bluebook", WIDGETS_BLUEBOOK)
@@ -72,6 +72,18 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
         end
 
         expect(booted).not_to be_nil
+      end
+    end
+
+    it "carries a package the deprecated uses_embryonaut_bluebook word names" do
+      Dir.mktmpdir do |root|
+        domain = project(root, uses: %w[widgets], word: %(uses_embryonaut_bluebook "%s"))
+
+        vendor = described_class.call(domain) do |copy|
+          Dir.children(File.join(File.dirname(copy), "vendor", "embryonaut_bluebooks"))
+        end
+
+        expect(vendor).to eq(%w[widgets])
       end
     end
 
@@ -253,8 +265,8 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     def default_adapter_project(root)
       write(root, "bluebook/consumer.hecksagon", <<~HECKSAGON)
         Hecks.hecksagon "Widgets" do
-          uses_embryonaut_bluebook "widgets"
-          uses_framework "Governance"
+          attaches "widgets", from: :vendor
+          attaches "Governance"
         end
       HECKSAGON
       write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "PostgresEra"\nend\n))

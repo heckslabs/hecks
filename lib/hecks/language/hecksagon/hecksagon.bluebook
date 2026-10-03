@@ -5,9 +5,7 @@ Hecks.bluebook "Hecksagon" do
     identified_by HecksagonName, as: :domain
 
     attribute :subscriptions,      list_of(Subscription)
-    attribute :framework_members,  list_of(FrameworkMember)
-    attribute :vendored_bluebooks, list_of(VendoredBluebook)
-    attribute :attached_chapters,  list_of(AttachedChapter)
+    attribute :attachments,        list_of(Attachment)
 
     value_object "HecksagonName" do
       attribute :value, String
@@ -19,22 +17,20 @@ Hecks.bluebook "Hecksagon" do
       invariant("a subscription names an event") { !value.to_s.empty? }
     end
 
-    # A `framework/bluebook/` member this hecksagon attaches, such as Governance or Identity.
-    value_object "FrameworkMember" do
-      attribute :value, String
-      invariant("a framework member is named") { !value.to_s.empty? }
+    # A chapter this hecksagon attaches: `value` is its name, `source` is `gem` for a chapter the
+    # gem carries (a framework member such as Governance, or a language chapter such as Deploy)
+    # or `vendor` for a package vendored into the consuming project, not shipped in hecks's lib/.
+    value_object "Attachment" do
+      attribute :value,  String
+      attribute :source, String, default: "gem"
+      invariant("an attachment is named") { !value.to_s.empty? }
+      invariant("an attachment comes from the gem or from vendor") { source == "gem" || source == "vendor" }
     end
 
-    # A separate bluebook package vendored into the consuming project, not shipped in hecks's lib/.
-    value_object "VendoredBluebook" do
+    # The name an attachment is asked for by, before its source is known.
+    value_object "ChapterName" do
       attribute :value, String
-      invariant("a vendored bluebook is named") { !value.to_s.empty? }
-    end
-
-    # A chapter the gem carries (the language, Expression, Tenancy, Deploy) this hecksagon attaches.
-    value_object "AttachedChapter" do
-      attribute :value, String
-      invariant("an attached chapter is named") { !value.to_s.empty? }
+      invariant("a chapter is named") { !value.to_s.empty? }
     end
 
     command "Declare" do
@@ -59,35 +55,14 @@ Hecks.bluebook "Hecksagon" do
       emits "SubscriptionAdded"
     end
 
-    command "UsesFramework" do
-      role "Deployment"
-      goal "Attach a framework/bluebook/ member to this hecksagon"
-
-      attribute :member, FrameworkMember
-
-      sets :framework_members, append: { value: :member }
-
-      emits "FrameworkMemberAttached"
-    end
-
-    command "UsesEmbryonautBluebook" do
-      role "Deployment"
-      goal "Attach a vendored, external bluebook to this hecksagon"
-
-      attribute :package, VendoredBluebook
-
-      sets :vendored_bluebooks, append: { value: :package }
-
-      emits "VendoredBluebookAttached"
-    end
-
     command "Attaches" do
       role "Deployment"
-      goal "Attach a chapter the gem carries to this hecksagon, by name"
+      goal "Attach a chapter to this hecksagon, from the gem or from vendor"
 
-      attribute :chapter, AttachedChapter
+      attribute :chapter, ChapterName
+      attribute :source,  String, default: "gem"
 
-      sets :attached_chapters, append: { value: :chapter }
+      sets :attachments, append: { value: :chapter, source: :source }
 
       emits "ChapterAttached"
     end
@@ -107,9 +82,10 @@ Hecks.bluebook "Hecksagon" do
 
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
-      member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
-      member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
-      member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attached_chapters"
+      member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments"
+      # Deprecated spellings of `attaches`; they warn and are removed in 3.1.0.
+      member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
+      member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
@@ -138,9 +114,10 @@ Hecks.bluebook "Hecksagon" do
 
       member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
-      member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
-      member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
-      member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attached_chapters"
+      member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
+      member keyword: "attaches",        context: "Hecksagon", at: "",  named: "from", kind: "symbol", required: "false", fills: "source"
+      member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
+      member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 

@@ -22,7 +22,7 @@ RSpec.describe "ReferralChain" do
       Kernel.load(File.join(REFERRAL_CHAIN_ROOT, "referral_chain.bluebook"))
 
       Hecks.hecksagon "ReferralChain" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         ReferralChain::Sponsor.persisted_by("Memory")
         ReferralChain::Member.persisted_by("Memory")

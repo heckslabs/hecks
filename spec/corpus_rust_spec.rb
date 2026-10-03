@@ -47,7 +47,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_framework_chapters.each do |stem|
       chapter = corpus.chapter_name_of(File.join(root, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
-      expect(hecksagons).to match(/^\s*uses_framework\s+"#{chapter}"/), stem
+      expect(hecksagons).to match(/^\s*attaches\s+"#{chapter}"/), stem
     end
   end
 
@@ -58,7 +58,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     corpus.rust_vendored_chapters.each do |stem|
       member = vendored_by_stem.fetch(stem)
       chapter = corpus.chapter_name_of(corpus.bluebook_files(member.path))
-      expect(hecksagons).to match(/^\s*uses_embryonaut_bluebook\s+"#{stem}"/), stem
+      expect(hecksagons).to match(/^\s*attaches\s+"#{stem}",\s*from:\s*:vendor/), stem
       expect(chapter).to eq(Hecks::Naming.pascal(stem)), "#{member.path}: chapter #{chapter.inspect} != #{Hecks::Naming.pascal(stem).inspect}"
     end
   end

@@ -77,12 +77,45 @@ pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
     bluebook_files(&dir)
 }
 
-pub fn resolve_uses_framework(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, chapter_name, hecksagon_path, "uses_framework")
+// The names `attaches "Name"` gave, for a chapter the gem carries.
+pub fn resolve_gem_chapters(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_chapters")
 }
 
-pub fn resolve_uses_embryonaut_bluebook(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, chapter_name, hecksagon_path, "uses_embryonaut_bluebook")
+// The names `attaches "name", from: :vendor` gave, for a vendored package.
+pub fn resolve_vendored_packages(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "vendored_packages")
+}
+
+// Where the gem keeps the chapters other than framework members, relative to `lib/hecks`; the
+// same places `Hecks::Chapters::GLOBS` lists.
+const OTHER_GEM_CHAPTER_DIRS: &[&str] = &["language", "grammar", "tenancy/bluebook", "deploy/bluebook", "quality_control"];
+
+// The names of the chapters the gem carries beside the framework members, found by reading each
+// file's header. Only the Ruby runtime loads them, so the build uses this list to tell a real
+// gem chapter from a misspelt name.
+pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
+    fn walk(directory: &Path, names: &mut Vec<String>) -> Result<(), String> {
+        let Ok(entries) = std::fs::read_dir(directory) else { return Ok(()) };
+        for entry in entries {
+            let path = entry.map_err(|e| format!("reading {}: {e}", directory.display()))?.path();
+            if path.is_dir() {
+                walk(&path, names)?;
+            } else if path.extension().and_then(|e| e.to_str()) == Some("bluebook") {
+                if let Ok(name) = header_chapter_name(&path) {
+                    names.push(name);
+                }
+            }
+        }
+        Ok(())
+    }
+    let mut names = Vec::new();
+    for directory in OTHER_GEM_CHAPTER_DIRS {
+        walk(&root.join("lib/hecks").join(directory), &mut names)?;
+    }
+    names.sort();
+    names.dedup();
+    Ok(names)
 }
 
 fn resolve_json(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path, key: &str) -> Result<Vec<String>, String> {
@@ -105,13 +138,13 @@ pub fn valid_package_name(name: &str) -> bool {
 pub fn vendored_bluebook_files(domain: &Path, pkg_name: &str) -> Result<Vec<PathBuf>, String> {
     if !valid_package_name(pkg_name) {
         return Err(format!(
-            "uses_embryonaut_bluebook {pkg_name:?} is not a package name — it must match [a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
+            "attaches {pkg_name:?}, from: :vendor is not a package name — it must match [a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
         ));
     }
     let dir = domain.join("vendor").join("embryonaut_bluebooks").join(pkg_name).join("bluebook");
     if !dir.is_dir() {
         return Err(format!(
-            "uses_embryonaut_bluebook {pkg_name:?} names no vendored bluebook at {} — run hecks vendor {pkg_name}",
+            "attaches {pkg_name:?}, from: :vendor names no vendored bluebook at {} — run hecks vendor {pkg_name}",
             dir.display()
         ));
     }

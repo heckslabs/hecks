@@ -780,7 +780,7 @@ async fn presentation_save(
 const PRESENTATION_WRITE_REFUSAL: &str =
     "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
      commands to dispatch, and writing the rows behind its back would skip the invariants those commands \
-     enforce. Attach it with `uses_framework \"ConsoleSettings\"` in this domain's own .hecksagon and \
+     enforce. Attach it with `attaches \"ConsoleSettings\"` in this domain's own .hecksagon and \
      rebuild the kernel, or save from the Ruby console engine instead.";
 
 // ---- response envelopes ---------------------------------------------

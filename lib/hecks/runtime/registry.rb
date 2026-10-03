@@ -139,8 +139,7 @@ module Hecks
         mark_bounded(item.domain) if item.bounded?
       end
 
-      # Marks `name` as a bounded context — called automatically by
-      # `uses_framework` / `uses_embryonaut_bluebook`, and by
+      # Marks `name` as a bounded context — called automatically by `attaches`, and by
       # `add_hecksagon` when the block itself declared `bounded`.
       # A bounded chapter wraps in its own module (no Object shortcut)
       # and must have a `translates` ACL or boot refuses.
@@ -151,8 +150,7 @@ module Hecks
         @bounded_chapters[name.to_s] = true
       end
 
-      # Says whether `name` is a bounded context — attached via
-      # `uses_framework` / `uses_embryonaut_bluebook`, or a consumer
+      # Says whether `name` is a bounded context — attached via `attaches`, or a consumer
       # chapter that declared `bounded` on its own hecksagon.
       #
       # @param name [String, Symbol] the chapter name to check
@@ -242,7 +240,7 @@ module Hecks
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
       # The chapter that answers a role check for `domain`: the domain's own chapter, or
-      # a framework member its hecksagon attaches, that declares `provides "authorization"`.
+      # a chapter its hecksagon attaches, that declares `provides "authorization"`.
       #
       # @param domain [String, Symbol] the domain whose role checks are being resolved
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s role
@@ -275,7 +273,7 @@ module Hecks
         return attached if attached
 
         # Falls back to any loaded chapter: a consuming domain often wires Identity as
-        # Hecks.hecksagon "Identity" rather than via uses_framework, so it's loaded but
+        # Hecks.hecksagon "Identity" rather than via `attaches`, so it's loaded but
         # not listed on the consumer's own hexagon.
         @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
       end
@@ -284,9 +282,8 @@ module Hecks
       # chapter, a framework member, or a vendored embryonaut bluebook it attaches,
       # that declares `provides "membership"`.
       #
-      # Vendored packages are included here (unlike `authorization_provider_for`)
-      # because membership ships as a vendored embryonaut_bluebooks chapter, not a
-      # framework member.
+      # Vendored packages are included, since membership ships as a vendored
+      # embryonaut_bluebooks chapter, not a framework member.
       #
       # @param domain [String, Symbol] the domain whose sign-in aggregate is being resolved
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s membership
@@ -356,7 +353,7 @@ module Hecks
       #
       # Falls back to any loaded chapter, since a consuming domain often wires a
       # vendored chapter as its own `Hecks.hecksagon "Name"` rather than via
-      # `uses_embryonaut_bluebook`, so it's loaded but not listed on the consumer's hexagon.
+      # `attaches ... from: :vendor`, so it's loaded but not listed on the consumer's hexagon.
       #
       # @param domain [String, Symbol] the domain the provider is resolved for
       # @param capability [String] the capability's name, such as
@@ -364,8 +361,7 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the providing chapter, or nil if none loaded does
       def vendored_provider_for(domain, capability)
         hexagon = hecksagon(domain)
-        vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
-        names = [domain.to_s, *Array(hexagon&.member_chapters), *vendored]
+        names = [domain.to_s, *Array(hexagon&.member_chapters)]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(capability) }
         return attached if attached
@@ -517,14 +513,12 @@ module Hecks
         # Order-independent: list facts uniq, so loading context_map before or after the
         # domain file yields the same merged hecksagon.
         Bluebook::Hecksagon.new(
-          domain:             base.domain,
-          binds:              base.binds + overlay.binds,
-          subscriptions:      (base.subscriptions + overlay.subscriptions).uniq,
-          framework_members:  (base.framework_members + overlay.framework_members).uniq,
-          vendored_bluebooks: (base.vendored_bluebooks + overlay.vendored_bluebooks).uniq,
-          attached_chapters:  (base.attached_chapters + overlay.attached_chapters).uniq,
-          bounded:            base.bounded? || overlay.bounded?,
-          translates:         (base.translates + overlay.translates).uniq
+          domain:        base.domain,
+          binds:         base.binds + overlay.binds,
+          subscriptions: (base.subscriptions + overlay.subscriptions).uniq,
+          attachments:   (base.attachments + overlay.attachments).uniq,
+          bounded:       base.bounded? || overlay.bounded?,
+          translates:    (base.translates + overlay.translates).uniq
         )
       end
 

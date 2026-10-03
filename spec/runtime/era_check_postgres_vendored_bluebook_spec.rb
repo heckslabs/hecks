@@ -46,7 +46,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
   def notes_bluebook
     <<~BLUEBOOK
       Hecks.bluebook "Notes" do
-        vision "a tiny vendored chapter attached by uses_embryonaut_bluebook"
+        vision "a tiny vendored chapter attached by attaches ... from: :vendor"
         core
 
         aggregate "Note" do
@@ -81,7 +81,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
   # Target's directory holds exactly one `.bluebook` file — the single-file
   # shape `EraCheck.source_text_for`'s fallback special-cases. The
-  # `uses_framework "Governance"` calls only satisfy the role-authorization
+  # `attaches "Governance"` calls only satisfy the role-authorization
   # boot gate and are unrelated to the bug this pins.
   def write_domain(dir)
     write(File.join(dir, "bluebook", "target.bluebook"), target_bluebook)
@@ -91,14 +91,14 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     )
     write(File.join(dir, "bluebook", "target.hecksagon"), <<~HECKSAGON)
       Hecks.hecksagon "Target" do
-        uses_framework "Governance"
-        uses_embryonaut_bluebook "notes"
+        attaches "Governance"
+        attaches "notes", from: :vendor
 
         persisted_by "PostgresEra"
       end
 
       Hecks.hecksagon "Notes" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         persisted_by "PostgresEra"
       end

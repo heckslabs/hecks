@@ -100,7 +100,7 @@ Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "exam
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   subscribe "Compliance.AccountFreezeReviewOpened"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
@@ -111,7 +111,7 @@ Hecks.hecksagon("Governance") do
 end
 
 Hecks.hecksagon("Compliance") do
-  uses_framework "Governance"
+  attaches "Governance"
   Compliance::AccountFreezeReview.persisted_by("Memory")
   Compliance::BoxSurrenderReview.persisted_by("Memory")
 end
@@ -240,7 +240,7 @@ runtime.registry.reaction_log.first[:trigger]  # => "Compliance::AccountFreezeRe
 
 `across` is a real relationship declaration now, not just a routing
 detail — `Hecks::Bluebook::ModelCheck` checks it against the sibling
-hecksagon's own `subscribe`/`uses_framework` lines (see
+hecksagon's own `subscribe`/`attaches` lines (see
 `docs/implemented/reference/hecksagon.md`'s own "Checked, not routed"
 section for the other half). Banking's real corpus is clean here — its
 own `subscribe "Compliance.AccountFreezeReviewOpened"` is exactly what

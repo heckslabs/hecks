@@ -1,6 +1,6 @@
 # Memory-backed: fuzzed, not persisted; Governance is attached so `role` checks apply.
 Hecks.hecksagon "NestedPieces" do
-  uses_framework "Governance"
+  attaches "Governance"
 
   NestedPieces::Workspace.persisted_by("Memory")
 end

@@ -187,23 +187,23 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
     end
   end
 
-  # Regression: `uses_framework "X"` loads a framework member's shape but not its persistence,
+  # Regression: `attaches "X"` loads a framework member's shape but not its persistence,
   # so without a sibling `Hecks.hecksagon "X"` its aggregates default to Memory. Racing a
   # Memory-backed aggregate across two processes always diverges from the oracle (each process
   # has its own store), which is not a broken lock. This fixture reproduces that shape.
-  context "with an aggregate attached via uses_framework but never given its own persistence binding", :io do
+  context "with an aggregate attached via `attaches` but never given its own persistence binding", :io do
     CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE = "hecks_concurrent_dispatch_unbound_spec".freeze
 
     CONCURRENT_DISPATCH_UNBOUND_FIXTURE_BLUEBOOK = <<~RUBY.freeze
       Hecks.bluebook "ConcurrentDispatchUnboundFixture" do
-        vision "A host domain that attaches Governance (uses_framework) but never gives it its own sibling hecksagon — the exact shape qa/bluebook/quality_control.hecksagon itself has today."
+        vision "A host domain that attaches Governance (attaches) but never gives it its own sibling hecksagon — the exact shape qa/bluebook/quality_control.hecksagon itself has today."
         supporting
       end
     RUBY
 
     CONCURRENT_DISPATCH_UNBOUND_FIXTURE_HECKSAGON = <<~RUBY.freeze
       Hecks.hecksagon "ConcurrentDispatchUnboundFixture" do
-        uses_framework "Governance"
+        attaches "Governance"
       end
     RUBY
 

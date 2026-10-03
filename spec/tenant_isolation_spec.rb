@@ -49,7 +49,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     write(dir, "tenanted.bluebook", tenant_bluebook)
     write(dir, "tenanted.hecksagon", <<~HECKSAGON)
       Hecks.hecksagon "Tenanted" do
-        uses_framework "Governance"
+        attaches "Governance"
         Tenanted::Widget.persisted_by("#{adapter}")
       end
     HECKSAGON
@@ -77,7 +77,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     Hecks.boot(dir, environment: slug, install_doors: false)
   end
 
-  # Registers only "Tenanted": `uses_framework "Governance"` also loads Governance, which has no
+  # Registers only "Tenanted": `attaches "Governance"` also loads Governance, which has no
   # world, so registering it would raise MissingRealm.
   def register_tenant(register, dispatcher, dir)
     register.register([dispatcher.registry.bluebook("Tenanted")], dispatcher.registry, dispatcher, dir)

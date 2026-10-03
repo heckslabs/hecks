@@ -16,7 +16,7 @@ RSpec.describe "Waybill" do
       Kernel.load(File.join(WAYBILL_ROOT, "waybill.bluebook"))
 
       Hecks.hecksagon "Waybill" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         Waybill::Consignment.persisted_by("Memory")
         Waybill::Manifest.persisted_by("Memory")

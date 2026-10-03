@@ -19,7 +19,7 @@ Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "exam
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
 end
@@ -29,7 +29,7 @@ Hecks.hecksagon("Governance") do
 end
 
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
 ```

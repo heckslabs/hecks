@@ -54,7 +54,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     FencedOwner.own_public!(STORAGE_COLLISION_DB)
   end
 
-  describe "uses_embryonaut_bluebook: two fresh domains, one storage_name" do
+  describe "attaches from: :vendor: two fresh domains, one storage_name" do
     def target_bluebook
       <<~BLUEBOOK
         Hecks.bluebook "Target" do
@@ -125,14 +125,14 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       )
       write(File.join(dir, "bluebook", "target.hecksagon"), <<~HECKSAGON)
         Hecks.hecksagon "Target" do
-          uses_framework "Governance"
-          uses_embryonaut_bluebook "notes"
+          attaches "Governance"
+          attaches "notes", from: :vendor
 
           persisted_by "PostgresEra"
         end
 
         Hecks.hecksagon "Notes" do
-          uses_framework "Governance"
+          attaches "Governance"
 
           persisted_by "PostgresEra"
         end
@@ -205,7 +205,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     end
   end
 
-  describe "uses_framework: the same collision, confirmed against a real framework member (Governance)" do
+  describe "attaches: the same collision, confirmed against a real framework member (Governance)" do
     def custodian_bluebook
       <<~BLUEBOOK
         Hecks.bluebook "Custodian" do
@@ -234,7 +234,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       write(File.join(dir, "bluebook", "custodian.bluebook"), custodian_bluebook)
       write(File.join(dir, "bluebook", "custodian.hecksagon"), <<~HECKSAGON)
         Hecks.hecksagon "Custodian" do
-          uses_framework "Governance"
+          attaches "Governance"
 
           persisted_by "PostgresEra"
         end
@@ -471,14 +471,14 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         )
         write(File.join(dir, "bluebook", "target.hecksagon"), <<~HECKSAGON)
           Hecks.hecksagon "Target" do
-            uses_framework "Governance"
-            uses_embryonaut_bluebook "notes"
+            attaches "Governance"
+            attaches "notes", from: :vendor
 
             persisted_by "PostgresEra"
           end
 
           Hecks.hecksagon "Notes" do
-            uses_framework "Governance"
+            attaches "Governance"
 
             persisted_by "PostgresEra"
           end

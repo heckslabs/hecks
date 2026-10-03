@@ -17,7 +17,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
     Hecks::Chapters.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
-      uses_framework "Governance"
+      attaches "Governance"
 
       QualityControl::Target.persisted_by("PostgresEra")
       QualityControl::Sweep.persisted_by("PostgresEra")

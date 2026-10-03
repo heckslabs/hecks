@@ -37,7 +37,7 @@ module Hecks
         Hecks::Adapters::Folder.new.load_bluebooks(File.join(root, "examples/banking/bluebook"))
         Kernel.load(File.join(root, "lib/hecks/forms/examples/banking_console.bluebook"))
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           AGGREGATES.each { |name| ::Banking.const_get(name).persisted_by("Memory") }
         end
         Hecks.hecksagon("Governance") do

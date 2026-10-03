@@ -22,7 +22,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by("Memory")
         Banking::SafeDepositBox.persisted_by("Memory")
       end

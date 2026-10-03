@@ -41,10 +41,10 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
       Kernel.load(POSTGRES_ERA_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
-      # Commands declare `role`; without `uses_framework "Governance"` the builder refuses
+      # Commands declare `role`; without `attaches "Governance"` the builder refuses
       # ungoverned roles (refuse_ungoverned_roles!).
       Hecks.hecksagon("Wire") do
-        uses_framework "Governance"
+        attaches "Governance"
         persisted_by "PostgresEra"
       end
       Hecks.hecksagon("Governance") do

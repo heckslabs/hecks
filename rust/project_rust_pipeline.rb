@@ -34,10 +34,10 @@ module RustProjectPipeline
     target_chapter_name = header_chapter_name(bluebook_paths.first)
     target_bluebooks = bluebook_paths.select { |path| header_chapter_name(path) == target_chapter_name }
 
-    uses_framework_names, uses_embryonaut_bluebook_names =
+    gem_chapter_names, vendored_package_names =
       if hecksagon_path
         resolved = JSON.parse(run_capture!(PARSER_BIN, "resolve", "--chapter", target_chapter_name, hecksagon_path))
-        [resolved.fetch("uses_framework"), resolved.fetch("uses_embryonaut_bluebook")]
+        [resolved.fetch("gem_chapters"), resolved.fetch("vendored_packages")]
       else
         [[], []]
       end
@@ -50,18 +50,22 @@ module RustProjectPipeline
 
     # Mirrors hecks project_rust's own Framework.load! resolution. A framework
     # member has no .hecksagon of its own, only its .bluebook.
-    chapters = uses_framework_names.map do |fw_name|
+    # A gem chapter that is not a framework member (the language, Tenancy, Deploy) is loaded by
+    # the Ruby runtime alone, so it is checked against the one table and skipped here.
+    chapters = gem_chapter_names.filter_map do |fw_name|
+      next if Hecks::Chapters.index.key?(fw_name) && !Hecks::Framework.members.key?(fw_name)
+
       fw_path = Hecks::Framework.members.fetch(fw_name) do
-        abort "hecks project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecks::Framework.members.keys.sort.join(', ')}"
+        abort "hecks project_rust (Rust path): attaches #{fw_name.inspect} names no chapter the gem carries — known: #{Hecks::Chapters.table.keys.sort.join(', ')}"
       end
       fw_chapter_name = header_chapter_name(fw_path)
       unless fw_chapter_name == fw_name
-        abort "hecks project_rust (Rust path): #{fw_path} declares chapter #{fw_chapter_name.inspect}, but uses_framework named #{fw_name.inspect}"
+        abort "hecks project_rust (Rust path): #{fw_path} declares chapter #{fw_chapter_name.inspect}, but attaches named #{fw_name.inspect}"
       end
       fw_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", fw_chapter_name, fw_path))
       {
         mod_name:     fw_name.downcase,
-        source_label: "#{domain} (uses_framework #{fw_name.inspect})",
+        source_label: "#{domain} (attaches #{fw_name.inspect})",
         ir_text:      fw_ir_text
       }
     end
@@ -69,22 +73,22 @@ module RustProjectPipeline
     # Mirrors EmbryonautBluebook.load!: every .bluebook file directly under
     # vendor/embryonaut_bluebooks/<name>/bluebook/, sorted. A vendored
     # package has no .hecksagon of its own either, just its .bluebook(s).
-    chapters += uses_embryonaut_bluebook_names.map do |pkg_name|
+    chapters += vendored_package_names.map do |pkg_name|
       unless pkg_name.to_s.match?(Hecks::EmbryonautBluebook::PACKAGE_NAME)
-        abort "hecks project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} is not a package " \
+        abort "hecks project_rust (Rust path): attaches #{pkg_name.inspect}, from: :vendor is not a package " \
               "name — it must match [a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
       end
       pkg_dir = File.join(domain, "vendor", "embryonaut_bluebooks", pkg_name.to_s, "bluebook")
       pkg_files = Dir.glob(File.join(pkg_dir, "*.bluebook")).sort
       if pkg_files.empty?
-        abort "hecks project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} names no vendored " \
+        abort "hecks project_rust (Rust path): attaches #{pkg_name.inspect}, from: :vendor names no vendored " \
               "bluebook at #{pkg_dir} — run hecks vendor #{pkg_name}"
       end
       pkg_chapter_name = header_chapter_name(pkg_files.first)
       expected_chapter_name = Hecks::Naming.pascal(pkg_name.to_s)
       unless pkg_chapter_name == expected_chapter_name
         abort "hecks project_rust (Rust path): #{pkg_files.first} declares chapter #{pkg_chapter_name.inspect}, but " \
-              "uses_embryonaut_bluebook #{pkg_name.inspect} expects #{expected_chapter_name.inspect}"
+              "attaches #{pkg_name.inspect}, from: :vendor expects #{expected_chapter_name.inspect}"
       end
       pkg_bluebooks = pkg_files.select { |path| header_chapter_name(path) == pkg_chapter_name }
       pkg_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", pkg_chapter_name, *pkg_bluebooks))
@@ -92,7 +96,7 @@ module RustProjectPipeline
         # Derived from the declared chapter name, not pkg_name.downcase
         # directly — the two diverge once a package name has an underscore.
         mod_name:     expected_chapter_name.downcase,
-        source_label: "#{domain} (uses_embryonaut_bluebook #{pkg_name.inspect})",
+        source_label: "#{domain} (attaches #{pkg_name.inspect}, from: :vendor)",
         ir_text:      pkg_ir_text
       }
     end
@@ -294,7 +298,7 @@ module RustProjectPipeline
       f.puts "// chapter (governance/identity — no merged.rs of its own, so absent"
       f.puts "// from `domains`) stays unconditional: it has no single feature of its"
       f.puts "// own to gate behind, and is compiled in by whichever domain(s) attach"
-      f.puts "// it via `uses_framework`."
+      f.puts "// it via `attaches`."
       all_dirs.each do |name|
         f.puts "#[cfg(feature = #{name.inspect})]" if domains.include?(name)
         f.puts "pub mod #{name};"

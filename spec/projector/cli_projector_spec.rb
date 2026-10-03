@@ -17,7 +17,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       # otherwise `CliProjector#port_spec` never runs.
       Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
       Hecks.hecksagon("Payments") do
-        uses_framework "Governance"
+        attaches "Governance"
         Payments::Payment.persisted_by("Memory")
 
         Payments::Payment.port "PaymentGateway" do

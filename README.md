@@ -64,7 +64,7 @@ leaves it):
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do
@@ -334,7 +334,7 @@ end
 
 ```ruby boot
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Account.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do
@@ -534,7 +534,7 @@ vendored [embryonaut bluebook](#embryonaut-bluebook):
 - **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **directory** — A staff directory: members once addressed by the name they walked in with, now by the email that actually identifies them one person to one row.
-- **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
+- **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through `attaches ... from: :vendor`, exercising the same dispatch-table merge a gem `attaches` already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
@@ -553,7 +553,7 @@ hecks DSL (`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
 
 A `.hecksagon` file: the wiring for a bluebook — which adapter persists
 each aggregate (`Pizzas::Order.persisted_by("Memory")`), which framework
-chapters it attaches (`uses_framework "Governance"`), and its ports. See
+chapters it attaches (`attaches "Governance"`), and its ports. See
 [Wiring](docs/implemented/guides/wiring.md).
 
 ### World
@@ -574,7 +574,7 @@ One named `Hecks.bluebook` declaration and the module the door installs
 for it (`Pizzas`). The language's framework chapters (`Governance`,
 `Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
 and its grammar chapters in `lib/hecks/grammar/`; a hecksagon attaches a
-framework chapter with `uses_framework`.
+framework chapter with `attaches`.
 
 ### Heki
 
@@ -617,8 +617,8 @@ development](docs/implemented/guides/ai-native-development.md).
 
 A bluebook package vendored into a consuming domain's own
 `vendor/embryonaut_bluebooks/<name>/` directory and attached from its
-hecksagon with `uses_embryonaut_bluebook "<name>"`, the same way
-`uses_framework` attaches a framework chapter.
+hecksagon with `attaches "<name>", from: :vendor`, the same way
+`attaches` attaches a framework chapter.
 `examples/embryonaut_vendoring_demo` is the worked example.
 
 ## Contributing

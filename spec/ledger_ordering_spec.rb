@@ -16,7 +16,7 @@ RSpec.describe "LedgerOrdering" do
       Kernel.load(File.join(LEDGER_ORDERING_ROOT, "ledger_ordering.bluebook"))
 
       Hecks.hecksagon "LedgerOrdering" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         LedgerOrdering::Folder.persisted_by("Memory")
       end

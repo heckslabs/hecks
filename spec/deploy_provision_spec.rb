@@ -48,7 +48,7 @@ RSpec.describe "hecks deploy provision", :io do
     BLUEBOOK
     File.write(File.join(dir, "scratch.hecksagon"), <<~HECKSAGON)
       Hecks.hecksagon "Scratch" do
-        uses_framework "Governance"
+        attaches "Governance"
         Scratch::Widget.persisted_by("PostgresEra")
       end
     HECKSAGON

@@ -16,7 +16,7 @@ module Hecks
 
       # Runs both halves of the era gate over every bluebook in a registry.
       #
-      # Looks up each bluebook's own source separately: `uses_framework` can share a boot between
+      # Looks up each bluebook's own source separately: `attaches` can share a boot between
       # the domain's own bluebook and a differently-sourced one, so one file read once and reused
       # for every bluebook would attribute the wrong text.
       #
@@ -84,7 +84,7 @@ module Hecks
       # Reads the source text one bluebook was declared in, wherever that source lives.
       #
       # Matched by declared name, not position: a domain directory using
-      # `uses_framework` may hold more than one file, and a framework
+      # `attaches` may hold more than one file, and a framework
       # member or vendored bluebook is excluded from the single-file
       # fallback so its own real source is read, not a sibling's.
       #
@@ -150,11 +150,11 @@ module Hecks
       #
       # @param registry [Runtime::Registry] the registry whose hecksagons are searched
       # @param bluebook_name [String] the bluebook's declared Pascal-case name
-      # @return [String, nil] the package name as written in `uses_embryonaut_bluebook`; nil
+      # @return [String, nil] the package name as written in `attaches ... from: :vendor`; nil
       #   when no hecksagon vendored a package whose name Pascal-cases to `bluebook_name`
       def vendored_bluebook_name_for(registry, bluebook_name)
         registry.hecksagons.each_value do |hecksagon|
-          match = hecksagon.vendored_bluebooks.find { |name| Naming.pascal(name) == bluebook_name }
+          match = hecksagon.vendored_packages.find { |name| Naming.pascal(name) == bluebook_name }
           return match if match
         end
         nil

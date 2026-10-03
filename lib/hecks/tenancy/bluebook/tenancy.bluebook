@@ -1,4 +1,4 @@
-# Its own bounded context, booted centrally like `Deploy` and never attached via `uses_framework`:
+# Its own bounded context, booted centrally like `Deploy` and never attached via `attaches`:
 # an attached Tenant would be a single-row copy in every tenant's boot, not one cross-tenant list.
 Hecks.bluebook "Tenancy" do
   vision "Which tenants exist, which realm and storage each one owns, and whether each is currently allowed to run, is one queryable, historical fact — not scattered across a world-file overlay and a validation-only command."

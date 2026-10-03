@@ -21,7 +21,7 @@ RSpec.describe "verify! warning for an undurable process_manager" do
     load_wire(registry)
     Hecks.with_registry(registry) do
       Hecks.hecksagon("Wire") do
-        uses_framework "Governance"
+        attaches "Governance"
         persisted_by "Memory"
       end
       Hecks.hecksagon("Governance") do
@@ -42,7 +42,7 @@ RSpec.describe "verify! warning for an undurable process_manager" do
     Dir.mktmpdir do |dir|
       Hecks.with_registry(registry) do
         Hecks.hecksagon("Wire") do
-          uses_framework "Governance"
+          attaches "Governance"
           persisted_by "SqlitePersistence"
         end
         Hecks.hecksagon("Governance") do

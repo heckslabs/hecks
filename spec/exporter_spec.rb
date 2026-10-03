@@ -136,11 +136,11 @@ RSpec.describe Hecks::Projector::Exporter do
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
         Hecks.hecksagon("Probe") do
-          uses_framework "Identity"
-          uses_framework "Governance"
+          attaches "Identity"
+          attaches "Governance"
         end
         Hecks.hecksagon("Identity") do
-          uses_framework "Governance"
+          attaches "Governance"
           Identity::Identity.persisted_by("Memory")
           Identity::ExternalIdentifier.persisted_by("Memory")
         end

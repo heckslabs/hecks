@@ -28,7 +28,7 @@ RSpec.describe RustProjection::DomainGenerator do
       seed_previous_target_run(dir)
 
       RustProjection::WriteIfChanged.track_directory(dir) do
-        described_class.call(ir, "spec (uses_framework \"Compliance\")", dir, "compliance", merged_module: false)
+        described_class.call(ir, "spec (attaches \"Compliance\")", dir, "compliance", merged_module: false)
       end
 
       expect(File.exist?(File.join(dir, "merged.rs"))).to be(false)

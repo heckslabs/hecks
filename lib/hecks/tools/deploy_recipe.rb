@@ -150,7 +150,7 @@ module Hecks
       # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
       # cross-domain invoke grant can live in any attached chapter. A domain with no bluebook of
       # its own (the QA ledger) gets its chapter from the hecksagon's `Chapters.load!`. `root:` is
-      # required or `uses_embryonaut_bluebook` refuses with "needs a registry with a root to
+      # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
       # vendor from".
       #
       # @param domain [String] the domain directory

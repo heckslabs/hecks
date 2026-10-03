@@ -1,14 +1,14 @@
 # The framework members bound to Memory so they can boot standing alone with
-# `Hecks.boot("lib/hecks/framework")`. `uses_framework` does not read this file.
+# `Hecks.boot("lib/hecks/framework")`. `attaches` does not read this file.
 Hecks.hecksagon "Compliance" do
   # Every command declares `role "Compliance officer"`; the role check needs Governance.
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 
 Hecks.hecksagon "ConsoleSettings" do
   # Same reason as Compliance.
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 
@@ -18,6 +18,6 @@ end
 
 Hecks.hecksagon "Identity" do
   # `Identity.Register` declares `role "Identity registrar"`; same reason as Compliance.
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end

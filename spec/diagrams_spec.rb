@@ -394,13 +394,13 @@ RSpec.describe "the generated diagrams" do
 
   # Banking attaches two frameworks and reaches into two more domains (Compliance twice,
   # plus Notifications, not a framework member) — proves every cross-domain edge is drawn.
-  it "draws exactly one edge per real uses_framework and one per distinct cross-domain policy target, in banking" do
+  it "draws exactly one edge per real attaches and one per distinct cross-domain policy target, in banking" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter,
                                                options:  { hecksagon: banking_hecksagon })["frameworks.mmd"]
     attaches = diagram.lines.count { |line| line.include?("|attaches|") }
     reaches = diagram.lines.count { |line| line.include?("|reaches across|") }
 
-    expect(attaches).to eq(banking_hecksagon.framework_members.size)
+    expect(attaches).to eq(banking_hecksagon.member_chapters.size)
     expect(reaches).to eq(banking_chapter.policies.filter_map(&:target_domain).uniq.size)
   end
 

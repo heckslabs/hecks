@@ -53,7 +53,7 @@ RSpec.describe "QualityControl" do
       Hecks.adapter("QcClock") { port "clock" }
 
       Hecks.hecksagon "QualityControl" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
          QualityControl::Ticket, QualityControl::Patch, QualityControl::Improvement,

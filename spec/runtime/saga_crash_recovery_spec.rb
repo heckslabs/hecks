@@ -26,7 +26,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
       Hecks.hecksagon("Wire") do
-        uses_framework "Governance"
+        attaches "Governance"
         persisted_by "SqlitePersistence"
       end
       Hecks.hecksagon("Governance") do

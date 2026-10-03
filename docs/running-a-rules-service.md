@@ -203,7 +203,7 @@ after the files):
 
 ```ruby
 Hecks.hecksagon "Underwriting" do
-  uses_framework "Governance"
+  attaches "Governance"
   Underwriting::Application.persisted_by("Postgres")
 end
 

@@ -66,10 +66,10 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
-    let (uses_framework_names, uses_embryonaut_bluebook_names) = match &hecksagon_path {
+    let (gem_chapter_names, vendored_package_names) = match &hecksagon_path {
         Some(p) => (
-            resolve::resolve_uses_framework(&parser_bin, &target_chapter_name, p)?,
-            resolve::resolve_uses_embryonaut_bluebook(&parser_bin, &target_chapter_name, p)?,
+            resolve::resolve_gem_chapters(&parser_bin, &target_chapter_name, p)?,
+            resolve::resolve_vendored_packages(&parser_bin, &target_chapter_name, p)?,
         ),
         None => (Vec::new(), Vec::new()),
     };
@@ -85,45 +85,52 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
     let target_ir_text = crate::json::write(&target_ir);
 
-    // Every other chapter's `uses_framework` names, resolved through the
+    // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
-    // pipeline itself calls.
+    // pipeline itself calls. A gem chapter that is not a framework member (the language,
+    // Tenancy, Deploy) is loaded by the Ruby runtime alone, so it is checked and skipped.
     let framework_members = resolve::framework_members(root)?;
+    let other_gem_chapters = resolve::other_gem_chapter_names(root)?;
     let mut chapters: Vec<Chapter> = Vec::new();
-    for fw_name in &uses_framework_names {
+    for fw_name in &gem_chapter_names {
+        if other_gem_chapters.contains(fw_name) && !framework_members.iter().any(|(name, _)| name == fw_name) {
+            continue;
+        }
         let fw_path = framework_members
             .iter()
             .find(|(name, _)| name == fw_name)
             .map(|(_, path)| path.clone())
             .ok_or_else(|| {
-                let known: Vec<&str> = framework_members.iter().map(|(n, _)| n.as_str()).collect();
-                format!("hecks-build: uses_framework {fw_name:?} names no known framework member — known: {}", known.join(", "))
+                let mut known: Vec<&str> = framework_members.iter().map(|(n, _)| n.as_str()).collect();
+                known.extend(other_gem_chapters.iter().map(String::as_str));
+                known.sort();
+                format!("hecks-build: attaches {fw_name:?} names no chapter the gem carries — known: {}", known.join(", "))
             })?;
         let fw_chapter_name = resolve::header_chapter_name(&fw_path)?;
         if &fw_chapter_name != fw_name {
             return Err(format!(
-                "hecks-build: {} declares chapter {fw_chapter_name:?}, but uses_framework named {fw_name:?}",
+                "hecks-build: {} declares chapter {fw_chapter_name:?}, but attaches named {fw_name:?}",
                 fw_path.display()
             ));
         }
         let fw_ir_text = parse_chapter_with_optionals(&parser_bin, &fw_chapter_name, std::slice::from_ref(&fw_path))?;
         chapters.push(Chapter {
             mod_name: fw_name.to_lowercase(),
-            source_label: format!("{domain} (uses_framework {fw_name:?})"),
+            source_label: format!("{domain} (attaches {fw_name:?})"),
             ir_text: fw_ir_text,
         });
     }
 
-    // Every vendored package's `uses_embryonaut_bluebook` names, resolved the
+    // Every vendored package's `attaches ... from: :vendor` names, resolved the
     // same way `EmbryonautBluebook.load!` (Ruby) resolves them — without this,
     // a vendored chapter would silently drop from the output.
-    for pkg_name in &uses_embryonaut_bluebook_names {
+    for pkg_name in &vendored_package_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
         let expected_chapter_name = resolve::pascal(pkg_name);
         if pkg_chapter_name != expected_chapter_name {
             return Err(format!(
-                "hecks-build: {} declares chapter {pkg_chapter_name:?}, but uses_embryonaut_bluebook {pkg_name:?} \
+                "hecks-build: {} declares chapter {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \
                  expects {expected_chapter_name:?}",
                 pkg_files[0].display()
             ));
@@ -140,13 +147,13 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             // `expected_chapter_name` above), not the raw `pkg_name` — that
             // would diverge the moment a package name has an underscore.
             mod_name: expected_chapter_name.to_lowercase(),
-            source_label: format!("{domain} (uses_embryonaut_bluebook {pkg_name:?})"),
+            source_label: format!("{domain} (attaches {pkg_name:?}, from: :vendor)"),
             ir_text: pkg_ir_text,
         });
     }
 
-    // Guards against a `uses_framework`- and a `uses_embryonaut_bluebook`-
-    // derived entry sharing a `mod_name`, which would silently overwrite one
+    // Guards against a gem-chapter and a vendored-package
+    // entry sharing a `mod_name`, which would silently overwrite one
     // chapter's sidecars with another's.
     {
         let mut seen: Vec<&str> = Vec::new();

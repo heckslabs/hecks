@@ -11,7 +11,7 @@
 // chapter (governance/identity — no merged.rs of its own, so absent
 // from `domains`) stays unconditional: it has no single feature of its
 // own to gate behind, and is compiled in by whichever domain(s) attach
-// it via `uses_framework`.
+// it via `attaches`.
 #[cfg(feature = "banking")]
 pub mod banking;
 #[cfg(feature = "bug28_existence_fixture")]

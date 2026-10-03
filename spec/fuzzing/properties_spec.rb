@@ -541,7 +541,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       # whichever bluebook loaded first.
       bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
       # Expression loads first, Translation second, Governance last —
-      # both hecksagons call uses_framework "Governance" (role is only
+      # both hecksagons call attaches "Governance" (role is only
       # real access control once Governance can check it) from inside
       # their own blocks, so it attaches after either chapter.
       expect(bluebooks.keys).to eq(%w[Expression Translation Governance])

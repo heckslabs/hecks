@@ -1,5 +1,5 @@
 Hecks.hecksagon "Hecks" do
-  uses_framework "Governance"
+  attaches "Governance"
 
   # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy and QualityControl (which brings its own ports and adapters).

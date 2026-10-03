@@ -82,7 +82,7 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
       end
 
       Hecks.hecksagon("Fanout") do
-        uses_framework "Governance"
+        attaches "Governance"
         Fanout::Customer.persisted_by("Memory")
         Fanout::Account.persisted_by("Memory")
       end

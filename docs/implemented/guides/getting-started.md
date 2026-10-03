@@ -162,7 +162,7 @@ domain's state lives is a decision, and decisions are made in the
 
 ```ruby boot
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do

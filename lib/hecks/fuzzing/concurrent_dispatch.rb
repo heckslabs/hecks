@@ -55,7 +55,7 @@ module Hecks
       end
 
       # Filters to verbs whose aggregate resolves to a `:cross_process_lock`-declaring
-      # adapter — a Memory-backed aggregate (e.g. one only `uses_framework`s) can never
+      # adapter — a Memory-backed aggregate (e.g. one only `attaches`s) can never
       # agree with the sequential oracle across two processes, a guaranteed false positive.
       def lockable_verbs(domain_path, steps, database:, schema:)
         verbs = steps.select { |step| COMMAND_STEP.call(step) }.map { |step| step["verb"] }.uniq

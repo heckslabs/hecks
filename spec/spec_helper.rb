@@ -65,7 +65,7 @@ module InMemoryDomain
   end
   module_function :load_bluebook_files
 
-  # Sibling ACL hecksagon `uses_framework "Governance"` needs — attaching a
+  # Sibling ACL hecksagon `attaches "Governance"` needs — attaching a
   # BC without `Hecks.hecksagon "Governance"` refuses boot. Same Memory
   # binds every in-process spec already used.
   GOVERNANCE_MEMORY_HECKSAGON = <<~HECKSAGON.freeze
@@ -122,7 +122,7 @@ module InMemoryDomain
       # unresolved constant reaches Object's const_missing. This block lives
       # inside a module, so a bare `Pizzas` would resolve here first instead.
       Hecks.hecksagon("Pizzas") do
-        uses_framework "Governance"
+        attaches "Governance"
         ::Pizzas::Order.persisted_by("Memory")
       end
       sibling_governance!

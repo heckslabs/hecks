@@ -1,5 +1,5 @@
 Hecks.bluebook "RelationshipFindings" do
-  vision "Three cross-domain policies — unacknowledged, contradictory, and clean."
+  vision "Four cross-domain policies — unacknowledged, contradictory (twice), and clean."
   core
 
   aggregate "Thing" do
@@ -18,19 +18,27 @@ Hecks.bluebook "RelationshipFindings" do
     end
   end
 
-  # Unacknowledged: across "Elsewhere" with no uses_framework or subscribe in the hecksagon.
+  # Unacknowledged: across "Elsewhere" with no attaches or subscribe in the hecksagon.
   policy "OnElsewhere" do
     on      "ThingDone"
     trigger Elsewhere::SomeCommand
     across  "Elsewhere"
   end
 
-  # Contradictory: across "Governance" while the hecksagon also uses_framework it,
+  # Contradictory: across "Governance" while the hecksagon also attaches it,
   # claiming Shared Kernel and Customer/Supplier at once.
   policy "OnGovernance" do
     on      "ThingDone"
     trigger Governance::SomeCommand
     across  "Governance"
+  end
+
+  # Contradictory too: Tenancy is a chapter the gem carries rather than a framework member, and
+  # `attaches` covers it the same way.
+  policy "OnTenancy" do
+    on      "ThingDone"
+    trigger Tenancy::SomeCommand
+    across  "Tenancy"
   end
 
   # Clean: a matching subscribe "Known.*" in the hecksagon must not be flagged.

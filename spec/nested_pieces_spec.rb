@@ -16,7 +16,7 @@ RSpec.describe "NestedPieces" do
       Kernel.load(File.join(NESTED_PIECES_ROOT, "nested_pieces.bluebook"))
 
       Hecks.hecksagon "NestedPieces" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         NestedPieces::Workspace.persisted_by("Memory")
       end

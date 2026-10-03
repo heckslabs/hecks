@@ -3,7 +3,7 @@ Hecks.bluebook "ConsoleSettings" do
   supporting
 
   # A framework member like Identity/Governance: attach with
-  # `uses_framework "ConsoleSettings"` in the consuming app's own `.hecksagon`,
+  # `attaches "ConsoleSettings"` in the consuming app's own `.hecksagon`,
   # plus a `Hecks.hecksagon "ConsoleSettings" do ... end` persistence binding.
 
   # Named ConsoleSettings, not "Forms" — Hecks::Forms (lib/hecks/forms/) names a

@@ -12,7 +12,7 @@ RSpec.describe "FreezeAccountsOnSuspension" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by("Memory")
         Banking::Account.persisted_by("Memory")
         Banking::ATMCard.persisted_by("Memory")

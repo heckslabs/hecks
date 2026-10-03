@@ -1,7 +1,7 @@
 # Gateway port that feeds payments.bluebook's policies; hecks model_check reads it to see
 # what emits PaymentReceived/PaymentDeclined. Declaring it makes wiring explicit.
 Hecks.hecksagon "Payments" do
-  uses_framework "Governance"
+  attaches "Governance"
   Payments::Payment.persisted_by("Memory")
 
   Payments::Payment.port "PaymentGateway" do

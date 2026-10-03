@@ -1,11 +1,12 @@
 require_relative "naming"
+require_relative "framework"
 require_relative "runtime/registry"
 require_relative "bluebook/meta_validator"
 
 module Hecks
   # The chapters the gem carries that a hecksagon can attach by name (ADR 0080): the language
   # declared in itself, Expression, Tenancy, Deploy and QualityControl. Framework members stay in
-  # `Framework`.
+  # `Framework`; `table` and `attach!` find a name across both.
   #
   # A chapter is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
   # Beside its bluebook a chapter may carry what every hecksagon attaching it needs, whatever
@@ -24,6 +25,33 @@ module Hecks
                       .group_by { |path| chapter_name(path) }
                       .reject { |name, _| name.nil? }
                       .freeze
+    end
+
+    # Every chapter the gem carries, whichever module loads it: the one lookup table `attaches`
+    # finds a name in.
+    #
+    # @return [Hash{String => Array<String>}] chapter name to its files' absolute paths, the
+    #   framework members (`Framework.members`) and the attachable chapters (`index`) together
+    def self.table
+      Framework.members.transform_values { |path| [path] }.merge(index)
+    end
+
+    # Loads one gem chapter by name, found in `table`: a framework member through
+    # `Framework.load!`, any other chapter through `load!`.
+    #
+    # @param name [String, Symbol] the chapter's name, such as `"Governance"` or `"Deploy"`
+    # @return [Boolean, nil] true when this call loaded it, nil when it was already held
+    # @raise [Runtime::WiringError] if the gem carries no chapter of that name; the message
+    #   lists the known names and says how to attach a vendored package
+    def self.attach!(name)
+      key = name.to_s
+      return Framework.load!(key) if Framework.members.key?(key)
+      return load!(key) if index.key?(key)
+
+      raise Runtime::WiringError,
+            "attaches #{name.inspect}: the gem carries no chapter of that name — known: " \
+            "#{table.keys.sort.join(', ')}. To attach a vendored package, write " \
+            "`attaches #{name.to_s.inspect}, from: :vendor`"
     end
 
     # Loads a chapter's files into the current registry, unless it already holds the chapter.
