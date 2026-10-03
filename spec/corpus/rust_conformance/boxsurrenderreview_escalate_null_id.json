@@ -5,12 +5,68 @@
     {
       "verb": "Compliance::BoxSurrenderReview.Open",
       "role": "System",
-      "args": {"branch_code": {"value": "BR1"}, "box_number": {"value": 42}}
+      "args": {
+        "branch_code": {
+          "value": "BR1"
+        },
+        "box_number": {
+          "value": 42
+        }
+      }
     },
     {
       "verb": "Compliance::BoxSurrenderReview.Escalate",
       "role": "Compliance officer",
-      "args": {"id": null}
+      "args": {
+        "id": null
+      }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Compliance::BoxSurrenderReview.Escalate",
+        "error": "Escalate acts on an existing BoxSurrenderReview — pass branch_code.value, box_number.value:",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Compliance::BoxSurrenderReview#BR1:42": {
+        "branch_code": {
+          "value": "BR1"
+        },
+        "box_number": {
+          "value": 42
+        },
+        "status": "open"
+      }
+    },
+    "events": [
+      {
+        "name": "BoxSurrenderReviewOpened",
+        "aggregate": "Compliance::BoxSurrenderReview",
+        "id": "BR1:42",
+        "payload": {
+          "branch_code": {
+            "value": "BR1"
+          },
+          "box_number": {
+            "value": 42
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

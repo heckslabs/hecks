@@ -136,5 +136,81 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "NestedPieces::Workspace.Open",
+        "error": "Open does not declare colour — it takes reference",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Open",
+        "error": "WorkspaceReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "NestedPieces::Workspace.AddBoard",
+        "error": "AddBoard does not declare flavour — it takes number",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "NestedPieces::Workspace.AddBoard",
+        "error": "BoardNumber.value expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "NestedPieces::Workspace.AddBoard",
+        "error": "AddBoard refused — role: Owner, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.AddCard",
+        "error": "AddCard does not declare note — it takes sequence",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.AddCard",
+        "error": "CardSequence.value expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.AddCard",
+        "error": "AddCard refused — role: Owner, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Label",
+        "error": "Label does not declare note — it takes label",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Label",
+        "error": "BoardLabel.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Label",
+        "error": "Label refused — role: Owner, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

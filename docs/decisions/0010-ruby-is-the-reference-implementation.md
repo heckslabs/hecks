@@ -4,8 +4,11 @@
 `docs/semantics/bluebook-semantics.md` + `spec/corpus/semantics/`
 (the clause-numbered semantics and its frozen corpus are the reference
 for MEANING now; Ruby remains the reference IMPLEMENTATION, and both
-runtimes answer to the corpus rather than to each other). The differential harness this ADR
-specifies is real and runs in CI: `spec/rust_conformance_spec.rb`,
+runtimes answer to the corpus rather than to each other). The conformance corpus
+(`spec/corpus/rust_conformance/`, `banking.json`, `chess.json`) is now frozen data too: each
+fixture carries its `expect`, and Ruby (`spec/conformance_corpus_spec.rb`) and Rust
+(`spec/rust_conformance_spec.rb`) are both held to it, not diffed against a live Ruby replay.
+The differential harness this ADR specifies is real and runs in CI: `spec/rust_conformance_spec.rb`,
 `spec/codegen_parity_spec.rb`, and `spec/parser_parity_spec.rb`.
 Supersedes the "wait for IR stability" entry criterion in
 [0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md)'s

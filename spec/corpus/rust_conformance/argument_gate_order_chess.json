@@ -398,5 +398,176 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Chess::Game.Start",
+        "error": "Start does not declare colour — it takes label",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.PlacePiece",
+        "error": "PlacePiece does not declare rank — it takes id, kind, color, square",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.PlacePiece",
+        "error": "PlacePiece was not given id — it takes id, kind, color, square",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Chess::Game.PlacePiece",
+        "error": "PieceId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Chess::Game.MovePiece",
+        "error": "MovePiece does not declare note — it takes id, destination, by, outcome",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.MovePiece",
+        "error": "MovePiece was not given id — it takes id, destination, by, outcome",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Chess::Game.MovePiece",
+        "error": "PieceId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Chess::Game.CapturePiece",
+        "error": "CapturePiece does not declare rank — it takes id, by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.CapturePiece",
+        "error": "CapturePiece was not given id — it takes id, by",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Chess::Game.CapturePiece",
+        "error": "PieceId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Chess::Game.AdvanceTurn",
+        "error": "AdvanceTurn does not declare rank — it takes turn",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.AdvanceTurn",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.DeclareCheck",
+        "error": "DeclareCheck does not declare colour — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.DeclareCheck",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.DeclareCheckmate",
+        "error": "DeclareCheckmate does not declare note — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.DeclareCheckmate",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.DeclareStalemate",
+        "error": "DeclareStalemate does not declare note — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.DeclareStalemate",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.Resign",
+        "error": "Resign does not declare rank — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.Resign",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.OfferDraw",
+        "error": "OfferDraw does not declare colour — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.OfferDraw",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.AcceptDraw",
+        "error": "AcceptDraw does not declare flavour — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.AcceptDraw",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.DeclineDraw",
+        "error": "DeclineDraw does not declare colour — it takes by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.DeclineDraw",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Chess::Game.Piece.Move",
+        "error": "Move does not declare note — it takes id, destination, by, outcome",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.Piece.Move",
+        "error": "PieceId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Chess::Game.Piece.Capture",
+        "error": "Capture does not declare rank — it takes id, by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Chess::Game.Piece.Capture",
+        "error": "PieceId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

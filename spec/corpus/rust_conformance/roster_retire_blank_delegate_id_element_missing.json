@@ -5,31 +5,158 @@
     {
       "verb": "Roster::Roster.Open",
       "args": {
-        "name": { "value": "charlie" }
+        "name": {
+          "value": "charlie"
+        }
       }
     },
     {
       "verb": "Roster::Roster.AddSeat",
       "args": {
-        "name": { "value": "charlie" },
-        "number": { "value": 1 },
-        "row": { "value": "back" }
+        "name": {
+          "value": "charlie"
+        },
+        "number": {
+          "value": 1
+        },
+        "row": {
+          "value": "back"
+        }
       }
     },
     {
       "verb": "Roster::Roster.Enlist",
       "args": {
-        "name": { "value": "charlie" },
-        "id": { "value": "ren" },
-        "age": { "value": 30 }
+        "name": {
+          "value": "charlie"
+        },
+        "id": {
+          "value": "ren"
+        },
+        "age": {
+          "value": 30
+        }
       }
     },
     {
       "verb": "Roster::Roster.Retire",
       "args": {
-        "name": { "value": "charlie" },
-        "id": { "value": "" }
+        "name": {
+          "value": "charlie"
+        },
+        "id": {
+          "value": ""
+        }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "no Member with id.value  on Roster \"charlie\"",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Roster::Roster#charlie": {
+        "name": {
+          "value": "charlie"
+        },
+        "motto": {
+          "value": "all hands"
+        },
+        "mood": {
+          "value": "open"
+        },
+        "standing": {
+          "value": "none"
+        },
+        "last_marked": null,
+        "seats": [
+          {
+            "number": {
+              "value": 1
+            },
+            "row": {
+              "value": "back"
+            }
+          }
+        ],
+        "crew": [
+          {
+            "id": {
+              "value": "ren"
+            },
+            "age": {
+              "value": 30
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "active"
+          }
+        ],
+        "assignments": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "RosterOpened",
+        "aggregate": "Roster::Roster",
+        "id": "charlie",
+        "payload": {
+          "name": {
+            "value": "charlie"
+          }
+        }
+      },
+      {
+        "name": "SeatAdded",
+        "aggregate": "Roster::Roster",
+        "id": "charlie",
+        "payload": {
+          "name": {
+            "value": "charlie"
+          },
+          "number": {
+            "value": 1
+          },
+          "row": {
+            "value": "back"
+          }
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "charlie",
+        "payload": {
+          "name": {
+            "value": "charlie"
+          },
+          "id": {
+            "value": "ren"
+          },
+          "age": {
+            "value": 30
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

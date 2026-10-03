@@ -22,5 +22,9 @@ that one fixture deliberately (`hecks seed_semantics_corpus fixture=fixture_name
 `spec/semantics_corpus_spec.rb` runs every fixture against the Ruby
 runtime (Memory), and — io-tagged — against the compiled Rust kernel,
 refusal kinds included. That makes this corpus the oracle both runtimes
-answer to, where `spec/rust_conformance` only ever proved they agreed
-with each other.
+answer to.
+
+`spec/corpus/rust_conformance` and the full `banking.json`/`chess.json` scripts are held the same
+way: each carries a frozen `expect` (also queries, sagas, dry runs, reactions), checked by
+`spec/conformance_corpus_spec.rb` (Ruby) and `spec/rust_conformance_spec.rb` (Rust). They are
+seeded by the same command.

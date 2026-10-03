@@ -2,8 +2,123 @@
   "domain": "examples/pizzas",
   "note": "Single-field bare-scalar acceptance (ADR 0067). PizzaName, ToppingName, ToppingAmount, CustomerName, Price and Size each declare exactly one attribute, so a bare scalar wraps into that sole field on both runtimes, both at the top level of a command argument and nested inside the multi-field Pizza value object. The counterpart refusal for a multi-field value object is pinned by refusal_wording_value_object_shape.json. A runtime that stops accepting the bare form for a single-field value object fails this fixture.",
   "steps": [
-    {"verb": "Pizzas::Order.CreatePizza", "args": {"name": "Margherita", "pizza": {"price_cents": 1200, "size": "large"}}},
-    {"verb": "Pizzas::Order.AddTopping", "args": {"name": "Margherita", "topping": "Basil", "amount": 3}},
-    {"verb": "Pizzas::Order.Purchase", "args": {"name": "Margherita", "customer_name": "Chris", "amount": {"cents": 1200}}}
-  ]
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": "Margherita",
+        "pizza": {
+          "price_cents": 1200,
+          "size": "large"
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "Margherita",
+        "topping": "Basil",
+        "amount": 3
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "Margherita",
+        "customer_name": "Chris",
+        "amount": {
+          "cents": 1200
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Pizzas::Order#Margherita": {
+        "name": {
+          "value": "Margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 3
+          }
+        ],
+        "customer_name": {
+          "value": "Chris"
+        },
+        "status": "sold"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "Margherita",
+        "payload": {
+          "name": {
+            "value": "Margherita"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "Margherita",
+        "payload": {
+          "name": "Margherita",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "Margherita",
+        "payload": {
+          "name": "Margherita",
+          "customer_name": {
+            "value": "Chris"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

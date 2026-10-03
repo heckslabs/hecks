@@ -2,9 +2,172 @@
   "domain": "examples/pizzas",
   "note": "Pizzas::Order's PaymentGateway operation uses the same receiver/payload envelope as every other behavior. Exercises the happy path (Receive -> policy -> Purchase) and refusal when `to` names no Order, with receiver identity absent from the operation facts.",
   "steps": [
-    {"verb": "Pizzas::Order.CreatePizza", "args": {"name": {"value": "port-margherita"}, "pizza": {"price_cents": {"cents": 1200}, "size": {"value": "large"}}}},
-    {"verb": "Pizzas::Order.AddTopping", "args": {"name": "port-margherita", "topping": {"value": "Basil"}, "amount": {"value": 3}}},
-    {"verb": "Pizzas::Order.PaymentGateway.Receive", "args": {"to": "port-margherita", "with": {"customer_name": {"value": "Chris"}, "amount": {"cents": 1200}}}},
-    {"verb": "Pizzas::Order.PaymentGateway.Receive", "args": {"to": "no-such-order", "with": {"customer_name": {"value": "Chris"}, "amount": {"cents": 1200}}}}
-  ]
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "port-margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "port-margherita",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.PaymentGateway.Receive",
+      "args": {
+        "to": "port-margherita",
+        "with": {
+          "customer_name": {
+            "value": "Chris"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.PaymentGateway.Receive",
+      "args": {
+        "to": "no-such-order",
+        "with": {
+          "customer_name": {
+            "value": "Chris"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.PaymentGateway.Receive",
+        "error": "Order \"no-such-order\" does not exist",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#port-margherita": {
+        "name": {
+          "value": "port-margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 3
+          }
+        ],
+        "customer_name": {
+          "value": "Chris"
+        },
+        "status": "sold"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "port-margherita",
+        "payload": {
+          "name": {
+            "value": "port-margherita"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "port-margherita",
+        "payload": {
+          "name": "port-margherita",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "PizzaPaymentReceived",
+        "aggregate": "Pizzas::Order",
+        "id": "port-margherita",
+        "payload": {
+          "customer_name": {
+            "value": "Chris"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "port-margherita",
+        "payload": {
+          "customer_name": {
+            "value": "Chris"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "OnPizzaPaymentReceived",
+        "on": "PizzaPaymentReceived",
+        "trigger": "Pizzas::Order.Purchase",
+        "delivered": true
+      }
+    ]
+  }
 }

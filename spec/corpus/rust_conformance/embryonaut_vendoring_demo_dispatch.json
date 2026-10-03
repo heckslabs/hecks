@@ -2,13 +2,182 @@
   "domain": "examples/embryonaut_vendoring_demo",
   "note": "docs/decisions/0058's own conformance proof for uses_embryonaut_bluebook — the same default-Rust-codegen-path dispatch proof examples/banking's own fixtures give uses_framework, scaled down to the smallest package that still exercises it for real: creates the consuming domain's own aggregate (Gadget.Register, Gadget.Activate), creates and dispatches the VENDORED widgets package's own aggregate through the SAME merged Store/dispatch table (Widget.Create, Widget.Retire, Widget.Available), and refuses once on each side (Gadget.Activate on an already-active gadget; Widget.Retire on an already-retired widget) — proving the merged dispatch table routes both a domain-owned and a vendored-chapter verb correctly, including a given failing on each.",
   "steps": [
-    {"verb": "EmbryonautVendoringDemo::Gadget.Register", "args": {"name": {"value": "g1"}}},
-    {"verb": "EmbryonautVendoringDemo::Gadget.Activate", "args": {"name": {"value": "g1"}}},
-    {"verb": "EmbryonautVendoringDemo::Gadget.Activate", "args": {"name": {"value": "g1"}}},
-    {"verb": "Widgets::Widget.Create", "args": {"name": {"value": "w1"}}},
-    {"query": "Widgets::Widget.Available"},
-    {"verb": "Widgets::Widget.Retire", "args": {"name": {"value": "w1"}}},
-    {"verb": "Widgets::Widget.Retire", "args": {"name": {"value": "w1"}}},
-    {"query": "Widgets::Widget.Available"}
-  ]
+    {
+      "verb": "EmbryonautVendoringDemo::Gadget.Register",
+      "args": {
+        "name": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "EmbryonautVendoringDemo::Gadget.Activate",
+      "args": {
+        "name": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "EmbryonautVendoringDemo::Gadget.Activate",
+      "args": {
+        "name": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "Widgets::Widget.Create",
+      "args": {
+        "name": {
+          "value": "w1"
+        }
+      }
+    },
+    {
+      "query": "Widgets::Widget.Available"
+    },
+    {
+      "verb": "Widgets::Widget.Retire",
+      "args": {
+        "name": {
+          "value": "w1"
+        }
+      }
+    },
+    {
+      "verb": "Widgets::Widget.Retire",
+      "args": {
+        "name": {
+          "value": "w1"
+        }
+      }
+    },
+    {
+      "query": "Widgets::Widget.Available"
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "EmbryonautVendoringDemo::Gadget.Activate",
+        "error": "Activate refused — only an idle gadget may activate",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Widgets::Widget.Retire",
+        "error": "Retire refused — only an available widget may retire",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "EmbryonautVendoringDemo::Gadget#g1": {
+        "name": {
+          "value": "g1"
+        },
+        "status": {
+          "value": "active"
+        }
+      },
+      "Widgets::Widget#w1": {
+        "name": {
+          "value": "w1"
+        },
+        "status": {
+          "value": "retired"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "GadgetRegistered",
+        "aggregate": "EmbryonautVendoringDemo::Gadget",
+        "id": "g1",
+        "payload": {
+          "name": {
+            "value": "g1"
+          }
+        }
+      },
+      {
+        "name": "GadgetActivated",
+        "aggregate": "EmbryonautVendoringDemo::Gadget",
+        "id": "g1",
+        "payload": {
+          "name": {
+            "value": "g1"
+          }
+        }
+      },
+      {
+        "name": "WidgetCreated",
+        "aggregate": "Widgets::Widget",
+        "id": "w1",
+        "payload": {
+          "name": {
+            "value": "w1"
+          }
+        }
+      },
+      {
+        "name": "WidgetRetired",
+        "aggregate": "Widgets::Widget",
+        "id": "w1",
+        "payload": {
+          "name": {
+            "value": "w1"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Widgets::Widget.Available",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "w1"
+            },
+            "status": {
+              "value": "available"
+            },
+            "id": "w1"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "w1"
+            },
+            "status": {
+              "value": "available"
+            },
+            "id": "w1"
+          }
+        ]
+      },
+      {
+        "query": "Widgets::Widget.Available",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

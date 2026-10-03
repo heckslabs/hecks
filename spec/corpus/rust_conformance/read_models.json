@@ -1,6 +1,6 @@
 {
   "domain": "examples/banking",
-  "note": "spec/rust_conformance_spec.rb's own fixture \u2014 the read_model construct (`report \"X\" do ... end`, IR::ReadModel), the SECOND real sub-shape of the STRING-form \"query\" step (kernel/cli.rs's own header: a bare \"Domain.Name\" with no \"::\", told apart from a named/declared AGGREGATE query's \"Domain::Aggregate.Name\" shape). Proves `Banking.CustomerPortfolio` (rust/project/read_models.rb's eligibility gate admits it \u2014 no where/order_by/limit/freshness/etc declared at all; ComplianceDashboard, which DOES declare freshness/index_hints, stays a documented, deliberate gap \u2014 see that file's own header) byte-for-byte against Ruby's real `ReadModelInterpreter#project`, for a REAL multi-instance, multi-customer scenario, not a trivial single-row one: two customers (c1, c2), each with their own Account/CardPayment, so the reference-matching logic is actually exercised both ways \u2014 c1's own portfolio must gather everything that traces back to c1 and must NOT gather anything that only traces back to c2 (acct-2's own card payment is the negative case: authorized against a DIFFERENT account, it must be entirely absent from c1's rows). Also exercises a head with TWO reference fields to the SAME target (Transfer's own `source`/`destination`, both `Reference<Account>` \u2014 c1's own inbound transfer FROM acct-2 TO acct-1 must still match c1's portfolio via `destination`, even though its `source` points at c2's own account) and a head with reference fields to TWO DIFFERENT targets (CardPayment's own `account_id` \u2014 Reference<Account> \u2014 and `disputed_by` \u2014 Reference<Customer> \u2014 disputing customer c1's own payment on acct-1 lets EITHER field alone already match, but is included because Dispute is a real corpus command exercising both reference kinds on one aggregate at once, per that command's own comment in banking.bluebook). QA-sweep addendum (hecks_qa BUG#1, SW-banking-1788994980, seed 12) \u2014 a trailing rootless `Banking.AccountsByKind` step (group_by :kind, :number), reusing this same fixture's own c1/c2/acct-1/acct-2 state rather than a new fixture, since `AccountsByKind` needs no reference id and costs nothing extra to exercise here. `rust/project/read_models.rb`'s own `emit_group_by_transform` built its kept-field whitelist from `aggregate[:attributes]` alone, silently dropping any `projects`-declared field (Account's own `customer_status`, from `customer.status` \u2014 a REAL, always-current, stored field on the live record, never a synthetic Rust-only one) from every `group_by` read model's own output \u2014 found by the differential fuzzer, not this fixture; ordinary (non-`group_by`) heads were never affected, since `repository::row_json` passes every field through unfiltered. ADR 0078 addendum: five trailing `Banking.DisputedPayment{Total,Average,Smallest,Largest,P95}` steps over this same acct-1 disputed CardPayment, exercising sum/avg/min/max/percentile's kernel folds byte-for-byte against Ruby (this fixture's disputed amount is exact and known to both sides going in, so agreement here is the whole point).",
+  "note": "spec/rust_conformance_spec.rb's own fixture — the read_model construct (`report \"X\" do ... end`, IR::ReadModel), the SECOND real sub-shape of the STRING-form \"query\" step (kernel/cli.rs's own header: a bare \"Domain.Name\" with no \"::\", told apart from a named/declared AGGREGATE query's \"Domain::Aggregate.Name\" shape). Proves `Banking.CustomerPortfolio` (rust/project/read_models.rb's eligibility gate admits it — no where/order_by/limit/freshness/etc declared at all; ComplianceDashboard, which DOES declare freshness/index_hints, stays a documented, deliberate gap — see that file's own header) byte-for-byte against Ruby's real `ReadModelInterpreter#project`, for a REAL multi-instance, multi-customer scenario, not a trivial single-row one: two customers (c1, c2), each with their own Account/CardPayment, so the reference-matching logic is actually exercised both ways — c1's own portfolio must gather everything that traces back to c1 and must NOT gather anything that only traces back to c2 (acct-2's own card payment is the negative case: authorized against a DIFFERENT account, it must be entirely absent from c1's rows). Also exercises a head with TWO reference fields to the SAME target (Transfer's own `source`/`destination`, both `Reference<Account>` — c1's own inbound transfer FROM acct-2 TO acct-1 must still match c1's portfolio via `destination`, even though its `source` points at c2's own account) and a head with reference fields to TWO DIFFERENT targets (CardPayment's own `account_id` — Reference<Account> — and `disputed_by` — Reference<Customer> — disputing customer c1's own payment on acct-1 lets EITHER field alone already match, but is included because Dispute is a real corpus command exercising both reference kinds on one aggregate at once, per that command's own comment in banking.bluebook). QA-sweep addendum (hecks_qa BUG#1, SW-banking-1788994980, seed 12) — a trailing rootless `Banking.AccountsByKind` step (group_by :kind, :number), reusing this same fixture's own c1/c2/acct-1/acct-2 state rather than a new fixture, since `AccountsByKind` needs no reference id and costs nothing extra to exercise here. `rust/project/read_models.rb`'s own `emit_group_by_transform` built its kept-field whitelist from `aggregate[:attributes]` alone, silently dropping any `projects`-declared field (Account's own `customer_status`, from `customer.status` — a REAL, always-current, stored field on the live record, never a synthetic Rust-only one) from every `group_by` read model's own output — found by the differential fuzzer, not this fixture; ordinary (non-`group_by`) heads were never affected, since `repository::row_json` passes every field through unfiltered. ADR 0078 addendum: five trailing `Banking.DisputedPayment{Total,Average,Smallest,Largest,P95}` steps over this same acct-1 disputed CardPayment, exercising sum/avg/min/max/percentile's kernel folds byte-for-byte against Ruby (this fixture's disputed amount is exact and known to both sides going in, so agreement here is the whole point).",
   "steps": [
     {
       "verb": "Banking::Customer.Register",
@@ -131,7 +131,9 @@
         "merchant": {
           "value": "Airline"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -164,7 +166,9 @@
         "merchant": {
           "value": "Grocer"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -264,7 +268,9 @@
         "merchant": {
           "value": "Merchant1"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -297,7 +303,9 @@
         "merchant": {
           "value": "Merchant2"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -330,7 +338,9 @@
         "merchant": {
           "value": "Merchant3"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -363,7 +373,9 @@
         "merchant": {
           "value": "Merchant4"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -396,7 +408,9 @@
         "merchant": {
           "value": "Merchant5"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -429,7 +443,9 @@
         "merchant": {
           "value": "Merchant6"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -462,7 +478,9 @@
         "merchant": {
           "value": "Merchant7"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -495,7 +513,9 @@
         "merchant": {
           "value": "NeverDisputed"
         },
-        "tags": []
+        "tags": [
+
+        ]
       }
     },
     {
@@ -537,5 +557,1902 @@
     {
       "query": "Banking.AccountsByKind"
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#c1": {
+        "reference": {
+          "value": "c1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#c2": {
+        "reference": {
+          "value": "c2"
+        },
+        "name": {
+          "given": "Grace",
+          "family": "Hopper"
+        },
+        "email": {
+          "address": "grace@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "c1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-2": {
+        "customer": "c2",
+        "number": {
+          "value": "acct-2"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::ATMCard#card-1": {
+        "account": "acct-1",
+        "serial": {
+          "value": "card-1"
+        },
+        "nickname": null,
+        "daily_fee": {
+          "amount": 1.5
+        },
+        "withdrawals": [
+
+        ],
+        "status": "issued",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ATMCard#card-2": {
+        "account": "acct-2",
+        "serial": {
+          "value": "card-2"
+        },
+        "nickname": null,
+        "daily_fee": {
+          "amount": 2.0
+        },
+        "withdrawals": [
+
+        ],
+        "status": "issued",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-c1": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-c1"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Airline"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-c2": {
+        "account": "acct-2",
+        "disputed_by": null,
+        "authorisation": {
+          "value": "auth-c2"
+        },
+        "amount": {
+          "cents": 300
+        },
+        "merchant": {
+          "value": "Grocer"
+        },
+        "tags": [
+
+        ],
+        "status": "authorized",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-1": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-1"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "merchant": {
+          "value": "Merchant1"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-2": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-2"
+        },
+        "amount": {
+          "cents": 1200
+        },
+        "merchant": {
+          "value": "Merchant2"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-3": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-3"
+        },
+        "amount": {
+          "cents": 300
+        },
+        "merchant": {
+          "value": "Merchant3"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-4": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-4"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Merchant4"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-5": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-5"
+        },
+        "amount": {
+          "cents": 1500
+        },
+        "merchant": {
+          "value": "Merchant5"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-6": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-6"
+        },
+        "amount": {
+          "cents": 700
+        },
+        "merchant": {
+          "value": "Merchant6"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-7": {
+        "account": "acct-1",
+        "disputed_by": "c1",
+        "authorisation": {
+          "value": "auth-cd-7"
+        },
+        "amount": {
+          "cents": 1100
+        },
+        "merchant": {
+          "value": "Merchant7"
+        },
+        "tags": [
+
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#auth-cd-undisputed": {
+        "account": "acct-1",
+        "disputed_by": null,
+        "authorisation": {
+          "value": "auth-cd-undisputed"
+        },
+        "amount": {
+          "cents": 9999
+        },
+        "merchant": {
+          "value": "NeverDisputed"
+        },
+        "tags": [
+
+        ],
+        "status": "authorized",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::Transfer#xfer-out": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "reference": {
+          "value": "xfer-out"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "narrative": {
+          "text": "c1 pays c2"
+        },
+        "status": "requested",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      },
+      "Banking::Transfer#xfer-in": {
+        "source": "acct-2",
+        "destination": "acct-1",
+        "reference": {
+          "value": "xfer-in"
+        },
+        "amount": {
+          "cents": 250
+        },
+        "narrative": {
+          "text": "c2 refunds c1"
+        },
+        "status": "requested",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      },
+      "Banking::ExternalTransfer#ext-1": {
+        "account": "acct-1",
+        "end_to_end": {
+          "value": "ext-1"
+        },
+        "amount": {
+          "cents": 400
+        },
+        "beneficiary": {
+          "value": "Overseas Ltd"
+        },
+        "direction": {
+          "value": "debit"
+        },
+        "status": "sent",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ExternalTransfer#ext-2": {
+        "account": "acct-2",
+        "end_to_end": {
+          "value": "ext-2"
+        },
+        "amount": {
+          "cents": 150
+        },
+        "beneficiary": {
+          "value": "Someone"
+        },
+        "direction": {
+          "value": "debit"
+        },
+        "status": "sent",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ScheduledPayment#instr-1": {
+        "account": "acct-1",
+        "amount": {
+          "cents": 1200
+        },
+        "instruction": {
+          "value": "instr-1"
+        },
+        "recipient": {
+          "value": "Landlord"
+        },
+        "due_on": {
+          "value": "2026-09-01"
+        },
+        "attempts": {
+          "value": 0
+        },
+        "max_attempts": {
+          "value": 3
+        },
+        "status": "scheduled",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ScheduledPayment#instr-2": {
+        "account": "acct-2",
+        "amount": {
+          "cents": 800
+        },
+        "instruction": {
+          "value": "instr-2"
+        },
+        "recipient": {
+          "value": "Utility Co"
+        },
+        "due_on": {
+          "value": "2026-09-05"
+        },
+        "attempts": {
+          "value": 0
+        },
+        "max_attempts": {
+          "value": 3
+        },
+        "status": "scheduled",
+        "account_status": "open",
+        "account_customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "c1",
+        "payload": {
+          "reference": {
+            "value": "c1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "c2",
+        "payload": {
+          "reference": {
+            "value": "c2"
+          },
+          "name": {
+            "given": "Grace",
+            "family": "Hopper"
+          },
+          "email": {
+            "address": "grace@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "c1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "customer": "c2",
+          "number": {
+            "value": "acct-2"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      },
+      {
+        "name": "ATMCardIssued",
+        "aggregate": "Banking::ATMCard",
+        "id": "card-1",
+        "payload": {
+          "account": "acct-1",
+          "serial": {
+            "value": "card-1"
+          },
+          "daily_fee": {
+            "amount": 1.5
+          }
+        }
+      },
+      {
+        "name": "ATMCardIssued",
+        "aggregate": "Banking::ATMCard",
+        "id": "card-2",
+        "payload": {
+          "account": "acct-2",
+          "serial": {
+            "value": "card-2"
+          },
+          "daily_fee": {
+            "amount": 2.0
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-out",
+        "payload": {
+          "source": "acct-1",
+          "destination": "acct-2",
+          "reference": {
+            "value": "xfer-out"
+          },
+          "amount": {
+            "cents": 500
+          },
+          "narrative": {
+            "text": "c1 pays c2"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-in",
+        "payload": {
+          "source": "acct-2",
+          "destination": "acct-1",
+          "reference": {
+            "value": "xfer-in"
+          },
+          "amount": {
+            "cents": 250
+          },
+          "narrative": {
+            "text": "c2 refunds c1"
+          }
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-c1",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-c1"
+          },
+          "amount": {
+            "cents": 900
+          },
+          "merchant": {
+            "value": "Airline"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-c1",
+        "payload": {
+          "authorisation": {
+            "value": "auth-c1"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-c1",
+        "payload": {
+          "authorisation": {
+            "value": "auth-c1"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-c2",
+        "payload": {
+          "account": "acct-2",
+          "authorisation": {
+            "value": "auth-c2"
+          },
+          "amount": {
+            "cents": 300
+          },
+          "merchant": {
+            "value": "Grocer"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "ExternalTransferRequested",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-1",
+        "payload": {
+          "account": "acct-1",
+          "end_to_end": {
+            "value": "ext-1"
+          },
+          "amount": {
+            "cents": 400
+          },
+          "beneficiary": {
+            "value": "Overseas Ltd"
+          },
+          "direction": {
+            "value": "debit"
+          }
+        }
+      },
+      {
+        "name": "ExternalTransferSent",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "ExternalTransferRequested",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-2",
+        "payload": {
+          "account": "acct-2",
+          "end_to_end": {
+            "value": "ext-2"
+          },
+          "amount": {
+            "cents": 150
+          },
+          "beneficiary": {
+            "value": "Someone"
+          },
+          "direction": {
+            "value": "debit"
+          }
+        }
+      },
+      {
+        "name": "ExternalTransferSent",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-2",
+        "payload": {
+        }
+      },
+      {
+        "name": "PaymentScheduled",
+        "aggregate": "Banking::ScheduledPayment",
+        "id": "instr-1",
+        "payload": {
+          "account": "acct-1",
+          "instruction": {
+            "value": "instr-1"
+          },
+          "amount": {
+            "cents": 1200
+          },
+          "recipient": {
+            "value": "Landlord"
+          },
+          "due_on": {
+            "value": "2026-09-01"
+          }
+        }
+      },
+      {
+        "name": "PaymentScheduled",
+        "aggregate": "Banking::ScheduledPayment",
+        "id": "instr-2",
+        "payload": {
+          "account": "acct-2",
+          "instruction": {
+            "value": "instr-2"
+          },
+          "amount": {
+            "cents": 800
+          },
+          "recipient": {
+            "value": "Utility Co"
+          },
+          "due_on": {
+            "value": "2026-09-05"
+          }
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-1",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-1"
+          },
+          "amount": {
+            "cents": 500
+          },
+          "merchant": {
+            "value": "Merchant1"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-1",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-1"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-1",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-1"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-2",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-2"
+          },
+          "amount": {
+            "cents": 1200
+          },
+          "merchant": {
+            "value": "Merchant2"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-2",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-2"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-2",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-2"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-3",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-3"
+          },
+          "amount": {
+            "cents": 300
+          },
+          "merchant": {
+            "value": "Merchant3"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-3",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-3"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-3",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-3"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-4",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-4"
+          },
+          "amount": {
+            "cents": 900
+          },
+          "merchant": {
+            "value": "Merchant4"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-4",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-4"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-4",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-4"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-5",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-5"
+          },
+          "amount": {
+            "cents": 1500
+          },
+          "merchant": {
+            "value": "Merchant5"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-5",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-5"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-5",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-5"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-6",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-6"
+          },
+          "amount": {
+            "cents": 700
+          },
+          "merchant": {
+            "value": "Merchant6"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-6",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-6"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-6",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-6"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-7",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-7"
+          },
+          "amount": {
+            "cents": 1100
+          },
+          "merchant": {
+            "value": "Merchant7"
+          },
+          "tags": [
+
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-7",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-7"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-7",
+        "payload": {
+          "authorisation": {
+            "value": "auth-cd-7"
+          },
+          "disputed_by": "c1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "auth-cd-undisputed",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "auth-cd-undisputed"
+          },
+          "amount": {
+            "cents": 9999
+          },
+          "merchant": {
+            "value": "NeverDisputed"
+          },
+          "tags": [
+
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking.CustomerPortfolio",
+        "args": {
+          "customer": "c1"
+        },
+        "rows": [
+          {
+            "customer": {
+              "reference": {
+                "value": "c1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              },
+              "standing": {
+                "value": "good"
+              },
+              "status": "active",
+              "id": "c1"
+            },
+            "accounts": [
+              {
+                "customer": "c1",
+                "number": {
+                  "value": "acct-1"
+                },
+                "balance": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "kind": {
+                  "name": "current"
+                },
+                "daily_limit": {
+                  "cents": 100000
+                },
+                "ledger": [
+
+                ],
+                "fees_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "interest_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "status": "open",
+                "customer_status": "active",
+                "id": "acct-1"
+              }
+            ],
+            "atm_cards": [
+              {
+                "account": "acct-1",
+                "serial": {
+                  "value": "card-1"
+                },
+                "nickname": null,
+                "daily_fee": {
+                  "amount": 1.5
+                },
+                "withdrawals": [
+
+                ],
+                "status": "issued",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "card-1"
+              }
+            ],
+            "transfers": [
+              {
+                "source": "acct-2",
+                "destination": "acct-1",
+                "reference": {
+                  "value": "xfer-in"
+                },
+                "amount": {
+                  "cents": 250
+                },
+                "narrative": {
+                  "text": "c2 refunds c1"
+                },
+                "status": "requested",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "open",
+                "destination_customer_status": "active",
+                "id": "xfer-in"
+              },
+              {
+                "source": "acct-1",
+                "destination": "acct-2",
+                "reference": {
+                  "value": "xfer-out"
+                },
+                "amount": {
+                  "cents": 500
+                },
+                "narrative": {
+                  "text": "c1 pays c2"
+                },
+                "status": "requested",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "open",
+                "destination_customer_status": "active",
+                "id": "xfer-out"
+              }
+            ],
+            "card_payments": [
+              {
+                "account": "acct-1",
+                "disputed_by": "c1",
+                "authorisation": {
+                  "value": "auth-c1"
+                },
+                "amount": {
+                  "cents": 900
+                },
+                "merchant": {
+                  "value": "Airline"
+                },
+                "tags": [
+
+                ],
+                "status": "disputed",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "auth-c1"
+              }
+            ],
+            "external_transfers": [
+              {
+                "account": "acct-1",
+                "end_to_end": {
+                  "value": "ext-1"
+                },
+                "amount": {
+                  "cents": 400
+                },
+                "beneficiary": {
+                  "value": "Overseas Ltd"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "status": "sent",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "ext-1"
+              }
+            ],
+            "scheduled_payments": [
+              {
+                "account": "acct-1",
+                "amount": {
+                  "cents": 1200
+                },
+                "instruction": {
+                  "value": "instr-1"
+                },
+                "recipient": {
+                  "value": "Landlord"
+                },
+                "due_on": {
+                  "value": "2026-09-01"
+                },
+                "attempts": {
+                  "value": 0
+                },
+                "max_attempts": {
+                  "value": 3
+                },
+                "status": "scheduled",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "instr-1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "query": "Banking.CustomerPortfolio",
+        "args": {
+          "customer": "c2"
+        },
+        "rows": [
+          {
+            "customer": {
+              "reference": {
+                "value": "c2"
+              },
+              "name": {
+                "given": "Grace",
+                "family": "Hopper"
+              },
+              "email": {
+                "address": "grace@example.com"
+              },
+              "standing": {
+                "value": "good"
+              },
+              "status": "active",
+              "id": "c2"
+            },
+            "accounts": [
+              {
+                "customer": "c2",
+                "number": {
+                  "value": "acct-2"
+                },
+                "balance": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "kind": {
+                  "name": "current"
+                },
+                "daily_limit": {
+                  "cents": 50000
+                },
+                "ledger": [
+
+                ],
+                "fees_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "interest_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "status": "open",
+                "customer_status": "active",
+                "id": "acct-2"
+              }
+            ],
+            "atm_cards": [
+              {
+                "account": "acct-2",
+                "serial": {
+                  "value": "card-2"
+                },
+                "nickname": null,
+                "daily_fee": {
+                  "amount": 2.0
+                },
+                "withdrawals": [
+
+                ],
+                "status": "issued",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "card-2"
+              }
+            ],
+            "transfers": [
+              {
+                "source": "acct-2",
+                "destination": "acct-1",
+                "reference": {
+                  "value": "xfer-in"
+                },
+                "amount": {
+                  "cents": 250
+                },
+                "narrative": {
+                  "text": "c2 refunds c1"
+                },
+                "status": "requested",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "open",
+                "destination_customer_status": "active",
+                "id": "xfer-in"
+              },
+              {
+                "source": "acct-1",
+                "destination": "acct-2",
+                "reference": {
+                  "value": "xfer-out"
+                },
+                "amount": {
+                  "cents": 500
+                },
+                "narrative": {
+                  "text": "c1 pays c2"
+                },
+                "status": "requested",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "open",
+                "destination_customer_status": "active",
+                "id": "xfer-out"
+              }
+            ],
+            "card_payments": [
+              {
+                "account": "acct-2",
+                "disputed_by": null,
+                "authorisation": {
+                  "value": "auth-c2"
+                },
+                "amount": {
+                  "cents": 300
+                },
+                "merchant": {
+                  "value": "Grocer"
+                },
+                "tags": [
+
+                ],
+                "status": "authorized",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "auth-c2"
+              }
+            ],
+            "external_transfers": [
+              {
+                "account": "acct-2",
+                "end_to_end": {
+                  "value": "ext-2"
+                },
+                "amount": {
+                  "cents": 150
+                },
+                "beneficiary": {
+                  "value": "Someone"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "status": "sent",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "ext-2"
+              }
+            ],
+            "scheduled_payments": [
+              {
+                "account": "acct-2",
+                "amount": {
+                  "cents": 800
+                },
+                "instruction": {
+                  "value": "instr-2"
+                },
+                "recipient": {
+                  "value": "Utility Co"
+                },
+                "due_on": {
+                  "value": "2026-09-05"
+                },
+                "attempts": {
+                  "value": 0
+                },
+                "max_attempts": {
+                  "value": 3
+                },
+                "status": "scheduled",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "instr-2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "query": "Banking.ComplianceDashboard",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": [
+              {
+                "account": "acct-1",
+                "disputed_by": "c1",
+                "authorisation": {
+                  "value": "auth-cd-6"
+                },
+                "amount": {
+                  "cents": 700
+                },
+                "merchant": {
+                  "value": "Merchant6"
+                },
+                "tags": [
+
+                ],
+                "status": "disputed",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "auth-cd-6"
+              },
+              {
+                "account": "acct-1",
+                "disputed_by": "c1",
+                "authorisation": {
+                  "value": "auth-cd-1"
+                },
+                "amount": {
+                  "cents": 500
+                },
+                "merchant": {
+                  "value": "Merchant1"
+                },
+                "tags": [
+
+                ],
+                "status": "disputed",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "auth-cd-1"
+              },
+              {
+                "account": "acct-1",
+                "disputed_by": "c1",
+                "authorisation": {
+                  "value": "auth-cd-3"
+                },
+                "amount": {
+                  "cents": 300
+                },
+                "merchant": {
+                  "value": "Merchant3"
+                },
+                "tags": [
+
+                ],
+                "status": "disputed",
+                "account_status": "open",
+                "account_customer_status": "active",
+                "id": "auth-cd-3"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "query": "Banking.DisputedPaymentTotal",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": 7100
+          }
+        ]
+      },
+      {
+        "query": "Banking.DisputedPaymentAverage",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": 887.5
+          }
+        ]
+      },
+      {
+        "query": "Banking.DisputedPaymentSmallest",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": 300
+          }
+        ]
+      },
+      {
+        "query": "Banking.DisputedPaymentLargest",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": 1500
+          }
+        ]
+      },
+      {
+        "query": "Banking.DisputedPaymentP95",
+        "args": {
+          "account": "acct-1"
+        },
+        "rows": [
+          {
+            "account": {
+              "customer": "c1",
+              "number": {
+                "value": "acct-1"
+              },
+              "balance": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              },
+              "ledger": [
+
+              ],
+              "fees_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "interest_cents": {
+                "cents": 0,
+                "currency": "USD"
+              },
+              "status": "open",
+              "customer_status": "active",
+              "id": "acct-1"
+            },
+            "card_payments": 1394.9999999999998
+          }
+        ]
+      },
+      {
+        "query": "Banking.AccountsByKind",
+        "args": {
+        },
+        "rows": [
+          {
+            "accounts": {
+              "current": {
+                "acct-1": {
+                  "customer": "c1",
+                  "balance": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "daily_limit": 100000,
+                  "ledger": [
+
+                  ],
+                  "fees_cents": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "interest_cents": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "status": "open",
+                  "customer_status": "active",
+                  "id": "acct-1"
+                },
+                "acct-2": {
+                  "customer": "c2",
+                  "balance": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "daily_limit": 50000,
+                  "ledger": [
+
+                  ],
+                  "fees_cents": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "interest_cents": {
+                    "cents": 0,
+                    "currency": "USD"
+                  },
+                  "status": "open",
+                  "customer_status": "active",
+                  "id": "acct-2"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "sagas": [
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-out",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-out",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-out",
+        "dispatch": "Account.Debit",
+        "delivered": false,
+        "reason": "Debit refused — the balance covers it"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "refused",
+        "instance": "xfer-out",
+        "advanced": false,
+        "reason": "in \"requested\", not \"awaiting_credit\""
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-in",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-in",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-in",
+        "dispatch": "Account.Debit",
+        "delivered": false,
+        "reason": "Debit refused — the balance covers it"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "refused",
+        "instance": "xfer-in",
+        "advanced": false,
+        "reason": "in \"requested\", not \"awaiting_credit\""
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-1",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferSent",
+        "instance": "ext-1",
+        "ended": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "instance": "ext-1",
+        "dispatch": "ExternalTransfer.SendTransfer",
+        "delivered": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-2",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-2",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferSent",
+        "instance": "ext-2",
+        "ended": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "instance": "ext-2",
+        "dispatch": "ExternalTransfer.SendTransfer",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }
