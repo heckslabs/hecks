@@ -103,7 +103,7 @@ module Hecks
         label      = executable || "#{path}/#{snake}"
         file       = File.join(root, label)
         text       = launcher(path, name, program, executable: executable, legacy: setting[:legacy],
-                          opted: !setting.empty?)
+                          memory_verbs: setting[:memory_verbs], opted: !setting.empty?)
         return skip(path, "#{label} is a directory") if File.directory?(file)
 
         return :drifted if check && !(File.file?(file) && File.read(file) == text)
@@ -150,10 +150,12 @@ module Hecks
       # @param executable [String, nil] the file's path under the root when it is not beside the
       #   domain; its program name is then that file's basename, and its header names the generator
       # @param legacy [Array<String>, nil] verbs an executable hands to `Hecks::CLI` first
+      # @param memory_verbs [Array<String>, nil] verbs an executable runs on the Memory environment
+      #   unless `HECKS_ENVIRONMENT` is already set
       # @param opted [Boolean] whether the chapter's world declares a `launcher` setting
       # @return [String] the Ruby source
       # @raise [ArgumentError] if a name, path, executable or legacy verb is not plain
-      def launcher(path, name, program, executable: nil, legacy: nil, opted: !executable.nil?)
+      def launcher(path, name, program, executable: nil, legacy: nil, memory_verbs: nil, opted: !executable.nil?)
         plain!("chapter name", name, NAME)
         plain!("domain path", path, PATH)
         snake = Naming.snake(name)
@@ -174,7 +176,7 @@ module Hecks
           where = shown = "#{path}/#{snake}"
         end
 
-        handoff  = legacy_handoff(Array(legacy)) if executable
+        handoff  = legacy_handoff(Array(legacy)) + memory_default(Array(memory_verbs)) if executable
         encoding = opted ? ENCODING : ""
         ending   = opted ? OPTED_ENDING : PLAIN_ENDING
 
@@ -258,6 +260,21 @@ module Hecks
         return if value.to_s.match?(pattern)
 
         raise ArgumentError, "#{what} #{value.to_s.inspect} is not a plain word or path"
+      end
+
+      # @api private
+      # @return [String] the lines that default the listed verbs to the Memory environment, or nothing
+      def memory_default(verbs)
+        return "" if verbs.empty?
+
+        verbs.each { |verb| plain!("memory verb", verb, VERB) }
+
+        <<~RUBY
+
+          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise.
+          MEMORY_VERBS = %w[#{verbs.join(' ')}].freeze
+          ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
+        RUBY
       end
 
       # @api private

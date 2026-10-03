@@ -1,3 +1,9 @@
+PATH
+  remote: .
+  specs:
+    hecks (3.0.3)
+      prism
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -215,6 +221,7 @@ DEPENDENCIES
   google-id-token (~> 1.4)
   guard (~> 2.19)
   guard-rspec (~> 4.7)
+  hecks!
   json (= 2.7.2)
   libnotify (~> 0.9)
   oauth2 (~> 2.0)

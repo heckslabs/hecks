@@ -1,6 +1,6 @@
 # A clone runs `hecks console` with no environment variable and no database
 
-**Status:** Proposed. Date: 2026-10-02. [ADR 0073](0073-the-newcomer-path-is-a-memory-default-console-and-a-short-readme.md) promised a console that needs no database; the 3.0 launcher no longer keeps that promise, and the docs now say what actually works.
+**Status:** Accepted — implemented. Date: 2026-10-02. [ADR 0073](0073-the-newcomer-path-is-a-memory-default-console-and-a-short-readme.md) promised a console that needs no database; the 3.0 launcher stopped keeping that promise, and this restores it.
 
 ## Context
 
@@ -10,19 +10,17 @@ ADR 0073 made a bare `bin/console` boot pizzas on Memory. Since then `exe/hecks`
 - `bundle exec exe/hecks console` stops with `cannot bind PostgresEra at postgres://hecks@localhost/hecks`, because `lib/hecks/hecks/hecks.world` sets `default_adapter "PostgresEra"` for the Hecks domain's own journal.
 - `HECKS_ENVIRONMENT=memory bundle exec exe/hecks console` works: pizzas on Memory, no database, `git status` clean.
 
-The README, getting-started and CONTRIBUTING now give the third form. A newcomer must still know to set the variable, and the failure message does not name it.
-
 ## Decision
 
 1. Add `gemspec` to the Gemfile so `bundle exec hecks` resolves in a clone.
-2. Make `console` (and only the verbs that open no journal worth keeping) boot the Hecks domain on Memory without the variable, so the first command is `bundle exec hecks console`.
-3. Make the PostgresEra bind failure name `HECKS_ENVIRONMENT=memory` as the way out.
+2. Add a `memory_verbs` option to the world's `launcher` setting. The generated `exe/hecks` runs those verbs on the Memory environment unless `HECKS_ENVIRONMENT` is already set; the Hecks world lists only `console`.
+3. Make the PostgresEra bind failure say that `HECKS_ENVIRONMENT=memory` is the way out for a domain with a memory overlay.
 
 ## Consequences
 
 - The quickstart shrinks to the command it was written as.
 - `console` journals nothing across restarts. That matches the pizzas console, which is already in-memory.
-- Adding `gemspec` changes what Bundler resolves for every contributor and for CI. It needs a full-suite run before it is accepted.
+- `Gemfile.lock` now carries a `hecks (<version>)` path entry, so a release's version bump must update the lock as well.
 
 ## Alternatives considered
 
@@ -31,5 +29,4 @@ The README, getting-started and CONTRIBUTING now give the third form. A newcomer
 
 ## Open items
 
-- Which other verbs, if any, should default to Memory?
-- Does `gemspec` in the Gemfile alter the pinned `json` or the pre-push hooks' behavior?
+- Which other verbs, if any, should default to Memory? Verbs that read the journal back (`stores`, `history`) must not.

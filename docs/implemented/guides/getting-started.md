@@ -23,15 +23,12 @@ and the repository is the tool:
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-HECKS_ENVIRONMENT=memory bundle exec exe/hecks console   # boots the pizzas example this guide walks through
+bundle exec hecks console   # boots the pizzas example this guide walks through
 ```
 
 No database server is needed. The console loads pizzas on the in-memory
-adapter (`examples/pizzas/pizzas_behaviors.hecksagon`), and
-`HECKS_ENVIRONMENT=memory` keeps hecks's own journal in memory too;
-without it the command stops with `cannot bind PostgresEra`. Run it from
-the clone as `bundle exec exe/hecks`: the Gemfile does not install a bare
-`hecks` command. To open another domain, add `subject=<domain>`, for
+adapter (`examples/pizzas/pizzas_behaviors.hecksagon`) and keeps hecks's
+own journal in memory too. To open another domain, add `subject=<domain>`, for
 example `subject=examples/banking`, which is bound to the Heki file
 adapter and writes into git-tracked files under `examples/banking/data/`.
 See [Schema evolution](schema-evolution.md) for when Postgres earns its
