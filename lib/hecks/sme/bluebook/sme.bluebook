@@ -87,6 +87,11 @@ Hecks.bluebook "SME" do
       attribute :value, String, pattern: '[^\t\n\r]'
     end
 
+    # Whether an action brings its thing into being, as opposed to happening to one that exists.
+    value_object "Creates" do
+      attribute :value, Boolean
+    end
+
     # A thing the domain keeps track of, and the field that identifies one: an aggregate to be.
     entity "ThingFinding" do
       description "A thing the expert described, proposed as an aggregate, with the field that identifies one."
@@ -126,11 +131,12 @@ Hecks.bluebook "SME" do
 
       identified_by :number
 
-      attribute :number, FindingNumber
-      attribute :name,   Name
-      attribute :thing,  Name
-      attribute :event,  Name
-      attribute :source, Source
+      attribute :number,  FindingNumber
+      attribute :name,    Name
+      attribute :thing,   Name
+      attribute :event,   Name
+      attribute :creates, Creates, optional: true
+      attribute :source,  Source
 
       lifecycle :status, default: "proposed" do
         transition "AcceptAction" => "accepted", from: "proposed"
@@ -246,16 +252,17 @@ Hecks.bluebook "SME" do
       goal "Propose something that happens to a thing as a command and its event"
 
       reference_to Interview
-      attribute :number, FindingNumber
-      attribute :name,   Name
-      attribute :thing,  Name
-      attribute :event,  Name
-      attribute :source, Source
+      attribute :number,  FindingNumber
+      attribute :name,    Name
+      attribute :thing,   Name
+      attribute :event,   Name
+      attribute :creates, Creates, optional: true
+      attribute :source,  Source
 
       given("findings are proposed only while the interview is underway") { status == "underway" }
       given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
 
-      sets :action_findings, append: { number: :number, name: :name, thing: :thing, event: :event, source: :source }
+      sets :action_findings, append: { number: :number, name: :name, thing: :thing, event: :event, creates: :creates, source: :source }
 
       emits "ActionProposed"
     end
