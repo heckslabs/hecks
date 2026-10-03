@@ -10,9 +10,8 @@ module Hecks
     # `expect` block of corpus fixtures from the Ruby runtime. Review the result
     # against `docs/semantics/bluebook-semantics.md` before committing.
     #
-    # Two corpora are seeded: `spec/corpus/semantics/` (refusals, instances, events) and the
-    # conformance corpus — `spec/corpus/rust_conformance/` plus the full scripts named in
-    # {FULL_SCRIPTS} — whose `expect` also freezes queries, sagas, dry runs and reactions.
+    # Seeds `spec/corpus/semantics/` and the conformance corpus ({FULL_SCRIPTS} plus
+    # `spec/corpus/rust_conformance/`, whose `expect` also freezes queries, sagas, dry runs, reactions).
     #
     #   hecks seed_semantics_corpus                                # fill fixtures missing an expect
     #   SEED=refusal_kind_lifecycle hecks seed_semantics_corpus    # re-seed one, deliberately
