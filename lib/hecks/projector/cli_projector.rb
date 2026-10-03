@@ -22,7 +22,7 @@ module Hecks
       #   `:usage` (pre-rendered help text)
       # @raise [Bluebook::DSL::Malformed] if two commands project to the same command-line name
       def call(bluebook:, options: {})
-        commands     = {}
+        commands = {}
         questions = {}
 
         bluebook.aggregates.each { |aggregate| claim_aggregate(commands, questions, bluebook, aggregate) }
@@ -402,9 +402,9 @@ module Hecks
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
-      # under a heading per aggregate, so related commands sit together; the bookkeeping a run records
-      # about itself (`internal`: system-role commands and port operations) is set apart as names
-      # only, since a person never types them. A single-aggregate domain keeps the plain list.
+      # under a heading per aggregate, so related commands sit together; the bookkeeping a run
+      # records about itself (`internal`: system-role commands and port operations) is set apart as
+      # names only, since a person never types them. A single-aggregate domain keeps the plain list.
       def listing(specs, width)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
         groups = shown.group_by { |spec| spec[:group] }
@@ -470,7 +470,7 @@ module Hecks
         out = ["#{name} — #{spec[:summary]}", ""]
         out << "dispatches #{spec[:command]}" if spec[:kind] == :command
         out << "reads #{spec[:command]}"      if spec[:kind] == :query
-        out << "issued by #{spec[:role]}"  if spec[:role]
+        out << "issued by #{spec[:role]}" if spec[:role]
         out
       end
 

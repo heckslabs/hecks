@@ -46,7 +46,7 @@ module Hecks
         { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
       end
 
-      # Takes `--wait` out of a command's words, unless the command declares a `wait` argument of its own.
+      # Takes `--wait` out of a command's words, unless it declares a `wait` argument of its own.
       #
       # `--wait=false` (or `no`, `0`, `off`) is a `--wait` that was switched off; a bare `--wait`
       # may be followed by its Boolean word.

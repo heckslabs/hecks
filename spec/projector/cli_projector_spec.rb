@@ -244,7 +244,7 @@ RSpec.describe Hecks::Projector::CliProjector do
 
     it "keeps the aggregate when two of them share a command, rather than choosing" do
       shared = banking[:commands].values.group_by { |spec| spec[:command].split(".").last }
-                              .find { |_, specs| specs.length > 1 }
+                                 .find { |_, specs| specs.length > 1 }
       skip "banking declares no command on two aggregates" unless shared
 
       expect(shared.last.map { |spec| spec[:short] }).to all(include("."))

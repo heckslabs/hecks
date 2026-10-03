@@ -17,9 +17,9 @@ module Hecks
       #   # => { reference: { value: "A-1" }, sequence: { value: 99 } }
       #
       # @param spec [Hash{Symbol => Object}] one command's entry from `Projector::CliProjector`
-      # @param pairs [Array<String>] the words after the command: `name=value` pairs, where a path may
-      #   be the short form of a single-field value object (`reference` for `reference.value`);
-      #   `--name` for a Boolean; and at most one bare word, which fills the command's first argument
+      # @param pairs [Array<String>] the words after the command: `name=value` pairs, where a path
+      #   may be the short form of a single-field value object (`reference` for `reference.value`);
+      #   `--name` for a Boolean; and at most one bare word, which fills the first argument
       # @return [Hash{Symbol => Object}] the arguments nested by path, leaves cast to type
       # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the command
       # @raise [Runtime::TypeMismatch] if a value does not parse as its Integer or Float

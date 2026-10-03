@@ -22,7 +22,7 @@ module Hecks
       # The booted domain's own chapter is projected, or an attached one its first word names.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param argv [Array<String>] an optional `query` (or `ask`), the command or question name, then
+      # @param argv [Array<String>] an optional `query` (or `ask`), the command or query name, then
       #   `path=value` pairs; `--help`, `-h`, `help` or nothing answers usage
       # @param program [String] how the caller was invoked, echoed in usage and hints
       # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
@@ -95,7 +95,7 @@ module Hecks
       # Answers a command line that asks only for usage, from the projection alone.
       #
       # Needs a registry and no bound adapter, so a `Runtime::Loader::Described` serves: the
-      # help text, the no-argument usage, a command's `--help` and an unknown command's hint all come
+      # help text, the no-argument usage, a command's `--help` and an unknown one's hint all come
       # out byte-identical to `call`'s.
       #
       # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
@@ -121,19 +121,8 @@ module Hecks
         name = argv.first
         return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
 
-        # `query` gives queries their own namespace (`ask` is its older spelling); a chapter may
-        # declare a command and a query of one name.
-        asking = QUERY_WORDS.include?(name)
-        argv   = argv[1..] if asking
-        name   = argv.first
+        asking, name, argv = entry_word(cli, argv)
         return { answer: [cli[:usage], 1] } if name.nil?
-
-        # A trailing `!` says the word is a command; it is not part of the name.
-        bang = name.end_with?("!")
-        name = name.chomp("!") if bang
-
-        # A query answers to its bare name too; `query` is needed only when a command shares it.
-        asking ||= !bang && !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
 
         # The alias map lets `create_pizza` and `order.create_pizza` reach the same command.
         pool = asking ? cli[:questions] : cli[:commands]
@@ -150,6 +139,27 @@ module Hecks
 
         { spec: spec, name: name, rest: rest, asking: asking, program: program, bluebook: bluebook,
           launcher: launcher }
+      end
+
+      # Reads the entry words of a line: whether it asks a query, the bare name, and the words
+      # from the name on.
+      #
+      # `query` gives queries their own namespace (`ask` is its older spelling); a chapter may
+      # declare a command and a query of one name. A trailing `!` says the word is a command and
+      # is not part of the name. A query answers to its bare name too; `query` is needed only when
+      # a command shares it.
+      #
+      # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent), `argv`
+      def entry_word(cli, argv)
+        asking = QUERY_WORDS.include?(argv.first)
+        argv   = argv[1..] if asking
+        name   = argv.first
+        return [asking, nil, argv] if name.nil?
+
+        bang = name.end_with?("!")
+        name = name.chomp("!") if bang
+        asking ||= !bang && !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
+        [asking, name, argv]
       end
 
       # The chapter a command line speaks to: the booted domain's own, or, when the first word
