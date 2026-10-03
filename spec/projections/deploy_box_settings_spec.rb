@@ -193,6 +193,26 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "s3 access" do
+    it "is empty unless the world declares buckets" do
+      expect(resolve.s3_buckets).to eq([])
+    end
+
+    it "reads each bucket, and writes only where the world says so, once per name" do
+      plan = resolve(s3_access: [{ bucket: "media", write: true }, { bucket: "assets" }, { bucket: "media" }])
+
+      expect(plan.s3_buckets.map(&:to_h)).to eq([{ name: "media", write: true }, { name: "assets", write: false }])
+    end
+
+    it "refuses a bucket name that could not be spliced safely, a missing name and a write that is not a boolean" do
+      expect(refusal(s3_access: [{ bucket: "Bad Bucket" }])).to include("s3_bucket")
+      expect(refusal(s3_access: [{ bucket: "a/../b" }])).to include("s3_bucket")
+      expect(refusal(s3_access: [{ write: true }])).to include("s3_access")
+      expect(refusal(s3_access: [{ bucket: "media", write: "yes" }])).to include("s3_write")
+      expect(refusal(s3_access: "media")).to include("s3_access")
+    end
+  end
+
   describe "a migration" do
     it "is nil unless the world declares one" do
       expect(resolve.migration).to be_nil

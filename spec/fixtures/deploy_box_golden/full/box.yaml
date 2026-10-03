@@ -115,6 +115,24 @@ Resources:
                   - !Ref DbSecretArn
                   - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme/*"
                   - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme/origin-secret-*"
+        - PolicyName: s3-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket]
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-media"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-media/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-assets"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-assets/*"
+              - !If
+                - IsProduction
+                - Effect: Allow
+                  Action: [s3:PutObject, s3:DeleteObject]
+                  Resource:
+                    - !Sub "arn:${AWS::Partition}:s3:::acme-media/*"
+                - !Ref AWS::NoValue
 
   BoxProfile:
     Type: AWS::IAM::InstanceProfile

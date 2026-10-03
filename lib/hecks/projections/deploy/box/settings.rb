@@ -23,6 +23,8 @@ module Hecks
           TASKDEF     = /\A[a-zA-Z0-9_-]{1,255}\z/
           SCHEMA      = /\A[a-z][a-z0-9_]{0,62}\z/
           MIGRATION_SHAPE = "migration: a hash needs `schemas`, a list of the schema names to copy".freeze
+          S3_BUCKET   = /\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z/
+          S3_SHAPE    = "s3_access: a list of `{ bucket: \"name\", write: true }` hashes (write is optional)".freeze
           FROM_TASKDEF = %i[env secrets repository].freeze
           # Default images, each a version tag plus the digest of its multi-architecture index,
           # so a rebuilt box pulls the same bytes.
@@ -66,13 +68,19 @@ module Hecks
           # @!attribute [r] source_database [String] the database holding them on the old server
           Migration = Struct.new(:schemas, :database, :source_database, keyword_init: true)
 
+          # An S3 bucket the box's role may read, and in production write.
+          #
+          # @!attribute [r] name [String] the bucket's name
+          # @!attribute [r] write [Boolean] whether a production box may also write and delete
+          Bucket = Struct.new(:name, :write, keyword_init: true)
+
           # Everything the generator reads, checked.
           Plan = Struct.new(
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
             :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, :task_definition,
-            :migration, keyword_init: true
+            :migration, :s3_buckets, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -113,7 +121,8 @@ module Hecks
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
               tunnel: tunnel, tunnel_service: tunnel_service,
               proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
-              task_definition: task_definition, migration: read_migration(s[:migration], database_name)
+              task_definition: task_definition, migration: read_migration(s[:migration], database_name),
+              s3_buckets: read_s3_access(s.fetch(:s3_access, []))
             )
           end
 
@@ -147,6 +156,20 @@ module Hecks
             database = check(:migration_database, value.fetch(:database, database_name), DB_NAME)
             Migration.new(schemas: listed.map { |name| check(:migration_schemas, name, SCHEMA) }.uniq, database: database,
                           source_database: check(:migration_source_database, value.fetch(:source_database, database), DB_NAME))
+          end
+
+          # @param list [Array<Hash>] the world's `s3_access` setting
+          # @return [Array<Bucket>] the buckets, each readable and optionally writable in production
+          # @raise [ArgumentError] when the setting is not a list of bucket hashes
+          def read_s3_access(list)
+            raise ArgumentError, S3_SHAPE unless list.is_a?(Array)
+
+            list.map do |spec|
+              raise ArgumentError, S3_SHAPE unless spec.is_a?(Hash)
+
+              name = check(:s3_bucket, spec.fetch(:bucket) { raise ArgumentError, S3_SHAPE }, S3_BUCKET)
+              Bucket.new(name: name, write: boolean(:s3_write, spec.fetch(:write, false)))
+            end.uniq(&:name)
           end
 
           def read_database_name(settings, infra_name)
