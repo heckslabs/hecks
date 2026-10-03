@@ -6,6 +6,7 @@ require "tmpdir"
 require_relative "../cache_dir"
 require_relative "../rust_build"
 require_relative "conformance"
+require_relative "kernel_input"
 
 module Hecks
   module RustBuild
@@ -59,7 +60,7 @@ module Hecks
       def replay(domain, artifact, seed, seeds, steps, scratch)
         sequence = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
         path = File.join(scratch, "seed-#{seed}.json")
-        File.write(path, JSON.generate({ "steps" => sequence }))
+        File.write(path, KernelInput.json(domain, sequence))
         return if Conformance.call([domain, path, artifact]).zero?
 
         raise Failure, "hecks fuzz_conformance: seed #{seed}/#{seeds} diverged against #{artifact} " \

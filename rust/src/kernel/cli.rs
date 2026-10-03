@@ -18,6 +18,8 @@ pub fn run(input: &str) -> String {
 
     // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.
     super::needs::install(parsed.get("needs"));
+    // Optional `"defaults"`: each command's declared argument defaults, filled the same way.
+    super::needs::install_defaults(parsed.get("defaults"));
 
     let steps = match parsed.get("steps").and_then(Json::as_array) {
         Some(s) => s,

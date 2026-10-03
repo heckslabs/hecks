@@ -110,6 +110,52 @@ pub fn table(domain_ir: &Value) -> Value {
     Value::Object(verbs)
 }
 
+/// The command's attributes that declare a default (`attribute :runs, Count, default: 30`), each
+/// with the declared value. An attribute whose default is null declares none.
+fn declared_defaults<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, &'a Value)> {
+    let Some((qualified_aggregate, command_name)) = verb.rsplit_once('.') else { return Vec::new() };
+    let aggregate = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
+    let named = |value: &Value, name: &str| value.get("name").and_then(Value::as_str) == Some(name);
+    let list = |value: &'a Value, key: &str| -> Vec<&'a Value> {
+        value.get(key).and_then(Value::as_array).map(|a| a.iter().collect()).unwrap_or_default()
+    };
+    list(domain_ir, "aggregates")
+        .into_iter()
+        .filter(|a| named(a, aggregate))
+        .flat_map(|a| list(a, "commands"))
+        .filter(|c| named(c, command_name))
+        .flat_map(|c| list(c, "attributes"))
+        .filter_map(|a| {
+            let default = a.get("default").filter(|d| !d.is_null())?;
+            Some((a.get("name").and_then(Value::as_str)?, default))
+        })
+        .collect()
+}
+
+/// Every command's declared defaults as the kernel's input `"defaults"` reads them:
+/// `{ verb: { attribute: value } }`. The kernel fills a reaction's command from this the same way
+/// the host fills the outermost one.
+pub fn defaults_table(domain_ir: &Value) -> Value {
+    let domain = domain_ir.get("name").and_then(Value::as_str).unwrap_or_default();
+    let mut verbs = serde_json::Map::new();
+    let aggregates = domain_ir.get("aggregates").and_then(Value::as_array).into_iter().flatten();
+    for aggregate in aggregates {
+        let aggregate_name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
+        for command in aggregate.get("commands").and_then(Value::as_array).into_iter().flatten() {
+            let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
+            let verb = format!("{domain}::{aggregate_name}.{command_name}");
+            let defaults: serde_json::Map<String, Value> = declared_defaults(domain_ir, &verb)
+                .into_iter()
+                .map(|(name, value)| (name.to_string(), value.clone()))
+                .collect();
+            if !defaults.is_empty() {
+                verbs.insert(verb, Value::Object(defaults));
+            }
+        }
+    }
+    Value::Object(verbs)
+}
+
 /// The facts of a command invocation: the `with` object when the call carries one, else the
 /// flat object itself (the kernel's `CommandInvocation` reads both shapes).
 fn facts_mut(args: &mut Value) -> Option<&mut serde_json::Map<String, Value>> {
@@ -143,6 +189,22 @@ pub fn fill_needs(domain_ir: &Value, verb: &str, args: &mut Value, clock: &dyn C
         }
         if let Some(value) = answer(fact, attribute_type, clock) {
             facts.insert(fact.to_string(), value);
+        }
+    }
+}
+
+/// Gives each argument `verb` declares a default for, and `args` leaves out, that default, after
+/// `fill_needs` and before any gate reads the arguments. A key the caller supplied (even a null)
+/// is kept, as is a fact `fill_needs` already answered.
+pub fn fill_defaults(domain_ir: &Value, verb: &str, args: &mut Value) {
+    let defaults = declared_defaults(domain_ir, verb);
+    if defaults.is_empty() {
+        return;
+    }
+    let Some(facts) = facts_mut(args) else { return };
+    for (name, value) in defaults {
+        if !facts.contains_key(name) {
+            facts.insert(name.to_string(), value.clone());
         }
     }
 }
@@ -239,5 +301,54 @@ mod tests {
         assert_eq!(ProcessClock.now_secs(), 123);
         clear_fixed_clock();
         assert!(ProcessClock.now_secs() > 1_700_000_000);
+    }
+
+    // A command with one defaulted attribute, one plain, and one whose default is null.
+    fn defaulted_ir() -> Value {
+        json!({"name": "Qc", "aggregates": [{"name": "Check", "commands": [
+            {"name": "Start", "attributes": [
+                {"name": "ref", "type": "Ref", "default": null},
+                {"name": "runs", "type": "Count", "default": 30},
+                {"name": "note", "type": "String", "default": null}
+            ], "needs": []}
+        ]}]})
+    }
+
+    #[test]
+    fn an_omitted_argument_is_filled_with_its_declared_default() {
+        let mut args = json!({"with": {"ref": {"value": "a"}}});
+        fill_defaults(&defaulted_ir(), "Qc::Check.Start", &mut args);
+        assert_eq!(args["with"]["runs"], 30);
+        assert!(args["with"].get("note").is_none(), "a null default declares none");
+    }
+
+    #[test]
+    fn a_flat_invocation_gets_its_defaults_at_its_top_level() {
+        let mut args = json!({"ref": {"value": "a"}});
+        fill_defaults(&defaulted_ir(), "Qc::Check.Start", &mut args);
+        assert_eq!(args["runs"], 30);
+    }
+
+    #[test]
+    fn a_supplied_argument_is_kept_even_when_null() {
+        let mut args = json!({"runs": null});
+        fill_defaults(&defaulted_ir(), "Qc::Check.Start", &mut args);
+        assert!(args["runs"].is_null());
+        let mut args = json!({"runs": {"value": 7}});
+        fill_defaults(&defaulted_ir(), "Qc::Check.Start", &mut args);
+        assert_eq!(args["runs"], json!({"value": 7}));
+    }
+
+    #[test]
+    fn a_command_that_declares_no_default_is_untouched() {
+        let mut args = json!({"with": {}});
+        fill_defaults(&integer_ir(), "Qc::Check.Run", &mut args);
+        assert_eq!(args, json!({"with": {}}));
+    }
+
+    #[test]
+    fn the_kernel_table_lists_each_command_that_declares_a_default() {
+        assert_eq!(defaults_table(&defaulted_ir()), json!({"Qc::Check.Start": {"runs": 30}}));
+        assert_eq!(defaults_table(&integer_ir()), json!({}));
     }
 }
