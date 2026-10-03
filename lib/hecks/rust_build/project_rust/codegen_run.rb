@@ -11,18 +11,40 @@ module Hecks
       # live registry, into a scratch directory, then copies only the files whose bytes changed
       # into `src/generated/`. An unchanged file keeps its mtime, so Cargo does not rebuild.
       class CodegenRun
-        CODEGEN_DIR = File.join(RustBuild::ROOT, "rust/codegen")
-        BINARY = File.join(CODEGEN_DIR, "target/debug/hecks-codegen")
         META_LABEL = "the self-hosted language (lib/hecks/language/bluebook)"
 
         # One chapter's IR, generated into its own module.
         Chapter = Struct.new(:mod_name, :label, :ir)
 
+        # The `hecks-codegen` crate: the workspace's own copy when it carries one (a packaged
+        # workspace does), otherwise the checkout's, so a scratch crate holding only the generated
+        # tree still finds it.
+        #
+        # @param rust_dir [String] the workspace being generated into
+        # @return [String] the crate's directory
+        def self.crate_dir(rust_dir)
+          own = File.join(rust_dir, "codegen")
+          File.directory?(own) ? own : File.join(RustBuild::ROOT, "rust/codegen")
+        end
+
+        # Where Cargo puts the binary: under `CARGO_TARGET_DIR` when a build sets it (a copy of the
+        # packaged workspace does, so nothing is written into the installed gem), else in the crate.
+        #
+        # @param rust_dir [String] the workspace being generated into
+        # @param env [#fetch] the environment Cargo will run with
+        # @return [String] the binary's path
+        def self.binary(rust_dir, env: ENV)
+          target = env.fetch("CARGO_TARGET_DIR") { File.join(crate_dir(rust_dir), "target") }
+          File.join(target, "debug/hecks-codegen")
+        end
+
+        # @param rust_dir [String] the workspace being generated into
         # @param out_root [String] the crate's `src/generated`
         # @param target [Chapter] the domain being projected
         # @param chapters [Array<Chapter>] every other bluebook the target attached
         # @param meta [Hash] the self-hosted language's IR
-        def initialize(out_root:, target:, chapters:, meta:)
+        def initialize(rust_dir:, out_root:, target:, chapters:, meta:)
+          @rust_dir = rust_dir
           @out_root = out_root
           @target = target
           @chapters = chapters
@@ -45,9 +67,10 @@ module Hecks
         private
 
         def build_binary
-          return if system("cargo", "build", "--quiet", chdir: CODEGEN_DIR, out: $stdout, err: $stderr)
+          dir = self.class.crate_dir(@rust_dir)
+          return if system("cargo", "build", "--quiet", chdir: dir, out: $stdout, err: $stderr)
 
-          raise Failure, "hecks project_rust: cargo build failed in #{CODEGEN_DIR} — run it there directly to see why"
+          raise Failure, "hecks project_rust: cargo build failed in #{dir} — run it there directly to see why"
         end
 
         def generate_meta(stage, tmp)
@@ -87,7 +110,7 @@ module Hecks
         end
 
         def run(*args)
-          return if system(BINARY, *args, out: $stdout, err: $stderr)
+          return if system(self.class.binary(@rust_dir), *args, out: $stdout, err: $stderr)
 
           raise Failure, "hecks project_rust: hecks-codegen #{args.first} failed"
         end

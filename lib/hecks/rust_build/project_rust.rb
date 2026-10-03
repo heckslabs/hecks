@@ -96,7 +96,7 @@ module Hecks
           CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", prepared_ir(ir))
         end
         CodegenRun.new(
-          out_root: @out_root, meta: prepared_ir(meta), chapters: chapters,
+          rust_dir: @rust_dir, out_root: @out_root, meta: prepared_ir(meta), chapters: chapters,
           target: CodegenRun::Chapter.new(@mod_name, @domain, prepared_ir(@ir, shaped: false))
         ).call
       end
