@@ -1,0 +1,33 @@
+# widget-shop's proxy. Only requests that carry X-Origin-Secret with the origin secret are proxied;
+# everything else gets a flat 403.
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static 0.0.0.0/0 ::/0
+	}
+}
+
+:80 {
+	@origin header X-Origin-Secret {$ORIGIN_SECRET}
+
+	handle @origin {
+		@r1 path /cms/*
+		handle @r1 {
+			reverse_proxy 127.0.0.1:8081
+		}
+
+		@r2 path /registrations /registrations/* /webhooks/*
+		handle @r2 {
+			reverse_proxy 127.0.0.1:8082
+		}
+
+		handle {
+			reverse_proxy 127.0.0.1:8080
+		}
+	}
+
+	handle {
+		respond "Forbidden" 403
+	}
+}
