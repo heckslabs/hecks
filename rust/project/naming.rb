@@ -1,5 +1,7 @@
 require "hecks/vocabulary"
 require "hecks/bluebook/model_check"
+require "hecks/rust_build/domain_name"
+require "hecks/rust_build/rust_literal"
 
 module RustProjection
   # Domain-to-Rust codegen support: type mapping, reserved-name checks, and
@@ -59,15 +61,10 @@ module RustProjection
     # feature set.
     #
     # Declared once as the `CargoReservedName` vocabulary.
-    CARGO_RESERVED_DOMAIN_NAMES = Hecks::Vocabulary.fetch("CargoReservedName")
+    CARGO_RESERVED_DOMAIN_NAMES = Hecks::RustBuild::DomainName::CARGO_RESERVED
 
-    # Checks identifier shape locally; delegates the reserved-word half to
-    # `ModelCheck.rust_reserved_name_findings`, the one shared check.
-    def valid_domain_mod_name?(name)
-      str = name.to_s
-      str.match?(/\A[a-z_][a-z0-9_]*\z/) &&
-        Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(domain_name: str).empty?
-    end
+    # Moved to `Hecks::RustBuild::DomainName`, which the codegen-backed `hecks project_rust` uses.
+    def valid_domain_mod_name?(name) = Hecks::RustBuild::DomainName.valid?(name)
 
     # Identifier-shape check only (a PascalCase name always passes); whether
     # the downcased name is a Rust keyword is `reserved_name_refusal`'s job,
@@ -220,24 +217,7 @@ module RustProjection
       end
     end
 
-    # Ruby's String#inspect escapes for Ruby's own read-back (e.g. a
-    # brace-less `\uXXXX`), which isn't valid Rust syntax. This escapes
-    # only what Rust's string-literal grammar needs: backslash,
-    # double-quote, and control characters.
-    def rust_string_literal(str)
-      escaped = str.to_s.each_char.map do |ch|
-        case ch
-        when "\\" then "\\\\"
-        when "\"" then "\\\""
-        when "\n" then "\\n"
-        when "\r" then "\\r"
-        when "\t" then "\\t"
-        else
-          cp = ch.ord
-          cp < 0x20 || cp == 0x7F ? format("\\u{%x}", cp) : ch
-        end
-      end.join
-      "\"#{escaped}\""
-    end
+    # Moved to `Hecks::RustBuild::RustLiteral`, which the codegen-backed `hecks project_rust` uses.
+    def rust_string_literal(str) = Hecks::RustBuild::RustLiteral.string(str)
   end
 end
