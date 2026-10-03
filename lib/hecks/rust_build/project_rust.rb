@@ -14,11 +14,10 @@ module Hecks
     #
     #   ProjectRust.call(["path/to/domain"])
     #
-    # `hecks-codegen` (`rust/codegen`) is the generator (ADR 0086): this class builds the IR from
-    # the live registry and `CodegenRun` runs the binary on it. `HECKS_CODEGEN=ruby` selects the
-    # Ruby generator in `rust/project` instead, until that is deleted; with `HECKS_PARSER=rust` and
-    # `HECKS_CODEGEN=rust` together, the whole pipeline runs through `rust/project_rust_pipeline.rb`
-    # with no Ruby load of the domain.
+    # `hecks-codegen` is the generator (ADR 0086): this class builds the IR from the live registry
+    # and `CodegenRun` runs the binary on it. `HECKS_CODEGEN=ruby` selects the Ruby generator in
+    # `rust/project` until that is deleted; `HECKS_PARSER=rust` with `HECKS_CODEGEN=rust` runs
+    # `rust/project_rust_pipeline.rb` instead, with no Ruby load of the domain.
     #
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
@@ -81,7 +80,7 @@ module Hecks
         sync_cargo_features
       end
 
-      # The rollback path (ADR 0086 step 2): the Ruby generator in `rust/project`, until it is deleted.
+      # The rollback path (ADR 0086): the Ruby generator in `rust/project`, until it is deleted.
       def generate_with_ruby
         write_meta
         write_target

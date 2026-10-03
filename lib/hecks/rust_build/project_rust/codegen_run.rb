@@ -7,9 +7,9 @@ require "tmpdir"
 module Hecks
   module RustBuild
     class ProjectRust
-      # Generates a domain's Rust by running `hecks-codegen full` on IR the caller built from the live
-      # registry, into a scratch directory, then copies only the files whose bytes changed into
-      # `src/generated/`. An unchanged file keeps its mtime, so Cargo does not rebuild the crate.
+      # Generates a domain's Rust by running `hecks-codegen full` on IR the caller built from the
+      # live registry, into a scratch directory, then copies only the files whose bytes changed
+      # into `src/generated/`. An unchanged file keeps its mtime, so Cargo does not rebuild.
       class CodegenRun
         CODEGEN_DIR = File.join(RustBuild::ROOT, "rust/codegen")
         BINARY = File.join(CODEGEN_DIR, "target/debug/hecks-codegen")
@@ -73,8 +73,8 @@ module Hecks
           path
         end
 
-        # `ir.json` is what `rust/host` reads at runtime, and `metadata.rs` embeds the same text; the
-        # codegen binary writes neither.
+        # `ir.json` is what `rust/host` reads at runtime, and `metadata.rs` embeds the same text;
+        # the codegen binary writes neither.
         def write_sidecars(mod_dir, tree, label)
           text = JSON.pretty_generate(tree)
           File.write(File.join(mod_dir, "ir.json"), text)
