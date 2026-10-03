@@ -7,6 +7,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+<<<<<<< HEAD
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with
@@ -16,6 +17,9 @@ field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, no
 is refused with the qualified names that end in it. A chapter's `names` table still gives
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
+=======
+**`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+>>>>>>> origin/main
 
 **`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 

@@ -96,7 +96,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks test_suite_run.list_io_parallel_specs exclude=REGEX [tags=] [check=file]`; `hecks test_suite_run.write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm` | `bin/rspec_io_parallel_files` |
 | `hecks test_suite_run.refresh_runtime_baseline [workers=6] [from_run=ID]` | `bin/refresh_rspec_runtime_baseline` |
 | `hecks test_suite_run.run_spec_example file=path example=text` | `bin/spec_example` |
-| `hecks test_suite_run.stress_concurrency [runs=30] [parallel=] [seed_start=1]` | `bin/stress_concurrency_specs` |
+| `hecks test_suite_run.stress_concurrency [runs=] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
 | `hecks test_suite_run.regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
 | `hecks test_suite_run.seed_semantics_corpus [fixture=name]` | `bin/seed_semantics_corpus` |
 | `hecks test_suite_run.record_pattern_cases` | `bin/pattern-cases` |
