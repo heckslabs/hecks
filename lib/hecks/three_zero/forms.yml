@@ -121,7 +121,7 @@ standardize_comments_rust: hecks report_rust_comments paths=a,b [only=] [--json]
   --confirm
 statements: hecks statements <domain> chapter=Name
 stores: hecks stores <domain>
-stress_concurrency_specs: hecks stress_concurrency [runs=30] [parallel=] [seed_start=1]
+stress_concurrency_specs: hecks stress_concurrency [runs=] [parallel=] [seed_start=]
 translation_audit: hecks audit_translation <domain>; hecks approve_translation <domain>
   [snapshot=] [host_version=] [rehearsal=pass|fail] [rehearsed_at=] --confirm
 vendor_bluebook: hecks vendor <package[@version]> [from=path] [root=path]
