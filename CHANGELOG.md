@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`deployed_to("AwsBox")` is a deploy kind.** `hecks deploy project` now generates one RDS instance and one EC2 box that runs the domain's containers behind Caddy, as an alternative to the Fargate stack ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)). The sizes are validated by a new `Deploy::BoxTarget.Declare` command; every other setting is checked before a template is written.
