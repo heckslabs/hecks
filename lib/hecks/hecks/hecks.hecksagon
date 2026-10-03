@@ -109,6 +109,12 @@ Hecks.hecksagon "Hecks" do
       answers "DoorAnswered"
       refuses "DoorRefused"
     end
+
+    asks "Converse", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
   end
 
   Hecks::Build.port "RustToolchain" do

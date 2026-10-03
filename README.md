@@ -33,7 +33,8 @@ gem install hecks
 Or in a Gemfile: `gem "hecks"`.
 
 The gem installs a `hecks` command for a domain you supply: `init`
-(writes the stub of a new one), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+(writes the stub of a new one), `interview` (drafts one from a conversation
+with someone who knows the business), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
 `project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the

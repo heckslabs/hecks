@@ -66,6 +66,21 @@ module Hecks
         raise ConsoleCapture::Failure, "the mcp door refused to start (status #{e.status}); see stderr"
       end
 
+      # Holds an interview at the terminal and writes the domain it drafts (ADR 0088). Asking is IO,
+      # so it happens here and nowhere else; the journal records that one was held, not its words.
+      #
+      # @param held [Hash] the `Door` record: `name`; optionally `adapter`, `dir`, `expert`, `no_ai`
+      # @return [Hash{Symbol => Hash}] `output:` what the interview wrote, or that it wrote nothing
+      # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file is there
+      def converse(**held)
+        require "hecks/cli/interview_run"
+        report = CLI::InterviewRun.call(name: plain(held[:name]), adapter: plain(held[:adapter]), dir: plain(held[:dir]),
+                                        expert: plain(held[:expert]), use_ai: !plain(held[:no_ai]))
+        { output: { value: report.empty? ? "no interview was written" : report } }
+      rescue ArgumentError => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

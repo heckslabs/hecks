@@ -9,10 +9,11 @@ require "hecks/cli/project_cli"
 RSpec.describe "the launcher's memory commands" do
   it "is projected into exe/hecks from the world, so the committed launcher is current" do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
-                                             executable: "exe/hecks", memory_commands: %w[console init], opted: true)
+                                             executable: "exe/hecks", memory_commands: %w[console init interview], opted: true)
 
-    expect(source).to include("MEMORY_COMMANDS = %w[console init].freeze")
-    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console init].freeze")
+    expect(source).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
+    expect(File.read(File.join(InMemoryDomain::ROOT,
+                               "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
   end
 
   it "makes a memory command wait for its result, and say why it was refused instead of printing the record" do
