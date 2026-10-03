@@ -36,6 +36,9 @@ Hecks.bluebook "StudioSite" do
       attribute :footer_order,  Integer
       attribute :admin_key,     String
       attribute :admin_order,   Integer
+      attribute :compress,      Boolean
+      attribute :alb_rule,      String
+      attribute :cdn,           Boolean
 
       member path: "/",                 label: "Home",     cache: "home", source: "global:home", seo: "home", nav_order: 1, mobile_order: 1
       member path: "/about",            label: "About",     source: "global:about", seo: "about", nav_order: 2, mobile_order: 2, aliases: "/about-us,/who-we-are"
@@ -47,17 +50,85 @@ Hecks.bluebook "StudioSite" do
       member path: "/terms",            label: "Terms",     source: "global:terms", seo: "terms", footer_column: "Studio", footer_order: 1
       member path: "/privacy",          label: "Privacy",   source: "global:privacy", seo: "privacy", footer_column: "Studio", footer_order: 2
       member path: "/podcast",          label: "Podcast",   source: "global:podcast", switch: "podcast", off: true
-      member path: "/inquiry-received", render: "ssr", indexable: false
+      member path: "/inquiry-received", render: "ssr", indexable: false, cache: "no_store"
       member path: "/pay/:id",          kind: "page", render: "ssr", auth: "signed"
       member path: "/old-portfolio",    kind: "redirect", redirect_to: "/portfolio"
       member path: "/sitemap.xml",      kind: "endpoint", indexable: false, cache: "page"
       member path: "/robots.txt",       kind: "endpoint", indexable: false, cache: "static"
       member path: "/assets/*",         kind: "proxy", origin: "assets"
-      member source: "command:Studio.Inquiry.Submit"
-      member source: "query:Studio.Inquiry.Recent", auth: "admin"
-      member path: "/admin-inbox",      label: "Inbox",     auth: "admin", render: "ssr", admin_key: "inbox", admin_order: 1
-      member path: "/admin-posts",      label: "Posts",     auth: "admin", render: "ssr", admin_key: "posts", admin_order: 2
-      member path: "/admin-analytics",  label: "Analytics", auth: "admin", render: "ssr", admin_key: "analytics", admin_order: 3
+      member source: "command:Studio.Inquiry.Submit", alb_rule: "ListenerRuleDomain"
+      member source: "query:Studio.Inquiry.Recent", auth: "admin", alb_rule: "ListenerRuleDomain"
+      member path: "/admin-inbox",      label: "Inbox",     auth: "admin", render: "ssr", methods: "GET,POST", admin_key: "inbox", admin_order: 1
+      member path: "/admin-posts",      label: "Posts",     auth: "admin", render: "ssr", methods: "GET,POST", admin_key: "posts", admin_order: 2
+      member path: "/admin-analytics",  label: "Analytics", auth: "admin", render: "ssr", methods: "GET,POST", admin_key: "analytics", admin_order: 3
+
+      # Rows that exist for the edge: the default behaviour, prefixes with their own cache, and the
+      # paths a server other than the website answers. A specific prefix is declared before the
+      # broader one that would otherwise match it first.
+      member path: "/*",                kind: "proxy", alb_rule: "ListenerRuleWebsite"
+      member path: "/_assets/*",        kind: "proxy", cache: "immutable"
+      member path: "/images/*",         kind: "proxy", cache: "static"
+      member path: "/api/*",            kind: "endpoint", methods: "GET,POST", compress: false
+      member path: "/cms/_static/*",    kind: "proxy", origin: "cms", cache: "immutable"
+      member path: "/cms/media/*",      kind: "proxy", origin: "cms", cache: "media"
+      member path: "/cms/*",            kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST,PUT,PATCH,DELETE", alb_rule: "ListenerRuleCms"
+      member path: "/videos/*",         kind: "proxy", origin: "assets", cache: "immutable", compress: false
+      member path: "/admin*",           kind: "proxy", auth: "admin", methods: "GET,POST"
+      member path: "/login",            kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
+      member path: "/logout",           kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
+      member path: "/auth/*",           kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
+      member path: "/webhooks/*",       kind: "endpoint", origin: "domain", methods: "POST", compress: false, alb_rule: "ListenerRuleDomain"
+      member path: "/internal/ping",    kind: "endpoint", origin: "domain", cdn: false, alb_rule: "ListenerRuleDomain"
+    end
+
+    # The edge: what the template calls its policies, origins and listener rules. The cache classes
+    # come from the Site chapter; the policies they map to are the template's own.
+    value_object "Edge" do
+      attribute :template,      String
+      attribute :listener,      String
+      attribute :secret_header, String
+      attribute :secret_value,  String
+
+      member template: "deploy/template.yaml", listener: "!Ref Listener",
+             secret_header: "X-Origin-Secret", secret_value: "!Ref OriginSecret"
+    end
+
+    value_object "EdgePolicy" do
+      attribute :cache_class,       String
+      attribute :origin,            String
+      attribute :cache,             String
+      attribute :origin_request,    String
+      attribute :response_headers,  String
+
+      member cache_class: "page",      cache: "!Ref PageCachePolicy",   origin_request: "all_viewer", response_headers: "!Ref SecurityHeaders"
+      member cache_class: "home",      cache: "!Ref HomeCachePolicy",   origin_request: "all_viewer"
+      member cache_class: "static",    cache: "!Ref StaticCachePolicy", origin_request: "all_viewer_except_host", response_headers: "!Ref StaticHeaders"
+      member cache_class: "media",     cache: "!Ref MediaCachePolicy",  origin_request: "all_viewer_except_host"
+      member cache_class: "immutable", cache: "caching_optimized",      origin_request: "all_viewer_except_host", response_headers: "!Ref SecurityHeaders"
+      member cache_class: "immutable", origin: "assets", cache: "caching_optimized"
+      member cache_class: "no_store",  cache: "caching_disabled",       origin_request: "all_viewer", response_headers: "!Ref SecurityHeaders"
+    end
+
+    value_object "EdgeOrigin" do
+      attribute :origin,       String
+      attribute :id,           String
+      attribute :target_group, String
+
+      member origin: "website", id: "ServerOrigin", target_group: "!Ref WebsiteTargetGroup"
+      member origin: "cms",     id: "ServerOrigin", target_group: "!Ref CmsTargetGroup"
+      member origin: "domain",  id: "ServerOrigin", target_group: "!Ref DomainTargetGroup"
+      member origin: "assets",  id: "AssetsOrigin"
+    end
+
+    value_object "EdgeRule" do
+      attribute :rule,     String
+      attribute :priority, Integer
+      attribute :origin,   String
+
+      member rule: "ListenerRuleCms",        priority: 10, origin: "cms"
+      member rule: "ListenerRuleDomain",     priority: 20, origin: "domain"
+      member rule: "ListenerRuleDomainAuth", priority: 21, origin: "domain"
+      member rule: "ListenerRuleWebsite",    priority: 30, origin: "website"
     end
 
     command "Name" do

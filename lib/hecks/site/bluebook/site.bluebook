@@ -9,6 +9,11 @@
 # vocabularies live: the projector reads them from here, so a row naming a cache class that is
 # not a member is refused with the members listed.
 #
+# The same command projects the CDN: a project that adds Edge, EdgePolicy, EdgeOrigin and EdgeRule rows
+# to its chapter has the CloudFront behaviours and the listener rules written into the marked regions
+# of the template it owns (the `:site_cdn` projection). Those rows are the template's facts, so only the
+# closed sets they draw on, cache class and origin, are named here.
+#
 # Each run records that it was requested before the SiteToolchain port is asked, and what came of
 # it after. No command declares a role: the chapter boots standing alone.
 Hecks.bluebook "Site" do
