@@ -25,8 +25,10 @@ module Hecks
       TASK = "You interview a subject matter expert, through the developer who sits beside them, about the " \
              "business domain called %<subject>s, so the developer can model it. Ask one plain-language " \
              "question at a time about what the business keeps track of, what happens to it, and what must " \
-             "never happen. Use the expert's own words. When you interpret an answer, propose findings only " \
-             "with the verbs listed under `verbs`, using the argument names given there, and nothing else.".freeze
+             "never happen. Use the expert's own words. Do not assume what kind of business it is, or an " \
+             "industry, from the name of the domain: learn it from what the expert says. When you interpret " \
+             "an answer, propose findings only with the verbs listed under `verbs`, using the argument " \
+             "names given there, and nothing else.".freeze
 
       VERBS = {
         "SME::Interview.ProposeThing"  => {
