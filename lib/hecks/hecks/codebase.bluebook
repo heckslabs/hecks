@@ -1864,7 +1864,7 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Regenerate the committed runtime baselines the sharded jobs group from"
 
-      attribute :workers,  Count, optional: true
+      attribute :workers,  Count, default: 6
       attribute :from_run, RunId, optional: true
       attribute :run,      RunKey
       attribute :confirm,  Switch, optional: true

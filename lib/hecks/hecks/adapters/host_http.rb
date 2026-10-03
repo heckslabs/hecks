@@ -42,16 +42,17 @@ module Hecks
       # allow-list file. A mismatch is an answer, not a refusal: the record keeps what was found.
       #
       # @param held [Hash] the `Host` record: `host` (the base URL), `expected` (the allow-list
-      #   file) and `timeout` (seconds; 10 when absent)
+      #   file) and `timeout` (seconds; the command's declared default fills it when none is named)
       # @return [Hash{Symbol => Hash}] `era:`, `version:`, `verdict:` (`match`, `unlisted` or
       #   `mismatch`) and `report:` (the sentence `hecks check_era` prints)
-      # @raise [ArgumentError] if no allow-list file was named
+      # @raise [ArgumentError] if no allow-list file or timeout was given
       # @raise [Errno::ENOENT] if the allow-list file cannot be read
       # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached
       # @raise [Runtime::EraCheck::ExpectedEra::BadResponse] if it answers no era
       def fetch(**held)
         file = plain(held[:expected]) or raise ArgumentError, "no allow-list file to compare the era with"
-        finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: (plain(held[:timeout]) || 10).to_f)
+        timeout = plain(held[:timeout]) or raise ArgumentError, "no timeout to wait for the host with"
+        finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: timeout.to_f)
 
         { era: { value: finding.verdict.era }, version: { value: finding.version },
           verdict: { value: finding.verdict.status.to_s }, report: { value: finding.line } }
