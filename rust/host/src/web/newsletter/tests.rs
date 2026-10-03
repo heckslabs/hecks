@@ -102,3 +102,46 @@ fn a_confirm_token_is_not_an_unsubscribe_token_and_the_reverse() {
     assert!(!unsubscribe_token_matches("s3cret-value", &confirm, "a@example.com"));
     assert!(!confirm_token_matches("s3cret-value", &unsubscribe, "a@example.com"));
 }
+
+use template::fill_template;
+
+const CONFIRM: &str = "https://example.com/newsletter-confirmed.html?email=a%40b.c&token=t";
+const UNSUBSCRIBE: &str = "https://example.com/newsletter-unsubscribed.html?email=a%40b.c&token=u";
+
+#[test]
+fn a_template_gets_the_confirm_link_in_place_of_its_placeholder() {
+    let body = fill_template("<p><a href=\"{{CONFIRM_URL}}\">Confirm</a></p>", CONFIRM, UNSUBSCRIBE).unwrap();
+    assert_eq!(body, "<p><a href=\"https://example.com/newsletter-confirmed.html?email=a%40b.c&amp;token=t\">Confirm</a></p>");
+}
+
+#[test]
+fn a_template_without_the_confirm_placeholder_is_rejected() {
+    assert!(fill_template("<p>{{UNSUBSCRIBE_URL}}</p>", CONFIRM, UNSUBSCRIBE).is_err());
+    assert!(fill_template("", CONFIRM, UNSUBSCRIBE).is_err());
+}
+
+#[test]
+fn the_unsubscribe_placeholder_is_optional_and_replaced_wherever_present() {
+    assert!(fill_template("<a href=\"{{CONFIRM_URL}}\">x</a>", CONFIRM, UNSUBSCRIBE).is_ok());
+    let body = fill_template("<a href=\"{{CONFIRM_URL}}\">x</a>{{UNSUBSCRIBE_URL}}|{{UNSUBSCRIBE_URL}}", CONFIRM, UNSUBSCRIBE).unwrap();
+    assert!(!body.contains("{{"));
+    assert_eq!(body.matches("newsletter-unsubscribed.html").count(), 2);
+}
+
+#[test]
+fn ampersands_and_quotes_in_a_url_are_escaped_inside_the_html() {
+    let body = fill_template("<a href=\"{{CONFIRM_URL}}\">x</a>", "https://e.com/?a=1&b=\"2\"<>'", UNSUBSCRIBE).unwrap();
+    assert_eq!(body, "<a href=\"https://e.com/?a=1&amp;b=&quot;2&quot;&lt;&gt;&#39;\">x</a>");
+}
+
+#[test]
+fn a_filled_template_starts_at_its_first_tag_so_the_mailer_sends_html() {
+    let body = fill_template("\n  <p>{{CONFIRM_URL}}</p>", CONFIRM, UNSUBSCRIBE).unwrap();
+    assert!(body.starts_with('<'));
+}
+
+#[test]
+fn without_a_template_the_plain_text_confirmation_is_unchanged() {
+    let body = confirmation_body(CONFIRM);
+    assert_eq!(body, format!("Please confirm your newsletter subscription by opening this link:\n\n{CONFIRM}\n\nIf you didn't ask for this, you can ignore this email and nothing will be sent to you.\n"));
+}
