@@ -20,6 +20,17 @@ class that is not a member is refused with the members listed, and so are a path
 in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
 that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
 
+**`project_site` also projects the CDN.** A route table that declares an edge (`Edge`, `EdgePolicy`,
+`EdgeOrigin` and `EdgeRule` rows beside its `Route` rows) has the same command rewrite two marked regions,
+`BEGIN`/`END GENERATED site_cdn behaviors` and `listener_rules`, of the CloudFormation template the project
+owns: the distribution's default and ordered cache behaviours, and the load balancer's listener rules with their
+priorities and origin-secret condition. A route gets a behaviour only when CloudFront would otherwise apply a
+different one; the order is the order the rows are declared in, and a pattern that a broader earlier one would
+shadow is refused. Rows gain `compress`, `alb_rule` and `cdn`. The refusals name an unknown or unmapped origin,
+a cache class with no policy, a duplicate priority and a rule that carries no route. `--check` covers the
+regions, `out=<dir>` writes a copy of the template, and the catch-all row `/*` hides nothing from `NOT_FOR_SEARCH`.
+`Fargate::Cdn.behavior_lines` is public and renders a `ResponseHeadersPolicyId`.
+
 **One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
 (a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
 name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package

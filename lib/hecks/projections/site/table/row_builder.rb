@@ -8,7 +8,7 @@ module Hecks
         Row = Struct.new(:path, :kind, :render, :auth, :verbs, :cache, :origin, :source,
                          :indexable, :switch, :off, :preview, :label, :seo, :redirect_to, :aliases,
                          :nav_group, :nav_order, :mobile_order, :footer_column, :footer_order,
-                         :admin_key, :admin_order, keyword_init: true)
+                         :admin_key, :admin_order, :compress, :alb_rule, :cdn, keyword_init: true)
 
         # Turns a declared member into a `Row`: checks its fields and their types, fills the
         # defaults, and checks each closed-set value against the Site chapter's vocabulary.
@@ -19,7 +19,7 @@ module Hecks
                      off: :bool, preview: String, label: String, seo: String, redirect_to: String,
                      aliases: String, nav_group: String, nav_order: Integer, mobile_order: Integer,
                      footer_column: String, footer_order: Integer, admin_key: String,
-                     admin_order: Integer }.freeze
+                     admin_order: Integer, compress: :bool, alb_rule: String, cdn: :bool }.freeze
 
           # The value objects of the Site chapter's `Route` aggregate whose members are the closed
           # sets, by the row field each constrains.
@@ -90,6 +90,8 @@ module Hecks
 
           def fill_defaults(row)
             row.off = false if row.off.nil?
+            row.compress = true if row.compress.nil?
+            row.cdn = true if row.cdn.nil?
             row.render ||= row.kind == "page" ? "prerender" : "ssr"
             row.verbs = list(row.verbs || (row.source.start_with?("command:") ? "POST" : "GET"))
             row.aliases = list(row.aliases)

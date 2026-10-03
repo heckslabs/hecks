@@ -74,7 +74,8 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks site site_projection.project_site <project> [out=] [--check]` | (new: no `bin/` script) |
 
 `project_site` has no retired script to point at, so it has no row in `lib/hecks/three_zero/forms.yml`; see
-`docs/site-routes.md`.
+`docs/site-routes.md`. It writes `routes.ts` and, when the project declares an edge, rewrites the marked regions
+of the infrastructure template with the CloudFront behaviours and the load balancer's listener rules.
 
 ## Codebase, for maintaining Hecks
 

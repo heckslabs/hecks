@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A studio's site, behind one CloudFront distribution and one load balancer.
+
+Parameters:
+  OriginSecret:
+    Type: String
+    NoEcho: true
+
+Resources:
+  # The load balancer, its listener and target groups are the project's own. The rules that send a
+  # path to one of them are generated from the route table.
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref Alb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: "403"
+
+  # BEGIN GENERATED site_cdn listener_rules
+  # END GENERATED site_cdn listener_rules
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Origins:
+          - Id: ServerOrigin
+            DomainName: !GetAtt Alb.DNSName
+          - Id: AssetsOrigin
+            DomainName: studio-assets.s3.amazonaws.com
+            S3OriginConfig: { OriginAccessIdentity: "" }
+        # BEGIN GENERATED site_cdn behaviors
+        # END GENERATED site_cdn behaviors
