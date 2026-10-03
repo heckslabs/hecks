@@ -15,15 +15,18 @@ The mechanism to build this already exists. The Hecks domain's `Door` aggregate 
 ## Decision
 
 1. **Add one command, `Init`, to the Hecks domain, spelled `hecks init <Name>`.** Not `hecks project init`, and not `hecks new`. It joins the `Door` aggregate beside `ProjectCli`, asks the existing `Workspace` port, and is written by `LocalFiles`. No new aggregate, port or adapter.
-2. **It writes a domain directory that runs as soon as it is written.** For `hecks init Lending` it creates `lending/` (or the directory named by a `dir=` argument) holding:
+2. **The user chooses the persistence adapter, with a flag.** `hecks init Lending --adapter=<name>` takes the name of any adapter the registry knows (`Memory`, `SqlitePersistence`, `Postgres`, `PostgresEra`, `Heki`), read from the registry and not hard-coded in `init`, so an adapter added later is accepted without a change here. An unknown name is refused with the list of known ones. The launcher already rewrites `--adapter=<name>` into the command's `adapter` argument (`Doors::CliDoor`), so the flag needs no new parsing, only an optional `adapter` argument on `Init`. When the flag is absent, `init` uses the default named in Open items.
+3. **It writes a domain directory that runs as soon as it is written.** For `hecks init Lending` it creates `lending/` (or the directory named by `--dir=<path>`) holding:
    - `bluebook/lending.bluebook`: a small valid domain with one aggregate, a value object, a lifecycle and two commands, which `hecks docs` reads and `hecks console` runs;
-   - `bluebook/lending.world`: `default_adapter "Postgres"` and a `default_database`, the shape the own-domain guide uses, so the one world file serves a deployment;
-   - `bluebook/environments/memory.world`: the overlay that swaps the adapter to Memory, so the first run needs no database.
+   - `bluebook/lending.world`: `default_adapter` set to the chosen adapter, plus the settings that adapter needs. `SqlitePersistence` and `Heki` get a data path under `data/`. `Postgres` and `PostgresEra` get a `default_database` URL. `Memory` needs nothing;
+   - for an adapter that needs a server (`Postgres`, `PostgresEra`), `bluebook/environments/memory.world`: the overlay that swaps the adapter to Memory, so the first run needs no database. An adapter that runs without one gets no overlay.
 
    No `.hecksagon` is written: `default_adapter` binds every aggregate, and a hecksagon is for what that cannot say.
-3. **It never replaces anything.** If the target directory already holds a bluebook, or any file `init` would write, it refuses and names the file. A half-written domain is not left behind: it checks every target before writing the first.
-4. **It prints the next steps** (`hecks docs <dir>/bluebook`, `hecks console subject=<dir>`) so the output of `init` is the start of the guide.
-5. **A spec boots what `init` writes.** The starter is data kept where the adapter can read it, and a spec runs `hecks init` into a temporary directory and boots the result, so the starter cannot rot into something that does not run. The own-domain guide's first step then becomes one command followed by the same edit-and-run loop.
+4. **It never replaces anything.** If the target directory already holds a bluebook, or any file `init` would write, it refuses and names the file. A half-written domain is not left behind: it checks every target before writing the first.
+5. **It prints the next steps** (`hecks docs <dir>/bluebook`, `hecks console subject=<dir>`) so the output of `init` is the start of the guide.
+6. **A spec boots what `init` writes.** The starter is data kept where the adapter can read it, and a spec runs `hecks init` into a temporary directory and boots the result, so the starter cannot rot into something that does not run. The own-domain guide's first step then becomes one command followed by the same edit-and-run loop.
+
+7. **It also has an interactive mode.** Run at a terminal with a choice left out, `hecks init` asks for it: the name if none was given, then the adapter (a numbered list read from the registry, with the default marked) and the directory. A flag that was given is never asked about, so `hecks init Lending --adapter=SqlitePersistence --dir=lending` runs with no prompt, and the same line works in a script. With no terminal on standard input (a pipe, CI) it takes the defaults and never waits. Asking is IO, so it happens in the `Terminal` port's adapter, which already runs the interactive console, and not in the command: `Init` records the choices that were made, and a policy asks the adapter for the missing ones before the files are written.
 
 ## Consequences
 
@@ -42,8 +45,11 @@ The mechanism to build this already exists. The Hecks domain's `Door` aggregate 
 
 ## Open items
 
+- What switches the prompts off when a terminal is attached but the user wants none: a `--yes` flag, `--no-interactive`, or both? Rails-style generators lean on `--force` and `--skip`, which mean something else here (`init` never replaces).
+- Which questions does the interactive mode ask beyond name, adapter and directory: whether to include a `deployed_to` block, and for which region?
+- Which adapter is the default when `--adapter` is omitted and there is no terminal to ask? `SqlitePersistence` runs with no server, no environment variable and no overlay, and keeps its data between runs, which suits a first session. `Postgres` is what the Lambda host serves (it refuses a domain bound to anything else), so a reader who goes on to deploy would have to change it. `init` could print that when a non-Postgres adapter is chosen.
 - Does the gem's own command set (ADR 0066) carry `init`? It is most useful to someone who has no clone, but the rest of the own-domain path (`deploy project`, `sam build`) still needs one.
 - What does the starter domain contain: a neutral shelf-and-lend example, or an empty aggregate with one command? An empty one is honest but gives `hecks console` nothing to type.
 - Should the starter include a `deployed_to("AwsLambda")` block? It makes `hecks deploy project` work immediately, and commits the reader to a region and Lambda before they asked.
-- May `dir=` point inside the clone? The deploy procedure says to keep a service outside it, so `init` could refuse, or warn.
+- May `--dir=` point inside the clone? The deploy procedure says to keep a service outside it, so `init` could refuse, or warn.
 - Should `init` also write a `.gitignore` or a README for the new domain?
