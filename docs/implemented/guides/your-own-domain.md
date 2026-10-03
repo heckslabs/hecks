@@ -6,9 +6,9 @@ run it, and deploy it to AWS Lambda so that something other than Ruby can
 call it.
 
 The domain is small on purpose: books on a shelf, lent to one borrower at
-a time. Every step is a command you type from a clone of the repository
-(the [README](../../../README.md) quickstart gives the clone and
-`bundle install`).
+a time. Every step is a command you type from the root of a clone of the
+repository (the [README](../../../README.md) quickstart gives the clone and
+`bundle install`; stay in that `hecks` directory, since `bundle exec` needs it).
 
 Two shell settings come first. hecks records each command it runs in a
 journal, which by default lives in a local Postgres. Setting
@@ -21,6 +21,8 @@ mkdir -p "$HOME/lending/bluebook/environments"
 ```
 
 `hecks console` sets this for itself; the other commands below do not.
+Skip it and `hecks deploy project` stops with `cannot bind PostgresEra`,
+which means hecks went looking for that local Postgres.
 
 ## 1. Write it
 
@@ -152,8 +154,8 @@ it. Now open the domain:
 bundle exec hecks console subject="$HOME/lending"
 ```
 
-The console lists `Book: lend!, return!, shelve!`. Its `try:` lines are for
-the pizzas example, so ignore them and type your own:
+The console lists `Book: lend!, return!, shelve!` and gives you a prompt.
+Type:
 
 <!-- doctest:boot
 Hecks.hecksagon("Lending") do
@@ -198,7 +200,9 @@ request), so there is no password or session of yours to build first.
 You need an AWS account with credentials configured, the `aws` and `sam`
 command-line tools, `cargo-lambda`, and Rust installed through `rustup`.
 The Rust tree in the clone is what gets compiled, so the first build is
-slow.
+slow. If the build reports a missing target, `rustup target add
+wasm32-wasip1` adds the WebAssembly one (the build adds the Lambda target
+itself).
 
 Turn the domain into a deployable stack. This writes files and touches
 nothing in AWS:
