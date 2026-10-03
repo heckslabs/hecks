@@ -188,6 +188,56 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at most 65535/)
   end
 
+  def declare_box(**overrides)
+    args = {
+      domain:         { value: "Lifeadelics" },
+      region:         { value: "us-east-1" },
+      instance_type:  { value: "t4g.medium" },
+      volume_gb:      { value: 30 },
+      database_class: { value: "db.t4g.small" },
+      storage_gb:     { value: 20 }
+    }.merge(overrides)
+    dispatcher.dispatch_flat("Deploy::BoxTarget.Declare", **args)
+  end
+
+  describe "BoxTarget.Declare" do
+    it "accepts a fully-specified AwsBox target" do
+      state = declare_box.instance.state
+      expect(state[:domain].value).to eq("Lifeadelics")
+      expect(state[:instance_type].value).to eq("t4g.medium")
+      expect(state[:volume_gb].value).to eq(30)
+      expect(state[:database_class].value).to eq("db.t4g.small")
+      expect(state[:storage_gb].value).to eq(20)
+    end
+
+    it "refuses an empty region" do
+      expect { declare_box(region: { value: "" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a region is named/)
+    end
+
+    it "refuses an instance type that is not family.size" do
+      expect { declare_box(instance_type: { value: "medium" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /an instance type is family.size/)
+    end
+
+    it "refuses a database class that is not db.family.size" do
+      expect { declare_box(database_class: { value: "t4g.small" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a database class is db.family.size/)
+    end
+
+    it "refuses a volume below 8 GB and one above 16384 GB" do
+      expect { declare_box(volume_gb: { value: 4 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a volume is at least 8 GB/)
+      expect { declare_box(volume_gb: { value: 20_000 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a volume is at most 16384 GB/)
+    end
+
+    it "refuses storage below RDS's 20 GB floor" do
+      expect { declare_box(storage_gb: { value: 10 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /storage is at least 20 GB/)
+    end
+  end
+
   # End-to-end: hecks deploy project must dispatch into this domain, not a parallel check.
   describe "hecks deploy project, driven through a scratch fixture domain", :io do
     # hecks deploy project always writes to <repo_root>/deploy/<basename>, wherever the source

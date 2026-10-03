@@ -78,6 +78,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   it "keeps the deployed_to targets beside the new commands, and Provision the only Tenant creator" do
     expect(@bluebook.aggregate("LambdaTarget").commands.map(&:hecks_name)).to eq(["Declare"])
     expect(@bluebook.aggregate("FargateTarget").commands.map(&:hecks_name)).to eq(["Declare"])
+    expect(@bluebook.aggregate("BoxTarget").commands.map(&:hecks_name)).to eq(["Declare"])
     tenant = @bluebook.aggregate("Tenant").commands
     expect(tenant.map(&:hecks_name)).not_to include("Declare")
     expect(tenant.select(&:creates?).map(&:hecks_name)).to eq(["Provision"])
