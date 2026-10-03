@@ -23,7 +23,8 @@ module Hecks
         module_function
 
         # Generates `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`,
-        # `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`.
+        # `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`, and for a world that declares a
+        # `migration`, `restore-to-rds.sh`, `verify-copy.sh` and `MIGRATION.md`.
         #
         # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter
         # @param options [Hash] generation options; same shape as `Fargate.call`'s
@@ -86,7 +87,75 @@ module Hecks
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
             "Makefile" => makefile(plan)
+          }.merge(migration_files(plan))
+        end
+
+        # The tooling that moves a project's data from its old database into the RDS instance, for
+        # a world that declares a `migration`.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [Hash{String => String}] `restore-to-rds.sh`, `verify-copy.sh` and `MIGRATION.md`,
+        #   or nothing
+        def migration_files(plan)
+          migration = plan.migration
+          return {} unless migration
+
+          values = { "STACK" => plan.infra_name, "SCHEMAS" => migration.schemas.join(" "),
+                     "SCHEMAS_CSV" => migration.schemas.join(","), "DATABASE" => migration.database,
+                     "SOURCE_DATABASE" => migration.source_database }
+          {
+            "restore-to-rds.sh" => template("restore-to-rds.sh.tmpl", values),
+            "verify-copy.sh"    => template("verify-copy.sh.tmpl", values),
+            "MIGRATION.md"      => migration_md(plan)
           }
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] the runbook for moving onto the box, in the order the steps are run
+        def migration_md(plan)
+          migration = plan.migration
+          deploy = plan.task_definition ? "make deploy TASKDEF=#{plan.task_definition}:<revision>" : "make deploy"
+          <<~MD
+            # Moving #{plan.infra_name} onto the box and RDS
+
+            Generated from the world's `migration` setting. Nothing here has been run for you.
+
+            Schemas to copy: #{migration.schemas.map { |name| "`#{name}`" }.join(', ')}, in database
+            `#{migration.source_database}` on the old server and `#{migration.database}` on RDS.
+
+            ## Before cutover
+
+            1. Create the stacks: `make stacks VPC=... PRIVATE_SUBNETS=... PUBLIC_SUBNET=...`. To rehearse first,
+               deploy `rds.yaml` and `box.yaml` under other stack names with `Rehearsal=true`: the database is then
+               deleted with its stack and the box gets no stable public address. Delete the rehearsal stacks after.
+            2. Copy the data. The bastion is any instance that can reach both databases.
+
+               ```
+               RDS_HOST=$(aws cloudformation describe-stacks --stack-name #{plan.rds_stack} --query "Stacks[0].Outputs[?OutputKey=='DbEndpoint'].OutputValue" --output text)
+               RDS_SECRET=$(aws cloudformation describe-stacks --stack-name #{plan.rds_stack} --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text)
+               bash restore-to-rds.sh <bastion-instance-id> <old-host> <old-secret-arn> "$RDS_HOST" "$RDS_SECRET"
+               ```
+
+               It copies each schema, refreshes the materialized views a plain `pg_restore` cannot, then runs
+               `verify-copy.sh`, which compares structure and the exact row count of every table and prints `OK`
+               only if both match. Re-run with `FORCE=1` to reload.
+            3. Deploy the app onto the box: `#{deploy}`. The deploy ends with health checks on the box.
+            4. Run the project's own smoke test against the box before any traffic moves.
+
+            ## Cutover
+
+            1. Stop writes on the old stack, then run `restore-to-rds.sh` again with `FORCE=1` for a final copy and
+               wait for `OK`.
+            2. Point the CDN's origin at the box stack's `AppOriginDomain` output.
+            3. Keep the old database untouched for several days, and take a final snapshot before deleting it.
+
+            ## Rollback
+
+            Until the first write lands on RDS, point the origin back. After that, writes taken by both databases
+            cannot be merged: choose one side and copy it over the other (swap the hosts and secrets, and set
+            `SRC_DB` and `DST_DB`, with `FORCE=1`). Do not change the domain's era in the same window, so a rollback
+            only has to move data.
+          MD
         end
 
         # @param plan [Settings::Plan] the resolved settings

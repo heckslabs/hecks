@@ -24,7 +24,7 @@ end
 # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
 # A person is at them: they wait for their result, say why when they are refused, and print
 # no record when they end well.
-MEMORY_COMMANDS = %w[console init].freeze
+MEMORY_COMMANDS = %w[console init interview].freeze
 ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
 ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
 
