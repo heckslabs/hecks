@@ -218,7 +218,10 @@ These four statements are the maintainer's own. Nothing in the repository
 or on GitHub enforces or records them, and they stay true only while the
 maintainer keeps doing them.
 
-1. The maintainer reads every diff before it is merged.
+1. The maintainer's own pull requests and outside authors' pull requests are
+   read before they are merged. A pull request an agent opened and queued
+   itself (`hecks-merge`, or `gh pr merge --auto`) is merged on the merge
+   queue's checks alone, without the maintainer's reading beforehand.
 2. Reviews run by an AI assistant (a code-review skill, subagents) are not
    claimed as a review step, because nothing records them.
 3. Zero required approvals is intentional for a repository with one
