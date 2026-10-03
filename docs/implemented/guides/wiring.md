@@ -398,6 +398,34 @@ container's repository and image-tag parameter the same way.
 The other opt-in files below share its rule: nothing is generated for a block
 that does not ask, so a stack that never mentions them is unchanged.
 
+### One box and one database: `AwsBox`
+
+`deployed_to("AwsBox")` generates an RDS stack and an EC2 box that runs the
+domain's containers with Docker Compose behind Caddy, for a project that does
+not need a load balancer or a container service ([ADR 0085](../../decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)).
+
+```text
+deployed_to("AwsBox") do
+  region "us-east-1"
+  containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081 }]
+  default_container "website"
+  routes [{ container: "cms", paths: ["/cms/*"] }]
+  origin_header "X-Origin-Secret"   # only requests carrying it are proxied
+  origin_secret "acme/origin-secret" # a Secrets Manager name, read on the box
+end
+```
+
+`hecks deploy project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
+`services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a
+`Makefile`. Secrets are named, never written down: the box resolves them when it
+deploys. A world with no `containers` is refused with an example.
+
+To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
+`tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
+`cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
+waits for a registered connection. `tunnel true` alone only opens the outbound
+port, for a tunnel you run yourself.
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files

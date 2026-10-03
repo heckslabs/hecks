@@ -25,6 +25,7 @@ pub struct Need {
 
 thread_local! {
     static TABLE: RefCell<HashMap<String, Vec<Need>>> = RefCell::new(HashMap::new());
+    static DEFAULTS: RefCell<HashMap<String, Vec<(String, Json)>>> = RefCell::new(HashMap::new());
     static FIXED_CLOCK: Cell<Option<i64>> = const { Cell::new(None) };
 }
 
@@ -50,6 +51,23 @@ pub fn install(table: Option<&Json>) {
         _ => HashMap::new(),
     };
     TABLE.with(|t| *t.borrow_mut() = parsed);
+}
+
+/// Installs the declared defaults the host passed, `{ verb: { attribute: value } }` (an absent or
+/// malformed `"defaults"` installs an empty table). They fill after the needs, so a fact that is
+/// both needed and defaulted takes the answer.
+pub fn install_defaults(table: Option<&Json>) {
+    let parsed = match table {
+        Some(Json::Object(entries)) => entries
+            .iter()
+            .filter_map(|(verb, attributes)| match attributes {
+                Json::Object(held) => Some((verb.clone(), held.clone())),
+                _ => None,
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+    DEFAULTS.with(|t| *t.borrow_mut() = parsed);
 }
 
 /// Makes the kernel clock answer `secs` on this thread until cleared; the test seam.
@@ -100,7 +118,11 @@ fn answer(need: &Need, occurred_at: Option<&str>) -> Option<Json> {
 /// needed filling (no needs, or every fact supplied). Reads `with` when the call carries one,
 /// else the flat object, as `CommandInvocation` does.
 pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json> {
-    let needs = TABLE.with(|t| t.borrow().get(verb).cloned())?;
+    let needs = TABLE.with(|t| t.borrow().get(verb).cloned()).unwrap_or_default();
+    let defaults = DEFAULTS.with(|t| t.borrow().get(verb).cloned()).unwrap_or_default();
+    if needs.is_empty() && defaults.is_empty() {
+        return None;
+    }
     let explicit = matches!(args.get("with"), Some(Json::Object(_)));
     let facts = if explicit { args.get("with")? } else { args };
     let Json::Object(held) = facts else { return None };
@@ -112,6 +134,11 @@ pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json
         }
         if let Some(value) = answer(need, occurred_at) {
             filled.push((need.fact.clone(), value));
+        }
+    }
+    for (name, value) in &defaults {
+        if !filled.iter().any(|(k, _)| k == name) {
+            filled.push((name.clone(), value.clone()));
         }
     }
     if filled.len() == before {
@@ -190,5 +217,51 @@ mod tests {
         assert_eq!(now_secs(Some("2023-11-14T22:13:20Z")), 1_700_000_000);
         assert_eq!(now_secs(Some("1970-01-01T00:00:00Z")), 0);
         assert!(now_secs(None) > 1_700_000_000);
+    }
+
+    fn defaults() -> Json {
+        Json::parse(r#"{"D::A.Start": {"runs": 30}, "D::A.Instant": {"holder": "nobody"}}"#).unwrap()
+    }
+
+    #[test]
+    fn an_omitted_argument_takes_its_declared_default() {
+        install(None);
+        install_defaults(Some(&defaults()));
+        let filled = enrich("D::A.Start", &with(vec![("ref", Json::int(1))]), None).unwrap();
+        assert_eq!(filled.get("with").unwrap().get("runs"), Some(&Json::int(30)));
+        assert_eq!(filled.get("with").unwrap().get("ref"), Some(&Json::int(1)));
+    }
+
+    #[test]
+    fn a_supplied_argument_keeps_its_value_over_the_default() {
+        install(None);
+        install_defaults(Some(&defaults()));
+        assert_eq!(enrich("D::A.Start", &with(vec![("runs", Json::int(7))]), None), None);
+    }
+
+    #[test]
+    fn a_flat_invocation_is_filled_at_its_top_level() {
+        install(None);
+        install_defaults(Some(&defaults()));
+        let filled = enrich("D::A.Start", &Json::obj(vec![("ref", Json::int(1))]), None).unwrap();
+        assert_eq!(filled.get("runs"), Some(&Json::int(30)));
+    }
+
+    #[test]
+    fn a_needed_fact_is_answered_and_the_default_fills_beside_it() {
+        install(Some(&table()));
+        install_defaults(Some(&defaults()));
+        fix_clock(Some(3));
+        let filled = enrich("D::A.Instant", &with(vec![]), None).unwrap();
+        assert_eq!(filled.get("with").unwrap().get("now"), Some(&Json::obj(vec![("value", Json::int(3))])));
+        assert_eq!(filled.get("with").unwrap().get("holder"), Some(&Json::str("nobody")));
+        fix_clock(None);
+    }
+
+    #[test]
+    fn no_installed_defaults_leaves_a_command_untouched() {
+        install(None);
+        install_defaults(None);
+        assert_eq!(enrich("D::A.Start", &with(vec![]), None), None);
     }
 }

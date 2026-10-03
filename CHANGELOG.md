@@ -17,6 +17,10 @@ is refused with the qualified names that end in it. A chapter's `names` table st
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
 
+**`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`deployed_to("AwsBox")` is a deploy kind.** `hecks deploy project` now generates one RDS instance and one EC2 box that runs the domain's containers behind Caddy, as an alternative to the Fargate stack ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)). The sizes are validated by a new `Deploy::BoxTarget.Declare` command; every other setting is checked before a template is written.
+
 ## [3.0.5] - 2026-10-03
 
 A patch: nothing breaking and no behavior change for a running system unless it opts in.

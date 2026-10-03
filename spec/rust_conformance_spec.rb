@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "hecks/fuzzing"
+require "hecks/rust_build/kernel_input"
 require_relative "support/rust_conformance_helpers"
 require_relative "support/conformance_corpus"
 
@@ -29,7 +30,8 @@ RSpec.describe "Rust conformance (native binary)", :io do
       binary = build_rust_for(feature)
       skip "rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first" unless binary
 
-      stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
+      stdin = Hecks::RustBuild::KernelInput.json(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), steps)
+      stdout, status = Open3.capture2(binary, stdin_data: stdin)
       expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
       rust_output = JSON.parse(stdout)
