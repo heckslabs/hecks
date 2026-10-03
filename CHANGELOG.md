@@ -7,7 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+## [3.1.0] - 2026-10-03
+
+A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed.
+
+**Behavior change: the launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with
 `hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
@@ -17,7 +21,7 @@ is refused with the qualified names that end in it. A chapter's `names` table st
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
 
-**`HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
+**Behavior change: `HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
 
 **`hecks mcp` has a commands scope, and a restricted door stays booted.** With
 `HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
