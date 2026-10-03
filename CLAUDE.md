@@ -26,6 +26,14 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
 Check a tree with `exe/hecks check_comments paths=<path> --wait` before
 calling comment work done.
 
+## Agents merge their own pull requests
+
+Push the branch, open the pull request, and once it is ready and not a
+draft, queue it yourself: `gh pr merge <pr> --auto`. A sandboxed agent
+runs `hecks-merge <pr>` instead, which queues the same merge for any open,
+non-draft, same-repository pull request into `main`. The merge queue runs
+the required checks; never use `--admin` and never push to `main`.
+
 ## Never hand-edit generated output
 
 - A file starting with a `# Generated ... do not edit` (Ruby) or
