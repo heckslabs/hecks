@@ -2,6 +2,9 @@
 
 source "https://rubygems.org"
 
+# The repository is the gem: this puts `hecks` (exe/hecks) on `bundle exec`.
+gemspec
+
 gem "pg", "~> 1.5"
 gem "sqlite3", "~> 2.0"
 

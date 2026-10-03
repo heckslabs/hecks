@@ -1,10 +1,3 @@
 Hecks.world "Pizzas" do
   realm "Examples"
-  persisted_by("PostgresEra") do
-    database "postgres://localhost/hecks_pizzas"
-    # Local example: PostgresEra's era fence is row-level security, which a superuser
-    # bypasses, so it refuses to boot as one unless this opt-in is set. A real
-    # deployment binds an ordinary role in the URL and omits this line.
-    allow_superuser true
-  end
 end

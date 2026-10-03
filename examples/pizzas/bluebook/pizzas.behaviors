@@ -1,9 +1,8 @@
 Hecks.behaviors "Pizzas" do
   vision "Examples of how a pizza is built, sold, and found through this domain."
 
-  # `pizzas_behaviors.hecksagon` (not `pizzas.hecksagon`, which binds the
-  # real PostgresEra adapter this domain actually deploys with) — a
-  # Memory-persisted sibling that lives OUTSIDE bluebook/, so an ordinary
+  # `pizzas_behaviors.hecksagon` is a Memory-persisted sibling of
+  # `pizzas.hecksagon` that lives OUTSIDE bluebook/, so an ordinary
   # directory boot of examples/pizzas never globs it up alongside the
   # real one.
   loads "pizzas.bluebook", "../pizzas_behaviors.hecksagon"

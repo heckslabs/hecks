@@ -6,6 +6,13 @@ Requires a local Postgres — this guide is about the one adapter that
 can carry data across a shape change, so it runs against the real
 thing or not at all.
 
+No Postgres installed? `examples/directory/docker-compose.yml` starts a
+throwaway one in Docker and shows how to boot the directory example against
+it (`docker compose -f examples/directory/docker-compose.yml up -d --wait`,
+then `PGUSER=hecks bundle exec hecks console subject=examples/directory`).
+That path is checked for the directory example only; this guide's own live
+examples have not been run against the container.
+
 Your domain's shape will change. Not might — will, the day it survives
 contact with a second requirement. The question that decides whether
 you can ship the change is not "does the new bluebook look right" — it

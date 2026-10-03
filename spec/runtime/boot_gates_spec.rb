@@ -107,8 +107,8 @@ RSpec.describe Hecks::Runtime::BootGates do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
-        Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
       end
 
       expect(Hecks::Runtime::EraCheck.lineage_capable_registry?(registry)).to be true

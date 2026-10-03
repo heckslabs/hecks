@@ -54,11 +54,9 @@ bundle install
 bundle exec hecks console
 ```
 
-`hecks console` boots the `examples/pizzas` domain on the in-memory adapter
-and drops you into IRB with its [door](#door) installed. The domain's
-own [hecksagon](#hecksagon) binds [PostgresEra](#postgresera), so the
-console loads the Memory-bound sibling `examples/pizzas/pizzas_behaviors.hecksagon`
-instead, and `git status` stays clean. Type this at the prompt:
+`console` boots the `examples/pizzas` domain on the in-memory adapter
+and drops you into IRB with its [door](#door) installed. Nothing needs a
+database, and `git status` stays clean. Type this at the prompt:
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
@@ -96,7 +94,7 @@ harness.
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and the
 [Glossary](#glossary) at the end of this page defines the project's own
-words. `hecks console subject=<domain>` boots any other domain directory as that
+words. `bundle exec hecks console subject=<domain>` boots any other domain directory as that
 directory is wired.
 
 ## Why
@@ -397,7 +395,7 @@ stateDiagram-v2
     frozen --> closed: CloseAccount
 ```
 
-To drive the full domain by hand, `hecks console subject=examples/banking` boots it
+To drive the full domain by hand, `bundle exec hecks console subject=examples/banking` boots it
 as wired. Banking is bound to [Heki](#heki), which keeps its records in
 the git-tracked `examples/banking/data/`, so a dispatch there shows up in
 `git status`; `git checkout -- examples/banking/data` and
