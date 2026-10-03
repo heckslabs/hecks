@@ -47,6 +47,7 @@ place.
 | `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Chapter>.<Aggregate>.<Command>` or `query:...`. |
 | `indexable` | whether the sitemap lists it; true for a public page that is on. |
 | `switch`, `off` | the id a page is switched by, and whether it is off now. An off page answers 404 and stays out of every navigation. |
+| `compress`, `alb_rule`, `cdn` | for the edge, below: whether CloudFront compresses the response (true by default); the listener rule that carries the path; false for a path the CDN never sees. |
 | `label`, `seo` | the text a navigation shows, and an id for the page's search metadata. |
 | `redirect_to`, `aliases` | the target of a redirect or rewrite, and extra paths that redirect to a page. |
 | `nav_group`, `nav_order`, `mobile_order`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation. |
@@ -71,3 +72,58 @@ A row whose source is `command:Studio.Inquiry.Submit` takes its path from the fo
 chapter the project attaches. The scheme covers a command or query of an aggregate; it does not name an entity's
 command or a report, and a project lists the domain routes it exposes, since `Forms.configure` exposes a whole
 chapter rather than a command.
+
+## The edge: CloudFront behaviours and listener rules
+
+The same table decides how the CDN and the load balancer treat each path, so a path is not named a second time
+in the infrastructure template. A project adds `member` rows of four more value objects of its route chapter,
+for the facts only its template knows, and marks two regions in the template it owns.
+
+| value object | fields |
+|---|---|
+| `Edge`, one row | `template` (the CloudFormation file, relative to the project), `listener` (a reference to the listener), and `secret_header` with `secret_value` (the header the distribution adds; every rule requires it). |
+| `EdgePolicy` | `cache_class`, optionally `origin` (it then applies to that origin only), and `cache`, `origin_request`, `response_headers`. A policy is a managed one by name (`caching_disabled`, `caching_optimized`, `all_viewer`, `all_viewer_except_host`), a policy id, or an intrinsic such as `!Ref PagePolicy`. |
+| `EdgeOrigin` | an `origin` and the CloudFront origin `id` it is, and for a server behind the load balancer its `target_group`. |
+| `EdgeRule` | a listener rule's logical id (`rule`), its numeric `priority`, and the `origin` it forwards to. |
+
+```yaml
+        # BEGIN GENERATED site_cdn behaviors
+        # END GENERATED site_cdn behaviors
+```
+
+The template holds one `behaviors` region, where `DefaultCacheBehavior` and `CacheBehaviors` go, and one
+`listener_rules` region, where the listener rules go. Everything between the markers is rewritten on each run, at
+the markers' indentation; the rest of the template, and any comment about why a path is routed as it is, stays the
+project's and belongs outside the markers. `--check` compares the regions too, so a template edited by hand in a
+region is named as out of date.
+
+How a route becomes a behaviour:
+
+- The row for `/*` is the default behaviour, and the rule it names with `alb_rule` is the website's, written with
+  no path condition. A table needs that row.
+- A parameter in a path (`/pay/:id`) is a `*` to the edge.
+- A route needs a behaviour only when the one CloudFront would match for its path anyway, the nearest broader
+  route's or else the default, differs from the one the route resolves to. Pages cached like the default produce
+  none; the pages under `/admin*` produce none beside `/admin*`; `/pay/*` does produce one, as a `no_store` route.
+- The behaviour comes from the row: the origin names the CloudFront origin and the `EdgePolicy` for the cache
+  class on it; the methods are the set CloudFront allows that covers the row's (`GET` alone is read, anything
+  else all, and an assets origin is read without `OPTIONS`); a public read-only page on the website or the assets
+  may be asked for over http, anything else is https-only.
+- Order is the order the rows are declared in, which is the order CloudFront matches in. A route that a broader
+  one declared earlier would shadow is refused, naming both. Two rows on one pattern with different verbs share
+  one behaviour.
+- A route on the cms or the domain needs an `alb_rule`, unless a broader route of the same origin has one
+  (`/cms/*` carries `/cms/_static/*`). A rule holds at most four paths when it requires the secret header, since
+  an ALB rule holds five condition values in all. A rule is refused that carries no route, that a lower-numbered
+  rule of another origin would answer first for one of its routes, or whose priority another rule shares.
+- `cdn: false` keeps a route out of the behaviours and in its rule: a path only the site's own server reaches.
+
+Each refusal names every problem at once, as the table's do: an origin that no `EdgeOrigin` maps or the Site
+chapter does not know, a cache class no `EdgePolicy` maps, a policy reference that is none of the three forms, a
+duplicate priority or rule name, a shadowed pattern.
+
+Regions rather than whole fragment files, because a CloudFormation template is one document: the behaviours are a
+property of the distribution among its origins, certificate and logging, and the rules are resources beside the
+listener and the service that depends on them. A fragment would need an include transform and a bucket to hold it.
+With `out=<dir>` a copy of the template is written beneath it at the same relative path, and the project's own is
+left alone.
