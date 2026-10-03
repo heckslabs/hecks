@@ -150,7 +150,7 @@ module Hecks
       # @param executable [String, nil] the file's path under the root when it is not beside the
       #   domain; its program name is then that file's basename, and its header names the generator
       # @param legacy [Array<String>, nil] verbs an executable hands to `Hecks::CLI` first
-      # @param memory_verbs [Array<String>, nil] verbs run on Memory unless `HECKS_ENVIRONMENT` is set
+      # @param memory_verbs [Array<String>, nil] verbs run on Memory unless HECKS_ENVIRONMENT is set
       # @param opted [Boolean] whether the chapter's world declares a `launcher` setting
       # @return [String] the Ruby source
       # @raise [ArgumentError] if a name, path, executable or legacy verb is not plain
@@ -266,7 +266,7 @@ module Hecks
       end
 
       # @api private
-      # @return [String] the lines that default the listed verbs to the Memory environment, or nothing
+      # @return [String] the lines that default the listed verbs to Memory, or nothing
       def memory_default(verbs)
         return "" if verbs.empty?
 
