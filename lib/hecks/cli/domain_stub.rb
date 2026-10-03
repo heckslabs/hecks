@@ -45,9 +45,22 @@ module Hecks
       def files(name:, adapter: nil)
         adapter ||= DEFAULT_ADAPTER
         check!(name, adapter)
+        { "bluebook/#{Naming.snake(name)}.bluebook" => bluebook(name) }.merge(support_files(name: name, adapter: adapter))
+      end
+
+      # The files around a domain's bluebook: its world bound to the adapter, the memory overlay for an
+      # adapter that needs a server, and a `.gitignore` for one that keeps data. `hecks init` writes them
+      # beside a stub, and an interview draft writes them beside the bluebook it renders (ADR 0088).
+      #
+      # @param name [String] the domain's name
+      # @param adapter [String, nil] an adapter named in `ADAPTERS`; the default when nil
+      # @return [Hash{String => String}] each file's path under the domain directory, and its text
+      # @raise [ArgumentError] when the name is not a capitalised word or the adapter is unknown
+      def support_files(name:, adapter: nil)
+        adapter ||= DEFAULT_ADAPTER
+        check!(name, adapter)
         snake = Naming.snake(name)
-        files = { "bluebook/#{snake}.bluebook" => bluebook(name),
-                  "bluebook/#{snake}.world"    => world(name, snake, adapter) }
+        files = { "bluebook/#{snake}.world" => world(name, snake, adapter) }
         files["bluebook/environments/memory.world"] = overlay(name) if ADAPTERS.fetch(adapter).fetch(:server)
         files[".gitignore"] = "data/\n" if ADAPTERS.fetch(adapter).fetch(:local_data)
         files
