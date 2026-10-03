@@ -160,6 +160,13 @@ RSpec.describe "the repository tooling commands" do
       expect(out.string).to include("Usage: hecks stress_concurrency")
     end
 
+    it "exits 64 when the run count and first seed are not given, since the verb supplies them" do
+      status = nil
+      expect { status = described_class.call(["--parallel", "1"], root: Dir.pwd, out: StringIO.new) }
+        .to output(/missing --runs, --seed-start/).to_stderr
+      expect(status).to eq(64)
+    end
+
     it "exits 64 for an argument it does not know" do
       status = nil
       expect { status = described_class.call(["--nope"], root: Dir.pwd, out: StringIO.new) }

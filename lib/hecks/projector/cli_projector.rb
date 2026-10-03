@@ -301,7 +301,7 @@ module Hecks
         return [reference_option(attribute)] if attribute.reference?
 
         value_object = value_object_for(attribute, holder, aggregate)
-        return [scalar_option(path, attribute, optional)] unless value_object
+        return with_declared_default([scalar_option(path, attribute, optional)], attribute) unless value_object
 
         # The list flag rides on each leaf: without it a repeated flag overwrote the
         # leaf silently, and CliDoor only ever sees a path and a spec.
@@ -312,10 +312,29 @@ module Hecks
           scalar_option("#{path}.#{field.name}", field, optional || field.optional?,
                         enum: closed_members(value_object, field))
         end
+        fields = with_declared_default(fields, attribute)
 
         return fields unless attribute.list?
 
         fields.map { |option| option.merge(list: true, note: [option[:note], "repeatable"].compact.join("; ")) }
+      end
+
+      # Shows the default the attribute itself declares (`attribute :runs, Count, default: 30`) on
+      # the leaf it fills: the matching field for a hash default, the lone field for a bare one.
+      # An argument with a default is never required, since the runtime fills it when omitted.
+      #
+      # @param options [Array<Hash{Symbol => Object}>] the attribute's leaf option specs
+      # @param attribute [Object] the attribute, which may declare a default
+      # @return [Array<Hash{Symbol => Object}>] `options`, with the default shown where it lands
+      def with_declared_default(options, attribute)
+        declared = attribute.default if attribute.respond_to?(:default)
+        return options if declared.nil?
+
+        options.map do |option|
+          leaf = option[:path].split(".").last
+          value = declared.is_a?(Hash) ? declared.fetch(leaf.to_sym) { declared[leaf] } : (declared if options.one?)
+          value.nil? ? option : option.merge(default: value, required: false)
+        end
       end
 
       def reference_option(attribute)

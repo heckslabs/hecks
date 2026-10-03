@@ -1898,9 +1898,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Rerun the thread-safety specs under many seeds, several processes at a time"
 
-      attribute :runs,       Count, optional: true
+      attribute :runs,       Count, default: 30
+      # The machine's own core count when none is named, which no fixed default can say.
       attribute :parallel,   Count, optional: true
-      attribute :seed_start, Count, optional: true
+      attribute :seed_start, Count, default: 1
       attribute :run,        RunKey
 
       sets :runs
