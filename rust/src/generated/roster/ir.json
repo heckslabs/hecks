@@ -1571,10 +1571,7 @@
   ],
   "lineage": {
     "capable_aggregates": [
-      {
-        "name": "Roster",
-        "storage_name": "roster"
-      }
+
     ]
   },
   "persistence": {
@@ -1582,7 +1579,7 @@
       {
         "name": "Roster",
         "storage_name": "roster",
-        "adapter": "PostgresEra"
+        "adapter": "Memory"
       }
     ]
   },

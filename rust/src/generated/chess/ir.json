@@ -2479,10 +2479,7 @@
   ],
   "lineage": {
     "capable_aggregates": [
-      {
-        "name": "Game",
-        "storage_name": "game"
-      }
+
     ]
   },
   "persistence": {
@@ -2490,7 +2487,7 @@
       {
         "name": "Game",
         "storage_name": "game",
-        "adapter": "PostgresEra"
+        "adapter": "Memory"
       }
     ]
   },
