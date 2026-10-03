@@ -102,7 +102,7 @@ module Hecks
           "      - uses: ./.github/actions/hecks-environment",
           "      - id: diff",
           "        name: #{quoted(gate.fetch('label'))}",
-          "        run: bundle exec exe/hecks decide_ci_gate gate=#{name} --wait",
+          "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
           "  # END GENERATED ci_gate #{name}"
         ].join("\n")
       end

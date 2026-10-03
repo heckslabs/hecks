@@ -3,21 +3,21 @@ require "open3"
 require "rbconfig"
 require "hecks/cli/project_cli"
 
-# `memory_verbs` in the Hecks world's `launcher` setting makes the generated `exe/hecks` run
+# `memory_commands` in the Hecks world's `launcher` setting makes the generated `exe/hecks` run
 # those verbs on the Memory environment unless the caller chose one (ADR 0084), so a clone's
 # first command needs no database.
-RSpec.describe "the launcher's memory verbs" do
+RSpec.describe "the launcher's memory commands" do
   it "is projected into exe/hecks from the world, so the committed launcher is current" do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
-                                             executable: "exe/hecks", memory_verbs: %w[console], opted: true)
+                                             executable: "exe/hecks", memory_commands: %w[console], opted: true)
 
-    expect(source).to include("MEMORY_VERBS = %w[console].freeze")
-    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_VERBS = %w[console].freeze")
+    expect(source).to include("MEMORY_COMMANDS = %w[console].freeze")
+    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console].freeze")
   end
 
   it "refuses a verb that is not a plain word" do
-    expect { Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "x", executable: "exe/hecks", memory_verbs: ["a b"]) }
-      .to raise_error(ArgumentError, /memory verb/)
+    expect { Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "x", executable: "exe/hecks", memory_commands: ["a b"]) }
+      .to raise_error(ArgumentError, /memory command/)
   end
 
   it "opens the console with no database reachable and no environment variable" do

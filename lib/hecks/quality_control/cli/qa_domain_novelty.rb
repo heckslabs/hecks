@@ -7,10 +7,10 @@ require_relative "../../fuzzing/form_census"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control judge_novelty`: does a new stress domain earn its
-    # place? It is the gate before a domain becomes a `Target`.
+    # The command behind `hecks quality_control target.judge_novelty`: does a new stress domain earn
+    # its place? It is the gate before a domain becomes a `Target`.
     #
-    #   hecks quality_control judge_novelty <domain-path> [--against <path> ...]
+    #   hecks quality_control target.judge_novelty <domain-path> [--against <path> ...]
     #
     # A domain is new when it puts two forms together on one aggregate that no existing target does
     # (`Hecks::Fuzzing::FormCensus`). It is compared against the ledger's `Target.path` rows unless

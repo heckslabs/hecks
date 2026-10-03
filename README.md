@@ -37,8 +37,8 @@ The gem installs a `hecks` command for a domain you supply: `run`,
 `project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the
-maintainer commands (`hecks publish`, `hecks regenerate_corpus`,
-`hecks measure_doc_coverage`, and the rest of the Codebase chapter).
+maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
+`hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase chapter).
 
 The gem carries no sample domain, so the quickstart below starts from a
 clone of this repository.
@@ -428,7 +428,7 @@ Only what this repository actually does today, checked, not aspired to:
   over a domain's own IR — unreachable lifecycle states, transitions
   nothing can fire, saga states no handler chain reaches — before
   anything boots against real data.
-- **Property-based fuzzing, including determinism.** `hecks fuzz`
+- **Property-based fuzzing, including determinism.** `hecks fuzz_run.fuzz`
   generates random-but-valid command/query sequences from a domain's
   own IR and checks four properties: every lifecycle value a replay
   produces was declared, every saga advance follows a declared handler,
@@ -436,7 +436,7 @@ Only what this repository actually does today, checked, not aspired to:
   actually matters for an event-sourced system — **replaying the same
   steps against a fresh boot produces byte-identical history.** This
   runs against the Memory adapter by default and against real Sqlite
-  and Postgres with `hecks fuzz adapter=sqlite` (or `adapter=postgres`) (see
+  and Postgres with `hecks fuzz_run.fuzz adapter=sqlite` (or `adapter=postgres`) (see
   [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
@@ -621,7 +621,7 @@ Issues, examples, and runtime/adapter work are all welcome — the gaps
 in [Project status](docs/implemented/guides/project-status.md) are real
 starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `hecks model_check`, and
-`hecks fuzz` are what CI runs, and every `ruby`-fenced example in a guide
+`hecks fuzz_run.fuzz` are what CI runs, and every `ruby`-fenced example in a guide
 or this README is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 the full checklist. To check the whole claim, not just the demo:
@@ -629,7 +629,7 @@ the full checklist. To check the whole claim, not just the demo:
 ```sh
 bundle exec rspec       # the whole suite
 bundle exec hecks model_check   # static analysis over a domain's IR
-bundle exec hecks fuzz          # generated sequences, checked against declared properties
+bundle exec hecks fuzz_run.fuzz          # generated sequences, checked against declared properties
 ```
 
 ## License

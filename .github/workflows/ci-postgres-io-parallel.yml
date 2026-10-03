@@ -42,7 +42,7 @@ jobs:
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch anything rspec_postgres_io_parallel covers?'
-        run: bundle exec exe/hecks decide_ci_gate gate=postgres_io_relevant_changed --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=postgres_io_relevant_changed --wait
   # END GENERATED ci_gate postgres_io_relevant_changed
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
@@ -83,7 +83,7 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
-        run: bundle exec exe/hecks ask list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
+        run: bundle exec exe/hecks query test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
 
   # Matrix of 8 one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.
@@ -91,7 +91,7 @@ jobs:
   # Every leg computes the identical 8-way split (`-n 8`, same committed baseline) and
   # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
   #
-  # One process per leg is load-bearing: hecks quality_control create_ledger_role creates the cluster-global
+  # One process per leg is load-bearing: hecks quality_control sweep.create_ledger_role creates the cluster-global
   # role `hecks_qa` check-then-create, and two qa_sweep_all specs provisioning at once
   # collided on `pg_authid_rolname_index`.
   #

@@ -32,11 +32,11 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
     end
   end
 
-  it "answers an unknown verb's hint without binding an adapter" do
+  it "answers an unknown command's hint without binding an adapter" do
     out, err, status = hecks("no_such_verb")
 
     expect(status).not_to be_success
-    expect(err).to include("no such verb: no_such_verb")
+    expect(err).to include("no such command: no_such_verb")
     expect(err).not_to match(/cannot (open|bind)|PG::|PostgresEra|password/i)
     expect(out).to eq("")
   end

@@ -59,7 +59,7 @@ module Hecks
     # and query never drift from what a human typing hecks run sees.
     # :nodoc:
     def resolve!(cli, name, asking:)
-      pool = asking ? cli[:questions] : cli[:verbs]
+      pool = asking ? cli[:questions] : cli[:commands]
       key  = cli[:names][asking ? :question : :command][name]
       spec = pool[key]
       return spec if spec
@@ -109,7 +109,7 @@ module Hecks
       return unless spec[:role_gated] && role.nil?
 
       raise Runtime::Unauthorized,
-            "#{spec[:verb]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
+            "#{spec[:command]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
             "(role:/actor_id:) is bound; dispatching it unbound is refused, not silently unchecked"
     end
 
@@ -192,12 +192,12 @@ module Hecks
       result = with_caller(role, actor_id) do
         dry_run ? dry_run_outcome(runtime, spec, envelope, summary: summary) : real_dispatch(runtime, spec, envelope, summary)
       end
-      result.merge(verb: spec[:verb])
+      result.merge(verb: spec[:command])
     end
 
     # :nodoc:
     def real_dispatch(runtime, spec, envelope, summary)
-      result = runtime.dispatch_flat(spec[:verb], envelope)
+      result = runtime.dispatch_flat(spec[:command], envelope)
       ok(summary: summary,
          id:      result.id,
          state:   result.state.nil? ? nil : Doors::JsonDoor.materialize(result.state),
@@ -207,7 +207,7 @@ module Hecks
     # :nodoc:
     def dry_run_outcome(runtime, spec, envelope, summary:)
       flat = flatten_legacy(envelope, spec[:receiver], spec[:legacy_receiver])
-      runtime.dry_run?(spec[:verb], **flat)
+      runtime.dry_run?(spec[:command], **flat)
       ok(summary: summary, would_succeed: true)
     rescue Runtime::WiringError, *Runtime::DOMAIN_REFUSALS => e
       ok(summary: summary, would_succeed: false, error: e.message)
@@ -268,9 +268,9 @@ module Hecks
       valid_caller!(role, actor_id)
       cli  = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
       spec = resolve!(cli, question, asking: true)
-      rows = with_caller(role, actor_id) { runtime.query(spec[:verb], **Doors::JsonDoor.deep_symbolize(args)) }
+      rows = with_caller(role, actor_id) { runtime.query(spec[:command], **Doors::JsonDoor.deep_symbolize(args)) }
 
-      ok(summary: summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
+      ok(summary: summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:command])
     end
 
     # Reads one aggregate's stored records directly, bypassing any declared
