@@ -5,14 +5,121 @@
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": { "value": "CUST-R2" },
-        "name": { "given": "Ada", "family": "Lovelace" },
-        "email": { "address": "ada@example.com" }
+        "reference": {
+          "value": "CUST-R2"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
       }
     },
     {
       "query": "Banking.customer_portfolio",
-      "args": { "customer": "CUST-R2" }
+      "args": {
+        "customer": "CUST-R2"
+      }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#CUST-R2": {
+        "reference": {
+          "value": "CUST-R2"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-R2",
+        "payload": {
+          "reference": {
+            "value": "CUST-R2"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking.customer_portfolio",
+        "args": {
+          "customer": "CUST-R2"
+        },
+        "rows": [
+          {
+            "customer": {
+              "reference": {
+                "value": "CUST-R2"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              },
+              "standing": {
+                "value": "good"
+              },
+              "status": "active",
+              "id": "CUST-R2"
+            },
+            "accounts": [
+
+            ],
+            "atm_cards": [
+
+            ],
+            "transfers": [
+
+            ],
+            "card_payments": [
+
+            ],
+            "external_transfers": [
+
+            ],
+            "scheduled_payments": [
+
+            ]
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

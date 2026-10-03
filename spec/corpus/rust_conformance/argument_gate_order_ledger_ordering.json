@@ -93,5 +93,71 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "LedgerOrdering::Folder.Open",
+        "error": "Open does not declare colour — it takes reference",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.Open",
+        "error": "FolderReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.AddSlip",
+        "error": "AddSlip does not declare flavour — it takes reference, amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.AddSlip",
+        "error": "AddSlip was not given reference — it takes reference, amount",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.AddSlip",
+        "error": "SlipReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.AddSlip",
+        "error": "AddSlip refused — role: Clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.Slip.Amend",
+        "error": "Amend does not declare note — it takes amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.Slip.Amend",
+        "error": "SlipAmount.value expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "LedgerOrdering::Folder.Slip.Amend",
+        "error": "Amend refused — role: Clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

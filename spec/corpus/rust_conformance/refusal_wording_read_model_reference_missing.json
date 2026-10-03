@@ -2,8 +2,110 @@
   "domain": "examples/banking",
   "note": "NotFound/read_model_reference_missing — a read model asked for a root record that does not exist. Ruby's `ReadModelInterpreter#fetch` refuses `no Account with reference \"acct-missing\"` (the bare aggregate name, the word \"reference\"); Rust's `read_model::fetch_root` used to refuse `no Banking::Account with id \"acct-missing\"`, found only by replaying the whole spec/corpus/banking.json (step 169). Both the refusal and the query-log row carry the wording.",
   "steps": [
-    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
-    {"query": "Banking.ComplianceDashboard", "args": {"account": "acct-missing"}},
-    {"query": "Banking.CustomerPortfolio", "args": {"customer": "cust-missing"}}
-  ]
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "query": "Banking.ComplianceDashboard",
+      "args": {
+        "account": "acct-missing"
+      }
+    },
+    {
+      "query": "Banking.CustomerPortfolio",
+      "args": {
+        "customer": "cust-missing"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking.ComplianceDashboard",
+        "error": "no Account with reference \"acct-missing\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking.CustomerPortfolio",
+        "error": "no Customer with reference \"cust-missing\"",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking.ComplianceDashboard",
+        "args": {
+          "account": "acct-missing"
+        },
+        "rows": null,
+        "error": "no Account with reference \"acct-missing\""
+      },
+      {
+        "query": "Banking.CustomerPortfolio",
+        "args": {
+          "customer": "cust-missing"
+        },
+        "rows": null,
+        "error": "no Customer with reference \"cust-missing\""
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

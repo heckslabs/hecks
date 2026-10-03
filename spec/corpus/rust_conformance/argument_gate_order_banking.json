@@ -1854,5 +1854,791 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "Register does not declare rank — it takes reference, name, email",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "Register was not given reference — it takes reference, name, email",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "CustomerNumber.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "Suspend does not declare rank — it takes standing",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "CustomerStanding.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "Suspend refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Customer.Reinstate",
+        "error": "Reinstate does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Customer.Reinstate",
+        "error": "Reinstate refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Customer.Close",
+        "error": "Close does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Customer.Close",
+        "error": "Close refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open does not declare flavour — it takes customer, number, kind, daily_limit",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open was not given customer — it takes customer, number, kind, daily_limit",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "AccountNumber.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit does not declare flavour — it takes amount, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit was not given amount — it takes amount, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit refused — role: Teller, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit does not declare flavour — it takes amount, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit was not given amount — it takes amount, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — role: Teller, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "FreezeAccount does not declare rank — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "FreezeAccount refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.Unfreeze",
+        "error": "Unfreeze does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Unfreeze",
+        "error": "Unfreeze refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.CloseAccount",
+        "error": "CloseAccount does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.CloseAccount",
+        "error": "CloseAccount refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "ApplyFee does not declare flavour — it takes amount, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "ApplyFee was not given amount — it takes amount, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "ApplyFee refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.CorrectFee",
+        "error": "CorrectFee does not declare rank — it takes amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.CorrectFee",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.CorrectFee",
+        "error": "CorrectFee refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.AccrueInterest",
+        "error": "AccrueInterest does not declare flavour — it takes amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.AccrueInterest",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.AccrueInterest",
+        "error": "AccrueInterest refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "CorrectInterest does not declare note — it takes amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "CorrectInterest refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend does not declare colour — it takes adjustment, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend was not given adjustment — it takes adjustment, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Money.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "Reverse does not declare rank — it takes narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "Narrative.text expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "Reverse refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "Open does not declare colour — it takes customer, reference, account_number",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "Open was not given customer — it takes customer, reference, account_number",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "OnboardingReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Clear",
+        "error": "Clear does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Clear",
+        "error": "Clear refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Decline",
+        "error": "Decline does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Decline",
+        "error": "Decline refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue does not declare rank — it takes account, serial, daily_fee",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue was not given account — it takes account, serial, daily_fee",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "CardSerial.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "Rename does not declare note — it takes nickname",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "CardNickname.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "Rename refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "Withdraw does not declare rank — it takes cents, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "Withdraw was not given cents — it takes cents, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "WithdrawalAmount.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "Withdraw refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "Activate does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "Activate refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Retire",
+        "error": "Retire does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Retire",
+        "error": "Retire refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "Dispute does not declare flavour — it takes narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "Narrative.text expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "Dispute refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "Authorize does not declare flavour — it takes authorisation, tags, account, amount, merchant",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "Authorize was not given authorisation — it takes authorisation, tags, account, amount, merchant",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "AuthorisationCode.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "Capture does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "Capture refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Void",
+        "error": "Void does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Void",
+        "error": "Void refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Refund",
+        "error": "Refund does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Refund",
+        "error": "Refund refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Reverse",
+        "error": "Reverse does not declare rank — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Reverse",
+        "error": "Reverse refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Dispute",
+        "error": "Dispute does not declare note — it takes disputed_by",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Dispute",
+        "error": "Dispute was not given disputed_by — it takes disputed_by",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Dispute",
+        "error": "Dispute refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.Dispute",
+        "error": "no Customer with reference \"no-such-customer\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Chargeback",
+        "error": "Chargeback does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.Chargeback",
+        "error": "Chargeback refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::CardPayment.RejectDispute",
+        "error": "RejectDispute does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::CardPayment.RejectDispute",
+        "error": "RejectDispute refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rent",
+        "error": "Rent does not declare rank — it takes branch_code, box_number, size, customer",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rent",
+        "error": "Rent was not given branch_code — it takes branch_code, box_number, size, customer",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rent",
+        "error": "BranchCode.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rent",
+        "error": "Rent refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Surrender",
+        "error": "Surrender does not declare rank — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Surrender",
+        "error": "Surrender refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "LogVisit does not declare colour — it takes date, sequence, note",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "LogVisit was not given date — it takes date, sequence, note",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "VisitDate.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "LogVisit refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.IssueKey",
+        "error": "IssueKey does not declare colour — it takes serial",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.IssueKey",
+        "error": "KeySerial.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.IssueKey",
+        "error": "IssueKey refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Visit.Annotate",
+        "error": "Annotate does not declare flavour — it takes note",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Visit.Annotate",
+        "error": "VisitNote.text expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Visit.Annotate",
+        "error": "Annotate refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+        "error": "Return does not declare note — it takes serial",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+        "error": "KeySerial.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+        "error": "Return refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate does not declare note — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate was not given period — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "StatementPeriod.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Request does not declare colour — it takes reference, amount, narrative, source, destination",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Request was not given reference — it takes reference, amount, narrative, source, destination",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "TransferReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Request refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Debited",
+        "error": "Debited does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Debited",
+        "error": "Debited refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Settle",
+        "error": "Settle does not declare rank — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Settle",
+        "error": "Settle refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Credited",
+        "error": "Credited does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Credited",
+        "error": "Credited refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Reverse",
+        "error": "Reverse does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Reverse",
+        "error": "Reverse refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Transfer.Reject",
+        "error": "Reject does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Transfer.Reject",
+        "error": "Reject refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "Request does not declare rank — it takes end_to_end, account, amount, beneficiary, direction",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "Request was not given end_to_end — it takes end_to_end, account, amount, beneficiary, direction",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "EndToEndReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.SendTransfer",
+        "error": "SendTransfer does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.SendTransfer",
+        "error": "SendTransfer refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Recall",
+        "error": "Recall does not declare rank — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Recall",
+        "error": "Recall refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Return",
+        "error": "Return does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Return",
+        "error": "Return refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "Schedule does not declare flavour — it takes instruction, account, amount, recipient, due_on",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "Schedule was not given instruction — it takes instruction, account, amount, recipient, due_on",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "InstructionReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "Schedule refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Execute",
+        "error": "Execute does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Execute",
+        "error": "Execute refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Cancel",
+        "error": "Cancel does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Cancel",
+        "error": "Cancel refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Fail",
+        "error": "Fail does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Fail",
+        "error": "Fail refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Retry",
+        "error": "Retry does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Retry",
+        "error": "Retry refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Abandon",
+        "error": "Abandon does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Abandon",
+        "error": "Abandon refused — role: Back office, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }
