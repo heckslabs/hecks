@@ -2,10 +2,7 @@
 # Roll @@STACK@@'s app box: render the compose files, push them over SSM, start the containers and check
 # them. Exits non-zero if the roll fails or the box does not answer as expected.
 #
-#   deploy-box.sh [name=tag ...]
-#
-# A container named without a tag runs its "latest" image. Secret values are resolved on the box by
-# fetch-secrets.sh and never pass through the SSM command.
+@@USAGE@@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 BOX_STACK=@@BOX_STACK@@

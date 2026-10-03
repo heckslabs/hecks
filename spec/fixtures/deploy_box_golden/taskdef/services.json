@@ -1,0 +1,17 @@
+{
+  "services": {
+    "website": {
+      "name": "website",
+      "port": 8080
+    },
+    "cms": {
+      "name": "cms",
+      "port": 8081
+    }
+  },
+  "origin": {
+    "header": "X-Origin-Secret",
+    "secret": "widget/origin-secret"
+  },
+  "task_definition": "widget-platform"
+}

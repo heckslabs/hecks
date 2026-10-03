@@ -23,6 +23,7 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 5. Golden files for a minimal, a full and a tunnel world live in `spec/fixtures/deploy_box_golden/`.
 6. The `tunnel` setting has two forms. `tunnel true` opens the outbound port for a tunnel the project runs itself. `tunnel({ to: "<container>", token_secret: "<name>" })` also runs `cloudflared` as a service in the box's Compose project, forwarding to that container's port, with its token read from the named secret (which the box role may read) and a check after the roll that a connection registered.
 7. Both default images, the proxy and the tunnel, are a version tag plus the digest of the multi-architecture index, so a rebuilt box pulls the same bytes. A world can set `proxy_image`, and the tunnel hash takes `image`; either may be any image reference the generator can splice safely.
+8. A world can name an ECS task definition family with `task_definition "<family>"`. The box's Compose file is then rendered at deploy time from that task definition, by the operator's credentials: each declared container takes its image, environment and secrets from the task's container of the same name, `DB_HOST` and `DB_SECRET_ARN` are replaced with the RDS stack's values, and a declared container the task lacks is refused. The world still declares each container's name and port for the proxy. A container that also sets `env`, `secrets` or `repository` is refused, and the box stack makes no ECR repositories, since the task's images already have some. `deploy-box.sh` takes an optional task definition (default: the family's latest active revision), so a project moves off Fargate by pointing the box at the task it already runs.
 
 ## Consequences
 
@@ -39,5 +40,4 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 ## Open items
 
 - Migration and cutover tooling from an existing Fargate stack.
-- A source for the Compose file other than `services.json` (a task definition, for projects that already have one).
 - The pinned default images (version and digest) go stale. Nothing yet bumps them; a bump is a change to `Box::Settings` and the goldens.

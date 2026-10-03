@@ -171,6 +171,28 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "a task definition" do
+    it "is nil unless the world names one" do
+      expect(resolve.task_definition).to be_nil
+      expect(resolve(task_definition: "shop-platform").task_definition).to eq("shop-platform")
+    end
+
+    it "refuses a family that could not be spliced safely" do
+      expect(refusal(task_definition: "shop platform")).to include("task_definition")
+      expect(refusal(task_definition: "shop-platform:7")).to include("task_definition")
+    end
+
+    it "refuses a container that also sets what the task definition supplies" do
+      with_env = [web.merge(env: { "A" => "1" })]
+      with_both = [web.merge(secrets: { "A" => "shop/a" }, repository: "shop-web")]
+
+      expect(refusal(task_definition: "shop-platform", containers: with_env))
+        .to include("web sets env", "shop-platform supplies")
+      expect(refusal(task_definition: "shop-platform", containers: with_both)).to include("secrets, repository")
+      expect(resolve(containers: with_env).containers.first.env).to eq("A" => "1")
+    end
+  end
+
   describe "images" do
     it "pins both default images by version and digest" do
       expect(described_class::TUNNEL_IMAGE).to match(%r{\Acloudflare/cloudflared:\d+\.\d+\.\d+@sha256:\h{64}\z})
