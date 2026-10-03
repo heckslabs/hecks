@@ -27,7 +27,7 @@ pre_push:
       blocked: the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.
     - id: engine_agreement
       title: engine agreement, every declared comparator on both engines
-      run: [bundle, exec, exe/hecks, check_engine_agreement, --wait]
+      run: [bundle, exec, exe/hecks, conformance_run.check_engine_agreement, --wait]
       blocked: a comparator is missing a shared case or a cross-engine spec.
     - id: model_check
       title: model check, unreachable states, dead transitions and orphaned handlers
@@ -35,7 +35,7 @@ pre_push:
       blocked: the model checker found something.
     - id: doc_coverage
       title: docs coverage, words with no running example
-      run: [bundle, exec, exe/hecks, measure_doc_coverage, --wait]
+      run: [bundle, exec, exe/hecks, conformance_run.measure_doc_coverage, --wait]
       blocked: the language ships something undocumented; write the missing sections and examples.
     - id: rubocop
       title: rubocop, the static style and correctness gate
@@ -43,13 +43,13 @@ pre_push:
       blocked: rubocop found an offense.
     - id: codegen_drift
       title: codegen drift, the committed rust/src/generated/ must match a fresh regeneration
-      run: [bundle, exec, exe/hecks, regenerate_corpus, --check, --wait]
+      run: [bundle, exec, exe/hecks, regeneration_run.regenerate_corpus, --check, --wait]
       blocked: regenerating hits a diff, so the committed Rust is stale; run `hecks regenerate_corpus --confirm` and commit the result.
     - id: comment_style
       title: comment style, every comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md
-      run: [bundle, exec, exe/hecks, check_comments, paths=lib/hecks, --wait]
+      run: [bundle, exec, exe/hecks, style_run.check_comments, paths=lib/hecks, --wait]
       blocked: a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.
     - id: comment_blocks
       title: comment blocks, no run of comment lines past ADR 0075's cap
-      run: [bundle, exec, exe/hecks, check_comments, "paths=lib,spec,examples", only=long_block, --wait]
+      run: [bundle, exec, exe/hecks, style_run.check_comments, "paths=lib,spec,examples", only=long_block, --wait]
       blocked: a comment block ran past the cap; shorten it.

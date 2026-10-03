@@ -7,11 +7,11 @@ require_relative "../../ports/persistence/plugins/era"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control log`: logs a bug to the QualityControl ledger,
+    # The command behind `hecks quality_control bug.log`: logs a bug to the QualityControl ledger,
     # proven, numbered and triaged. It runs `--demonstration` first and refuses unless it exits
     # non-zero.
     #
-    #   hecks quality_control log --sweep <sweep-id> --title "…" \
+    #   hecks quality_control bug.log --sweep <sweep-id> --title "…" \
     #     --demonstration "bundle exec rspec spec/x_spec.rb -e 'the case'" \
     #     --symptom "…" --expectation "…" --submitter "<who>" \
     #     --triage self_contained|bigger [--tag word]… [--reproduced yes|no]

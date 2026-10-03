@@ -76,12 +76,12 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   it "keeps a journaled command's events for a later process" do
-    out, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "model_check", "run=kept-1",
+    out, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "model_check_run.model_check", "run=kept-1",
                              "domains=#{File.join(@dir, 'shelf')}")
     expect(status.success?).to be(true), "#{out}\n#{err}"
     expect(JSON.parse(out).fetch("events")).to eq(["ModelCheckRequested"])
 
-    history, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "ask", "history",
+    history, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "query", "introspection.history",
                                  "domain=#{File.join(HECKS_ROOT, 'lib/hecks/hecks')}")
     expect(status.success?).to be(true), err
     entries = JSON.parse(history.lines.last).fetch("model_check_run")

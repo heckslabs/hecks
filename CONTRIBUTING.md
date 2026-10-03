@@ -62,7 +62,7 @@ git config core.hooksPath .githooks
 ```
 
 It runs the parallel suite, `spec/fuzzing`, the query-agreement `io`
-spec, the engine-agreement check, `hecks model_check`, `hecks measure_doc_coverage`
+spec, the engine-agreement check, `hecks model_check`, `hecks conformance_run.measure_doc_coverage`
 and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
@@ -129,15 +129,15 @@ IR:
 ```sh
 bundle exec hecks model_check           # static analysis over the IR — unreachable states,
                                         # dead transitions, sagas nothing reaches
-bundle exec hecks fuzz                  # generated command/query sequences, checked against
+bundle exec hecks fuzz_run.fuzz                  # generated command/query sequences, checked against
                                         # declared properties and interpreter crashes
-bundle exec hecks measure_doc_coverage  # every live DSL word ships with a running example
+bundle exec hecks conformance_run.measure_doc_coverage  # every live DSL word ships with a running example
 bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
 The `hecks` command is the one entry point for all of this. Its verbs are
 the commands of the `Hecks` chapter (`lib/hecks/hecks/`), and its
-attached chapters add theirs (`hecks deploy project`, `hecks quality_control
+attached chapters add theirs (`hecks deploy recipe.project`, `hecks quality_control
 …`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
 `run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
 `project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
@@ -174,12 +174,12 @@ request's own CI builds and runs the conformance suite, and the merge
 queue runs it again against main's current tip before anything lands. If
 you do touch anything
 that changes what gets generated (`rust/project/*.rb`,
-`hecks project_rust`, the kernel's hand-written half under
+`hecks build.project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
 before you find out from CI:
 
 ```sh
-bundle exec hecks project_rust examples/banking
+bundle exec hecks build.project_rust examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
 
@@ -235,7 +235,7 @@ above:
 - the whole suite, and the fuzzing specs;
 - the Postgres and Rust `io` specs, against real databases and a real Rust
   build;
-- `hecks model_check`, the engine-agreement check, `hecks measure_doc_coverage` and
+- `hecks model_check`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage` and
   `rubocop`;
 - the Ruby/Rust parity specs and the golden IR (`spec/codegen_parity_spec.rb`,
   `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
@@ -259,7 +259,7 @@ code.
 - `bundle exec rubocop -c .rubocop.yml` clean.
 - If you touched a `.bluebook` file that ships as part of the
   language's own definition (`lib/hecks/language/`) or added a DSL
-  word: `hecks measure_doc_coverage` clean, and a real prose section in
+  word: `hecks conformance_run.measure_doc_coverage` clean, and a real prose section in
   `docs/implemented/reference/` — not the `TODO` sentinel — with a
   runnable example.
 - If you touched a lifecycle, saga, or policy: `hecks model_check` clean.
@@ -307,17 +307,17 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    a major carries a `Breaking:` entry, and a minor that changes how a
    running system behaves carries a `Behavior change` entry.
 2. Once that PR merges to `main`, check out `main`, pull, and run
-   `hecks publish` (no `--confirm`) to see every check and build pass with
-   nothing tagged or published. Then run `hecks publish --confirm`. It refuses unless the
+   `hecks publishing_run.publish` (no `--confirm`) to see every check and build pass with
+   nothing tagged or published. Then run `hecks publishing_run.publish --confirm`. It refuses unless the
    checkout is a clean `main` equal to `origin/main`, the gem and
    `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
    heading for it. It asks RubyGems and npm what is already published and
    skips that, so if a run stops partway, run it again. In order, it:
    - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
-   - runs `hecks publish_gem` to build the gem and push it to rubygems.org;
+   - runs `hecks publishing_run.publish_gem` to build the gem and push it to rubygems.org;
    - waits for CI to publish `@hecks/client`. Pushing the tag starts
      `.github/workflows/publish-client.yml`, which publishes the package
-     with npm trusted publishing (no token, no code). `hecks publish` says
+     with npm trusted publishing (no token, no code). `hecks publishing_run.publish` says
      so, then checks npm every 15 seconds for up to 10 minutes and reports
      success, or the timeout with the run to look at
      (`gh run list --workflow publish-client.yml`). `--no-wait` skips the
@@ -339,7 +339,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    organization or user `heckslabs`, repository `hecks`, workflow filename
    `publish-client.yml`, environment blank.
 
-   `--npm-local` (an option of `hecks publish`) is the fallback, and how the first publish is made
+   `--npm-local` (an option of `hecks publishing_run.publish`) is the fallback, and how the first publish is made
    (before a trusted publisher can exist): it publishes `@hecks/client`
    from this machine with a token from 1Password instead of leaving it to
    CI (with `--npm-only` it publishes only the package). The token is the
@@ -354,7 +354,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    does ask for a passkey or security key, it prints an approval link and
    waits.
 
-   `hecks publish` does not create the GitHub Release. Once the tag is
+   `hecks publishing_run.publish` does not create the GitHub Release. Once the tag is
    pushed, create it with the version's own `CHANGELOG.md` section as its
    notes, so the Releases page lists every tag. Mark it Latest only when it
    is the newest version:
@@ -364,7 +364,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    gh release create vX.Y.Z --title "hecks X.Y.Z" --notes-file notes.md --verify-tag --latest
    ```
 
-   Manual fallback, if `hecks publish` cannot be used: tag the merge commit
+   Manual fallback, if `hecks publishing_run.publish` cannot be used: tag the merge commit
    (`git tag -a vX.Y.Z <sha>` and push it, which starts the CI publish),
-   run `hecks publish_gem --confirm`, and if CI cannot publish, run
+   run `hecks publishing_run.publish_gem --confirm`, and if CI cannot publish, run
    `npm publish --access public` in `packages/hecks-client`.

@@ -1072,7 +1072,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             end
 
           # Shares mint_era_recipe's bastion/tunnel/retry/teardown chain but
-          # runs `hecks ask scaffold_translation` or `hecks ask audit_translation` over it.
+          # runs `hecks query era.scaffold_translation` or
+          # `hecks query era.audit_translation` over it.
           #
           # Neither script actually reads DATABASE_URL/HECKS_SCHEMA (both call
           # `registry.binding_settings`, a lookup against the literal `database
@@ -1147,12 +1148,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
 
           # `hecks ask` answers the scaffold as text, and refuses (exit 1) where the script aborted.
           scaffold_translation_recipe = translation_recipe.call(
-            "scaffold-translation", "exe/hecks ask scaffold_translation", db_env_blind: true,
+            "scaffold-translation", "exe/hecks query era.scaffold_translation", db_env_blind: true,
             run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
           )
           # A refused audit is a refused query: `hecks ask` exits 1, so the target fails too.
           translation_audit_recipe = translation_recipe.call(
-            "translation-audit", "exe/hecks ask audit_translation", db_env_blind: true,
+            "translation-audit", "exe/hecks query era.audit_translation", db_env_blind: true,
             run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
           )
 
@@ -1393,7 +1394,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # field). `hecks build_wasm` recompiles fast enough that "always
             # rebuild" is the safe default, matching rust/host's own bootstrap
             # build just below, which was never guarded this way to begin with.
-            \tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build_wasm domain=#{domain} --wait
+            \tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm domain=#{domain} --wait
             \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
             # `rustup run stable`, not a bare `cargo lambda` — same reasoning
             # `hecks build_wasm`'s own Makefile-equivalent line holds itself to: a
@@ -1495,12 +1496,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             .PHONY: verify-parity-#{logical_id}
             verify-parity-#{logical_id}:
             \t@if [ -f #{root}/spec/corpus/#{domain_name}.json ]; then \\
-            \t\tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks check_conformance domain=#{domain} script=spec/corpus/#{domain_name}.json artifact=$(WASM) --wait; \\
+            \t\tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.check_conformance domain=#{domain} script=spec/corpus/#{domain_name}.json artifact=$(WASM) --wait; \\
             \telse \\
             \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (hecks fuzz/hecks run's own script shape) before this domain's next deploy."; \\
             \tfi
             \t@echo "verify-parity-#{logical_id}: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
-            \t-@cd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks fuzz_conformance domain=#{domain} artifact=$(WASM) --wait
+            \t-@cd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.fuzz_conformance domain=#{domain} artifact=$(WASM) --wait
 
             # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
             # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to

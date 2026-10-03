@@ -1,4 +1,4 @@
-# Binds the `Agent` port to `Agent`; `hecks quality_control mine_combinations` asks it to write candidate domains.
+# Binds the `Agent` port to `Agent`; `hecks quality_control target.mine_combinations` asks it to write candidate domains.
 # Required by name, not relative, so a copy of this directory shares the one implementation loaded.
 require "hecks/quality_control/adapters/agent"
 

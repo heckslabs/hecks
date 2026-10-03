@@ -5,7 +5,7 @@ require "rspec/core"
 module Hecks
   module CLI
     # The command behind `hecks run_spec_example`: runs one spec file filtered to one example
-    # through `RSpec::Core::Runner`, so a `hecks quality_control log --demonstration` string
+    # through `RSpec::Core::Runner`, so a `hecks quality_control bug.log --demonstration` string
     # needs no `-e` quoting.
     module SpecExample
       USAGE = "usage: hecks run_spec_example <spec_file> <example description substring>"

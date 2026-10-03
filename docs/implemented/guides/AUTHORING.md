@@ -96,11 +96,11 @@ Rules that keep the suite honest:
 ## The reference
 
 `docs/implemented/reference/` is generated from the language's own Syntax chapter by
-`hecks project_reference`, and it carries examples under the same harness the
+`hecks language_run.project_reference`, and it carries examples under the same harness the
 guides do — with two rules the guides do not have.
 
 - **Every live word carries a running example, in its own `## <word>`
-  section.** `hecks measure_doc_coverage` refuses a tree where one does not, and
+  section.** `hecks conformance_run.measure_doc_coverage` refuses a tree where one does not, and
   the pre-push hook runs it. A word that cannot be exemplified is a
   finding, not an exception: implement it, refuse it at build (and
   document that refusal with a `# ~>` marker, the way `cursor` does), or
@@ -129,7 +129,7 @@ guides do — with two rules the guides do not have.
   first rather than wrapping a call across lines.
 - Run the reference before believing it:
   `bundle exec rspec spec/reference_doctest_spec.rb`, then
-  `hecks measure_doc_coverage`.
+  `hecks conformance_run.measure_doc_coverage`.
 
 ## The voice
 

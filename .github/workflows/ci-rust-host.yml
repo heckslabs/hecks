@@ -78,8 +78,8 @@ jobs:
 
       - name: Build banking + checkout_fixture wasm
         run: |
-          bundle exec exe/hecks build_wasm domain=examples/banking --wait
-          bundle exec exe/hecks build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+          bundle exec exe/hecks build.build_wasm domain=examples/banking --wait
+          bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
           # hecks build_wasm regenerates tracked rust/src/generated +
           # rust/Cargo.toml as a side effect; put them back.
           git checkout -- rust/src/generated rust/Cargo.toml

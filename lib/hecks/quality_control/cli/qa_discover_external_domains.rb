@@ -5,15 +5,15 @@ require "open3"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control discover_external_domains`: reports sibling-repo
-    # bluebook domains under `--projects-dir` that already depend on the hecks gem but are not
-    # enrolled yet. It never enrolls anything itself.
+    # The command behind `hecks quality_control target.discover_external_domains`: reports
+    # sibling-repo bluebook domains under `--projects-dir` that already depend on the hecks gem but
+    # are not enrolled yet. It never enrolls anything itself.
     #
-    #   hecks quality_control discover_external_domains
-    #   hecks quality_control discover_external_domains --projects-dir ~/Projects
-    #   hecks quality_control discover_external_domains --max-depth 4
-    #   hecks quality_control discover_external_domains --known-path <path> ...   # bypass the
-    # ledger read
+    #   hecks quality_control target.discover_external_domains
+    #   hecks quality_control target.discover_external_domains --projects-dir ~/Projects
+    #   hecks quality_control target.discover_external_domains --max-depth 4
+    #   hecks quality_control target.discover_external_domains --known-path <path> ...   # bypass
+    # the ledger read
     class QaDiscoverExternalDomains
       USAGE = "usage: hecks quality_control discover_external_domains [--projects-dir <path>] " \
               "[--max-depth N] [--known-path <path> ...]"

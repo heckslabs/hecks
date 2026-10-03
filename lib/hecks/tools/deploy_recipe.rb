@@ -11,7 +11,7 @@ module Hecks
     # target and dispatches to the matching `Projector` export, writing the recipe (template,
     # scripts and Makefile) under `deploy/<stack>/` of the checkout.
     #
-    #   hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>]
+    #   hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
     #       [--out=<dir>] [--environment=<name>]
     #
     # `--environment` layers an overlay `.world` file over the base one; a missing overlay is an

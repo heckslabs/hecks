@@ -42,7 +42,7 @@ RSpec.describe "the QualityControl tool queries" do
   end
 
   it "runs the novelty gate through the launcher and answers its report" do
-    out, status = launch("quality_control", "judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'hopper')}",
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'hopper')}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}")
 
     expect(status).to eq(0), out
@@ -50,7 +50,7 @@ RSpec.describe "the QualityControl tool queries" do
   end
 
   it "answers a judgment that is not a pass, as the command does: no new pair is still an answer" do
-    out, status = launch("quality_control", "judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}",
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'hopper')}")
 
     expect(status).to eq(0), out
@@ -58,15 +58,15 @@ RSpec.describe "the QualityControl tool queries" do
   end
 
   it "refuses with the command's own report when it ends in an error" do
-    out, status = launch("quality_control", "judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'flat.bluebook')}",
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'flat.bluebook')}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}")
 
     expect(status).to eq(1)
     expect(out).to include("not shaped like a stress domain", "ended with status 2")
   end
 
-  it "answers help for the sweep by asking for it: bare `run` is the CI port's" do
-    out, status = launch("quality_control", "ask", "run", "--help")
+  it "answers help for the sweep by asking for it, qualified: `sweep.run`" do
+    out, status = launch("quality_control", "ask", "sweep.run", "--help")
 
     expect(status).to eq(0)
     expect(out).to include("reads QualityControl::Sweep.Run", "arguments.value")

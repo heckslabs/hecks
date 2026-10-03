@@ -158,13 +158,13 @@ result.runs.map(&:status).uniq                   # => [:pass]
 result.runs.first.description                    # => "CreatePizza puts a fresh pizza on the menu, available for sale"
 ```
 
-`hecks run_behaviors` is the command-line form — one file or a directory to
+`hecks operation.run_behaviors` is the command-line form — one file or a directory to
 sweep, human-readable output, a nonzero exit on any fail, error, or
 parse error:
 
 ```
-hecks run_behaviors examples/pizzas/bluebook/pizzas.behaviors
-hecks run_behaviors examples/
+hecks operation.run_behaviors examples/pizzas/bluebook/pizzas.behaviors
+hecks operation.run_behaviors examples/
 ```
 
 For a consumer whose own test suite runs on rspec,

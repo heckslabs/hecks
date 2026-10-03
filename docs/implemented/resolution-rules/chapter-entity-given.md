@@ -102,7 +102,7 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
 - First-declared-wins is a textual-order fact, the same caveat
   `cross-entity-given.md`'s own "Known limitations" already names one level
   down — swapping which piece declares the block changes nothing observable.
-- `hecks ir_duplicates` CANNOT be taught this rule the way cross-entity
+- `hecks corpus_run.ir_duplicates` CANNOT be taught this rule the way cross-entity
   sharing was — see `Hecks::QueryIR#declaration_count`'s own comment. A
   piece resolving a chapter-wide reference still write-throughs the
   resolved `Given` into its OWN `@named_givens` (so its own commands read

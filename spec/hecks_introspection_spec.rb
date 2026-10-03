@@ -4,7 +4,7 @@ require "fileutils"
 require "json"
 
 # Custodian's Introspection, reached the way `hecks <verb>` reaches it: the Hecks domain boots,
-# the launcher resolves a bare query name, and the DomainRuntime port's adapter answers.
+# the launcher resolves a query by its aggregate-qualified name, and the DomainRuntime port's adapter answers.
 RSpec.describe "hecks introspection through the launcher" do
   INTROSPECTED_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Shelf" do
@@ -51,7 +51,7 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "answers a document as its own text, not as a JSON string inside JSON" do
-    out, status = run_verb("statements", @dir, "chapter=Shelf")
+    out, status = run_verb("introspection.statements", @dir, "chapter=Shelf")
 
     expect(status).to eq(0)
     expect(out).to include("A book is titled.")
@@ -59,7 +59,7 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "answers a JSON document as that JSON, byte for byte what the adapter returns" do
-    out, status = run_verb("stores", @dir)
+    out, status = run_verb("introspection.stores", @dir)
 
     expect(status).to eq(0)
     expect(out).to eq(Hecks::Adapters::InProcessBoot.new.stores(domain: @dir).fetch(:text))
@@ -67,7 +67,7 @@ RSpec.describe "hecks introspection through the launcher" do
 
   it "answers files as rows of name and text, and writes none" do
     before = Dir.glob(File.join(@dir, "**/*"))
-    out, status = run_verb("glossary", @dir, "chapter=Shelf")
+    out, status = run_verb("introspection.glossary", @dir, "chapter=Shelf")
 
     expect(status).to eq(0)
     expect(JSON.parse(out)).to all(include("name", "text"))
@@ -75,15 +75,15 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "words a missing domain as a refusal, not a backtrace" do
-    out, status = Dir.mktmpdir { |scratch| run_verb("stores", File.join(scratch, "no/such/domain")) }
+    out, status = Dir.mktmpdir { |scratch| run_verb("introspection.stores", File.join(scratch, "no/such/domain")) }
 
     expect(status).to eq(1)
     expect(out).to include("no such domain")
   end
 
   it "reads without writing: the Hecks domain's event log stays empty" do
-    run_verb("stores", @dir)
-    run_verb("narrate", @dir)
+    run_verb("introspection.stores", @dir)
+    run_verb("introspection.narrate", @dir)
 
     expect(@hecks.registry.event_log.to_a).to be_empty
   end

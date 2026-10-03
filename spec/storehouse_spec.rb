@@ -21,7 +21,7 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".dispatch" do
     it "issues the command and answers the record's id, state, and events" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza",
                                         summary: "spec", args: pizza_args, role: "Chef")
 
       expect(result[:ok]).to be true
@@ -30,18 +30,19 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:events].map { |e| e[:name] }).to eq(["PizzaCreated"])
     end
 
-    it "resolves the qualified form identically to the short form" do
-      short      = described_class.dispatch(runtime: runtime, command: "create_pizza",
-                                            summary: "spec", args: pizza_args, role: "Chef")
-      qualified  = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                            args: pizza_args.merge(name: { value: "Diavola" }), role: "Chef")
+    it "refuses the bare name, listing the qualified commands it knows, and takes the qualified form" do
+      bare      = described_class.dispatch(runtime: runtime, command: "create_pizza",
+                                           summary: "spec", args: pizza_args, role: "Chef")
+      qualified = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
+                                           args: pizza_args, role: "Chef")
 
-      expect(short[:ok]).to be true
+      expect(bare[:ok]).to be false
+      expect(bare[:error]).to include("no such command").and include("order.create_pizza")
       expect(qualified[:ok]).to be true
     end
 
     it "refuses a summary-less call rather than dispatching" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "", args: pizza_args)
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "", args: pizza_args)
 
       expect(result[:ok]).to be false
       expect(result[:error]).to include("summary")
@@ -57,7 +58,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "answers a structured refusal for a domain rule violation" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
       described_class.dispatch(runtime: runtime, command: "order.add_topping", summary: "spec",
                                args: { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } },
@@ -76,10 +77,10 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".query" do
     it "answers the declared question's rows" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
-      result = described_class.query(runtime: runtime, question: "available", summary: "spec")
+      result = described_class.query(runtime: runtime, question: "order.available", summary: "spec")
 
       expect(result[:ok]).to be true
       expect(result[:rows].map { |row| row[:id] }).to eq(["Margherita"])
@@ -95,7 +96,7 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".state" do
     before do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
     end
 
@@ -195,7 +196,7 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".dispatch with dry_run: true" do
     it "answers would_succeed: true and persists nothing" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true, role: "Chef")
 
       expect(result).to eq(ok: true, summary: "spec", would_succeed: true)
@@ -224,14 +225,14 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".dispatch with source:" do
     it "accepts a declared source tag" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, source: "operator", role: "Chef")
 
       expect(result[:ok]).to be true
     end
 
     it "refuses a source tag outside the closed set" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, source: "not-a-real-source")
 
       expect(result[:ok]).to be false
@@ -242,7 +243,7 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".dispatch_batch" do
     it "runs every step and reports ok: true only when all of them succeeded" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
       result = described_class.dispatch_batch(
@@ -260,7 +261,7 @@ RSpec.describe Hecks::Storehouse do
       result = described_class.dispatch_batch(
         runtime: runtime, summary: "spec", role: "Chef",
         steps: [{ command: "no_such_command", args: {} },
-                { command: "create_pizza", args: pizza_args }]
+                { command: "order.create_pizza", args: pizza_args }]
       )
 
       expect(result[:ok]).to be false
@@ -285,7 +286,7 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".history" do
     it "answers every append-only journal entry, not just current state" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
       described_class.dispatch(runtime: runtime, command: "order.add_topping", summary: "spec",
                                args: { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } },
@@ -332,9 +333,9 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "tails dispatch/query/state calls made through this door, in order" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "one", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "one", args: pizza_args,
                                source: "operator", role: "Chef")
-      described_class.query(runtime: runtime, question: "available", summary: "two")
+      described_class.query(runtime: runtime, question: "order.available", summary: "two")
       described_class.state(runtime: runtime, aggregate: "Order", summary: "three")
 
       result = described_class.follow(runtime: runtime)
@@ -347,7 +348,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "respects limit, keeping the most recent entries" do
-      3.times { |n| described_class.query(runtime: runtime, question: "available", summary: "q#{n}") }
+      3.times { |n| described_class.query(runtime: runtime, question: "order.available", summary: "q#{n}") }
 
       result = described_class.follow(runtime: runtime, limit: 2)
 
@@ -366,9 +367,9 @@ RSpec.describe Hecks::Storehouse do
 
   describe ".dispatch with role:/actor_id:" do
     it "checks a role-gated command against the bound caller, by string equality" do
-      wrong = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      wrong = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                        args: pizza_args, role: "Visitor")
-      right = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      right = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                        args: pizza_args, role: "Chef")
 
       expect(wrong[:ok]).to be false
@@ -377,7 +378,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "refuses a role-gated command dispatched with no caller bound at all, rather than running it unchecked" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args)
 
       expect(result[:ok]).to be false
@@ -386,19 +387,19 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "runs a command that declares no role unbound, exactly as before" do
-      result = described_class.query(runtime: runtime, question: "available", summary: "spec")
+      result = described_class.query(runtime: runtime, question: "order.available", summary: "spec")
 
       expect(result[:ok]).to be true
     end
 
     it "leaves a command that declares no role unaffected by an unrelated role binding" do
-      result = described_class.query(runtime: runtime, question: "available", summary: "spec", role: "Chef")
+      result = described_class.query(runtime: runtime, question: "order.available", summary: "spec", role: "Chef")
 
       expect(result[:ok]).to be true
     end
 
     it "refuses actor_id given without role" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, actor_id: "u1")
 
       expect(result[:ok]).to be false
@@ -407,7 +408,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "records role/actor_id on the audit log line, win or refuse" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                args: pizza_args, role: "Chef")
 
       entry = described_class.follow(runtime: runtime)[:entries].first
@@ -420,7 +421,7 @@ RSpec.describe Hecks::Storehouse do
     # a structured refusal, not a raised error, same as every other
     # refusal here.
     it "answers a structured refusal, not a raised error, when no authorization adapter can answer actor_id" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, role: "Chef", actor_id: "u1")
 
       expect(result[:ok]).to be false
@@ -450,7 +451,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "refuses a blank role rather than reading it as no restriction" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, role: "")
 
       expect(result[:ok]).to be false
@@ -458,7 +459,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "refuses a dry run of a role-gated command with no caller, rather than answering would_succeed" do
-      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true)
 
       expect(result[:ok]).to be false
@@ -468,7 +469,7 @@ RSpec.describe Hecks::Storehouse do
     it "refuses every step of a batch that names a role-gated command with no caller, and commits none" do
       result = described_class.dispatch_batch(
         runtime: runtime, summary: "spec",
-        steps: [{ command: "create_pizza", args: pizza_args },
+        steps: [{ command: "order.create_pizza", args: pizza_args },
                 { command: "order.create_pizza", args: pizza_args.merge(name: { value: "Diavola" }) }]
       )
 
@@ -478,7 +479,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "logs a refused unbound dispatch with no role, so the audit trail shows who did not identify" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "no caller", args: pizza_args)
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "no caller", args: pizza_args)
 
       entry = described_class.follow(runtime: runtime)[:entries].first
       expect(entry).to include(summary: "no caller", ok: false)
@@ -486,18 +487,18 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "accepts any string as a role and checks only that it matches — the string is the whole credential" do
-      forged = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+      forged = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, role: "Chef")
 
       expect(forged[:ok]).to be true
     end
 
     it "runs a query with no caller, and with a role no command declares — queries are not role-gated" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
-      unbound  = described_class.query(runtime: runtime, question: "available", summary: "spec")
-      stranger = described_class.query(runtime: runtime, question: "available", summary: "spec",
+      unbound  = described_class.query(runtime: runtime, question: "order.available", summary: "spec")
+      stranger = described_class.query(runtime: runtime, question: "order.available", summary: "spec",
                                        role: "Nobody", actor_id: nil)
 
       expect(unbound[:ok]).to be true
@@ -506,7 +507,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "answers the readers with no caller bound — they take no role and are not gated" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
       answers = [described_class.state(runtime: runtime, aggregate: "Order", summary: "spec"),
@@ -558,7 +559,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "answers the events a real dispatch announced, sourced from this door's own audit log" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
       result = described_class.events(runtime: runtime, aggregate: "Order", id: "Margherita")
@@ -569,7 +570,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "answers nothing for a dry run — nothing was actually announced" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                dry_run: true, role: "Chef")
 
       result = described_class.events(runtime: runtime, aggregate: "Order")
@@ -578,7 +579,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "answers nothing for an id that named no dispatch" do
-      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
       result = described_class.events(runtime: runtime, aggregate: "Order", id: "Nope")

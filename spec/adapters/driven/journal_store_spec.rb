@@ -459,15 +459,15 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     it "holds the first era when confirmed, and refuses a merge before a second exists" do
       write_domain(edge: JS_EDGE)
 
-      run_verb("hold_first", @domain, "run=first-1", "--confirm")
-      row = JSON.parse(run_verb("settlement", "first-1").first).first
+      run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
+      row = JSON.parse(run_verb("era.settlement", "first-1").first).first
       expect([row.fetch("status"), row.dig("report", "value")]).to eq(["settled", "Ledger holds era 1 now."])
 
-      out, = run_verb("merge_tail", @domain, "run=merge-1", "--confirm")
+      out, = run_verb("era.merge_tail", @domain, "run=merge-1", "--confirm")
       expect(JSON.parse(out).fetch("refused_reactions").first.fetch("reason"))
         .to eq("Permit refused — an era beyond the first stands before a tail is merged")
 
-      again, = run_verb("hold_first", @domain, "run=first-2", "--confirm")
+      again, = run_verb("era.hold_first", @domain, "run=first-2", "--confirm")
       expect(JSON.parse(again).fetch("refused_reactions").first.fetch("reason"))
         .to eq("Permit refused — no era is held yet")
     end
@@ -476,7 +476,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       write_domain(edge: JS_EDGE)
       hold_v1_with_a_record
       reason = lambda do |run|
-        out, = run_verb("reattest", @domain, "era=1", "run=#{run}", "--confirm")
+        out, = run_verb("era.reattest", @domain, "era=1", "run=#{run}", "--confirm")
         JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
       end
 
@@ -490,7 +490,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", "# a comment added by hand\n#{JS_V1}")
       expect(reason.call("att-3")).to be_empty
-      row = JSON.parse(run_verb("settlement", "att-3").first).first
+      row = JSON.parse(run_verb("era.settlement", "att-3").first).first
       expect([row.fetch("status"), row.dig("report", "value")]).to match(["settled", /\AATTESTED: era 1 re-frozen as /])
     end
 
@@ -500,7 +500,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
                  "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"Memory\")\nend\n")
       File.delete(File.join(@domain, "bluebook", "ledger.world"))
 
-      out, = run_verb("backfill_projections", @domain, "run=backfill-1")
+      out, = run_verb("era.backfill_projections", @domain, "run=backfill-1")
 
       expect(JSON.parse(out).fetch("refused_reactions").first.fetch("reason"))
         .to eq("Permit refused — the store keeps eras")

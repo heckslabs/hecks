@@ -5,7 +5,7 @@ require_relative "../projections/deploy/template_diff"
 
 module Hecks
   module CLI
-    # The command behind `hecks deploy diff` and `hecks deploy diff`: compares two
+    # The command behind `hecks deploy template_comparison.diff`: compares two
     # CloudFormation templates offline and reports differences by logical id; `--strict` also
     # counts cosmetic differences (comments, key order).
     module DeployTemplateDiff

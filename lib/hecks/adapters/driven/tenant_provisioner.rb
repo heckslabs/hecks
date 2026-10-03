@@ -5,8 +5,8 @@ require "fileutils"
 module Hecks
   module Adapters
     # The imperative half of tenant provisioning, behind `Deploy::Tenant.port
-    # "TenantProvisioning"`, for `Tenant.Provision` and for hecks deploy provision; booting the
-    # domain and its capability gate stay in hecks deploy provision.
+    # "TenantProvisioning"`, for `Tenant.Provision` and for hecks deploy tenant.provision; booting
+    # the domain and its capability gate stay in hecks deploy tenant.provision.
     class TenantProvisioner
       # Raised when a value is outside its allow-list or the overlay path leaves `environments/`.
       class Refused < ArgumentError; end

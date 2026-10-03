@@ -24,7 +24,7 @@ module Hecks
         return 0 if clean
 
         err.puts "docs/implemented/reference/ is behind the language. " \
-                 "Regenerate with hecks project_reference to see the words in place."
+                 "Regenerate with hecks language_run.project_reference to see the words in place."
         1
       end
     end

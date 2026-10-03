@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# `hecks stress_concurrency` takes its default run count and first seed from its bluebook command,
+# `hecks test_suite_run.stress_concurrency` takes its default run count and first seed from its bluebook command,
 # the one place they are written; the launcher behind it holds no copy.
 RSpec.describe "stress_concurrency's declared defaults" do
   before(:all) do
@@ -23,8 +23,9 @@ RSpec.describe "stress_concurrency's declared defaults" do
     expect(command.attributes.find { |attribute| attribute.name == :parallel }).to be_optional
   end
 
-  it "shows the defaults in the verb's own help" do
-    help = Hecks::Doors::CliRunner.call(runtime: @runtime, argv: %w[stress_concurrency --help], program: "hecks").first
+  it "shows the defaults in the command's own help" do
+    help = Hecks::Doors::CliRunner.call(runtime: @runtime, argv: %w[test_suite_run.stress_concurrency --help],
+                                        program: "hecks").first
 
     expect(help).to match(/runs\.value\s+Integer; defaults to 30; optional/)
     expect(help).to match(/seed_start\.value\s+Integer; defaults to 1; optional/)

@@ -51,11 +51,11 @@ RSpec.describe "the installed hecks gem", :io do
     expect(Dir.glob(File.join(@home, "gems/hecks-*/hecks.gemspec"))).to be_empty
   end
 
-  it "lists its verbs for --help" do
+  it "lists its commands for --help" do
     out, err, code = hecks("--help")
 
     expect(code).to eq(0), err
-    expect(out).to include("hecks <verb>", "build_wasm", "regenerate_corpus")
+    expect(out).to include("hecks <command>!", "build.build_wasm", "regeneration_run.regenerate_corpus")
   end
 
   it "prints a domain's IR as JSON for `ir`" do
@@ -81,21 +81,21 @@ RSpec.describe "the installed hecks gem", :io do
   end
 
   it "refuses `build_wasm` without its arguments by name" do
-    _out, err, code = hecks("build_wasm")
+    _out, err, code = hecks("build.build_wasm")
 
     expect(code).to eq(1)
     expect(err).to include("BuildWasm was not given domain")
   end
 
-  it "answers `build_wasm --help` with the verb's shape" do
-    out, err, code = hecks("build_wasm", "--help")
+  it "answers `build_wasm --help` with the command's shape" do
+    out, err, code = hecks("build.build_wasm", "--help")
 
     expect(code).to eq(0), err
     expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain.value")
   end
 
   it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal" do
-    out, err, code = hecks("build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
+    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
     # The launcher prints the record on stdout whether the build ended or faulted; the failure
     # state goes to stderr, after it.
     record = JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}"))
@@ -108,8 +108,8 @@ RSpec.describe "the installed hecks gem", :io do
     end
   end
 
-  it "refuses a Codebase verb with 'needs a hecks checkout'" do
-    out, err, code = hecks("regenerate_corpus")
+  it "refuses a Codebase command with 'needs a hecks checkout'" do
+    out, err, code = hecks("regeneration_run.regenerate_corpus")
 
     expect(code).to eq(0), err
     expect(JSON.parse(out).fetch("refused_reactions").map { |r| r.fetch("reason") })

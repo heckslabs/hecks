@@ -161,8 +161,8 @@ module Hecks
       # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
       # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
       # scratch constant here — `database:`/`schema:` are required keyword args because
-      # the caller (`hecks quality_control ask run --persistence-parity`) owns that database's
-      # lifecycle.
+      # the caller (`hecks quality_control query sweep.run --persistence-parity`) owns that
+      # database's lifecycle.
       def rebind_to_postgres_era!(copy, database:, schema:)
         require "pg"
         if database.to_s.empty? || schema.to_s.empty?

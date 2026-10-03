@@ -4,7 +4,7 @@ require "hecks/cli/project_cli"
 
 # `exe/hecks` is written by `hecks project_cli` from the Hecks chapter and its world's `launcher`
 # setting. The committed file is the bootstrap: this spec fails when it drifts from the generator,
-# and checks that every verb of the command table answers `--help`.
+# and checks that every command of the command table answers `--help`.
 RSpec.describe "exe/hecks" do
   let(:root) { File.expand_path("..", __dir__) }
 
@@ -30,7 +30,7 @@ RSpec.describe "exe/hecks" do
     expect(legacy).to eq(Hecks::CLI::COMMANDS.keys)
   end
 
-  it "answers --help for every verb and question of the command table" do
+  it "answers --help for every command and question of the command table" do
     names  = @cli[:names][:command].keys + @cli[:names][:question].keys
     failed = (names - Hecks::CLI::COMMANDS.keys).reject do |name|
       _out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [name, "--help"], program: "hecks")

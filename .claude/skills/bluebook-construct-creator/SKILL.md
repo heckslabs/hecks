@@ -201,7 +201,7 @@ reactive `rspec` loops into what should be one:
    in a comment the same way `Aggregate#preconditions`'s own entry does).
 6. **Regenerate generated artifacts**, once, at the end:
    `GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb`, `ruby
-   hecks deploy project_oidc <domain>` for any stale manifest, `hecks project_reference` for
+   hecks deploy oidc_manifest.project_oidc <domain>` for any stale manifest, `hecks project_reference` for
    docs (see step 6 for how to tell if one's stale).
 
 ## 6. Proactive checks — run these YOURSELF before the first commit

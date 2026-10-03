@@ -5,7 +5,7 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -154,7 +154,7 @@ Hecks.hecksagon("Widgets") { uses_embryonaut_bluebook "payments" }  # ~> WiringE
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -172,7 +172,7 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 

@@ -23,7 +23,7 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
   comment says what it is, not what it contains (section 2).
 - Comment lines stay under 100 characters (section 6).
 
-Check a tree with `exe/hecks check_comments paths=<path> --wait` before
+Check a tree with `exe/hecks style_run.check_comments paths=<path> --wait` before
 calling comment work done.
 
 ## Never hand-edit generated output
@@ -40,6 +40,6 @@ calling comment work done.
   fails the spec that pins it. If a golden fixture's content is wrong,
   fix the generator (or its heredoc-embedded template text) and
   regenerate; never edit the committed fixture by hand.
-- `exe/hecks regenerate_corpus --check` (and the other regen scripts
+- `exe/hecks regeneration_run.regenerate_corpus --check` (and the other regen scripts
   `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` job runs)
   catch drift between a generator and its committed output.

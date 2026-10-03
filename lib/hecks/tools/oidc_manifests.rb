@@ -9,7 +9,8 @@ module Hecks
     # `oidc.json` beside the domain.
     #
     # A domain that has no bluebook is skipped and one that cannot be projected is reported, so a
-    # sweep over the whole checkout carries on past either. `hecks deploy project_oidc` loads
+    # sweep over the whole checkout carries on past either. `hecks deploy
+    # oidc_manifest.project_oidc` loads
     # `bundler/setup` first, which pins the `json` gem: newer releases pretty-print an empty array
     # as `[\n\n]`, a diff spec/oidc_manifest_spec.rb would report as drift.
     module OidcManifests

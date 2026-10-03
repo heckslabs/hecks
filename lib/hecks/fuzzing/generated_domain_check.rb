@@ -7,7 +7,7 @@ require_relative "differential"
 
 module Hecks
   module Fuzzing
-    # The child-process half of `hecks quality_control check_generated_domains`: checks one
+    # The child-process half of `hecks quality_control target.check_generated_domains`: checks one
     # generated domain.
     #
     # One domain per process, since every generated domain is named `QaGenerated`.

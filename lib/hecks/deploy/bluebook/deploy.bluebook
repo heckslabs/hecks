@@ -1,7 +1,7 @@
 # The Deploy chapter: what `deployed_to(...)` may declare, and the commands that generate, check and
 # compare a deploy recipe, project the OIDC manifests and provision a tenant.
 #
-# `hecks deploy project` and `hecks deploy provision` boot it directly; the Hecks domain attaches it, so
+# `hecks deploy recipe.project` and `hecks deploy tenant.provision` boot it directly; the Hecks domain attaches it, so
 # each command below is also `hecks deploy <verb>`. The targets validate the `deployed_to` shape
 # that `world.bluebook`'s untyped `Setting` map leaves open. Each run below records that it was
 # requested before its DeployToolchain port is asked, and what came of it after. No command
@@ -10,7 +10,7 @@ Hecks.bluebook "Deploy" do
   vision "Generate, check and compare deploy recipes, project OIDC manifests and provision tenants."
 
   aggregate "LambdaTarget" do
-    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before hecks deploy project generates anything from it."
+    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before hecks deploy recipe.project generates anything from it."
 
     identified_by :domain
 
@@ -38,14 +38,14 @@ Hecks.bluebook "Deploy" do
     # (Serverless v2);
     # only the emitted CloudFormation resource differs, never the runtime adapter. "Shared" borrows
     # another domain's instance under its own Postgres schema and needs an `owner` setting, which
-    # `hecks deploy project` checks, since the owning domain is a deploy-time fact.
+    # `hecks deploy recipe.project` checks, since the owning domain is a deploy-time fact.
     value_object "Database" do
       attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
     end
 
     # "None" (default) or "Rust": the domain's own Lambda (rust/host) also serves a public web UI
     # in-process (rust/host/src/web.rs). "Ruby" is not a member: a Ruby WebFunction comes from a
-    # `lambda_handler.rb` file, and `hecks deploy project` refuses `web "Rust"` alongside one.
+    # `lambda_handler.rb` file, and `hecks deploy recipe.project` refuses `web "Rust"` alongside one.
     value_object "Web" do
       attribute :value, String, one_of: ["None", "Rust"]
     end
@@ -87,7 +87,7 @@ Hecks.bluebook "Deploy" do
 
     # All required, no `default:`: command-level defaults apply only at the JSON/Rust-codegen
     # boundary, not Ruby's direct dispatch (interpreting.rb `normalize_args`). Defaults are
-    # resolved by `hecks deploy project` before it dispatches.
+    # resolved by `hecks deploy recipe.project` before it dispatches.
     command "Declare" do
       goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
 
@@ -122,7 +122,7 @@ Hecks.bluebook "Deploy" do
   # A sibling of `LambdaTarget` with its own value objects, since value objects are not
   # shared across aggregates.
   aggregate "FargateTarget" do
-    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before hecks deploy project generates anything from it."
+    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before hecks deploy recipe.project generates anything from it."
 
     identified_by :domain
 
@@ -177,7 +177,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # All seven required for the same reason as `LambdaTarget.Declare`; this validates a
-    # target already resolved by `hecks deploy project`'s defaults.
+    # target already resolved by `hecks deploy recipe.project`'s defaults.
     command "Declare" do
       goal "Validate one domain's AwsFargate deploy target before anything is generated from it"
 
@@ -274,10 +274,10 @@ Hecks.bluebook "Deploy" do
     end
   end
 
-  # The validated shape of `hecks deploy provision`, which does the generating and provisioning.
+  # The validated shape of `hecks deploy tenant.provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do
-    description "One tenant's validated identity — which realm and Postgres schema `hecks deploy provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
+    description "One tenant's validated identity — which realm and Postgres schema `hecks deploy tenant.provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
 
     identified_by :slug
 
@@ -341,7 +341,7 @@ Hecks.bluebook "Deploy" do
       transition "Abandon"     => "refused",     from: "requested"
     end
 
-    # `hecks deploy provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
+    # `hecks deploy tenant.provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
     # The only command that creates a tenant: its slug, schema and realm are validated by the value
     # objects' patterns and invariants, then the overlay is written through the TenantProvisioning
     # port; the adapter answers PostgresEra when `adapter` is left out. `dry_run?` on this verb
@@ -497,7 +497,7 @@ Hecks.bluebook "Deploy" do
       transition "Fault"    => "faulted",   from: "requested"
     end
 
-    # `hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
+    # `hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
     # needs its tenant; the generator says so, and a domain with no `deployed_to` target, or one
     # whose settings conflict, is faulted with the generator's own sentence.
     command "Project" do
@@ -703,7 +703,7 @@ Hecks.bluebook "Deploy" do
       transition "Refuse" => "refused",  from: "requested"
     end
 
-    # `hecks deploy diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
+    # `hecks deploy template_comparison.diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
     # cosmetic differences (comments, key order); `--json` writes the report as JSON.
     command "Diff" do
       goal "Compare two CloudFormation templates and report what differs by logical id"

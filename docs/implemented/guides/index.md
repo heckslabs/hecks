@@ -46,11 +46,11 @@ you're not.
     the expression grammar `given`/`ensures`/`invariant` compile down
     to.
 15. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
-    is used, in its own vocabulary, run as tests: `hecks run_behaviors`, the
+    is used, in its own vocabulary, run as tests: `hecks operation.run_behaviors`, the
     rspec shim, and what `emits:` sees through a real policy cascade.
 16. **[Language versioning](language-versioning.md)** — how the bluebook
     surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
-    and what `hecks rename` does with a rename.
+    and what `hecks language_run.rename` does with a rename.
 17. **[Projections: Rust and WebAssembly](projections.md)** — the
     bluebook as the one definition, projected to generated Rust and WASM,
     and how that output is held equal to Ruby's.

@@ -25,7 +25,7 @@ Please do not open a public issue for a suspected vulnerability.
 
 - The `.bluebook`/`.hecksagon`/`.world` snippet that reproduces it, or
   the smallest one you can build that still does — the same shape
-  `spec/corpus/` and `hecks fuzz`'s own shrinker favor: small enough to
+  `spec/corpus/` and `hecks fuzz_run.fuzz`'s own shrinker favor: small enough to
   actually read.
 - Which adapter or port is involved, if any (`Postgres`, `PostgresEra`,
   `Heki`, the Lambda dispatcher, an authentication adapter) — several
@@ -54,7 +54,7 @@ means more than a bad refusal message:
   run against trusted, project-authored translation files; treat any
   path that lets untrusted input reach a `compute` string as a real
   finding.
-- **`hecks deploy project`'s generated artifacts** — SAM templates,
+- **`hecks deploy recipe.project`'s generated artifacts** — SAM templates,
   `samconfig.toml`, bastion config. These compose connection strings
   from AWS-managed secrets and CloudFormation dynamic references
   specifically so nothing is typed in plaintext; a generator change

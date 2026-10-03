@@ -467,7 +467,7 @@ jobs:
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch lib/hecks/runtime/**?'
-        run: bundle exec exe/hecks decide_ci_gate gate=runtime_changed --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=runtime_changed --wait
   # END GENERATED ci_gate runtime_changed
 
   stress_concurrency:
@@ -498,4 +498,4 @@ jobs:
       # No arguments: the command's defaults are its recommended CI settings. It sets `CI=true` on
       # its child rspec runs, so the `io: true` Postgres spec is included.
       - name: hecks stress_concurrency
-        run: bundle exec exe/hecks stress_concurrency --wait
+        run: bundle exec exe/hecks test_suite_run.stress_concurrency --wait

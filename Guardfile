@@ -11,7 +11,7 @@ notification :terminal_notifier
 notification :libnotify
 
 # Builds rust/ whenever a source file or manifest under it changes, so
-# a conformance spec's `native`/`build` mode (hecks check_conformance)
+# a conformance spec's `native`/`build` mode (hecks build.check_conformance)
 # never compares Ruby against a Rust binary that predates the edit
 # that was just saved.
 module ::Guard
