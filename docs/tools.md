@@ -66,6 +66,15 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks deploy project_oidc [domains=a,b]` | `bin/project_oidc` |
 | `hecks deploy provision <domain_dir> slug=s domain= realm= schema= database= [adapter=PostgresEra]`; `hecks deploy reprovision <tenant> directory= database= [adapter=PostgresEra]` | `bin/project_tenant` |
 
+## Site, for clients
+
+| launcher | replaces |
+|---|---|
+| `hecks site project_site <project> [out=] [--check]` | (new: no `bin/` script) |
+
+`project_site` has no retired script to point at, so it has no row in `lib/hecks/three_zero/forms.yml`; see
+`docs/site-routes.md`.
+
 ## Codebase, for maintaining Hecks
 
 | launcher | replaces |
