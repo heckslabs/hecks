@@ -10,17 +10,8 @@ module Hecks
     # the files around a bluebook with `hecks init` (`DomainStub.support_files`) and renders the
     # bluebook itself, from what the developer accepted, where `init` writes a fixed stub.
     #
-    # An interview is a plain Hash (see {from_record}):
-    #
-    #     { reference:, subject:, expert:,
-    #       exchanges: [{ question:, answer:, topic: }],
-    #       things:    [{ number:, name:, identifier:, source:, status: }],
-    #       actions:   [{ number:, name:, thing:, event:, creates:, source:, status: }],
-    #       rules:     [{ number:, statement:, source:, status: }] }
-    #
     # Only `accepted` findings reach the bluebook; every finding reaches the record. A rule is never
-    # turned into code from prose: it is written as a comment citing its source, for a developer to
-    # turn into a `given`.
+    # turned into code from prose: it is a comment citing its source, to become a `given` by hand.
     module InterviewDraft
       ACCEPTED = "accepted".freeze
 
@@ -36,7 +27,7 @@ module Hecks
       # The files a first interview writes: the bluebook, the files around it, and the record.
       #
       # @param interview [Hash] the interview, with at least one accepted thing
-      # @param adapter [String, nil] a persistence adapter from `DomainStub::ADAPTERS`; its default when nil
+      # @param adapter [String, nil] an adapter in `DomainStub::ADAPTERS`; its default when nil
       # @return [Hash{String => String}] each file's path under the domain directory, and its text
       # @raise [ArgumentError] when nothing was accepted, or the subject or adapter is refused
       def files(interview, adapter: nil)
@@ -72,9 +63,10 @@ module Hecks
 
       # Reads the plain interview out of an `Interview` record booted from the SME chapter.
       #
-      # @param interview [#reference, #subject, #expert, #exchanges, #thing_findings, #action_findings, #rule_findings]
-      #   the booted record
-      # @return [Hash] the plain interview this module takes
+      # @param interview [Object] the booted record
+      # @return [Hash] the plain interview this module takes: `reference`, `subject`, `expert`,
+      #   `exchanges` (`question`, `answer`, `topic`), and `things`, `actions` and `rules`, each a
+      #   finding with its `number`, `source` and `status` and the fields of its kind
       def from_record(interview)
         { reference: plain(interview.reference), subject: plain(interview.subject), expert: plain(interview.expert),
           exchanges: interview.exchanges.map { |ex| slice(ex, :question, :answer, :topic) },
@@ -217,7 +209,7 @@ module Hecks
       # @api private
       def accepted(interview, kind) = interview.fetch(kind).select { |finding| finding[:status] == ACCEPTED }
 
-      # A free-text name as a PascalCase word that is safe to write into Ruby: `lend a book` is `LendABook`.
+      # A free-text name as a PascalCase word safe to write into Ruby: `lend a book` is `LendABook`.
       # @api private
       def word(text) = text.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map { |part| part.sub(/\A./, &:upcase) }.join
 
