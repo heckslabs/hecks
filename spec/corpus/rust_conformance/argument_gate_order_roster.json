@@ -187,5 +187,106 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Roster::Roster.Open",
+        "error": "Open does not declare colour — it takes name",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Honor",
+        "error": "Honor does not declare flavour — it takes rank",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Honor",
+        "error": "Rank admits \"hand\", \"officer\" — got \"not a declared member\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Roster::Roster.AddSeat",
+        "error": "AddSeat does not declare note — it takes number, row",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.AddSeat",
+        "error": "AddSeat was not given number — it takes number, row",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Roster::Roster.AddSeat",
+        "error": "SeatNumber.value expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Roster::Roster.Enlist",
+        "error": "Enlist does not declare colour — it takes id, age",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Enlist",
+        "error": "Enlist was not given id — it takes id, age",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Roster::Roster.Enlist",
+        "error": "MemberId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign does not declare colour — it takes member, number",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign was not given member — it takes member, number",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "MemberId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "Retire does not declare flavour — it takes id",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "MemberId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Roster::Roster.Member.Retire",
+        "error": "Retire does not declare colour — it takes id",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Roster::Roster.Member.Retire",
+        "error": "MemberId.value expects String, got {}",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

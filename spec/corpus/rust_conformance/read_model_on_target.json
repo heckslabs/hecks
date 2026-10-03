@@ -1,17 +1,383 @@
 {
   "domain": "spec/fixtures/rust_project/read_model_on_target_fixture",
   "steps": [
-    { "verb": "ReadModelOnTargetFixture::Board.Open", "args": { "reference": { "value": "b1" } } },
-    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c1" }, "position": { "value": 0 } } },
-    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c2" }, "position": { "value": 1 } } },
-    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c3" }, "position": { "value": 2 } } },
-    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c4" }, "position": { "value": 3 } } },
-    { "verb": "ReadModelOnTargetFixture::Card.Close", "args": { "reference": { "value": "c3" } } },
-    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n1" } } },
-    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n2" } } },
-    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n3" } } },
-    { "verb": "ReadModelOnTargetFixture::Note.Flag", "args": { "reference": { "value": "n1" } } },
-    { "verb": "ReadModelOnTargetFixture::Note.Flag", "args": { "reference": { "value": "n3" } } },
-    { "query": "ReadModelOnTargetFixture.BoardOverview", "args": { "board": "b1" } }
-  ]
+    {
+      "verb": "ReadModelOnTargetFixture::Board.Open",
+      "args": {
+        "reference": {
+          "value": "b1"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Card.Pin",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "c1"
+        },
+        "position": {
+          "value": 0
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Card.Pin",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "c2"
+        },
+        "position": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Card.Pin",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "c3"
+        },
+        "position": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Card.Pin",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "c4"
+        },
+        "position": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Card.Close",
+      "args": {
+        "reference": {
+          "value": "c3"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Note.Stick",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "n1"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Note.Stick",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "n2"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Note.Stick",
+      "args": {
+        "board": "b1",
+        "reference": {
+          "value": "n3"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Note.Flag",
+      "args": {
+        "reference": {
+          "value": "n1"
+        }
+      }
+    },
+    {
+      "verb": "ReadModelOnTargetFixture::Note.Flag",
+      "args": {
+        "reference": {
+          "value": "n3"
+        }
+      }
+    },
+    {
+      "query": "ReadModelOnTargetFixture.BoardOverview",
+      "args": {
+        "board": "b1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "ReadModelOnTargetFixture::Board#b1": {
+        "reference": {
+          "value": "b1"
+        }
+      },
+      "ReadModelOnTargetFixture::Card#c1": {
+        "board": "b1",
+        "reference": {
+          "value": "c1"
+        },
+        "position": {
+          "value": 0
+        },
+        "status": "open"
+      },
+      "ReadModelOnTargetFixture::Card#c2": {
+        "board": "b1",
+        "reference": {
+          "value": "c2"
+        },
+        "position": {
+          "value": 1
+        },
+        "status": "open"
+      },
+      "ReadModelOnTargetFixture::Card#c3": {
+        "board": "b1",
+        "reference": {
+          "value": "c3"
+        },
+        "position": {
+          "value": 2
+        },
+        "status": "done"
+      },
+      "ReadModelOnTargetFixture::Card#c4": {
+        "board": "b1",
+        "reference": {
+          "value": "c4"
+        },
+        "position": {
+          "value": 3
+        },
+        "status": "open"
+      },
+      "ReadModelOnTargetFixture::Note#n1": {
+        "board": "b1",
+        "reference": {
+          "value": "n1"
+        },
+        "flag": "flagged"
+      },
+      "ReadModelOnTargetFixture::Note#n2": {
+        "board": "b1",
+        "reference": {
+          "value": "n2"
+        },
+        "flag": "clear"
+      },
+      "ReadModelOnTargetFixture::Note#n3": {
+        "board": "b1",
+        "reference": {
+          "value": "n3"
+        },
+        "flag": "flagged"
+      }
+    },
+    "events": [
+      {
+        "name": "BoardOpened",
+        "aggregate": "ReadModelOnTargetFixture::Board",
+        "id": "b1",
+        "payload": {
+          "reference": {
+            "value": "b1"
+          }
+        }
+      },
+      {
+        "name": "CardPinned",
+        "aggregate": "ReadModelOnTargetFixture::Card",
+        "id": "c1",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "c1"
+          },
+          "position": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "name": "CardPinned",
+        "aggregate": "ReadModelOnTargetFixture::Card",
+        "id": "c2",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "c2"
+          },
+          "position": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "CardPinned",
+        "aggregate": "ReadModelOnTargetFixture::Card",
+        "id": "c3",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "c3"
+          },
+          "position": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "name": "CardPinned",
+        "aggregate": "ReadModelOnTargetFixture::Card",
+        "id": "c4",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "c4"
+          },
+          "position": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "CardClosed",
+        "aggregate": "ReadModelOnTargetFixture::Card",
+        "id": "c3",
+        "payload": {
+          "reference": {
+            "value": "c3"
+          }
+        }
+      },
+      {
+        "name": "NoteStuck",
+        "aggregate": "ReadModelOnTargetFixture::Note",
+        "id": "n1",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "n1"
+          }
+        }
+      },
+      {
+        "name": "NoteStuck",
+        "aggregate": "ReadModelOnTargetFixture::Note",
+        "id": "n2",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "n2"
+          }
+        }
+      },
+      {
+        "name": "NoteStuck",
+        "aggregate": "ReadModelOnTargetFixture::Note",
+        "id": "n3",
+        "payload": {
+          "board": "b1",
+          "reference": {
+            "value": "n3"
+          }
+        }
+      },
+      {
+        "name": "NoteFlagged",
+        "aggregate": "ReadModelOnTargetFixture::Note",
+        "id": "n1",
+        "payload": {
+          "reference": {
+            "value": "n1"
+          }
+        }
+      },
+      {
+        "name": "NoteFlagged",
+        "aggregate": "ReadModelOnTargetFixture::Note",
+        "id": "n3",
+        "payload": {
+          "reference": {
+            "value": "n3"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "ReadModelOnTargetFixture.BoardOverview",
+        "args": {
+          "board": "b1"
+        },
+        "rows": [
+          {
+            "board": {
+              "reference": {
+                "value": "b1"
+              },
+              "id": "b1"
+            },
+            "cards": [
+              {
+                "board": "b1",
+                "reference": {
+                  "value": "c1"
+                },
+                "position": {
+                  "value": 0
+                },
+                "status": "open",
+                "id": "c1"
+              },
+              {
+                "board": "b1",
+                "reference": {
+                  "value": "c2"
+                },
+                "position": {
+                  "value": 1
+                },
+                "status": "open",
+                "id": "c2"
+              }
+            ],
+            "notes": [
+              {
+                "board": "b1",
+                "reference": {
+                  "value": "n3"
+                },
+                "flag": "flagged",
+                "id": "n3"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

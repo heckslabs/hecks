@@ -106,7 +106,7 @@ of the infrastructure template with the CloudFront behaviours and the load balan
 | `hecks list_io_parallel_specs exclude=REGEX [tags=] [check=file]`; `hecks write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm` | `bin/rspec_io_parallel_files` |
 | `hecks refresh_runtime_baseline [workers=6] [from_run=ID]` | `bin/refresh_rspec_runtime_baseline` |
 | `hecks run_spec_example file=path example=text` | `bin/spec_example` |
-| `hecks stress_concurrency [runs=30] [parallel=] [seed_start=1]` | `bin/stress_concurrency_specs` |
+| `hecks stress_concurrency [runs=] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
 | `hecks regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
 | `hecks seed_semantics_corpus [fixture=name]` | `bin/seed_semantics_corpus` |
 | `hecks record_pattern_cases` | `bin/pattern-cases` |

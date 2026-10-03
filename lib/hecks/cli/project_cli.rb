@@ -178,6 +178,7 @@ module Hecks
         handoff  = legacy_handoff(Array(legacy)) + memory_default(Array(memory_verbs)) if executable
         encoding = opted ? ENCODING : ""
         ending   = opted ? OPTED_ENDING : PLAIN_ENDING
+        ending   = quiet_ending(ending) if executable && !Array(memory_verbs).empty?
 
         <<~RUBY
           #!/usr/bin/env ruby
@@ -195,7 +196,7 @@ module Hecks
           #{handoff}
           require "hecks"
 
-          #{entry(name, boot, shown, opted)}
+          #{entry(name, boot, shown, opted, quiet: !Array(memory_verbs).empty?)}
           #{ending}
         RUBY
       end
@@ -204,13 +205,15 @@ module Hecks
       # @return [String] the launcher's middle: for an opted-in launcher, usage answered from the
       #   projection and a boot only for a line that runs a verb; for any other, the boot and
       #   dispatch every launcher has always had, byte for byte
-      def entry(name, boot, shown, opted)
-        opted ? described_entry(name, boot, shown) : plain_entry(name, boot, shown)
+      def entry(name, boot, shown, opted, quiet: false)
+        opted ? described_entry(name, boot, shown, quiet: quiet) : plain_entry(name, boot, shown)
       end
 
       # @api private
       # @return [String] the opted-in launcher's middle
-      def described_entry(name, boot, shown)
+      def described_entry(name, boot, shown, quiet: false)
+        started = "Hecks.boot_described(described, install_doors: false)"
+        started = "Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_VERBS.include?(ARGV.first)) { #{started} }" if quiet
         <<~RUBY.chomp
           # Usage is answered from the projected chapter alone: no adapter is bound and no
           # database is opened. Only a line that runs a verb boots the domain,
@@ -228,7 +231,7 @@ module Hecks
           )
           unless text
             runtime = begin
-              Hecks.boot_described(described, install_doors: false)
+              #{started}
             rescue StandardError => e
               abort "cannot open #{name}: \#{e.message.lines.first.strip}"
             end
@@ -266,6 +269,15 @@ module Hecks
       end
 
       # @api private
+      # @param ending [String] the launcher's closing lines
+      # @return [String] the same lines, except that a memory verb that ended well prints nothing: a
+      #   person is at it, so the settled record is noise after the session
+      def quiet_ending(ending)
+        ending.sub("status.zero? ? puts(text)",
+                   "exit 0 if status.zero? && MEMORY_VERBS.include?(ARGV.first)\nstatus.zero? ? puts(text)")
+      end
+
+      # @api private
       # @return [String] the lines that default the listed verbs to Memory, or nothing
       def memory_default(verbs)
         return "" if verbs.empty?
@@ -274,7 +286,8 @@ module Hecks
 
         <<~RUBY
 
-          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise.
+          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise, and
+          # print nothing when they end well.
           MEMORY_VERBS = %w[#{verbs.join(' ')}].freeze
           ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
         RUBY

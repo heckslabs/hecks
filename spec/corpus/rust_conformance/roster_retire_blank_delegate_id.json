@@ -5,9 +5,39 @@
     {
       "verb": "Roster::Roster.Retire",
       "args": {
-        "name": { "value": "charlie" },
-        "id": { "value": "" }
+        "name": {
+          "value": "charlie"
+        },
+        "id": {
+          "value": ""
+        }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "no Roster with name.value \"charlie\"",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

@@ -201,6 +201,79 @@ Hecks.bluebook "Deploy" do
     end
   end
 
+  aggregate "BoxTarget" do
+    description "One domain's validated single-box deploy target — what deployed_to(\"AwsBox\") must resolve to before hecks deploy project generates a box and an RDS instance from it"
+
+    identified_by :domain
+
+    attribute :domain,         DomainName
+    attribute :region,         Region
+    attribute :instance_type,  InstanceType
+    attribute :volume_gb,      VolumeGb
+    attribute :database_class, DatabaseClass
+    attribute :storage_gb,     StorageGb
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # An EC2 instance type such as t4g.medium. The family and size are checked for shape only;
+    # EC2 refuses an unknown type at stack creation.
+    value_object "InstanceType" do
+      attribute :value, String
+      invariant("an instance type is family.size, such as t4g.medium") { value.to_s.match?(/\A[a-z][a-z0-9-]*\.[a-z0-9]+\z/) }
+    end
+
+    # The box's root disk, which holds images, the compose files and container logs; the
+    # database is on RDS.
+    value_object "VolumeGb" do
+      attribute :value, Integer
+      invariant("a volume is at least 8 GB") { value >= 8 }
+      invariant("a volume is at most 16384 GB") { value <= 16384 }
+    end
+
+    # An RDS instance class such as db.t4g.small.
+    value_object "DatabaseClass" do
+      attribute :value, String
+      invariant("a database class is db.family.size, such as db.t4g.small") { value.to_s.match?(/\Adb\.[a-z][a-z0-9-]*\.[a-z0-9]+\z/) }
+    end
+
+    # RDS storage grows with the journal; 20 GB is RDS's gp3 floor.
+    value_object "StorageGb" do
+      attribute :value, Integer
+      invariant("storage is at least 20 GB") { value >= 20 }
+      invariant("storage is at most 65536 GB") { value <= 65536 }
+    end
+
+    # All six required for the same reason as `FargateTarget.Declare`; this validates a target
+    # already resolved by `hecks deploy project`'s defaults.
+    command "Declare" do
+      goal "Validate one domain's AwsBox deploy target before anything is generated from it"
+
+      attribute :domain,         DomainName
+      attribute :region,         Region
+      attribute :instance_type,  InstanceType
+      attribute :volume_gb,      VolumeGb
+      attribute :database_class, DatabaseClass
+      attribute :storage_gb,     StorageGb
+
+      sets :domain
+      sets :region
+      sets :instance_type
+      sets :volume_gb
+      sets :database_class
+      sets :storage_gb
+
+      emits "BoxTargetDeclared"
+    end
+  end
+
   # The validated shape of `hecks deploy provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do
