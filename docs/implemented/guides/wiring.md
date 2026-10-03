@@ -404,7 +404,7 @@ that does not ask, so a stack that never mentions them is unchanged.
 domain's containers with Docker Compose behind Caddy, for a project that does
 not need a load balancer or a container service ([ADR 0085](../../decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)).
 
-```ruby skip
+```text
 deployed_to("AwsBox") do
   region "us-east-1"
   containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081 }]
