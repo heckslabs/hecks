@@ -2,6 +2,11 @@
   "audience": "Deploy",
   "scopes": [
     {
+      "scope": "deploy:box_target.declare",
+      "verb": "Deploy::BoxTarget.Declare",
+      "role": null
+    },
+    {
       "scope": "deploy:fargate_target.declare",
       "verb": "Deploy::FargateTarget.Declare",
       "role": null

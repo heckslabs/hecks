@@ -1,0 +1,35 @@
+{
+  "services": {
+    "website": {
+      "name": "website",
+      "repository": "acme-platform-website",
+      "port": 8080,
+      "env": {
+        "HOST": "0.0.0.0"
+      },
+      "secrets": {
+        "AUTH_SECRET": "acme/session-secret"
+      }
+    },
+    "cms": {
+      "name": "cms",
+      "repository": "widget-shop-cms",
+      "port": 8081,
+      "env": {},
+      "secrets": {}
+    },
+    "domain": {
+      "name": "domain",
+      "repository": "widget-shop-domain",
+      "port": 8082,
+      "env": {
+        "HECKS_SCHEMA": "widgets"
+      },
+      "secrets": {}
+    }
+  },
+  "origin": {
+    "header": "X-Origin-Secret",
+    "secret": "acme/origin-secret"
+  }
+}

@@ -1,0 +1,312 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  One EC2 box that runs widget-shop's containers with Docker Compose behind Caddy, reading the RDS
+  instance from rds.yaml. No inbound rules but an optional CDN prefix list on port 80; use SSM Session
+  Manager to reach it. Secrets are read from Secrets Manager on the box at deploy time.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: A public subnet. The box needs a public IP to reach ECR and Secrets Manager.
+  DbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: DbSecurityGroupId output of the RDS stack.
+  DbSecretArn:
+    Type: String
+    Description: DbSecretArn output of the RDS stack.
+  InstanceType:
+    Type: String
+    Default: t4g.large
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+    Description: Never re-resolve this on a live box, because a newer image replaces the instance.
+  RootVolumeGb:
+    Type: Number
+    Default: 50
+  AlertTopicArn:
+    Type: String
+    Default: ""
+    Description: AlertTopicArn output of the RDS stack. Blank creates the alarms with no notification target.
+  CdnPrefixListId:
+    Type: String
+    Default: ""
+    Description: >
+      A managed prefix list of the CDN's origin-facing addresses. When set, port 80 is open to it (the
+      proxy still refuses requests without the origin secret). Blank leaves the box with no inbound at all.
+  Rehearsal:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: true is a throwaway box with no Elastic IP.
+
+Conditions:
+  HasPrefixList: !Not [!Equals [!Ref CdnPrefixListId, ""]]
+  HasAlerts: !Not [!Equals [!Ref AlertTopicArn, ""]]
+  IsProduction: !Equals [!Ref Rehearsal, "false"]
+
+Resources:
+  BoxSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: widget-shop app box, port 80 from the CDN only, egress to RDS and 443
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - !If
+          - HasPrefixList
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            SourcePrefixListId: !Ref CdnPrefixListId
+            Description: CDN origin-facing addresses
+          - !Ref AWS::NoValue
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          DestinationSecurityGroupId: !Ref DbSecurityGroupId
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        # cloudflared dials out to the tunnel edge on 7844. Outbound only: nothing opens inbound.
+        - IpProtocol: tcp
+          FromPort: 7844
+          ToPort: 7844
+          CidrIp: 0.0.0.0/0
+          Description: tunnel to the edge
+        - IpProtocol: udp
+          FromPort: 7844
+          ToPort: 7844
+          CidrIp: 0.0.0.0/0
+          Description: tunnel to the edge (QUIC)
+  BoxToDbIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DbSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref BoxSecurityGroup
+      Description: App box
+
+  BoxRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: read-secrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DbSecretArn
+                  - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme/*"
+                  - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme/origin-secret-*"
+
+  BoxProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref BoxRole]
+
+  Box:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref BoxSecurityGroup]
+      IamInstanceProfile: !Ref BoxProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref RootVolumeGb
+            Encrypted: true
+            DeleteOnTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+      Tags:
+        - Key: Name
+          Value: widget-shop-box
+        - Key: Backup
+          Value: widget-shop-box
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -eux
+          dnf install -y docker jq
+          systemctl enable --now docker
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -fsSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+          # swap so a memory spike at boot cannot take the box down
+          fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+          echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          mkdir -p /opt/widget-shop
+
+  # Production only. A CDN needs an origin DNS name that survives a stop and start; an Elastic IP
+  # keeps the instance's public DNS name stable.
+  BoxAddress:
+    Type: AWS::EC2::EIP
+    Condition: IsProduction
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: widget-shop-box
+
+  BoxAddressAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Condition: IsProduction
+    Properties:
+      AllocationId: !GetAtt BoxAddress.AllocationId
+      InstanceId: !Ref Box
+
+  # Daily snapshot of every volume on the instance. The database has its own RDS backups; this makes
+  # rebuilding the box fast.
+  SnapshotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: dlm.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+
+  SnapshotPolicy:
+    Type: AWS::DLM::LifecyclePolicy
+    Properties:
+      # DLM allows only letters, digits, spaces, underscores and hyphens here.
+      Description: Daily snapshots of the widget-shop app box - keep 14
+      State: ENABLED
+      ExecutionRoleArn: !GetAtt SnapshotRole.Arn
+      PolicyDetails:
+        ResourceTypes: [INSTANCE]
+        TargetTags:
+          - Key: Backup
+            Value: widget-shop-box
+        Schedules:
+          - Name: daily
+            CopyTags: true
+            CreateRule:
+              Interval: 24
+              IntervalUnit: HOURS
+              Times: ["07:00"]
+            RetainRule:
+              Count: 14
+
+  # A hardware fault on the host: EC2 moves the instance to healthy hardware (same disk, same
+  # address) and the topic is told.
+  SystemStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: EC2 system status check failing, recovering the instance
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Dimensions: [{ Name: InstanceId, Value: !Ref Box }]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlerts
+        - [!Ref AlertTopicArn, !Sub "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:recover"]
+        - [!Sub "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:recover"]
+
+  # The OS or networking inside the instance is unhealthy. Not auto-fixed: a reboot can lose state
+  # worth looking at.
+  InstanceStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlerts
+    Properties:
+      AlarmDescription: EC2 instance status check failing for 5 minutes
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_Instance
+      Dimensions: [{ Name: InstanceId, Value: !Ref Box }]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopicArn]
+      OKActions: [!Ref AlertTopicArn]
+
+  CpuHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlerts
+    Properties:
+      AlarmDescription: "Box CPU above 80% for 30 minutes"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions: [{ Name: InstanceId, Value: !Ref Box }]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 6
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopicArn]
+      OKActions: [!Ref AlertTopicArn]
+
+  WebsiteRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: acme-platform-website
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"keep the newest 30","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":30},"action":{"type":"expire"}}]}'
+
+  CmsRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: widget-shop-cms
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"keep the newest 30","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":30},"action":{"type":"expire"}}]}'
+
+  DomainRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: widget-shop-domain
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"keep the newest 30","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":30},"action":{"type":"expire"}}]}'
+Outputs:
+  InstanceId:
+    Value: !Ref Box
+  AppOriginDomain:
+    Condition: IsProduction
+    Description: The box's stable public DNS name, for a CDN's origin.
+    Value: !Join ["", ["ec2-", !Join ["-", !Split [".", !Ref BoxAddress]], ".eu-west-1.compute.amazonaws.com"]]
+  BoxSecurityGroupId:
+    Value: !Ref BoxSecurityGroup
+  WebsiteRepositoryUri:
+    Value: !GetAtt WebsiteRepository.RepositoryUri
+  CmsRepositoryUri:
+    Value: !GetAtt CmsRepository.RepositoryUri
+  DomainRepositoryUri:
+    Value: !GetAtt DomainRepository.RepositoryUri
