@@ -213,7 +213,7 @@ module Hecks
       # @return [String] the opted-in launcher's middle
       def described_entry(name, boot, shown, quiet: false)
         started = "Hecks.boot_described(described, install_doors: false)"
-        started = "Hecks::Doors::LauncherOptions.quietly(MEMORY_VERBS.include?(ARGV.first)) { #{started} }" if quiet
+        started = "Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_VERBS.include?(ARGV.first)) { #{started} }" if quiet
         <<~RUBY.chomp
           # Usage is answered from the projected chapter alone: no adapter is bound and no
           # database is opened. Only a line that runs a verb boots the domain,

@@ -44,7 +44,7 @@ text, status, reason = Hecks::Doors::CliRunner.usage(
 )
 unless text
   runtime = begin
-    Hecks::Doors::LauncherOptions.quietly(MEMORY_VERBS.include?(ARGV.first)) { Hecks.boot_described(described, install_doors: false) }
+    Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_VERBS.include?(ARGV.first)) { Hecks.boot_described(described, install_doors: false) }
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.lines.first.strip}"
   end

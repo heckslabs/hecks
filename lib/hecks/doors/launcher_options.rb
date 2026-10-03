@@ -54,7 +54,7 @@ module Hecks
       # @param hold [Boolean] whether to hold standard error back; false runs the block as it is
       # @yield the boot
       # @return [Object] the block's value
-      def quietly(hold = true)
+      def quietly(hold: true)
         return yield unless hold
 
         shown = $stderr
