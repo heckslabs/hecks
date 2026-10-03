@@ -10,15 +10,18 @@ require_relative "../../../rust/project"
 module Hecks
   module RustBuild
     # Generates Rust source for one domain into the workspace's `src/generated/`, and keeps the
-    # workspace's `Cargo.toml` features in step; `rust/project.rb` (`RustProjection`) holds the
-    # architecture of the generator itself.
+    # workspace's `Cargo.toml` features in step.
     #
     #   ProjectRust.call(["path/to/domain"])
     #
+    # `hecks-codegen` (`rust/codegen`) is the generator (ADR 0086): this class builds the IR from
+    # the live registry and `CodegenRun` runs the binary on it. `HECKS_CODEGEN=ruby` selects the
+    # Ruby generator in `rust/project` instead, until that is deleted; with `HECKS_PARSER=rust` and
+    # `HECKS_CODEGEN=rust` together, the whole pipeline runs through `rust/project_rust_pipeline.rb`
+    # with no Ruby load of the domain.
+    #
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
-    # With `HECKS_PARSER=rust` and `HECKS_CODEGEN=rust` together, the whole pipeline runs through
-    # `rust/project_rust_pipeline.rb` instead, with no Ruby load of the domain.
     class ProjectRust
       # The optional attachments `rust/host` reads from `ir.json`, each omitted when nothing
       # attached provides it: exporter method, then the key it is written under.
@@ -72,10 +75,43 @@ module Hecks
         @out_root = File.join(@rust_dir, "src/generated")
         FileUtils.mkdir_p(@out_root)
         build_target_ir
-        write_meta
-        write_target
+        FileUtils.rm_rf(File.join(@out_root, "active"))
+        ENV["HECKS_CODEGEN"] == "ruby" ? generate_with_ruby : generate_with_codegen
         write_root_mod
         sync_cargo_features
+      end
+
+      # The rollback path (ADR 0086 step 2): the Ruby generator in `rust/project`, until it is deleted.
+      def generate_with_ruby
+        write_meta
+        write_target
+      end
+
+      # `hecks-codegen` is the generator; this process only builds the IR it reads from the live
+      # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
+      def generate_with_codegen
+        meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_bluebooks)
+        chapters = (@registry.bluebooks.keys - [@domain_name]).map do |name|
+          ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
+          CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", prepared_ir(ir))
+        end
+        CodegenRun.new(
+          out_root: @out_root, meta: prepared_ir(meta), chapters: chapters,
+          target: CodegenRun::Chapter.new(@mod_name, @domain, prepared_ir(@ir, shaped: false))
+        ).call
+      end
+
+      # The IR as `rust/project` hands it to its generators: string-keyed through JSON, with the
+      # append-optional fields marked, since `ir.json` records them.
+      def prepared_ir(tree, shaped: true)
+        tree = json_shaped(tree) if shaped
+        value_objects = tree[:aggregates].flat_map { |aggregate| aggregate[:value_objects] }.to_h { |vo| [vo[:name], vo] }
+        tree[:aggregates].each do |aggregate|
+          local = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+          RustProjection::Projector.mark_append_optional_fields!(aggregate, value_objects.merge(local))
+        end
+        tree
       end
 
       # Round-trips a value through JSON so generators see the string-keyed shape a real `ir.json`
@@ -164,7 +200,6 @@ module Hecks
         # the files this run never touched. `active` is a set of feature re-exports in the root
         # `mod.rs`, never a directory.
         RustProjection::WriteIfChanged.push_directory(dir)
-        FileUtils.rm_rf(File.join(@out_root, "active"))
         result = RustProjection::DomainGenerator.call(
           meta_ir, "the self-hosted language (lib/hecks/language/bluebook)", dir, "meta"
         )
@@ -330,3 +365,4 @@ module Hecks
 end
 
 require_relative "project_rust/root_mod"
+require_relative "project_rust/codegen_run"
