@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+under its aggregate. A command is written with a trailing `!` (`hecks gate! stage=pre_push`); the `!`
+is optional on the command line, so every existing call still works. Queries are read with
+`hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
+and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
+field is unchanged. Bare names that are unambiguous still resolve; requiring the aggregate prefix
+is not part of this change.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.

@@ -2,7 +2,7 @@ require_relative "../naming"
 
 module Hecks
   module Projector
-    # Projects a bluebook as its own command-line surface: the verb tree, argument spec
+    # Projects a bluebook as its own command-line surface: the command tree, argument spec
     # and usage text. Nothing executes here; the generic runner (`hecks run`) parses against it.
     #
     # Argument types come from the declared field types, never from guessing at the
@@ -10,22 +10,22 @@ module Hecks
     module CliProjector
       module_function
 
-      # Projects the verb and question tables and the usage text. Commands and queries are
+      # Projects the command and question tables and the usage text. Commands and queries are
       # separate namespaces (a chapter may declare both under one name); ask a query with `ask`.
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
-      #   text; `:verb` and `:ask` select one verb's `--help` text; `:names` maps a launcher
+      #   text; `:command` and `:ask` select one command's `--help` text; `:names` maps a launcher
       #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`); `:mint_run_keys` makes a
-      #   creating verb's `run` key optional, since the launcher mints it
-      # @return [Hash{Symbol => Object}] `:verbs`, `:questions`, `:names` (alias tables) and
+      #   creating command's `run` key optional, since the launcher mints it
+      # @return [Hash{Symbol => Object}] `:commands`, `:questions`, `:names` (alias tables) and
       #   `:usage` (pre-rendered help text)
-      # @raise [Bluebook::DSL::Malformed] if two verbs project to the same command-line name
+      # @raise [Bluebook::DSL::Malformed] if two commands project to the same command-line name
       def call(bluebook:, options: {})
-        verbs     = {}
+        commands     = {}
         questions = {}
 
-        bluebook.aggregates.each { |aggregate| claim_aggregate(verbs, questions, bluebook, aggregate) }
+        bluebook.aggregates.each { |aggregate| claim_aggregate(commands, questions, bluebook, aggregate) }
 
         # A report belongs to the chapter, not an aggregate, so it is addressed
         # `Chapter.Report` (one dot) where a query is `Chapter::Aggregate.Query`.
@@ -33,46 +33,46 @@ module Hecks
           claim(questions, Naming.snake(model.hecks_name), report_spec(bluebook, model))
         end
 
-        mint_run_keys(verbs) if options[:mint_run_keys]
+        mint_run_keys(commands) if options[:mint_run_keys]
 
         # The display name is the shortest unambiguous one; both spellings are accepted.
-        display_names([verbs, questions], options[:names])
+        display_names([commands, questions], options[:names])
 
-        { verbs: verbs, questions: questions,
-          names: { command: aliases(verbs), question: aliases(questions) },
-          usage: usage(bluebook, verbs, questions, options) }
+        { commands: commands, questions: questions,
+          names: { command: aliases(commands), question: aliases(questions) },
+          usage: usage(bluebook, commands, questions, options) }
       end
 
-      # Claims the verbs and questions of one aggregate and its entities and ports.
+      # Claims the commands and questions of one aggregate and its entities and ports.
       #
-      # @param verbs [Hash{String => Hash}] the verb map, mutated in place
+      # @param commands [Hash{String => Hash}] the command map, mutated in place
       # @param questions [Hash{String => Hash}] the question map, mutated in place
       # @param bluebook [Bluebook::Chapter] the booted domain
       # @param aggregate [Bluebook::Aggregate] the aggregate to claim
       # @return [void]
-      def claim_aggregate(verbs, questions, bluebook, aggregate)
-        aggregate.commands.each { |c| claim(verbs, name_for(aggregate, c), command_spec(bluebook, aggregate, nil, c)) }
+      def claim_aggregate(commands, questions, bluebook, aggregate)
+        aggregate.commands.each { |c| claim(commands, name_for(aggregate, c), command_spec(bluebook, aggregate, nil, c)) }
         aggregate.queries.each  { |q| claim(questions, name_for(aggregate, q), query_spec(bluebook, aggregate, nil, q)) }
 
         aggregate.entities.each do |entity|
           entity.commands.each do |c|
-            claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
+            claim(commands, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
           end
           entity.queries.each do |q|
             claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q))
           end
         end
 
-        # Port operations dispatch by the same name as a command, so they are verbs too.
+        # Port operations dispatch by the same name as a command, so they are commands too.
         aggregate.ports.each do |port|
-          port.operations.each { |o| claim(verbs, name_for(aggregate, o), port_spec(bluebook, aggregate, port, o)) }
+          port.operations.each { |o| claim(commands, name_for(aggregate, o), port_spec(bluebook, aggregate, port, o)) }
         end
       end
 
-      # Sets `:short` on each spec: the last segment when exactly one verb ends in it,
+      # Sets `:short` on each spec: the last segment when exactly one command ends in it,
       # else the full name (two aggregates both declaring `Close` keep both spellings).
       #
-      # @param specs [Hash{String => Hash}] the verb or question map, mutated in place
+      # @param specs [Hash{String => Hash}] the command or question map, mutated in place
       # @return [void]
       def shorten(specs)
         tails = specs.keys.group_by { |name| name.split(".").last }
@@ -82,10 +82,10 @@ module Hecks
         end
       end
 
-      # Marks the `run` key of each creating verb `minted`: optional, and never filled by a bare
+      # Marks the `run` key of each creating command `minted`: optional, and never filled by a bare
       # word, since the launcher makes one when it is left out.
-      def mint_run_keys(verbs)
-        verbs.each_value do |spec|
+      def mint_run_keys(commands)
+        commands.each_value do |spec|
           next unless spec[:creates]
 
           spec[:arguments] = spec[:arguments].map do |argument|
@@ -98,7 +98,7 @@ module Hecks
 
       # Sets the display name of every spec in each map: shortened, then renamed by `names`.
       #
-      # @param maps [Array<Hash{String => Hash}>] the verb and question maps, mutated in place
+      # @param maps [Array<Hash{String => Hash}>] the command and question maps, mutated in place
       # @param names [Hash, nil] the chapter's launcher names
       # @return [void]
       def display_names(maps, names)
@@ -114,7 +114,7 @@ module Hecks
       # replaced keeps working (`:short_was`, read by `aliases`). A table entry naming no
       # command in `specs` belongs to the other namespace and is skipped.
       #
-      # @param specs [Hash{String => Hash}] the verb or question map, mutated in place
+      # @param specs [Hash{String => Hash}] the command or question map, mutated in place
       # @param names [Hash{String, Symbol => String, Symbol}, nil] launcher name to command name
       # @return [void]
       # @raise [Bluebook::DSL::Malformed] if a launcher name is already another command's name
@@ -142,34 +142,34 @@ module Hecks
       end
 
       # Stores `spec` under `name`, refusing a second claim rather than silently
-      # keeping whichever verb was walked first.
+      # keeping whichever command was walked first.
       #
-      # @raise [Bluebook::DSL::Malformed] if `name` is already claimed by another verb
-      def claim(verbs, name, spec)
-        if verbs.key?(name)
+      # @raise [Bluebook::DSL::Malformed] if `name` is already claimed by another command
+      def claim(commands, name, spec)
+        if commands.key?(name)
           raise Bluebook::DSL::Malformed,
-                "two verbs project to the command-line name #{name.inspect}: " \
-                "#{verbs[name][:verb]} and #{spec[:verb]} — rename one"
+                "two commands project to the command-line name #{name.inspect}: " \
+                "#{commands[name][:command]} and #{spec[:command]} — rename one"
         end
 
-        verbs[name] = spec
+        commands[name] = spec
       end
 
-      # The dotted command-line name, `aggregate[.entity].verb`, snake-cased.
-      def name_for(aggregate, verb, entity = nil)
+      # The dotted command-line name, `aggregate[.entity].command`, snake-cased.
+      def name_for(aggregate, command, entity = nil)
         parts = [Naming.snake(aggregate.hecks_name)]
         parts << Naming.snake(entity.hecks_name) if entity
-        parts << Naming.snake(verb.hecks_name)
+        parts << Naming.snake(command.hecks_name)
         parts.join(".")
       end
 
-      # The verb's language name, `Chapter::Aggregate[.Entity].Verb`, for help text.
-      def fqn(bluebook, aggregate, verb, entity = nil)
+      # The command's language name, `Chapter::Aggregate[.Entity].Verb`, for help text.
+      def fqn(bluebook, aggregate, command, entity = nil)
         [bluebook.name, "::", aggregate.hecks_name, ".",
-         entity ? "#{entity.hecks_name}." : "", verb.hecks_name].join
+         entity ? "#{entity.hecks_name}." : "", command.hecks_name].join
       end
 
-      # The options that name the record a verb acts on, before its own arguments.
+      # The options that name the record a command acts on, before its own arguments.
       # `nil` (a creating command) takes none: there is no record yet.
       # Ports always pass `:aggregate`, since a port is declared on an aggregate.
       def receiver_options(receiver, aggregate, entity)
@@ -204,7 +204,7 @@ module Hecks
         arguments = receiver_options(receiver, aggregate, entity) + arguments
         legacy_arguments = receiver == :aggregate ? [{ path: "id", type: "String", required: true }] : []
 
-        { verb: fqn(bluebook, aggregate, command, entity), kind: :command,
+        { command: fqn(bluebook, aggregate, command, entity), kind: :command,
           summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
           group: aggregate.hecks_name, internal: command.role.to_s == "System",
           creates: command.creates?,
@@ -214,7 +214,7 @@ module Hecks
           arguments: arguments }
       end
 
-      # A port operation reads as a verb but reports as a boundary: it creates no
+      # A port operation reads as a command but reports as a boundary: it creates no
       # record, and an outbound failure is the other side's sentence, so `refusals` is empty.
       def port_spec(bluebook, aggregate, port, operation)
         arguments = receiver_options(:aggregate, aggregate, nil) +
@@ -222,7 +222,7 @@ module Hecks
 
         # `Dispatcher#dispatch` looks the head up as a port, so the wire name is
         # `Aggregate.Port.Operation`; the short name (see `shorten`) hides the port.
-        { verb: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
+        { command: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
           kind: :command, creates: false, receiver: :aggregate, refusals: [],
           # `role:` is help text only; port dispatch never reaches the role check,
           # so `role_gated` is always false here.
@@ -254,17 +254,17 @@ module Hecks
             []
           end
 
-        { verb: "#{bluebook.name}.#{model.hecks_name}", kind: :query,
+        { command: "#{bluebook.name}.#{model.hecks_name}", kind: :query,
           summary: model.description, arguments: arguments }
       end
 
       # A question that only reads the aggregate's own records back: it returns no document and
       # filters on nothing but the record's identity ("how one request ended") or its lifecycle
       # status ("every request that was refused"). Each journaled run has such a pair, which a
-      # person reads through `hecks <verb> --wait` rather than asking for by name, so the help
-      # sets them apart with the bookkeeping verbs. A query that returns a document, or filters
+      # person reads through `hecks <command> --wait` rather than asking for by name, so the help
+      # sets them apart with the bookkeeping commands. A query that returns a document, or filters
       # on anything else, is a real question. Only an aggregate that journals its own runs (it has
-      # system-role commands, the ones `internal` verbs are made of) has such a pair: a release's
+      # system-role commands, the ones `internal` commands are made of) has such a pair: a release's
       # "every version that was shipped" is a question worth asking by name.
       def bookkeeping_query?(aggregate, query)
         return false if query.returns || query.wheres.empty?
@@ -280,7 +280,7 @@ module Hecks
           attribute ? options_for(attribute, entity || aggregate, aggregate) : []
         end
 
-        { verb: fqn(bluebook, aggregate, query, entity), kind: :query, group: aggregate.hecks_name,
+        { command: fqn(bluebook, aggregate, query, entity), kind: :query, group: aggregate.hecks_name,
           internal: entity.nil? && bookkeeping_query?(aggregate, query),
           summary: query.description, arguments: arguments, returns: query.returns }
       end
@@ -353,7 +353,7 @@ module Hecks
         nil
       end
 
-      # The conditions that refuse the verb when they hold, in the chapter's own words: a
+      # The conditions that refuse the command when they hold, in the chapter's own words: a
       # lifecycle state mismatch and a missing referenced record per `reference_to`.
       def refusals(command, holder)
         out = []
@@ -366,43 +366,43 @@ module Hecks
         out
       end
 
-      # The conditions the verb needs: each `given` states what must hold, so the verb is
+      # The conditions the command needs: each `given` states what must hold, so the command is
       # refused unless it does.
       def requirements(command) = command.givens.map(&:description)
 
-      # Renders the full verb/question table, or one verb's `--help` text when
-      # `options[:verb]` names one.
-      def usage(bluebook, verbs, questions, options)
+      # Renders the full command/question table, or one command's `--help` text when
+      # `options[:command]` names one.
+      def usage(bluebook, commands, questions, options)
         program = options[:program] || "hecks run"
-        only    = options[:verb]
+        only    = options[:command]
 
         # `options[:ask]` picks the namespace when both hold the name; without it a
         # question's `--help` would print the command sharing its name.
         if only
-          pool = options[:ask] ? questions : verbs
+          pool = options[:ask] ? questions : commands
           key  = aliases(pool)[only] || (options[:ask] ? nil : aliases(questions)[only])
           spec = pool[key] || questions[key]
-          return verb_help(program, spec[:short], spec, ask: options[:ask]) if spec
+          return command_help(program, spec[:short], spec, ask: options[:ask]) if spec
         end
 
-        width = (verbs.values + questions.values).map { |spec| spec[:short].length }.max.to_i
+        width = (commands.values + questions.values).map { |spec| label(spec).length }.max.to_i
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
-               "  #{program} <verb> [name=value …]        do something",
-               "  #{program} ask <question> [name=value …]  read something", ""]
+               "  #{program} <command>! [name=value …]       do something",
+               "  #{program} query <query> [name=value …]    read something", ""]
 
-        out << "verbs:"
-        out.concat(listing(verbs, width) { |spec| spec[:summary] })
+        out << "commands:"
+        out.concat(listing(commands, width) { |spec| spec[:summary] })
         out << ""
-        out << "questions (nothing here changes anything):"
+        out << "queries (nothing here changes anything):"
         out.concat(listing(questions, width) { |spec| first_sentence(spec[:summary]) })
         out << ""
-        out << "  #{program} <verb> --help       what one verb wants, and every way it refuses"
-        out << "  a verb can always be spelled in full — #{example_qualified(verbs)}"
+        out << "  #{program} <command> --help       what one command wants, and every way it refuses"
+        out << "  a command can always be spelled in full — #{example_qualified(commands)}"
         out.join("\n")
       end
 
-      # The verb or question lines of the help. A domain with more than one aggregate is listed
-      # under a heading per aggregate, so related verbs sit together; the bookkeeping a run records
+      # The command or question lines of the help. A domain with more than one aggregate is listed
+      # under a heading per aggregate, so related commands sit together; the bookkeeping a run records
       # about itself (`internal`: system-role commands and port operations) is set apart as names
       # only, since a person never types them. A single-aggregate domain keeps the plain list.
       def listing(specs, width)
@@ -412,10 +412,10 @@ module Hecks
         if groups.length > 1
           groups.each do |group, members|
             lines << "  #{heading(group)}" if group
-            members.each { |spec| lines << "    #{spec[:short].ljust(width)}  #{yield(spec)}" }
+            members.each { |spec| lines << "    #{label(spec).ljust(width)}  #{yield(spec)}" }
           end
         else
-          shown.each { |spec| lines << "  #{spec[:short].ljust(width)}  #{yield(spec)}" }
+          shown.each { |spec| lines << "  #{label(spec).ljust(width)}  #{yield(spec)}" }
         end
         lines.concat(internal_lines(internal)) unless internal.empty?
         lines
@@ -428,11 +428,14 @@ module Hecks
         "#{words.capitalize}:"
       end
 
-      # The internal verbs as bare names, wrapped, under one line saying what they are.
+      # A command is written with the `!` that marks it; a query without one.
+      def label(spec) = spec[:kind] == :command ? "#{spec[:short]}!" : spec[:short]
+
+      # The internal commands as bare names, wrapped, under one line saying what they are.
       def internal_lines(specs)
         lines = ["  internal — what a run records about itself, named here only (`--help` still works):"]
         line = "   "
-        specs.map { |spec| spec[:short] }.each do |name|
+        specs.map { |spec| label(spec) }.each do |name|
           if line.length + name.length + 1 > 98
             lines << line
             line = "   "
@@ -442,41 +445,41 @@ module Hecks
         lines << line
       end
 
-      # One verb whose full spelling differs from its short one, or `""` when none does.
-      def example_qualified(verbs)
-        name, spec = verbs.find { |key, value| key != value[:short] } || verbs.first
+      # One command whose full spelling differs from its short one, or `""` when none does.
+      def example_qualified(commands)
+        name, spec = commands.find { |key, value| key != value[:short] } || commands.first
         name ? "#{spec[:short]} is also #{name}" : ""
       end
 
-      # The verb table wants a query description's first sentence; `--help` prints all.
+      # The command table wants a query description's first sentence; `--help` prints all.
       def first_sentence(text)
         text.to_s.split(/(?<=\.)\s/).first.to_s
       end
 
       # Four independent blocks, concatenated in fixed order: meta, invocation,
       # arguments, refusals.
-      def verb_help(program, name, spec, ask: false)
-        out = verb_help_meta_lines(name, spec)
-        out.concat(verb_help_invocation_lines(program, name, spec, ask))
-        out.concat(verb_help_argument_lines(spec))
-        out.concat(verb_help_refusal_lines(spec))
+      def command_help(program, name, spec, ask: false)
+        out = command_help_meta_lines(name, spec)
+        out.concat(command_help_invocation_lines(program, name, spec, ask))
+        out.concat(command_help_argument_lines(spec))
+        out.concat(command_help_refusal_lines(spec))
         out.join("\n")
       end
 
-      def verb_help_meta_lines(name, spec)
+      def command_help_meta_lines(name, spec)
         out = ["#{name} — #{spec[:summary]}", ""]
-        out << "dispatches #{spec[:verb]}" if spec[:kind] == :command
-        out << "reads #{spec[:verb]}"      if spec[:kind] == :query
+        out << "dispatches #{spec[:command]}" if spec[:kind] == :command
+        out << "reads #{spec[:command]}"      if spec[:kind] == :query
         out << "issued by #{spec[:role]}"  if spec[:role]
         out
       end
 
-      def verb_help_invocation_lines(program, name, spec, ask)
-        invocation = ask ? "#{program} ask #{name}" : "#{program} #{name}"
+      def command_help_invocation_lines(program, name, spec, ask)
+        invocation = ask ? "#{program} query #{name}" : "#{program} #{name}!"
         ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
       end
 
-      def verb_help_argument_lines(spec)
+      def command_help_argument_lines(spec)
         return [] if spec[:arguments].empty?
 
         width = spec[:arguments].map { |a| a[:path].length }.max
@@ -493,7 +496,7 @@ module Hecks
         lines << ""
       end
 
-      def verb_help_refusal_lines(spec)
+      def command_help_refusal_lines(spec)
         [["refused when:", spec[:refusals]], ["refused unless:", spec[:requirements]]].flat_map do |heading, items|
           Array(items).empty? ? [] : [heading, *items.map { |item| "  #{item}" }, ""]
         end

@@ -54,10 +54,10 @@ RSpec.describe "the launcher's opt-in options" do
     File.write(full, text)
   end
 
-  def hecks_spec(verb)
+  def hecks_spec(command)
     cli = Hecks::Projector.call(:cli, bluebook: @hecks.registry.bluebook("Hecks"),
                                       options:  { program: "hecks", mint_run_keys: true })
-    cli[:verbs].fetch(cli[:names][:command].fetch(verb))
+    cli[:commands].fetch(cli[:names][:command].fetch(command))
   end
 
   def run_verb(*argv) = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
@@ -113,9 +113,9 @@ RSpec.describe "the launcher's opt-in options" do
     it "lists the alias, not the internal name, and keeps both spellings working" do
       help = run_verb.first
 
-      expect(help).to match(/^\s+mcp /)
-      expect(help).to match(/^\s+console /)
-      expect(help).not_to match(/^\s+serve_mcp /)
+      expect(help).to match(/^\s+mcp! /)
+      expect(help).to match(/^\s+console! /)
+      expect(help).not_to match(/^\s+serve_mcp! /)
       expect(run_verb("serve_mcp", "--help").first).to include("dispatches")
       expect(run_verb("mcp", "--help").first).to start_with("mcp")
     end
@@ -181,7 +181,7 @@ RSpec.describe "the launcher's opt-in options" do
       expect { take.call(spec, ["--wait=maybe"]) }.to raise_error(Hecks::Runtime::TypeMismatch, /not Boolean/)
     end
 
-    it "is left to a verb that declares its own wait argument" do
+    it "is left to a command that declares its own wait argument" do
       spec = { arguments: [{ path: "wait", type: "Integer" }] }
 
       expect(Hecks::Doors::LauncherOptions.take_wait(spec, ["--wait"])).to eq([["--wait"], false])

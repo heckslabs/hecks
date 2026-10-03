@@ -46,13 +46,13 @@ module Hecks
         { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
       end
 
-      # Takes `--wait` out of a verb's words, unless the verb declares a `wait` argument of its own.
+      # Takes `--wait` out of a command's words, unless the command declares a `wait` argument of its own.
       #
       # `--wait=false` (or `no`, `0`, `off`) is a `--wait` that was switched off; a bare `--wait`
       # may be followed by its Boolean word.
       #
-      # @param spec [Hash] the verb's projected spec
-      # @param words [Array<String>] the words after the verb
+      # @param spec [Hash] the command's projected spec
+      # @param words [Array<String>] the words after the command
       # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--wait` was given
       # @raise [Runtime::TypeMismatch] if `--wait=` carries something that is not a Boolean word
       def take_wait(spec, words)
@@ -78,7 +78,7 @@ module Hecks
       def streams?(launcher, spec)
         return false unless launcher && spec[:kind] == :query
 
-        Array(launcher[:streams]).map(&:to_s).include?(spec[:verb].to_s.split(/[.:]+/).last)
+        Array(launcher[:streams]).map(&:to_s).include?(spec[:command].to_s.split(/[.:]+/).last)
       end
 
       # Takes `--stream` out of a question's words.
@@ -119,7 +119,7 @@ module Hecks
       # rather than sent on without one.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param spec [Hash] the verb's projected spec
+      # @param spec [Hash] the command's projected spec
       # @param args [Hash] the parsed arguments
       # @param settings [Hash, nil] the chapter's `launcher` setting
       # @return [Array(Hash, String)] the arguments, and the key minted (nil when none was)
