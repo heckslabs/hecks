@@ -138,11 +138,101 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
   end
 
+  # One journaled run: a system-role command, the pair of questions every run has, and two real
+  # questions on the same aggregate. Defined here rather than as a fixture file, which the
+  # corpus accounting spec would ask to be accounted for.
+  def journaled_runs # rubocop:disable Metrics/MethodLength
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.bluebook "Runs" do
+        vision "A journaled run"
+        aggregate "Job" do
+          description "One job, from request to end."
+          attribute :run, RunKey
+          attribute :note, Note, optional: true
+          identified_by :run
+          value_object("RunKey") { attribute :value, String }
+          value_object("Note") { attribute :value, String }
+          value_object("Document") { attribute :text, String }
+          lifecycle(:status, default: "requested") { transition "Fault" => "faulted", from: "requested" }
+          command "Fault" do
+            role "System"
+            goal "Record the failure"
+            reference_to Job
+            emits JobFaulted
+          end
+          query "JobOutcome" do
+            description "How one job ended."
+            attribute :run, RunKey
+            where(run: :run)
+          end
+          query "JobFaulted" do
+            description "Every job that failed."
+            where(status: "faulted")
+          end
+          query "JobsByNote" do
+            description "Jobs by note."
+            attribute :note, Note
+            where(note: :note)
+          end
+          query "JobDigest" do
+            description "A digest."
+            returns Document
+          end
+        end
+      end
+    end
+    registry
+  end
+
   describe "the help" do
     it "lists verbs and questions separately, with what each is for" do
       expect(banking[:usage]).to include("verbs:")
       expect(banking[:usage]).to include("questions (nothing here changes anything):")
       expect(banking[:usage]).to include("freeze")
+    end
+
+    # A chapter with several aggregates reads as a table of contents: a heading per aggregate, its
+    # verbs beneath it, instead of one flat list in declaration order.
+    it "groups the verbs and questions under a heading per aggregate" do
+      usage = banking[:usage]
+
+      expect(usage).to match(/^  Customer:\n    register\s+Take on a new customer/)
+      expect(usage).to match(/^  Account:\n    account\.open\s+/)
+      expect(banking[:verbs]["account.freeze_account"][:group]).to eq("Account")
+    end
+
+    # The pair every journaled run has (how one run ended, which ones failed) is read through
+    # `--wait`, not asked for by name. Only a query that reads the run's own records back by its
+    # identity or its status counts; a query that filters on anything else, or returns a document,
+    # is a real question even on the same aggregate.
+    it "sets a run's own outcome and fault questions apart, and keeps real questions listed" do
+      runs = described_class.call(bluebook: journaled_runs.bluebook("Runs"))
+      internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
+
+      expect(internal).to contain_exactly("job_outcome", "job_faulted")
+      expect(runs[:usage]).to match(/^\s+jobs_by_note\s+/)
+      expect(runs[:usage]).to match(/^\s+job_digest\s+/)
+      expect(runs[:usage]).not_to match(/^\s+job_outcome\s{2,}How one job ended/)
+    end
+
+    it "titles a heading after its aggregate, without a Run suffix" do
+      heading = described_class.send(:heading, "TestSuiteRun")
+
+      expect(heading).to eq("Test suite:")
+      expect(described_class.send(:heading, "Operation")).to eq("Operation:")
+    end
+
+    # What a run records about itself (system-role commands, port operations) is never typed by a
+    # person, so the help names it on a line of its own instead of spending a described line each.
+    it "sets bookkeeping verbs apart as names only" do
+      usage = payments[:usage]
+      port_verb = payments[:verbs].values.find { |spec| spec[:verb].include?("PaymentGateway") }
+
+      expect(port_verb[:internal]).to be(true)
+      expect(usage).to include("internal — what a run records about itself")
+      expect(usage).not_to include("#{port_verb[:short].ljust(5)}  #{port_verb[:summary]}")
+      expect(usage).to include(port_verb[:short])
     end
 
     # The short spelling where unambiguous: `pizzas create_pizza`, not `pizzas order.create_pizza`.

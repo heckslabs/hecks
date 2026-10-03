@@ -206,6 +206,7 @@ module Hecks
 
         { verb: fqn(bluebook, aggregate, command, entity), kind: :command,
           summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
+          group: aggregate.hecks_name, internal: command.role.to_s == "System",
           creates: command.creates?,
           receiver: receiver, legacy_receiver: (receiver == :aggregate ? :id : nil),
           legacy_arguments: legacy_arguments,
@@ -230,7 +231,7 @@ module Hecks
                 else
                   "#{port.name} telling #{aggregate.hecks_name}"
                 end,
-          role_gated: false,
+          role_gated: false, group: aggregate.hecks_name, internal: true,
           summary: port_summary(port, operation), arguments: arguments }
       end
 
@@ -257,13 +258,30 @@ module Hecks
           summary: model.description, arguments: arguments }
       end
 
+      # A question that only reads the aggregate's own records back: it returns no document and
+      # filters on nothing but the record's identity ("how one request ended") or its lifecycle
+      # status ("every request that was refused"). Each journaled run has such a pair, which a
+      # person reads through `hecks <verb> --wait` rather than asking for by name, so the help
+      # sets them apart with the bookkeeping verbs. A query that returns a document, or filters
+      # on anything else, is a real question. Only an aggregate that journals its own runs (it has
+      # system-role commands, the ones `internal` verbs are made of) has such a pair: a release's
+      # "every version that was shipped" is a question worth asking by name.
+      def bookkeeping_query?(aggregate, query)
+        return false if query.returns || query.wheres.empty?
+        return false unless aggregate.commands.any? { |command| command.role.to_s == "System" }
+
+        own = Array(aggregate.identified_by).map(&:to_s) + [aggregate.lifecycle&.field.to_s]
+        query.wheres.all? { |clause| own.include?(clause.field.to_s) }
+      end
+
       def query_spec(bluebook, aggregate, entity, query)
         arguments = Array(query.to_h[:attributes]).flat_map do |declared|
           attribute = query.attributes.find { |a| a.name.to_s == declared[:name].to_s }
           attribute ? options_for(attribute, entity || aggregate, aggregate) : []
         end
 
-        { verb: fqn(bluebook, aggregate, query, entity), kind: :query,
+        { verb: fqn(bluebook, aggregate, query, entity), kind: :query, group: aggregate.hecks_name,
+          internal: entity.nil? && bookkeeping_query?(aggregate, query),
           summary: query.description, arguments: arguments, returns: query.returns }
       end
 
@@ -373,14 +391,55 @@ module Hecks
                "  #{program} ask <question> [name=value …]  read something", ""]
 
         out << "verbs:"
-        verbs.each_value { |spec| out << "  #{spec[:short].ljust(width)}  #{spec[:summary]}" }
+        out.concat(listing(verbs, width) { |spec| spec[:summary] })
         out << ""
         out << "questions (nothing here changes anything):"
-        questions.each_value { |spec| out << "  #{spec[:short].ljust(width)}  #{first_sentence(spec[:summary])}" }
+        out.concat(listing(questions, width) { |spec| first_sentence(spec[:summary]) })
         out << ""
         out << "  #{program} <verb> --help       what one verb wants, and every way it refuses"
         out << "  a verb can always be spelled in full — #{example_qualified(verbs)}"
         out.join("\n")
+      end
+
+      # The verb or question lines of the help. A domain with more than one aggregate is listed
+      # under a heading per aggregate, so related verbs sit together; the bookkeeping a run records
+      # about itself (`internal`: system-role commands and port operations) is set apart as names
+      # only, since a person never types them. A single-aggregate domain keeps the plain list.
+      def listing(specs, width)
+        shown, internal = specs.values.partition { |spec| !spec[:internal] }
+        groups = shown.group_by { |spec| spec[:group] }
+        lines = []
+        if groups.length > 1
+          groups.each do |group, members|
+            lines << "  #{heading(group)}" if group
+            members.each { |spec| lines << "    #{spec[:short].ljust(width)}  #{yield(spec)}" }
+          end
+        else
+          shown.each { |spec| lines << "  #{spec[:short].ljust(width)}  #{yield(spec)}" }
+        end
+        lines.concat(internal_lines(internal)) unless internal.empty?
+        lines
+      end
+
+      # "LanguageRun" reads "Language": the Run suffix names the journaled-command shape all of
+      # these aggregates share, so it adds nothing under a heading ("Test suite", "Model check").
+      def heading(group)
+        words = Naming.snake(group.sub(/Run\z/, "")).tr("_", " ")
+        "#{words.capitalize}:"
+      end
+
+      # The internal verbs as bare names, wrapped, under one line saying what they are.
+      def internal_lines(specs)
+        lines = ["  internal — what a run records about itself, named here only (`--help` still works):"]
+        line = "   "
+        specs.map { |spec| spec[:short] }.each do |name|
+          if line.length + name.length + 1 > 98
+            lines << line
+            line = "   "
+          end
+          line += " #{name}"
+        end
+        lines << line
       end
 
       # One verb whose full spelling differs from its short one, or `""` when none does.
