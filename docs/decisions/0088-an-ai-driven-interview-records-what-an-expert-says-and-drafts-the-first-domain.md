@@ -1,6 +1,6 @@
 # An AI-driven interview records what an expert says and drafts the first domain
 
-**Status:** Proposed. Date: 2026-10-03. Nothing here is built; this ADR asks for a decision before any code. It builds on [ADR 0087](0087-hecks-init-writes-the-starter-files-of-a-new-domain.md), which is the small, offline `hecks init`.
+**Status:** Proposed. Date: 2026-10-03. Nothing here is built; this ADR asks for a decision before any code. It builds on [ADR 0087](0087-hecks-init-writes-the-stub-files-of-a-new-domain.md), the stub-writing `hecks init`, which asks nothing; this is the separate command for a guided start.
 
 ## Context
 
@@ -29,7 +29,7 @@ What exists today is a good base for a smaller version:
    - A developer sits with the expert, relays each question, and types the answer back. The developer accepts or rejects each proposed finding; only accepted findings generate anything.
    - The adapter is the existing `ClaudeCode` one, so the work runs through the developer's own `claude` and hecks holds no model, no API key and no network call of its own.
 6. **What the AI is shown each turn:** the subject, the exchanges so far, the accepted findings, and a computed list of gaps (a thing with no identifier, an action with no event). It is shown no files from the project.
-7. **`hecks interview <Name>` is its own verb.** It ends by calling the same generator `init` uses, so one place writes a bluebook. From accepted findings: a `thing` becomes an aggregate with its identity, an `action` becomes a command and its event, and a `rule` is written as a comment citing its source (`# RULE (INT-1 #4): a book can't be lent twice`) for a developer to turn into a `given`. Rules are never generated from prose.
+7. **`hecks interview <Name>` is its own verb, and not a mode of `init`.** It shares `init`'s file-writing plumbing (the `.world`, the overlay, the `.gitignore`, and the check that nothing is replaced) but renders the bluebook itself, from accepted findings, where `init` writes a fixed stub. From accepted findings: a `thing` becomes an aggregate with its identity, an `action` becomes a command and its event, and a `rule` is written as a comment citing its source (`# RULE (INT-1 #4): a book can't be lent twice`) for a developer to turn into a `given`. Rules are never generated from prose.
 8. **The first interview creates the domain; later ones never touch it.** `interview` never replaces anything. A later interview records its findings and writes a proposed-additions file next to the domain for a developer to merge. Automatic merging is left out because it risks overwriting hand edits.
 9. **The record is a Markdown file per concluded interview,** at `<domain>/interviews/<reference>.md`, holding the exchanges and findings in order. A concluded interview does not change. SME itself stays on Memory; the file is the durable thing.
 10. **Without the AI, and when a turn fails.**
@@ -38,7 +38,7 @@ What exists today is a good base for a smaller version:
     - If a turn fails, `interview` says what failed, offers a plain prompt for that turn, and carries on. Everything recorded so far stays.
 11. **No question bank in the first version.** The AI composes the questions, and a catalogue (the old `StandingQuestion`) is built when it is clear which questions recur.
 12. **Tests.** A scripted agent plus a fixture transcript drive a whole interview in a spec, and a spec boots the domain that is generated from it. No spec calls a real model.
-13. **Build order:** `init` ([ADR 0087](0087-hecks-init-writes-the-starter-files-of-a-new-domain.md)), then the SME chapter without the AI, then the generator, then the AI loop. The riskiest piece comes last, when the rest is proven.
+13. **Build order:** `init` ([ADR 0087](0087-hecks-init-writes-the-stub-files-of-a-new-domain.md)), then the SME chapter without the AI, then the generator, then the AI loop. The riskiest piece comes last, when the rest is proven.
 
 ## Consequences
 
@@ -57,7 +57,7 @@ What exists today is a good base for a smaller version:
 - **Pause and resume.** The old design had them. A second conversation as a new interview is simpler and matches many interviews feeding one domain.
 - **Automatic merge into an existing bluebook.** The hardest part of the old system, with the most risk to hand edits.
 - **Revive the old Interview as it was.** Over 1,500 lines against an architecture that has since changed; this version keeps its ideas and drops its machinery.
-- **Replace `init`'s fixed prompts with the AI interview.** `init` should stay small, offline and fast for a first-time newcomer.
+- **Make the interview a mode of `init`.** Rejected: `init` should stay a small, offline stub writer that asks nothing, and the interview needs a model, a conversation and a record.
 
 ## Open items
 
@@ -66,4 +66,4 @@ What exists today is a good base for a smaller version:
 - The format of the proposed-additions file, and whether a later interview that finds nothing new writes one.
 - Per-turn timeout and a ceiling on the number of turns (the adapter's default is 120 seconds a call).
 - Whether `hecks interview` is in the gem's own command set (it needs the SME chapter, which ships in `lib/`, and a `claude` binary).
-- Whether `init`'s generator and `interview`'s generator are literally one function, or `init` calls a smaller shared renderer.
+- Where the plumbing `init` and `interview` share lives, and what it is called.
