@@ -7,6 +7,18 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks` prints its help about three times faster on a repeat run, and the help is grouped by
+aggregate with the prefix left off.** Reading the domain's declarations was most of what the launcher
+cost (about 0.9s of 1.2s); the help is now remembered under a digest of the domain's declaration
+files, the gem's own library, the hecks and Ruby versions, the environment overlay and the command
+line, so any edit to one of them is simply a new entry and nothing is ever stale. A repeat `hecks`
+reads no declarations. `Hecks.describe` loads them on the first `registry` call instead of on return.
+`HECKS_NO_USAGE_CACHE=1` turns the cache off and `HECKS_CACHE_DIR` moves it (default
+`~/.cache/hecks`); an entry nobody reads for two weeks is swept on the next write. In the help, each
+aggregate heading is the prefix of every call under it (`language_run:`), and the lines beneath drop
+it (`project_model!`); a command the chapter gives a short name is listed by its real name with
+`(also: mcp!)`.
+
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with

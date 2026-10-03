@@ -17,6 +17,11 @@ require "tmpdir"
 VERDICT_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-verdict-cache-spec")
 at_exit { FileUtils.rm_rf(VERDICT_CACHE_SPEC_DIR) }
 Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VERDICT_CACHE_SPEC_DIR }
+
+# The launcher's remembered help is likewise private to the run, children included.
+USAGE_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-usage-cache-spec")
+at_exit { FileUtils.rm_rf(USAGE_CACHE_SPEC_DIR) }
+ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
 require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
