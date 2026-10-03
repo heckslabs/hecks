@@ -90,7 +90,7 @@ module Hecks
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
         meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_bluebooks)
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         chapters = (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
           CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", prepared_ir(ir))
