@@ -1,0 +1,888 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Banking::Customer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Suspend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Reinstate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapFrobnicate",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "mutation_op",
+    "reason": "sets op(s) frobnicate not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapStateSource",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "state_source",
+    "reason": "sets state source(s): name: sources state(:nope), which Customer does not declare"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapLiteral",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "set_literal",
+    "reason": "sets to: a literal that doesn't bridge to the target's type (name) — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapArithmetic",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "arithmetic",
+    "reason": "sets :name increment/decrement/multiply amount or target field isn't bridgeable — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapClamp",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "clamp",
+    "reason": "sets :name clamp target field or bounds isn't bridgeable — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapBridge",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "set_argument_bridge",
+    "reason": "sets :name sources an argument no single-field rewrap can bridge to the target's type — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapRemove",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "remove_field",
+    "reason": "sets remove field(s): name: not a declared list attribute"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.GapReverses",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "corrects_reverses",
+    "reason": "corrects CustomerRegistered, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet"
+  },
+  {
+    "kind": "port_operation",
+    "id": "Banking::Customer.Gateway.Ping",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "port_attribute_type",
+    "reason": "attribute type(s) Mystery not generated yet (a value object this aggregate's own attributes never resolved a Rust type for)"
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Account",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::Account.LedgerEntry",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Amend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Credit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Debit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.FreezeAccount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Unfreeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CloseAccount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.ApplyFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.AccrueInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::OnboardingCase",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ATMCard",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::ATMCard.Withdrawal",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::ATMCard.Withdrawal.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Issue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Rename",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Withdraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Activate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::CardPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Authorize",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Capture",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Void",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Refund",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Chargeback",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.RejectDispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::SafeDepositBox",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.Visit",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.Visit.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.KeyIssuance",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.KeyIssuance.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Rent",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Surrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.LogVisit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.IssueKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Statement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Statement.Generate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Transfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Debited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Credited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reject",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ExternalTransfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.SendTransfer",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Recall",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ScheduledPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Execute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Fail",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Retry",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Abandon",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Ghost",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "attribute_type",
+    "reason": "attribute type(s) Note not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Ghost.Haunt",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "owning_aggregate",
+    "reason": "owning aggregate not generated: attribute type(s) Note not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::Ghost.Note",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "owning_aggregate",
+    "reason": "owning aggregate not generated: attribute type(s) Note not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Ghost.Note.Scribble",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "owning_aggregate",
+    "reason": "owning aggregate not generated: attribute type(s) Note not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
+  },
+  {
+    "kind": "port_operation",
+    "id": "Banking::Ghost.Line.Call",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "owning_aggregate",
+    "reason": "owning aggregate not generated: attribute type(s) Note not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.InGoodStanding",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.Suspended",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.NotGoodStanding",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapCursor",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "cursor",
+    "reason": "declares cursor — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapIndexHints",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "index_hints",
+    "reason": "declares use_index, out of scope for the same reason the extras above are"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapNoWheres",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapUnknownField",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "where_unrecognized_field",
+    "reason": "where clause on \"nope\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapHop",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "reference_hop_where",
+    "reason": "where clause on \"nope/status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapNoneInState",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "where_none_in_state",
+    "reason": "where clause on \"status\" uses op \"none_in_state\" — Vocabulary::QueryComparator admits it, and rust/src/kernel/query_comparators.rs's own QueryComparator::NoneInState variant now exists and is proven correct (item #9, whole-project table-unification survey) — but no generated domain has any way to hand it a cross-domain search list at the call site (named_query::run's own thin `run_cross_domain([])` wrapper is what every generated QUERIES table actually calls), so generating this condition today would silently answer every row 'true' rather than a real anti-join — deliberately left ungenerated until a real cross-domain-search call site exists, the same honest-refusal-over-silently-wrong choice this generator makes everywhere else"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapOrderedString",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "where_literal",
+    "reason": "where clause on \"status\" uses op \"gt\" against a LITERAL value whose target field doesn't reduce to a plain JSON number (kind: string) — gt/gte/lt/lte only mean anything against a number (query_comparators.rs's own `ordered?` gate)"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapOrderBy",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "order_by",
+    "reason": "declares order_by on \"nope\" — this generator can only sort a field that reduces to a plain JSON string or number (kind: unknown); a hop through a reference, an entity-scoped field, a list_of field, or a multi-member non-numeric value object can't be compared generically"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapLimit",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "limit",
+    "reason": "declares limit \"lots\" — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real limit count from it"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapOffset",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "offset",
+    "reason": "declares offset \"lots\" — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real offset count from it"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.GapTenant",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "authorization",
+    "reason": "where clause on \"nope\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Open",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Overdrawn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.HighBalance",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.StrictlyAbove",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.AtMost",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Reachable",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenForSuspendedCustomers",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenForCustomer",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.LedgerEntry.Reversed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::OnboardingCase.Screening",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.Active",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.ByFee",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.Withdrawal.Recent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Pending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Disputed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Flagged",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::SafeDepositBox.Rented",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::SafeDepositBox.Visit.Recent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Transfer.InFlight",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ExternalTransfer.Sent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ScheduledPayment.Due",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::CustomerPortfolio",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::ComplianceDashboard",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentCount",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentMedian",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentTotal",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentAverage",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentSmallest",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentLargest",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentP95",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::AccountsByKind",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapCursorReport",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "cursor",
+    "reason": "declares cursor — out of scope for this generator: cursor/consistency/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapGroupBy",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "group_by",
+    "reason": "declares group_by across 2 aggregate heads — not generated yet (only a single, rootless head is)"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapMissingRoot",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "missing_root_head",
+    "reason": "declares reference_to Customer, but includes no matching aggregate head — nothing for this generator's own root fetch to key off"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapUndeclared",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "include_undeclared_aggregate",
+    "reason": "includes Nowhere, which this domain never declares"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapMedian",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "median_field",
+    "reason": "median names \"nope\", but Account declares no such attribute — not generated yet"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapHeadHop",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "reference_hop_where",
+    "reason": "head Account (as accounts)'s own where clause on \"nope/status\" hops through a reference this generator can't resolve yet (more than one hop, the head isn't a real reference attribute, or the target aggregate isn't declared in this domain) — not generated yet"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::GapEntityHead",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "include_entity_head",
+    "reason": "includes LedgerEntry, a nested entity, as the filtered head — an entity has no rows of its own (ReadModelInterpreter#records reads it as empty), so there is nothing to filter, order or authorize — not generated yet"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnFreeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::RetryOnPaymentFailure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FreezeAccountsOnSuspension",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::NotifyOnClosure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnBoxSurrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FlagKeyReturn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Onboarding",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Settlement",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::ExternalSettlement",
+    "generated": true,
+    "routed": true
+  }
+]

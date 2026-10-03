@@ -28,8 +28,8 @@ jobs:
           checks: rspec_rust_codegen
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
-  # rust/codegen/ (hecks-codegen), an independent Cargo project; codegen_parity_spec.rb
-  # builds it via `build_codegen!`.
+  # rust/codegen/ (hecks-codegen), an independent Cargo project; codegen_planted_gaps_spec.rb
+  # builds it before its examples.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -59,8 +59,8 @@ jobs:
           crate-root: rust/codegen
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "rspec: Rust codegen parity"
-        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb spec/codegen_manifest_parity_spec.rb
+      - name: "rspec: Rust codegen planted-gap manifest"
+        run: bundle exec rspec --tag io spec/codegen_planted_gaps_spec.rb
 
       - name: "cargo test: rust/codegen (hecks-codegen)"
         run: cd rust/codegen && cargo test

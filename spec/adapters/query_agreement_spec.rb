@@ -39,10 +39,12 @@ end
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, " \
                "PostgresEra, plain Postgres, and D1",
                :io do
-  AGREEMENT_DB = "hecks_query_agreement_spec".freeze
+  # Named for the process, so two runs on one Postgres (parallel sessions) never drop each
+  # other's databases mid-spec.
+  AGREEMENT_DB = "hecks_query_agreement_spec_#{Process.pid}".freeze
   # Separate from AGREEMENT_DB: one database per engine keeps `DROP SCHEMA public CASCADE`
   # on one from touching the other's tables.
-  PLAIN_POSTGRES_AGREEMENT_DB = "hecks_query_agreement_spec_plain".freeze
+  PLAIN_POSTGRES_AGREEMENT_DB = "#{AGREEMENT_DB}_plain".freeze
 
   # Instance methods over the module-level memoized probes, giving hooks a short name.
   def postgres_available? = PostgresProbe.available?

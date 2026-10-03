@@ -52,8 +52,8 @@ generated too (`hecks language_run.project_parser_table`, from the language's ow
 `Syntax` chapter), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
-continuously, not just at release time: `spec/codegen_parity_spec.rb`
-holds Rust's generated output byte-identical to Ruby's, and
+continuously, not just at release time: `hecks regenerate_corpus --check`
+regenerates every corpus domain's Rust and fails on any difference from the committed tree, and
 `spec/rust_conformance_spec.rb` replays every pinned fixture script in
 `spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
 reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,
