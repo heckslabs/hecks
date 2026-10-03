@@ -19,6 +19,10 @@ aggregate heading is the prefix of every call under it (`language_run:`), and th
 it (`project_model!`); a command the chapter gives a short name is listed by its real name with
 `(also: mcp!)`.
 
+## [3.1.0] - 2026-10-03
+
+A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
+
 **A restricted `hecks mcp` door checks arguments by name (ADR 0089).** In reader and commands mode,
 `dispatch` and `query` refuse an argument that names a host or a URL, a binary, an output, a port, a
 store to switch to, or a switch from preview to change (`McpDoorScope::DENIED_ARGUMENTS`), a path
@@ -65,10 +69,10 @@ build accept the same forms. `hecks model_check` now also flags `across "X"` on 
 attaches a chapter the gem carries beyond the framework members, which it missed before.
 
 Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
-They behave as before, print a one-line warning, and are removed in 3.1.0. Generated Rust files
+They behave as before, print a one-line warning, and are removed in 3.2.0, one release after the warning. Generated Rust files
 now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
 
-**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+**Behavior change: the launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with
 `hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
@@ -78,7 +82,7 @@ is refused with the qualified names that end in it. A chapter's `names` table st
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
 
-**`HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
+**Behavior change: `HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
 
 **`hecks mcp` has a commands scope, and a restricted door stays booted.** With
 `HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
