@@ -243,6 +243,8 @@ module Hecks
         target_args = ctx.args.merge(
           delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
         )
+        # The target is dispatched as if called directly, so its needs and defaults are filled too.
+        target_args = enrich_arguments(target_command, target_args)
 
         refuse_unknown_arguments(ctx.domain, ctx.aggregate, target_command, target_args,
                                  extra_identity_heads: entity.identity_heads)
