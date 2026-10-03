@@ -400,24 +400,34 @@ module Hecks
           return command_help(program, spec[:short], spec, ask: options[:ask]) if spec
         end
 
-        all     = options[:all]
-        width   = (commands.values + questions.values).reject { |spec| spec[:internal] && !all }
-                                                      .map { |spec| label(spec).length }.max.to_i
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
-
-        out << "commands:"
-        out.concat(listing(commands, width, all: all) { |spec| spec[:summary] })
-        out << ""
-        out << "queries (nothing here changes anything):"
-        out.concat(listing(questions, width, all: all) { |spec| first_sentence(spec[:summary]) })
+        out.concat(tables(commands, questions, all: options[:all]))
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
-        hidden = (commands.values + questions.values).count { |spec| spec[:internal] }
-        out << "  #{program} --all                  also list the #{hidden} internal commands and queries" if hidden.positive? && !all
+        out.concat(all_hint(program, commands, questions)) unless options[:all]
         out << "  a command is called with its aggregate — #{example_qualified(commands)}"
         out.join("\n")
+      end
+
+      # The commands table then the queries table, sharing one label column. Internal entries
+      # count toward the width only when `all` lists them.
+      def tables(commands, questions, all:)
+        listed = (commands.values + questions.values).reject { |spec| spec[:internal] && !all }
+        width  = listed.map { |spec| label(spec).length }.max.to_i
+        ["commands:", *listing(commands, width, all: all) { |spec| spec[:summary] }, "",
+         "queries (nothing here changes anything):",
+         *listing(questions, width, all: all) { |spec| first_sentence(spec[:summary]) }]
+      end
+
+      # The line saying the internal commands and queries were left out and how to list them,
+      # or no line when there are none.
+      def all_hint(program, commands, questions)
+        hidden = (commands.values + questions.values).count { |spec| spec[:internal] }
+        return [] if hidden.zero?
+
+        ["  #{program} --all                  also list the #{hidden} internal commands and queries"]
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
