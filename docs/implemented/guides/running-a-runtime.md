@@ -36,7 +36,7 @@ also a report from having tried the alternative first.
 ## Getting the IR
 
 The IR is `Hecks::Bluebook#to_h`, per aggregate, per bluebook —
-the same shape `spec/golden/ir/*.json` pins and `hecks ` prints.
+the same shape `spec/golden/ir/*.json` pins and `hecks ir` prints.
 `Hecks::Projector::Exporter.call(registry)` returns it as a real
 Ruby `Hash`, keyed by bluebook name; `.json(registry)` wraps it in
 `JSON.pretty_generate` for a file or a pipe. Boot the domain the same

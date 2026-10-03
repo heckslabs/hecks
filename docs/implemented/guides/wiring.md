@@ -362,7 +362,7 @@ generate = lambda do |hosting|
     end
   WORLD
   out = File.join(domain_dir, "out-#{hosting.empty? ? 'plain' : 'hosting'}")
-  _stdout, stderr, status = Open3.capture3("ruby", hecks_exe, "deploy", "project", domain_dir, "--out=#{out}")
+  _stdout, stderr, status = Open3.capture3("ruby", hecks_exe, "deploy", "recipe.project", domain_dir, "--out=#{out}")
   raise stderr unless status.success?
 
   Dir.children(out).sort

@@ -136,7 +136,7 @@ then projects it to whichever execution form the deployment actually
 needs — a Ruby process talking to Postgres, or a portable binary with
 no runtime dependencies at all. Deployment (SAM/Lambda templates via
 `hecks deploy recipe.project`, an OIDC manifest via `hecks deploy oidc_manifest.project_oidc`, a
-standalone CLI via `hecks `) is downstream of that same
+standalone CLI via `hecks project_cli`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
 What this does *not* yet claim: throughput and latency are measured only

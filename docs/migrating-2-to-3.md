@@ -6,7 +6,7 @@ CHANGELOG entry for 3.0.0 has the full wording.
 
 ## 1. Replace `bin/<name>` with `hecks <verb>`
 
-The `bin/` directory is gone. The launcher is `exe/hecks`, which the gem ships and `hecks `
+The `bin/` directory is gone. The launcher is `exe/hecks`, which the gem ships and `hecks project_cli`
 regenerates. The verb a script became is in [docs/tools.md](tools.md), and `hecks <verb> --help`
 says what it takes. Arguments are projected from the command, so flags and argument order can
 differ from the old script: `bin/compact` is `hecks era.compact <domain> [aggregates=A,B] --confirm`.
@@ -28,7 +28,7 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 
 `Surface` is now `Doors::RubyDoor`, and the MCP door lives beside it. `install_facade:` is now
 `install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.1.0. Regenerate
-launchers with `hecks `.
+launchers with `hecks project_cli`.
 
 ## 3. Reach Hecks-chapter constants through `Hecks::Domain`
 
@@ -77,6 +77,6 @@ outside `[a-z][a-z0-9_]*`; and code generation refuses declared names that are n
 
 ## Check your upgrade
 
-1. `bundle update hecks`, then `hecks ` to regenerate the launcher.
+1. `bundle update hecks`, then `hecks project_cli` to regenerate the launcher.
 2. `hecks model_check --wait` and `hecks regeneration_run.regenerate_corpus --check --wait` exit 0.
 3. Run your suite with `HECKS_ENVIRONMENT=memory` if no Postgres is reachable.

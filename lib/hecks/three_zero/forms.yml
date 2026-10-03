@@ -16,7 +16,7 @@ console: hecks console [subject=<domain>]
 corpus: hecks corpus_run.rust_domains; hecks corpus_run.regen_order; hecks corpus_run.corpus_rust_coverage
 deploy_template_diff: hecks deploy template_comparison.diff before=a.yaml after=b.yaml [--json] [--strict]
 doc_coverage: hecks conformance_run.measure_doc_coverage
-docs: hecks  [domain-path] [aggregate]
+docs: hecks docs [domain-path] [aggregate]
 evolve: hecks language_run.word_status; hecks language_run.propose <word> context=X [body=none] [inner=] [opens=]
   [fills=]; hecks language_run.admit|deprecate|retire <word> context=X; hecks language_run.rename <word> context=X
   new_name=Y; hecks language_run.propose_argument <word> context=X kind=K [required=false] [at=N]
@@ -30,18 +30,18 @@ hecks_mcp_door: hecks mcp [--stdio]
 hecks_query_ir_mcp: hecks corpus_run.serve_query_ir_mcp
 heki_compact: hecks era.compact_heki <domain> [aggregates=A,B] --confirm
 history: hecks introspection.history <domain>
-ir: hecks  <domain> [--translations] | hecks  --meta
+ir: hecks ir <domain> [--translations] | hecks ir --meta
 lint_deploy_recipes: hecks deploy makefile_check.lint [makefiles=a,b]
 merge_tail: hecks era.merge_tail <domain> winners=id:old,id:new --confirm
 model_check: hecks model_check [--strict] [--profile client] [<domain> …]
-narrate: hecks  [domain-path] [aggregate]
+narrate: hecks narrate [domain-path] [aggregate]
 pattern-cases: hecks test_suite_run.record_pattern_cases
 present: hecks corpus_run.present [port=4567]
 project: hecks operation.refresh_projections subject=<domain>
 project_bootstrap_table: hecks language_run.project_bootstrap_table
-project_cli: hecks  [domain-path …]
+project_cli: hecks project_cli [domain-path …]
 project_deploy: hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]
-project_diagrams: hecks  <domain-path> <ChapterName>
+project_diagrams: hecks project_diagrams <domain-path> <ChapterName>
 project_field_hints: hecks language_run.project_field_hints
 project_glossary: hecks introspection.glossary <domain> chapter=Name
 project_kernel_capabilities: hecks kernel_run.project_kernel_capabilities
@@ -100,7 +100,7 @@ release_gem: hecks publishing_run.publish_gem --confirm
 rspec_io_parallel_files: hecks test_suite_run.list_io_parallel_specs exclude=REGEX [tags=] [check=file];
   hecks test_suite_run.write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm
 rspec_shard_files: hecks test_suite_run.shard_specs group=1 groups=N [runtime_log=]
-run: hecks  [domain] <verb [name=value …] | script.json | - | '{"steps":[…]}'>
+run: hecks run [domain] <verb [name=value …] | script.json | - | '{"steps":[…]}'>
 rust_conformance: hecks build.check_conformance <domain> script=steps.json [artifact=native]
 rust_conformance_fuzz: hecks build.fuzz_conformance <domain> artifact=native [seeds=10]
   [steps=25]
@@ -111,7 +111,7 @@ seed_semantics_corpus: hecks test_suite_run.seed_semantics_corpus [fixture=name]
 shape: hecks introspection.shape <domain>
 smoke_http: hecks operation.smoke_http path=/p [url=] [header=] [scheme=timestamped]
   [payload=] [payload_file=] [health_path=] [state_path=]
-smoke_test: hecks  [domain]
+smoke_test: hecks smoke_test [domain]
 spec_example: hecks test_suite_run.run_spec_example file=path example=text
 standardize_comments: hecks style_run.report_comments paths=a,b [only=] [--json] [top=20]; hecks
   style_run.check_comments paths=…; hecks style_run.fix_comments paths=… --confirm; hecks style_run.write_comment_baseline
@@ -120,7 +120,7 @@ standardize_comments_rust: hecks style_run.report_rust_comments paths=a,b [only=
   hecks style_run.check_rust_comments paths=… [only=]; hecks style_run.fix_rust_comments paths=… [only=]
   --confirm
 statements: hecks introspection.statements <domain> chapter=Name
-stores: hecks  <domain>
+stores: hecks stores <domain>
 stress_concurrency_specs: hecks test_suite_run.stress_concurrency [runs=30] [parallel=] [seed_start=1]
 translation_audit: hecks era.audit_translation <domain>; hecks era.approve_translation <domain>
   [snapshot=] [host_version=] [rehearsal=pass|fail] [rehearsed_at=] --confirm

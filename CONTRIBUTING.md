@@ -132,7 +132,7 @@ bundle exec hecks model_check           # static analysis over the IR — unreac
 bundle exec hecks fuzz_run.fuzz                  # generated command/query sequences, checked against
                                         # declared properties and interpreter crashes
 bundle exec hecks conformance_run.measure_doc_coverage  # every live DSL word ships with a running example
-bundle exec hecks  examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
+bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
 The `hecks` command is the one entry point for all of this. Its verbs are

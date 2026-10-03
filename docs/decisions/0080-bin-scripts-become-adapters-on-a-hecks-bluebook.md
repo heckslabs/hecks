@@ -155,22 +155,22 @@ Every script becomes one or more commands or queries, named for the domain actio
 
 | Script | Aggregate · command | Launcher |
 | --- | --- | --- |
-| `ir` | Introspection · IR (query) | `hecks  [domain] [--translations] [--meta]` |
+| `ir` | Introspection · IR (query) | `hecks ir [domain] [--translations] [--meta]` |
 | `shape` | Introspection · Shape (query) | `hecks introspection.shape <domain>` |
-| `stores` | Introspection · Stores (query) | `hecks  <domain>` |
+| `stores` | Introspection · Stores (query) | `hecks stores <domain>` |
 | `history` | Introspection · History (query) | `hecks introspection.history <domain>` |
 | `statements` | Introspection · Statements (query) | `hecks introspection.statements <domain> chapter=Name` |
-| `narrate` | Introspection · Narrative (query) | `hecks  [domain] [aggregate=Name]` |
-| `docs` | Introspection · Document (query) | `hecks  [domain] [aggregate=Name]` |
-| `project_diagrams` | Introspection · Diagrams (query) | `hecks  <domain> chapter=Name` |
+| `narrate` | Introspection · Narrative (query) | `hecks narrate [domain] [aggregate=Name]` |
+| `docs` | Introspection · Document (query) | `hecks docs [domain] [aggregate=Name]` |
+| `project_diagrams` | Introspection · Diagrams (query) | `hecks project_diagrams <domain> chapter=Name` |
 | `project_glossary` | Introspection · Glossary (query) | `hecks introspection.glossary <domain> chapter=Name` |
 | `model_check` | Introspection · ModelCheck | `hecks model_check [domains=a,b] [--strict] [profile=client]` |
-| `run` | Operation · Run | `hecks  [domain] script=steps.json`, or `hecks  [domain] <verb> name=value …` |
+| `run` | Operation · Run | `hecks run [domain] script=steps.json`, or `hecks run [domain] <verb> name=value …` |
 | `project` | Operation · RefreshProjections | `hecks operation.refresh_projections <domain>` |
 | `behaviors` | Operation · RunBehaviors | `hecks operation.run_behaviors <path>` |
 | `console` | Operation · OpenConsole | `hecks console [domain]` |
 | `follow` | Operation · Follow (query, streams) | `hecks operation.follow <domain> [aggregate=Name] [interval=0.5] [--from-now]` |
-| `smoke_test` | Operation · SmokeTest | `hecks  [domain]` |
+| `smoke_test` | Operation · SmokeTest | `hecks smoke_test [domain]` |
 | `smoke_http` | Operation · SmokeHttp | `hecks operation.smoke_http path=/p secret=… [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` |
 | `check_era` | Host · CheckEra | `hecks host.check_era <url> expected=era-file [timeout=10]` |
 | `merge_tail` | Era · MergeTail | `hecks era.merge_tail <domain> winners=id:old,id:new --confirm` |
@@ -182,7 +182,7 @@ Every script becomes one or more commands or queries, named for the domain actio
 | `heki_compact` | Era · CompactHeki | `hecks era.compact_heki <domain> [aggregates=A,B] --confirm` |
 | (new) | Era · HoldFirst | `hecks era.hold_first <domain> --confirm` |
 | `vendor_bluebook` | Package · Vendor | `hecks package.vendor <package[@version]> [from=path] [root=path]` |
-| `project_cli` | Door · ProjectCli | `hecks  [domains=a,b]` |
+| `project_cli` | Door · ProjectCli | `hecks project_cli [domains=a,b]` |
 | `hecks_mcp_door` | Door · ServeMcp | `hecks mcp` (stdio) |
 | `project_rust` | Build · ProjectRust | `hecks build.project_rust <domain>` |
 | `project_wasm` | Build · BuildWasm | `hecks build.build_wasm <domain>` |
@@ -421,7 +421,7 @@ Environment variables are read by 25 scripts; they become world configuration, n
   - everything else as `name=value`, as today; a list is comma-separated
 - **Destructive commands dry-run unless confirmed.** `--confirm` is an argument and the command's `given` requires it before anything changes. It replaces `--force`, `--accept`, `--approve`, `--write` and `--yes`. `qa_sweep`'s fractional `--dry-run` becomes `dry_run_share`.
 - **A flag that picks a mode becomes its own command.** `standardize_comments --fix` becomes `FixComments`, `corpus --rust-domains` becomes `RustDomains`, and `evolve`'s ten subcommands become ten commands. Each gets its own givens and events, so `FixComments` can require `--confirm` while `CheckComments` does not.
-- **A query needs `ask` only when a command shares its name.** Otherwise the bare name answers (`hecks `, `hecks introspection.history pizzas`).
+- **A query needs `ask` only when a command shares its name.** Otherwise the bare name answers (`hecks ir`, `hecks introspection.history pizzas`).
 - **A flag used only for one tool to call itself becomes a child command,** started by the ProcessPool adapter and absent from the launcher's help.
 
 ### 13. Era operations in production: decide in the repository, apply at deploy

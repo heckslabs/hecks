@@ -17,7 +17,7 @@ proves facts about every path through it, not just the ones you
 tested. `hecks fuzz_run.fuzz` walks random-but-valid histories through the real
 interpreter and checks properties that must hold of ANY of them. The
 corpus under `spec/corpus/` is the fixed list of refusal paths you
-already decided matter, walked end to end by `hecks `. And the golden
+already decided matter, walked end to end by `hecks run`. And the golden
 IR is a frozen snapshot of what your builder emits, so a shape drift
 shows up before something that reads that shape by name silently
 corrupts. None of them replace the suite — they are what you reach for
@@ -326,7 +326,7 @@ tool you already have:
 
 ```sh
 hecks fuzz_run.fuzz examples/banking
-hecks  examples/banking tmp/fuzz-failures/banking-seed7.json
+hecks run examples/banking tmp/fuzz-failures/banking-seed7.json
 ```
 
 ## The corpus — the refusals you already decided matter
@@ -345,7 +345,7 @@ Where this sits next to the other two: `model_check` proves things
 about the declaration; `fuzz` proves things about arbitrary runs; the
 corpus is neither — it is a fixed, curated list of the SPECIFIC paths
 a person already decided deserve a permanent regression guard, most of
-them refusals. `hecks  <domain> <script.json>` walks one, dispatching
+them refusals. `hecks run <domain> <script.json>` walks one, dispatching
 every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
@@ -359,7 +359,7 @@ require "json"
 script  = JSON.parse(File.read("spec/corpus/banking.json"))
 history = Hecks::Fuzzing::Replay.call("examples/banking", script.fetch("steps"))
 
-# The same check hecks  performs after every corpus run — every refusal
+# The same check hecks run performs after every corpus run — every refusal
 # the script says must happen, actually happened.
 unmet = script.dig("expectations", "refusals").reject do |expected|
   history[:refusals].any? { |r| r[:verb] == expected["verb"] && r[:error].include?(expected["includes"]) }
@@ -376,7 +376,7 @@ the identical walk without a Ruby snippet, against the domain's real
 binding:
 
 ```sh
-hecks  examples/banking spec/corpus/banking.json
+hecks run examples/banking spec/corpus/banking.json
 ```
 
 — printing the full report to stdout and aborting nonzero on the

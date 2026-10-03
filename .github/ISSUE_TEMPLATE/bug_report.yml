@@ -18,7 +18,7 @@ body:
       description: >
         The smallest `.bluebook` (plus `.hecksagon`/`.world` if the
         wiring matters) that still reproduces this, and the Ruby or
-        `hecks `-style step list you ran against it.
+        `hecks run`-style step list you ran against it.
       placeholder: |
         aggregate "Thing" do
           ...

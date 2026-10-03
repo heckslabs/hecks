@@ -193,7 +193,7 @@ Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, C
 - **Command table coverage:** the section 7 table maps all 92 scripts. A spec checks every row has a command the launcher resolves (`hecks <verb> --help` answers).
 - **Installed-gem smoke:**
   - Build the gem and install it into a scratch directory.
-  - Run `hecks `, `hecks `, and `hecks build.build_wasm` against a sample domain outside a checkout.
+  - Run `hecks ir`, `hecks stores`, and `hecks build.build_wasm` against a sample domain outside a checkout.
   - Confirm a Codebase verb refuses with "needs a hecks checkout".
 - **Client launcher smoke:** regenerate a client domain's launcher and confirm today's `verb name=value` calls still work, alongside the new forms.
 - **Committed approval:** rehearse on a scratch Postgres with `mint_harness`. A committed approval for an edge boots, and a mismatched digest refuses.

@@ -18,22 +18,22 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 
 | launcher | replaces |
 |---|---|
-| `hecks  <domain> [--translations] \| hecks  --meta` | `bin/ir` |
+| `hecks ir <domain> [--translations] \| hecks ir --meta` | `bin/ir` |
 | `hecks introspection.shape <domain>` | `bin/shape` |
-| `hecks  <domain>` | `bin/stores` |
+| `hecks stores <domain>` | `bin/stores` |
 | `hecks introspection.history <domain>` | `bin/history` |
 | `hecks introspection.statements <domain> chapter=Name` | `bin/statements` |
-| `hecks  [domain-path] [aggregate]` | `bin/narrate` |
-| `hecks  [domain-path] [aggregate]` | `bin/docs` |
-| `hecks  <domain-path> <ChapterName>` | `bin/project_diagrams` |
+| `hecks narrate [domain-path] [aggregate]` | `bin/narrate` |
+| `hecks docs [domain-path] [aggregate]` | `bin/docs` |
+| `hecks project_diagrams <domain-path> <ChapterName>` | `bin/project_diagrams` |
 | `hecks introspection.glossary <domain> chapter=Name` | `bin/project_glossary` |
 | `hecks model_check [--strict] [--profile client] [<domain> …]` | `bin/model_check` |
-| `hecks  [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
+| `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
 | `hecks operation.refresh_projections subject=<domain>` | `bin/project` |
 | `hecks operation.run_behaviors subject=<path>` | `bin/behaviors` |
 | `hecks console [subject=<domain>]` | `bin/console` |
 | `hecks operation.follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]` | `bin/follow` |
-| `hecks  [domain]` | `bin/smoke_test` |
+| `hecks smoke_test [domain]` | `bin/smoke_test` |
 | `hecks operation.smoke_http path=/p [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
 | `hecks host.check_era <url> expected=era-file [timeout=10]` | `bin/check_era` |
 | `hecks era.merge_tail <domain> winners=id:old,id:new --confirm` | `bin/merge_tail` |
@@ -44,7 +44,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks era.compact <domain> [aggregates=A,B] --confirm` | `bin/compact` |
 | `hecks era.compact_heki <domain> [aggregates=A,B] --confirm` | `bin/heki_compact` |
 | `hecks package.vendor <package[@version]> [from=path] [root=path]` | `bin/vendor_bluebook` |
-| `hecks  [domain-path …]` | `bin/project_cli` |
+| `hecks project_cli [domain-path …]` | `bin/project_cli` |
 | `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
 | `hecks build.project_rust <domain>` | `bin/project_rust` |
 | `hecks build.build_wasm <domain>` | `bin/project_wasm` |

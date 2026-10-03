@@ -48,10 +48,10 @@ catalog[:aggregates].first[:commands]   # => ["add_topping!", "create_pizza!", "
 
 pizza = { name: "Diavola", pizza: { price_cents: { cents: 1400 }, size: "large" } }
 
-unbound = Hecks::Storehouse.dispatch(runtime: runtime, command: "create_pizza", summary: "add a pizza", args: pizza)
+unbound = Hecks::Storehouse.dispatch(runtime: runtime, command: "order.create_pizza", summary: "add a pizza", args: pizza)
 unbound[:ok]                             # => false
 
-chef = Hecks::Storehouse.dispatch(runtime: runtime, command: "create_pizza", summary: "add a pizza", args: pizza, role: "Chef")
+chef = Hecks::Storehouse.dispatch(runtime: runtime, command: "order.create_pizza", summary: "add a pizza", args: pizza, role: "Chef")
 chef[:events].map { |event| event[:name] } # => ["PizzaCreated"]
 ```
 

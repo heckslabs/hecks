@@ -70,7 +70,7 @@ You also need:
 
 | For | What |
 | --- | --- |
-| Ruby tools (`hecks `, `hecks deploy recipe.project`, `hecks build.build_wasm`) | Ruby and Bundler, as `bundle install` above |
+| Ruby tools (`hecks docs`, `hecks deploy recipe.project`, `hecks build.build_wasm`) | Ruby and Bundler, as `bundle install` above |
 | Building the host | `rustup`. `rust-toolchain.toml` pins Rust 1.98.0 and rustup installs it on first use. Add the WebAssembly target once: `rustup target add wasm32-wasip1` |
 | Running locally | A Postgres you can create a database in, reachable over TCP on `localhost` (see [step 5](#5-configure-the-environment) for why not a socket) |
 | Deploying to Lambda | An AWS account and credentials, the `aws` and `sam` CLIs, and `cargo-lambda` |
@@ -214,7 +214,7 @@ end
 ```
 
 `$DOMAIN/bluebook/underwriting.world`, the per-deployment values. The
-`persisted_by` block is what the Ruby tools (`hecks `, `hecks `) connect
+`persisted_by` block is what the Ruby tools (`hecks docs`, `hecks run`) connect
 to; the host ignores it and reads `DATABASE_URL` instead. `deployed_to` is
 what `hecks deploy recipe.project` reads (step 3). This one selects Fargate because
 that is the shape the local run in step 6 exercises; step 3 shows the
@@ -250,7 +250,7 @@ you:
   refuses to boot a domain that binds any of your aggregates to anything
   else. (The Governance aggregates above are bound to `Memory` and the host
   booted fine; only the aggregates in your own domain's IR are checked.)
-- **A world with no `database` cannot boot in Ruby.** `hecks ` fails with
+- **A world with no `database` cannot boot in Ruby.** `hecks run` fails with
   `its world declares no "database"` if the `persisted_by("Postgres")` block
   is missing.
 - **The Rust rules reader does not take `_` in integer literals.** The
@@ -270,15 +270,15 @@ Check that the declaration boots and read back what it says:
 
 ```sh
 psql -h 127.0.0.1 -d postgres -c "CREATE DATABASE underwriting_local"
-hecks  "$DOMAIN/bluebook"
-hecks  "$DOMAIN" --help
+hecks docs "$DOMAIN/bluebook"
+hecks run "$DOMAIN" --help
 ```
 
-`hecks ` prints each verb's arguments, who may issue it, and every
-refusal it can produce. `hecks  <domain> --help` lists the verbs.
+`hecks docs` prints each verb's arguments, who may issue it, and every
+refusal it can produce. `hecks run <domain> --help` lists the verbs.
 
 Status: all three files, the two boot errors and the `_` literal problem
-are verified here. `hecks ` and `hecks  --help` were run against them.
+are verified here. `hecks docs` and `hecks run --help` were run against them.
 The refusal for a role with no governing chapter is quoted from the
 comment in `lib/hecks/runtime/command_rules/authorization.rb` and was not
 triggered here.
@@ -784,7 +784,7 @@ session-cookie API instead. The `curl` examples in this step that target
 | Body | Meaning |
 | --- | --- |
 | `{"read": true}` | The whole current state: `instances`, keyed `"<Domain>::<Aggregate>#<id>"`. |
-| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks ` prints (value objects as `{"value": ...}` objects). |
+| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks docs` prints (value objects as `{"value": ...}` objects). |
 | `{"verb": "...", "to": "<id>", "with": {...}, "role": "..."}` | A command on an existing record; `to` is its id. |
 | `{"verb": "...", "args": {...}}` | The older shape, still accepted. Combining it with `to` or `with` answers `500` with `{"error":"cannot combine to/with with legacy args"}`. |
 
@@ -976,9 +976,9 @@ an outside team would meet it.
    ignored. Closing this is deferred to ADR 0072's token work.
 8. **`_` in integer literals** fails in the host (step 2), and whether Ruby
    accepts it was not checked. Run the compiled host against your rules
-   before deploying, not only `hecks `.
+   before deploying, not only `hecks run`.
 9. **The Ruby tools and the host keep separate stores** (step 2), so
-   `hecks ` against your database does not show what the service holds.
+   `hecks run` against your database does not show what the service holds.
 10. **`/<Domain>/<Aggregate>/<Command>.json` cannot be posted to from a plain
     client** (step 8).
 11. **The host's comments and its behaviour disagree in two places.**
@@ -996,7 +996,7 @@ no `aws`, `sam` or `docker push` command was run.
 
 | Step | Checked | How |
 | --- | --- | --- |
-| 2. Bluebook files | Yes | `hecks `, `hecks  --help`; two boot errors reproduced |
+| 2. Bluebook files | Yes | `hecks docs`, `hecks run --help`; two boot errors reproduced |
 | 3. `hecks deploy recipe.project` | Yes, both targets | Run to completion into a scratch `--out`; generated files read; `--help`, missing-world and missing-region errors reproduced; `desired_count 0` regenerated |
 | 4. `hecks build.build_wasm`, host build | Yes | Run; binary started |
 | 4. Fargate `build` recipe and image | Yes | `make build` to completion, then `docker build --platform linux/arm64` on the output directory; container not started, nothing pushed |
