@@ -1,0 +1,26 @@
+# The port Tickets declares, for every hecksagon that attaches the chapter (`Chapters` loads this
+# file with it). Each lifecycle event of a finding asks the GitHubIssues port, which the Hecks domain
+# binds (lib/hecks/hecks/adapters/finding_github.rb): the outside a finding reaches. The ask is
+# answered with the record's own arguments or refused with a reason, and a refusal is recorded on the
+# finding and never blocks it. The port has to be declared even where no adapter binds it, so the
+# policies have a target and model_check's deaf-policy check can see it.
+#
+# Only OpenIssue answers with the issue number, so only its answer is recorded on the finding; the
+# other asks answer with a line saying what was done.
+Hecks.hecksagon "Tickets" do
+  Tickets::Finding.port "GitHubIssues" do
+    asks "OpenIssue", to: Finding do
+      attribute :finding, FindingKey
+      answers "IssueOpened"
+      refuses "GitHubRefused"
+    end
+
+    %w[LabelIssue CommentOnIssue CloseIssue ReopenIssue].each do |ask|
+      asks ask, to: Finding do
+        attribute :finding, FindingKey
+        answers "GitHubAnswered"
+        refuses "GitHubRefused"
+      end
+    end
+  end
+end

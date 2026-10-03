@@ -31,6 +31,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Checkout"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "closes",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "FindingKey"
         }
       ],
       "commands": [
@@ -169,6 +179,49 @@
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": true,
+              "name": "closes",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FindingKey"
+            }
+          ],
+          "emits": [
+            "FindingsClosed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record the findings this version settled",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "closes"
+              },
+              "target": "closes"
+            }
+          ],
+          "name": "CloseFindings",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Release",
+          "role": "Maintainer"
         }
       ],
       "description": "One gem version: the record of what is running and what was shipped.",
@@ -235,6 +288,28 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "FindingKey"
+        },
         {
           "attributes": [
             {

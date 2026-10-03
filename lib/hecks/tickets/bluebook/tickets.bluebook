@@ -1,0 +1,331 @@
+# The Tickets chapter: what a maintainer observed about Hecks that needs a decision or a fix, the
+# and the decisions that settle them.
+#
+# QualityControl has its own Ticket, the issue raised for a Bug in an outside tracker, and the
+# Hecks domain has its own Release, the record of a gem version. A Finding sits before both: it is
+# any observation, not yet a proven bug, and it needs no sweep or failing test to be recorded.
+#
+# A Finding is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
+# separate aggregates. Hecks owns the finding's state; GitHub is driven from it through the
+# GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A finding exists whether
+# or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
+# finding as a sync failure that a later run retries.
+#
+# An Adr is a decision record with its own lifecycle, linked to the finding it settles.
+Hecks.bluebook "Tickets" do
+  vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
+
+  aggregate "Finding" do
+    description "One thing observed about Hecks that needs a decision or a fix: reported, triaged, then resolved or dismissed."
+
+    attribute :finding,         FindingKey
+    attribute :title,          Title
+    attribute :body,           Body, optional: true
+    attribute :kind,           Kind, optional: true
+    attribute :severity,       Severity, optional: true
+    attribute :source,         Source
+    attribute :fingerprint,    Fingerprint, optional: true
+    attribute :issue_number,   Number, optional: true
+    attribute :fix_pr_number,  Number, optional: true
+    attribute :dismissal,      Body, optional: true
+    attribute :sync_failure,   Body, optional: true
+    identified_by :finding
+
+    value_object "FindingKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a finding is named") { !value.to_s.empty? }
+    end
+
+    value_object "Title" do
+      attribute :value, String
+
+      invariant("a finding has a title") { !value.to_s.empty? }
+    end
+
+    value_object "Body" do
+      attribute :value, String
+    end
+
+    # What the finding is: a `gap` Hecks cannot yet express, a `parity` divergence between the Ruby
+    # and Rust runtimes, a `qa` finding from the QA loop, or an `idea`.
+    value_object "Kind" do
+      attribute :value, String, one_of: ["gap", "parity", "qa", "idea"]
+    end
+
+    value_object "Severity" do
+      attribute :value, String, one_of: ["low", "medium", "high"]
+    end
+
+    # Where it came from: the QA loop, work for a client, a parity check, or a maintainer by hand.
+    value_object "Source" do
+      attribute :value, String, one_of: ["qa_loop", "client_work", "parity_check", "maintainer"]
+    end
+
+    # The same finding refiled by the QA loop carries the same fingerprint, so a report of it while an
+    # open finding holds it changes nothing.
+    value_object "Fingerprint" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Number" do
+      attribute :value, Integer
+
+      invariant("a number is positive") { value.positive? }
+    end
+
+    lifecycle :status, default: "reported" do
+      transition "Triage"  => "triaged",   from: %w[reported triaged]
+      transition "Resolve" => "resolved",  from: "triaged"
+      transition "Dismiss" => "dismissed", from: %w[reported triaged]
+      transition "Reopen"  => "triaged",   from: %w[resolved dismissed]
+    end
+
+    command "Report" do
+      goal "Record something observed about Hecks as a finding"
+
+      attribute :finding,      FindingKey
+      attribute :title,       Title
+      attribute :body,        Body, optional: true
+      attribute :source,      Source
+      attribute :fingerprint, Fingerprint, optional: true
+
+      sets :finding
+      sets :title
+      sets :body
+      sets :source
+      sets :fingerprint
+
+      emits "FindingReported"
+    end
+
+    # A failed Codebase run reports itself: the run's key names the finding and doubles as its
+    # fingerprint, so the same run failing again while its finding is open changes nothing.
+    command "ReportFailedRun" do
+      goal "Record a failed conformance or gate run as a finding"
+
+      attribute :finding, FindingKey
+      attribute :body,   Body
+
+      sets :finding
+      sets :body
+      sets :fingerprint, to: "run"
+      sets :title,  to: "A Codebase run failed"
+      sets :source, to: "qa_loop"
+
+      emits "RunFindingReported"
+    end
+
+    command "Triage" do
+      role "Maintainer"
+      goal "Give a finding its kind and severity"
+
+      reference_to Finding
+      attribute :kind,     Kind
+      attribute :severity, Severity
+
+      sets :kind
+      sets :severity
+
+      emits "FindingTriaged"
+    end
+
+    command "LinkFix" do
+      role "Maintainer"
+      goal "Record the pull request that fixes a triaged finding"
+
+      reference_to Finding
+      attribute :fix_pr_number, Number
+
+      sets :fix_pr_number
+
+      emits "FixLinked"
+    end
+
+    command "Resolve" do
+      role "Maintainer"
+      goal "Close a triaged finding as resolved"
+
+      reference_to Finding
+
+      emits "FindingResolved"
+    end
+
+    command "Dismiss" do
+      role "Maintainer"
+      goal "Close a finding without a fix, with the reason"
+
+      reference_to Finding
+      attribute :dismissal, Body
+
+      sets :dismissal
+
+      emits "FindingDismissed"
+    end
+
+    command "Reopen" do
+      role "Maintainer"
+      goal "Take a resolved or dismissed finding back to triaged, as when a fix regresses"
+
+      reference_to Finding
+
+      emits "FindingReopened"
+    end
+
+    command "RecordIssue" do
+      goal "Record the GitHub issue number once the issue is opened"
+
+      reference_to Finding
+      attribute :issue_number, Number
+
+      sets :issue_number
+
+      emits "IssueRecorded"
+    end
+
+    command "RecordSyncFailure" do
+      goal "Record that GitHub could not be driven, so a later run retries"
+
+      reference_to Finding
+      attribute :sync_failure, Body
+
+      sets :sync_failure
+
+      emits "SyncFailed"
+    end
+
+    query "Open" do
+      description "Every finding not yet resolved or dismissed."
+      where(status: { in: "reported,triaged" })
+      order_by :finding
+    end
+  end
+
+  aggregate "Adr" do
+    description "A decision record: drafted, accepted, and possibly superseded, linked to the tickets it settles."
+
+    attribute :adr,       AdrNumber
+    attribute :title,     AdrTitle
+    attribute :supersedes, AdrNumber, optional: true
+    attribute :settles,   FindingKey, optional: true
+    identified_by :adr
+
+    value_object "AdrNumber" do
+      attribute :value, String, pattern: '\A[0-9]{4}\z'
+    end
+
+    value_object "AdrTitle" do
+      attribute :value, String
+
+      invariant("a decision has a title") { !value.to_s.empty? }
+    end
+
+    value_object "FindingKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Accept"    => "accepted",   from: "draft"
+      transition "Supersede" => "superseded", from: "accepted"
+    end
+
+    command "Draft" do
+      role "Maintainer"
+      goal "Open a decision record, optionally for the finding it settles"
+
+      attribute :adr,       AdrNumber
+      attribute :title,     AdrTitle
+      attribute :settles,   FindingKey, optional: true
+
+      sets :adr
+      sets :title
+      sets :settles
+
+      emits "AdrDrafted"
+    end
+
+    command "Accept" do
+      role "Maintainer"
+      goal "Record that the decision was accepted"
+
+      reference_to Adr
+
+      emits "AdrAccepted"
+    end
+
+    command "Supersede" do
+      role "Maintainer"
+      goal "Record that a later decision replaces this one"
+
+      reference_to Adr
+      attribute :supersedes, AdrNumber
+
+      sets :supersedes
+
+      emits "AdrSuperseded"
+    end
+
+    query "Standing" do
+      description "Every decision that is accepted and not superseded."
+      where(status: "accepted")
+      order_by :adr
+    end
+  end
+
+  # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
+  policy "OpenIssueWhenReported" do
+    on      "Finding.FindingReported"
+    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+  end
+
+  policy "OpenIssueWhenRunReported" do
+    on      "Finding.RunFindingReported"
+    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+  end
+
+  policy "LabelIssueWhenTriaged" do
+    on      "Finding.FindingTriaged"
+    trigger Finding::GitHubIssues::LabelIssue, with: { finding: :finding }
+  end
+
+  policy "CommentWhenFixLinked" do
+    on      "Finding.FixLinked"
+    trigger Finding::GitHubIssues::CommentOnIssue, with: { finding: :finding }
+  end
+
+  policy "CloseIssueWhenResolved" do
+    on      "Finding.FindingResolved"
+    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
+  end
+
+  policy "CloseIssueWhenDismissed" do
+    on      "Finding.FindingDismissed"
+    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
+  end
+
+  policy "ReopenIssueWhenReopened" do
+    on      "Finding.FindingReopened"
+    trigger Finding::GitHubIssues::ReopenIssue, with: { finding: :finding }
+  end
+
+  # A conformance or gate run that faults files its own finding.
+  policy "ReportWhenConformanceFaulted" do
+    on      "ConformanceRun.ConformanceFaulted"
+    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  policy "ReportWhenGateFaulted" do
+    on      "GateRun.GateFaulted"
+    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  policy "RecordTheIssue" do
+    on      "Finding.IssueOpened"
+    trigger Finding::RecordIssue, with: { issue_number: :issue_number }
+  end
+
+  policy "RecordTheSyncFailure" do
+    on      "Finding.GitHubRefused"
+    trigger Finding::RecordSyncFailure, with: { sync_failure: :refusal }
+  end
+end

@@ -1,0 +1,11 @@
+# The Tickets domain, bound so it boots standing alone (a fuzz or model_check boot of this
+# directory). The GitHubIssues port every attaching hecksagon shares is in tickets.ports.hecksagon.
+Hecks.hecksagon "Tickets" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the chapter's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

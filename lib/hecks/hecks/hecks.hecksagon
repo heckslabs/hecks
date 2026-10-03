@@ -2,8 +2,8 @@ Hecks.hecksagon "Hecks" do
   attaches "Governance"
 
   # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
-  # Expression, Tenancy, Deploy, Site and QualityControl (the last two bring their own ports).
-  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site QualityControl]
+  # Expression, Tenancy, Deploy, Site, Tickets and QualityControl (the last three bring their own ports).
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets QualityControl]
     .each { |chapter| attaches chapter }
   # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
   # environments/memory.world can swap the whole domain without a double bind.
