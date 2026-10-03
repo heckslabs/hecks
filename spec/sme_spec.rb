@@ -95,6 +95,6 @@ RSpec.describe "the SME chapter" do
   it "is not attached to the Hecks domain, so no hecks command boots it" do
     hecksagon = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks/hecks.hecksagon"))
 
-    expect(hecksagon).not_to match(/SME/)
+    expect(hecksagon).not_to include("SME")
   end
 end
