@@ -564,7 +564,7 @@ Hecks.bluebook "Hecks" do
       transition "Lose"    => "unreachable", from: "requested"
     end
 
-# `hecks check_era <url> expected=era-file [timeout=10]` records the first check of a host under
+# `hecks check_era <url> expected=era-file [timeout=]` records the first check of a host under
 # its URL. A host is one record, and a creating command cannot repeat an identity, so a later
 # check of the same host is `hecks recheck <url> expected=era-file`. Both are read with
 # `hecks standing <url>`.
@@ -574,7 +574,7 @@ command "CheckEra" do
 
       attribute :host,     Address
       attribute :expected, ExpectedFile
-      attribute :timeout,  Seconds, optional: true
+      attribute :timeout,  Seconds, default: 10
 
       sets :host
       sets :expected
@@ -589,7 +589,7 @@ command "Recheck" do
 
   reference_to Host
   attribute :expected, ExpectedFile
-  attribute :timeout,  Seconds, optional: true
+  attribute :timeout,  Seconds, default: 10
 
   sets :expected
   sets :timeout

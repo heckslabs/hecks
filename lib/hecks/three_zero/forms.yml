@@ -8,7 +8,7 @@ bench: hecks bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup
   [runs=3] [rust_binary=] [format=markdown] [output=]
 canonicalise: hecks canonicalise <file.json>
 check_engine_agreement: hecks check_engine_agreement
-check_era: hecks check_era <url> expected=era-file [timeout=10]
+check_era: hecks check_era <url> expected=era-file [timeout=]
 codemod_hoist_local_givens: hecks hoist_local_givens --confirm
 codemod_implicit_append_fields: hecks drop_implicit_append_fields --confirm
 compact: hecks compact <domain> [aggregates=A,B] --confirm
@@ -91,7 +91,7 @@ query_ir: hecks ir_constructs [names=a,b]; hecks ir_duplicates [domains=a,b] [--
   hecks ir_impact name=N field=F
 reattest_era: hecks reattest <domain> era=N --confirm
 reference: hecks project_reference
-refresh_rspec_runtime_baseline: hecks refresh_runtime_baseline [workers=6] [from_run=ID]
+refresh_rspec_runtime_baseline: hecks refresh_runtime_baseline [workers=] [from_run=ID]
 regen_codegen_domains: hecks regenerate_corpus [--check]
 regenerate_persistence_legacy_fixtures: hecks regenerate_legacy_fixtures --confirm
 release: hecks publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm
