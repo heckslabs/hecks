@@ -1,9 +1,9 @@
 Hecks.hecksagon "CheckoutFixture" do
-  uses_framework "Governance"
+  attaches "Governance"
   # Carries ConsoleSettings' chapter into this fixture's wasm, since
   # api.rs's PUT /api/presentation route tests need a kernel with it
   # compiled in; the only in-repo domain that attaches ConsoleSettings.
-  uses_framework "ConsoleSettings"
+  attaches "ConsoleSettings"
 
   CheckoutFixture::Event.persisted_by("PostgresEra")
   CheckoutFixture::Registration.persisted_by("PostgresEra")
@@ -11,7 +11,7 @@ Hecks.hecksagon "CheckoutFixture" do
 end
 
 Hecks.hecksagon "Payments" do
-  uses_framework "Governance"
+  attaches "Governance"
 
   Payments::Payment.persisted_by("PostgresEra")
 
@@ -47,7 +47,7 @@ Hecks.hecksagon "ConsoleSettings" do
   # `StateStyle.Declare` declares `role "Console"` — a declared role is
   # only real access control once Governance is attached to check it
   # against, the same reason CheckoutFixture attaches it above.
-  uses_framework "Governance"
+  attaches "Governance"
   ConsoleSettings::StateStyle.persisted_by("Memory")
   ConsoleSettings::Collection.persisted_by("Memory")
   ConsoleSettings::Overview.persisted_by("Memory")

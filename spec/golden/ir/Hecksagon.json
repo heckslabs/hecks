@@ -1347,31 +1347,11 @@
           "admits": null,
           "default": null,
           "list": true,
-          "name": "framework_members",
+          "name": "attachments",
           "optional": false,
           "pattern": null,
           "relationship": null,
-          "type": "FrameworkMember"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "vendored_bluebooks",
-          "optional": false,
-          "pattern": null,
-          "relationship": null,
-          "type": "VendoredBluebook"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "attached_chapters",
-          "optional": false,
-          "pattern": null,
-          "relationship": null,
-          "type": "AttachedChapter"
+          "type": "Attachment"
         }
       ],
       "commands": [
@@ -1466,95 +1446,21 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "member",
-              "optional": false,
-              "pattern": null,
-              "relationship": null,
-              "type": "FrameworkMember"
-            }
-          ],
-          "emits": [
-            "FrameworkMemberAttached"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Attach a framework/bluebook/ member to this hecksagon",
-          "mutations": [
-            {
-              "fields": {
-                "value": ":member"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "framework_members"
-            }
-          ],
-          "name": "UsesFramework",
-          "needs": [
-
-          ],
-          "provenance": null,
-          "references": null,
-          "role": "Deployment"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "package",
-              "optional": false,
-              "pattern": null,
-              "relationship": null,
-              "type": "VendoredBluebook"
-            }
-          ],
-          "emits": [
-            "VendoredBluebookAttached"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Attach a vendored, external bluebook to this hecksagon",
-          "mutations": [
-            {
-              "fields": {
-                "value": ":package"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "vendored_bluebooks"
-            }
-          ],
-          "name": "UsesEmbryonautBluebook",
-          "needs": [
-
-          ],
-          "provenance": null,
-          "references": null,
-          "role": "Deployment"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
               "name": "chapter",
               "optional": false,
               "pattern": null,
               "relationship": null,
-              "type": "AttachedChapter"
+              "type": "ChapterName"
+            },
+            {
+              "admits": null,
+              "default": "gem",
+              "list": false,
+              "name": "source",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "emits": [
@@ -1567,15 +1473,16 @@
           "givens": [
 
           ],
-          "goal": "Attach a chapter the gem carries to this hecksagon, by name",
+          "goal": "Attach a chapter to this hecksagon, from the gem or from vendor",
           "mutations": [
             {
               "fields": {
+                "source": ":source",
                 "value": ":chapter"
               },
               "op": "append",
               "sign": "",
-              "target": "attached_chapters"
+              "target": "attachments"
             }
           ],
           "name": "Attaches",
@@ -1704,6 +1611,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": "gem",
+              "list": false,
+              "name": "source",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": false,
@@ -1725,13 +1642,56 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a framework member is named"
+              "description": "an attachment is named"
+            },
+            {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "source"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "gem"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "source"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "vendor"
+                  }
+                }
+              },
+              "canonical": "source == \"gem\" || source == \"vendor\"",
+              "description": "an attachment comes from the gem or from vendor"
             }
           ],
           "members": [
 
           ],
-          "name": "FrameworkMember"
+          "name": "Attachment"
         },
         {
           "attributes": [
@@ -1765,53 +1725,13 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a vendored bluebook is named"
+              "description": "a chapter is named"
             }
           ],
           "members": [
 
           ],
-          "name": "VendoredBluebook"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "relationship": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "ast": {
-                "expr": {
-                  "op": "empty",
-                  "receiver": {
-                    "op": "to_s",
-                    "receiver": {
-                      "op": "lookup",
-                      "path": [
-                        "value"
-                      ]
-                    }
-                  }
-                },
-                "op": "not"
-              },
-              "canonical": "!value.to_s.empty?",
-              "description": "an attached chapter is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "AttachedChapter"
+          "name": "ChapterName"
         },
         {
           "attributes": [
@@ -1976,6 +1896,32 @@
             [
               [
                 "word",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attachments"
+              ]
+            ],
+            [
+              [
+                "word",
                 "uses_framework"
               ],
               [
@@ -1996,7 +1942,11 @@
               ],
               [
                 "fills",
-                "framework_members"
+                "attachments"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -2022,33 +1972,11 @@
               ],
               [
                 "fills",
-                "vendored_bluebooks"
-              ]
-            ],
-            [
-              [
-                "word",
-                "attaches"
+                "attachments"
               ],
               [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "attached_chapters"
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -2357,6 +2285,66 @@
             [
               [
                 "keyword",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "attachments"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "uses_framework"
               ],
               [
@@ -2381,7 +2369,7 @@
               ],
               [
                 "fills",
-                "framework_members"
+                "attachments"
               ]
             ],
             [
@@ -2411,37 +2399,7 @@
               ],
               [
                 "fills",
-                "vendored_bluebooks"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attaches"
-              ],
-              [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "at",
-                1
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                true
-              ],
-              [
-                "fills",
-                "attached_chapters"
+                "attachments"
               ]
             ],
             [

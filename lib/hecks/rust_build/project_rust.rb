@@ -82,7 +82,7 @@ module Hecks
       # carries, never live Ruby symbols.
       def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-      # `root:` is the domain's own directory: a domain that declares `uses_embryonaut_bluebook`
+      # `root:` is the domain's own directory: a domain that declares `attaches ... from: :vendor`
       # resolves its vendored chapters beneath it.
       def load_registry
         @registry = Hecks::Runtime::Registry.new(root: File.expand_path(@domain))
@@ -100,7 +100,7 @@ module Hecks
         @domain_name = @registry.bluebooks.keys.first
       end
 
-      # Translation edges, hecksagons (whose `uses_framework` loads a framework chapter into the
+      # Translation edges, hecksagons (whose `attaches` loads a framework chapter into the
       # same registry) and worlds (whose `default_adapter` binds what a hecksagon leaves out), in
       # the order the language loads them.
       def load_siblings
@@ -134,7 +134,7 @@ module Hecks
         if !seams[:membership].empty? && seams[:identity].empty?
           raise Failure, "#{@domain_name} provides membership but not identity — rust/host Google sign-in " \
                          "cannot register or link an identity from ir.json. Attach Identity " \
-                         "(`uses_framework \"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
+                         "(`attaches \"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
                          "hecksagon, not a deploy-time guess, names the identity verbs."
         end
         add_edges_and_source
@@ -195,7 +195,7 @@ module Hecks
         RustProjection::WriteIfChanged.pop_and_prune(dir)
       end
 
-      # Every other bluebook the target's `uses_framework` calls pulled into the registry, each
+      # Every other bluebook the target's `attaches` calls pulled into the registry, each
       # generated into its own module. A framework chapter is a function of its bluebook alone, so
       # regenerating one is safe whichever domain last touched it.
       def write_chapters
@@ -203,7 +203,7 @@ module Hecks
                    policy_sources: [{ domain_name: @domain_name, policies: @ir[:policies],
                                       aggregates: @ir[:aggregates] }],
                    mod_names: { @mod_name => @domain_name } }
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_bluebooks)
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         (@registry.bluebooks.keys - [@domain_name]).each { |chapter| write_chapter(chapter, vendored, totals) }
         totals
       end
@@ -230,7 +230,7 @@ module Hecks
       # sibling hecksagon vendors in is labelled as vendored.
       def attachment(chapter_name, vendored)
         name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
-        name ? "uses_embryonaut_bluebook #{name.inspect}" : "uses_framework #{chapter_name.inspect}"
+        name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{chapter_name.inspect}"
       end
 
       def reference_keys(target_aggregates, chapters)

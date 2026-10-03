@@ -2,7 +2,7 @@ Hecks.bluebook "Compliance" do
   vision "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next."
   supporting
 
-  # Supports both modes from one source: `uses_framework "Compliance"` merges it in-process,
+  # Supports both modes from one source: `attaches "Compliance"` merges it in-process,
   # or a separately deployed service is reached with `across "Compliance"` on a policy.
   # examples/compliance/bluebook/compliance.bluebook symlinks here, since a symlink pointing
   # outside lib/ does not survive `gem build`.

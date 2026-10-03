@@ -32,7 +32,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
       Hecks.hecksagon("Pizzas") do
-        uses_framework "Governance"
+        attaches "Governance"
         Pizzas::Order.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do

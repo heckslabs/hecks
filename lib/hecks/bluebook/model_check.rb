@@ -27,7 +27,7 @@ module Hecks
       # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own sibling wiring
       #   file, if the caller loaded one
       # @param known_domains [Set<String>, nil] every bluebook/hecksagon name booted
-      #   anywhere in this corpus scan, checked to catch a typo'd across/uses_framework target
+      #   anywhere in this corpus scan, checked to catch a typo'd across/attaches target
       # @param global_emitted_events [Set<String>, nil] every event emitted anywhere in
       #   the corpus, checked as a fallback so a translates reaction isn't flagged deaf
       # @param profile [Symbol, nil] :client adds ClientProfile's error findings
@@ -371,7 +371,7 @@ module Hecks
         findings
       end
 
-      # `uses_framework` is a Shared Kernel relationship (X merges in, no boundary);
+      # `attaches` is a Shared Kernel relationship (X merges in, no boundary);
       # `across` is Customer/Supplier (real cross-Lambda RPC). This checks the choice
       # between them instead of leaving it as an unenforced comment. (ADR 0025)
       def cross_domain_policy_findings(policy, hecksagon, known_domains)
@@ -382,13 +382,13 @@ module Hecks
         target = policy.target_domain
         findings = []
 
-        if hecksagon.framework_members.include?(target)
+        if hecksagon.attaches?(target)
           # Shared Kernel and Customer/Supplier are mutually exclusive claims about
           # the same target — declaring both means either a pointless RPC to a
-          # domain already local, or a uses_framework that isn't doing its job.
+          # domain already local, or an attaches that isn't doing its job.
           findings << Finding.new(kind: :contradictory_relationship, severity: :error, subject: policy.name,
                                   message: "across #{target.inspect} dispatches over RPC (Customer/Supplier), " \
-                                           "but this hecksagon also uses_framework #{target.inspect} (Shared " \
+                                           "but this hecksagon also attaches #{target.inspect} (Shared " \
                                            "Kernel) — #{target} is already loaded in-process here, so the two " \
                                            "relationship declarations contradict each other for the same " \
                                            "target domain")
@@ -399,7 +399,7 @@ module Hecks
                                   message: "across #{target.inspect} declares a Customer/Supplier " \
                                            "relationship, but nothing in this hecksagon records the " \
                                            "expectation — add subscribe \"#{target}.SomeEvent\" for what " \
-                                           "you expect back from it, or uses_framework #{target.inspect} to " \
+                                           "you expect back from it, or attaches #{target.inspect} to " \
                                            "attach it in-process instead")
         end
 
@@ -426,7 +426,7 @@ module Hecks
         reached = []
         reached << "#{target} is a domain this corpus boots" if known_domains&.include?(target)
         if hecksagon
-          reached << "this hecksagon uses_framework #{target.inspect}" if hecksagon.framework_members.include?(target)
+          reached << "this hecksagon attaches #{target.inspect}" if hecksagon.attaches?(target)
           if hecksagon.subscriptions.any? { |subscribed| Naming.qualifier(subscribed) == target }
             reached << "this hecksagon subscribes to #{target}"
           end

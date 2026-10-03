@@ -24,12 +24,12 @@ module Hecks
     def self.load!(name, registry: Hecks.current_registry)
       unless registry&.root
         raise Runtime::WiringError,
-              "uses_embryonaut_bluebook(#{name.inspect}) needs a registry with a root to vendor from"
+              "attaches(#{name.inspect}, from: :vendor) needs a registry with a root to vendor from"
       end
 
       unless name.to_s.match?(PACKAGE_NAME)
         raise Runtime::WiringError,
-              "uses_embryonaut_bluebook(#{name.inspect}) is not a package name — it must match " \
+              "attaches(#{name.inspect}, from: :vendor) is not a package name — it must match " \
               "[a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
       end
 

@@ -17,7 +17,7 @@ module Hecks
       # The Hecks domain (ADR 0080): its chapters share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
       hecks:     "lib/hecks/hecks",
-      # A package vendored via `uses_embryonaut_bluebook` — nested inside the
+      # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
     }.freeze
@@ -238,8 +238,8 @@ module Hecks
                               "checks it as bluebook_language, and there is no directory to fuzz")
     }.freeze
 
-    # Every place a Rust-facing domain's own `uses_framework`/
-    # `uses_embryonaut_bluebook` attachment could be declared.
+    # Every place a Rust-facing domain's own `attaches` (or the deprecated `uses_framework` /
+    # `uses_embryonaut_bluebook`) attachment could be declared.
     #
     # @param root [String] repository root to search under
     # @return [String] every reachable hecksagon file's own text, joined by newlines
@@ -307,10 +307,11 @@ module Hecks
 
     # The stamp hecks project_rust writes into metadata.rs, e.g.
     # `examples/pizzas` or `the self-hosted language (...)`, with any
-    # ` (uses_framework "X")`/` (uses_embryonaut_bluebook "X")` suffix stripped.
+    # ` (attaches "X")`/` (attaches "x", from: :vendor)` suffix stripped (the deprecated
+    # `uses_framework` / `uses_embryonaut_bluebook` spellings too).
     SOURCE_STAMP = /
       GENERATED\ by\ hecks\ project_rust\ —\ (.+?)
-      (?:\ \((?:uses_framework|uses_embryonaut_bluebook)\ "\w+"\))?
+      (?:\ \((?:attaches|uses_framework|uses_embryonaut_bluebook)\ "\w+"(?:,\ from:\ :vendor)?\))?
       's\ own\ canonical\ IR,
     /x
 
