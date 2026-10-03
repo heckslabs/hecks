@@ -36,7 +36,11 @@ bundle exec hecks init Lending --dir="$HOME/lending" --adapter=Postgres
 
 It writes `lending.bluebook`, `lending.world` and an
 `environments/memory.world`, tells you what to type next, and never
-replaces a file that is already there. `--adapter` says where the data will
+replaces a file that is already there. (If you would rather start from a
+conversation with someone who knows the business, `hecks interview Lending`
+asks the questions, keeps what the expert says, and drafts the domain from
+what you accept. It sends the answers to a model through your own `claude`
+login; `--no-ai` leaves that out.) `--adapter` says where the data will
 live; Postgres is what the AWS Lambda host serves, which is why it is
 chosen here (leave it out and you get SQLite, which needs no server). The
 stub boots as it is, with a placeholder aggregate called `Example`.
