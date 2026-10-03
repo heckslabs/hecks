@@ -7,15 +7,31 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.0.5] - 2026-10-03
+
+A patch: nothing breaking and no behavior change for a running system unless it opts in.
+
+**Opt-in (no change unless the variable is set).** The host's branded signup confirmation, below, behaves exactly as before until `NEWSLETTER_CONFIRMATION_TEMPLATE_URL` is set.
+
+**Fix: `hecks console` no longer quits without a prompt.** IRB read the launcher's `ARGV` (the verb and `subject=<domain>`) as a script to run, failed, and the session ended after the banner with no error. The console now starts IRB with an empty command line and restores `ARGV` after (#959).
+
+**A command attribute's declared default fills an omitted argument.** `attribute :runs, Count, default: 30` was carried into the IR and shown in help, but a caller who left `runs` out was refused with `AbsentArgument`. The interpreter now fills an absent argument that declares a default on every way in (the flat call, the strict `with:` envelope, a delegated entity command); an argument the caller passes is kept and an attribute with no default is still required. No command in the corpus declares a default yet, so nothing existing changes. The Rust host and kernel do not fill defaults yet, so a domain that starts using one needs the Rust side mirrored first (#958).
+
 **The conformance corpus is language-neutral data; neither runtime is the oracle.** Every
 `spec/corpus/rust_conformance/*.json` fixture, and the full `banking.json` and `chess.json` scripts,
 now carries a frozen `expect` (instances, events, refusals with kind, queries, sagas, dry runs,
 reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
 `spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
 against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
-`hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+`hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing). A test-suite change; the runtime is unchanged (#951).
 
-**The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`).** Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
+**`hecks help` groups verbs by aggregate and sets the bookkeeping verbs apart.** Output change only; no verb is renamed or removed (#947).
+
+**Pre-push runs the comment style check CI runs.** A line past 100 characters used to pass the hook and fail CI; the check takes about 20 seconds (#952).
+
+**Docs and guides.** The newcomer path now works from the docs alone (#953), the getting-started guide shows how to hook up SQLite (#955), and a new guide covers writing, running and deploying your own domain (#956).
+
+**The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`) (#957).** Opt-in: with the variable unset, the confirmation is the plain-text email as before. Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
 
 ## [3.0.4] - 2026-10-02
 
