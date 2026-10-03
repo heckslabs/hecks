@@ -50,7 +50,7 @@ fn write_root_mod(out_root: &Path, all_dirs: &[String], domains: &[String], targ
     out.push_str("// chapter (governance/identity — no merged.rs of its own, so absent\n");
     out.push_str("// from `domains`) stays unconditional: it has no single feature of its\n");
     out.push_str("// own to gate behind, and is compiled in by whichever domain(s) attach\n");
-    out.push_str("// it via `uses_framework`.\n");
+    out.push_str("// it via `attaches`.\n");
     for name in all_dirs {
         if domains.iter().any(|d| d == name) {
             out.push_str(&format!("#[cfg(feature = {name:?})]\n"));

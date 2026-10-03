@@ -85,7 +85,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     chapter_name = chapter_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, bluebooks + [hecksagon_in(domain)].compact]]
   end.merge(
-    # Framework chapters stand alone: no `.hecksagon`, so no `uses_framework` resolution is
+    # Framework chapters stand alone: no `.hecksagon`, so no `attaches` resolution is
     # involved. `compliance` is keyed through `framework_stem` because `examples/compliance`
     # has the same bare stem.
     %w[identity governance console_settings compliance privacy].to_h do |stem|
@@ -130,7 +130,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
         Hecks::Bluebook::MetaValidator.grammar_registry
       else
         bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
-        # `root:` is needed for members declaring `uses_embryonaut_bluebook`; a bluebook's
+        # `root:` is needed for members declaring `attaches ... from: :vendor`; a bluebook's
         # grandparent is the domain root.
         fresh = Hecks::Runtime::Registry.new(root: File.dirname(bluebooks.first, 2))
         Hecks.with_registry(fresh) do

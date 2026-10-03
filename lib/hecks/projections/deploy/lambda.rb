@@ -109,7 +109,7 @@ module Hecks
           webhook_handler_module = deploy_settings.fetch(:handler_module, "WebLambdaHandler")
 
           # Scans every loaded chapter, not just this domain's own — a
-          # `uses_framework`-attached chapter can itself declare a cross-domain
+          # `attaches`-attached chapter can itself declare a cross-domain
           # policy, including one nested inside `aggregate "X" do ... end`.
           cross_domain_lambda_targets = cross_domain_registry.bluebooks.flat_map { |chapter_name, bluebook|
             bluebook.policies.select(&:target_domain).map(&:target_domain)
@@ -909,8 +909,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               # settings -- the exact same call this target runs automatically
               # for a domain with its own dedicated instance.
               #
-              # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (uses_embryonaut_
-              # bluebook, uses_framework), `check!` alone leaves THAT chapter's own
+              # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (attaches,
+              # attaches ... from: :vendor), `check!` alone leaves THAT chapter's own
               # aggregates with no snapshot table at all -- it only provisions the
               # ONE bluebook it's called with (era_resolver.rb's own `bluebook.
               # aggregates.each`), never the whole registry. Found live minting
@@ -998,7 +998,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               # hecks_eras at all. The fix reuses the SAME loading pipeline
               # `Loader.boot` itself does (`Ports::Loading.bootstrap`/
               # `load_library`/`load_project`/`load_domain`) to build a real,
-              # fully-loaded registry (bluebook + any uses_framework attachments),
+              # fully-loaded registry (bluebook + any attaches attachments),
               # then calls straight into PostgresEra's own `LineageManager.check!`
               # with THIS deploy's actual `DATABASE_URL` — bypassing the world
               # file's own adapter choice entirely, the same targeted pattern

@@ -55,7 +55,7 @@ module Hecks
     # Loads a member's bluebook unless this registry already holds it.
     #
     # `Kernel.load` re-executes the file, and a second `Declare` of the same aggregate is
-    # `AlreadyExists`, so repeated `uses_framework` calls in one boot must skip.
+    # `AlreadyExists`, so repeated `attaches` calls in one boot must skip.
     #
     # @param name [String, Symbol] the member's name, such as `"Governance"`
     # @return [Boolean, nil] true when this call loaded the member's bluebook, nil when

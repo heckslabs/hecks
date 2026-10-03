@@ -7,6 +7,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
+(a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
+name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package
+vendored into the project at `vendor/embryonaut_bluebooks/<name>/bluebook`. `from: :vendor` is
+required for a vendored package, so a typo cannot silently pick one over a gem chapter; an unknown
+name refuses with a `WiringError` that lists the gem's chapters and says how to attach a vendored
+package. A hecksagon now holds one list, `attachments`, each with its source (`:gem` or `:vendor`),
+in place of `framework_members`, `vendored_bluebooks` and `attached_chapters`. The Rust parser and
+build accept the same forms. `hecks model_check` now also flags `across "X"` on a hecksagon that
+attaches a chapter the gem carries beyond the framework members, which it missed before.
+
+Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
+They behave as before, print a one-line warning, and are removed in 3.1.0. Generated Rust files
+now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
+
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with

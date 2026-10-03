@@ -88,7 +88,7 @@ module Hecks
       end
 
       # `root:` is the source's parent, so a member declaring
-      # `uses_embryonaut_bluebook` can vendor from it.
+      # `attaches ... from: :vendor` can vendor from it.
       def boot(source)
         root = File.directory?(source) ? File.dirname(source) : nil
         registry = Runtime::Registry.new(root: root)
