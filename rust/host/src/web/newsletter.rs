@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 mod cooldown;
+mod template;
 #[cfg(test)]
 mod tests;
 
@@ -194,8 +195,12 @@ pub(super) async fn send_confirmation(email: &str) {
     let site = site_url();
     let link = confirm_url(&site, email, &confirm_token(&secret, email));
     let unsubscribe = unsubscribe_url(&site, email, &unsubscribe_token(&secret, email));
+    let body = match template::branded_body(&link, &unsubscribe).await {
+        Some(html) => html,
+        None => confirmation_body(&link),
+    };
     let delivery = mailer
-        .deliver(&Email { to: email, subject: "Confirm your newsletter subscription", body: &confirmation_body(&link), unsubscribe_url: Some(&unsubscribe) })
+        .deliver(&Email { to: email, subject: "Confirm your newsletter subscription", body: &body, unsubscribe_url: Some(&unsubscribe) })
         .await;
     if !delivery.ok {
         eprintln!("newsletter: the confirmation email was not delivered: {}", delivery.reason.unwrap_or_default());
