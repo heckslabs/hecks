@@ -151,7 +151,7 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     it "keeps uses_framework as a deprecated alias that warns and attaches" do
       registry = nil
       expect { registry = registry_with { Hecks.hecksagon("Hexed") { uses_framework "Governance" } } }
-        .to output(/`uses_framework` is deprecated and is removed in 3\.1\.0; use `attaches "Governance"`/).to_stderr
+        .to output(/`uses_framework` is deprecated and is removed in 3\.2\.0; use `attaches "Governance"`/).to_stderr
 
       expect(registry.hecksagon("Hexed").attachments.map(&:to_h)).to eq([{ name: "Governance", source: "gem" }])
       expect(registry.bounded?("Governance")).to be true
