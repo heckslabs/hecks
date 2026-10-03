@@ -83,7 +83,8 @@ module Hecks
             "rds.yaml" => rds_yaml(plan), "box.yaml" => box_yaml(plan, region),
             "Caddyfile" => caddyfile(plan), "services.json" => services_json(plan),
             "render-compose.sh" => template("render-compose.sh.tmpl", "STACK" => plan.infra_name, "REGION" => region,
-                                                                      "DB_NAME" => plan.database_name),
+                                                                      "DB_NAME" => plan.database_name,
+                                                                      "PROXY_IMAGE" => plan.proxy_image),
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
             "Makefile" => makefile(plan)
