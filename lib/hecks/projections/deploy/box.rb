@@ -402,8 +402,8 @@ module Hecks
         end
 
         # @param plan [Settings::Plan] the resolved settings
-        # @return [String] the line that makes the smoke listener present the origin secret, or nothing
-        #   when the world has no origin guard
+        # @return [String] the line that adds the origin secret to the smoke listener's requests, or
+        #   nothing when the world has no origin guard
         def smoke_header(plan)
           plan.origin_header ? "\t\theader_up #{plan.origin_header} {$ORIGIN_SECRET}" : ""
         end
