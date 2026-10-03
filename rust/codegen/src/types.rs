@@ -360,3 +360,48 @@ pub fn emit_projected_field_table(aggregate: &Json) -> String {
         .collect();
     format!("pub static {name}_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[\n{}\n];\n", rows.join("\n"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A value object with one attribute per Ruby spelling of a boolean.
+    fn flag_value_object() -> Json {
+        Json::parse(
+            r#"{
+              "name":"Entry",
+              "attributes":[
+                {"name":"on","type":"TrueClass","list":false,"optional":false,"default":false},
+                {"name":"off","type":"FalseClass","list":false,"optional":false}
+              ]
+            }"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn boolean_attributes_are_rust_bool_not_a_type_named_for_the_ruby_class() {
+        let vo = flag_value_object();
+        let generated = emit_value_object(&Exemplar::load(), &vo, &HashMap::new(), &HashMap::new());
+
+        assert!(generated.contains("pub on: bool,"));
+        assert!(generated.contains("pub off: bool,"));
+        assert!(generated.contains("Value::Bool(self.on)"));
+        assert!(!generated.contains("TrueClass,"));
+        assert!(!generated.contains("FalseClass,"));
+    }
+
+    #[test]
+    fn boolean_attributes_round_trip_through_json_as_bool() {
+        let vo = flag_value_object();
+        let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let by_name = HashMap::new();
+        let exemplar = Exemplar::load();
+        let from_json = crate::json_codec::emit_from_json_flat(&exemplar, "Entry", attributes, &by_name, None, None, false, false, None);
+        let to_json = crate::json_codec::emit_to_json_flat(&exemplar, "Entry", attributes, &by_name, false, &[], None);
+
+        assert!(from_json.contains("x.as_bool()"));
+        assert!(!from_json.contains("TrueClass::from_json"));
+        assert!(to_json.contains("crate::kernel::Json::Bool(self.on)"));
+    }
+}

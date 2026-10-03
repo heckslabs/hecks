@@ -11,6 +11,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **`AwsBox` generates the tooling to move a project's data onto the new database.** A world that declares `migration({ schemas: [...] })` also gets `restore-to-rds.sh` (a per-schema `pg_dump | pg_restore` through a bastion, with the Hecks materialized-view refresh handled), `verify-copy.sh` (structure and exact row counts of both sides) and `MIGRATION.md` (the steps in order, with the rollback caveat). The bastion, hosts and secrets are arguments, so one set of scripts serves a rehearsal, the cutover and a copy back. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
+**`hecks build.project_rust` maps `TrueClass` and `FalseClass` attributes to Rust `bool` again.** Since `hecks-codegen` became the only generator, a boolean attribute written in the Ruby-class spelling (`attribute :flag, TrueClass`) was emitted as a type named `TrueClass`, so the generated Rust failed to compile with `cannot find type TrueClass`. The scalar table in `hecks-codegen` now carries both spellings through the struct field, the JSON read and write, and the `Fielded` value, as `rust/project` did.
+
 ## [3.1.0] - 2026-10-03
 
 A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
