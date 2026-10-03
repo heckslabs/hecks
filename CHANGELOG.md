@@ -19,6 +19,16 @@ aggregate heading is the prefix of every call under it (`language_run:`), and th
 it (`project_model!`); a command the chapter gives a short name is listed by its real name with
 `(also: mcp!)`.
 
+**A restricted `hecks mcp` door checks arguments by name (ADR 0089).** In reader and commands mode,
+`dispatch` and `query` refuse an argument that names a host or a URL, a binary, an output, a port, a
+store to switch to, or a switch from preview to change (`McpDoorScope::DENIED_ARGUMENTS`), a path
+value that does not resolve inside the root with symlinks followed or that holds a colon
+(`PATH_ARGUMENTS`), and a git ref that is not a plain name (`REF_ARGUMENTS`), including inside nested
+values and every step of a batch. This closes the gap where an allowed command such as
+`run_spec_example` could be handed a file outside the checkout. A spec lists every argument name of
+every public command of the Hecks chapter and fails when one is unclassified. An unrestricted door is
+unchanged.
+
 **A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
 once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
 `hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
