@@ -1,3 +1,4 @@
+require "digest"
 require "json"
 require "fileutils"
 require "time"
@@ -66,6 +67,35 @@ module Hecks
 
       known = cli[:names][asking ? :question : :command].keys.sort.join(", ")
       raise Runtime::NotFound, "no such #{asking ? 'query' : 'command'}: #{name.inspect} — known: #{known}"
+    end
+
+    # A fingerprint of a domain directory: every file's relative path, size and modification time.
+    # Equal fingerprints mean no file was added, removed, resized or rewritten between two looks.
+    #
+    # @param path [String] the domain directory
+    # @return [String] a hex SHA-256
+    def fingerprint(path)
+      files = Dir.glob(File.join(path, "**", "*"), File::FNM_DOTMATCH).sort.select { |file| File.file?(file) }
+      state = files.map do |file|
+        stat = File.stat(file)
+        "#{file.delete_prefix(path)}\0#{stat.size}\0#{stat.mtime.to_f}"
+      end
+      Digest::SHA256.hexdigest(state.join("\n"))
+    end
+
+    # The qualified verb each command name resolves to, by the alias map `dispatch` resolves
+    # through; nil for a name that resolves to no command.
+    #
+    # @param runtime [Runtime::Dispatcher] the booted domain
+    # @param names [Array<String, nil>] short or qualified command names
+    # @return [Array<String, nil>] one verb or nil per name, in order
+    def verbs_for(runtime, names)
+      cli = Projector.call(:cli, bluebook: bluebook_for(runtime), options: { program: "mcp" })
+      names.map do |name|
+        resolve!(cli, name.to_s, asking: false)[:verb]
+      rescue Runtime::NotFound
+        nil
+      end
     end
 
     # Required on dispatch/query/state: what makes an audit row legible later.
