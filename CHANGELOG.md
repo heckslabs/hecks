@@ -7,7 +7,6 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-<<<<<<< HEAD
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with
@@ -17,9 +16,19 @@ field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, no
 is refused with the qualified names that end in it. A chapter's `names` table still gives
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
-=======
+
+
+**`hecks mcp` has a commands scope, and a restricted door stays booted.** With
+`HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
+the door serves the reader tools and `dispatch` for those commands only. A command is admitted by the
+verb it resolves to, so a short name shared by several aggregates (`complete`, `accept`) cannot reach
+another aggregate's command, and every step of a batch is checked before any runs. `tools/list` shows
+the allowed commands as an enum. The list admits commands, not argument values, so leave off any
+command whose arguments name a binary, a URL or a path outside the checkout (ADR 0089). A restricted
+door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
+call after the first no longer pays the boot; an unrestricted door still boots on every call.
+
 **`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
->>>>>>> origin/main
 
 **`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
