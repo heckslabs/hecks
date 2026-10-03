@@ -263,7 +263,7 @@ database snapshot too if you want no residue.
 
 ### What was checked
 
-Written against hecks 3.0.4. Every Ruby block in this guide runs under
+Every Ruby block in this guide runs under
 `spec/guides_spec.rb`. The same domain files were also run directly:
 `hecks docs`, a scripted boot on Memory and `hecks console subject=` all
 worked. `hecks deploy project` wrote the four files above for the Lambda
