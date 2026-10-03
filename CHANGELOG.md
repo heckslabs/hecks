@@ -9,7 +9,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [3.1.0] - 2026-10-03
 
-A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed.
+A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
 
 **One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
 (a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
