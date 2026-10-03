@@ -20,6 +20,8 @@ module Hecks
           ENGINE      = /\A\d{2}(\.\d{1,2})?\z/
           PREFIX      = /\A[a-z][a-z0-9-]{0,20}\z/
           IMAGE       = %r{\A[a-z0-9][a-z0-9._/:@-]{1,200}\z}
+          TASKDEF     = /\A[a-zA-Z0-9_-]{1,255}\z/
+          FROM_TASKDEF = %i[env secrets repository].freeze
           # Default images, each a version tag plus the digest of its multi-architecture index,
           # so a rebuilt box pulls the same bytes.
           TUNNEL_IMAGE = "cloudflare/cloudflared:2026.9.3" \
@@ -60,7 +62,7 @@ module Hecks
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, keyword_init: true
+            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, :task_definition, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -85,7 +87,9 @@ module Hecks
           def resolve(deploy_settings:, target:, infra_name:)
             s = deploy_settings
             check(:stack_name, infra_name, NAME)
-            containers = read_containers(s.fetch(:containers) { raise ArgumentError, missing_containers }, infra_name)
+            listed = s.fetch(:containers) { raise ArgumentError, missing_containers }
+            task_definition = read_task_definition(s[:task_definition], listed)
+            containers = read_containers(listed, infra_name)
             header, secret = read_origin(s)
             tunnel, tunnel_service = read_tunnel(s.fetch(:tunnel, false), containers)
 
@@ -97,7 +101,8 @@ module Hecks
               default_container: read_default(s[:default_container], containers), origin_header: header,
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
               tunnel: tunnel, tunnel_service: tunnel_service,
-              proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE)
+              proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
+              task_definition: task_definition
             )
           end
 
@@ -119,6 +124,27 @@ module Hecks
 
           def read_database_name(settings, infra_name)
             check(:database_name, settings.fetch(:database_name, infra_name.gsub(/[^a-zA-Z0-9]/, "")), DB_NAME)
+          end
+
+          # With a task definition, the images, environment and secrets are read from it at deploy
+          # time, so a container that also sets them is ambiguous and refused.
+          #
+          # @param family [String, nil] the ECS task definition family the world names
+          # @param listed [Array<Hash>] the containers as the world wrote them
+          # @return [String, nil] the checked family, or nil when the world does not use one
+          # @raise [ArgumentError] when the family is malformed or a container sets what it supplies
+          def read_task_definition(family, listed)
+            return nil if family.nil?
+
+            check(:task_definition, family, TASKDEF)
+            Array(listed).each do |spec|
+              clash = spec.is_a?(Hash) ? FROM_TASKDEF & spec.keys : []
+              next if clash.empty?
+
+              raise ArgumentError, "containers: #{spec[:name]} sets #{clash.join(', ')}, which the task definition " \
+                                   "#{family} supplies; drop #{clash.size == 1 ? 'it' : 'them'} or drop task_definition"
+            end
+            family
           end
 
           def read_containers(list, infra_name)

@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` can render its Compose file from an ECS task definition.** `task_definition "<family>"` makes `render-compose.sh` read each container's image, environment and secrets from that task at deploy time, so a project running on Fargate moves its box by pointing it at the task it already has; the world lists only names and ports, and no ECR repositories are made. `deploy-box.sh` and `make deploy TASKDEF=family:revision` take a revision. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))

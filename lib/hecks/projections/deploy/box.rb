@@ -82,13 +82,25 @@ module Hecks
           {
             "rds.yaml" => rds_yaml(plan), "box.yaml" => box_yaml(plan, region),
             "Caddyfile" => caddyfile(plan), "services.json" => services_json(plan),
-            "render-compose.sh" => template("render-compose.sh.tmpl", "STACK" => plan.infra_name, "REGION" => region,
-                                                                      "DB_NAME" => plan.database_name,
-                                                                      "PROXY_IMAGE" => plan.proxy_image),
+            "render-compose.sh" => render_compose_sh(plan, region),
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
             "Makefile" => makefile(plan)
           }
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @param region [String] the validated region
+        # @return [String] the script that renders the Compose file, from `services.json` or from
+        #   an ECS task definition when the world names one
+        def render_compose_sh(plan, region)
+          if plan.task_definition
+            template("render-compose-taskdef.sh.tmpl", "STACK" => plan.infra_name, "FAMILY" => plan.task_definition,
+                                                        "PROXY_IMAGE" => plan.proxy_image)
+          else
+            template("render-compose.sh.tmpl", "STACK" => plan.infra_name, "REGION" => region,
+                                               "DB_NAME" => plan.database_name, "PROXY_IMAGE" => plan.proxy_image)
+          end
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -174,11 +186,14 @@ module Hecks
           SH
         end
 
-        # One ECR repository per container, keeping the newest 30 images.
+        # One ECR repository per container, keeping the newest 30 images. A task definition names
+        # images that already have repositories, so none are made.
         #
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] CloudFormation resources, each preceded by a blank line
         def ecr_repositories(plan)
+          return "" if plan.task_definition
+
           plan.containers.map do |container|
             id = "#{logical(container.name)}Repository"
             <<~YAML.lines.map { |line| line.strip.empty? ? line : "  #{line}" }.join
@@ -198,6 +213,8 @@ module Hecks
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] one repository URI output per container
         def ecr_outputs(plan)
+          return "" if plan.task_definition
+
           plan.containers.map do |container|
             "  #{logical(container.name)}RepositoryUri:\n    Value: !GetAtt #{logical(container.name)}Repository.RepositoryUri\n"
           end.join.chomp
@@ -272,16 +289,28 @@ module Hecks
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] `services.json`
         def services_json(plan)
-          services = plan.containers.to_h do |c|
-            [c.name, { "name" => c.name, "repository" => c.repository, "port" => c.port,
-                       "env" => c.env, "secrets" => c.secrets }]
-          end
+          services = plan.containers.to_h { |c| [c.name, service_entry(plan, c)] }
           origin = plan.origin_secret ? { "header" => plan.origin_header, "secret" => plan.origin_secret } : nil
           document = { "services" => services, "origin" => origin }
+          document["task_definition"] = plan.task_definition if plan.task_definition
           document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service
           json = JSON.pretty_generate(document)
           # An empty object prints as `{}` or `{` newline `}`, depending on the json gem.
           "#{json.gsub(/\{\s*\}/, '{}')}\n"
+        end
+
+        # A container's entry. With a task definition the image, environment and secrets are read
+        # from it at deploy time, so only the name and port are written here.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @param container [Settings::Container] the container
+        # @return [Hash{String => Object}] its entry in `services.json`
+        def service_entry(plan, container)
+          entry = { "name" => container.name, "port" => container.port }
+          return entry if plan.task_definition
+
+          { "name" => container.name, "repository" => container.repository, "port" => container.port,
+            "env" => container.env, "secrets" => container.secrets }
         end
 
         # @param tunnel [Settings::Tunnel] the declared tunnel service
@@ -296,7 +325,29 @@ module Hecks
         def deploy_box_sh(plan, region)
           template("deploy-box.sh.tmpl", "STACK" => plan.infra_name, "BOX_STACK" => plan.box_stack,
                                          "RDS_STACK" => plan.rds_stack, "REGION" => region,
-                                         "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan))
+                                         "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan),
+                                         "USAGE" => deploy_usage(plan))
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] the comment lines that say how to call `deploy-box.sh`
+        def deploy_usage(plan)
+          if plan.task_definition
+            <<~USAGE
+              #   deploy-box.sh [task-definition]
+              #
+              # The task definition (a family or family:revision) defaults to the latest active revision of
+              # #{plan.task_definition}. Secret values are resolved on the box by fetch-secrets.sh and never
+              # pass through the SSM command.
+            USAGE
+          else
+            <<~USAGE
+              #   deploy-box.sh [name=tag ...]
+              #
+              # A container named without a tag runs its "latest" image. Secret values are resolved on the box by
+              # fetch-secrets.sh and never pass through the SSM command.
+            USAGE
+          end
         end
 
         # The probes the post-roll check runs on the box, against the proxy on localhost.
@@ -346,7 +397,7 @@ module Hecks
           <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
             #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c
-            #   make deploy [TAGS="web=20260101 worker=20260101"]
+            #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
             RDS_STACK = #{plan.rds_stack}
             BOX_STACK = #{plan.box_stack}
 
@@ -361,7 +412,7 @@ module Hecks
             \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text)
 
             deploy:
-            \tbash ./deploy-box.sh $(TAGS)
+            \tbash ./deploy-box.sh $(#{plan.task_definition ? 'TASKDEF' : 'TAGS'})
           MAKE
         end
 

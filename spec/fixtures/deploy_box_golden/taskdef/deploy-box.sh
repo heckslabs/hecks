@@ -1,14 +1,18 @@
 #!/bin/bash
-# Roll @@STACK@@'s app box: render the compose files, push them over SSM, start the containers and check
+# Roll widget-shop's app box: render the compose files, push them over SSM, start the containers and check
 # them. Exits non-zero if the roll fails or the box does not answer as expected.
 #
-@@USAGE@@
+#   deploy-box.sh [task-definition]
+#
+# The task definition (a family or family:revision) defaults to the latest active revision of
+# widget-platform. Secret values are resolved on the box by fetch-secrets.sh and never
+# pass through the SSM command.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-BOX_STACK=@@BOX_STACK@@
-RDS_STACK=@@RDS_STACK@@
-REGION=@@REGION@@
-DIR=/opt/@@STACK@@
+BOX_STACK=hecks-widget-shop-box
+RDS_STACK=hecks-widget-shop-rds
+REGION=us-east-1
+DIR=/opt/widget-shop
 out() { aws cloudformation describe-stacks --stack-name "$1" --query "Stacks[0].Outputs[?OutputKey==\`$2\`].OutputValue" --output text; }
 
 BOX=$(out "$BOX_STACK" InstanceId)
@@ -54,9 +58,13 @@ run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 1; }
 
 echo "==> checking the box"
 CHECK=$(cat <<'CHECK_EOF'
-cd @@DIR@@
+cd /opt/widget-shop
 BAD=0
-@@HEALTH_CHECKS@@
+S=$(grep ^ORIGIN_SECRET= caddy.secrets.env | cut -d= -f2-)
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 localhost/)
+[ "$code" = 403 ] && echo "ok   a request without the origin secret is refused -> $code" || { echo "FAIL a request without the origin secret is refused -> $code"; BAD=1; }
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 localhost/ -H "X-Origin-Secret: $S")
+[ "${code#5}" = "$code" ] && echo "ok   a request with the origin secret is served -> $code" || { echo "FAIL a request with the origin secret is served -> $code"; BAD=1; }
 DOWN=$(docker compose -f compose.json ps --format "{{.Service}} {{.Status}}" | grep -vE " Up " || true)
 if [ -z "$DOWN" ]; then echo "ok   every container is up"; else echo "FAIL containers not up: $DOWN"; BAD=1; fi
 [ "$BAD" = 0 ]

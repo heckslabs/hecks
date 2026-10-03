@@ -426,6 +426,13 @@ To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 waits for a registered connection. `tunnel true` alone only opens the outbound
 port, for a tunnel you run yourself.
 
+A project that already runs on Fargate can point the box at the task definition it
+has: `task_definition "acme-platform"`. The box is then rendered at deploy time from
+that task, so its images, environment and secrets are the task's, and the world
+lists only each container's name and port (a container that also sets `env`,
+`secrets` or `repository` is refused). `make deploy TASKDEF=acme-platform:7` rolls a
+chosen revision; with no argument it takes the latest.
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files
