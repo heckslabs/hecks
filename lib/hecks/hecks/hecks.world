@@ -15,7 +15,7 @@
 # Postgres (a `postgres://` URL, or a bare database name); otherwise a local database named for
 # the domain. It connects as the ordinary role `hecks`, never a superuser: the era write-fence
 # (row-level security) is bypassed by one, so boot refuses it. Create the role once with
-# `hecks quality_control create_ledger_role hecks` and the database with `createdb -O hecks hecks`.
+# `hecks quality_control sweep.create_ledger_role hecks` and the database with `createdb -O hecks hecks`.
 #
 # PostgresEra versions the storage shape. Once a database holds an era, a later change to this
 # domain's shape needs a translation edge, kept in `translations/` beside the bluebook; an
@@ -35,7 +35,7 @@ Hecks.world "Hecks" do
   launcher "Launcher", run_keys: true,
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
                                           abandoned red needs_fix],
-                       names: { "mcp" => "serve_mcp", "console" => "open_console" },
+                       names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
                        legacy: %w[run docs narrate ir stores model_check smoke_test

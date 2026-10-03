@@ -67,7 +67,7 @@ header for what that does and does not guard against). Every
 domain-scoped tool's `domain:`/`under:` is confined to
 `Hecks::Storehouse::BOOT_ROOT` (the project directory by default) —
 `Hecks.boot` loads real Ruby, and this bus refuses to boot one from
-outside its own root. `hecks serve_query_ir_mcp` is a smaller, older,
+outside its own root. `hecks corpus_run.serve_query_ir_mcp` is a smaller, older,
 read-only sibling exposing structural queries over the language itself
 (`lib/hecks/query_ir.rb`) — meta-tooling for working on hecks, not on a
 business domain. Both speak MCP over stdio only and refuse to start

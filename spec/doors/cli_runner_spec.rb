@@ -64,12 +64,20 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "naming" do
-    it "takes the short form when no other aggregate declares that command" do
-      expect(run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+    it "refuses a bare command name, pointing at the one qualified by its aggregate" do
+      output, code = run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small")
+
+      expect(code).to eq(1)
+      expect(output).to include("no such command: create_pizza")
+      expect(output).to include("did you mean").and include("order.create_pizza")
     end
 
-    it "takes a trailing `!` on a command" do
-      expect(run("create_pizza!", "name=Z", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+    it "takes a trailing `!` on a qualified command" do
+      expect(run("order.create_pizza!", "name=Z", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+    end
+
+    it "refuses a bare command name even with a trailing `!`" do
+      expect(run("create_pizza!", "name=Z").last).to eq(1)
     end
 
     it "still takes the aggregate-qualified form" do
@@ -207,12 +215,11 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
     end
 
-    it "answers a question by its bare name when no command shares it" do
-      a_pizza("Bare")
+    it "refuses a question by its bare name" do
       output, code = run("available")
 
-      expect(code).to eq(0)
-      expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
+      expect(code).to eq(1)
+      expect(output).to include("no such command: available")
     end
 
     it "changes nothing" do

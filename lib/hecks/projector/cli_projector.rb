@@ -69,17 +69,13 @@ module Hecks
         end
       end
 
-      # Sets `:short` on each spec: the last segment when exactly one command ends in it,
-      # else the full name (two aggregates both declaring `Close` keep both spellings).
+      # Sets `:short` on each spec to its full `aggregate.command` name: a command is always
+      # called with its aggregate, so adding a command elsewhere never changes what a call means.
       #
-      # @param specs [Hash{String => Hash}] the command or question map, mutated in place
+      # @param specs [Hash{String => Hash}] the command or query map, mutated in place
       # @return [void]
-      def shorten(specs)
-        tails = specs.keys.group_by { |name| name.split(".").last }
-        specs.each do |name, spec|
-          tail = name.split(".").last
-          spec[:short] = tails[tail].length == 1 ? tail : name
-        end
+      def qualify(specs)
+        specs.each { |name, spec| spec[:short] = name }
       end
 
       # Marks the `run` key of each creating command `minted`: optional, and never filled by a bare
@@ -96,14 +92,14 @@ module Hecks
         end
       end
 
-      # Sets the display name of every spec in each map: shortened, then renamed by `names`.
+      # Sets the display name of every spec in each map: its full name, then renamed by `names`.
       #
       # @param maps [Array<Hash{String => Hash}>] the command and question maps, mutated in place
       # @param names [Hash, nil] the chapter's launcher names
       # @return [void]
       def display_names(maps, names)
         maps.each do |specs|
-          shorten(specs)
+          qualify(specs)
           rename(specs, names)
         end
       end
@@ -131,8 +127,8 @@ module Hecks
         end
       end
 
-      # Maps every accepted spelling (full name, `:short` and a renamed command's old short
-      # name) to the full name.
+      # Maps every accepted spelling (full name, `:short` and a renamed command's old name)
+      # to the full name.
       def aliases(specs)
         specs.each_with_object({}) do |(name, spec), map|
           map[name]         = name
@@ -221,7 +217,7 @@ module Hecks
                     operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
 
         # `Dispatcher#dispatch` looks the head up as a port, so the wire name is
-        # `Aggregate.Port.Operation`; the short name (see `shorten`) hides the port.
+        # `Aggregate.Port.Operation`; the launcher name hides the port.
         { command: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
           kind: :command, creates: false, receiver: :aggregate, refusals: [],
           # `role:` is help text only; port dispatch never reaches the role check,
@@ -397,7 +393,7 @@ module Hecks
         out.concat(listing(questions, width) { |spec| first_sentence(spec[:summary]) })
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
-        out << "  a command can always be spelled in full — #{example_qualified(commands)}"
+        out << "  a command is called with its aggregate — #{example_qualified(commands)}"
         out.join("\n")
       end
 
@@ -445,10 +441,10 @@ module Hecks
         lines << line
       end
 
-      # One command whose full spelling differs from its short one, or `""` when none does.
+      # An example call, `aggregate.command!`, from the first command, or `""` when there is none.
       def example_qualified(commands)
-        name, spec = commands.find { |key, value| key != value[:short] } || commands.first
-        name ? "#{spec[:short]} is also #{name}" : ""
+        name = commands.keys.first
+        name ? "#{name}!" : ""
       end
 
       # The command table wants a query description's first sentence; `--help` prints all.

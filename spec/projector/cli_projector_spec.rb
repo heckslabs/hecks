@@ -197,7 +197,7 @@ RSpec.describe Hecks::Projector::CliProjector do
     it "groups the commands and questions under a heading per aggregate" do
       usage = banking[:usage]
 
-      expect(usage).to match(/^  Customer:\n    register!\s+Take on a new customer/)
+      expect(usage).to match(/^  Customer:\n    customer\.register!\s+Take on a new customer/)
       expect(usage).to match(/^  Account:\n    account\.open!\s+/)
       expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
     end
@@ -210,10 +210,10 @@ RSpec.describe Hecks::Projector::CliProjector do
       runs = described_class.call(bluebook: journaled_runs.bluebook("Runs"))
       internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
 
-      expect(internal).to contain_exactly("job_outcome", "job_faulted")
-      expect(runs[:usage]).to match(/^\s+jobs_by_note\s+/)
-      expect(runs[:usage]).to match(/^\s+job_digest\s+/)
-      expect(runs[:usage]).not_to match(/^\s+job_outcome\s{2,}How one job ended/)
+      expect(internal).to contain_exactly("job.job_outcome", "job.job_faulted")
+      expect(runs[:usage]).to match(/^\s+job\.jobs_by_note\s+/)
+      expect(runs[:usage]).to match(/^\s+job\.job_digest\s+/)
+      expect(runs[:usage]).not_to match(/^\s+job\.job_outcome\s{2,}How one job ended/)
     end
 
     it "titles a heading after its aggregate, without a Run suffix" do
@@ -235,23 +235,19 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(usage).to include(port_verb[:short])
     end
 
-    # The short spelling where unambiguous: `pizzas create_pizza`, not `pizzas order.create_pizza`.
-    it "shortens a command no other aggregate declares, and keeps both spellings" do
-      expect(pizzas[:commands]["order.create_pizza"][:short]).to eq("create_pizza")
-      expect(pizzas[:names][:command]["create_pizza"]).to eq("order.create_pizza")
+    # A command is always named with its aggregate: no short spelling is minted.
+    it "names every command with its aggregate, and mints no bare spelling" do
+      expect(pizzas[:commands]["order.create_pizza"][:short]).to eq("order.create_pizza")
       expect(pizzas[:names][:command]["order.create_pizza"]).to eq("order.create_pizza")
+      expect(pizzas[:names][:command]).not_to have_key("create_pizza")
     end
 
-    it "keeps the aggregate when two of them share a command, rather than choosing" do
-      shared = banking[:commands].values.group_by { |spec| spec[:command].split(".").last }
-                                 .find { |_, specs| specs.length > 1 }
-      skip "banking declares no command on two aggregates" unless shared
-
-      expect(shared.last.map { |spec| spec[:short] }).to all(include("."))
+    it "shows every command by its dotted name, whether or not another aggregate shares the command word" do
+      expect(banking[:commands].values.map { |spec| spec[:short] }).to all(include("."))
     end
 
-    it "lists the short spelling and says the long one still works" do
-      expect(banking[:usage]).to include("a command can always be spelled in full")
+    it "says a command is called with its aggregate" do
+      expect(banking[:usage]).to include("a command is called with its aggregate — customer.register!")
     end
 
     it "shows one command's arguments and every way it refuses" do
@@ -283,7 +279,7 @@ RSpec.describe Hecks::Projector::CliProjector do
                                       options:  { command: "account.open", ask: true })[:usage]
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("hecks run query open")
+      expect(question).to include("hecks run query account.open")
     end
   end
 end

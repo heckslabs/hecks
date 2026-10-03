@@ -64,12 +64,12 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "run keys" do
     it "mints the key of a creating command given none, and answers it" do
-      out, status = run_verb("model_check", "domains=#{File.join(@dir, 'clean')}")
+      out, status = run_verb("model_check_run.model_check", "domains=#{File.join(@dir, 'clean')}")
       key = JSON.parse(out).fetch("run")
 
       expect(status).to eq(0)
       expect(key).not_to be_empty
-      expect(JSON.parse(run_verb("verdict", key).first).first.dig("run", "value")).to eq(key)
+      expect(JSON.parse(run_verb("query", "model_check_run.verdict", key).first).first.dig("run", "value")).to eq(key)
     end
 
     it "refuses, saying to name a key, when no identity adapter can mint one" do
@@ -82,25 +82,25 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "never fills the minted run key from a bare word, and says so" do
-      out, status = run_verb("check_engine_agreement", "bogus")
+      out, status = run_verb("conformance_run.check_engine_agreement", "bogus")
 
       expect(status).to eq(1)
       expect(out).to include("only argument is its run key", "run=<key>")
     end
 
     it "shows the minted run key as optional in help, and fills the next argument from a bare word" do
-      help, = run_verb("run_behaviors", "--help")
+      help, = run_verb("operation.run_behaviors", "--help")
 
       expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
-      expect(Hecks::Doors::CliDoor.arguments(hecks_spec("run_behaviors"), ["examples/banking"]))
+      expect(Hecks::Doors::CliDoor.arguments(hecks_spec("operation.run_behaviors"), ["examples/banking"]))
         .to eq(subject: { value: "examples/banking" })
     end
 
     it "keeps an explicit key" do
-      out, = run_verb("model_check", "run=mine-1", "domains=#{File.join(@dir, 'clean')}")
+      out, = run_verb("model_check_run.model_check", "run=mine-1", "domains=#{File.join(@dir, 'clean')}")
 
       expect(JSON.parse(out)).not_to have_key("run")
-      expect(JSON.parse(run_verb("verdict", "mine-1").first).first.dig("run", "value")).to eq("mine-1")
+      expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first.dig("run", "value")).to eq("mine-1")
     end
 
     it "leaves a chapter that did not opt in alone" do
@@ -116,13 +116,24 @@ RSpec.describe "the launcher's opt-in options" do
       expect(help).to match(/^\s+mcp! /)
       expect(help).to match(/^\s+console! /)
       expect(help).not_to match(/^\s+serve_mcp! /)
-      expect(run_verb("serve_mcp", "--help").first).to include("dispatches")
+      expect(run_verb("door.serve_mcp", "--help").first).to include("dispatches")
+      expect(run_verb("serve_mcp", "--help").first).to include("no such command: serve_mcp", "door.serve_mcp")
       expect(run_verb("mcp", "--help").first).to start_with("mcp")
     end
 
-    it "resolves the ten names clients already type" do
-      %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].each do |name|
+    it "resolves the qualified names the ten words clients already typed now stand for, and the two aliases" do
+      %w[operation.run introspection.docs introspection.narrate introspection.ir introspection.stores
+         model_check_run.model_check operation.smoke_test introspection.project_diagrams door.project_cli
+         mcp console].each do |name|
         expect(run_verb(name, "--help")[1]).to eq(0), name
+      end
+    end
+
+    it "refuses the bare words that were once commands" do
+      %w[run model_check smoke_test project_cli].each do |name|
+        out, status = run_verb(name, "--help")
+        expect(status).to eq(1), name
+        expect(out).to include("no such command: #{name}")
       end
     end
 
@@ -136,28 +147,28 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "--wait" do
     it "exits 1 when the check is flagged, and prints the final state" do
-      out, status = run_verb("model_check", "run=wait-1", "domains=#{File.join(@dir, 'shelf')}", "--wait")
+      out, status = run_verb("model_check_run.model_check", "run=wait-1", "domains=#{File.join(@dir, 'shelf')}", "--wait")
 
       expect(status).to eq(1)
       expect(JSON.parse(out).dig("state", "status")).to eq("flagged")
     end
 
     it "exits 0 when the check is clean" do
-      out, status = run_verb("model_check", "run=wait-2", "domains=#{File.join(@dir, 'clean')}", "--wait")
+      out, status = run_verb("model_check_run.model_check", "run=wait-2", "domains=#{File.join(@dir, 'clean')}", "--wait")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).dig("state", "status")).to eq("clean")
     end
 
     it "exits 1 for a refused request" do
-      out, status = run_verb("model_check", "run=wait-3", "profile=strictest", "--wait")
+      out, status = run_verb("model_check_run.model_check", "run=wait-3", "profile=strictest", "--wait")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
     end
 
     it "makes a question fail when its refusal or its report names a gap" do
-      text, status = run_verb("ask", "rust_coverage", "module_name=nosuchmodule", "--wait")
+      text, status = run_verb("ask", "build.rust_coverage", "module_name=nosuchmodule", "--wait")
 
       expect(status).to eq(1)
       expect(text).to include("no such generated module")

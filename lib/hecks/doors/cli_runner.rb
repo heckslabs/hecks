@@ -338,10 +338,14 @@ module Hecks
       def unknown(cli, name, asking, program)
         # Both spellings are candidates: `order.create_piza` shares no prefix with `create_pizza`.
         pool = cli[:names][asking ? :question : :command].keys
-        near = pool.map    { |candidate| [shared_prefix(candidate, name), candidate] }
-                   .select { |shared, _| shared >= [name.length / 2, 3].max }
-                   .sort_by { |shared, candidate| [-shared, candidate] }
-                   .map(&:last)
+        # A bare name is the commonest slip now that the aggregate is required: its homes first.
+        homes = (pool + cli[:names][asking ? :command : :question].keys)
+                .select { |candidate| candidate.split(".").last == name }.uniq
+        similar = pool.map { |candidate| [shared_prefix(candidate, name), candidate] }
+                      .select { |shared, _| shared >= [name.length / 2, 3].max }
+                      .sort_by { |shared, candidate| [-shared, candidate] }
+                      .map(&:last)
+        near = homes + (similar - homes)
 
         lines = ["no such #{asking ? 'query' : 'command'}: #{name}"]
         lines += ["", "did you mean:", *near.first(5).map { |candidate| "  #{candidate}" }] unless near.empty?

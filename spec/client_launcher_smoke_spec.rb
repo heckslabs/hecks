@@ -46,23 +46,24 @@ RSpec.describe "client launcher smoke" do
     status.zero? ? puts(text) : abort(text)
   RUBY
 
-  CREATE = %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=large].freeze
+  CREATE = %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=large].freeze
 
   # Every call the plain and the pre-3.0 launcher answer alike.
   CALLS = {
     usage:         [],
     help:          %w[--help],
-    verb_help:     %w[create_pizza --help],
-    refusal_help:  %w[purchase --help],
+    verb_help:     %w[order.create_pizza --help],
+    refusal_help:  %w[order.purchase --help],
     short:         CREATE,
-    long:          %w[create_pizza name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
-    qualified:     %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=large],
-    question:      %w[ask available],
-    bare_question: %w[available],
-    invariant:     %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=huge],
-    missing:       %w[purchase to=nope amount=5],
-    unknown:       %w[create_piza],
-    bad_word:      %w[create_pizza nonsense=1],
+    long:          %w[order.create_pizza name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
+    qualified:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
+    question:      %w[ask order.available],
+    bare_question: %w[order.available],
+    invariant:     %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=huge],
+    missing:       %w[order.purchase to=nope amount=5],
+    unknown:       %w[order.create_piza],
+    bare:          %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=large],
+    bad_word:      %w[order.create_pizza nonsense=1],
     wait_unset:    CREATE + %w[--wait],
     confirm_unset: CREATE + %w[--confirm]
   }.freeze
@@ -135,7 +136,7 @@ RSpec.describe "client launcher smoke" do
 
     @opted_root = self.class.client(
       "opted_in",
-      world:    'launcher "Launcher", run_keys: true, failure_states: %w[available], names: { "make" => "create_pizza" }',
+      world:    'launcher "Launcher", run_keys: true, failure_states: %w[available], names: { "make" => "order.create_pizza" }',
       bluebook: self.class.method(:add_run_and_confirm)
     )
     capture_stdout { self.class.generate(@opted_root) }
@@ -143,11 +144,11 @@ RSpec.describe "client launcher smoke" do
       alias:      %w[make name=A pizza.price_cents=1 pizza.size=small],
       alias_help: %w[make --help],
       listed:     [],
-      plain:      %w[create_pizza name=B pizza.price_cents=1 pizza.size=small],
-      wait:       %w[create_pizza name=C pizza.price_cents=1 pizza.size=small --wait],
-      confirm:    %w[create_pizza name=D pizza.price_cents=1 pizza.size=small --confirm],
-      run_given:  %w[create_pizza name=E pizza.price_cents=1 pizza.size=small run=mine-1],
-      wait_bad:   %w[ask available --wait]
+      plain:      %w[order.create_pizza name=B pizza.price_cents=1 pizza.size=small],
+      wait:       %w[order.create_pizza name=C pizza.price_cents=1 pizza.size=small --wait],
+      confirm:    %w[order.create_pizza name=D pizza.price_cents=1 pizza.size=small --confirm],
+      run_given:  %w[order.create_pizza name=E pizza.price_cents=1 pizza.size=small run=mine-1],
+      wait_bad:   %w[ask order.available --wait]
     }
     @opted = self.class.launch_all(@opted_root, opted_calls)
   end
@@ -185,7 +186,7 @@ RSpec.describe "client launcher smoke" do
       expect(results[:refusal_help][:status]).to eq(0)
     end
 
-    it "runs `command name=value` in the short, long and qualified spellings alike" do
+    it "runs `command name=value` with short and long argument spellings and a trailing `!` alike" do
       answers = %i[short long qualified].map { |call| created(results[call]) }
 
       expect(answers.map { |a| a["id"] }).to all(eq("Margherita"))
@@ -212,7 +213,12 @@ RSpec.describe "client launcher smoke" do
 
     it "suggests the near name and exits 1 for an unknown command" do
       expect(results[:unknown][:status]).to eq(1)
-      expect(results[:unknown][:err]).to include("no such command: create_piza", "did you mean:", "  create_pizza")
+      expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  order.create_pizza")
+    end
+
+    it "refuses a bare command name, pointing at the one qualified by its aggregate" do
+      expect(results[:bare][:status]).to eq(1)
+      expect(results[:bare][:err]).to include("no such command: create_pizza", "did you mean:", "  order.create_pizza")
     end
 
     it "names the argument and exits 1 for a word the command does not take" do
@@ -258,7 +264,7 @@ RSpec.describe "client launcher smoke" do
       expect(created(@opted[:alias])["id"]).to eq("A")
       expect(@opted[:alias_help][:out]).to include("dispatches Pizzas::Order.CreatePizza")
       expect(@opted[:listed][:out]).to match(/^  make! /)
-      expect(@opted[:listed][:out]).not_to match(/^  create_pizza! /)
+      expect(@opted[:listed][:out]).not_to match(/^  order.create_pizza! /)
       expect(@opted[:plain][:status]).to eq(0)
     end
 

@@ -58,7 +58,7 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: hecks fuzz
-        run: bundle exec exe/hecks fuzz --wait
+        run: bundle exec exe/hecks fuzz_run.fuzz --wait
 
   # Runs the same corpus sweep through a real on-disk SQLite database instead
   # of the Memory adapter's hand-written Hash, so SqlQueryBuilder's
@@ -79,7 +79,7 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: hecks fuzz adapter=sqlite
-        run: bundle exec exe/hecks fuzz adapter=sqlite seeds=6 --wait
+        run: bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 --wait
 
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
@@ -107,7 +107,7 @@ jobs:
       - uses: ./.github/actions/postgres
 
       - name: hecks fuzz adapter=postgres
-        run: bundle exec exe/hecks fuzz adapter=postgres seeds=3 steps=20 --wait
+        run: bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 --wait
 
   checks_static:
     runs-on: ubuntu-latest
@@ -154,7 +154,7 @@ jobs:
       # `rspec` or the cargo-heavy `checks_codegen_drift`.
       - name: engine agreement (query comparators)
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks check_engine_agreement --wait
+        run: bundle exec exe/hecks conformance_run.check_engine_agreement --wait
 
       # Lints a generated deploy Makefile's text for a command whose exit
       # status isn't checked, or real AWS/DB work with no echo/validation
@@ -162,7 +162,7 @@ jobs:
       # representative fixture domains itself; no real AWS or Postgres
       # touched, so this belongs here rather than in `rspec`.
       - name: lint generated deploy recipes
-        run: bundle exec exe/hecks deploy lint --wait
+        run: bundle exec exe/hecks deploy makefile_check.lint --wait
 
       # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
       # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
@@ -170,15 +170,15 @@ jobs:
       # .githooks/pre-push checks locally before a push.
       - name: comment style
         run: |
-          bundle exec exe/hecks check_comments paths=lib/hecks --wait
-          bundle exec exe/hecks check_comments paths=lib,spec,examples only=long_block --wait
+          bundle exec exe/hecks style_run.check_comments paths=lib/hecks --wait
+          bundle exec exe/hecks style_run.check_comments paths=lib,spec,examples only=long_block --wait
 
       # Also here, not only in .githooks/pre-push: the hook is opt-in per
       # clone and bypassable with `git push --no-verify`, so a branch that
       # never installed it can reach GitHub with this never having run.
       - name: doc coverage
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks measure_doc_coverage --wait
+        run: bundle exec exe/hecks conformance_run.measure_doc_coverage --wait
 
       # Also here, not only in .githooks/pre-push, for the same reason as
       # `doc coverage` above: the hook is opt-in and bypassable, so a branch
@@ -211,7 +211,7 @@ jobs:
       # hand-maintained list, so a new domain needs no edit here — see
       # hecks regenerate_corpus's own header for the ordering rule.
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
-        run: bundle exec exe/hecks regenerate_corpus --check --wait
+        run: bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait
 
       # The reserved-name tables (RustReservedWord/CargoReservedName in
       # vocabulary.bluebook) are read by rust/project/naming.rb through
@@ -221,15 +221,15 @@ jobs:
       # diff, so no generator can escape or refuse different words.
       - name: "vocabulary: regenerate reserved-name tables, fail on drift"
         run: |
-          bundle exec exe/hecks project_vocabulary --confirm --wait
-          bundle exec exe/hecks project_reserved_names --confirm --wait
+          bundle exec exe/hecks language_run.project_vocabulary --confirm --wait
+          bundle exec exe/hecks language_run.project_reserved_names --confirm --wait
           git diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs
 
       # The path gates (the CiGate rows in vocabulary.bluebook) are written into marked regions of
       # ci.yml and ci-postgres-io-parallel.yml. Without --confirm the verb only compares, so a row
       # edited with no matching projection, or a region edited by hand, fails here.
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
-        run: bundle exec exe/hecks project_ci_gates --wait
+        run: bundle exec exe/hecks regeneration_run.project_ci_gates --wait
 
       # Checks whether hecks project_rust generated something for every
       # construct each domain's own IR declares, from the already-committed
@@ -243,7 +243,7 @@ jobs:
       # `--wait` on a question makes it fail the job: a refused check exits 1, and so does a
       # report that names a gap.
       - name: "rust coverage: every generated module"
-        run: bundle exec exe/hecks ask corpus_rust_coverage --wait
+        run: bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait
 
       # The same check against hecks-codegen's own manifest (ADR 0054a):
       # `--codegen=rust` regenerates each domain's manifest.json with
@@ -258,7 +258,7 @@ jobs:
       - name: "rust coverage (hecks-codegen): pizzas, governance, identity, banking, meta"
         run: |
           for module in pizzas governance identity banking meta; do
-            bundle exec exe/hecks ask rust_coverage module_name=$module codegen=rust --wait
+            bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait
           done
 
       # The other half of the kernel's own generated-code guarantee: a
@@ -266,14 +266,14 @@ jobs:
       # rust/src/kernel/<category>/<name>.rs file behind it at all — see
       # hecks measure_kernel_coverage's own header.
       - name: rust kernel coverage
-        run: bundle exec exe/hecks measure_kernel_coverage --wait
+        run: bundle exec exe/hecks kernel_run.measure_kernel_coverage --wait
 
       # rust/src/kernel/vocab/*.rs (RefusalSite, QueryComparator, FieldHint,
       # AggregateStep, EntityStep) regenerated from vocabulary.bluebook.
       # Fails on any diff, and on any untracked file the projection emits.
       - name: "rust vocabulary: regenerate kernel vocab tables, fail on drift"
         run: |
-          bundle exec exe/hecks project_rust_vocabulary --confirm --wait
+          bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait
           git diff --exit-code -- rust/src/kernel/vocab/
           untracked="$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)"
           if [ -n "$untracked" ]; then

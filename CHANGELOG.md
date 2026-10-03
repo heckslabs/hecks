@@ -8,12 +8,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 ## [Unreleased]
 
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
-under its aggregate. A command is written with a trailing `!` (`hecks gate! stage=pre_push`); the `!`
-is optional on the command line, so every existing call still works. Queries are read with
+under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
+is optional on the command line. Queries are read with
 `hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
 and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
-field is unchanged. Bare names that are unambiguous still resolve; requiring the aggregate prefix
-is not part of this change.
+field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, not `hecks gate`. A bare name
+is refused with the qualified names that end in it. A chapter's `names` table still gives
+explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
+names: qualify them (the bare-name refusal lists the candidates).
 
 ## [3.0.4] - 2026-10-02
 

@@ -7,8 +7,8 @@ body:
       value: |
         The most useful bug report here is a small `.bluebook` and the
         exact command/query that misbehaves — see `spec/corpus/*.json`
-        and `hecks fuzz`'s own shrinker for what "small" looks like. If
-        you hit this through `hecks fuzz`, paste the shrunk script under
+        and `hecks fuzz_run.fuzz`'s own shrinker for what "small" looks like. If
+        you hit this through `hecks fuzz_run.fuzz`, paste the shrunk script under
         `tmp/fuzz-failures/` instead of retyping it by hand.
 
   - type: textarea
@@ -18,7 +18,7 @@ body:
       description: >
         The smallest `.bluebook` (plus `.hecksagon`/`.world` if the
         wiring matters) that still reproduces this, and the Ruby or
-        `hecks run`-style step list you ran against it.
+        `hecks `-style step list you ran against it.
       placeholder: |
         aggregate "Thing" do
           ...
@@ -46,7 +46,7 @@ body:
       description: Ruby is the reference implementation; rust/ is generated from the same IR and checked against it.
       options:
         - Ruby only
-        - Rust only (rust/, via hecks project_rust / cargo)
+        - Rust only (rust/, via hecks build.project_rust / cargo)
         - Both — Ruby and Rust disagree
         - Not sure
     validations:
@@ -89,7 +89,7 @@ body:
     attributes:
       label: Anything else
       description: >
-        Output of `hecks model_check` or `hecks fuzz` if you ran either
+        Output of `hecks model_check` or `hecks fuzz_run.fuzz` if you ran either
         against this domain, or anything else that narrowed it down.
     validations:
       required: false

@@ -133,8 +133,8 @@ RSpec.describe "the stdio MCP servers" do
       domain = memory_pizzas_under(sandbox_root)
       run = run_over_pipes(
         door,
-        [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec", args: {} }),
-         tool_call(2, "query", { domain: domain, question: "available", summary: "spec" }),
+        [tool_call(1, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec", args: {} }),
+         tool_call(2, "query", { domain: domain, question: "order.available", summary: "spec" }),
          tool_call(3, "catalog", { domain: "/tmp/outside_the_root" })],
         env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }
       )
@@ -195,9 +195,9 @@ RSpec.describe "the stdio MCP servers" do
     it "refuses dispatch, a dry run and behaviors, naming the mode" do
       results = results_of(run_over_pipes(
                              door,
-                             [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                             [tool_call(1, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec",
                                                          role: "Chef", args: {} }),
-                              tool_call(2, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                              tool_call(2, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec",
                                                          role: "Chef", args: {}, dry_run: true }),
                               tool_call(3, "behaviors", { target: File.join(sandbox_root, domain) })],
                              env: reader_env

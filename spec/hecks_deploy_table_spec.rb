@@ -12,7 +12,10 @@ require_relative "support/fake_codebase_shell"
 # whole effect can be seen in a temporary directory: a comparison of two templates, and a tenant's
 # provisioning.
 RSpec.describe "the Deploy rows of the ADR command table" do
-  DeployRow = Struct.new(:script, :aggregate, :name, :verb, keyword_init: true)
+  DeployRow = Struct.new(:script, :aggregate, :name, :verb, keyword_init: true) do
+    # The launcher's name for the row: its aggregate, snake-cased, then its verb.
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+  end
 
   DEPLOY_ROWS = [
     DeployRow.new(script: "project_deploy", aggregate: "Recipe", name: "Project", verb: "project"),
@@ -47,16 +50,16 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   DEPLOY_ROWS.each do |row|
-    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks deploy #{row.verb}`" do
+    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks deploy #{row.qualified}`" do
       aggregate = @bluebook.aggregate(row.aggregate)
 
       expect(aggregate).not_to be_nil, "#{row.aggregate} is not declared in the Deploy chapter"
       expect(aggregate.commands.map(&:hecks_name)).to include(row.name)
 
-      out, status = launch([row.verb, "--help"])
+      out, status = launch([row.qualified, "--help"])
 
       expect(status).to eq(0)
-      expect(out).to start_with(row.verb)
+      expect(out).to start_with(row.qualified)
     end
   end
 
@@ -64,9 +67,9 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     DEPLOY_ROWS.map(&:script).uniq.each do |script|
       expect(Hecks::ThreeZero::FORMS.fetch(script)).to start_with("hecks deploy ")
     end
-    promised = DEPLOY_ROWS.map(&:script).uniq.map { |script| Hecks::ThreeZero::FORMS.fetch(script)[/deploy (\w+)/, 1] }
+    promised = DEPLOY_ROWS.map(&:script).uniq.map { |script| Hecks::ThreeZero::FORMS.fetch(script)[/deploy ([\w.]+)/, 1] }
 
-    expect(promised).to all(satisfy { |verb| DEPLOY_ROWS.map(&:verb).include?(verb) })
+    expect(promised).to all(satisfy { |verb| DEPLOY_ROWS.map(&:qualified).include?(verb) })
   end
 
   it "lists every command of the table once, with the Deploy aggregates each holding a row" do
@@ -100,7 +103,8 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "records two templates that agree as matching, and exits 0 under --wait" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, status = answer(["diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'a.yaml')}", "--wait"])
+        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'a.yaml')}",
+                               "--wait"])
 
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("matching")
@@ -114,7 +118,8 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "records templates that differ as drifted, and exits 1 under --wait" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, status = answer(["diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}", "--wait"])
+        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}",
+                               "--wait"])
 
         expect(status).to eq(1)
         expect(json.dig("state", "status")).to eq("drifted")
@@ -126,7 +131,8 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "writes the report as JSON with --json" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, = answer(["diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}", "--json", "--wait"])
+        json, = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}", "--json",
+                        "--wait"])
 
         report = JSON.parse(json.dig("state", "report", "value"))
 
@@ -135,7 +141,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     it "records a template that is not there as refused, and exits 1 under --wait" do
-      json, status = answer(["diff", "/no/such/before.yaml", "after=/no/such/after.yaml", "--wait"])
+      json, status = answer(["template_comparison.diff", "/no/such/before.yaml", "after=/no/such/after.yaml", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("refused")
@@ -145,7 +151,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
   describe "hecks deploy provision" do
     def provision(dir, *extra)
-      answer(["provision", dir, "slug=acme", "domain=Scratch", "realm=Acme", "schema=acme",
+      answer(["tenant.provision", dir, "slug=acme", "domain=Scratch", "realm=Acme", "schema=acme",
               "database=hecks_tenants", *extra, "--wait"])
     end
 
@@ -168,7 +174,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "binds the adapter it is named" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        answer(["provision", dir, "slug=bloom", "domain=Scratch", "realm=Bloom", "schema=bloom",
+        answer(["tenant.provision", dir, "slug=bloom", "domain=Scratch", "realm=Bloom", "schema=bloom",
                 "database=hecks_tenants", "adapter=Sqlite", "--wait"])
 
         expect(File.read(File.join(dir, "environments/bloom.world"))).to include('persisted_by("Sqlite")')
@@ -177,7 +183,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "refuses a slug that is not lowercase before it writes anything" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        out, status = launch(["provision", dir, "slug=Not_A_Slug", "domain=Scratch", "realm=Acme", "schema=acme",
+        out, status = launch(["tenant.provision", dir, "slug=Not_A_Slug", "domain=Scratch", "realm=Acme", "schema=acme",
                               "database=hecks_tenants"])
 
         expect(status).to eq(1)
@@ -192,7 +198,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
                   schema: { value: "declared" }, database: { value: "hecks_tenants" },
                   directory: { value: dir } }
         expect(@hecks.dry_run?("Deploy::Tenant.Provision", **facts)).to be(true)
-        json, status = answer(["provision", dir, "slug=declared", "domain=Scratch", "realm=Declared",
+        json, status = answer(["tenant.provision", dir, "slug=declared", "domain=Scratch", "realm=Declared",
                                "schema=declared", "database=hecks_tenants", "--wait"])
 
         expect(status).to eq(0)
@@ -203,7 +209,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "refuses to provision the same slug twice, and points at `reprovision`" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        args = ["provision", dir, "slug=twice", "domain=Scratch", "realm=Twice", "schema=twice",
+        args = ["tenant.provision", dir, "slug=twice", "domain=Scratch", "realm=Twice", "schema=twice",
                 "database=hecks_tenants", "--wait"]
         answer(args)
         out, status = launch(args)
@@ -215,9 +221,9 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "writes the overlay again for a tenant that was provisioned, under `reprovision`" do
       Dir.mktmpdir("deploy_tenant") do |dir|
-        answer(["provision", dir, "slug=again", "domain=Scratch", "realm=Again", "schema=again",
+        answer(["tenant.provision", dir, "slug=again", "domain=Scratch", "realm=Again", "schema=again",
                 "database=hecks_first", "--wait"])
-        json, status = answer(["reprovision", "to=again", "directory=#{dir}", "database=hecks_second", "--wait"])
+        json, status = answer(["tenant.reprovision", "to=again", "directory=#{dir}", "database=hecks_second", "--wait"])
 
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("provisioned")
@@ -231,7 +237,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       shell = FakeCodebaseShell.new("wrote deploy/pizzas/template.yaml\n")
       stub_tools(shell)
 
-      json, status = answer(["project", "examples/pizzas", "tenant=acme", "schema=acme", "out=/tmp/pizzas-out",
+      json, status = answer(["recipe.project", "examples/pizzas", "tenant=acme", "schema=acme", "out=/tmp/pizzas-out",
                              "environment=production", "--wait"])
 
       expect(status).to eq(0)
@@ -244,7 +250,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "keeps a generator that refused as a faulted recipe with its own sentence, and exits 1 under --wait" do
       stub_tools(FakeCodebaseShell.new(["no deployed_to block", 1]))
 
-      json, status = answer(["project", "examples/pizzas", "--wait"])
+      json, status = answer(["recipe.project", "examples/pizzas", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("faulted")
@@ -254,7 +260,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "keeps a Makefile that hides a failure as a flagged lint, and exits 1 under --wait" do
       stub_tools(FakeCodebaseShell.new(["1 violation(s) found", 1]))
 
-      json, status = answer(["lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
+      json, status = answer(["makefile_check.lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("flagged")
@@ -264,7 +270,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       shell = FakeCodebaseShell.new("hecks deploy lint: no violations found.\n")
       stub_tools(shell)
 
-      json, status = answer(["lint", "makefiles=a/Makefile,b/Makefile", "--wait"])
+      json, status = answer(["makefile_check.lint", "makefiles=a/Makefile,b/Makefile", "--wait"])
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("clean")
@@ -275,7 +281,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       shell = FakeCodebaseShell.new("  examples/banking/oidc.json  <-  Banking\n")
       stub_tools(shell)
 
-      json, status = answer(["project_oidc", "examples/banking", "--wait"])
+      json, status = answer(["oidc_manifest.project_oidc", "examples/banking", "--wait"])
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("projected")
@@ -287,7 +293,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
         Dir.mkdir(File.join(dir, "lib"))
         Hecks::Adapters::Codebase::Tree.root = dir
 
-        json, status = answer(["project", "examples/pizzas", "--wait"])
+        json, status = answer(["recipe.project", "examples/pizzas", "--wait"])
 
         expect(status).to eq(1)
         expect(json.dig("state", "refusal", "value")).to include("needs a hecks checkout")
