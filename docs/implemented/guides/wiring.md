@@ -81,7 +81,7 @@ the entire reason a `.hecksagon` exists.
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 
   # An event this hecksagon takes from OUTSIDE Pizzas' own bluebook —
@@ -493,8 +493,8 @@ exactly this; the [world reference](../reference/world.md) has the
 resolution order.
 
 A chapter can also come from a package of the shared bluebook registry
-instead of hecks's own `lib/`: `uses_embryonaut_bluebook` in the hecksagon
-loads the package vendored into the project, and `hecks vendor` pins
+instead of hecks's own `lib/`: `attaches "<name>", from: :vendor` in the
+hecksagon loads the package vendored into the project, and `hecks vendor` pins
 one there. The [hecksagon reference](../reference/hecksagon.md#vendoring-a-package)
 has the command, the `VENDORED_COMMIT` and `bluebook.lock` files it writes, and
 what it refuses. The environment the host itself reads (checkout, payments and

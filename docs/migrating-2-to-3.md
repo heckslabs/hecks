@@ -68,6 +68,20 @@ so `hecks build_wasm` and the other Build commands work from an installed gem. A
 workspace to `.hecks/rust/<version>/` and never writes into the gem. Anything that read the gem's
 file list to leave the tooling out no longer can.
 
+## 8. Write `attaches` instead of `uses_framework` and `uses_embryonaut_bluebook`
+
+A hecksagon attaches a chapter with one word, `attaches`. `uses_framework "Governance"` is now
+`attaches "Governance"`, and `uses_embryonaut_bluebook "membership"` is now
+`attaches "membership", from: :vendor`. Without `from:` the name is found among the chapters the
+gem carries (a framework member or a chapter of the language, Tenancy, Deploy); `from: :vendor`
+loads the package vendored into the project, and is never a fallback for a misspelt gem name.
+
+The two old words still work in 3.x. They behave as before and print a one-line warning, and they
+are removed in 3.1.0. Two things read differently: a hecksagon's `framework_members`,
+`vendored_bluebooks` and `attached_chapters` are one list, `attachments` (each with its source,
+`:gem` or `:vendor`), and `hecks project_rust` now stamps its generated files with the `attaches`
+spelling, so regenerate them.
+
 ## Security fixes since 3.0.0
 
 Upgrade to 3.0.3 or later, not 3.0.0. 3.0.1 to 3.0.3 closed: `GET /members` and

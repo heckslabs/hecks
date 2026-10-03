@@ -7,6 +7,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
+(a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
+name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package
+vendored into the project at `vendor/embryonaut_bluebooks/<name>/bluebook`. `from: :vendor` is
+required for a vendored package, so a typo cannot silently pick one over a gem chapter; an unknown
+name refuses with a `WiringError` that lists the gem's chapters and says how to attach a vendored
+package. A hecksagon now holds one list, `attachments`, each with its source (`:gem` or `:vendor`),
+in place of `framework_members`, `vendored_bluebooks` and `attached_chapters`. The Rust parser and
+build accept the same forms. `hecks model_check` now also flags `across "X"` on a hecksagon that
+attaches a chapter the gem carries beyond the framework members, which it missed before.
+
+Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
+They behave as before, print a one-line warning, and are removed in 3.1.0. Generated Rust files
+now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
