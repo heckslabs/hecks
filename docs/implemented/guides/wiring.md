@@ -420,6 +420,14 @@ end
 `Makefile`. Secrets are named, never written down: the box resolves them when it
 deploys. A world with no `containers` is refused with an example.
 
+A project moving off an existing database adds
+`migration({ schemas: ["app", "app_cms"], source_database: "legacy" })`, and
+three more files are written: `restore-to-rds.sh` (copy each schema through a
+bastion, then verify), `verify-copy.sh` (structure and exact row counts of both
+sides) and `MIGRATION.md`, the steps in order with the rollback caveat. The
+bastion, hosts and secrets are arguments to the scripts, so the same files serve
+a rehearsal, the cutover and a copy back.
+
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
 `cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
