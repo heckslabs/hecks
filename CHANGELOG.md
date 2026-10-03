@@ -11,6 +11,40 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
 
+**A restricted `hecks mcp` door checks arguments by name (ADR 0089).** In reader and commands mode,
+`dispatch` and `query` refuse an argument that names a host or a URL, a binary, an output, a port, a
+store to switch to, or a switch from preview to change (`McpDoorScope::DENIED_ARGUMENTS`), a path
+value that does not resolve inside the root with symlinks followed or that holds a colon
+(`PATH_ARGUMENTS`), and a git ref that is not a plain name (`REF_ARGUMENTS`), including inside nested
+values and every step of a batch. This closes the gap where an allowed command such as
+`run_spec_example` could be handed a file outside the checkout. A spec lists every argument name of
+every public command of the Hecks chapter and fails when one is unclassified. An unrestricted door is
+unchanged.
+
+**A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
+once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
+`hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
+dependency-free TypeScript module with the table as `as const` data and a few pure helpers: `pageIsOn`,
+`isOffPath`, `notForSearch`, `previewUrl`, the middleware rules as data, the desktop, mobile, footer and
+admin navigation, the sitemap paths, the robots prefixes, and a map from each CMS global to its page. A row
+whose source is a `command:` or `query:` takes its path from the forms scheme (`/Chapter/Aggregate/Verb`)
+and is checked against the chapters the project attaches. The closed sets a row's values come from (kind,
+render, auth, cache class, origin, preview) are value objects of the Site chapter, so a row naming a cache
+class that is not a member is refused with the members listed, and so are a path declared twice, an off page
+in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
+that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
+
+**`project_site` also projects the CDN.** A route table that declares an edge (`Edge`, `EdgePolicy`,
+`EdgeOrigin` and `EdgeRule` rows beside its `Route` rows) has the same command rewrite two marked regions,
+`BEGIN`/`END GENERATED site_cdn behaviors` and `listener_rules`, of the CloudFormation template the project
+owns: the distribution's default and ordered cache behaviours, and the load balancer's listener rules with their
+priorities and origin-secret condition. A route gets a behaviour only when CloudFront would otherwise apply a
+different one; the order is the order the rows are declared in, and a pattern that a broader earlier one would
+shadow is refused. Rows gain `compress`, `alb_rule` and `cdn`. The refusals name an unknown or unmapped origin,
+a cache class with no policy, a duplicate priority and a rule that carries no route. `--check` covers the
+regions, `out=<dir>` writes a copy of the template, and the catch-all row `/*` hides nothing from `NOT_FOR_SEARCH`.
+`Fargate::Cdn.behavior_lines` is public and renders a `ResponseHeadersPolicyId`.
+
 **One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
 (a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
 name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package

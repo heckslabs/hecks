@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/chapters"
 
 # `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy,
-# QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the attached
+# Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the attached
 # chapter is a bounded context, and the consumer's sibling hecksagon for it is the
 # anti-corruption layer.
 RSpec.describe "a hecksagon attaching a chapter the gem carries" do
@@ -62,6 +62,15 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     expect { registry.verify! }.not_to raise_error
   end
 
+  it "attaches the Site chapter, with the closed sets a route table is read against" do
+    registry = attach("Site")
+
+    expect(registry.bluebook("Site").aggregate("Route")).not_to be_nil
+    expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Site", source: "gem" }])
+    expect(registry.bounded?("Site")).to be true
+    expect { registry.verify! }.not_to raise_error
+  end
+
   it "refuses boot when the attached chapter has no sibling hecksagon" do
     registry = attach("Deploy", sibling: false)
 
@@ -115,7 +124,7 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
   # are deprecated spellings that behave as before and warn.
   describe "attaches, from the gem or from vendor" do
     it "finds a framework member and a language chapter through the one table" do
-      expect(Hecks::Chapters.table.keys).to include("Governance", "Identity", "Deploy", "Tenancy")
+      expect(Hecks::Chapters.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
     end
 
     it "records each attachment with its source" do
