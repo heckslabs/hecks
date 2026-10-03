@@ -21,6 +21,11 @@ if LEGACY.include?(ARGV.first)
   exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
 end
 
+# These verbs keep nothing worth a database, so they run on Memory unless told otherwise, and
+# print nothing when they end well.
+MEMORY_VERBS = %w[console].freeze
+ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
+
 require "hecks"
 
 # Usage is answered from the projected chapter alone: no adapter is bound and no
@@ -39,7 +44,7 @@ text, status, reason = Hecks::Doors::CliRunner.usage(
 )
 unless text
   runtime = begin
-    Hecks.boot_described(described, install_doors: false)
+    Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_VERBS.include?(ARGV.first)) { Hecks.boot_described(described, install_doors: false) }
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.lines.first.strip}"
   end
@@ -57,4 +62,5 @@ if reason
   warn reason
   exit status
 end
+exit 0 if status.zero? && MEMORY_VERBS.include?(ARGV.first)
 status.zero? ? puts(text) : abort(text)

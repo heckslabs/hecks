@@ -45,7 +45,9 @@ clone of this repository.
 
 ## Quickstart
 
-About ten minutes, and no database server:
+About ten minutes, and no database server. You need Ruby 3.2 or newer and
+Bundler. If `bundle install` fails building the `pg` gem, install Postgres's
+client library (`libpq`) and run it again; nothing here connects to a database.
 
 ```sh
 git clone https://github.com/heckslabs/hecks
@@ -54,11 +56,10 @@ bundle install
 bundle exec hecks console
 ```
 
-`hecks console` boots the `examples/pizzas` domain on the in-memory adapter
-and drops you into IRB with its [door](#door) installed. The domain's
-own [hecksagon](#hecksagon) binds [PostgresEra](#postgresera), so the
-console loads the Memory-bound sibling `examples/pizzas/pizzas_behaviors.hecksagon`
-instead, and `git status` stays clean. Type this at the prompt:
+`console` boots the `examples/pizzas` domain on the in-memory adapter
+and drops you into IRB with its [door](#door) installed. Nothing needs a
+database, and `git status` stays clean. Type this at the prompt (`exit`
+leaves it):
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
@@ -96,7 +97,7 @@ harness.
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and the
 [Glossary](#glossary) at the end of this page defines the project's own
-words. `hecks console subject=<domain>` boots any other domain directory as that
+words. `bundle exec hecks console subject=<domain>` boots any other domain directory as that
 directory is wired.
 
 ## Why
@@ -397,7 +398,7 @@ stateDiagram-v2
     frozen --> closed: CloseAccount
 ```
 
-To drive the full domain by hand, `hecks console subject=examples/banking` boots it
+To drive the full domain by hand, `bundle exec hecks console subject=examples/banking` boots it
 as wired. Banking is bound to [Heki](#heki), which keeps its records in
 the git-tracked `examples/banking/data/`, so a dispatch there shows up in
 `git status`; `git checkout -- examples/banking/data` and
@@ -451,7 +452,7 @@ Only what this repository actually does today, checked, not aspired to:
 - **Runtime and adapter separation.** `persisted_by` in a `.hecksagon`
   file is the entire migration between an in-memory adapter and a real
   database — the `.bluebook` file never names a backend, so it never
-  changes. `Memory`, `Sqlite`, `Postgres`, `PostgresEra` (adds
+  changes. `Memory`, `SqlitePersistence`, `Postgres`, `PostgresEra` (adds
   schema-evolution tracking — see [Schema
   evolution](docs/implemented/guides/schema-evolution.md)), and `Heki`
   (an append-only journal, no server) all satisfy the same persistence
@@ -511,6 +512,7 @@ before assuming a capability exists that isn't demonstrated above.
 - [Verification](docs/implemented/guides/verification.md)
 - [Wiring](docs/implemented/guides/wiring.md)
 - [Writing an adapter](docs/implemented/guides/writing-an-adapter.md)
+- [Your own domain](docs/implemented/guides/your-own-domain.md)
 <!-- generated:end -->
 
 <!-- generated:begin id=reference -->

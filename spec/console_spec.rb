@@ -1,11 +1,12 @@
 require "open3"
 require "rbconfig"
+require "hecks/cli/console"
 
 # `Hecks::CLI::Console` (Operation.OpenConsole) runs as a real subprocess with its
 # IRB session fed on stdin. Postgres is pointed at a port nothing listens
 # on, for the child process only: the bare console must dispatch a pizza
 # with no database server reachable (ADR 0073), while an explicit
-# `examples/pizzas` still boots that directory's own `PostgresEra` wiring.
+# `examples/directory` still boots that directory's own `PostgresEra` wiring.
 RSpec.describe "Hecks::CLI::Console" do
   # The child's whole program: the library entry point, with the domain argument passed through.
   # A prefixed constant name: top-level spec constants share one namespace, and
@@ -41,9 +42,22 @@ RSpec.describe "Hecks::CLI::Console" do
   end
 
   it "still boots an explicit domain directory as that directory is wired" do
-    _stdout, stderr, status = run_console("examples/pizzas", stdin: "exit\n")
+    _stdout, stderr, status = run_console("examples/directory", stdin: "exit\n")
 
     expect(status).not_to be_success
     expect(stderr).to include("cannot bind PostgresEra")
+  end
+
+  describe ".banner" do
+    it "offers the pizzas session, in the bare form the README uses, only for the pizzas domain" do
+      shown = Hecks::CLI::Console.banner
+
+      expect(shown).to include('Order.create_pizza!(name: "Margherita"')
+      expect(shown).not_to include("{ value:")
+    end
+
+    it "names no pizzas for any other domain" do
+      expect(Hecks::CLI::Console.banner("examples/banking")).not_to include("pizza")
+    end
   end
 end

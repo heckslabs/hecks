@@ -103,7 +103,7 @@ module Hecks
         label      = executable || "#{path}/#{snake}"
         file       = File.join(root, label)
         text       = launcher(path, name, program, executable: executable, legacy: setting[:legacy],
-                          opted: !setting.empty?)
+                          memory_verbs: setting[:memory_verbs], opted: !setting.empty?)
         return skip(path, "#{label} is a directory") if File.directory?(file)
 
         return :drifted if check && !(File.file?(file) && File.read(file) == text)
@@ -150,10 +150,11 @@ module Hecks
       # @param executable [String, nil] the file's path under the root when it is not beside the
       #   domain; its program name is then that file's basename, and its header names the generator
       # @param legacy [Array<String>, nil] verbs an executable hands to `Hecks::CLI` first
+      # @param memory_verbs [Array<String>, nil] verbs run on Memory unless HECKS_ENVIRONMENT is set
       # @param opted [Boolean] whether the chapter's world declares a `launcher` setting
       # @return [String] the Ruby source
       # @raise [ArgumentError] if a name, path, executable or legacy verb is not plain
-      def launcher(path, name, program, executable: nil, legacy: nil, opted: !executable.nil?)
+      def launcher(path, name, program, executable: nil, legacy: nil, memory_verbs: nil, opted: !executable.nil?)
         plain!("chapter name", name, NAME)
         plain!("domain path", path, PATH)
         snake = Naming.snake(name)
@@ -174,9 +175,10 @@ module Hecks
           where = shown = "#{path}/#{snake}"
         end
 
-        handoff  = legacy_handoff(Array(legacy)) if executable
+        handoff  = legacy_handoff(Array(legacy)) + memory_default(Array(memory_verbs)) if executable
         encoding = opted ? ENCODING : ""
         ending   = opted ? OPTED_ENDING : PLAIN_ENDING
+        ending   = quiet_ending(ending) if executable && !Array(memory_verbs).empty?
 
         <<~RUBY
           #!/usr/bin/env ruby
@@ -194,7 +196,7 @@ module Hecks
           #{handoff}
           require "hecks"
 
-          #{entry(name, boot, shown, opted)}
+          #{entry(name, boot, shown, opted, quiet: !Array(memory_verbs).empty?)}
           #{ending}
         RUBY
       end
@@ -203,13 +205,15 @@ module Hecks
       # @return [String] the launcher's middle: for an opted-in launcher, usage answered from the
       #   projection and a boot only for a line that runs a verb; for any other, the boot and
       #   dispatch every launcher has always had, byte for byte
-      def entry(name, boot, shown, opted)
-        opted ? described_entry(name, boot, shown) : plain_entry(name, boot, shown)
+      def entry(name, boot, shown, opted, quiet: false)
+        opted ? described_entry(name, boot, shown, quiet: quiet) : plain_entry(name, boot, shown)
       end
 
       # @api private
       # @return [String] the opted-in launcher's middle
-      def described_entry(name, boot, shown)
+      def described_entry(name, boot, shown, quiet: false)
+        started = "Hecks.boot_described(described, install_doors: false)"
+        started = "Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_VERBS.include?(ARGV.first)) { #{started} }" if quiet
         <<~RUBY.chomp
           # Usage is answered from the projected chapter alone: no adapter is bound and no
           # database is opened. Only a line that runs a verb boots the domain,
@@ -227,7 +231,7 @@ module Hecks
           )
           unless text
             runtime = begin
-              Hecks.boot_described(described, install_doors: false)
+              #{started}
             rescue StandardError => e
               abort "cannot open #{name}: \#{e.message.lines.first.strip}"
             end
@@ -262,6 +266,31 @@ module Hecks
         return if value.to_s.match?(pattern)
 
         raise ArgumentError, "#{what} #{value.to_s.inspect} is not a plain word or path"
+      end
+
+      # @api private
+      # @param ending [String] the launcher's closing lines
+      # @return [String] the same lines, except that a memory verb that ended well prints nothing: a
+      #   person is at it, so the settled record is noise after the session
+      def quiet_ending(ending)
+        ending.sub("status.zero? ? puts(text)",
+                   "exit 0 if status.zero? && MEMORY_VERBS.include?(ARGV.first)\nstatus.zero? ? puts(text)")
+      end
+
+      # @api private
+      # @return [String] the lines that default the listed verbs to Memory, or nothing
+      def memory_default(verbs)
+        return "" if verbs.empty?
+
+        verbs.each { |verb| plain!("memory verb", verb, VERB) }
+
+        <<~RUBY
+
+          # These verbs keep nothing worth a database, so they run on Memory unless told otherwise, and
+          # print nothing when they end well.
+          MEMORY_VERBS = %w[#{verbs.join(' ')}].freeze
+          ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
+        RUBY
       end
 
       # @api private

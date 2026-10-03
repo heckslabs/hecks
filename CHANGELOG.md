@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The conformance corpus is language-neutral data; neither runtime is the oracle.** Every
+`spec/corpus/rust_conformance/*.json` fixture, and the full `banking.json` and `chess.json` scripts,
+now carries a frozen `expect` (instances, events, refusals with kind, queries, sagas, dry runs,
+reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
+`spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
+against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
+`hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+
+**The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`).** Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
