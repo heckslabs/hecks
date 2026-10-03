@@ -83,7 +83,7 @@ Hecks.bluebook "Hecksagon" do
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
       member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments"
-      # Deprecated spellings of `attaches`; they warn and are removed in 3.1.0.
+      # Deprecated spellings of `attaches`; they warn and are removed in 3.2.0.
       member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
       member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
