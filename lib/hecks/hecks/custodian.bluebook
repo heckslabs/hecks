@@ -1280,6 +1280,8 @@ policy "RecordTheEra" do
     attribute :name,    DomainName, optional: true
     attribute :adapter, AdapterName, optional: true
     attribute :dir,     TargetDir,  optional: true
+    attribute :expert,  ExpertName, optional: true
+    attribute :no_ai,   Switch,     optional: true
     attribute :output,  Note,       optional: true
     attribute :refusal, Note,       optional: true
     identified_by :run
@@ -1311,6 +1313,11 @@ policy "RecordTheEra" do
 
     # Where the new domain goes; the domain's snake-cased name under the current directory when absent.
     value_object "TargetDir" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # Who is interviewed; asked for at the terminal when absent.
+    value_object "ExpertName" do
       attribute :value, String, pattern: '[^\t\n\r]'
     end
 
@@ -1355,6 +1362,30 @@ policy "RecordTheEra" do
       sets :dir
 
       emits StubRequested
+    end
+
+    # Holds an interview with a subject matter expert and drafts a first domain from it (ADR 0088).
+    # The Terminal adapter runs the conversation, as it runs a console; the journal records that one
+    # was held and how it ended, not what was said. `--no-ai` leaves the model out.
+    command "Interview" do
+      role "Operator"
+      goal "Hold an interview with a subject matter expert and draft a first domain from it"
+
+      attribute :run,     DoorKey
+      attribute :name,    DomainName
+      attribute :adapter, AdapterName, optional: true
+      attribute :dir,     TargetDir,   optional: true
+      attribute :expert,  ExpertName,  optional: true
+      attribute :no_ai,   Switch,      optional: true
+
+      sets :run
+      sets :name
+      sets :adapter
+      sets :dir
+      sets :expert
+      sets :no_ai
+
+      emits InterviewRequested
     end
 
     # A stdio server runs until its client closes stdin, so it cannot be asked and answered
@@ -1421,6 +1452,11 @@ policy "RecordTheEra" do
   policy "ScaffoldWhenRequested" do
     on      "Door.StubRequested"
     trigger Door::Workspace::Scaffold, with: { run: :run }
+  end
+
+  policy "ConverseWhenRequested" do
+    on      "Door.InterviewRequested"
+    trigger Door::Terminal::Converse, with: { run: :run }
   end
 
   policy "ServeWhenRequested" do
