@@ -26,6 +26,12 @@ Parameters:
   BackupRetentionDays:
     Type: Number
     Default: 14
+  BastionSecurityGroupId:
+    Type: String
+    Default: ""
+    Description: >
+      Optional extra security group admitted on 5432 (a bastion that runs restore-to-rds.sh). Blank by
+      default: the app box is admitted by its own stack and can tunnel to the database over SSM.
   ExistingAlertTopicArn:
     Type: String
     Default: ""
@@ -43,6 +49,7 @@ Parameters:
       database: deletion protection on and a snapshot taken on delete.
 
 Conditions:
+  HasBastion: !Not [!Equals [!Ref BastionSecurityGroupId, ""]]
   NewTopic: !Equals [!Ref ExistingAlertTopicArn, ""]
   NewTopicWithEmail: !And [!Condition NewTopic, !Not [!Equals [!Ref AlertEmail, ""]]]
   IsRehearsal: !Equals [!Ref Rehearsal, "true"]
@@ -53,6 +60,17 @@ Resources:
     Properties:
       GroupDescription: widget-shop RDS, 5432 from the app box only (the box stack adds the rule)
       VpcId: !Ref VpcId
+
+  BastionIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasBastion
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref BastionSecurityGroupId
+      Description: Bastion for dump and restore
 
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup

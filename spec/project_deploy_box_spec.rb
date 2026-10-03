@@ -179,6 +179,20 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   describe "the default world" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
+    it "can mount extra proxy sites, read a media bucket and admit a bastion" do
+      expect(files["Caddyfile"]).to include("auto_https disable_redirects", "import /etc/caddy/extra/*")
+      expect(files["render-compose.sh"]).to include("./caddy-extra:/etc/caddy/extra:ro")
+      expect(files["deploy-box.sh"]).to include("SMOKE_LISTENER", "caddy-extra/smoke.caddy")
+      box = template_of(files["box.yaml"])
+      expect(box["Parameters"]).to include("MediaBucket")
+      expect(box["Resources"]["BoxRole"]["Properties"]["Policies"].map { |p| p.is_a?(Hash) ? p["PolicyName"] : nil }.compact)
+        .to include("read-secrets")
+      rds = template_of(files["rds.yaml"])
+      expect(rds["Parameters"]).to include("BastionSecurityGroupId")
+      expect(rds["Resources"]).to include("BastionIngress")
+      expect(files["Makefile"]).to include("Rehearsal=$(REHEARSAL)", "MediaBucket=$(MEDIA_BUCKET)")
+    end
+
     it "has no origin guard, no tunnel egress and one repository" do
       expect(files["Caddyfile"]).not_to include("@origin")
       expect(files["Caddyfile"]).to include("reverse_proxy 127.0.0.1:8080")

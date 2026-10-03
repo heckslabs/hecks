@@ -1,7 +1,7 @@
 # widget-shop's proxy. Only requests that carry X-Origin-Secret with the origin secret are proxied;
 # everything else gets a flat 403.
 {
-	auto_https off
+	auto_https disable_redirects
 	admin off
 	servers {
 		trusted_proxies static 0.0.0.0/0 ::/0
@@ -26,3 +26,5 @@
 		respond "Forbidden" 403
 	}
 }
+
+import /etc/caddy/extra/*

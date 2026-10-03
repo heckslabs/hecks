@@ -19,6 +19,9 @@ module Hecks
         # Region suffixes of an Elastic address's public DNS name; us-east-1 is the only region with
         # the legacy `compute-1` form.
         LEGACY_COMPUTE_REGION = "us-east-1".freeze
+        # Extra sites mounted beside the proxy's own, such as the loopback listener `deploy-box.sh`
+        # adds for a rehearsal's smoke run. Nothing matches in production.
+        CADDY_EXTRA = "import /etc/caddy/extra/*\n".freeze
 
         module_function
 
@@ -309,7 +312,7 @@ module Hecks
             else
               indent(route_blocks(plan))
             end
-          "#{caddy_header(plan)}#{caddy_global(guarded)}\n:80 {\n#{site}}\n"
+          "#{caddy_header(plan)}#{caddy_global(guarded)}\n:80 {\n#{site}}\n\n#{CADDY_EXTRA}"
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -342,9 +345,9 @@ module Hecks
         # @param guarded [Boolean] whether an origin secret guards the site
         # @return [String] the global options block
         def caddy_global(guarded)
-          return "{\n\tauto_https off\n\tadmin off\n}\n" unless guarded
+          return "{\n\tauto_https disable_redirects\n\tadmin off\n}\n" unless guarded
 
-          "{\n\tauto_https off\n\tadmin off\n\tservers {\n\t\ttrusted_proxies static 0.0.0.0/0 ::/0\n\t}\n}\n"
+          "{\n\tauto_https disable_redirects\n\tadmin off\n\tservers {\n\t\ttrusted_proxies static 0.0.0.0/0 ::/0\n\t}\n}\n"
         end
 
         # @param text [String] lines to indent one level with a tab
@@ -395,7 +398,14 @@ module Hecks
           template("deploy-box.sh.tmpl", "STACK" => plan.infra_name, "BOX_STACK" => plan.box_stack,
                                          "RDS_STACK" => plan.rds_stack, "REGION" => region,
                                          "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan),
-                                         "USAGE" => deploy_usage(plan))
+                                         "SMOKE_HEADER" => smoke_header(plan), "USAGE" => deploy_usage(plan))
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] the line that makes the smoke listener present the origin secret, or nothing
+        #   when the world has no origin guard
+        def smoke_header(plan)
+          plan.origin_header ? "\t\theader_up #{plan.origin_header} {$ORIGIN_SECRET}" : ""
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -465,17 +475,19 @@ module Hecks
         def makefile(plan)
           <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
-            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c
+            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true] [MEDIA_BUCKET=name]
             #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
             RDS_STACK = #{plan.rds_stack}
             BOX_STACK = #{plan.box_stack}
+            REHEARSAL ?= false
+            MEDIA_BUCKET ?=
 
             .PHONY: stacks deploy
             stacks:
             \taws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \\
-            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS)
+            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS) Rehearsal=$(REHEARSAL)
             \taws cloudformation deploy --template-file box.yaml --stack-name $(BOX_STACK) --capabilities CAPABILITY_IAM \\
-            \t\t--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) \\
+            \t\t--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) Rehearsal=$(REHEARSAL) MediaBucket=$(MEDIA_BUCKET) \\
             \t\tDbSecurityGroupId=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text) \\
             \t\tDbSecretArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text) \\
             \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text)

@@ -1,6 +1,6 @@
 # scratch-fixture's proxy. Every request is proxied.
 {
-	auto_https off
+	auto_https disable_redirects
 	admin off
 }
 
@@ -9,3 +9,5 @@
 		reverse_proxy 127.0.0.1:8080
 	}
 }
+
+import /etc/caddy/extra/*
