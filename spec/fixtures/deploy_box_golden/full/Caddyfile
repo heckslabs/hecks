@@ -1,7 +1,9 @@
 # widget-shop's proxy. Only requests that carry X-Origin-Secret with the origin secret are proxied;
 # everything else gets a flat 403.
 {
-	auto_https off
+	# No certificate for the :80 site. disable_redirects, not off, so a listener a rehearsal
+	# mounts under caddy-extra can still ask for `tls internal`.
+	auto_https disable_redirects
 	admin off
 	servers {
 		trusted_proxies static 0.0.0.0/0 ::/0
@@ -31,3 +33,6 @@
 		respond "Forbidden" 403
 	}
 }
+
+# Rehearsal-only sites are mounted here; nothing matches in production.
+import /etc/caddy/extra/*
