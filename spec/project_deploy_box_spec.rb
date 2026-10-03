@@ -58,6 +58,20 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
+    "taskdef" => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          stack_name "widget-shop"
+          task_definition "widget-platform"
+          containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081 }]
+          default_container "website"
+          routes [{ container: "cms", paths: ["/cms/*"] }]
+          origin_header "X-Origin-Secret"
+          origin_secret "widget/origin-secret"
+        end
+      end
+    WORLD
     "full"    => <<~WORLD
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -225,6 +239,27 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       statement = box["Resources"]["BoxRole"]["Properties"]["Policies"].first["PolicyDocument"]["Statement"].first
       expect(statement["Resource"].join).to include("secret:scratch/tunnel-token-*")
       expect(files["deploy-box.sh"]).to include("registered tunnel connection")
+    end
+  end
+
+  describe "the taskdef world" do
+    let(:files) { cached("taskdef", BOX_WORLDS.fetch("taskdef")).first }
+
+    it "writes only names and ports to services.json, and the family it renders from" do
+      services = JSON.parse(files["services.json"])
+      expect(services["task_definition"]).to eq("widget-platform")
+      expect(services["services"]).to eq(
+        "website" => { "name" => "website", "port" => 8080 }, "cms" => { "name" => "cms", "port" => 8081 }
+      )
+    end
+
+    it "renders from the task definition and makes no repositories, since its images already have some" do
+      expect(files["render-compose.sh"]).to include("aws ecs describe-task-definition", "TD=${3:-widget-platform}")
+      expect(files["deploy-box.sh"]).to include("deploy-box.sh [task-definition]", "widget-platform")
+      expect(files["Makefile"]).to include("[TASKDEF=family:revision]", "deploy-box.sh $(TASKDEF)")
+      resources = template_of(files["box.yaml"])["Resources"]
+      expect(resources.keys.grep(/Repository\z/)).to be_empty
+      expect(files["box.yaml"]).not_to include("RepositoryUri")
     end
   end
 
