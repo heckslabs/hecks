@@ -20,6 +20,9 @@ Hecks.bluebook "Deploy" do
     attribute :timeout,  Timeout
     attribute :database, Database
     attribute :web,      Web
+    attribute :dispatch, Dispatch,      optional: true
+    attribute :handler_module, HandlerModule, optional: true
+    attribute :secret_env, SecretEnv,   optional: true
 
     value_object "DomainName" do
       attribute :value, String
@@ -45,6 +48,27 @@ Hecks.bluebook "Deploy" do
     # `lambda_handler.rb` file, and `hecks deploy project` refuses `web "Rust"` alongside one.
     value_object "Web" do
       attribute :value, String, one_of: ["None", "Rust"]
+    end
+
+    # "Rust" (default) or "None": a domain with no `.bluebook` command surface to dispatch through
+    # (a webhook that dispatches straight into Ruby) skips the rust/host dispatch Lambda, and its
+    # WebFunction becomes its only Lambda. That WebFunction's `lambda_handler.rb` defines the module
+    # `handler_module` names, so `dispatch "None"` must name one.
+    value_object "Dispatch" do
+      attribute :value, String, one_of: ["Rust", "None"]
+    end
+
+    # The module the domain's `lambda_handler.rb` defines for its WebFunction.
+    value_object "HandlerModule" do
+      attribute :value, String
+      invariant("a handler module is named") { !value.to_s.empty? }
+    end
+
+    # The env var the WebFunction's `lambda_handler.rb` finds the fetched secret's plaintext under,
+    # once it resolves `<name>_ARN`.
+    value_object "SecretEnv" do
+      attribute :value, String
+      invariant("a secret env var is named") { !value.to_s.empty? }
     end
 
     # 128-10240 MB, AWS Lambda's own floor and ceiling.
@@ -73,6 +97,13 @@ Hecks.bluebook "Deploy" do
       attribute :timeout,  Timeout
       attribute :database, Database
       attribute :web,      Web
+      attribute :dispatch, Dispatch,      optional: true
+      attribute :handler_module, HandlerModule, optional: true
+      attribute :secret_env, SecretEnv,   optional: true
+
+      given('dispatch "None" names its handler_module: add handler_module "YourModuleName" for the module lambda_handler.rb defines') do
+        dispatch.unset? || dispatch.value != "None" || handler_module.set?
+      end
 
       sets :domain
       sets :region
@@ -80,6 +111,9 @@ Hecks.bluebook "Deploy" do
       sets :timeout
       sets :database
       sets :web
+      sets :dispatch
+      sets :handler_module
+      sets :secret_env
 
       emits "LambdaTargetDeclared"
     end

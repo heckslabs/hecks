@@ -11,10 +11,10 @@ RSpec.describe "the DSL surface is fully covered" do
     "Hecks (module surface)"      => [
       Hecks.singleton_class,
       # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `describe` is its
-      # declarations-only sibling; `behaviors` is opt-in but becomes a real singleton method
-      # once anything requires it.
-      %i[boot boot_files describe with_registry bluebook hecksagon port adapter world data_translation current_registry
-         as_caller behaviors]
+      # declarations-only sibling and `boot_described` finishes a boot from what `describe`
+      # loaded; `behaviors` is opt-in but becomes a real singleton method once anything requires it.
+      %i[boot boot_files describe boot_described with_registry bluebook hecksagon port adapter world
+         data_translation current_registry as_caller behaviors]
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
@@ -42,7 +42,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `calls:` — including `delegates_to_impl`/`corrects_impl`, documented at
       # their own definitions.
       %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl
-         delegates_to_impl corrects_impl emits state attribute list_of attributes]
+         delegates_to_impl corrects_impl emits state attribute list_of attributes needs_impl]
     ],
     "PortBuilder"                 => [
       Hecks::Bluebook::DSL::PortBuilder,

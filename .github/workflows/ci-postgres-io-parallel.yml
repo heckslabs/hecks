@@ -27,65 +27,23 @@ jobs:
   # .rspec stay in scope. Skippable: docs, editors, release, deploy, .claude, .githooks,
   # local-dev files and rubocop config. `.github/**` is not skippable: a workflow change
   # is real doubt, so run it.
+  # BEGIN GENERATED ci_gate postgres_io_relevant_changed (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
   postgres_io_relevant_changed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
-
-    env:
-      # Anything not matching these prefixes/files is treated as possibly relevant (fails
-      # toward running). The skipped rust/ crates are tested by their own jobs.
-      POSTGRES_IO_SAFE_TO_SKIP_PATTERN: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)'
-
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history: the `git diff` needs both endpoints as real objects.
+          # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
-
-      # BASE is the pull_request base, else the merge_group's; `push` falls back to
-      # github.event.before. Every branch that cannot confirm a safe diff sets touched=true,
-      # so a failure here runs the shards rather than skipping them.
-      - name: does this change touch anything rspec_postgres_io_parallel covers?
-        id: diff
-        run: |
-          # A MERGE GROUP DIFFS AGAINST THE TARGET BRANCH, NEVER AGAINST
-          # `merge_group.base_sha` — that is the previous queue entry, and
-          # the queue merges a whole group on its last entry's run alone
-          # (see `runtime_changed` in ci.yml for the 2026-09-18 incident).
-          BASE="${{ github.event.pull_request.base.sha }}"
-          if [ "${{ github.event_name }}" = "merge_group" ]; then
-            BASE_REF="${{ github.event.merge_group.base_ref }}"
-            BASE="$(git merge-base "origin/${BASE_REF#refs/heads/}" "${{ github.sha }}")" || BASE=""
-          fi
-          if [ -z "$BASE" ] && [ "${{ github.event_name }}" = "push" ]; then
-            BASE="${{ github.event.before }}"
-          fi
-
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-            echo "no usable BASE to diff against — running rspec_postgres_io_parallel rather than guessing" >&2
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          CHANGED="$(git diff --name-only "$BASE" "${{ github.sha }}")" || {
-            echo "git diff itself failed — running rspec_postgres_io_parallel rather than guessing" >&2
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          if [ -z "$CHANGED" ]; then
-            echo "touched=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if echo "$CHANGED" | grep -vE "$POSTGRES_IO_SAFE_TO_SKIP_PATTERN" | grep -q .; then
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "touched=false" >> "$GITHUB_OUTPUT"
-          fi
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+      - id: diff
+        name: 'does this change touch anything rspec_postgres_io_parallel covers?'
+        run: bundle exec exe/hecks decide_ci_gate gate=postgres_io_relevant_changed --wait
+  # END GENERATED ci_gate postgres_io_relevant_changed
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
   # ci-rust-parser.yml's identical addition for the full comment. Layers on top of, not in

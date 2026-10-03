@@ -99,6 +99,9 @@
             }
           ],
           "name": "CreatePizza",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Chef"
@@ -173,6 +176,9 @@
             }
           ],
           "name": "AddTopping",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Order",
           "role": "Chef"
@@ -289,6 +295,9 @@
             }
           ],
           "name": "Purchase",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Order",
           "role": "Customer"
@@ -714,6 +723,27 @@
       "replacement": ".size",
       "source_token": ".length",
       "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
     }
   ],
   "classification": "supporting",

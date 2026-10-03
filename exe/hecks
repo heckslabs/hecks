@@ -28,7 +28,8 @@ ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_VERBS.include?(ARGV.first)
 require "hecks"
 
 # Usage is answered from the projected chapter alone: no adapter is bound and no
-# database is opened. Only a line that runs a verb boots the domain.
+# database is opened. Only a line that runs a verb boots the domain,
+# and it boots from what the usage check already loaded.
 domain = File.expand_path("../lib/hecks/hecks", __dir__)
 program = "hecks"
 described = begin
@@ -42,10 +43,13 @@ text, status, reason = Hecks::Doors::CliRunner.usage(
 )
 unless text
   runtime = begin
-    Hecks.boot(domain, install_doors: false)
+    Hecks.boot_described(described, install_doors: false)
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.lines.first.strip}"
   end
+  # A question the world lists under `streams`, given `--stream`, tails until interrupted.
+  streamed = Hecks::Doors::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
+  exit streamed unless streamed.nil?
   text, status, reason = Hecks::Doors::CliRunner.call(
     runtime: runtime, argv: ARGV, program: program
   )

@@ -39,7 +39,7 @@ module Hecks
         # The caller draw and then the dry-run coin follow the mutation. The order
         # is part of the seed contract; both draw nothing when off.
         def build_command_step(runtime, catalog, entry)
-          args = args_for(entry[:command].attributes, entry[:aggregate])
+          args = args_for(entry[:command].attributes, entry[:aggregate], needed: entry[:command].needs.map(&:to_s))
           add_identity!(args, entry)
           steer_grant!(args, entry, catalog)
           mutations = adversarial_mutations!(args, entry, catalog)
@@ -76,7 +76,9 @@ module Hecks
           Hecks.as_caller(role: caller["role"], actor_id: caller["actor_id"], &)
         end
 
-        def args_for(attributes, aggregate)
+        # `needed` names the facts the runtime answers when a step leaves them out; a malformation
+        # never drops one, since each engine would fill it from its own clock.
+        def args_for(attributes, aggregate, needed: [])
           args = attributes.each_with_object({}) do |attribute, built|
             # Omitting an optional argument is an ordinary payload, not a malformation
             # (see OPTIONAL_OMITTED_PROBABILITY).
@@ -94,7 +96,7 @@ module Hecks
             end
           end
 
-          malform(args, attributes, aggregate)
+          malform(args, attributes, aggregate, needed)
         end
 
         # An array of 0-3 independently generated elements shaped like the bare
@@ -108,21 +110,21 @@ module Hecks
 
         # At most one malformation per step, so the check that fired is identifiable.
         # The rate stays low because refused steps reach no state.
-        def malform(args, attributes, aggregate)
+        def malform(args, attributes, aggregate, needed)
           return args if args.empty? || @random.rand >= MALFORMED_ARGUMENT_PROBABILITY
 
           case @random.rand(3)
           when 0 then corrupt_one(args, attributes, aggregate)
-          when 1 then drop_one(args, aggregate)
+          when 1 then drop_one(args, aggregate, needed)
           else        args.merge([InvalidValueGenerator.undeclared_argument(random: @random)].to_h)
           end
         end
 
         # Never drops the identity: an auto-minted id is unreproducible, so the
         # step's outcome could not be replayed.
-        def drop_one(args, aggregate)
+        def drop_one(args, aggregate, needed)
           identity  = (aggregate.identified_by || :id).to_s
-          droppable = args.keys - [identity, "id"]
+          droppable = args.keys - [identity, "id"] - needed
           return args if droppable.empty?
 
           args.reject { |name, _| name == droppable.sample(random: @random) }

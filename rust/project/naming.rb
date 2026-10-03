@@ -100,12 +100,14 @@ module RustProjection
 
     # Every declared `name` in the IR, in document order. The `fields` maps under
     # `mutations` are skipped: their keys are attribute names and their values
-    # are source text, not declarations.
+    # are source text, not declarations. So is `translations`: an era edge names
+    # data paths (`attendee.first_name`, a backfill into a nested value object)
+    # that the host applies to stored rows and never writes into Rust.
     def declared_names(node, out = [])
       case node
       when Hash
         node.each do |key, value|
-          if key.to_s == "fields"
+          if %w[fields translations].include?(key.to_s)
             next
           elsif key.to_s == "name" && value.is_a?(String)
             out << value

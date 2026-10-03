@@ -62,6 +62,17 @@ module Hecks
         Loader.describe(path, shared: shared, environment: environment)
       end
 
+      # Finishes a boot from declarations `describe` already loaded. See Loader.boot_described.
+      #
+      # @param described [Runtime::Loader::Described] what `describe` answered
+      # @param install_doors [Boolean] whether to install the Ruby facade constants
+      # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`; warns
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      #   to the booted domain
+      def boot_described(described, install_doors: true, install_facade: nil)
+        Loader.boot_described(described, install_doors: install_doors, install_facade: install_facade)
+      end
+
       # Loads only the given files of a domain; otherwise like `boot`. See Loader.boot_files.
       #
       # @param paths [String, Array<String>] one or more file paths within the domain

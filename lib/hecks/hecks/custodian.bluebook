@@ -460,6 +460,8 @@ Hecks.bluebook "Hecks" do
 
     # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
     # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
+    # `hecks follow <domain> --stream` asks again from each cursor and prints every entry as it
+    # arrives, until interrupted (the world's `launcher` setting lists the question under `streams`).
     query "Follow" do
       description "A domain's persisted event log past a cursor, for tailing it call by call."
       attribute :domain,    Subject

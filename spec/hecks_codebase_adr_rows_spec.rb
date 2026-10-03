@@ -58,7 +58,13 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "release", verbs: %w[publish],
                note: "without --confirm it is the old --dry-run; --gem-only, --npm-only, --npm-local and " \
                      "--no-wait are booleans (--yes is --confirm)"),
-    AdrRow.new(script: "release_gem", verbs: %w[publish_gem])
+    AdrRow.new(script: "release_gem", verbs: %w[publish_gem]),
+    AdrRow.new(script: "decide_ci_gate", verbs: %w[decide_ci_gate],
+               note: "no bin script: it replaces the base-commit shell of the changed-paths action, so a gated " \
+                     "job's detector is a call to the binary"),
+    AdrRow.new(script: "project_ci_gates", verbs: %w[project_ci_gates],
+               note: "no bin script: it replaces the path-gate shell that sat inline in ci.yml and " \
+                     "ci-postgres-io-parallel.yml, and like regenerate_corpus it only compares without --confirm")
   ].freeze
 
   # The aggregates of codebase.bluebook: each holds commands a maintainer runs in a checkout.

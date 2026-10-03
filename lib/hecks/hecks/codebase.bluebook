@@ -960,6 +960,7 @@ Hecks.bluebook "Hecks" do
     attribute :operation, Operation, optional: true
     attribute :confirm,   Switch, optional: true
     attribute :check,     Switch, optional: true
+    attribute :gate,      GateName, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -983,6 +984,11 @@ Hecks.bluebook "Hecks" do
       attribute :value, String
     end
 
+    # A `CiGate` row of the Vocabulary chapter, by name.
+    value_object "GateName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
     lifecycle :status, default: "requested" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
@@ -1003,6 +1009,36 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "regenerate_corpus"
 
       emits RegenerateCorpusRequested
+    end
+
+    command "ProjectCiGates" do
+      role "Maintainer"
+      goal "Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_ci_gates"
+
+      emits ProjectCiGatesRequested
+    end
+
+    command "DecideCiGate" do
+      role "Maintainer"
+      goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
+
+      attribute :gate, GateName
+      attribute :run,  RunKey
+
+      sets :gate
+      sets :run
+      sets :operation, to: "decide_ci_gate"
+
+      emits DecideCiGateRequested
     end
 
     # What the tree reported about itself, held against every request: nothing here runs
@@ -1064,6 +1100,16 @@ Hecks.bluebook "Hecks" do
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 
+  policy "ExamineWhenProjectCiGatesRequested" do
+    on      "RegenerationRun.ProjectCiGatesRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDecideCiGateRequested" do
+    on      "RegenerationRun.DecideCiGateRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
   policy "AcceptRegenerationWhenExamined" do
     on      "RegenerationRun.RegenerationExamined"
     trigger RegenerationRun::Accept, with: { checkout: :checkout }
@@ -1088,6 +1134,154 @@ Hecks.bluebook "Hecks" do
   policy "RecordRegenerationFault" do
     on      "RegenerationRun.RegenerationRefused"
     trigger RegenerationRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Gate: the checks a stage holds a change against before it is let through. The checks are data
+  # (lib/hecks/gate/stages.yml), run together, and a red one faults the run, so `--wait` fails the
+  # push or the build that asked, and the journal keeps when the gate went red.
+  aggregate "GateRun" do
+    description "One run of a stage's checks: every check of the stage, or the ones named."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :stage,     Stage
+    attribute :only,      CheckList, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Stage" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+
+      invariant("a stage is named") { !value.to_s.empty? }
+    end
+
+    value_object "CheckList" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Gate" do
+      role "Maintainer"
+      goal "Run every check of a stage, or the ones named, and keep whether the gate is green"
+
+      attribute :stage, Stage
+      attribute :only,  CheckList, optional: true
+      attribute :run,   RunKey
+
+      sets :stage
+      sets :only
+      sets :run
+      sets :operation, to: "gate"
+
+      emits GateRequested
+    end
+
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to GateRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits GateAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that every check passed, and which"
+
+      reference_to GateRun
+      attribute :report, Report
+
+      sets :report
+
+      emits GateCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that a check was red or the run could not be made, and why"
+
+      reference_to GateRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits GateFaulted
+    end
+
+    query "GateOutcome" do
+      description "How one run ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "GateFaulted" do
+      description "Every run that went red or could not be made."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenGateRequested" do
+    on      "GateRun.GateRequested"
+    trigger GateRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptGateWhenExamined" do
+    on      "GateRun.GateExamined"
+    trigger GateRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultGateWhenNotAccepted" do
+    on      "GateRun.GateExamined"
+    where   { !checkout.value }
+    trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformGateWhenAccepted" do
+    on      "GateRun.GateAccepted"
+    trigger GateRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordGateOutcome" do
+    on      "GateRun.GateAnswered"
+    trigger GateRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordGateFault" do
+    on      "GateRun.GateRefused"
+    trigger GateRun::Fault, with: { refusal: :refusal }
   end
 
   # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A

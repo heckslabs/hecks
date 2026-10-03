@@ -27,8 +27,7 @@ require_relative "hecks/projector"
 # every target registers itself as it loads, so this require is the
 # installation of them.
 require_relative "hecks/projections"
-# After `Projector` (dispatches against the `:cli` projection) and
-# `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
+# After `Projector`, which dispatches against the `:cli` projection.
 require_relative "hecks/doors/cli_door"
 require_relative "hecks/doors/cli_runner"
 require_relative "hecks/storehouse"
@@ -74,6 +73,17 @@ module Hecks
     # @return [Runtime::Loader::Described] the loaded registry, answering `registry`
     def describe(path, shared: nil, environment: Runtime::Loader::FROM_ENV)
       Runtime.describe(path, shared: shared, environment: environment)
+    end
+
+    # Finishes a boot from declarations `describe` already loaded, so the domain's files are read
+    # once. See `Runtime::Loader.boot_described`.
+    #
+    # @param described [Runtime::Loader::Described] what `describe` answered
+    # @param install_doors [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`; warns
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
+    def boot_described(described, install_doors: true, install_facade: nil)
+      Runtime.boot_described(described, install_doors: install_doors, install_facade: install_facade)
     end
 
     # Boots a domain from an explicit list of files (a `.bluebook`, its

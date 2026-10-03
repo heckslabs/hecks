@@ -83,6 +83,9 @@ module Hecks
         # A rule's plain description/canonical pair, for a `given`/`invariant`/`ensures`.
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
+        # One outside fact a command needs, in the shape `Command#to_h` emits it.
+        def need(row) = { fact: text(row[:fact]) }
+
         # `projects :name, from: :"reference.remote_field"` (ADR 0025), read back as
         # its plain name/reference/remote_field triple.
         def projected_field(row)

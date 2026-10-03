@@ -37,6 +37,8 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "spec/meta_rules_spec.rb:141-146 (Command.ActsOn dispatched twice with different roots)"],
     [["given", "Command.Announce", "an event is named"],
      "spec/meta_rules_spec.rb:134-137 (Command.Announce with announces: \"\")"],
+    [["given", "Command.Need", "a fact is named"],
+     "spec/meta_rules_spec.rb:230-235 (Command.Need with fact: \"\")"],
     [["given", "Entity.Identify", "an identity part names something"],
      "spec/meta_rules_spec.rb:216-222 (Entity.Identify with path: \"\")"],
     [["given", "Entity.Seal", "an entity says what it is known by"],

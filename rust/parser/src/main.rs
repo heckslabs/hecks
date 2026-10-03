@@ -179,6 +179,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "Command"),
     ("given", "Command"),
     ("ensures", "Command"),
+    ("needs", "Command"),
     ("sets", "Command"),
     ("corrects", "Command"),
     ("delegates_to", "Command"),

@@ -229,6 +229,20 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::GateRun.port "SourceTree" do
+    asks "Examine", to: GateRun do
+      attribute :run, RunKey
+      answers "GateExamined"
+      refuses "GateRefused"
+    end
+
+    asks "Perform", to: GateRun do
+      attribute :run, RunKey
+      answers "GateAnswered"
+      refuses "GateRefused"
+    end
+  end
+
   Hecks::StyleRun.port "SourceTree" do
     asks "Examine", to: StyleRun do
       attribute :run, RunKey

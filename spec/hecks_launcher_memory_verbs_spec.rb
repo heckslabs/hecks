@@ -4,7 +4,7 @@ require "rbconfig"
 require "hecks/cli/project_cli"
 
 # `memory_verbs` in the Hecks world's `launcher` setting makes the generated `exe/hecks` run
-# those verbs on the Memory environment unless the caller chose one (ADR 0082), so a clone's
+# those verbs on the Memory environment unless the caller chose one (ADR 0084), so a clone's
 # first command needs no database.
 RSpec.describe "the launcher's memory verbs" do
   it "is projected into exe/hecks from the world, so the committed launcher is current" do

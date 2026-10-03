@@ -7,6 +7,40 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.0.4] - 2026-10-02
+
+**Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.
+
+**`hecks gate <stage> [only=a,b]` runs a stage's checks, which are now data.** The checks the
+pre-push hook ran as shell are the `pre_push` stage of `lib/hecks/gate/stages.yml` (an id, a title,
+the command, and what a red check means). `gate` starts them together, prints every red one, and
+under `--wait` exits 1 when the run is `faulted`; the hook calls the same tool, so the list of
+checks lives in one place. It is a `GateRun` aggregate on the Codebase chapter, so each run is in
+the journal. `hecks gate --list` shows the stages. CI workflows are still hand-written.
+
+**`hecks follow <domain> --stream` tails an event log.** The launcher asks again from each answer's cursor and prints every new entry as one JSON line (its payload as an object), until you interrupt it or the reader goes away; `from_now` applies to the first ask only, and each ask waits for the first new entry (the question's `wait`, 30 seconds when absent). A question is tailable when the world's `launcher` setting lists it under `streams` (`Follow` is). Without `--stream`, `follow` is the bounded poll it was.
+
+**`docs/migrating-2-to-3.md`** collects what a 2.x project changes to move to 3.x.
+
+**The host can refuse a caller that holds no role (`HECKS_ROLE_ENFORCEMENT=off|shadow|enforce`).** Until now a dispatch that stated no role skipped the check, and the host never passed an `actor_id`, so Governance assignments were not consulted. A `POST /dispatch` body may now carry `actor_id`; an identified caller that states no role is held to what Governance assigned them (the kernel's `check_role_via`), and unchecked only when no Governance provider is compiled in. With `shadow` an unidentified caller is dispatched as role `Anonymous`, and a refusal that would follow is logged as `would_refuse_role` while the command goes through; with `enforce` it is refused. The default is `off`, so nothing changes until a deploy sets it. Host-internal steps (the registration pipeline, the Stripe and newsletter routes) remain unchecked.
+
+**The host can set a Reply-To on newsletter email (`RESEND_REPLY_TO`).** A site that sends from a Resend-verified address it has no mailbox for (`news@mail.example.com`) can still have replies reach a real inbox: set `RESEND_REPLY_TO` and each email carries `reply_to`. Blank or unset sends no `reply_to`, as before. The mock mailer ignores it.
+
+**A command can declare `needs :now` (ADR 0081, first slice).** A fact the command needs from
+outside the record, answered by the runtime before any `given` runs: `needs :now` fills the command's
+own `now` argument with the time the clock gives. The answer is written into the arguments, so a
+`given` reads it like any argument, the event records it, and a replay re-dispatches the recorded
+value. `days()`, `hours()` and `minutes()` fold to seconds, in Ruby and in the Rust kernel. Rules
+that need a record other than the command's own are the next slice (see the ADR).
+
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
+
 ## [3.0.3] - 2026-10-01
 
 **Security: `GET /members` requires an Admin or Owner.** It returned every admitted person's name, email and role to any member holding an active account cookie. It now answers 403 to a member who is not an active Admin or Owner, the same check sending the newsletter uses, and matches what `docs/running-a-rules-service.md` already said. A client that lists the roster from a plain member's cookie must use an admin's.

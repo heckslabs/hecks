@@ -256,6 +256,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -314,6 +317,9 @@
             }
           ],
           "name": "Identify",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -430,6 +436,9 @@
             }
           ],
           "name": "Attribute",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -546,6 +555,9 @@
             }
           ],
           "name": "Reference",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -662,6 +674,9 @@
             }
           ],
           "name": "Holds",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -721,6 +736,9 @@
             }
           ],
           "name": "Lifecycle",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -782,6 +800,9 @@
             }
           ],
           "name": "Transition",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -820,6 +841,9 @@
 
           ],
           "name": "Seal",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -859,6 +883,9 @@
             }
           ],
           "name": "Value",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -948,6 +975,9 @@
             }
           ],
           "name": "Invariant",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -1037,6 +1067,9 @@
             }
           ],
           "name": "Precondition",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -1157,6 +1190,9 @@
             }
           ],
           "name": "Projects",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -4093,6 +4129,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -4169,6 +4208,9 @@
             }
           ],
           "name": "Attach",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -4230,6 +4272,9 @@
             }
           ],
           "name": "Provide",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -4313,6 +4358,9 @@
             }
           ],
           "name": "Normalise",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -6701,6 +6749,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "needs",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Need"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "mutations",
           "optional": false,
           "pattern": null,
@@ -6908,6 +6966,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7024,6 +7085,9 @@
             }
           ],
           "name": "Argument",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7140,6 +7204,9 @@
             }
           ],
           "name": "Reference",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7229,6 +7296,9 @@
             }
           ],
           "name": "Rule",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7318,6 +7388,9 @@
             }
           ],
           "name": "Ensure",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7440,6 +7513,9 @@
             }
           ],
           "name": "Change",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7516,6 +7592,9 @@
             }
           ],
           "name": "ActsOn",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7574,6 +7653,70 @@
             }
           ],
           "name": "Announce",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fact",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FactName"
+            }
+          ],
+          "emits": [
+            "NeedNamed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "fact",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!fact.value.to_s.empty?",
+              "description": "a fact is named"
+            }
+          ],
+          "goal": "Name an outside fact the runtime supplies before any given runs",
+          "mutations": [
+            {
+              "fields": {
+                "fact": ":fact"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "needs"
+            }
+          ],
+          "name": "Need",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -7760,6 +7903,28 @@
 
           ],
           "name": "Announcement"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fact",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Need"
         },
         {
           "attributes": [
@@ -8118,6 +8283,28 @@
 
           ],
           "name": "OpName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "FactName"
         },
         {
           "attributes": [
@@ -8582,6 +8769,36 @@
             [
               [
                 "word",
+                "needs"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "needs"
+              ],
+              [
+                "calls",
+                "needs_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "corrects"
               ],
               [
@@ -9012,6 +9229,36 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "needs"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "fact"
               ]
             ],
             [
@@ -10309,6 +10556,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10367,6 +10617,9 @@
             }
           ],
           "name": "Identify",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10405,6 +10658,9 @@
 
           ],
           "name": "Seal",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10521,6 +10777,9 @@
             }
           ],
           "name": "Attribute",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10637,6 +10896,9 @@
             }
           ],
           "name": "Reference",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10753,6 +11015,9 @@
             }
           ],
           "name": "Holds",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10842,6 +11107,9 @@
             }
           ],
           "name": "Precondition",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10931,6 +11199,9 @@
             }
           ],
           "name": "Invariant",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -10990,6 +11261,9 @@
             }
           ],
           "name": "Lifecycle",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -11051,6 +11325,9 @@
             }
           ],
           "name": "Transition",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -13353,6 +13630,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -13403,6 +13683,9 @@
             }
           ],
           "name": "Bind",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -14453,6 +14736,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -14492,6 +14778,9 @@
             }
           ],
           "name": "State",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -14553,6 +14842,9 @@
             }
           ],
           "name": "Handler",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -14650,6 +14942,9 @@
                 }
               ],
               "name": "Dispatch",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -14757,6 +15052,9 @@
                     }
                   ],
                   "name": "Bind",
+                  "needs": [
+
+                  ],
                   "provenance": null,
                   "references": null,
                   "role": "Language"
@@ -14797,6 +15095,9 @@
                     }
                   ],
                   "name": "Compensates",
+                  "needs": [
+
+                  ],
                   "provenance": null,
                   "references": null,
                   "role": "Language"
@@ -14847,6 +15148,9 @@
                     }
                   ],
                   "name": "BindCompensation",
+                  "needs": [
+
+                  ],
                   "provenance": null,
                   "references": null,
                   "role": "Language"
@@ -16448,6 +16752,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16509,6 +16816,9 @@
             }
           ],
           "name": "Gather",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16567,6 +16877,9 @@
             }
           ],
           "name": "GroupBy",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16607,6 +16920,9 @@
             }
           ],
           "name": "Count",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16666,6 +16982,9 @@
             }
           ],
           "name": "Median",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16725,6 +17044,9 @@
             }
           ],
           "name": "Sum",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16784,6 +17106,9 @@
             }
           ],
           "name": "Avg",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16843,6 +17168,9 @@
             }
           ],
           "name": "Min",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16902,6 +17230,9 @@
             }
           ],
           "name": "Max",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -16980,6 +17311,9 @@
             }
           ],
           "name": "Percentile",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -17039,6 +17373,9 @@
             }
           ],
           "name": "Any",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -17098,6 +17435,9 @@
             }
           ],
           "name": "All",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -17189,6 +17529,9 @@
             }
           ],
           "name": "Option",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -19260,6 +19603,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -19321,6 +19667,9 @@
             }
           ],
           "name": "Filter",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -19412,6 +19761,9 @@
             }
           ],
           "name": "Option",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -19528,6 +19880,9 @@
             }
           ],
           "name": "Argument",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21063,6 +21418,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21179,6 +21537,9 @@
             }
           ],
           "name": "Field",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21241,6 +21602,9 @@
             }
           ],
           "name": "Close",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21330,6 +21694,9 @@
             }
           ],
           "name": "Assert",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21369,6 +21736,9 @@
             }
           ],
           "name": "Member",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -21465,6 +21835,9 @@
                 }
               ],
               "name": "Pair",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -22912,6 +23285,9 @@
             }
           ],
           "name": "Declare",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -23061,6 +23437,9 @@
             }
           ],
           "name": "Keyword",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -23265,6 +23644,9 @@
             }
           ],
           "name": "Argument",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Language"
@@ -23405,6 +23787,9 @@
 
               ],
               "name": "Deprecate",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -23428,6 +23813,9 @@
 
               ],
               "name": "Retire",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -23655,6 +24043,9 @@
 
               ],
               "name": "Deprecate",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -23678,6 +24069,9 @@
 
               ],
               "name": "Retire",
+              "needs": [
+
+              ],
               "provenance": null,
               "references": null,
               "role": "Language"
@@ -24832,6 +25226,12 @@
               [
                 "name",
                 "replace"
+              ]
+            ],
+            [
+              [
+                "name",
+                "scale_call"
               ]
             ]
           ],
@@ -30835,6 +31235,129 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "workflow",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "mode",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "push",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "label",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "runtime_changed"
+              ],
+              [
+                "workflow",
+                "ci.yml"
+              ],
+              [
+                "mode",
+                "touches"
+              ],
+              [
+                "pattern",
+                "^lib/hecks/runtime/"
+              ],
+              [
+                "push",
+                "skip"
+              ],
+              [
+                "label",
+                "does this change touch lib/hecks/runtime/**?"
+              ]
+            ],
+            [
+              [
+                "name",
+                "postgres_io_relevant_changed"
+              ],
+              [
+                "workflow",
+                "ci-postgres-io-parallel.yml"
+              ],
+              [
+                "mode",
+                "skips_unless"
+              ],
+              [
+                "pattern",
+                "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\\.rb$|rust/project_rust_pipeline\\.rb$|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)"
+              ],
+              [
+                "push",
+                "before_sha"
+              ],
+              [
+                "label",
+                "does this change touch anything rspec_postgres_io_parallel covers?"
+              ]
+            ]
+          ],
+          "name": "CiGate"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "word",
               "optional": false,
               "pattern": null,
@@ -31281,6 +31804,27 @@
       "replacement": ".size",
       "source_token": ".length",
       "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
     }
   ],
   "classification": "core",
