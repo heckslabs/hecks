@@ -19,6 +19,10 @@ module Hecks
           DB_NAME     = /\A[a-zA-Z][a-zA-Z0-9]{0,62}\z/
           ENGINE      = /\A\d{2}(\.\d{1,2})?\z/
           PREFIX      = /\A[a-z][a-z0-9-]{0,20}\z/
+          IMAGE       = %r{\A[a-z0-9][a-z0-9._/:@-]{1,200}\z}
+          TUNNEL_IMAGE = "cloudflare/cloudflared:latest".freeze
+          TUNNEL_SHAPE = "tunnel: a hash needs `to` (the container it forwards to) and `token_secret` " \
+                         "(the secret holding the tunnel token)".freeze
           ORIGIN_PAIR = "origin_header and origin_secret go together: the header a CDN sends, " \
                         "and the secret that holds its value".freeze
 
@@ -38,12 +42,20 @@ module Hecks
           # @!attribute [r] paths [Array<String>] Caddy path patterns, such as "/cms/*"
           Route = Struct.new(:container, :paths, keyword_init: true)
 
+          # A Cloudflare tunnel the box runs as a service, pointed at one container.
+          #
+          # @!attribute [r] container [String] the container the tunnel forwards to
+          # @!attribute [r] port [Integer] that container's port
+          # @!attribute [r] token_secret [String] the secret holding the tunnel token
+          # @!attribute [r] image [String] the cloudflared image
+          Tunnel = Struct.new(:container, :port, :token_secret, :image, keyword_init: true)
+
           # Everything the generator reads, checked.
           Plan = Struct.new(
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :tunnel, keyword_init: true
+            :secret_prefixes, :tunnel, :tunnel_service, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -70,6 +82,7 @@ module Hecks
             check(:stack_name, infra_name, NAME)
             containers = read_containers(s.fetch(:containers) { raise ArgumentError, missing_containers }, infra_name)
             header, secret = read_origin(s)
+            tunnel, tunnel_service = read_tunnel(s.fetch(:tunnel, false), containers)
 
             Plan.new(
               infra_name: infra_name, stack_prefix: check(:stack_prefix, s.fetch(:stack_prefix, "hecks"), PREFIX),
@@ -78,7 +91,7 @@ module Hecks
               containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
               default_container: read_default(s[:default_container], containers), origin_header: header,
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
-              tunnel: boolean(:tunnel, s.fetch(:tunnel, false))
+              tunnel: tunnel, tunnel_service: tunnel_service
             )
           end
 
@@ -165,6 +178,22 @@ module Hecks
             raise ArgumentError, ORIGIN_PAIR if header.nil? || secret.nil?
 
             [check(:origin_header, header, HEADER), check(:origin_secret, secret, SECRET_NAME)]
+          end
+
+          # `tunnel true` only opens the outbound port; a hash also runs cloudflared as a service.
+          #
+          # @param value [Boolean, Hash{Symbol => Object}] the world's `tunnel` setting
+          # @param containers [Array<Container>] the declared containers
+          # @return [Array(Boolean, Tunnel)] whether the egress opens, and the service if one runs
+          def read_tunnel(value, containers)
+            return [boolean(:tunnel, value), nil] unless value.is_a?(Hash)
+
+            to = value.fetch(:to) { raise ArgumentError, TUNNEL_SHAPE }
+            target = known_container!(:tunnel, check(:tunnel_to, to, NAME), containers)
+            token = check(:tunnel_token_secret, value.fetch(:token_secret) { raise ArgumentError, TUNNEL_SHAPE }, SECRET_NAME)
+            image = check(:tunnel_image, value.fetch(:image, TUNNEL_IMAGE), IMAGE)
+            port = containers.find { |c| c.name == target }.port
+            [true, Tunnel.new(container: target, port: port, token_secret: token, image: image)]
           end
 
           def read_prefixes(settings, infra_name)

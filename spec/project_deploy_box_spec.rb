@@ -48,6 +48,16 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
+    "tunnel"  => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          containers [{ name: "web", port: 8080 }, { name: "stats", port: 3000 }]
+          default_container "web"
+          tunnel({ to: "stats", token_secret: "scratch/tunnel-token" })
+        end
+      end
+    WORLD
     "full"    => <<~WORLD
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -195,6 +205,26 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(services["origin"]).to eq("header" => "X-Origin-Secret", "secret" => "acme/origin-secret")
       expect(services["services"]["website"]["secrets"]).to eq("AUTH_SECRET" => "acme/session-secret")
       expect(services["services"]["domain"]["env"]).to eq("HECKS_SCHEMA" => "widgets")
+    end
+  end
+
+  describe "the tunnel world" do
+    let(:files) { cached("tunnel", BOX_WORLDS.fetch("tunnel")).first }
+
+    it "describes the tunnel in services.json, not as a container" do
+      services = JSON.parse(files["services.json"])
+      expect(services["tunnel"]).to eq("url" => "http://127.0.0.1:3000", "token_secret" => "scratch/tunnel-token",
+                                       "image" => "cloudflare/cloudflared:latest")
+      expect(services["services"].keys).to eq(%w[web stats])
+    end
+
+    it "opens the egress, lets the role read the token and waits for a connection after the roll" do
+      box = template_of(files["box.yaml"])
+      expect(box["Resources"]["BoxSecurityGroup"]["Properties"]["SecurityGroupEgress"].map { |r| r["FromPort"] })
+        .to include(7844)
+      statement = box["Resources"]["BoxRole"]["Properties"]["Policies"].first["PolicyDocument"]["Statement"].first
+      expect(statement["Resource"].join).to include("secret:scratch/tunnel-token-*")
+      expect(files["deploy-box.sh"]).to include("registered tunnel connection")
     end
   end
 

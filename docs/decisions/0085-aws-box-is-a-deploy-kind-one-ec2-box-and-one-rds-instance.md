@@ -20,7 +20,8 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 2. The sizes are validated by a `Deploy::BoxTarget.Declare` command in the Deploy bluebook (so they are in the journal and the OIDC manifest like the other targets). Every other setting is checked by `Box::Settings` before a template is written; every string that reaches a template or script is matched against a conservative pattern.
 3. The projection (`projects_as :aws_box`) emits eight files: `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`.
 4. The box is described by `services.json`, not by an ECS task definition. The generated `deploy-box.sh` renders a Compose file from it, rolls it over SSM and health-checks the proxy.
-5. Golden files for a minimal and a full world live in `spec/fixtures/deploy_box_golden/`.
+5. Golden files for a minimal, a full and a tunnel world live in `spec/fixtures/deploy_box_golden/`.
+6. The `tunnel` setting has two forms. `tunnel true` opens the outbound port for a tunnel the project runs itself. `tunnel({ to: "<container>", token_secret: "<name>" })` also runs `cloudflared` as a service in the box's Compose project, forwarding to that container's port, with its token read from the named secret (which the box role may read) and a check after the roll that a connection registered. Its image defaults to `cloudflare/cloudflared:latest` and can be set with `image`.
 
 ## Consequences
 
@@ -36,7 +37,6 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 
 ## Open items
 
-- A Cloudflare tunnel as a generated Compose service (today `tunnel true` only opens the egress port).
 - Migration and cutover tooling from an existing Fargate stack.
 - A source for the Compose file other than `services.json` (a task definition, for projects that already have one).
-- Pinning the proxy and tunnel images by digest.
+- Pinning the proxy and tunnel images by digest. The tunnel image defaults to `latest` today.

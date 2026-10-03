@@ -133,8 +133,8 @@ module Hecks
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] YAML list items, one per prefix, ending in a newline
         def secret_resources(plan)
-          arns = plan.secret_prefixes.map { |p| p.end_with?("*") ? p : "#{p}-*" }
-          arns.push(plan.origin_secret.end_with?("*") ? plan.origin_secret : "#{plan.origin_secret}-*") if plan.origin_secret
+          named = [plan.origin_secret, plan.tunnel_service&.token_secret].compact
+          arns = (plan.secret_prefixes + named).map { |name| name.end_with?("*") ? name : "#{name}-*" }
           arns.uniq.map do |pattern|
             "                  - !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
           end.join.chomp
@@ -276,9 +276,17 @@ module Hecks
                        "env" => c.env, "secrets" => c.secrets }]
           end
           origin = plan.origin_secret ? { "header" => plan.origin_header, "secret" => plan.origin_secret } : nil
-          json = JSON.pretty_generate({ "services" => services, "origin" => origin })
+          document = { "services" => services, "origin" => origin }
+          document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service
+          json = JSON.pretty_generate(document)
           # An empty object prints as `{}` or `{` newline `}`, depending on the json gem.
           "#{json.gsub(/\{\s*\}/, '{}')}\n"
+        end
+
+        # @param tunnel [Settings::Tunnel] the declared tunnel service
+        # @return [Hash{String => Object}] its entry in `services.json`
+        def tunnel_entry(tunnel)
+          { "url" => "http://127.0.0.1:#{tunnel.port}", "token_secret" => tunnel.token_secret, "image" => tunnel.image }
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -302,16 +310,33 @@ module Hecks
               #{wanted} && echo "ok   #{label} -> $code" || { echo "FAIL #{label} -> $code"; BAD=1; }
             SH
           end
-          if plan.origin_header
-            [
-              "S=$(grep ^ORIGIN_SECRET= caddy.secrets.env | cut -d= -f2-)",
-              probe.call("a request without the origin secret is refused", "", '[ "$code" = 403 ]'),
-              probe.call("a request with the origin secret is served", %( -H "#{plan.origin_header}: $S"),
-                         '[ "${code#5}" = "$code" ]')
-            ].join("\n")
-          else
-            probe.call("the proxy serves /", "", '[ "${code#5}" = "$code" ]')
-          end
+          probes =
+            if plan.origin_header
+              [
+                "S=$(grep ^ORIGIN_SECRET= caddy.secrets.env | cut -d= -f2-)",
+                probe.call("a request without the origin secret is refused", "", '[ "$code" = 403 ]'),
+                probe.call("a request with the origin secret is served", %( -H "#{plan.origin_header}: $S"),
+                           '[ "${code#5}" = "$code" ]')
+              ]
+            else
+              [probe.call("the proxy serves /", "", '[ "${code#5}" = "$code" ]')]
+            end
+          (probes + tunnel_probe(plan)).join("\n")
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [Array<String>] the probe that waits for the tunnel to register, when one runs
+        def tunnel_probe(plan)
+          return [] unless plan.tunnel_service
+
+          [<<~SH.chomp]
+            for _ in 1 2 3 4 5 6; do
+              n=$(docker compose -f compose.json logs --no-color cloudflared 2>&1 | grep -ci "registered tunnel connection" || true)
+              [ "$n" -gt 0 ] && break
+              sleep 5
+            done
+            [ "$n" -gt 0 ] && echo "ok   the tunnel registered $n connections" || { echo "FAIL the tunnel has no connection"; BAD=1; }
+          SH
         end
 
         # @param plan [Settings::Plan] the resolved settings

@@ -420,6 +420,12 @@ end
 `Makefile`. Secrets are named, never written down: the box resolves them when it
 deploys. A world with no `containers` is refused with an example.
 
+To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
+`tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
+`cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
+waits for a registered connection. `tunnel true` alone only opens the outbound
+port, for a tunnel you run yourself.
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files

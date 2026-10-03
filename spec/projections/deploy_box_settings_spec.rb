@@ -128,9 +128,38 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(refusal(secret_prefixes: ["a b"])).to include("secret_prefixes")
     end
 
-    it "takes a boolean tunnel and refuses anything else" do
-      expect(resolve(tunnel: true).tunnel).to be(true)
+    it "takes a boolean tunnel, which opens the egress and runs no service" do
+      plan = resolve(tunnel: true)
+
+      expect(plan.tunnel).to be(true)
+      expect(plan.tunnel_service).to be_nil
+      expect(resolve.tunnel_service).to be_nil
       expect(refusal(tunnel: "yes")).to include("must be true or false")
+    end
+
+    describe "a tunnel service" do
+      let(:two) { [web, { name: "stats", port: 3000 }] }
+
+      it "forwards to the named container's port and reads its token from a secret" do
+        plan = resolve(containers: two, default_container: "web", tunnel: { to: "stats", token_secret: "shop/tunnel" })
+
+        expect(plan.tunnel).to be(true)
+        expect(plan.tunnel_service).to have_attributes(container: "stats", port: 3000, token_secret: "shop/tunnel",
+                                                       image: "cloudflare/cloudflared:latest")
+      end
+
+      it "takes an image of its own" do
+        plan = resolve(tunnel: { to: "web", token_secret: "shop/tunnel", image: "cloudflare/cloudflared:2026.9.0" })
+
+        expect(plan.tunnel_service.image).to eq("cloudflare/cloudflared:2026.9.0")
+      end
+
+      it "refuses a missing half, an unknown container and an image that could not be spliced safely" do
+        expect(refusal(tunnel: { to: "web" })).to include("token_secret")
+        expect(refusal(tunnel: { token_secret: "shop/tunnel" })).to include("`to`")
+        expect(refusal(tunnel: { to: "ghost", token_secret: "shop/tunnel" })).to include('"ghost" is not a declared container')
+        expect(refusal(tunnel: { to: "web", token_secret: "shop/tunnel", image: "x; rm -rf /" })).to include("tunnel_image")
+      end
     end
 
     it "bounds backup days, snapshots and swap, and checks the engine version" do
