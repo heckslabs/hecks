@@ -7,6 +7,19 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
+once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
+`hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
+dependency-free TypeScript module with the table as `as const` data and a few pure helpers: `pageIsOn`,
+`isOffPath`, `notForSearch`, `previewUrl`, the middleware rules as data, the desktop, mobile, footer and
+admin navigation, the sitemap paths, the robots prefixes, and a map from each CMS global to its page. A row
+whose source is a `command:` or `query:` takes its path from the forms scheme (`/Chapter/Aggregate/Verb`)
+and is checked against the chapters the project attaches. The closed sets a row's values come from (kind,
+render, auth, cache class, origin, preview) are value objects of the Site chapter, so a row naming a cache
+class that is not a member is refused with the members listed, and so are a path declared twice, an off page
+in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
+that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
+
 **One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
 (a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
 name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package

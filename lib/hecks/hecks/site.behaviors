@@ -1,0 +1,17 @@
+Hecks.behaviors "Site" do
+  vision "A projection of a site's route table is recorded as requested before anything outside is asked."
+
+  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "site.world", "environments/memory.world"
+
+  test "ProjectSite keeps a project that has no bluebook as a faulted projection" do
+    tests "ProjectSite", on: "SiteProjection"
+    input run: { value: "routes" }, domain: { value: "/tmp/hecks-behaviors-absent/project" }
+    expect emits: %w[SiteProjectionRequested SiteRefused SiteFaulted]
+  end
+
+  test "ProjectSite refuses a run that is not named" do
+    tests "ProjectSite", on: "SiteProjection"
+    input run: { value: "" }, domain: { value: "/tmp/hecks-behaviors-absent/project" }
+    expect refused: "must match"
+  end
+end
