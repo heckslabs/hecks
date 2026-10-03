@@ -13,6 +13,12 @@ RSpec.describe "the Tickets chapter" do
     expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr")
   end
 
+  it "boots standing alone, as a fuzz or model_check boot of its directory does" do
+    standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_doors: false)
+
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr")
+  end
+
   it "gives a Finding the commands of its lifecycle" do
     commands = @bluebook.aggregate("Finding").commands.map(&:hecks_name)
 
