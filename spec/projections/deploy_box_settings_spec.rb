@@ -193,6 +193,33 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "a migration" do
+    it "is nil unless the world declares one" do
+      expect(resolve.migration).to be_nil
+    end
+
+    it "copies the named schemas, defaulting both databases to the RDS one" do
+      plan = resolve(database_name: "shopdb", migration: { schemas: %w[a a_cms a] })
+
+      expect(plan.migration).to have_attributes(schemas: %w[a a_cms], database: "shopdb", source_database: "shopdb")
+    end
+
+    it "takes a database on each side" do
+      plan = resolve(migration: { schemas: ["a"], database: "newdb", source_database: "olddb" })
+
+      expect(plan.migration).to have_attributes(database: "newdb", source_database: "olddb")
+    end
+
+    it "refuses a migration with no schemas, a schema that could not be spliced safely, or a bad database" do
+      expect(refusal(migration: {})).to include("`schemas`")
+      expect(refusal(migration: { schemas: [] })).to include("`schemas`")
+      expect(refusal(migration: "a")).to include("`schemas`")
+      expect(refusal(migration: { schemas: ["a; drop schema b"] })).to include("migration_schemas")
+      expect(refusal(migration: { schemas: ["Upper"] })).to include("migration_schemas")
+      expect(refusal(migration: { schemas: ["a"], source_database: "old db" })).to include("migration_source_database")
+    end
+  end
+
   describe "images" do
     it "pins both default images by version and digest" do
       expect(described_class::TUNNEL_IMAGE).to match(%r{\Acloudflare/cloudflared:\d+\.\d+\.\d+@sha256:\h{64}\z})
