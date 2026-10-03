@@ -20,7 +20,7 @@ current syntax.
 ## Working today
 
 Exercised in CI on every push (the whole suite, alongside
-`hecks model_check` and `hecks fuzz`):
+`hecks model_check` and `hecks fuzz_run.fuzz`):
 
 - The DSL → IR → dispatch pipeline; the Ruby reference runtime.
 - Persistence adapters: Memory, Sqlite, Postgres, PostgresEra, Heki,
@@ -66,7 +66,7 @@ order.status   # => "sold"
 ## Experimental or partial
 
 - Property-based fuzzing defaults to the Memory adapter but also runs
-  against real Sqlite and Postgres (`hecks fuzz adapter=sqlite` or `adapter=postgres`
+  against real Sqlite and Postgres (`hecks fuzz_run.fuzz adapter=sqlite` or `adapter=postgres`
   — Postgres needs a real reachable local server and is noticeably
   slower per seed, so pass smaller `--seeds`/`--steps` than the default
   sweep). A reference-hop query field (`owner/field`) is *queried*, not

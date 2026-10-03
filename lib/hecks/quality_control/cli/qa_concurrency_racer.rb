@@ -7,14 +7,14 @@ require_relative "../../fuzzing/concurrent_dispatch"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control race`: one racer of
+    # The command behind `hecks quality_control sweep.race`: one racer of
     # `Hecks::Fuzzing::ConcurrentDispatch`, run as its own OS process.
     #
-    # It is spawned, not forked: the caller (`hecks quality_control ask run`) holds live
+    # It is spawned, not forked: the caller (`hecks quality_control query sweep.run`) holds live
     # `PostgresEra` connections, and fork duplicates their file descriptors and SSL state,
     # corrupting them when a child exits.
     #
-    #   hecks quality_control race <domain-path> <database> <schema> <verb> <args-json>
+    #   hecks quality_control sweep.race <domain-path> <database> <schema> <verb> <args-json>
     #
     # It prints one line, `succeeded`, `refused` or `crashed:<class>: <message>`, and always exits
     # 0.
