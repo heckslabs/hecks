@@ -202,7 +202,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:verbs]["account.freeze_account"][:group]).to eq("Account")
     end
 
-    # The pair every journaled run has -- how one run ended, and which ones failed -- is read through
+    # The pair every journaled run has (how one run ended, which ones failed) is read through
     # `--wait`, not asked for by name. Only a query that reads the run's own records back by its
     # identity or its status counts; a query that filters on anything else, or returns a document,
     # is a real question even on the same aggregate.
