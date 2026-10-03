@@ -272,6 +272,8 @@ implementation; every example here is tested.
 
 ## Where to go next
 
+- **[Your own domain](your-own-domain.md)** — write a bluebook of
+  your own, run it, and deploy it to AWS Lambda.
 - **[Aggregates and value objects](aggregates-and-value-objects.md)** —
   identity in full, composite keys, defaults, patterns, closed sets,
   references between aggregates.

@@ -509,6 +509,7 @@ before assuming a capability exists that isn't demonstrated above.
 - [Verification](docs/implemented/guides/verification.md)
 - [Wiring](docs/implemented/guides/wiring.md)
 - [Writing an adapter](docs/implemented/guides/writing-an-adapter.md)
+- [Your own domain](docs/implemented/guides/your-own-domain.md)
 <!-- generated:end -->
 
 <!-- generated:begin id=reference -->
