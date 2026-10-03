@@ -1,0 +1,386 @@
+# The Tickets chapter: what a maintainer observed about Hecks that needs a decision or a fix, the
+# decisions that settle them, and the releases that ship them.
+#
+# A Ticket is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
+# separate aggregates. Hecks owns the ticket's state; GitHub is driven from it through the
+# GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A ticket exists whether
+# or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
+# ticket as a sync failure that a later run retries.
+#
+# An Adr is a decision record with its own lifecycle, linked to the tickets it settles. A Release
+# is a version cut, linked to the tickets it closed.
+Hecks.bluebook "Tickets" do
+  vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
+
+  aggregate "Ticket" do
+    description "One thing observed about Hecks that needs a decision or a fix: reported, triaged, then resolved or dismissed."
+
+    attribute :ticket,         TicketKey
+    attribute :title,          Title
+    attribute :body,           Body, optional: true
+    attribute :kind,           Kind, optional: true
+    attribute :severity,       Severity, optional: true
+    attribute :source,         Source
+    attribute :fingerprint,    Fingerprint, optional: true
+    attribute :issue_number,   Number, optional: true
+    attribute :fix_pr_number,  Number, optional: true
+    attribute :dismissal,      Body, optional: true
+    attribute :sync_failure,   Body, optional: true
+    identified_by :ticket
+
+    value_object "TicketKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a ticket is named") { !value.to_s.empty? }
+    end
+
+    value_object "Title" do
+      attribute :value, String
+
+      invariant("a ticket has a title") { !value.to_s.strip.empty? }
+    end
+
+    value_object "Body" do
+      attribute :value, String
+    end
+
+    # What the ticket is: a `gap` Hecks cannot yet express, a `parity` divergence between the Ruby
+    # and Rust runtimes, a `qa` finding from the QA loop, or an `idea`.
+    value_object "Kind" do
+      attribute :value, String, one_of: ["gap", "parity", "qa", "idea"]
+    end
+
+    value_object "Severity" do
+      attribute :value, String, one_of: ["low", "medium", "high"]
+    end
+
+    # Where it came from: the QA loop, work for a client, a parity check, or a maintainer by hand.
+    value_object "Source" do
+      attribute :value, String, one_of: ["qa_loop", "client_work", "parity_check", "maintainer"]
+    end
+
+    # The same finding refiled by the QA loop carries the same fingerprint, so a report of it while an
+    # open ticket holds it changes nothing.
+    value_object "Fingerprint" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Number" do
+      attribute :value, Integer
+
+      invariant("a number is positive") { value.to_i.positive? }
+    end
+
+    lifecycle :status, default: "reported" do
+      transition "Triage"  => "triaged",   from: %w[reported triaged]
+      transition "Resolve" => "resolved",  from: "triaged"
+      transition "Dismiss" => "dismissed", from: %w[reported triaged]
+      transition "Reopen"  => "triaged",   from: %w[resolved dismissed]
+    end
+
+    command "Report" do
+      goal "Record something observed about Hecks as a ticket"
+
+      attribute :ticket,      TicketKey
+      attribute :title,       Title
+      attribute :body,        Body, optional: true
+      attribute :source,      Source
+      attribute :fingerprint, Fingerprint, optional: true
+
+      sets :ticket
+      sets :title
+      sets :body
+      sets :source
+      sets :fingerprint
+
+      emits "TicketReported"
+    end
+
+    # A failed Codebase run reports itself: the run's key names the ticket and doubles as its
+    # fingerprint, so the same run failing again while its ticket is open changes nothing.
+    command "ReportFailedRun" do
+      goal "Record a failed conformance or gate run as a ticket"
+
+      attribute :ticket, TicketKey
+      attribute :body,   Body
+
+      sets :ticket
+      sets :body
+      sets :fingerprint, to: "run"
+      sets :title,  to: "A Codebase run failed"
+      sets :source, to: "qa_loop"
+
+      emits "RunTicketReported"
+    end
+
+    command "Triage" do
+      role "Maintainer"
+      goal "Give a ticket its kind and severity"
+
+      reference_to Ticket
+      attribute :kind,     Kind
+      attribute :severity, Severity
+
+      sets :kind
+      sets :severity
+
+      emits "TicketTriaged"
+    end
+
+    command "LinkFix" do
+      role "Maintainer"
+      goal "Record the pull request that fixes a triaged ticket"
+
+      reference_to Ticket
+      attribute :fix_pr_number, Number
+
+      sets :fix_pr_number
+
+      emits "FixLinked"
+    end
+
+    command "Resolve" do
+      role "Maintainer"
+      goal "Close a triaged ticket as resolved"
+
+      reference_to Ticket
+
+      emits "TicketResolved"
+    end
+
+    command "Dismiss" do
+      role "Maintainer"
+      goal "Close a ticket without a fix, with the reason"
+
+      reference_to Ticket
+      attribute :dismissal, Body
+
+      sets :dismissal
+
+      emits "TicketDismissed"
+    end
+
+    command "Reopen" do
+      role "Maintainer"
+      goal "Take a resolved or dismissed ticket back to triaged, as when a fix regresses"
+
+      reference_to Ticket
+
+      emits "TicketReopened"
+    end
+
+    command "RecordIssue" do
+      goal "Record the GitHub issue number once the issue is opened"
+
+      reference_to Ticket
+      attribute :issue_number, Number
+
+      sets :issue_number
+
+      emits "IssueRecorded"
+    end
+
+    command "RecordSyncFailure" do
+      goal "Record that GitHub could not be driven, so a later run retries"
+
+      reference_to Ticket
+      attribute :sync_failure, Body
+
+      sets :sync_failure
+
+      emits "SyncFailed"
+    end
+
+    query "Open" do
+      description "Every ticket not yet resolved or dismissed."
+      where(status: %w[reported triaged])
+      order_by :ticket
+    end
+  end
+
+  aggregate "Adr" do
+    description "A decision record: drafted, accepted, and possibly superseded, linked to the tickets it settles."
+
+    attribute :adr,       AdrNumber
+    attribute :title,     AdrTitle
+    attribute :supersedes, AdrNumber, optional: true
+    attribute :settles,   TicketKey, optional: true
+    identified_by :adr
+
+    value_object "AdrNumber" do
+      attribute :value, String, pattern: '\A[0-9]{4}\z'
+    end
+
+    value_object "AdrTitle" do
+      attribute :value, String
+
+      invariant("a decision has a title") { !value.to_s.strip.empty? }
+    end
+
+    value_object "TicketKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Accept"    => "accepted",   from: "draft"
+      transition "Supersede" => "superseded", from: "accepted"
+    end
+
+    command "Draft" do
+      role "Maintainer"
+      goal "Open a decision record, optionally for the ticket it settles"
+
+      attribute :adr,       AdrNumber
+      attribute :title,     AdrTitle
+      attribute :settles,   TicketKey, optional: true
+
+      sets :adr
+      sets :title
+      sets :settles
+
+      emits "AdrDrafted"
+    end
+
+    command "Accept" do
+      role "Maintainer"
+      goal "Record that the decision was accepted"
+
+      reference_to Adr
+
+      emits "AdrAccepted"
+    end
+
+    command "Supersede" do
+      role "Maintainer"
+      goal "Record that a later decision replaces this one"
+
+      reference_to Adr
+      attribute :supersedes, AdrNumber
+
+      sets :supersedes
+
+      emits "AdrSuperseded"
+    end
+
+    query "Standing" do
+      description "Every decision that is accepted and not superseded."
+      where(status: "accepted")
+      order_by :adr
+    end
+  end
+
+  aggregate "Release" do
+    description "A version cut, linked to the tickets it closed."
+
+    attribute :version, Version
+    attribute :closes,  TicketKey, optional: true
+    identified_by :version
+
+    value_object "Version" do
+      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
+    end
+
+    value_object "TicketKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "Ship" => "shipped", from: "planned"
+    end
+
+    command "Plan" do
+      role "Maintainer"
+      goal "Open a release for a version"
+
+      attribute :version, Version
+
+      sets :version
+
+      emits "ReleasePlanned"
+    end
+
+    command "Include" do
+      role "Maintainer"
+      goal "Record a ticket the release closes"
+
+      reference_to Release
+      attribute :closes, TicketKey
+
+      sets :closes
+
+      emits "TicketIncluded"
+    end
+
+    command "Ship" do
+      role "Maintainer"
+      goal "Record that the version was published"
+
+      reference_to Release
+
+      emits "ReleaseShipped"
+    end
+
+    query "Shipped" do
+      description "Every release that was published."
+      where(status: "shipped")
+      order_by :version
+    end
+  end
+
+  # Each lifecycle event drives GitHub. A ticket's own state never waits on the answer.
+  policy "OpenIssueWhenReported" do
+    on      "Ticket.TicketReported"
+    trigger Ticket::GitHubIssues::OpenIssue, with: { ticket: :ticket }
+  end
+
+  policy "OpenIssueWhenRunReported" do
+    on      "Ticket.RunTicketReported"
+    trigger Ticket::GitHubIssues::OpenIssue, with: { ticket: :ticket }
+  end
+
+  policy "LabelIssueWhenTriaged" do
+    on      "Ticket.TicketTriaged"
+    trigger Ticket::GitHubIssues::LabelIssue, with: { ticket: :ticket }
+  end
+
+  policy "CommentWhenFixLinked" do
+    on      "Ticket.FixLinked"
+    trigger Ticket::GitHubIssues::CommentOnIssue, with: { ticket: :ticket }
+  end
+
+  policy "CloseIssueWhenResolved" do
+    on      "Ticket.TicketResolved"
+    trigger Ticket::GitHubIssues::CloseIssue, with: { ticket: :ticket }
+  end
+
+  policy "CloseIssueWhenDismissed" do
+    on      "Ticket.TicketDismissed"
+    trigger Ticket::GitHubIssues::CloseIssue, with: { ticket: :ticket }
+  end
+
+  policy "ReopenIssueWhenReopened" do
+    on      "Ticket.TicketReopened"
+    trigger Ticket::GitHubIssues::ReopenIssue, with: { ticket: :ticket }
+  end
+
+  # A conformance or gate run that faults files its own ticket.
+  policy "ReportWhenConformanceFaulted" do
+    on      "ConformanceRun.ConformanceFaulted"
+    trigger Ticket::ReportFailedRun, with: { ticket: :run, body: :refusal }
+  end
+
+  policy "ReportWhenGateFaulted" do
+    on      "GateRun.GateFaulted"
+    trigger Ticket::ReportFailedRun, with: { ticket: :run, body: :refusal }
+  end
+
+  policy "RecordTheIssue" do
+    on      "Ticket.GitHubAnswered"
+    trigger Ticket::RecordIssue, with: { issue_number: :issue_number }
+  end
+
+  policy "RecordTheSyncFailure" do
+    on      "Ticket.GitHubRefused"
+    trigger Ticket::RecordSyncFailure, with: { sync_failure: :refusal }
+  end
+end

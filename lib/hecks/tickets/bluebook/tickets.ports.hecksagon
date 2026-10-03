@@ -1,0 +1,17 @@
+# The port Tickets declares, for every hecksagon that attaches the chapter (`Chapters` loads this
+# file with it). Each lifecycle event of a ticket asks the GitHubIssues port, which the Hecks domain
+# binds (lib/hecks/hecks/adapters/github_issues.rb): the outside a ticket reaches. The ask is
+# answered with the record's own arguments or refused with a reason, and a refusal is recorded on the
+# ticket and never blocks it. The port has to be declared even where no adapter binds it, so the
+# policies have a target and model_check's deaf-policy check can see it.
+Hecks.hecksagon "Tickets" do
+  Tickets::Ticket.port "GitHubIssues" do
+    %w[OpenIssue LabelIssue CommentOnIssue CloseIssue ReopenIssue].each do |ask|
+      asks ask, to: Ticket do
+        attribute :ticket, TicketKey
+        answers "GitHubAnswered"
+        refuses "GitHubRefused"
+      end
+    end
+  end
+end
