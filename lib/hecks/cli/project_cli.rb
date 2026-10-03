@@ -40,6 +40,22 @@ module Hecks
         status.zero? ? puts(text) : abort(text)
       LAUNCHER_TAIL
 
+      # What a Memory command does when refused: say why, from the record's `refusal`.
+      MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
+        if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
+          why = begin
+            require "json"
+            JSON.parse(text).dig("state", "refusal", "value")
+          rescue JSON::ParserError
+            nil
+          end
+          warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+        else
+          puts text
+          warn reason
+        end
+      LAUNCHER_REFUSAL
+
       # The generator's name as an executable launcher's header states it, whoever ran it.
       GENERATOR = "hecks project_cli".freeze
 
@@ -273,11 +289,12 @@ module Hecks
 
       # @api private
       # @param ending [String] the launcher's closing lines
-      # @return [String] the same lines, except that a Memory command that ended well prints
-      #   nothing: a person is at it, so the settled record is noise after the session
+      # @return [String] the same lines, except that a memory command prints no settled record, only
+      #   the reason it was refused: a person is at it, so the record is noise
       def quiet_ending(ending)
-        ending.sub("status.zero? ? puts(text)",
-                   "exit 0 if status.zero? && #{RUNS_ON_MEMORY}\nstatus.zero? ? puts(text)")
+        ending.sub("  puts text\n  warn reason\n", MEMORY_REFUSAL)
+              .sub("status.zero? ? puts(text)",
+                   "exit 0 if status.zero? && MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp(\"!\"))\nstatus.zero? ? puts(text)")
       end
 
       # @api private
@@ -289,10 +306,12 @@ module Hecks
 
         <<~RUBY
 
-          # These commands keep nothing worth a database, so they run on Memory unless told otherwise, and
-          # print nothing when they end well.
+          # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
+          # A person is at them: they wait for their result, say why when they are refused, and print
+          # no record when they end well.
           MEMORY_COMMANDS = %w[#{commands.join(' ')}].freeze
-          ENV["HECKS_ENVIRONMENT"] ||= "memory" if #{RUNS_ON_MEMORY}
+          ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
+          ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
         RUBY
       end
 

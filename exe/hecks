@@ -21,10 +21,12 @@ if LEGACY.include?(ARGV.first)
   exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
 end
 
-# These commands keep nothing worth a database, so they run on Memory unless told otherwise, and
-# print nothing when they end well.
-MEMORY_COMMANDS = %w[console].freeze
+# These commands keep nothing worth a database, so they run on Memory unless told otherwise.
+# A person is at them: they wait for their result, say why when they are refused, and print
+# no record when they end well.
+MEMORY_COMMANDS = %w[console init].freeze
 ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
+ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
 
 require "hecks"
 
@@ -58,8 +60,18 @@ end
 # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it
 # either way, and says why on stderr.
 if reason
-  puts text
-  warn reason
+  if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
+    why = begin
+      require "json"
+      JSON.parse(text).dig("state", "refusal", "value")
+    rescue JSON::ParserError
+      nil
+    end
+    warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+  else
+    puts text
+    warn reason
+  end
   exit status
 end
 exit 0 if status.zero? && MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))

@@ -32,6 +32,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks operation.refresh_projections subject=<domain>` | `bin/project` |
 | `hecks operation.run_behaviors subject=<path>` | `bin/behaviors` |
 | `hecks console [subject=<domain>]` | `bin/console` |
+| `hecks init <Name> [--adapter=<name>] [--dir=<path>]` | _(new)_ |
 | `hecks operation.follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]` | `bin/follow` |
 | `hecks smoke_test [domain]` | `bin/smoke_test` |
 | `hecks operation.smoke_http path=/p [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |

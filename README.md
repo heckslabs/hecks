@@ -32,8 +32,8 @@ gem install hecks
 
 Or in a Gemfile: `gem "hecks"`.
 
-The gem installs a `hecks` command for a domain you supply: `run`,
-`docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+The gem installs a `hecks` command for a domain you supply: `init`
+(writes the stub of a new one), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
 `project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the
@@ -97,7 +97,8 @@ harness.
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and
 [Your own domain](docs/implemented/guides/your-own-domain.md) has you write
-a bluebook of your own, run it, and deploy it to AWS Lambda. The
+a bluebook of your own (starting from `hecks init`), run it, and deploy it
+to AWS Lambda. The
 [Glossary](#glossary) at the end of this page defines the project's own
 words. `bundle exec hecks console subject=<domain>` boots any other domain
 directory as that directory is wired.
