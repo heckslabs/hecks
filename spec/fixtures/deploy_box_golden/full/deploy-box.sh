@@ -56,7 +56,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
   --arg caddy "$(B64 "$HERE/Caddyfile")" --arg fetch "$(B64 "$HERE/fetch-secrets.sh")" \
   --arg smokefile "$(B64 "$WORK/smoke.caddy")" --arg smoke "${SMOKE_LISTENER:-}" \
   --arg registry "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com" --arg dir "$DIR" '
-  {commands: ["set -e", "mkdir -p \($dir) && cd \($dir)", "umask 077",
+  {commands: ["set -e", "cloud-init status --wait || true", "mkdir -p \($dir) && cd \($dir)", "umask 077",
     "echo \($compose) | base64 -d > compose.json; echo \($secrets) | base64 -d > secrets.json",
     "echo \($caddy) | base64 -d > Caddyfile; echo \($fetch) | base64 -d > fetch-secrets.sh",
     "bash fetch-secrets.sh",
