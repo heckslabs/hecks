@@ -40,7 +40,7 @@ Hecks.bluebook "Tickets" do
     value_object "Title" do
       attribute :value, String
 
-      invariant("a finding has a title") { !value.to_s.strip.empty? }
+      invariant("a finding has a title") { !value.to_s.empty? }
     end
 
     value_object "Body" do
@@ -71,7 +71,7 @@ Hecks.bluebook "Tickets" do
     value_object "Number" do
       attribute :value, Integer
 
-      invariant("a number is positive") { value.to_i.positive? }
+      invariant("a number is positive") { value.positive? }
     end
 
     lifecycle :status, default: "reported" do
@@ -217,7 +217,7 @@ Hecks.bluebook "Tickets" do
     value_object "AdrTitle" do
       attribute :value, String
 
-      invariant("a decision has a title") { !value.to_s.strip.empty? }
+      invariant("a decision has a title") { !value.to_s.empty? }
     end
 
     value_object "FindingKey" do
@@ -320,7 +320,7 @@ Hecks.bluebook "Tickets" do
   end
 
   policy "RecordTheIssue" do
-    on      "Finding.GitHubAnswered"
+    on      "Finding.IssueOpened"
     trigger Finding::RecordIssue, with: { issue_number: :issue_number }
   end
 

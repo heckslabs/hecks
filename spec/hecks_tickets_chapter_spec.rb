@@ -19,6 +19,32 @@ RSpec.describe "the Tickets chapter" do
     expect(commands).to include("Report", "Triage", "LinkFix", "Resolve", "Dismiss", "Reopen")
   end
 
+  it "lets the Hecks domain's Release record the findings a version settled" do
+    release = @hecks.registry.bluebook("Hecks").aggregate("Release")
+
+    expect(release.commands.map(&:hecks_name)).to include("CloseFindings")
+  end
+
+  it "records the issue number only from the answer that carries it" do
+    policies = @bluebook.policies.to_h { |policy| [policy.hecks_name, policy.event_name] }
+
+    expect(policies["RecordTheIssue"]).to eq("IssueOpened")
+  end
+
+  it "keeps a reported finding when GitHub cannot be driven, and records why" do
+    expect(Open3).not_to receive(:capture3)
+    stub_const("ENV", ENV.to_h.except("HECKS_FINDINGS_REPO"))
+    before = @hecks.registry.reaction_log.size
+    argv = ["tickets", "finding.report", "finding.value=f-1", "title.value=A gap",
+            "source.value=maintainer"]
+
+    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
+    reacted = @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }
+
+    expect(JSON.parse(out).dig("state", "status")).to eq("reported")
+    expect(reacted).to include("OpenIssueWhenReported", "RecordTheSyncFailure")
+  end
+
   it "files a finding when a conformance or gate run faults" do
     policies = @bluebook.policies.map(&:hecks_name)
 

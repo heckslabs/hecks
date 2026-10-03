@@ -6,7 +6,7 @@ require "spec_helper"
 RSpec.describe Hecks::Doors::McpDoorScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
-    aggregates arguments at body check context digest era example exclude fills format from_run gate
+    aggregates arguments at body check closes context digest era example exclude fills format from_run gate
     host_version inner ir_version iterations kind name named new_name only opens package pairs_shape
     parallel profile rehearsal rehearsed_at required run runs seed_start seeds ships_from snapshot stage
     stdout steps strict subject tags targets timeout to verb version warmup winners word workers
