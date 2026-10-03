@@ -116,6 +116,52 @@ Each step is its own PR and needs the one before it green on `main`.
    regex and comments in `vocabulary.bluebook`, `rust_comment_style.rb`, and
    the PR template. `validate_name!` is rewritten against Rust-side constants.
 
+## Generating more of the hand-written Rust
+
+With one generator, the next lever is widening what it emits. A sweep of the
+hand-written Rust (about 61k lines before tests) on 2026-10-02 sorted it into
+three classes. Figures are production lines, ±15%.
+
+| Class | Lines | Meaning |
+|---|---|---|
+| A: generate now | ~0.4k | Driven by existing bluebook rows. The easy table-driven pieces are already generated (`kernel/vocab/*`, `parser/src/keywords.rs`, `host/src/field_hints.rs`, `build/src/reserved_names.rs`, `kernel/{expression_operators,attribute_shapes}/mod.rs`). |
+| B: generate after a DSL or vocabulary addition | ~12k | The input rows do not exist yet. |
+| C: genuine logic, stays hand-written | ~33k | Evaluator and orchestration step bodies, mint/CTE, journal, auth, HTTP and session handling, the host's payments and newsletter code. |
+
+The ceiling is therefore about a quarter of the hand-written Rust, and it
+is reached by adding rows, not by writing more generator code. This confirms
+0011's claim for dispatch step bodies, mint, journal and auth, and does not
+hold for parsing: only the keyword table was projected, and the IR-building
+half is open.
+
+Order of work, each its own ADR or PR once its input rows are designed:
+
+1. **Form-field resolution in `host/src/web.rs`** (~400 lines, class A).
+   Emit per-command form specs into the generated sidecar, and drop the
+   helpers that duplicate `ui_schema.rs`.
+2. **Operator and comparator semantics** (~1k lines, B). Add a `semantics`
+   expression column to the query-comparator and admitted-operator rows;
+   generate `kernel/query_comparators.rs` and `kernel/expression_operators/*`.
+3. **Parser per-construct builders** (~5k lines in `parser/src/parse/*`, B).
+   Add a target-IR-field and builder-kind column to the Syntax rows. Start
+   with the simple constructs (`policy`, `query`, `domain_port`, `lifecycle`,
+   `read_model`, `value_object`, about 1k lines) and leave `entity`,
+   `aggregate` and `chapter` for later.
+4. **IR structs and JSON codec from the meta-domain** (~1.7k lines across
+   `parser/src/{ir,canonical,emit}.rs`, B). The IR's own bluebook already
+   exists; fold in the `host/src/ir.rs` accessors.
+5. **Presentation validators** (~2.6k lines across `ui_schema.rs`,
+   `presentation.rs`, `presentation_write.rs`, B). Needs a presentation-config
+   chapter first, because the config is a runtime JSON blob today. Do this
+   last.
+
+Two smaller items are not generation. `needs` (`host/src/needs.rs` and
+`kernel/needs.rs`, ~440 lines) needs a Fact row with a resolver kind. The
+four hand-written JSON readers and writers (`kernel`, `build`, `lsp`,
+`codegen`, `json.rs`) should be consolidated into one crate. `host/src/expr_json.rs`
+(~700 lines) duplicates the kernel evaluator on purpose, to keep domains out
+of Lambda binaries; that dedup is a refactor and is out of scope here.
+
 ## Consequences
 
 - **Generator fixes are written once** after step 6. BUG#124-style drift,
