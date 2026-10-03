@@ -21,6 +21,11 @@ names the tools the agent holds, the directories it may write, whether it may re
 the run goes under the sandbox with that policy, reads of credentials are refused, and the agent
 starts with only the environment it was given; where there is no sandbox, a confined run refuses to
 start. Without a profile an ask behaves as before. `https` is written but not exercised by the specs.
+A profile can instead confine by `claude`'s own permission rules (`confinement: :permissions`): the
+agent holds the writing tools only for the directories named, runs with no MCP servers, and keeps
+the user's own `claude` login, which the sandbox cannot (it refuses the keychain). `hecks
+quality_control mine_combinations --confine` uses it, so the miner's agent writes only its
+candidates directory, with a twenty-minute timeout and a two-dollar cap.
 
 ## [3.0.4] - 2026-10-02
 

@@ -156,6 +156,30 @@ RSpec.describe Hecks::Adapters::Agent do
       )
     end
 
+    it "confines by the command's own permission rules when asked, with no sandbox in the way" do
+      allowed = Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: %w[Read Glob Write Edit],
+                                                  writable: [@dir], budget: 1.0)
+
+      expect(allowed.sandboxed?).to be(false)
+      expect(allowed.confine(%w[claude -p])).to eq(%w[claude -p])
+      expect(adapter.command_for(nil, allowed)).to eq(
+        ["claude", "-p", "--permission-mode", "dontAsk", "--tools", "Read,Glob,Write,Edit",
+         "--allowedTools", "Read", "Glob", "Edit(/#{File.realpath(@dir)}/**)", "--strict-mcp-config",
+         "--max-budget-usd", "1.0"]
+      )
+    end
+
+    it "refuses a command other than the default under permission confinement" do
+      allowed = Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: %w[Read], writable: [@dir])
+
+      expect { adapter.ask(prompt: "p", command: "true", chdir: @dir, profile: allowed) }
+        .to raise_error(described_class::Failed, /applies only to the default claude command/)
+    end
+
+    it "rejects a confinement it does not know" do
+      expect { Hecks::Adapters::AgentProfile.new(confinement: :hope) }.to raise_error(ArgumentError, /confinement must be/)
+    end
+
     it "rejects a network setting it does not know" do
       expect { Hecks::Adapters::AgentProfile.new(network: :most) }.to raise_error(ArgumentError, /network must be/)
     end

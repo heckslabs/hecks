@@ -48,6 +48,7 @@ module Hecks
       # @raise [Failed] when the agent cannot start, runs past its timeout or exits non-zero
       def ask(prompt:, chdir:, command: nil, log: nil, profile: nil)
         words = command_for(command, profile)
+        refuse_unconfinable!(words, profile)
         output, status = run(words, prompt, chdir, profile)
         File.open(log, "a") { |file| file.puts(output) } if log
         return output if status.success?
@@ -59,6 +60,13 @@ module Hecks
 
       private
 
+      # Permission rules are a feature of `claude`: any other command would run unconfined.
+      def refuse_unconfinable!(words, profile)
+        return if profile.nil? || profile.sandboxed? || words == default_command(profile)
+
+        raise Failed, "permission confinement applies only to the default claude command"
+      end
+
       def run(words, prompt, chdir, profile)
         return run_confined(words, prompt, chdir, profile) if profile
 
@@ -68,7 +76,7 @@ module Hecks
       def default_command(profile)
         return DEFAULT_COMMAND unless profile
 
-        %w[claude -p --permission-mode acceptEdits] + profile.tool_flags
+        %w[claude -p --permission-mode] + [profile.permission_mode] + profile.tool_flags
       end
 
       # Runs `words` under the profile's sandbox with only the environment it names, in its own
