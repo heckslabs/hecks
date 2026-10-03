@@ -30,6 +30,11 @@ end
 Hecks.hecksagon "StudioSite" do
   attaches "Site"
 end
+
+# Where Site's own aggregates are kept, as for every chapter a project attaches.
+Hecks.hecksagon "Site" do
+  persisted_by "Memory"
+end
 ```
 
 The rows are plain data, not commands: a route table is not an event history, and a row that reads wrongly is
