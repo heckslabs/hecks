@@ -171,8 +171,38 @@ Hecks.hecksagon("Governance") do
 end
 ```
 
-Memory for now. The same domain binds to Sqlite or Postgres by changing
+Memory for now. The same domain binds to SQLite or Postgres by changing
 this one word, and the domain never learns which was chosen.
+
+### Try it: keep the pizzas in a SQLite file
+
+SQLite needs no server, so it is the quickest way to see data survive a
+restart. Copy `examples/pizzas` somewhere you can write, then change two
+files in the copy. In `bluebook/pizzas.hecksagon`, bind the aggregate to
+`SqlitePersistence` (the adapter's name) and leave Governance on Memory:
+
+```
+Pizzas::Order.persisted_by("SqlitePersistence")
+```
+
+The hecksagon says *which* adapter. The *where* is a per-deployment value,
+so it goes in `bluebook/pizzas.world`, which currently holds only the
+realm:
+
+```
+Hecks.world "Pizzas" do
+  realm "Examples"
+  persisted_by("SqlitePersistence") do
+    database "data/pizzas.db"
+  end
+end
+```
+
+A relative `database` path resolves against the domain directory, and the
+file is created on first boot. Boot the copy, create an order, and quit.
+Boot it again and `Order.all` still holds the order. The domain files
+are the same as before; only the wiring changed. Run it with
+`bundle exec hecks console subject=<your copy>`.
 
 ## Using it
 
