@@ -51,7 +51,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
       bind_stub_adapters!
 
       Hecks.hecksagon "QualityControl" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         QualityControl::Target.persisted_by("Memory")
         QualityControl::Sweep.persisted_by("Memory")

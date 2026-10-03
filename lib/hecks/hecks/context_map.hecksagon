@@ -8,6 +8,6 @@ end
 
 # The attached chapters (hecks.hecksagon `attaches`): each is a bounded context whose store comes
 # from hecks.world's `default_adapter`, so the memory overlay swaps them with the Hecks chapter.
-%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy QualityControl].each do |chapter|
-  Hecks.hecksagon(chapter) { uses_framework "Governance" }
+%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site QualityControl].each do |chapter|
+  Hecks.hecksagon(chapter) { attaches "Governance" }
 end

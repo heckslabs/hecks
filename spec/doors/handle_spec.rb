@@ -15,7 +15,7 @@ RSpec.describe Hecks::Doors::Handle do
       load_bluebook_files(BANKING_BLUEBOOK)
 
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by("Memory")
         Banking::Account.persisted_by("Memory")
         Banking::SafeDepositBox.persisted_by("Memory")

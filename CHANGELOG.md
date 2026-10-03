@@ -17,6 +17,45 @@ values and every step of a batch. This closes the gap where an allowed command s
 every public command of the Hecks chapter and fails when one is unclassified. An unrestricted door is
 unchanged.
 
+**A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
+once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
+`hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
+dependency-free TypeScript module with the table as `as const` data and a few pure helpers: `pageIsOn`,
+`isOffPath`, `notForSearch`, `previewUrl`, the middleware rules as data, the desktop, mobile, footer and
+admin navigation, the sitemap paths, the robots prefixes, and a map from each CMS global to its page. A row
+whose source is a `command:` or `query:` takes its path from the forms scheme (`/Chapter/Aggregate/Verb`)
+and is checked against the chapters the project attaches. The closed sets a row's values come from (kind,
+render, auth, cache class, origin, preview) are value objects of the Site chapter, so a row naming a cache
+class that is not a member is refused with the members listed, and so are a path declared twice, an off page
+in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
+that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
+
+**`project_site` also projects the CDN.** A route table that declares an edge (`Edge`, `EdgePolicy`,
+`EdgeOrigin` and `EdgeRule` rows beside its `Route` rows) has the same command rewrite two marked regions,
+`BEGIN`/`END GENERATED site_cdn behaviors` and `listener_rules`, of the CloudFormation template the project
+owns: the distribution's default and ordered cache behaviours, and the load balancer's listener rules with their
+priorities and origin-secret condition. A route gets a behaviour only when CloudFront would otherwise apply a
+different one; the order is the order the rows are declared in, and a pattern that a broader earlier one would
+shadow is refused. Rows gain `compress`, `alb_rule` and `cdn`. The refusals name an unknown or unmapped origin,
+a cache class with no policy, a duplicate priority and a rule that carries no route. `--check` covers the
+regions, `out=<dir>` writes a copy of the template, and the catch-all row `/*` hides nothing from `NOT_FOR_SEARCH`.
+`Fargate::Cdn.behavior_lines` is public and renders a `ResponseHeadersPolicyId`.
+
+**One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
+(a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
+name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package
+vendored into the project at `vendor/embryonaut_bluebooks/<name>/bluebook`. `from: :vendor` is
+required for a vendored package, so a typo cannot silently pick one over a gem chapter; an unknown
+name refuses with a `WiringError` that lists the gem's chapters and says how to attach a vendored
+package. A hecksagon now holds one list, `attachments`, each with its source (`:gem` or `:vendor`),
+in place of `framework_members`, `vendored_bluebooks` and `attached_chapters`. The Rust parser and
+build accept the same forms. `hecks model_check` now also flags `across "X"` on a hecksagon that
+attaches a chapter the gem carries beyond the framework members, which it missed before.
+
+Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
+They behave as before, print a one-line warning, and are removed in 3.1.0. Generated Rust files
+now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
+
 **The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
 under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
 is optional on the command line. Queries are read with
@@ -27,6 +66,7 @@ is refused with the qualified names that end in it. A chapter's `names` table st
 explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
 names: qualify them (the bare-name refusal lists the candidates).
 
+**`HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
 
 **`hecks mcp` has a commands scope, and a restricted door stays booted.** With
 `HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,

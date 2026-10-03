@@ -109,7 +109,7 @@ RSpec.describe "remove: on an entity-typed list" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.eval(ENTITY_LIST_REMOVE_SOURCE, TOPLEVEL_BINDING, "entity_list_remove.bluebook", 1)
       Hecks.hecksagon("EntityListRemove") do
-        uses_framework "Governance"
+        attaches "Governance"
         EntityListRemove::Ledger.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do

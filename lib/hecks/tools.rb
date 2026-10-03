@@ -24,6 +24,7 @@ module Hecks
       "project_ci_gates"               => ["tools/ci_gates", "CiGates"],
       "decide_ci_gate"                 => ["tools/ci_gate_decision", "CiGateDecision"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
+      "project_site"                   => ["tools/site_routes", "SiteRoutes"],
       "lint_deploy_recipes"            => ["tools/deploy_recipe_lint", "DeployRecipeLint"],
       "project_oidc"                   => ["tools/oidc_manifests", "OidcManifests"],
       "project_tenant"                 => ["tools/tenant_provisioning", "TenantProvisioning"],
