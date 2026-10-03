@@ -95,10 +95,12 @@ So does every other `ruby`-fenced example in this README and in
 harness.
 
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
-through the pizzas bluebook you just dispatched against, and the
+through the pizzas bluebook you just dispatched against, and
+[Your own domain](docs/implemented/guides/your-own-domain.md) has you write
+a bluebook of your own, run it, and deploy it to AWS Lambda. The
 [Glossary](#glossary) at the end of this page defines the project's own
-words. `bundle exec hecks console subject=<domain>` boots any other domain directory as that
-directory is wired.
+words. `bundle exec hecks console subject=<domain>` boots any other domain
+directory as that directory is wired.
 
 ## Why
 
