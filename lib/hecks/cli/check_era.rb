@@ -28,7 +28,7 @@ module Hecks
       # @raise [Errno::ENOENT, Errno::EACCES] if the file cannot be read
       # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached
       # @raise [Runtime::EraCheck::ExpectedEra::BadResponse] if it answers no era
-      def assess(url, file, timeout: 10)
+      def assess(url, file, timeout:)
         expected = Runtime::EraCheck::ExpectedEra
         allowed  = expected.parse(File.read(file))
         document = expected.fetch_version(url, timeout: timeout)
