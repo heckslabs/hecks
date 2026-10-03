@@ -225,14 +225,17 @@ RSpec.describe Hecks::Projector::CliProjector do
 
     # What a run records about itself (system-role commands, port operations) is never typed by a
     # person, so the help names it on a line of its own instead of spending a described line each.
-    it "sets bookkeeping commands apart as names only" do
+    it "leaves bookkeeping commands out of the usage unless all is asked for" do
       usage = payments[:usage]
       port_verb = payments[:commands].values.find { |spec| spec[:command].include?("PaymentGateway") }
+      all = described_class.call(bluebook: registry.bluebook("Payments"), options: { all: true })[:usage]
 
       expect(port_verb[:internal]).to be(true)
-      expect(usage).to include("internal — what a run records about itself")
-      expect(usage).not_to include("#{port_verb[:short].ljust(5)}  #{port_verb[:summary]}")
-      expect(usage).to include(port_verb[:short])
+      expect(usage).not_to include("internal — what a run records about itself")
+      expect(usage).not_to include(port_verb[:short])
+      expect(usage).to match(/--all\s+also list the \d+ internal/)
+      expect(all).to include("internal — what a run records about itself")
+      expect(all).to include(port_verb[:short])
     end
 
     # A command is always named with its aggregate: no short spelling is minted.

@@ -120,6 +120,7 @@ module Hecks
 
         name = argv.first
         return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
+        return { answer: [Projector.call(:cli, bluebook: bluebook, options: options.merge(all: true))[:usage], 0] } if name == "--all"
 
         asking, name, argv = entry_word(cli, argv)
         return { answer: [cli[:usage], 1] } if name.nil?

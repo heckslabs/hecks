@@ -400,27 +400,32 @@ module Hecks
           return command_help(program, spec[:short], spec, ask: options[:ask]) if spec
         end
 
-        width = (commands.values + questions.values).map { |spec| label(spec).length }.max.to_i
+        all     = options[:all]
+        width   = (commands.values + questions.values).reject { |spec| spec[:internal] && !all }
+                                                      .map { |spec| label(spec).length }.max.to_i
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
 
         out << "commands:"
-        out.concat(listing(commands, width) { |spec| spec[:summary] })
+        out.concat(listing(commands, width, all: all) { |spec| spec[:summary] })
         out << ""
         out << "queries (nothing here changes anything):"
-        out.concat(listing(questions, width) { |spec| first_sentence(spec[:summary]) })
+        out.concat(listing(questions, width, all: all) { |spec| first_sentence(spec[:summary]) })
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
+        hidden = (commands.values + questions.values).count { |spec| spec[:internal] }
+        out << "  #{program} --all                  also list the #{hidden} internal commands and queries" if hidden.positive? && !all
         out << "  a command is called with its aggregate — #{example_qualified(commands)}"
         out.join("\n")
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
       # under a heading per aggregate, so related commands sit together; the bookkeeping a run
-      # records about itself (`internal`: system-role commands and port operations) is set apart as
-      # names only, since a person never types them. A single-aggregate domain keeps the plain list.
-      def listing(specs, width)
+      # records about itself (`internal`: system-role commands and port operations) is left out,
+      # since a person never types them; `all` lists them as names only. A single-aggregate domain
+      # keeps the plain list.
+      def listing(specs, width, all: false)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
         groups = shown.group_by { |spec| spec[:group] }
         lines = []
@@ -432,7 +437,7 @@ module Hecks
         else
           shown.each { |spec| lines << "  #{label(spec).ljust(width)}  #{yield(spec)}" }
         end
-        lines.concat(internal_lines(internal)) unless internal.empty?
+        lines.concat(internal_lines(internal)) if all && !internal.empty?
         lines
       end
 
