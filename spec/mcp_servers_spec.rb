@@ -209,6 +209,22 @@ RSpec.describe "the stdio MCP servers" do
       end
     end
 
+    it "refuses a question whose arguments name a path outside the root, or a denied name" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "query", { domain: domain, question: "available", summary: "spec",
+                                                      args: { paths: "/etc" } }),
+                              tool_call(2, "query", { domain: domain, question: "available", summary: "spec",
+                                                      args: { url: "http://127.0.0.1:1" } })],
+                             env: reader_env
+                           ))
+
+      [1, 2].each do |id|
+        expect(results[id]["isError"]).to be true
+        expect(payload(results[id])["error"]).to include("argument", "is refused", "reader mode")
+      end
+    end
+
     it "refuses a domain it was not given before loading any of its Ruby" do
       other   = unnamed_domain
       results = results_of(run_over_pipes(
@@ -337,6 +353,69 @@ RSpec.describe "the stdio MCP servers" do
 
       expect(added).not_to eq(before)
       expect(Hecks::Storehouse.fingerprint(dir)).not_to eq(added)
+    end
+
+    # An allowed command still takes its arguments by name: a denied name, a path that leaves the
+    # root and a ref that reads as a git option are refused before the command runs.
+    {
+      "a denied argument name"                   => { "output" => "/tmp/anywhere" },
+      "a url"                                    => { "url" => "http://127.0.0.1:1" },
+      "a location that can name a host"          => { "from" => "git@host:repo" },
+      "a path outside the root"                  => { "file" => "/etc/passwd" },
+      "a path list with one outside the root"    => { "paths" => "lib,/etc" },
+      "a path that climbs out of the root"       => { "file" => "../../../etc/passwd" },
+      "a path with a colon, which can be a host" => { "root" => "host:repo" },
+      "a path in the nested value form"          => { "file" => { "value" => "/etc/passwd" } },
+      "a ref that reads as an option"            => { "ref" => "--output=/tmp/x" }
+    }.each do |label, extra|
+      it "refuses #{label} on an allowed command, naming the argument" do
+        args = pizza_args("Margherita").merge(extra)
+        results = results_of(run_over_pipes(door, [dispatch_call(1, "order.create_pizza", args: args)], env: commands_env))
+
+        expect(results[1]["isError"]).to be true
+        expect(payload(results[1])["error"]).to include("argument", "is refused", "commands mode", extra.keys.first)
+      end
+    end
+
+    it "follows a symlink out of the root, so a link inside it does not hide a path outside" do
+      File.symlink("/etc", File.join(sandbox_root, "escape"))
+      args = pizza_args("Margherita").merge("file" => "escape/passwd")
+      results = results_of(run_over_pipes(door, [dispatch_call(1, "order.create_pizza", args: args)], env: commands_env))
+
+      expect(payload(results[1])["error"]).to include("is refused", "file")
+    end
+
+    it "passes a path inside the root and a plain ref on to the command" do
+      inside = File.join(sandbox_root, domain, "pizzas.bluebook")
+      args = pizza_args("Margherita").merge("file" => inside, "ref" => "origin/main")
+      results = results_of(run_over_pipes(door, [dispatch_call(1, "order.create_pizza", args: args)], env: commands_env))
+
+      expect(payload(results[1])["error"].to_s).not_to include("this door runs in commands mode")
+    end
+
+    it "checks the arguments of every step of a batch before any step runs" do
+      steps = [{ command: "order.create_pizza", args: pizza_args("A") },
+               { command: "order.create_pizza", args: pizza_args("B").merge("output" => "/tmp/x") }]
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "dispatch", { domain: domain, summary: "spec", role: "Chef", steps: steps }),
+                              tool_call(2, "state", { domain: domain, aggregate: "Order", summary: "spec" })],
+                             env: commands_env
+                           ))
+
+      expect(payload(results[1])["error"]).to include("argument", "output")
+      expect(payload(results[2])["count"]).to eq(0)
+    end
+
+    it "refuses a question whose arguments reach outside the root" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "query", { domain: domain, question: "available", summary: "spec",
+                                                      args: { paths: "/etc" } })],
+                             env: commands_env
+                           ))
+
+      expect(payload(results[1])["error"]).to include("argument", "paths", "is refused")
     end
 
     it "refuses a command name that resolves to nothing, and still refuses behaviors" do

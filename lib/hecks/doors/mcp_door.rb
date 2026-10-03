@@ -287,10 +287,7 @@ module Hecks
       def call_tool(name, args) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
         case name
         when "dispatch" then dispatch_tool(args)
-        when "query"
-          Storehouse.query(runtime: boot(args["domain"]), question: args["question"],
-                           summary: args["summary"], args: args["args"] || {}, source: args["source"],
-                           role: args["role"], actor_id: args["actor_id"])
+        when "query" then query_tool(args)
         when "events"
           Storehouse.events(runtime: boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
                             limit: args["limit"])
@@ -320,6 +317,14 @@ module Hecks
         { ok: false, error: "#{e.class}: #{e.message}" }
       end
 
+      # A question, once the scope has admitted its arguments.
+      def query_tool(args)
+        scope.admit_arguments!(args["args"])
+        Storehouse.query(runtime: boot(args["domain"]), question: args["question"],
+                         summary: args["summary"], args: args["args"] || {}, source: args["source"],
+                         role: args["role"], actor_id: args["actor_id"])
+      end
+
       # A single command or a batch, once the scope has admitted every command in it.
       def dispatch_tool(args)
         runtime = boot(args["domain"])
@@ -328,7 +333,7 @@ module Hecks
           Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
                                     source: args["source"], role: args["role"], actor_id: args["actor_id"])
         else
-          scope.admit_command!(runtime, args["command"])
+          scope.admit_command!(runtime, args["command"], args["args"])
           Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
                               args: args["args"] || {}, source: args["source"],
                               dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"])
