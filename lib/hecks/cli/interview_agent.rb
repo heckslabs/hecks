@@ -29,7 +29,7 @@ module Hecks
         registry
       end
 
-      # @return [Boolean] whether a `claude` executable is on the path, so the AI can be tried
+      # @return [Boolean] whether a `claude` executable is on the path, so a model can be tried
       def self.claude_available?
         ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? { |dir| File.executable?(File.join(dir, "claude")) }
       end

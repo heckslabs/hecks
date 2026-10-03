@@ -12,7 +12,8 @@ RSpec.describe "the launcher's memory commands" do
                                              executable: "exe/hecks", memory_commands: %w[console init interview], opted: true)
 
     expect(source).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
-    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
+    expect(File.read(File.join(InMemoryDomain::ROOT,
+                               "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
   end
 
   it "makes a memory command wait for its result, and say why it was refused instead of printing the record" do
