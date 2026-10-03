@@ -39,7 +39,7 @@ module Hecks
         if argv.first == "--from-run"
           from_run(root, argv.fetch(1) { abort USAGE }, out)
         else
-          from_local(root, argv.fetch(0, "6"), out)
+          from_local(root, argv.fetch(0) { abort USAGE }, out)
         end
         0
       end

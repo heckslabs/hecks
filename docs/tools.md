@@ -36,7 +36,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks operation.follow <domain> [aggregate=Name] [since=N] [interval=0.5] [wait=N] [--from-now] [--stream]` | `bin/follow` |
 | `hecks smoke_test [domain]` | `bin/smoke_test` |
 | `hecks operation.smoke_http path=/p [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
-| `hecks host.check_era <url> expected=era-file [timeout=10]` | `bin/check_era` |
+| `hecks host.check_era <url> expected=era-file [timeout=]` | `bin/check_era` |
 | `hecks era.merge_tail <domain> winners=id:old,id:new --confirm` | `bin/merge_tail` |
 | `hecks era.reattest <domain> era=N --confirm` | `bin/reattest_era` |
 | `hecks era.backfill_projections <domain>` | `bin/backfill_era_projections` |
@@ -95,7 +95,7 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 | `hecks codemod_run.drop_implicit_append_fields --confirm` | `bin/codemod_implicit_append_fields` |
 | `hecks test_suite_run.shard_specs group=1 groups=N [runtime_log=]` | `bin/rspec_shard_files` |
 | `hecks test_suite_run.list_io_parallel_specs exclude=REGEX [tags=] [check=file]`; `hecks test_suite_run.write_io_parallel_spec_list exclude=REGEX [tags=] write=file --confirm` | `bin/rspec_io_parallel_files` |
-| `hecks test_suite_run.refresh_runtime_baseline [workers=6] [from_run=ID]` | `bin/refresh_rspec_runtime_baseline` |
+| `hecks test_suite_run.refresh_runtime_baseline [workers=] [from_run=ID]` | `bin/refresh_rspec_runtime_baseline` |
 | `hecks test_suite_run.run_spec_example file=path example=text` | `bin/spec_example` |
 | `hecks test_suite_run.stress_concurrency [runs=] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
 | `hecks test_suite_run.regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
