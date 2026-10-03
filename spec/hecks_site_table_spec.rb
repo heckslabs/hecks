@@ -73,7 +73,9 @@ RSpec.describe "the Site row of the ADR command table" do
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("faulted")
-      expect(json.dig("state", "refusal", "value")).to include("out of date", "routes.ts", "run hecks site site_projection.project_site")
+      expect(json.dig("state", "refusal", "value")).to include(
+        "out of date", "routes.ts", "run hecks site site_projection.project_site"
+      )
       expect(Dir.children(dir)).to be_empty
     end
   end

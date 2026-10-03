@@ -31,7 +31,8 @@ module Hecks
           text.sub(pattern(name)) do
             indent = Regexp.last_match(1)
             [
-              "#{indent}# BEGIN GENERATED site_cdn #{name} (hecks site site_projection.project_site; edit the Route and Edge rows). Do not hand-edit.",
+              "#{indent}# BEGIN GENERATED site_cdn #{name} (hecks site site_projection.project_site; " \
+              "edit the Route and Edge rows). Do not hand-edit.",
               block.each_line.map { |line| line.strip.empty? ? line : "#{indent}#{line}" }.join.chomp,
               "#{indent}# END GENERATED site_cdn #{name}"
             ].join("\n")
