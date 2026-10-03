@@ -11,17 +11,17 @@ module Hecks
 
       module_function
 
-      # Builds a verb's nested, typed argument Hash from its `name=value` words.
+      # Builds a command's nested, typed argument Hash from its `name=value` words.
       #
       #   arguments(spec, ["reference.value=A-1", "sequence.value=99"])
       #   # => { reference: { value: "A-1" }, sequence: { value: 99 } }
       #
-      # @param spec [Hash{Symbol => Object}] one verb's entry from `Projector::CliProjector`
-      # @param pairs [Array<String>] the words after the verb: `name=value` pairs, where a path may
-      #   be the short form of a single-field value object (`reference` for `reference.value`);
-      #   `--name` for a Boolean; and at most one bare word, which fills the verb's first argument
+      # @param spec [Hash{Symbol => Object}] one command's entry from `Projector::CliProjector`
+      # @param pairs [Array<String>] the words after the command: `name=value` pairs, where a path
+      #   may be the short form of a single-field value object (`reference` for `reference.value`);
+      #   `--name` for a Boolean; and at most one bare word, which fills the first argument
       # @return [Hash{Symbol => Object}] the arguments nested by path, leaves cast to type
-      # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the verb
+      # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the command
       # @raise [Runtime::TypeMismatch] if a value does not parse as its Integer or Float
       def arguments(spec, pairs)
         # Extra accepted arguments stay out of help, which teaches only to=....
@@ -44,7 +44,7 @@ module Hecks
 
       # Rewrites the short forms into `name=value`: `--name` for a Boolean (a following `yes`,
       # `no`, `true`, `false`, `on`, `off`, `1` or `0` is that flag's value, not an argument),
-      # `--name=value` as `name=value`, and one bare word as the verb's first argument (`to` for
+      # `--name=value` as `name=value`, and one bare word as the command's first argument (`to` for
       # a command on an existing aggregate, the first attribute for one that creates).
       def normalize(spec, words, options)
         queue = words.dup
@@ -84,20 +84,20 @@ module Hecks
         path = options.key?(name) ? name : expand(name, options)
         return path if options.dig(path, :type) == "Boolean"
 
-        raise Runtime::NotFound, "--#{name} is a flag, but this verb has no Boolean argument #{name.inspect}"
+        raise Runtime::NotFound, "--#{name} is a flag, but this command has no Boolean argument #{name.inspect}"
       end
 
-      # The one bare word, as a pair for the verb's first argument the launcher does not mint.
+      # The one bare word, as a pair for the command's first argument the launcher does not mint.
       def positional(word, spec)
         first = spec[:arguments].find { |argument| !argument[:minted] }
         return "#{first[:path]}=#{word}" if first
 
         if spec[:arguments].any?
-          raise Runtime::NotFound, "#{word.inspect} is not name=value; this verb's only argument is its run key, " \
+          raise Runtime::NotFound, "#{word.inspect} is not name=value; this command's only argument is its run key, " \
                                    "which is minted when omitted (run=<key> names one)"
         end
 
-        raise Runtime::NotFound, "#{word.inspect} is not name=value, and this verb takes no arguments"
+        raise Runtime::NotFound, "#{word.inspect} is not name=value, and this command takes no arguments"
       end
 
       # Words the refusal for more than one unnamed argument.
@@ -187,9 +187,9 @@ module Hecks
         hash
       end
 
-      # Words the refusal for an argument the verb does not take, listing what it does.
+      # Words the refusal for an argument the command does not take, listing what it does.
       def unknown(path, known)
-        "no argument #{path.inspect} — this verb takes #{known.sort.join(', ')}"
+        "no argument #{path.inspect} — this command takes #{known.sort.join(', ')}"
       end
     end
   end

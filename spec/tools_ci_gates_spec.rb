@@ -5,8 +5,8 @@ require "yaml"
 require "hecks/tools"
 require "hecks/tools/ci_gates"
 
-# The path gates are `CiGate` rows of the Vocabulary chapter. `hecks project_ci_gates` writes each
-# row into the marked region of its workflow, and the job it writes runs `hecks decide_ci_gate`, so
+# The path gates are `CiGate` rows of the Vocabulary chapter. `hecks regeneration_run.project_ci_gates` writes each
+# row into the marked region of its workflow, and the job it writes runs `hecks regeneration_run.decide_ci_gate`, so
 # CI asks the binary rather than carrying shell of its own. This spec holds the committed workflows
 # to the rows; spec/tools_ci_gate_decision_spec.rb holds what the decision answers.
 RSpec.describe Hecks::Tools::CiGates do
@@ -17,7 +17,7 @@ RSpec.describe Hecks::Tools::CiGates do
       described_class.projection(root).each do |path, text|
         expect(File.read(path)).to eq(text),
                                    "#{path.delete_prefix("#{root}/")} has drifted from the CiGate rows — " \
-                                   "run hecks project_ci_gates"
+                                   "run hecks regeneration_run.project_ci_gates"
       end
     end
 
@@ -29,7 +29,7 @@ RSpec.describe Hecks::Tools::CiGates do
         steps = workflow.dig("jobs", gate.fetch("name"), "steps")
         decide = steps.find { |step| step["id"] == "diff" }
 
-        expect(decide["run"]).to eq("bundle exec exe/hecks decide_ci_gate gate=#{gate.fetch('name')} --wait")
+        expect(decide["run"]).to eq("bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{gate.fetch('name')} --wait")
         local = steps.filter_map { |step| step["uses"] }.select { |uses| uses.start_with?("./") }
         expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-environment])
       end

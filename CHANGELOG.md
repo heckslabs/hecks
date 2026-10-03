@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
+is optional on the command line. Queries are read with
+`hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
+and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
+field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, not `hecks gate`. A bare name
+is refused with the qualified names that end in it. A chapter's `names` table still gives
+explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
+names: qualify them (the bare-name refusal lists the candidates).
+
 **`HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
 
 **`hecks mcp` has a commands scope, and a restricted door stays booted.** With
@@ -41,6 +51,8 @@ now carries a frozen `expect` (instances, events, refusals with kind, queries, s
 reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
 `spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
 against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
+`hecks test_suite_run.seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+
 `hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing). A test-suite change; the runtime is unchanged (#951).
 
 **`hecks help` groups verbs by aggregate and sets the bookkeeping verbs apart.** Output change only; no verb is renamed or removed (#947).

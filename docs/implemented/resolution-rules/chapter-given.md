@@ -98,14 +98,14 @@ having to change.
   check that the referencing aggregate's own intent actually matches what
   it resolves to — that is a human/codemod responsibility before
   converting a declaration to a reference, the same discipline
-  `hecks hoist_local_givens` already exercises programmatically one
+  `hecks codemod_run.hoist_local_givens` already exercises programmatically one
   level down.
-- **`hecks ir_duplicates`' own dedup cannot see this rule at all** — a
+- **`hecks corpus_run.ir_duplicates`' own dedup cannot see this rule at all** — a
   referenced (bare) `given` write-throughs into its own aggregate's
   `@named_givens` exactly like a locally-declared one does, so the EXPORTED
   IR is identical either way; every aggregate sharing a description via
   either `declared_by:` or the single-candidate form still shows as its
-  OWN separate "(declared)" owner in `hecks ir_duplicates`' own
+  OWN separate "(declared)" owner in `hecks corpus_run.ir_duplicates`' own
   output, even once genuinely deduped in source. See
   `lib/hecks/query_ir.rb`'s own `declaration_count` comment — this is
   the SAME root cause as object identity not surviving a bluebook's own

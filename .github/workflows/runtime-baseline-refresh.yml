@@ -6,7 +6,7 @@ name: Refresh rspec runtime baselines (scheduled)
 # doesn't just cost total suite time: it actively worsens the max-shard "long pole", since
 # the packer keeps a file's shard allocation pinned to whatever it cost the last time the
 # baseline was refreshed, even after a real fix changes that file's actual cost (this is
-# exactly what happened after #898 sped up hecks quality_control tick — the packer kept budgeting the old,
+# exactly what happened after #898 sped up hecks quality_control sweep.tick — the packer kept budgeting the old,
 # slower time for those specs until #900 manually refreshed the baseline).
 #
 # SCHEDULED, NOT PER-MERGE — the postgres-io legs only run on `pull_request`/`merge_group`
@@ -85,7 +85,7 @@ jobs:
 
       - name: Refresh the committed baselines
         if: steps.find_run.outputs.run_id != ''
-        run: bundle exec exe/hecks refresh_runtime_baseline from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
+        run: bundle exec exe/hecks test_suite_run.refresh_runtime_baseline from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
 
       # Auto-merge, not a human-reviewed PR — this is a scoped, mechanical, data-only change
       # (two generated log files, no code or spec content), the same class of change a

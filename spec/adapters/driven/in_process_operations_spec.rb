@@ -78,13 +78,13 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
 
   describe "#execute" do
     it "dispatches a verb and answers what it did" do
-      answer = adapter.execute(**held(subject: @dir, verb: "shelve"), arguments: [{ value: "title.value=Dune" }])
+      answer = adapter.execute(**held(subject: @dir, verb: "book.shelve"), arguments: [{ value: "title.value=Dune" }])
 
       expect(answer.dig(:output, :value)).to include("Dune")
     end
 
     it "refuses with the domain's own sentence when the verb is refused" do
-      expect { adapter.execute(**held(subject: @dir, verb: "shelve")) }
+      expect { adapter.execute(**held(subject: @dir, verb: "book.shelve")) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /title/)
     end
 

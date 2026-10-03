@@ -4,12 +4,12 @@ require "pg"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control create_ledger_role`: creates the ordinary Postgres
-    # role the QA ledger connects as and makes it own the database. It is idempotent, and refuses a
-    # superuser or `BYPASSRLS` role, which the era write-fence cannot bind.
+    # The command behind `hecks quality_control sweep.create_ledger_role`: creates the ordinary
+    # Postgres role the QA ledger connects as and makes it own the database. It is idempotent, and
+    # refuses a superuser or `BYPASSRLS` role, which the era write-fence cannot bind.
     #
-    #   hecks quality_control create_ledger_role <database> [--role <role>]   # role defaults to
-    # hecks_qa
+    #   hecks quality_control sweep.create_ledger_role <database> [--role <role>]   # role defaults
+    # to hecks_qa
     class QaPostgresRole
       USAGE = "usage: hecks quality_control create_ledger_role <database> [--role <role>]"
 
