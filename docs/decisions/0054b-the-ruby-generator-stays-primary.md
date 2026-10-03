@@ -1,6 +1,8 @@
 # The Ruby generator stays primary — 0054a's direction reversed, its parity fixes kept
 
-**Status:** Accepted (maintainer decision, 2026-09-14). SUPERSEDES
+**Status:** Accepted (maintainer decision, 2026-09-14); Decision items 1, 2, 4, 5 and 6
+SUPERSEDED by [0082](0082-hecks-codegen-is-the-only-rust-generator.md)
+(2026-10-02). SUPERSEDES
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) in full, as a
 direction: `hecks-codegen` does not become the only Rust generator, and
 `rust/project` is not retired. Restores
