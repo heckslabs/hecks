@@ -437,6 +437,8 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
 
+An argument that declares `default:` is filled when the caller leaves it out, before any refusal reads the arguments, in the Ruby runtime and the Rust host and kernel alike; a value the caller passes, even a null, is kept. The kernel gets each command's declared defaults from the host as a top-level `"defaults"` table in its input, so a harness that runs a domain binary on its own builds that input with `Hecks::RustBuild::KernelInput`.
+
 Omittable when it would only retype what the owner already declared: a bare `sets :field` (no `to:` naming a different source) already says the command takes an argument named `:field`, so when the command itself declares no `attribute :field`, it imports the owning aggregate's (or entity's) own attribute of that name verbatim — type, pattern, `optional:`, `admits:`, all of it. `Install` above never declares `attribute :serial` — it imports `Meter`'s own `serial` — and still takes it as an argument:
 
 ```ruby

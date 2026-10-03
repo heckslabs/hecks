@@ -464,7 +464,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reverse",
@@ -545,11 +546,13 @@
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.OpenForSuspendedCustomers",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.OpenForCustomer",
@@ -743,7 +746,8 @@
     },
     {
       "query": "Banking::Account.Open",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.Overdrawn",
@@ -756,19 +760,23 @@
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.LedgerEntry.Reversed",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Close",
@@ -997,15 +1005,18 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.Withdrawal.Recent",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ATMCard.Retire",
@@ -1017,7 +1028,8 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Register",
@@ -1581,7 +1593,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reject",
@@ -1617,7 +1630,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Request",
@@ -1820,7 +1834,8 @@
     },
     {
       "query": "Banking::Account.Overdrawn",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.OpenForCustomer",
@@ -1830,23 +1845,28 @@
     },
     {
       "query": "Banking::Account.Open",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Account.ApplyFee",
@@ -2112,11 +2132,13 @@
     },
     {
       "query": "Banking::CardPayment.Pending",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::CardPayment.Disputed",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
@@ -2240,7 +2262,8 @@
     },
     {
       "query": "Banking::ExternalTransfer.Sent",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
@@ -2330,7 +2353,8 @@
     },
     {
       "query": "Banking::ScheduledPayment.Due",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking.customer_portfolio",
@@ -2460,11 +2484,13 @@
     },
     {
       "query": "Banking::SafeDepositBox.Rented",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::SafeDepositBox.Visit.Recent",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::SafeDepositBox.Surrender",
@@ -2490,7 +2516,8 @@
     },
     {
       "query": "Banking::Customer.NotGoodStanding",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.HighBalance",
@@ -2503,7 +2530,8 @@
     },
     {
       "query": "Banking::Account.Reachable",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::CardPayment.Authorize",
@@ -2527,7 +2555,8 @@
     },
     {
       "query": "Banking::CardPayment.Flagged",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.StrictlyAbove",
@@ -2585,7 +2614,8 @@
     },
     {
       "query": "Banking::OnboardingCase.Screening",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
@@ -3075,5 +3105,5055 @@
         }
       }
     }
-  ]
+  ],
+  "domain": "examples/banking",
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "CustomerNumber.value must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "DailyLimit invariant violated — a daily limit is non-negative (given {\"cents\":-1})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "AccountKind admits \"current\", \"savings\", \"reserve\" — got \"gold\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "EmailAddress.address must match ^[^@ ]+@[^@ ]+\\.[^@ ]+$, got \"nowhere\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "EmailAddress.address must match ^[^@ ]+@[^@ ]+\\.[^@ ]+$, got \"has a space@x.co\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "EmailAddress.address must match ^[^@ ]+@[^@ ]+\\.[^@ ]+$, got \"a@b\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney invariant violated — an amount is positive (given {\"cents\":0,\"currency\":\"USD\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — the balance covers it",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "PositiveMoney invariant violated — an amount is positive (given {\"cents\":0,\"currency\":\"USD\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — the daily limit allows it",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "Reverse refused — entry is posted",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "no LedgerEntry with sequence.value 99 on Account \"acct-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "TransferMoney invariant violated — a transfer amount is positive (given {\"cents\":0})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Request refused — a transfer moves BETWEEN accounts",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Transfer.Reverse",
+        "error": "Reverse refused — status is \"reversed\", and Reverse moves it only from \"debited\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "FreezeAccount refused — status is \"frozen\", and FreezeAccount moves it only from \"open\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — status is \"frozen\", and Debit moves it only from \"open\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "Suspend refused — status is \"suspended\", and Suspend moves it only from \"active\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Customer.Reinstate",
+        "error": "Reinstate refused — status is \"active\", and Reinstate moves it only from \"suspended\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Account.CloseAccount",
+        "error": "CloseAccount refused — an account closes empty",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.CloseAccount",
+        "error": "CloseAccount refused — an account closes empty",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Request refused — source account is open",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Transfer.Reject",
+        "error": "no Transfer with reference.value \"xfer-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "no Account with number.value \"acct-ghost\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "PositiveMoney.cents expects Integer, got \"lots\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "name is a PersonName — pass its fields as an object, not \"Ada\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Money.cents expects Integer, got \"a lot\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "CardSerial.value must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-2\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "no ATMCard with serial.value \"CARD-2\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "no ATMCard with serial.value \"CARD-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "no ATMCard with serial.value \"CARD-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "WithdrawalAmount invariant violated — a withdrawal amount is positive (given {\"cents\":0})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Retire",
+        "error": "no ATMCard with serial.value \"CARD-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "CustomerStanding.value must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Close",
+        "error": "Close refused — status is \"closed\", and Close moves it only from \"active\" or \"suspended\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Customer.Suspend",
+        "error": "Suspend refused — status is \"closed\", and Suspend moves it only from \"active\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Customer.Reinstate",
+        "error": "Reinstate refused — status is \"closed\", and Reinstate moves it only from \"suspended\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "PersonName.given must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "PersonName.family must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "error": "Register creates a Customer that already exists — reference.value \"CUST-0001\"",
+        "kind": "AlreadyExists"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "no Account with number.value \"acct-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "no Account with number.value \"acct-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "no Account with number.value \"acct-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney invariant violated — an amount is positive (given {\"cents\":-5000,\"currency\":\"USD\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "PositiveMoney invariant violated — an amount is positive (given {\"cents\":-5000,\"currency\":\"USD\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Narrative.text must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Unfreeze",
+        "error": "no Account with number.value \"acct-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney.cents expects Integer, got 25.5",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney.cents expects Integer, got \"100\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "no Account with number.value \"acct-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit was not given amount — it takes amount, narrative",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit does not declare colour — it takes amount, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit acts on an existing Account — pass number.value:",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "no Account with number.value \"acct-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.CloseAccount",
+        "error": "no Account with number.value \"acct-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "no Account with number.value \"acct-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "DailyLimit invariant violated — a daily limit is non-negative (given {\"cents\":-1})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "no Account with number.value \"acct-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "no Account with number.value \"acct-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "DailyLimit.cents expects Integer, got \"lots\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "no Account with number \"acct-7\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "TransferMoney invariant violated — a transfer amount is positive (given {\"cents\":-100})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "Narrative.text must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "no Account with number.value \"acct-7\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Reject",
+        "error": "no Transfer with reference.value \"xfer-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Debited",
+        "error": "no Transfer with reference.value \"xfer-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Settle",
+        "error": "no Transfer with reference.value \"xfer-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Credited",
+        "error": "no Transfer with reference.value \"xfer-4\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Reverse",
+        "error": "no Transfer with reference.value \"xfer-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Reject",
+        "error": "no Transfer with reference.value \"xfer-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Transfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Retire",
+        "error": "no ATMCard with serial.value \"CARD-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Retire",
+        "error": "no ATMCard with serial.value \"CARD-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Activate",
+        "error": "no ATMCard with serial.value \"CARD-5\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "no ATMCard with serial.value \"CARD-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Rename",
+        "error": "no ATMCard with serial.value \"CARD-3\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdraw",
+        "error": "WithdrawalAmount invariant violated — a withdrawal amount is positive (given {\"cents\":-100})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Reverse",
+        "error": "no Account with number.value \"acct-ghost\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Overdrawn",
+        "error": "Money.cents expects Integer, got \"lots\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.CorrectFee",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.CorrectFee",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "PositiveMoney invariant violated — an amount is positive (given {\"cents\":-1,\"currency\":\"USD\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Account.AccrueInterest",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "no Account with number.value \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "no CardPayment with authorisation.value \"pay-refund\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Refund",
+        "error": "no CardPayment with authorisation.value \"pay-refund\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Refund",
+        "error": "no CardPayment with authorisation.value \"pay-refund\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Void",
+        "error": "no CardPayment with authorisation.value \"pay-void\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "no CardPayment with authorisation.value \"pay-void\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "no CardPayment with authorisation.value \"pay-chargeback\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Dispute",
+        "error": "no CardPayment with authorisation.value \"pay-chargeback\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Chargeback",
+        "error": "no CardPayment with authorisation.value \"pay-chargeback\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.RejectDispute",
+        "error": "no CardPayment with authorisation.value \"pay-chargeback\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Capture",
+        "error": "no CardPayment with authorisation.value \"pay-reversal\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Reverse",
+        "error": "no CardPayment with authorisation.value \"pay-reversal\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Refund",
+        "error": "no CardPayment with authorisation.value \"pay-reversal\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "PaymentAmount invariant violated — a payment amount is positive (given {\"cents\":0})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.SendTransfer",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-recall\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Recall",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-recall\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Return",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-recall\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.SendTransfer",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-return\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Return",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-return\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Recall",
+        "error": "no ExternalTransfer with end_to_end.value \"ext-return\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "ExternalAmount invariant violated — an external transfer amount is positive (given {\"cents\":0})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "error": "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got \"sideways\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Execute",
+        "error": "no ScheduledPayment with instruction.value \"schedule-execute\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Cancel",
+        "error": "no ScheduledPayment with instruction.value \"schedule-execute\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "no Account with number \"acct-8\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Cancel",
+        "error": "no ScheduledPayment with instruction.value \"schedule-cancel\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Execute",
+        "error": "no ScheduledPayment with instruction.value \"schedule-cancel\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "ScheduledAmount invariant violated — a scheduled payment amount is positive (given {\"cents\":0})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rent",
+        "error": "Rent refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.LogVisit",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Visit.Annotate",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.IssueKey",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Rented",
+        "error": "Rented declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Surrender",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::SafeDepositBox.Surrender",
+        "error": "no SafeDepositBox with branch_code.value, box_number.value \"DOWNTOWN:12\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "error": "Authorize refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Clear",
+        "error": "no OnboardingCase with reference.value \"case-corpus-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Open",
+        "error": "Open refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::OnboardingCase.Decline",
+        "error": "no OnboardingCase with reference.value \"case-corpus-2\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "no Account with number \"acct-onboard-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Fail",
+        "error": "no ScheduledPayment with instruction.value \"sched-retry-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Abandon",
+        "error": "no ScheduledPayment with instruction.value \"sched-retry-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking.compliance_dashboard",
+        "error": "no Account with reference \"acct-onboard-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "error": "no Account with number \"acct-onboard-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Fail",
+        "error": "no ScheduledPayment with instruction.value \"sched-retry-2\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Retry",
+        "error": "no ScheduledPayment with instruction.value \"sched-retry-2\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate refused — customer is active",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open creates a Account that already exists — number.value \"acct-guard-a\"",
+        "kind": "AlreadyExists"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "error": "Issue creates a ATMCard that already exists — serial.value \"CARD-GUARD-B\"",
+        "kind": "AlreadyExists"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "error": "Amend refused — an amendment leaves a non-negative amount",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "error": "CorrectInterest refused — a correction cannot exceed accrued interest",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Transfer.Settle",
+        "error": "Settle refused — status is \"settled\", and Settle moves it only from \"credited\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
+        "error": "Generate creates a Statement that already exists — account, period.value \"acct-guard-f:2026-08\"",
+        "kind": "AlreadyExists"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#CUST-0001": {
+        "reference": {
+          "value": "CUST-0001"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "closed"
+      },
+      "Banking::Customer#CUST-0002": {
+        "reference": {
+          "value": "CUST-0002"
+        },
+        "name": {
+          "given": "Grace",
+          "family": "Hopper"
+        },
+        "email": {
+          "address": "grace@example.com"
+        },
+        "standing": {
+          "value": "under review"
+        },
+        "status": "closed"
+      },
+      "Banking::Customer#CUST-GUARD-A": {
+        "reference": {
+          "value": "CUST-GUARD-A"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "A"
+        },
+        "email": {
+          "address": "guard-a@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#CUST-GUARD-B": {
+        "reference": {
+          "value": "CUST-GUARD-B"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "B"
+        },
+        "email": {
+          "address": "guard-b@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#CUST-GUARD-C": {
+        "reference": {
+          "value": "CUST-GUARD-C"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "C"
+        },
+        "email": {
+          "address": "guard-c@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#CUST-GUARD-D": {
+        "reference": {
+          "value": "CUST-GUARD-D"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "D"
+        },
+        "email": {
+          "address": "guard-d@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#CUST-GUARD-E": {
+        "reference": {
+          "value": "CUST-GUARD-E"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "E"
+        },
+        "email": {
+          "address": "guard-e@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Customer#CUST-GUARD-F": {
+        "reference": {
+          "value": "CUST-GUARD-F"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "F"
+        },
+        "email": {
+          "address": "guard-f@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "CUST-0001",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 60000,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Opening deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Posted in error — reversed"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "reversed"
+          },
+          {
+            "amount": {
+              "cents": 55000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Salary"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 3
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 4
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 1000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 5
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 1000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer reversed"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 6
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "suspended"
+      },
+      "Banking::Account#acct-2": {
+        "customer": "CUST-0001",
+        "number": {
+          "value": "acct-2"
+        },
+        "balance": {
+          "cents": 2500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer in"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "suspended"
+      },
+      "Banking::Account#acct-noname": {
+        "customer": "CUST-0001",
+        "number": {
+          "value": "acct-noname"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "suspended"
+      },
+      "Banking::Account#acct-guard-a": {
+        "customer": "CUST-GUARD-A",
+        "number": {
+          "value": "acct-guard-a"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-b": {
+        "customer": "CUST-GUARD-B",
+        "number": {
+          "value": "acct-guard-b"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-c": {
+        "customer": "CUST-GUARD-C",
+        "number": {
+          "value": "acct-guard-c"
+        },
+        "balance": {
+          "cents": 500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Opening"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-d": {
+        "customer": "CUST-GUARD-D",
+        "number": {
+          "value": "acct-guard-d"
+        },
+        "balance": {
+          "cents": 10,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 10,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-e-src": {
+        "customer": "CUST-GUARD-E",
+        "number": {
+          "value": "acct-guard-e-src"
+        },
+        "balance": {
+          "cents": 4900,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 5000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Funding"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 100,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-e-dst": {
+        "customer": "CUST-GUARD-E",
+        "number": {
+          "value": "acct-guard-e-dst"
+        },
+        "balance": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 100,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer in"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-guard-f": {
+        "customer": "CUST-GUARD-F",
+        "number": {
+          "value": "acct-guard-f"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::ATMCard#CARD-GUARD-B": {
+        "account": "acct-guard-b",
+        "serial": {
+          "value": "CARD-GUARD-B"
+        },
+        "nickname": null,
+        "daily_fee": {
+          "amount": 1
+        },
+        "withdrawals": [
+
+        ],
+        "status": "issued",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::Statement#acct-guard-f:2026-08": {
+        "account": "acct-guard-f",
+        "period": {
+          "value": "2026-08"
+        },
+        "opening_balance": {
+          "cents": 0
+        },
+        "closing_balance": {
+          "cents": 0
+        },
+        "generated_on": {
+          "value": "2026-09-01"
+        },
+        "frequency": {
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
+        }
+      },
+      "Banking::Transfer#xfer-1": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "reference": {
+          "value": "xfer-1"
+        },
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "Rent"
+        },
+        "status": "settled",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      },
+      "Banking::Transfer#xfer-2": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "reference": {
+          "value": "xfer-2"
+        },
+        "amount": {
+          "cents": 1000
+        },
+        "narrative": {
+          "text": "Into the frozen account"
+        },
+        "status": "reversed",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "frozen",
+        "destination_customer_status": "active"
+      },
+      "Banking::Transfer#xfer-guard-e": {
+        "source": "acct-guard-e-src",
+        "destination": "acct-guard-e-dst",
+        "reference": {
+          "value": "xfer-guard-e"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "Not yet debited"
+        },
+        "status": "settled",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0001",
+        "payload": {
+          "reference": {
+            "value": "CUST-0001"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          },
+          "customer": "CUST-0001"
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "number": {
+            "value": "acct-2"
+          },
+          "kind": {
+            "name": "savings"
+          },
+          "daily_limit": {
+            "cents": 10000
+          },
+          "customer": "CUST-0001"
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-noname",
+        "payload": {
+          "number": {
+            "value": "acct-noname"
+          },
+          "kind": {
+            "name": "savings"
+          },
+          "daily_limit": {
+            "cents": 10000
+          },
+          "customer": "CUST-0001"
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 10000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Opening deposit"
+          },
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Groceries"
+          },
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 55000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Salary"
+          },
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "LedgerEntryReversed",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "sequence": {
+            "value": 2
+          },
+          "narrative": {
+            "text": "Posted in error — reversed"
+          },
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+          "source": "acct-1",
+          "destination": "acct-2",
+          "amount": {
+            "cents": 2500
+          },
+          "narrative": {
+            "text": "Rent"
+          },
+          "reference": {
+            "value": "xfer-1"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer in"
+          }
+        }
+      },
+      {
+        "name": "TransferCredited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "TransferSettled",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "number": {
+            "value": "acct-2"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-2",
+        "payload": {
+          "source": "acct-1",
+          "destination": "acct-2",
+          "amount": {
+            "cents": 1000
+          },
+          "narrative": {
+            "text": "Into the frozen account"
+          },
+          "reference": {
+            "value": "xfer-2"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 1000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-2",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 1000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer reversed"
+          }
+        }
+      },
+      {
+        "name": "TransferReversed",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-2",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountUnfrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "number": {
+            "value": "acct-2"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "AccountUnfrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      },
+      {
+        "name": "CustomerSuspended",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0001",
+        "payload": {
+          "standing": {
+            "value": "chargeback investigation"
+          },
+          "reference": {
+            "value": "CUST-0001"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-noname",
+        "payload": {
+        }
+      },
+      {
+        "name": "CustomerReinstated",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0001",
+        "payload": {
+          "reference": {
+            "value": "CUST-0001"
+          }
+        }
+      },
+      {
+        "name": "CustomerClosed",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0001",
+        "payload": {
+          "reference": {
+            "value": "CUST-0001"
+          }
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0002",
+        "payload": {
+          "reference": {
+            "value": "CUST-0002"
+          },
+          "name": {
+            "given": "Grace",
+            "family": "Hopper"
+          },
+          "email": {
+            "address": "grace@example.com"
+          }
+        }
+      },
+      {
+        "name": "CustomerSuspended",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0002",
+        "payload": {
+          "standing": {
+            "value": "under review"
+          },
+          "reference": {
+            "value": "CUST-0002"
+          }
+        }
+      },
+      {
+        "name": "CustomerClosed",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0002",
+        "payload": {
+          "reference": {
+            "value": "CUST-0002"
+          }
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-A",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-A"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "A"
+          },
+          "email": {
+            "address": "guard-a@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-a",
+        "payload": {
+          "number": {
+            "value": "acct-guard-a"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 1000
+          },
+          "customer": "CUST-GUARD-A"
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-B",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-B"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "B"
+          },
+          "email": {
+            "address": "guard-b@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-b",
+        "payload": {
+          "number": {
+            "value": "acct-guard-b"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 1000
+          },
+          "customer": "CUST-GUARD-B"
+        }
+      },
+      {
+        "name": "ATMCardIssued",
+        "aggregate": "Banking::ATMCard",
+        "id": "CARD-GUARD-B",
+        "payload": {
+          "serial": {
+            "value": "CARD-GUARD-B"
+          },
+          "daily_fee": {
+            "amount": 1
+          },
+          "account": "acct-guard-b"
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-C",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-C"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "C"
+          },
+          "email": {
+            "address": "guard-c@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-c",
+        "payload": {
+          "number": {
+            "value": "acct-guard-c"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-GUARD-C"
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-c",
+        "payload": {
+          "amount": {
+            "cents": 500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Opening"
+          },
+          "number": {
+            "value": "acct-guard-c"
+          }
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-D",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-D"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "D"
+          },
+          "email": {
+            "address": "guard-d@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-d",
+        "payload": {
+          "number": {
+            "value": "acct-guard-d"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-GUARD-D"
+        }
+      },
+      {
+        "name": "InterestAccrued",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-d",
+        "payload": {
+          "amount": {
+            "cents": 10,
+            "currency": "USD"
+          },
+          "number": {
+            "value": "acct-guard-d"
+          }
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-E",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-E"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "E"
+          },
+          "email": {
+            "address": "guard-e@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-e-src",
+        "payload": {
+          "number": {
+            "value": "acct-guard-e-src"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-GUARD-E"
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-e-dst",
+        "payload": {
+          "number": {
+            "value": "acct-guard-e-dst"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-GUARD-E"
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-e-src",
+        "payload": {
+          "amount": {
+            "cents": 5000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Funding"
+          },
+          "number": {
+            "value": "acct-guard-e-src"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-guard-e",
+        "payload": {
+          "source": "acct-guard-e-src",
+          "destination": "acct-guard-e-dst",
+          "amount": {
+            "cents": 100
+          },
+          "narrative": {
+            "text": "Not yet debited"
+          },
+          "reference": {
+            "value": "xfer-guard-e"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-e-src",
+        "payload": {
+          "amount": {
+            "cents": 100,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-guard-e",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-e-dst",
+        "payload": {
+          "amount": {
+            "cents": 100,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer in"
+          }
+        }
+      },
+      {
+        "name": "TransferCredited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-guard-e",
+        "payload": {
+        }
+      },
+      {
+        "name": "TransferSettled",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-guard-e",
+        "payload": {
+        }
+      },
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-GUARD-F",
+        "payload": {
+          "reference": {
+            "value": "CUST-GUARD-F"
+          },
+          "name": {
+            "given": "Guard",
+            "family": "F"
+          },
+          "email": {
+            "address": "guard-f@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-guard-f",
+        "payload": {
+          "number": {
+            "value": "acct-guard-f"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-GUARD-F"
+        }
+      },
+      {
+        "name": "StatementGenerated",
+        "aggregate": "Banking::Statement",
+        "id": "acct-guard-f:2026-08",
+        "payload": {
+          "account": "acct-guard-f",
+          "period": {
+            "value": "2026-08"
+          },
+          "opening_balance": {
+            "cents": 0
+          },
+          "closing_balance": {
+            "cents": 0
+          },
+          "generated_on": {
+            "value": "2026-09-01"
+          },
+          "frequency": {
+            "cadence": "monthly",
+            "retention_months": 84,
+            "paper_fee_cents": 0
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking::Transfer.InFlight",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Customer.Suspended",
+        "args": {
+        },
+        "rows": [
+          {
+            "reference": {
+              "value": "CUST-0001"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "chargeback investigation"
+            },
+            "status": "suspended",
+            "id": "CUST-0001"
+          }
+        ],
+        "reference_rows": [
+          {
+            "reference": {
+              "value": "CUST-0001"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "chargeback investigation"
+            },
+            "status": "suspended",
+            "id": "CUST-0001"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenForSuspendedCustomers",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenForCustomer",
+        "args": {
+          "reference": {
+            "value": "CUST-0001"
+          }
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.Open",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.Overdrawn",
+        "args": {
+          "floor": {
+            "cents": 70000,
+            "currency": "USD"
+          }
+        },
+        "rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Customer.InGoodStanding",
+        "args": {
+        },
+        "rows": [
+          {
+            "reference": {
+              "value": "CUST-0001"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active",
+            "id": "CUST-0001"
+          }
+        ],
+        "reference_rows": [
+          {
+            "reference": {
+              "value": "CUST-0001"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active",
+            "id": "CUST-0001"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Customer.Suspended",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Transfer.InFlight",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.LedgerEntry.Reversed",
+        "args": {
+        },
+        "rows": [
+          {
+            "account": "acct-1",
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Posted in error — reversed"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "reversed"
+          }
+        ],
+        "reference_rows": [
+          {
+            "account": "acct-1",
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Posted in error — reversed"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "reversed"
+          }
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.Active",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.ByFee",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.Withdrawal.Recent",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.Active",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Transfer.InFlight",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Transfer.InFlight",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.Overdrawn",
+        "args": {
+          "floor": {
+            "cents": 0,
+            "currency": "USD"
+          }
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.Overdrawn",
+        "args": {
+          "floor": {
+            "cents": "lots",
+            "currency": "USD"
+          }
+        },
+        "rows": null,
+        "error": "Money.cents expects Integer, got \"lots\"",
+        "reference_rows": null,
+        "reference_error": "Money.cents expects Integer, got \"lots\""
+      },
+      {
+        "query": "Banking::Account.Overdrawn",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenForCustomer",
+        "args": {
+          "reference": "CUST-0001"
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.Open",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Customer.InGoodStanding",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.Active",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.ByFee",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Transfer.InFlight",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::CardPayment.Pending",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::CardPayment.Disputed",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ExternalTransfer.Sent",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ScheduledPayment.Due",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking.customer_portfolio",
+        "args": {
+          "customer": "CUST-0001"
+        },
+        "rows": [
+          {
+            "customer": {
+              "reference": {
+                "value": "CUST-0001"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              },
+              "standing": {
+                "value": "good"
+              },
+              "status": "closed",
+              "id": "CUST-0001"
+            },
+            "accounts": [
+              {
+                "customer": "CUST-0001",
+                "number": {
+                  "value": "acct-1"
+                },
+                "balance": {
+                  "cents": 60000,
+                  "currency": "USD"
+                },
+                "kind": {
+                  "name": "current"
+                },
+                "daily_limit": {
+                  "cents": 50000
+                },
+                "ledger": [
+                  {
+                    "amount": {
+                      "cents": 10000,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "Opening deposit"
+                    },
+                    "direction": {
+                      "value": "credit"
+                    },
+                    "sequence": {
+                      "value": 1
+                    },
+                    "state": "posted"
+                  },
+                  {
+                    "amount": {
+                      "cents": 2500,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "Posted in error — reversed"
+                    },
+                    "direction": {
+                      "value": "debit"
+                    },
+                    "sequence": {
+                      "value": 2
+                    },
+                    "state": "reversed"
+                  },
+                  {
+                    "amount": {
+                      "cents": 55000,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "Salary"
+                    },
+                    "direction": {
+                      "value": "credit"
+                    },
+                    "sequence": {
+                      "value": 3
+                    },
+                    "state": "posted"
+                  },
+                  {
+                    "amount": {
+                      "cents": 2500,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "transfer out"
+                    },
+                    "direction": {
+                      "value": "debit"
+                    },
+                    "sequence": {
+                      "value": 4
+                    },
+                    "state": "posted"
+                  },
+                  {
+                    "amount": {
+                      "cents": 1000,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "transfer out"
+                    },
+                    "direction": {
+                      "value": "debit"
+                    },
+                    "sequence": {
+                      "value": 5
+                    },
+                    "state": "posted"
+                  },
+                  {
+                    "amount": {
+                      "cents": 1000,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "transfer reversed"
+                    },
+                    "direction": {
+                      "value": "credit"
+                    },
+                    "sequence": {
+                      "value": 6
+                    },
+                    "state": "posted"
+                  }
+                ],
+                "fees_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "interest_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "status": "frozen",
+                "customer_status": "suspended",
+                "id": "acct-1"
+              },
+              {
+                "customer": "CUST-0001",
+                "number": {
+                  "value": "acct-2"
+                },
+                "balance": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "kind": {
+                  "name": "savings"
+                },
+                "daily_limit": {
+                  "cents": 10000
+                },
+                "ledger": [
+                  {
+                    "amount": {
+                      "cents": 2500,
+                      "currency": "USD"
+                    },
+                    "narrative": {
+                      "text": "transfer in"
+                    },
+                    "direction": {
+                      "value": "credit"
+                    },
+                    "sequence": {
+                      "value": 1
+                    },
+                    "state": "posted"
+                  }
+                ],
+                "fees_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "interest_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "status": "frozen",
+                "customer_status": "suspended",
+                "id": "acct-2"
+              },
+              {
+                "customer": "CUST-0001",
+                "number": {
+                  "value": "acct-noname"
+                },
+                "balance": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "kind": {
+                  "name": "savings"
+                },
+                "daily_limit": {
+                  "cents": 10000
+                },
+                "ledger": [
+
+                ],
+                "fees_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "interest_cents": {
+                  "cents": 0,
+                  "currency": "USD"
+                },
+                "status": "frozen",
+                "customer_status": "suspended",
+                "id": "acct-noname"
+              }
+            ],
+            "atm_cards": [
+
+            ],
+            "transfers": [
+              {
+                "source": "acct-1",
+                "destination": "acct-2",
+                "reference": {
+                  "value": "xfer-1"
+                },
+                "amount": {
+                  "cents": 2500
+                },
+                "narrative": {
+                  "text": "Rent"
+                },
+                "status": "settled",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "open",
+                "destination_customer_status": "active",
+                "id": "xfer-1"
+              },
+              {
+                "source": "acct-1",
+                "destination": "acct-2",
+                "reference": {
+                  "value": "xfer-2"
+                },
+                "amount": {
+                  "cents": 1000
+                },
+                "narrative": {
+                  "text": "Into the frozen account"
+                },
+                "status": "reversed",
+                "source_account_status": "open",
+                "source_customer_status": "active",
+                "destination_account_status": "frozen",
+                "destination_customer_status": "active",
+                "id": "xfer-2"
+              }
+            ],
+            "card_payments": [
+
+            ],
+            "external_transfers": [
+
+            ],
+            "scheduled_payments": [
+
+            ]
+          }
+        ]
+      },
+      {
+        "query": "Banking::SafeDepositBox.Rented",
+        "args": {
+          "branch_code": "DOWNTOWN"
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::SafeDepositBox.Rented",
+        "args": {
+        },
+        "rows": null,
+        "error": "Rented declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to",
+        "reference_rows": null,
+        "reference_error": "Rented declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to"
+      },
+      {
+        "query": "Banking::SafeDepositBox.Visit.Recent",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Customer.NotGoodStanding",
+        "args": {
+        },
+        "rows": [
+          {
+            "reference": {
+              "value": "CUST-0002"
+            },
+            "name": {
+              "given": "Grace",
+              "family": "Hopper"
+            },
+            "email": {
+              "address": "grace@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "closed",
+            "id": "CUST-0002"
+          }
+        ],
+        "reference_rows": [
+          {
+            "reference": {
+              "value": "CUST-0002"
+            },
+            "name": {
+              "given": "Grace",
+              "family": "Hopper"
+            },
+            "email": {
+              "address": "grace@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "closed",
+            "id": "CUST-0002"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.HighBalance",
+        "args": {
+          "floor": {
+            "cents": 1000,
+            "currency": "USD"
+          }
+        },
+        "rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.Reachable",
+        "args": {
+        },
+        "rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          }
+        ]
+      },
+      {
+        "query": "Banking::CardPayment.Flagged",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.StrictlyAbove",
+        "args": {
+          "floor": {
+            "cents": 1000,
+            "currency": "USD"
+          }
+        },
+        "rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 60000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Posted in error — reversed"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "reversed"
+              },
+              {
+                "amount": {
+                  "cents": 55000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "Salary"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 3
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 4
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer out"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 5
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 1000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer reversed"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 6
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-1"
+          },
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 2500,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "transfer in"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-2"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.AtMost",
+        "args": {
+          "cap": {
+            "cents": 1000,
+            "currency": "USD"
+          }
+        },
+        "rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "CUST-0001",
+            "number": {
+              "value": "acct-noname"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "savings"
+            },
+            "daily_limit": {
+              "cents": 10000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended",
+            "id": "acct-noname"
+          }
+        ]
+      },
+      {
+        "query": "Banking::OnboardingCase.Screening",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking.compliance_dashboard",
+        "args": {
+          "account": "acct-onboard-1"
+        },
+        "rows": null,
+        "error": "no Account with reference \"acct-onboard-1\""
+      }
+    ],
+    "sagas": [
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-1",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountDebited",
+        "instance": "xfer-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-1",
+        "dispatch": "Transfer.Debited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountCredited",
+        "instance": "xfer-1",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferCredited",
+        "instance": "xfer-1",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "settled"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferSettled",
+        "instance": "xfer-1",
+        "ended": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-1",
+        "dispatch": "Transfer.Settle",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-1",
+        "dispatch": "Transfer.Credited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-1",
+        "dispatch": "Account.Credit",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-1",
+        "dispatch": "Account.Debit",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-2",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-2",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountDebited",
+        "instance": "xfer-2",
+        "advanced": true,
+        "from": "requested",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-2",
+        "dispatch": "Transfer.Debited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-2",
+        "dispatch": "Account.Credit",
+        "delivered": false,
+        "reason": "Credit refused — status is \"frozen\", and Credit moves it only from \"open\""
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "refused",
+        "instance": "xfer-2",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "reversed"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountCredited",
+        "instance": "xfer-2",
+        "advanced": false,
+        "reason": "in \"reversed\", not \"awaiting_credit\""
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-2",
+        "dispatch": "Account.Credit",
+        "delivered": true,
+        "compensation": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-2",
+        "dispatch": "Transfer.Reverse",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-2",
+        "dispatch": "Account.Debit",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-guard-e",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-guard-e",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountDebited",
+        "instance": "xfer-guard-e",
+        "advanced": true,
+        "from": "requested",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-guard-e",
+        "dispatch": "Transfer.Debited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountCredited",
+        "instance": "xfer-guard-e",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferCredited",
+        "instance": "xfer-guard-e",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "settled"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferSettled",
+        "instance": "xfer-guard-e",
+        "ended": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-guard-e",
+        "dispatch": "Transfer.Settle",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-guard-e",
+        "dispatch": "Transfer.Credited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-guard-e",
+        "dispatch": "Account.Credit",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-guard-e",
+        "dispatch": "Account.Debit",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      },
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      },
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      },
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      },
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      },
+      {
+        "policy": "FreezeAccountsOnSuspension",
+        "on": "CustomerSuspended",
+        "trigger": "Banking::Account.FreezeAccount",
+        "for_row": "acct-1",
+        "delivered": true
+      },
+      {
+        "policy": "FreezeAccountsOnSuspension",
+        "on": "CustomerSuspended",
+        "trigger": "Banking::Account.FreezeAccount",
+        "for_row": "acct-2",
+        "delivered": true
+      },
+      {
+        "policy": "FreezeAccountsOnSuspension",
+        "on": "CustomerSuspended",
+        "trigger": "Banking::Account.FreezeAccount",
+        "for_row": "acct-noname",
+        "delivered": true
+      }
+    ]
+  }
 }

@@ -132,7 +132,7 @@ pub(super) fn unsubscribe_url(site_url: &str, email: &str, token: &str) -> Strin
     url.to_string()
 }
 
-fn personalize(body: &str, unsubscribe_url: &str) -> String {
+pub(super) fn personalize(body: &str, unsubscribe_url: &str) -> String {
     body.replace(UNSUBSCRIBE_TOKEN, unsubscribe_url)
 }
 

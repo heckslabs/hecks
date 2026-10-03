@@ -2,6 +2,72 @@
   "domain": "examples/banking",
   "note": "Single-field bare-scalar acceptance (ADR 0067). CustomerNumber declares exactly one attribute, so `reference: \"cust-1\"` wraps into that sole field on both runtimes, next to PersonName{given, family} and EmailAddress{address} given as objects. The counterpart refusal for a multi-field value object offered a bare scalar is pinned by refusal_wording_value_object_shape.json.",
   "steps": [
-    {"verb": "Banking::Customer.Register", "args": {"reference": "cust-1", "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}}
-  ]
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "cust-1",
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

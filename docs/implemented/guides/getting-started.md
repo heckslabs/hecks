@@ -233,7 +233,7 @@ A value object with a single attribute takes a bare scalar: `name:
 "Margherita"` fills its one `value` field. The object form is equivalent,
 so `name: { value: "Margherita" }` does the same thing; you need it when the
 value object has several fields, as `pizza:` does (`price_cents` and
-`size`). The console's own `try:` banner uses the object form throughout.
+`size`).
 
 Notice what you did not write: no `save`, no repository call, no id
 passed by hand. Identity was declared once, and the door carries it.
@@ -272,6 +272,8 @@ implementation; every example here is tested.
 
 ## Where to go next
 
+- **[Your own domain](your-own-domain.md)** — write a bluebook of
+  your own, run it, and deploy it to AWS Lambda.
 - **[Aggregates and value objects](aggregates-and-value-objects.md)** —
   identity in full, composite keys, defaults, patterns, closed sets,
   references between aggregates.

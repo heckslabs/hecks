@@ -4,6 +4,7 @@ require_relative "replay"
 require_relative "properties"
 require_relative "self_consistency"
 require_relative "rust_gap_manifest"
+require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
 
 module Hecks
@@ -91,7 +92,7 @@ module Hecks
           outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite.call
         end
 
-        stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
+        stdout, status = Open3.capture2(binary, stdin_data: RustBuild::KernelInput.json(domain_path, steps))
         unless status.success?
           return outcomes.merge(differential: [{ field:  "process",
                                                  detail: "rust binary exited #{status.exitstatus}: #{stdout}" }])

@@ -1,6 +1,6 @@
 {
   "domain": "examples/roster",
-  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate \u2014 .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication \u2014 and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch. The Retire steps drive `delegates_to` (Roster.Retire \u2192 Member.Retire): the entity's own given and ensures both read `parent` \u2014 the given before the element changes, the ensures after \u2014 so crew-2's lone member retiring is refused by the ensures only if the parent the ensures sees already carries the retired element. The dry_run steps are Dispatcher#dry_run? \u2014 hypothetical dispatches (a refused seat, an accepted Honor that must leave `standing` untouched, a refused delegating door) answered identically by both runtimes and persisting nothing.",
+  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate — .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication — and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch. The Retire steps drive `delegates_to` (Roster.Retire → Member.Retire): the entity's own given and ensures both read `parent` — the given before the element changes, the ensures after — so crew-2's lone member retiring is refused by the ensures only if the parent the ensures sees already carries the retired element. The dry_run steps are Dispatcher#dry_run? — hypothetical dispatches (a refused seat, an accepted Honor that must leave `standing` untouched, a refused delegating door) answered identically by both runtimes and persisting nothing.",
   "steps": [
     {
       "verb": "Roster::Roster.Open",
@@ -447,5 +447,635 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Roster::Roster.AddSeat",
+        "error": "AddSeat refused — seat numbers are unique",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Enlist",
+        "error": "Enlist refused — nobody enlists twice",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — the seat is free",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — the member is enlisted",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — the member sits nowhere else",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — the seat exists",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — a front-row seat takes a member of age",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Assign",
+        "error": "Assign refused — a front-row seat takes a member of age",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Enlist",
+        "error": "Enlist refused — an open seat remains",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "Retire refused — a front-row holder may not retire",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "Retire refused — status is \"retired\", and Retire moves it only from \"active\"",
+        "kind": "LifecycleRefused"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "no Member with id.value nobody on Roster \"crew-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "error": "Retire refused — someone still serves",
+        "kind": "EnsuresNotMet"
+      },
+      {
+        "verb": "Roster::Roster.Member.Retire",
+        "error": "Retire refused — a front-row holder may not retire",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Roster::Roster#crew-1": {
+        "name": {
+          "value": "crew-1"
+        },
+        "motto": {
+          "value": "all hands"
+        },
+        "mood": {
+          "value": "busy"
+        },
+        "standing": {
+          "value": "officer"
+        },
+        "last_marked": {
+          "value": 3
+        },
+        "seats": [
+          {
+            "number": {
+              "value": 1
+            },
+            "row": {
+              "value": "front"
+            }
+          },
+          {
+            "number": {
+              "value": 2
+            },
+            "row": {
+              "value": "back"
+            }
+          },
+          {
+            "number": {
+              "value": 3
+            },
+            "row": {
+              "value": "front"
+            }
+          }
+        ],
+        "crew": [
+          {
+            "id": {
+              "value": "ada"
+            },
+            "age": {
+              "value": 34
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "active"
+          },
+          {
+            "id": {
+              "value": "bob"
+            },
+            "age": {
+              "value": 19
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "retired"
+          },
+          {
+            "id": {
+              "value": "dan"
+            },
+            "age": {
+              "value": 18
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "retired"
+          },
+          {
+            "id": {
+              "value": "eve"
+            },
+            "age": {
+              "value": 40
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "active"
+          }
+        ],
+        "assignments": [
+          {
+            "member": {
+              "value": "ada"
+            },
+            "number": {
+              "value": 1
+            }
+          },
+          {
+            "member": {
+              "value": "bob"
+            },
+            "number": {
+              "value": 2
+            }
+          },
+          {
+            "member": {
+              "value": "eve"
+            },
+            "number": {
+              "value": 3
+            }
+          }
+        ]
+      },
+      "Roster::Roster#crew-2": {
+        "name": {
+          "value": "crew-2"
+        },
+        "motto": {
+          "value": "all hands"
+        },
+        "mood": {
+          "value": "open"
+        },
+        "standing": {
+          "value": "none"
+        },
+        "last_marked": null,
+        "seats": [
+          {
+            "number": {
+              "value": 1
+            },
+            "row": {
+              "value": "back"
+            }
+          }
+        ],
+        "crew": [
+          {
+            "id": {
+              "value": "zoe"
+            },
+            "age": {
+              "value": 30
+            },
+            "rank": {
+              "value": "hand"
+            },
+            "status": "active"
+          }
+        ],
+        "assignments": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "RosterOpened",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          }
+        }
+      },
+      {
+        "name": "SeatAdded",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "number": {
+            "value": 1
+          },
+          "row": {
+            "value": "front"
+          }
+        }
+      },
+      {
+        "name": "SeatAdded",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "number": {
+            "value": 2
+          },
+          "row": {
+            "value": "back"
+          }
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "ada"
+          },
+          "age": {
+            "value": 34
+          }
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "bob"
+          },
+          "age": {
+            "value": 19
+          }
+        }
+      },
+      {
+        "name": "SeatAssigned",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "member": {
+            "value": "ada"
+          },
+          "number": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "SeatMarked",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "to": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "MarkNoticed",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "RosterHonored",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "rank": {
+            "value": "officer"
+          }
+        }
+      },
+      {
+        "name": "SeatAdded",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "number": {
+            "value": 3
+          },
+          "row": {
+            "value": "front"
+          }
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "dan"
+          },
+          "age": {
+            "value": 18
+          }
+        }
+      },
+      {
+        "name": "SeatAssigned",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "member": {
+            "value": "bob"
+          },
+          "number": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "name": "SeatMarked",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "to": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "name": "MarkNoticed",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "eve"
+          },
+          "age": {
+            "value": 40
+          }
+        }
+      },
+      {
+        "name": "SeatAssigned",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "member": {
+            "value": "eve"
+          },
+          "number": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "SeatMarked",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "to": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "MarkNoticed",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "MemberRetired",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "bob"
+          }
+        }
+      },
+      {
+        "name": "MemberRetired",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "id": {
+            "value": "dan"
+          }
+        }
+      },
+      {
+        "name": "RosterOpened",
+        "aggregate": "Roster::Roster",
+        "id": "crew-2",
+        "payload": {
+          "name": {
+            "value": "crew-2"
+          }
+        }
+      },
+      {
+        "name": "SeatAdded",
+        "aggregate": "Roster::Roster",
+        "id": "crew-2",
+        "payload": {
+          "name": {
+            "value": "crew-2"
+          },
+          "number": {
+            "value": 1
+          },
+          "row": {
+            "value": "back"
+          }
+        }
+      },
+      {
+        "name": "MemberEnlisted",
+        "aggregate": "Roster::Roster",
+        "id": "crew-2",
+        "payload": {
+          "name": {
+            "value": "crew-2"
+          },
+          "id": {
+            "value": "zoe"
+          },
+          "age": {
+            "value": 30
+          }
+        }
+      },
+      {
+        "name": "RosterHonored",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "rank": {
+            "value": "officer"
+          }
+        }
+      },
+      {
+        "name": "RosterHonored",
+        "aggregate": "Roster::Roster",
+        "id": "crew-1",
+        "payload": {
+          "name": {
+            "value": "crew-1"
+          },
+          "rank": {
+            "value": "officer"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+      {
+        "verb": "Roster::Roster.AddSeat",
+        "ok": false,
+        "error": "AddSeat refused — seat numbers are unique"
+      },
+      {
+        "verb": "Roster::Roster.Honor",
+        "ok": true
+      },
+      {
+        "verb": "Roster::Roster.Retire",
+        "ok": false,
+        "error": "Retire refused — a front-row holder may not retire"
+      }
+    ],
+    "reactions": [
+      {
+        "policy": "OnSeatMarkedNotice",
+        "on": "SeatMarked",
+        "trigger": "Roster::Roster.Notice",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatAssignedMark",
+        "on": "SeatAssigned",
+        "trigger": "Roster::Roster.Mark",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatAssignedHonorFront",
+        "on": "SeatAssigned",
+        "trigger": "Roster::Roster.Honor",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatMarkedNotice",
+        "on": "SeatMarked",
+        "trigger": "Roster::Roster.Notice",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatAssignedMark",
+        "on": "SeatAssigned",
+        "trigger": "Roster::Roster.Mark",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatMarkedNotice",
+        "on": "SeatMarked",
+        "trigger": "Roster::Roster.Notice",
+        "delivered": true
+      },
+      {
+        "policy": "OnSeatAssignedMark",
+        "on": "SeatAssigned",
+        "trigger": "Roster::Roster.Mark",
+        "delivered": true
+      }
+    ]
+  }
 }
