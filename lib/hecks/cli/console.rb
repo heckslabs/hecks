@@ -25,12 +25,25 @@ module Hecks
       # @param domain [String, nil] a domain directory; the bundled pizzas domain when nil
       # @param launcher [#call] starts the interactive session; IRB unless a caller stands in
       # @return [Runtime] the runtime the session ran against
-      def call(domain = nil, launcher: -> { IRB.start(__FILE__) })
+      def call(domain = nil, launcher: -> { irb_session })
         runtime = domain ? Hecks.boot(domain) : Hecks.boot_files(DEFAULT_FILES)
         puts overview(runtime)
         puts banner
         launcher.call
         runtime
+      end
+
+      # Starts IRB with an empty command line. IRB reads `ARGV` for a script to run, and a
+      # launcher's `ARGV` holds its own words (`console`, `subject=<domain>`), which IRB would
+      # open as a file and then exit without a prompt.
+      #
+      # @return [void] when the session ends; `ARGV` is restored
+      def irb_session
+        words = ARGV.dup
+        ARGV.clear
+        IRB.start(__FILE__)
+      ensure
+        ARGV.replace(words)
       end
 
       # @param runtime [Runtime] a booted domain
