@@ -19,9 +19,9 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
     [],
     ["--help"],
     ["help"],
-    ["propose", "--help"],
+    ["language_run.propose", "--help"],
     ["deploy", "--help"],
-    ["ask", "word_status", "--help"]
+    ["query", "language_run.word_status", "--help"]
   ].each do |argv|
     it "answers `hecks #{argv.join(' ')}` with no adapter bound" do
       out, err, status = hecks(*argv)
