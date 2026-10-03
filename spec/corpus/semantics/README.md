@@ -13,11 +13,11 @@ Implementation-neutral expected behaviour — the executable half of
   yet; it still gates the Ruby runtime
 
 Expectations were seeded from the Ruby runtime ONCE
-(`hecks seed_semantics_corpus`), reviewed against the clauses, and are
+(`hecks test_suite_run.seed_semantics_corpus`), reviewed against the clauses, and are
 now the definition — not a recording of whatever Ruby currently does.
 A runtime change that breaks a fixture is a semantics change: amend the
 clause in `docs/semantics/bluebook-semantics.md` first, then reseed
-that one fixture deliberately (`hecks seed_semantics_corpus fixture=fixture_name`), and say why in the commit.
+that one fixture deliberately (`hecks test_suite_run.seed_semantics_corpus fixture=fixture_name`), and say why in the commit.
 
 `spec/semantics_corpus_spec.rb` runs every fixture against the Ruby
 runtime (Memory), and — io-tagged — against the compiled Rust kernel,

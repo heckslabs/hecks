@@ -56,12 +56,12 @@ place.
 | `redirect_to`, `aliases` | the target of a redirect or rewrite, and extra paths that redirect to a page. |
 | `nav_group`, `nav_order`, `mobile_order`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation. |
 
-`hecks site project_site <project>` refuses a table that contradicts itself and names every problem at once.
+`hecks site site_projection.project_site <project>` refuses a table that contradicts itself and names every problem at once.
 
 ## Projecting it
 
 ```
-hecks site project_site <project> [out=<dir>] [--check]
+hecks site site_projection.project_site <project> [out=<dir>] [--check]
 ```
 
 `<project>` is a directory whose `bluebook/` holds the chapters. `routes.ts` is written to `<project>/generated`,

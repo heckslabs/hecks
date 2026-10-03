@@ -13,6 +13,8 @@ module Hecks
     module CliRunner
       # The class an adapter raises when the tool it wraps refuses.
       TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
+      # The words that open the query namespace; `ask` is the older spelling.
+      QUERY_WORDS = %w[query ask].freeze
 
       module_function
 
@@ -20,7 +22,7 @@ module Hecks
       # The booted domain's own chapter is projected, or an attached one its first word names.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param argv [Array<String>] an optional `ask`, the verb or question name, then
+      # @param argv [Array<String>] an optional `query` (or `ask`), the command or query name, then
       #   `path=value` pairs; `--help`, `-h`, `help` or nothing answers usage
       # @param program [String] how the caller was invoked, echoed in usage and hints
       # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
@@ -71,7 +73,7 @@ module Hecks
         cursor = nil
         loop do
           ask  = cursor ? args.except(:from_now).merge(since: { value: cursor }) : args
-          rows = runtime.query(spec[:verb], **ask)
+          rows = runtime.query(spec[:command], **ask)
           row  = rows.first || {}
           Array(row[:events]).each { |event| out.puts(JSON.generate(entry_line(JsonDoor.materialize(event)))) }
           out.flush
@@ -93,23 +95,23 @@ module Hecks
       # Answers a command line that asks only for usage, from the projection alone.
       #
       # Needs a registry and no bound adapter, so a `Runtime::Loader::Described` serves: the
-      # help text, the no-argument usage, a verb's `--help` and an unknown verb's hint all come
+      # help text, the no-argument usage, a command's `--help` and an unknown one's hint all come
       # out byte-identical to `call`'s.
       #
       # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
       # @param argv [Array<String>] as for `call`
       # @param program [String] how the caller was invoked
       # @return [Array(String, Integer), nil] the text and status, or nil when the line would
-      #   run a verb or question and so needs a booted domain
+      #   run a command or question and so needs a booted domain
       def usage(runtime:, argv:, program: "hecks run")
         resolve(runtime, argv, program)[:answer]
       end
 
       # Parses a command line against the projection: either the answer it gives without
-      # running anything, or the verb it would run.
+      # running anything, or the command it would run.
       #
       # @return [Hash] `{answer: [text, status]}`, or `{spec:, name:, rest:, asking:, program:,
-      #   bluebook:, launcher:}` for a verb to dispatch
+      #   bluebook:, launcher:}` for a command to dispatch
       def resolve(runtime, argv, program)
         bluebook, argv, program = chapter_for(runtime, argv, program)
         launcher = LauncherOptions.settings(runtime, bluebook.name)
@@ -119,18 +121,11 @@ module Hecks
         name = argv.first
         return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
 
-        # `ask` gives questions their own namespace; a chapter may declare a command and query
-        # of one name.
-        asking = name == "ask"
-        argv   = argv[1..] if asking
-        name   = argv.first
+        asking, name, argv = entry_word(cli, argv)
         return { answer: [cli[:usage], 1] } if name.nil?
 
-        # A question answers to its bare name too; `ask` is needed only when a command shares it.
-        asking ||= !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
-
-        # The alias map lets `create_pizza` and `order.create_pizza` reach the same verb.
-        pool = asking ? cli[:questions] : cli[:verbs]
+        # The alias map lets `create_pizza` and `order.create_pizza` reach the same command.
+        pool = asking ? cli[:questions] : cli[:commands]
         key  = cli[:names][asking ? :question : :command][name]
         spec = pool[key]
         return { answer: [unknown(cli, name, asking, program), 1] } unless spec
@@ -138,12 +133,33 @@ module Hecks
         rest = argv[1..]
         if rest.include?("--help")
           help = Projector.call(:cli, bluebook: bluebook,
-                                      options:  options.merge(verb: name, ask: asking))[:usage]
+                                      options:  options.merge(command: name, ask: asking))[:usage]
           return { answer: [help, 0] }
         end
 
         { spec: spec, name: name, rest: rest, asking: asking, program: program, bluebook: bluebook,
           launcher: launcher }
+      end
+
+      # Reads the entry words of a line: whether it asks a query, the bare name, and the words
+      # from the name on.
+      #
+      # `query` gives queries their own namespace (`ask` is its older spelling); a chapter may
+      # declare a command and a query of one name. A trailing `!` says the word is a command and
+      # is not part of the name. A query answers to its bare name too; `query` is needed only when
+      # a command shares it.
+      #
+      # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent), `argv`
+      def entry_word(cli, argv)
+        asking = QUERY_WORDS.include?(argv.first)
+        argv   = argv[1..] if asking
+        name   = argv.first
+        return [asking, nil, argv] if name.nil?
+
+        bang = name.end_with?("!")
+        name = name.chomp("!") if bang
+        asking ||= !bang && !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
+        [asking, name, argv]
       end
 
       # The chapter a command line speaks to: the booted domain's own, or, when the first word
@@ -158,11 +174,11 @@ module Hecks
         [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
       end
 
-      # Parses one resolved verb's arguments, runs it as a query or command, and turns the
+      # Parses one resolved command's arguments, runs it as a query or command, and turns the
       # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
       # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter the verb belongs to
+      # @param bluebook [Bluebook::Chapter] the chapter the command belongs to
       # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted in
       def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
         rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
@@ -171,10 +187,10 @@ module Hecks
         return answer_query(runtime, spec, args, wait) if spec[:kind] == :query
 
         args, minted = LauncherOptions.run_key(runtime, spec, args, launcher)
-        # Answers with only this verb's outcome; a full store dump is every record there is.
+        # Answers with only this command's outcome; a full store dump is every record there is.
         request = CommandRequest.normalize(args, receiver:        spec[:receiver],
                                                  legacy_receiver: spec[:legacy_receiver])
-        handle = runtime.dispatch_flat(spec[:verb], request)
+        handle = runtime.dispatch_flat(spec[:command], request)
         extra  = refused_answer(handle)
         extra  = { run: minted }.merge(extra) if minted
         return settled(runtime, spec, handle, bluebook, launcher, extra) if wait
@@ -185,7 +201,7 @@ module Hecks
                                 events: handle.events.map(&:name) }.merge(extra)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A bad argument and a missing record both need the same next step: read the help.
-        ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
+        ["#{e.message}\n\n  #{program} #{'query ' if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
         # The refusal is the chapter's own sentence, verbatim.
         [e.message, 1]
@@ -202,7 +218,7 @@ module Hecks
       # @param wait [Boolean, nil] whether `--wait` was given: a report naming a gap then fails
       # @return [Array(String, Integer)] the answer and the status
       def answer_query(runtime, spec, args, wait)
-        rows = runtime.query(spec[:verb], **args)
+        rows = runtime.query(spec[:command], **args)
         text = text_answer(spec, rows)
         [text || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }),
          wait && LauncherOptions.gap_reported?(text) ? 1 : 0]
@@ -256,7 +272,7 @@ module Hecks
 
       # The aggregate a top-level command belongs to; nil for an entity command or a port.
       def aggregate_of(bluebook, spec)
-        head = spec[:verb].split("::", 2).last
+        head = spec[:command].split("::", 2).last
         return if head.count(".") != 1
 
         bluebook.aggregates.find { |aggregate| aggregate.hecks_name == head.split(".").first }
@@ -317,19 +333,23 @@ module Hecks
           end }
       end
 
-      # Words the answer for an unknown verb or question, suggesting up to five near names.
+      # Words the answer for an unknown command or question, suggesting up to five near names.
       # Ranked by shared prefix, which survives a dropped letter where a substring match would not.
       def unknown(cli, name, asking, program)
         # Both spellings are candidates: `order.create_piza` shares no prefix with `create_pizza`.
         pool = cli[:names][asking ? :question : :command].keys
-        near = pool.map    { |candidate| [shared_prefix(candidate, name), candidate] }
-                   .select { |shared, _| shared >= [name.length / 2, 3].max }
-                   .sort_by { |shared, candidate| [-shared, candidate] }
-                   .map(&:last)
+        # A bare name is the commonest slip now that the aggregate is required: its homes first.
+        homes = (pool + cli[:names][asking ? :command : :question].keys)
+                .select { |candidate| candidate.split(".").last == name }.uniq
+        similar = pool.map { |candidate| [shared_prefix(candidate, name), candidate] }
+                      .select { |shared, _| shared >= [name.length / 2, 3].max }
+                      .sort_by { |shared, candidate| [-shared, candidate] }
+                      .map(&:last)
+        near = homes + (similar - homes)
 
-        lines = ["no such #{asking ? 'question' : 'verb'}: #{name}"]
+        lines = ["no such #{asking ? 'query' : 'command'}: #{name}"]
         lines += ["", "did you mean:", *near.first(5).map { |candidate| "  #{candidate}" }] unless near.empty?
-        lines += ["", "  #{program}#{' ask' if asking}   for the full list"]
+        lines += ["", "  #{program}#{' query' if asking}   for the full list"]
         lines.join("\n")
       end
 

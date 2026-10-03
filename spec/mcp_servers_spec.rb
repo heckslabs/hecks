@@ -133,8 +133,8 @@ RSpec.describe "the stdio MCP servers" do
       domain = memory_pizzas_under(sandbox_root)
       run = run_over_pipes(
         door,
-        [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec", args: {} }),
-         tool_call(2, "query", { domain: domain, question: "available", summary: "spec" }),
+        [tool_call(1, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec", args: {} }),
+         tool_call(2, "query", { domain: domain, question: "order.available", summary: "spec" }),
          tool_call(3, "catalog", { domain: "/tmp/outside_the_root" })],
         env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }
       )
@@ -195,9 +195,9 @@ RSpec.describe "the stdio MCP servers" do
     it "refuses dispatch, a dry run and behaviors, naming the mode" do
       results = results_of(run_over_pipes(
                              door,
-                             [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                             [tool_call(1, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec",
                                                          role: "Chef", args: {} }),
-                              tool_call(2, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                              tool_call(2, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec",
                                                          role: "Chef", args: {}, dry_run: true }),
                               tool_call(3, "behaviors", { target: File.join(sandbox_root, domain) })],
                              env: reader_env
@@ -241,6 +241,132 @@ RSpec.describe "the stdio MCP servers" do
       "an unknown HECKS_DOOR_ name"     => { "HECKS_DOOR_TOKEN" => "x" },
       "a named domain outside the root" => { "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => "/tmp/elsewhere" }
     }.each do |label, settings|
+      it "refuses to start on #{label}, before answering anything" do
+        result = run_over_pipes(door, [initialize_request],
+                                env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
+
+        expect(result[:status].exitstatus).to eq(Hecks::Doors::McpDoorScope::EXIT_STATUS)
+        expect(result[:err]).to include("refusing to start")
+        expect(result[:out]).to be_empty
+      end
+    end
+  end
+
+  # Commands mode (ADR 0089): reader mode plus `dispatch` for a closed list of commands.
+  describe "hecks mcp in commands mode" do
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-commands") }
+    let(:domain)       { memory_pizzas_under(sandbox_root) }
+    let(:commands_env) do
+      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_DOOR_TOOLS" => "commands",
+        "HECKS_DOOR_DOMAINS" => domain, "HECKS_DOOR_COMMANDS" => "order.create_pizza" }
+    end
+
+    after { FileUtils.rm_rf(sandbox_root) }
+
+    def results_of(run) = run[:responses].to_h { |response| [response["id"], response["result"]] }
+
+    def payload(result) = JSON.parse(result["content"].first["text"])
+
+    def pizza_args(name) = { name: name, pizza: { price_cents: 1200, size: "large" } }
+
+    def dispatch_call(id, command, **extra)
+      tool_call(id, "dispatch", { domain: domain, command: command, summary: "spec", role: "Chef",
+                                  args: pizza_args("Margherita") }.merge(extra))
+    end
+
+    it "lists the reader tools and dispatch, with the allowed commands as an enum, and says so on stderr" do
+      run = run_over_pipes(door, [{ jsonrpc: "2.0", id: 1, method: "tools/list" }], env: commands_env)
+      tools = results_of(run)[1]["tools"].to_h { |tool| [tool["name"], tool] }
+      properties = tools["dispatch"]["inputSchema"]["properties"]
+
+      expect(tools.keys).to match_array(Hecks::Doors::McpDoorScope::COMMAND_TOOLS)
+      expect(tools).not_to have_key("behaviors")
+      expect(properties["command"]["enum"]).to eq(["order.create_pizza"])
+      expect(properties["steps"]["items"]["properties"]["command"]["enum"]).to eq(["order.create_pizza"])
+      expect(tools["dispatch"]["description"]).to include("dispatches only: order.create_pizza")
+      expect(run[:err]).to include("Commands mode (HECKS_DOOR_TOOLS=commands)", "identifies no one")
+    end
+
+    it "dispatches an allowed command by its qualified name" do
+      results = results_of(run_over_pipes(door, [dispatch_call(1, "order.create_pizza"),
+                                                 dispatch_call(2, "order.create_pizza")], env: commands_env))
+
+      [1, 2].each { |id| expect(payload(results[id])).not_to include("error" => a_string_including("refused")) }
+      expect(payload(results[1])["ok"]).to be true
+    end
+
+    it "refuses any other command, a dry run of it, and a batch holding it, before running anything" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [dispatch_call(1, "purchase"),
+                              dispatch_call(2, "add_topping", dry_run: true),
+                              tool_call(3, "dispatch", { domain: domain, summary: "spec", role: "Chef",
+                                                         steps: [{ command: "order.create_pizza", args: pizza_args("A") },
+                                                                 { command: "purchase", args: {} }] }),
+                              tool_call(4, "state", { domain: domain, aggregate: "Order", summary: "spec" })],
+                             env: commands_env
+                           ))
+
+      [1, 2, 3].each do |id|
+        expect(results[id]["isError"]).to be true
+        expect(payload(results[id])["error"]).to include("is refused", "commands mode", "order.create_pizza")
+      end
+      expect(payload(results[4])["count"]).to eq(0)
+    end
+
+    it "keeps the domain booted between calls, so a dispatched record is there for the next call" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [dispatch_call(1, "order.create_pizza"),
+                              tool_call(2, "state", { domain: domain, aggregate: "Order", summary: "spec" })],
+                             env: commands_env
+                           ))
+
+      expect(payload(results[1])["ok"]).to be true
+      expect(payload(results[2])["count"]).to eq(1)
+    end
+
+    it "fingerprints a domain directory by its files, changing when one is rewritten or added" do
+      dir = File.join(sandbox_root, domain)
+      before = Hecks::Storehouse.fingerprint(dir)
+
+      expect(Hecks::Storehouse.fingerprint(dir)).to eq(before)
+      File.write(File.join(dir, "added.txt"), "x")
+      added = Hecks::Storehouse.fingerprint(dir)
+      File.write(File.join(dir, "added.txt"), "xy")
+
+      expect(added).not_to eq(before)
+      expect(Hecks::Storehouse.fingerprint(dir)).not_to eq(added)
+    end
+
+    it "refuses a command name that resolves to nothing, and still refuses behaviors" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [dispatch_call(1, "no_such_command"),
+                              tool_call(2, "behaviors", { target: File.join(sandbox_root, domain) })],
+                             env: commands_env
+                           ))
+
+      expect(payload(results[1])["error"]).to include("is refused")
+      expect(payload(results[2])["error"]).to include("commands mode (HECKS_DOOR_TOOLS=commands)")
+    end
+
+    it "admits nothing for an allowed name that resolves to no command" do
+      env = commands_env.merge("HECKS_DOOR_COMMANDS" => "no_such_command")
+      results = results_of(run_over_pipes(door, [dispatch_call(1, "order.create_pizza")], env: env))
+
+      expect(payload(results[1])["error"]).to include("is refused")
+    end
+
+    [
+      ["commands mode with no commands", { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => "pizzas" }],
+      ["commands mode with no domains", { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_COMMANDS" => "order.create_pizza" }],
+      ["an empty command list",
+       { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => "pizzas", "HECKS_DOOR_COMMANDS" => " , " }],
+      ["commands without commands mode", { "HECKS_DOOR_COMMANDS" => "order.create_pizza" }],
+      ["commands in reader mode",
+       { "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => "pizzas", "HECKS_DOOR_COMMANDS" => "order.create_pizza" }]
+    ].each do |label, settings|
       it "refuses to start on #{label}, before answering anything" do
         result = run_over_pipes(door, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))

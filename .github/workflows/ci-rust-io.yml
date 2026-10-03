@@ -87,7 +87,7 @@ jobs:
       # via RustConformanceHelpers#build_rust_for, and the exemplar step below
       # already type-checks the default feature set.
       - name: Build the Rust conformance binary
-        run: bundle exec exe/hecks project_rust domain=examples/banking --wait
+        run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.

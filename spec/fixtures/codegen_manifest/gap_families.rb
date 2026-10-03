@@ -1,5 +1,5 @@
 # Plants one ungeneratable construct per skip family into a copy of banking's IR,
-# so the codegen manifest parity spec compares both generators' `construct` choices.
+# so the planted-gaps spec freezes hecks-codegen's `construct` choices for each.
 module ManifestGapFamilies
   module_function
 
