@@ -196,7 +196,7 @@ Hecks.bluebook "Tickets" do
 
     query "Open" do
       description "Every finding not yet resolved or dismissed."
-      where(status: %w[reported triaged])
+      where(status: { in: "reported,triaged" })
       order_by :finding
     end
   end

@@ -51,6 +51,15 @@ RSpec.describe "the Tickets chapter" do
     expect(reacted).to include("OpenIssueWhenReported", "RecordTheSyncFailure")
   end
 
+  it "lists a reported finding among the open ones" do
+    argv = ["tickets", "finding.report", "finding.value=f-open", "title.value=Still open", "source.value=maintainer"]
+    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
+
+    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
+
+    expect(JSON.parse(out).map { |row| row.dig("finding", "value") }).to include("f-open")
+  end
+
   it "files a finding when a conformance or gate run faults" do
     policies = @bluebook.policies.map(&:hecks_name)
 
