@@ -11,7 +11,7 @@ module Hecks
     # against `docs/semantics/bluebook-semantics.md` before committing.
     #
     # Seeds `spec/corpus/semantics/` and the conformance corpus ({FULL_SCRIPTS} plus
-    # `spec/corpus/rust_conformance/`, whose `expect` also freezes queries, sagas, dry runs, reactions).
+    # `spec/corpus/rust_conformance/`, whose `expect` also freezes more).
     #
     #   hecks seed_semantics_corpus                                # fill fixtures missing an expect
     #   SEED=refusal_kind_lifecycle hecks seed_semantics_corpus    # re-seed one, deliberately
@@ -66,7 +66,7 @@ module Hecks
       #
       # @param root [String] the checkout the fixture's domain path is relative to
       # @param fixture [Hash] the parsed fixture: `domain` and `steps`
-      # @param full [Boolean] also freeze queries, sagas, dry runs and reactions (conformance corpus)
+      # @param full [Boolean] also freeze queries, sagas, dry runs, reactions (conformance)
       # @return [Hash{String => Array}] its `"expect"` block: refusals, instances, events, and
       #   with `full` the {CONFORMANCE_KEYS}
       def expectation_for(root, fixture, full: false)
