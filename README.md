@@ -449,7 +449,7 @@ Only what this repository actually does today, checked, not aspired to:
 - **Runtime and adapter separation.** `persisted_by` in a `.hecksagon`
   file is the entire migration between an in-memory adapter and a real
   database — the `.bluebook` file never names a backend, so it never
-  changes. `Memory`, `Sqlite`, `Postgres`, `PostgresEra` (adds
+  changes. `Memory`, `SqlitePersistence`, `Postgres`, `PostgresEra` (adds
   schema-evolution tracking — see [Schema
   evolution](docs/implemented/guides/schema-evolution.md)), and `Heki`
   (an append-only journal, no server) all satisfy the same persistence
