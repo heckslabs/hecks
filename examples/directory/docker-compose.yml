@@ -1,21 +1,21 @@
 # A throwaway Postgres for the one example bound to PostgresEra, so trying the adapter needs no
-# local install. `trust` auth and a superuser are fine for a laptop container; pizzas.world sets
+# local install. `trust` auth and a superuser are fine for a laptop container; directory.world sets
 # `allow_superuser true` for exactly this. Set HECKS_PG_PORT when 5432 is already taken.
 #
-#   docker compose -f examples/pizzas/docker-compose.yml up -d --wait
-#   PGUSER=hecks bundle exec hecks console subject=examples/pizzas
-#   docker compose -f examples/pizzas/docker-compose.yml down -v
+#   docker compose -f examples/directory/docker-compose.yml up -d --wait
+#   PGUSER=hecks bundle exec hecks console subject=examples/directory
+#   docker compose -f examples/directory/docker-compose.yml down -v
 services:
   postgres:
     image: postgres:16
     environment:
       POSTGRES_USER: hecks
-      POSTGRES_DB: hecks_pizzas
+      POSTGRES_DB: hecks_directory
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "${HECKS_PG_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hecks -d hecks_pizzas"]
+      test: ["CMD-SHELL", "pg_isready -U hecks -d hecks_directory"]
       interval: 2s
       timeout: 3s
       retries: 15

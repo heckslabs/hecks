@@ -11,8 +11,8 @@ RSpec.describe "the launcher's memory verbs" do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
                                              executable: "exe/hecks", memory_verbs: %w[console], opted: true)
 
-    expect(source).to include('MEMORY_VERBS = %w[console].freeze')
-    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include('MEMORY_VERBS = %w[console].freeze')
+    expect(source).to include("MEMORY_VERBS = %w[console].freeze")
+    expect(File.read(File.join(InMemoryDomain::ROOT, "exe/hecks"))).to include("MEMORY_VERBS = %w[console].freeze")
   end
 
   it "refuses a verb that is not a plain word" do

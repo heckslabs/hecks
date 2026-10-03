@@ -55,11 +55,8 @@ bundle exec hecks console
 ```
 
 `console` boots the `examples/pizzas` domain on the in-memory adapter
-and drops you into IRB with its [door](#door) installed. The domain's
-own [hecksagon](#hecksagon) binds [PostgresEra](#postgresera), so the
-console loads the Memory-bound sibling `examples/pizzas/pizzas_behaviors.hecksagon`
-instead, and `git status` stays clean. The console keeps hecks's own journal
-in memory too, so nothing needs a database. Type this at the prompt:
+and drops you into IRB with its [door](#door) installed. Nothing needs a
+database, and `git status` stays clean. Type this at the prompt:
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
