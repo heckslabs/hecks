@@ -23,6 +23,26 @@ module Hecks
       # The tools a commands door serves: the reader tools, and `dispatch` for the allowed commands.
       COMMAND_TOOLS = (READER_TOOLS + %w[dispatch]).freeze
 
+      # Argument names a restricted door never passes on, whatever command carries them: each one
+      # names a host or a URL, a binary to run, a place to write, a port to open, a store to
+      # switch to, or flips a command from a preview to a change of state.
+      DENIED_ARGUMENTS = %w[
+        adapter artifact confirm expected from gem_only header health_path host no_wait npm_local
+        npm_only output path payload payload_file port rust_binary scheme state_path stdio url write
+      ].freeze
+
+      # Argument names whose values are paths (a comma-separated list for some). A restricted door
+      # passes them on only when each resolves, symlinks followed, inside `Storehouse::BOOT_ROOT`,
+      # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative paths.
+      PATH_ARGUMENTS = %w[dir domain domains file fixture paths root script].freeze
+
+      # Argument names whose values are git refs: plain names only, so a value cannot read as an
+      # option to git.
+      REF_ARGUMENTS = %w[ref].freeze
+
+      # What a plain git ref looks like: no leading dash, no `..`, no spaces.
+      PLAIN_REF = %r{\A[A-Za-z0-9][A-Za-z0-9._/~^@-]*\z}
+
       # Unrestricted when no HECKS_DOOR_* variable is set.
       def self.from_env(env = ENV)
         problems = setting_problems(env)
@@ -135,25 +155,50 @@ module Hecks
       #
       # @param runtime [Runtime::Dispatcher] the booted domain
       # @param command [String, nil] the command name the caller asked for
-      # @raise [Runtime::TypeMismatch] when the command is not on the list
-      def admit_command!(runtime, command)
+      # @param args [Hash, nil] the arguments the caller gave it; see `admit_arguments!`
+      # @raise [Runtime::TypeMismatch] when the command is not on the list or an argument is refused
+      def admit_command!(runtime, command, args = nil)
         return unless commands_mode?
 
         verbs = Storehouse.verbs_for(runtime, [command, *allowed_commands])
-        return if verbs.first && verbs.drop(1).include?(verbs.first)
+        unless verbs.first && verbs.drop(1).include?(verbs.first)
+          raise Runtime::TypeMismatch,
+                "command: #{command.to_s.inspect} is refused: this door runs in #{mode_label} " \
+                "and dispatches only #{COMMANDS_VARIABLE}: #{allowed_commands.join(', ')}"
+        end
 
-        raise Runtime::TypeMismatch,
-              "command: #{command.to_s.inspect} is refused: this door runs in #{mode_label} " \
-              "and dispatches only #{COMMANDS_VARIABLE}: #{allowed_commands.join(', ')}"
+        admit_arguments!(args)
       end
 
       # Every step of a batch is admitted before any step runs.
       #
       # @param runtime [Runtime::Dispatcher] the booted domain
       # @param steps [Array<Hash>] the batch, each `{"command" => ..., "args" => ...}`
-      # @raise [Runtime::TypeMismatch] when any step's command is not on the list
+      # @raise [Runtime::TypeMismatch] when a step names a command off the list or a bad argument
       def admit_steps!(runtime, steps)
-        Array(steps).each { |step| admit_command!(runtime, step.is_a?(Hash) ? step["command"] : nil) }
+        Array(steps).each do |step|
+          step = {} unless step.is_a?(Hash)
+          admit_command!(runtime, step["command"], step["args"])
+        end
+      end
+
+      # The arguments a restricted door is about to pass to a command or a question. A command
+      # list admits commands, not values, so each argument is checked by its name: a denied name
+      # is refused, a path must resolve inside the root with symlinks followed, and a git ref must
+      # be a plain name. Other names pass; a domain with an argument that reaches outside its own
+      # files should name it in `DENIED_ARGUMENTS` or `PATH_ARGUMENTS` (ADR 0089).
+      #
+      # @param args [Hash, Array, nil] the arguments as the caller gave them, nested or not
+      # @raise [Runtime::TypeMismatch] on the first argument refused
+      def admit_arguments!(args)
+        return unless restricted?
+
+        each_argument(args) do |name, value|
+          refuse_argument!(name, "never passes it on: it names a host, a binary, an output or a change of state") if
+            DENIED_ARGUMENTS.include?(name)
+          admit_path!(name, value) if PATH_ARGUMENTS.include?(name)
+          admit_ref!(name, value) if REF_ARGUMENTS.include?(name)
+        end
       end
 
       # The tool as `tools/list` shows it: on a commands door, `dispatch` names the commands it
@@ -178,6 +223,69 @@ module Hecks
       end
 
       private
+
+      # Yields every argument name with its value, descending into nested objects and lists, so
+      # `{"file" => {"value" => "x"}}` is checked the way `{"file" => "x"}` is.
+      def each_argument(args, &visit)
+        case args
+        when Hash
+          args.each do |name, value|
+            visit.call(name.to_s, value)
+            each_argument(value, &visit)
+          end
+        when Array
+          args.each { |item| each_argument(item, &visit) }
+        end
+      end
+
+      # A value written as an object of one field (`{"value" => "x"}`) is that field's value.
+      def scalar(value)
+        return value unless value.is_a?(Hash)
+
+        value.fetch("value") { value.fetch(:value, value) }
+      end
+
+      def refuse_argument!(name, why)
+        raise Runtime::TypeMismatch, "argument: #{name.inspect} is refused: this door runs in #{mode_label} and #{why}"
+      end
+
+      def admit_path!(name, value)
+        Array(scalar(value)).flat_map { |item| item.to_s.split(",") }.reject(&:empty?).each do |path|
+          next if !path.include?(":") && inside_root?(path)
+
+          refuse_argument!(name, "passes a path only when it resolves inside #{Storehouse::BOOT_ROOT} " \
+                                 "and holds no colon: #{path.inspect}")
+        end
+      end
+
+      def admit_ref!(name, value)
+        ref = scalar(value).to_s
+        return if ref.match?(PLAIN_REF) && !ref.include?("..")
+
+        refuse_argument!(name, "passes only a plain git ref: #{ref.inspect}")
+      end
+
+      def inside_root?(path)
+        root = resolve_real(Storehouse::BOOT_ROOT)
+        resolved = resolve_real(File.expand_path(path, Storehouse::BOOT_ROOT))
+        resolved == root || resolved.start_with?("#{root}#{File::SEPARATOR}")
+      end
+
+      # The real path of `path`, symlinks followed: of the whole path when it exists, else of its
+      # deepest existing parent with the missing names put back, so a link above a file that does
+      # not exist yet still shows where the file would land.
+      def resolve_real(path)
+        missing = []
+        current = File.expand_path(path)
+        until File.exist?(current)
+          parent = File.dirname(current)
+          break if parent == current
+
+          missing.unshift(File.basename(current))
+          current = parent
+        end
+        File.join(File.realpath(current), *missing)
+      end
 
       def with_enum(property)
         property.merge(enum: allowed_commands)
