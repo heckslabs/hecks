@@ -40,7 +40,7 @@ module Hecks
         status.zero? ? puts(text) : abort(text)
       LAUNCHER_TAIL
 
-      # What a memory verb does when refused: say why, from the settled record's `refusal`, and not the record.
+      # What a memory verb does when refused: say why, from the record's `refusal`, not the record.
       MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
         if MEMORY_VERBS.include?(ARGV.first)
           why = begin
@@ -286,8 +286,8 @@ module Hecks
 
       # @api private
       # @param ending [String] the launcher's closing lines
-      # @return [String] the same lines, except that a memory verb prints no settled record, only the
-      #   reason it was refused: a person is at it, so the record is noise
+      # @return [String] the same lines, except that a memory verb prints no settled record, only
+      #   the reason it was refused: a person is at it, so the record is noise
       def quiet_ending(ending)
         ending.sub("  puts text\n  warn reason\n", MEMORY_REFUSAL)
               .sub("status.zero? ? puts(text)",

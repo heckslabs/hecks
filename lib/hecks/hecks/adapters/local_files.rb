@@ -47,7 +47,7 @@ module Hecks
       #
       # @param held [Hash] the `Door` record: `name`, and optionally `adapter` and `dir`
       # @return [Hash{Symbol => Hash}] `output:` the report that was printed
-      # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file is already there
+      # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file exists
       def scaffold(**held)
         name   = plain(held[:name])
         files  = stub_files(name, plain(held[:adapter]))
@@ -60,7 +60,7 @@ module Hecks
           FileUtils.mkdir_p(File.dirname(full))
           File.write(full, text)
         end
-        report = scaffold_report(name, target, files.keys, plain(held[:adapter]))
+        report = scaffold_report(target, files.keys, plain(held[:adapter]))
         puts report
         { output: { value: report } }
       end
@@ -91,7 +91,7 @@ module Hecks
 
       def shown(full) = full.delete_prefix("#{Dir.pwd}/")
 
-      def scaffold_report(name, target, paths, adapter)
+      def scaffold_report(target, paths, adapter)
         where = shown(target)
         lines = ["wrote #{paths.length} files in #{where}/:"] + paths.sort.map { |path| "  #{path}" }
         lines << "" << "next:" << "  hecks docs #{where}/bluebook" << "  hecks console subject=#{where}"

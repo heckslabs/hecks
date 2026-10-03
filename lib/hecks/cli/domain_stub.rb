@@ -8,24 +8,30 @@ module Hecks
     # Pure: it answers the text of each file and writes none, so the adapter that does the writing
     # can check every target before it writes the first, and a spec can boot the result.
     module DomainStub
+      # A domain's name: a capital, then letters and digits, as its bluebook spells it.
       NAME = /\A[A-Z][A-Za-z0-9]*\z/
+
+      SQLITE_URL = 'default_database "data/%<snake>s.db"'.freeze
+      POSTGRES_URL = 'default_database "postgres://localhost/%<snake>s"'.freeze
+      private_constant :SQLITE_URL, :POSTGRES_URL
 
       # Persistence adapters a stub can be bound to, each with the world lines that bind it, the
       # data it keeps under `data/` (so a `.gitignore` is written), and whether it needs a server
       # (so a memory overlay is written and the first run needs no database).
       ADAPTERS = {
         "Memory"            => { world: ['default_adapter "Memory"'], local_data: false, server: false },
-        "SqlitePersistence" => { world: ['default_adapter "SqlitePersistence"', 'default_database "data/%<snake>s.db"'],
+        "SqlitePersistence" => { world: ['default_adapter "SqlitePersistence"', SQLITE_URL],
                                  local_data: true, server: false },
         "Heki"              => { world: ['default_adapter "Heki"', 'persisted_by("Heki") { dir "data" }'],
-                                 local_data: true, server: false },
-        "Postgres"          => { world: ['default_adapter "Postgres"', 'default_database "postgres://localhost/%<snake>s"'],
-                                 local_data: false, server: true },
-        "PostgresEra"       => { world: ['default_adapter "PostgresEra"', 'default_database "postgres://localhost/%<snake>s"'],
-                                 local_data: false, server: true }
+                    local_data: true, server: false },
+        "Postgres"          => { world: ['default_adapter "Postgres"', POSTGRES_URL],
+                        local_data: false, server: true },
+        "PostgresEra"       => { world: ['default_adapter "PostgresEra"', POSTGRES_URL],
+                           local_data: false, server: true }
       }.freeze
 
-      DEFAULT_ADAPTER = "SqlitePersistence"
+      # What `init` binds a stub to when no adapter is named: it needs no server and keeps its data.
+      DEFAULT_ADAPTER = "SqlitePersistence".freeze
 
       module_function
 
@@ -33,9 +39,9 @@ module Hecks
       def adapters = ADAPTERS.keys
 
       # @param name [String] the domain's name, as its bluebook spells it (`Lending`)
-      # @param adapter [String, nil] a persistence adapter from {ADAPTERS}; the default when nil
-      # @return [Hash{String => String}] each file's path, relative to the domain directory, and its text
-      # @raise [ArgumentError] when the name is not a plain capitalised word or the adapter is unknown
+      # @param adapter [String, nil] an adapter named in `ADAPTERS`; the default when nil
+      # @return [Hash{String => String}] each file's path under the domain directory, and its text
+      # @raise [ArgumentError] when the name is not a capitalised word or the adapter is unknown
       def files(name:, adapter: nil)
         adapter ||= DEFAULT_ADAPTER
         check!(name, adapter)
@@ -54,7 +60,7 @@ module Hecks
       # @api private
       def check!(name, adapter)
         unless name.to_s.match?(NAME)
-          raise ArgumentError, "#{name.inspect} is not a domain name: start with a capital and use letters and digits, like Lending"
+          raise ArgumentError, "#{name.inspect} is not a domain name: a capital, then letters and digits (Lending)"
         end
         return if ADAPTERS.key?(adapter)
 
