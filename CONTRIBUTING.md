@@ -16,11 +16,12 @@ has to re-verify by hand.
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bundle exec hecks console   # boots the pizzas example, drops you into IRB with its door installed
+HECKS_ENVIRONMENT=memory bundle exec exe/hecks console   # boots the pizzas example, drops you into IRB with its door installed
 ```
 
 Postgres is optional for most of the codebase — the suite and
-`hecks console` both default to the in-memory adapter. You only need a
+`hecks console` both default to the in-memory adapter (the console also needs
+`HECKS_ENVIRONMENT=memory`, for hecks's own journal). You only need a
 local Postgres for `PostgresEra`-flavored specs and the schema-evolution
 guide's own live example; those specs check their own reachability and
 skip themselves quietly if nothing answers on `localhost`.

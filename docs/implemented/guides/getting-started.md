@@ -23,13 +23,18 @@ and the repository is the tool:
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-hecks console          # boots the pizzas example this guide walks through
+HECKS_ENVIRONMENT=memory bundle exec exe/hecks console   # boots the pizzas example this guide walks through
 ```
 
-`examples/pizzas` wires `PostgresEra`, so this needs a reachable local
-Postgres. If one isn't running yet, use `hecks console subject=examples/banking`
-instead — it is bound to the Heki file adapter, no server needed. See
-[Schema evolution](schema-evolution.md) for when Postgres earns its
+No database server is needed. The console loads pizzas on the in-memory
+adapter (`examples/pizzas/pizzas_behaviors.hecksagon`), and
+`HECKS_ENVIRONMENT=memory` keeps hecks's own journal in memory too;
+without it the command stops with `cannot bind PostgresEra`. Run it from
+the clone as `bundle exec exe/hecks`: the Gemfile does not install a bare
+`hecks` command. To open another domain, add `subject=<domain>`, for
+example `subject=examples/banking`, which is bound to the Heki file
+adapter and writes into git-tracked files under `examples/banking/data/`.
+See [Schema evolution](schema-evolution.md) for when Postgres earns its
 place.
 
 ## The first declaration
@@ -37,7 +42,7 @@ place.
 The following example declares a domain about selling pizzas. It is
 small enough to review in full, and demonstrates both what the
 language allows and what it refuses. It is, in fact, the same
-`pizzas.bluebook` that `hecks console` already boots for you.
+`pizzas.bluebook` that console already boots for you.
 
 ```ruby bluebook
 Hecks.bluebook "Pizzas" do
@@ -180,8 +185,8 @@ constants, a creating command as a module method, everything else as a
 method on the record in hand:
 
 ```ruby
-order = Order.create_pizza!(name: { value: "Margherita" },
-                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+order = Order.create_pizza!(name: "Margherita",
+                            pizza: { price_cents: { cents: 1200 }, size: "large" })
 
 order.status                   # => "available"
 order.toppings                 # => []
@@ -190,13 +195,19 @@ order.toppings                 # => []
 Commands return the record, so calls can be chained in sequence:
 
 ```ruby
-order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-order.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+order.add_topping!(topping: "Basil", amount: 3)
+order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
 
 order.status                   # => "sold"
 order.toppings.map(&:to_h)     # => [{ name: "Basil", amount: 3 }]
 order.events.map(&:name)       # => ["PizzaCreated", "ToppingAdded", "PizzaPurchased"]
 ```
+
+A value object with a single attribute takes a bare scalar: `name:
+"Margherita"` fills its one `value` field. The object form is equivalent,
+so `name: { value: "Margherita" }` does the same thing; you need it when the
+value object has several fields, as `pizza:` does (`price_cents` and
+`size`). The console's own `try:` banner uses the object form throughout.
 
 Notice what you did not write: no `save`, no repository call, no id
 passed by hand. Identity was declared once, and the door carries it.
@@ -207,13 +218,13 @@ Now the half of the language most systems treat as an afterthought.
 Try to add a topping to the pizza you just sold:
 
 ```ruby
-order.add_topping!(topping: { value: "Late" }, amount: { value: 1 })   # ~> GivenNotMet: a sold pizza cannot be changed
+order.add_topping!(topping: "Late", amount: 1)   # ~> GivenNotMet: a sold pizza cannot be changed
 ```
 
 And try to put a nameless pizza on the menu:
 
 ```ruby
-Order.create_pizza!(name: { value: "" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
+Order.create_pizza!(name: "", pizza: { price_cents: { cents: 1200 }, size: "large" })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
 Two different refusals, and the difference matters. The `given` is the
