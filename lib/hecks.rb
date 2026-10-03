@@ -75,6 +75,17 @@ module Hecks
       Runtime.describe(path, shared: shared, environment: environment)
     end
 
+    # Finishes a boot from declarations `describe` already loaded, so the domain's files are read
+    # once. See `Runtime::Loader.boot_described`.
+    #
+    # @param described [Runtime::Loader::Described] what `describe` answered
+    # @param install_doors [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`; warns
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
+    def boot_described(described, install_doors: true, install_facade: nil)
+      Runtime.boot_described(described, install_doors: install_doors, install_facade: install_facade)
+    end
+
     # Boots a domain from an explicit list of files (a `.bluebook`, its
     # `.hecksagon`, optionally a `.world`) instead of a whole directory —
     # see `Runtime::Loader.boot_files` for why this exists beside `boot`.

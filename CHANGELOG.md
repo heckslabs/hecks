@@ -26,6 +26,21 @@ the journal. `hecks gate --list` shows the stages. CI workflows are still hand-w
 
 **The host can set a Reply-To on newsletter email (`RESEND_REPLY_TO`).** A site that sends from a Resend-verified address it has no mailbox for (`news@mail.example.com`) can still have replies reach a real inbox: set `RESEND_REPLY_TO` and each email carries `reply_to`. Blank or unset sends no `reply_to`, as before. The mock mailer ignores it.
 
+**A command can declare `needs :now` (ADR 0081, first slice).** A fact the command needs from
+outside the record, answered by the runtime before any `given` runs: `needs :now` fills the command's
+own `now` argument with the time the clock gives. The answer is written into the arguments, so a
+`given` reads it like any argument, the event records it, and a replay re-dispatches the recorded
+value. `days()`, `hours()` and `minutes()` fold to seconds, in Ruby and in the Rust kernel. Rules
+that need a record other than the command's own are the next slice (see the ADR).
+
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
+
 ## [3.0.3] - 2026-10-01
 
 **Security: `GET /members` requires an Admin or Owner.** It returned every admitted person's name, email and role to any member holding an active account cookie. It now answers 403 to a member who is not an active Admin or Owner, the same check sending the newsletter uses, and matches what `docs/running-a-rules-service.md` already said. A client that lists the roster from a plain member's cookie must use an admin's.
