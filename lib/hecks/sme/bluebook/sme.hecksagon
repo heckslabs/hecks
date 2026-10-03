@@ -1,0 +1,5 @@
+# An interview lives for the length of one session, so it is kept in memory. What outlasts it is the
+# Markdown record written when it concludes (ADR 0088), not a database.
+Hecks.hecksagon "SME" do
+  SME::Interview.persisted_by("Memory")
+end
