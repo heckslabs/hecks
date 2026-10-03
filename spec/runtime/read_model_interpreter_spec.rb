@@ -15,7 +15,7 @@ RSpec.describe "a read model's query options" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Account.persisted_by(adapter)
         Banking::ATMCard.persisted_by(adapter)
@@ -58,7 +58,7 @@ RSpec.describe "a read model's query options" do
         end
       end
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Account.persisted_by(adapter)
         Banking::ATMCard.persisted_by(adapter)
@@ -542,7 +542,7 @@ RSpec.describe "a read model's query options" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
           Banking::Account.persisted_by("SqlitePersistence")
           Banking::CardPayment.persisted_by("SqlitePersistence")
@@ -593,7 +593,7 @@ RSpec.describe "a read model's query options" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
           Banking::Account.persisted_by("SqlitePersistence")
           Banking::Account.projected_by("SqliteProjection")
@@ -672,7 +672,7 @@ RSpec.describe "a read model's query options" do
           end
         end
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           Banking::Customer.persisted_by(adapter)
           Banking::Account.persisted_by(adapter)
           Banking::ATMCard.persisted_by(adapter)
@@ -937,7 +937,7 @@ RSpec.describe "a read model's query options" do
           end
         end
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           Banking::Customer.persisted_by("Memory")
           Banking::Account.persisted_by("Memory")
           Banking::ATMCard.persisted_by("Memory")
@@ -1097,7 +1097,7 @@ RSpec.describe "a rootless read model's own group_by" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Account.persisted_by(adapter)
       end
@@ -1378,7 +1378,7 @@ RSpec.describe "a rootless read model's own group_by" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
-          uses_framework "Governance"
+          attaches "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
           Banking::Account.persisted_by("SqlitePersistence")
         end

@@ -47,7 +47,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     write(dir, "fuzzed.bluebook", fixture_bluebook)
     write(dir, "fuzzed.hecksagon", <<~HECKSAGON)
       Hecks.hecksagon "Fuzzed" do
-        uses_framework "Governance"
+        attaches "Governance"
         Fuzzed::Widget.persisted_by("#{adapter}")
       end
     HECKSAGON

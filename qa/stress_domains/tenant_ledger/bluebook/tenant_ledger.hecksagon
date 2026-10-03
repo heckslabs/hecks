@@ -1,6 +1,6 @@
 # Memory-backed like the other stress domains; Governance is attached so `role` checks apply.
 Hecks.hecksagon "TenantLedger" do
-  uses_framework "Governance"
+  attaches "Governance"
 
   TenantLedger::Ledger.persisted_by("Memory")
   TenantLedger::Transfer.persisted_by("Memory")

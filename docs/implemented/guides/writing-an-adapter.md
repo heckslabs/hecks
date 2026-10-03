@@ -439,7 +439,7 @@ already declares:
 Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 
   Pizzas::Order.port "PaymentGateway" do

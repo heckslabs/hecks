@@ -241,12 +241,21 @@ module Hecks
           end
           private_class_method :s3_origin_lines
 
+          # Renders one cache behaviour: the default one under `key`, or a list item led by its
+          # path.
+          #
+          # @param key [String, nil] `"DefaultCacheBehavior"`, or nil for a `CacheBehaviors` item
+          # @param entry [Hash{Symbol => Object}] the behaviour as `normalize` checks it (`:origin`,
+          #   `:path` for an item, `:viewer_protocol`, `:methods`, `:compress`, `:cache_policy`,
+          #   `:origin_request_policy`), and optionally `:response_headers_policy`, each policy as
+          #   `[id_or_intrinsic, comment_or_nil]`
+          # @param base [String] the indentation of `key`, or of the list item's dash
+          # @return [Array<String>] the lines
           def behavior_lines(key, entry, base)
             pad = "#{base}  "
             head = key ? "#{base}#{key}:" : "#{base}- PathPattern: #{Yaml.string(entry[:path])}"
             [head, "#{pad}TargetOriginId: #{entry[:origin]}", *behavior_property_lines(entry, pad)]
           end
-          private_class_method :behavior_lines
 
           def behavior_property_lines(entry, pad)
             lines = ["#{pad}ViewerProtocolPolicy: #{entry[:viewer_protocol]}",
@@ -255,6 +264,9 @@ module Hecks
             lines << "#{pad}Compress: #{entry[:compress]}" if entry.key?(:compress)
             lines << policy_line(pad, "CachePolicyId", entry[:cache_policy])
             lines << policy_line(pad, "OriginRequestPolicyId", entry[:origin_request_policy]) if entry[:origin_request_policy]
+            if entry[:response_headers_policy]
+              lines << policy_line(pad, "ResponseHeadersPolicyId", entry[:response_headers_policy])
+            end
             lines
           end
           private_class_method :behavior_property_lines

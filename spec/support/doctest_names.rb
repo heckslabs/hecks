@@ -50,6 +50,7 @@ module DoctestNames
     rubocop-custom-cops.md
     running-a-rules-service.md
     rust-handwritten-refactor-slices.md
+    site-routes.md
     tools.md
     value-object-identity-and-relationships-plan.md
   ].freeze

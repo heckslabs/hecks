@@ -43,7 +43,7 @@ module Hecks
           @file.puts "// chapter (governance/identity — no merged.rs of its own, so absent"
           @file.puts "// from `domains`) stays unconditional: it has no single feature of its"
           @file.puts "// own to gate behind, and is compiled in by whichever domain(s) attach"
-          @file.puts "// it via `uses_framework`."
+          @file.puts "// it via `attaches`."
         end
 
         def modules

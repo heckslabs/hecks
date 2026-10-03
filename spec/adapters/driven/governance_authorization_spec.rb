@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/fuzzing/isolated_boot"
 require "time"
 
-# Runs against the shipped wiring: Banking's `uses_framework "Governance"` attaches it on boot.
+# Runs against the shipped wiring: Banking's `attaches "Governance"` attaches it on boot.
 # `IsolatedBoot` rebinds persistence to Memory so examples/banking/data/ stays untouched.
 RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   def runtime

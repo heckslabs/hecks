@@ -110,7 +110,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
         adapter = "PostgresEra"
 
         Hecks.hecksagon "ManagedPlatform" do
-          uses_framework "Governance"
+          attaches "Governance"
           ManagedPlatform::Client.persisted_by(adapter)
           ManagedPlatform::ManagedSite.persisted_by(adapter)
         end

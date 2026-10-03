@@ -306,12 +306,12 @@ module Hecks
       def frameworks_diagram(bluebook, hecksagon)
         return nil unless hecksagon
 
-        lines = hecksagon.framework_members.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
+        lines = hecksagon.member_chapters.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
         lines += bluebook.policies.filter_map(&:target_domain).uniq
                          .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
         return nil if lines.empty?
 
-        subject = "#{bluebook.name}'s own declared uses_framework and cross-domain policy targets"
+        subject = "#{bluebook.name}'s own declared attaches and cross-domain policy targets"
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 

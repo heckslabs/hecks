@@ -2,7 +2,7 @@
 # Memory: this chapter is read, never written to a store.
 Hecks.hecksagon "Bluebook" do
   # `role "Language"` is real access control only once Governance can check it (S8).
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 

@@ -19,7 +19,7 @@ RSpec.describe "Hecks.boot_files" do
   it "loads the exact files named — no directory glob, no sibling file picked up by accident" do
     runtime = boot_files_runtime
 
-    # "Governance" arrives via `uses_framework` inside the hecksagon, not
+    # "Governance" arrives via `attaches` inside the hecksagon, not
     # from a directory glob — the point this proves is that nothing else
     # under examples/pizzas/bluebook/ (the real pizzas.hecksagon, say)
     # snuck in.

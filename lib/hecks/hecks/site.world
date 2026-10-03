@@ -1,0 +1,10 @@
+# The Site chapter's launcher when the Hecks domain attaches it: `hecks site <verb>` reads the
+# world named for the chapter, as `deploy.world` does for the Deploy chapter. Its store is not set
+# here: hecks.world's `default_adapter` fills the gap, so the memory overlay swaps it with the rest.
+#
+# `run_keys` mints the `run` key of a projection, and `--wait` reports a faulted projection (a
+# routes.ts out of date under `--check`, or a route table the projector refused) as exit 1.
+Hecks.world "Site" do
+  launcher "Launcher", run_keys: true,
+                       failure_states: %w[faulted refused halted stopped abandoned red needs_fix]
+end

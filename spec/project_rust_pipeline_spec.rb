@@ -18,8 +18,8 @@ RSpec.describe "hecks project_rust opt-in Rust pipeline parity", :io do
     "examples/banking"                   => %w[banking governance identity meta],
     "examples/roster"                    => %w[roster meta],
     "examples/compliance"                => %w[compliance governance meta],
-    # Vendored package (`uses_embryonaut_bluebook`, ADR 0058): counterpart of banking's
-    # `uses_framework` proof.
+    # Vendored package (`attaches ... from: :vendor`, ADR 0058): counterpart of banking's
+    # `attaches` proof.
     "examples/embryonaut_vendoring_demo" => %w[embryonaut_vendoring_demo widgets meta]
   }.freeze
 
