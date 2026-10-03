@@ -21,7 +21,8 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 3. The projection (`projects_as :aws_box`) emits eight files: `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`.
 4. The box is described by `services.json`, not by an ECS task definition. The generated `deploy-box.sh` renders a Compose file from it, rolls it over SSM and health-checks the proxy.
 5. Golden files for a minimal, a full and a tunnel world live in `spec/fixtures/deploy_box_golden/`.
-6. The `tunnel` setting has two forms. `tunnel true` opens the outbound port for a tunnel the project runs itself. `tunnel({ to: "<container>", token_secret: "<name>" })` also runs `cloudflared` as a service in the box's Compose project, forwarding to that container's port, with its token read from the named secret (which the box role may read) and a check after the roll that a connection registered. Its image defaults to `cloudflare/cloudflared:latest` and can be set with `image`.
+6. The `tunnel` setting has two forms. `tunnel true` opens the outbound port for a tunnel the project runs itself. `tunnel({ to: "<container>", token_secret: "<name>" })` also runs `cloudflared` as a service in the box's Compose project, forwarding to that container's port, with its token read from the named secret (which the box role may read) and a check after the roll that a connection registered.
+7. Both default images, the proxy and the tunnel, are a version tag plus the digest of the multi-architecture index, so a rebuilt box pulls the same bytes. A world can set `proxy_image`, and the tunnel hash takes `image`; either may be any image reference the generator can splice safely.
 
 ## Consequences
 
@@ -39,4 +40,4 @@ That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deplo
 
 - Migration and cutover tooling from an existing Fargate stack.
 - A source for the Compose file other than `services.json` (a task definition, for projects that already have one).
-- Pinning the proxy and tunnel images by digest. The tunnel image defaults to `latest` today.
+- The pinned default images (version and digest) go stale. Nothing yet bumps them; a bump is a change to `Box::Settings` and the goldens.
