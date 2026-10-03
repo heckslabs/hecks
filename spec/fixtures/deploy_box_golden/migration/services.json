@@ -1,0 +1,12 @@
+{
+  "services": {
+    "web": {
+      "name": "web",
+      "repository": "widget-shop-web",
+      "port": 8080,
+      "env": {},
+      "secrets": {}
+    }
+  },
+  "origin": null
+}

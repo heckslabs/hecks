@@ -40,7 +40,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   BOX_BLUEBOOK
 
   BOX_WORLDS = {
-    "default" => <<~WORLD,
+    "default"   => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -48,7 +48,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "tunnel"  => <<~WORLD,
+    "tunnel"    => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -58,7 +58,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "taskdef" => <<~WORLD,
+    "taskdef"   => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -72,7 +72,18 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "full"    => <<~WORLD
+    "migration" => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          stack_name "widget-shop"
+          database_name "widgetdb"
+          containers [{ name: "web", port: 8080 }]
+          migration({ schemas: ["widgets", "widgets_cms"], source_database: "legacy" })
+        end
+      end
+    WORLD
+    "full"      => <<~WORLD
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "eu-west-1"
@@ -260,6 +271,53 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       resources = template_of(files["box.yaml"])["Resources"]
       expect(resources.keys.grep(/Repository\z/)).to be_empty
       expect(files["box.yaml"]).not_to include("RepositoryUri")
+    end
+  end
+
+  describe "the migration world" do
+    let(:files) { cached("migration", BOX_WORLDS.fetch("migration")).first }
+    let(:minimal) { cached("default", BOX_WORLDS.fetch("default")).first }
+
+    it "adds the copy and verify scripts and a runbook to the usual eight files, and only for a migration" do
+      extra = %w[restore-to-rds.sh verify-copy.sh MIGRATION.md]
+      expect(files.keys).to include(*extra)
+      expect(files.keys.size).to eq(minimal.keys.size + 3)
+      expect(minimal.keys).not_to include(*extra)
+    end
+
+    it "copies each declared schema from the source database into the RDS one" do
+      expect(files["restore-to-rds.sh"]).to include('SCHEMAS="widgets widgets_cms"', "SRC_DB=${SRC_DB:-legacy}",
+                                                    "DST_DB=${DST_DB:-widgetdb}", "hecks_tr_extract")
+      expect(files["verify-copy.sh"]).to include('SCHEMAS="widgets,widgets_cms"', "A_DB=${A_DB:-widgetdb}")
+    end
+
+    it "names the stacks and the schemas in the runbook, in the order the steps are run" do
+      runbook = files["MIGRATION.md"]
+      expect(runbook).to include("`widgets`, `widgets_cms`", "hecks-widget-shop-rds", "make deploy")
+      expect(runbook.index("## Before cutover")).to be < runbook.index("## Cutover")
+      expect(runbook.index("## Cutover")).to be < runbook.index("## Rollback")
+    end
+
+    it "parses as scripts that read the secret's own user name" do
+      %w[restore-to-rds.sh verify-copy.sh].each do |script|
+        ok, err = syntax_ok?(files[script])
+        expect(ok).to be(true), "#{script}: #{err}"
+        expect(files[script]).to include(%(.username // "postgres"))
+      end
+    end
+
+    it "points the runbook's deploy at the task definition when the world names one" do
+      files, = generate(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsBox") do
+            region "us-east-1"
+            task_definition "widget-platform"
+            containers [{ name: "web", port: 8080 }]
+            migration({ schemas: ["widgets"] })
+          end
+        end
+      WORLD
+      expect(files["MIGRATION.md"]).to include("make deploy TASKDEF=widget-platform:<revision>")
     end
   end
 

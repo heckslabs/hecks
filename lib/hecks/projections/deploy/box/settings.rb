@@ -21,6 +21,8 @@ module Hecks
           PREFIX      = /\A[a-z][a-z0-9-]{0,20}\z/
           IMAGE       = %r{\A[a-z0-9][a-z0-9._/:@-]{1,200}\z}
           TASKDEF     = /\A[a-zA-Z0-9_-]{1,255}\z/
+          SCHEMA      = /\A[a-z][a-z0-9_]{0,62}\z/
+          MIGRATION_SHAPE = "migration: a hash needs `schemas`, a list of the schema names to copy".freeze
           FROM_TASKDEF = %i[env secrets repository].freeze
           # Default images, each a version tag plus the digest of its multi-architecture index,
           # so a rebuilt box pulls the same bytes.
@@ -57,12 +59,20 @@ module Hecks
           # @!attribute [r] image [String] the cloudflared image
           Tunnel = Struct.new(:container, :port, :token_secret, :image, keyword_init: true)
 
+          # The data a project moves from its old database into the new RDS instance.
+          #
+          # @!attribute [r] schemas [Array<String>] the schemas to copy
+          # @!attribute [r] database [String] the database holding them on the RDS instance
+          # @!attribute [r] source_database [String] the database holding them on the old server
+          Migration = Struct.new(:schemas, :database, :source_database, keyword_init: true)
+
           # Everything the generator reads, checked.
           Plan = Struct.new(
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, :task_definition, keyword_init: true
+            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, :task_definition,
+            :migration, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -87,6 +97,7 @@ module Hecks
           def resolve(deploy_settings:, target:, infra_name:)
             s = deploy_settings
             check(:stack_name, infra_name, NAME)
+            database_name = read_database_name(s, infra_name)
             listed = s.fetch(:containers) { raise ArgumentError, missing_containers }
             task_definition = read_task_definition(s[:task_definition], listed)
             containers = read_containers(listed, infra_name)
@@ -95,14 +106,14 @@ module Hecks
 
             Plan.new(
               infra_name: infra_name, stack_prefix: check(:stack_prefix, s.fetch(:stack_prefix, "hecks"), PREFIX),
-              **declared_sizes(target), **read_sizes(s), database_name: read_database_name(s, infra_name),
+              **declared_sizes(target), **read_sizes(s), database_name: database_name,
               engine_version: check(:engine_version, s.fetch(:engine_version, "16").to_s, ENGINE),
               containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
               default_container: read_default(s[:default_container], containers), origin_header: header,
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
               tunnel: tunnel, tunnel_service: tunnel_service,
               proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
-              task_definition: task_definition
+              task_definition: task_definition, migration: read_migration(s[:migration], database_name)
             )
           end
 
@@ -120,6 +131,22 @@ module Hecks
               backup_days:    integer(:backup_days, settings.fetch(:backup_days, 7), 1, 35),
               snapshots_keep: integer(:snapshots_keep, settings.fetch(:snapshots_keep, 7), 1, 1000)
             }
+          end
+
+          # @param value [Hash{Symbol => Object}, nil] the world's `migration` setting
+          # @param database_name [String] the RDS database, which the schemas move into by default
+          # @return [Migration, nil] the data to move, or nil when the world declares none
+          # @raise [ArgumentError] when the setting is not a hash with a non-empty list of schemas
+          def read_migration(value, database_name)
+            return nil if value.nil?
+            raise ArgumentError, MIGRATION_SHAPE unless value.is_a?(Hash)
+
+            listed = value.fetch(:schemas) { raise ArgumentError, MIGRATION_SHAPE }
+            raise ArgumentError, MIGRATION_SHAPE unless listed.is_a?(Array) && !listed.empty?
+
+            database = check(:migration_database, value.fetch(:database, database_name), DB_NAME)
+            Migration.new(schemas: listed.map { |name| check(:migration_schemas, name, SCHEMA) }.uniq, database: database,
+                          source_database: check(:migration_source_database, value.fetch(:source_database, database), DB_NAME))
           end
 
           def read_database_name(settings, infra_name)
