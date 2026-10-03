@@ -2,10 +2,451 @@
   "domain": "examples/banking",
   "note": "R1 (docs/audits/2026-08-11-bug-triage.md), regression — a saga leg's own `with:` mapping can resolve a value (Transfer.Request's own `reference:`, forwarded onto Account::Debit/Account::Credit purely for saga correlation) that the TARGET command never declares as an attribute at all. Before the fix, `orchestrate.rs`'s `split_routed_args` only ever removed the ONE key it promoted into `to:`, leaving every OTHER undeclared key (here, `reference`) sitting in the projected args unfiltered — `Json::overlay` then carried it straight through into the persisted event, since its own `patch` (the typed args struct's `to_json()`) never touches a key it doesn't declare. Ruby's own `ReactionInvocation.command_facts` (`args.slice(*declared)`) never lets it through in the first place, so Ruby's own `AccountDebited`/`AccountCredited` events never carry a `reference` key. Confirmed live against the full corpus (spec/corpus/banking.json) before this fix: exactly 6 events differed this same way. This fixture pins the smallest reproduction — one transfer, one debit leg, one credit leg — as a permanent regression guard on the 3 pinned CI fixtures, not just the full corpus.",
   "steps": [
-    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "CUST-SAGA-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
-    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-saga-src"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "CUST-SAGA-1"}},
-    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-saga-dst"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "CUST-SAGA-1"}},
-    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-saga-src"}, "amount": {"cents": 10000, "currency": "USD"}, "narrative": {"text": "Opening deposit"}}},
-    {"verb": "Banking::Transfer.Request", "args": {"reference": {"value": "xfer-saga-1"}, "source": "acct-saga-src", "destination": "acct-saga-dst", "amount": {"cents": 2500}, "narrative": {"text": "Rent"}}}
-  ]
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-SAGA-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "number": {
+          "value": "acct-saga-src"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer": "CUST-SAGA-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "number": {
+          "value": "acct-saga-dst"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer": "CUST-SAGA-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-saga-src"
+        },
+        "amount": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Opening deposit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "reference": {
+          "value": "xfer-saga-1"
+        },
+        "source": "acct-saga-src",
+        "destination": "acct-saga-dst",
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "Rent"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#CUST-SAGA-1": {
+        "reference": {
+          "value": "CUST-SAGA-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-saga-src": {
+        "customer": "CUST-SAGA-1",
+        "number": {
+          "value": "acct-saga-src"
+        },
+        "balance": {
+          "cents": 7500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "Opening deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-saga-dst": {
+        "customer": "CUST-SAGA-1",
+        "number": {
+          "value": "acct-saga-dst"
+        },
+        "balance": {
+          "cents": 2500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer in"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Transfer#xfer-saga-1": {
+        "source": "acct-saga-src",
+        "destination": "acct-saga-dst",
+        "reference": {
+          "value": "xfer-saga-1"
+        },
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "Rent"
+        },
+        "status": "settled",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-SAGA-1",
+        "payload": {
+          "reference": {
+            "value": "CUST-SAGA-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-saga-src",
+        "payload": {
+          "number": {
+            "value": "acct-saga-src"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-SAGA-1"
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-saga-dst",
+        "payload": {
+          "number": {
+            "value": "acct-saga-dst"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "CUST-SAGA-1"
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-saga-src",
+        "payload": {
+          "number": {
+            "value": "acct-saga-src"
+          },
+          "amount": {
+            "cents": 10000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "Opening deposit"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-saga-1",
+        "payload": {
+          "reference": {
+            "value": "xfer-saga-1"
+          },
+          "source": "acct-saga-src",
+          "destination": "acct-saga-dst",
+          "amount": {
+            "cents": 2500
+          },
+          "narrative": {
+            "text": "Rent"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-saga-src",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-saga-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-saga-dst",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer in"
+          }
+        }
+      },
+      {
+        "name": "TransferCredited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-saga-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "TransferSettled",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-saga-1",
+        "payload": {
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-saga-1",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-saga-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountDebited",
+        "instance": "xfer-saga-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-saga-1",
+        "dispatch": "Transfer.Debited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountCredited",
+        "instance": "xfer-saga-1",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferCredited",
+        "instance": "xfer-saga-1",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "settled"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferSettled",
+        "instance": "xfer-saga-1",
+        "ended": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-saga-1",
+        "dispatch": "Transfer.Settle",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-saga-1",
+        "dispatch": "Transfer.Credited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-saga-1",
+        "dispatch": "Account.Credit",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-saga-1",
+        "dispatch": "Account.Debit",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

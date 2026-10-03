@@ -287,6 +287,8 @@ async fn run(
     let mut args = args;
     if let Some(domain_ir) = crate::ir::ir() {
         crate::needs::fill_needs(domain_ir, verb, &mut args, &crate::needs::ProcessClock);
+        // An argument with a declared default is filled the same way, so the journal holds it too.
+        crate::needs::fill_defaults(domain_ir, verb, &mut args);
     }
     let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
     if let Some(role) = role {
@@ -329,6 +331,10 @@ async fn run(
         let table = crate::needs::table(domain_ir);
         if table.as_object().is_some_and(|t| !t.is_empty()) {
             input["needs"] = table;
+        }
+        let defaults = crate::needs::defaults_table(domain_ir);
+        if defaults.as_object().is_some_and(|t| !t.is_empty()) {
+            input["defaults"] = defaults;
         }
     }
     let input = input.to_string();

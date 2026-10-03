@@ -2,40 +2,1359 @@
   "domain": "examples/banking",
   "note": "spec/rust_conformance_spec.rb's own fixture — the NAMED/declared bluebook query, the STRING form of the \"query\" step (kernel/cli.rs's own header on the two shapes), proven for real for every real declared query in the corpus that `rust/project/queries.rb`'s eligibility gate actually admits: Banking's own CardPayment.Pending/Disputed/Flagged and ExternalTransfer.Sent (all wheres-only, no order_by/limit), plus Governance's RoleAssignment.AssignmentsForActor and RoleTransition.Allowed and Identity's ExternalIdentifier.ResolvedBy — three framework-chapter queries reachable here only because banking.hecksagon's own `uses_framework \"Governance\"`/`uses_framework \"Identity\"` pull them into this SAME compiled Store (hecks project_rust's own merged-registry step). Seeds three card payments (one left authorized, one captured-then-disputed, one authorized-and-tagged high_risk), two external transfers (`ExternalTransfer.Request` alone already lands \"sent\" — the ExternalSettlement process manager auto-dispatches Send on every request, unconditionally; the second is then Recalled, proving Sent excludes a transfer that moved past \"sent\"), a second, unrelated role assignment and role transition (proving both queries filter, not just list everything), and two external identifiers under the same issuer but different subjects (proving ResolvedBy's own two-clause `where` narrows to the exact pair asked for). Every `query` step below is a real declared query Ruby answers through `Runtime::QueryInterpreter#interpret`, not the ad hoc OBJECT-shaped filter (query_filters.json covers that shape) — this is the STRING form, args and all. The first two CardPayment.Authorize calls pass `tags: []` explicitly rather than omitting the (optional) argument, the same query_filters.json's own workaround for the same real, PRE-EXISTING, unrelated payload gap (Rust's typed-args-to_json always emits the key as null; Ruby's raw-args payload omits it entirely) — this fixture doesn't exist to prove or fix that either.",
   "steps": [
-    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
-    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-1"}},
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer": "cust-1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account": "acct-1",
+        "authorisation": {
+          "value": "pay-open"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "merchant": {
+          "value": "Grocer"
+        },
+        "tags": [
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-open"}, "amount": {"cents": 500}, "merchant": {"value": "Grocer"}, "tags": []}},
+        ]
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account": "acct-1",
+        "authorisation": {
+          "value": "pay-disputed"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Airline"
+        },
+        "tags": [
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-disputed"}, "amount": {"cents": 900}, "merchant": {"value": "Airline"}, "tags": []}},
-    {"verb": "Banking::CardPayment.Capture", "args": {"authorisation": {"value": "pay-disputed"}}},
-    {"verb": "Banking::CardPayment.Dispute", "args": {"authorisation": {"value": "pay-disputed"}, "disputed_by": "cust-1"}},
+        ]
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "pay-disputed"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "pay-disputed"
+        },
+        "disputed_by": "cust-1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account": "acct-1",
+        "authorisation": {
+          "value": "pay-flagged"
+        },
+        "amount": {
+          "cents": 250
+        },
+        "merchant": {
+          "value": "Risky Co"
+        },
+        "tags": [
+          {
+            "value": "high_risk"
+          }
+        ]
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account": "acct-1",
+        "end_to_end": {
+          "value": "ext-sent"
+        },
+        "amount": {
+          "cents": 200
+        },
+        "beneficiary": {
+          "value": "Other Bank"
+        },
+        "direction": {
+          "value": "debit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account": "acct-1",
+        "end_to_end": {
+          "value": "ext-recalled"
+        },
+        "amount": {
+          "cents": 75
+        },
+        "beneficiary": {
+          "value": "Someone Else"
+        },
+        "direction": {
+          "value": "debit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Recall",
+      "args": {
+        "end_to_end": {
+          "value": "ext-recalled"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleAssignment.Assign",
+      "args": {
+        "actor_id": {
+          "value": "gov-actor-1"
+        },
+        "role_name": {
+          "value": "Teller"
+        },
+        "scope": {
+          "value": "Branch-1"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleAssignment.Assign",
+      "args": {
+        "actor_id": {
+          "value": "gov-actor-1"
+        },
+        "role_name": {
+          "value": "Teller"
+        },
+        "scope": {
+          "value": "Branch-1"
+        },
+        "starts_at": {
+          "value": "2026-06-01"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleAssignment.Assign",
+      "args": {
+        "actor_id": {
+          "value": "gov-actor-2"
+        },
+        "role_name": {
+          "value": "Branch manager"
+        },
+        "scope": {
+          "value": "Branch-2"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleTransition.Grant",
+      "args": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleTransition.Grant",
+      "args": {
+        "from_role": {
+          "value": "Teller"
+        },
+        "to_role": {
+          "value": "Branch manager"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        }
+      }
+    },
+    {
+      "verb": "Identity::Identity.Register",
+      "args": {
+        "identity_id": {
+          "value": "id-1"
+        }
+      }
+    },
+    {
+      "verb": "Identity::Identity.Register",
+      "args": {
+        "identity_id": {
+          "value": "id-2"
+        }
+      }
+    },
+    {
+      "verb": "Identity::ExternalIdentifier.Link",
+      "args": {
+        "identity": "id-1",
+        "key": {
+          "value": "google:sub-1"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-1"
+        }
+      }
+    },
+    {
+      "verb": "Identity::ExternalIdentifier.Link",
+      "args": {
+        "identity": "id-2",
+        "key": {
+          "value": "google:sub-2"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-2"
+        }
+      }
+    },
+    {
+      "query": "Banking::CardPayment.Pending"
+    },
+    {
+      "query": "Banking::CardPayment.Disputed"
+    },
+    {
+      "query": "Banking::CardPayment.Flagged"
+    },
+    {
+      "query": "Banking::ExternalTransfer.Sent"
+    },
+    {
+      "query": "Governance::RoleAssignment.AssignmentsForActor",
+      "args": {
+        "actor_id": {
+          "value": "gov-actor-1"
+        }
+      }
+    },
+    {
+      "query": "Governance::RoleTransition.Allowed",
+      "args": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        }
+      }
+    },
+    {
+      "query": "Identity::ExternalIdentifier.ResolvedBy",
+      "args": {
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-flagged"}, "amount": {"cents": 250}, "merchant": {"value": "Risky Co"}, "tags": [{"value": "high_risk"}]}},
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
 
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "ext-sent"}, "amount": {"cents": 200}, "beneficiary": {"value": "Other Bank"}, "direction": {"value": "debit"}}},
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::CardPayment#pay-open": {
+        "account": "acct-1",
+        "disputed_by": null,
+        "authorisation": {
+          "value": "pay-open"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "merchant": {
+          "value": "Grocer"
+        },
+        "tags": [
 
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "ext-recalled"}, "amount": {"cents": 75}, "beneficiary": {"value": "Someone Else"}, "direction": {"value": "debit"}}},
-    {"verb": "Banking::ExternalTransfer.Recall", "args": {"end_to_end": {"value": "ext-recalled"}}},
+        ],
+        "status": "authorized",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#pay-disputed": {
+        "account": "acct-1",
+        "disputed_by": "cust-1",
+        "authorisation": {
+          "value": "pay-disputed"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Airline"
+        },
+        "tags": [
 
-    {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-1"}, "role_name": {"value": "Teller"}, "scope": {"value": "Branch-1"}, "starts_at": {"value": "2026-01-01"}}},
-    {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-1"}, "role_name": {"value": "Teller"}, "scope": {"value": "Branch-1"}, "starts_at": {"value": "2026-06-01"}}},
-    {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-2"}, "role_name": {"value": "Branch manager"}, "scope": {"value": "Branch-2"}, "starts_at": {"value": "2026-01-01"}}},
+        ],
+        "status": "disputed",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::CardPayment#pay-flagged": {
+        "account": "acct-1",
+        "disputed_by": null,
+        "authorisation": {
+          "value": "pay-flagged"
+        },
+        "amount": {
+          "cents": 250
+        },
+        "merchant": {
+          "value": "Risky Co"
+        },
+        "tags": [
+          {
+            "value": "high_risk"
+          }
+        ],
+        "status": "authorized",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ExternalTransfer#ext-sent": {
+        "account": "acct-1",
+        "end_to_end": {
+          "value": "ext-sent"
+        },
+        "amount": {
+          "cents": 200
+        },
+        "beneficiary": {
+          "value": "Other Bank"
+        },
+        "direction": {
+          "value": "debit"
+        },
+        "status": "sent",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Banking::ExternalTransfer#ext-recalled": {
+        "account": "acct-1",
+        "end_to_end": {
+          "value": "ext-recalled"
+        },
+        "amount": {
+          "cents": 75
+        },
+        "beneficiary": {
+          "value": "Someone Else"
+        },
+        "direction": {
+          "value": "debit"
+        },
+        "status": "recalled",
+        "account_status": "open",
+        "account_customer_status": "active"
+      },
+      "Governance::RoleAssignment#gov-actor-1:Teller:2026-01-01": {
+        "actor_id": {
+          "value": "gov-actor-1"
+        },
+        "role_name": {
+          "value": "Teller"
+        },
+        "scope": {
+          "value": "Branch-1"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        },
+        "ends_at": null
+      },
+      "Governance::RoleAssignment#gov-actor-1:Teller:2026-06-01": {
+        "actor_id": {
+          "value": "gov-actor-1"
+        },
+        "role_name": {
+          "value": "Teller"
+        },
+        "scope": {
+          "value": "Branch-1"
+        },
+        "starts_at": {
+          "value": "2026-06-01"
+        },
+        "ends_at": null
+      },
+      "Governance::RoleAssignment#gov-actor-2:Branch manager:2026-01-01": {
+        "actor_id": {
+          "value": "gov-actor-2"
+        },
+        "role_name": {
+          "value": "Branch manager"
+        },
+        "scope": {
+          "value": "Branch-2"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        },
+        "ends_at": null
+      },
+      "Governance::RoleTransition#Customer administrator:Customer registrar:2026-01-01": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        },
+        "ends_at": null
+      },
+      "Governance::RoleTransition#Teller:Branch manager:2026-01-01": {
+        "from_role": {
+          "value": "Teller"
+        },
+        "to_role": {
+          "value": "Branch manager"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
+        },
+        "ends_at": null
+      },
+      "Identity::Identity#id-1": {
+        "identity_id": {
+          "value": "id-1"
+        }
+      },
+      "Identity::Identity#id-2": {
+        "identity_id": {
+          "value": "id-2"
+        }
+      },
+      "Identity::ExternalIdentifier#google:sub-1": {
+        "identity": "id-1",
+        "key": {
+          "value": "google:sub-1"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-1"
+        }
+      },
+      "Identity::ExternalIdentifier#google:sub-2": {
+        "identity": "id-2",
+        "key": {
+          "value": "google:sub-2"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-2"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "cust-1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "pay-open",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "pay-open"
+          },
+          "amount": {
+            "cents": 500
+          },
+          "merchant": {
+            "value": "Grocer"
+          },
+          "tags": [
 
-    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Customer administrator"}, "to_role": {"value": "Customer registrar"}, "starts_at": {"value": "2026-01-01"}}},
-    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Teller"}, "to_role": {"value": "Branch manager"}, "starts_at": {"value": "2026-01-01"}}},
+          ]
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "pay-disputed",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "pay-disputed"
+          },
+          "amount": {
+            "cents": 900
+          },
+          "merchant": {
+            "value": "Airline"
+          },
+          "tags": [
 
-    {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-1"}}},
-    {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-2"}}},
-    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity": "id-1", "key": {"value": "google:sub-1"}, "issuer": {"value": "google"}, "subject": {"value": "sub-1"}}},
-    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity": "id-2", "key": {"value": "google:sub-2"}, "issuer": {"value": "google"}, "subject": {"value": "sub-2"}}},
+          ]
+        }
+      },
+      {
+        "name": "CardCaptured",
+        "aggregate": "Banking::CardPayment",
+        "id": "pay-disputed",
+        "payload": {
+          "authorisation": {
+            "value": "pay-disputed"
+          }
+        }
+      },
+      {
+        "name": "CardDisputed",
+        "aggregate": "Banking::CardPayment",
+        "id": "pay-disputed",
+        "payload": {
+          "authorisation": {
+            "value": "pay-disputed"
+          },
+          "disputed_by": "cust-1"
+        }
+      },
+      {
+        "name": "CardAuthorized",
+        "aggregate": "Banking::CardPayment",
+        "id": "pay-flagged",
+        "payload": {
+          "account": "acct-1",
+          "authorisation": {
+            "value": "pay-flagged"
+          },
+          "amount": {
+            "cents": 250
+          },
+          "merchant": {
+            "value": "Risky Co"
+          },
+          "tags": [
+            {
+              "value": "high_risk"
+            }
+          ]
+        }
+      },
+      {
+        "name": "ExternalTransferRequested",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-sent",
+        "payload": {
+          "account": "acct-1",
+          "end_to_end": {
+            "value": "ext-sent"
+          },
+          "amount": {
+            "cents": 200
+          },
+          "beneficiary": {
+            "value": "Other Bank"
+          },
+          "direction": {
+            "value": "debit"
+          }
+        }
+      },
+      {
+        "name": "ExternalTransferSent",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-sent",
+        "payload": {
+        }
+      },
+      {
+        "name": "ExternalTransferRequested",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-recalled",
+        "payload": {
+          "account": "acct-1",
+          "end_to_end": {
+            "value": "ext-recalled"
+          },
+          "amount": {
+            "cents": 75
+          },
+          "beneficiary": {
+            "value": "Someone Else"
+          },
+          "direction": {
+            "value": "debit"
+          }
+        }
+      },
+      {
+        "name": "ExternalTransferSent",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-recalled",
+        "payload": {
+        }
+      },
+      {
+        "name": "ExternalTransferRecalled",
+        "aggregate": "Banking::ExternalTransfer",
+        "id": "ext-recalled",
+        "payload": {
+          "end_to_end": {
+            "value": "ext-recalled"
+          }
+        }
+      },
+      {
+        "name": "RoleAssigned",
+        "aggregate": "Governance::RoleAssignment",
+        "id": "gov-actor-1:Teller:2026-01-01",
+        "payload": {
+          "actor_id": {
+            "value": "gov-actor-1"
+          },
+          "role_name": {
+            "value": "Teller"
+          },
+          "scope": {
+            "value": "Branch-1"
+          },
+          "starts_at": {
+            "value": "2026-01-01"
+          }
+        }
+      },
+      {
+        "name": "RoleAssigned",
+        "aggregate": "Governance::RoleAssignment",
+        "id": "gov-actor-1:Teller:2026-06-01",
+        "payload": {
+          "actor_id": {
+            "value": "gov-actor-1"
+          },
+          "role_name": {
+            "value": "Teller"
+          },
+          "scope": {
+            "value": "Branch-1"
+          },
+          "starts_at": {
+            "value": "2026-06-01"
+          }
+        }
+      },
+      {
+        "name": "RoleAssigned",
+        "aggregate": "Governance::RoleAssignment",
+        "id": "gov-actor-2:Branch manager:2026-01-01",
+        "payload": {
+          "actor_id": {
+            "value": "gov-actor-2"
+          },
+          "role_name": {
+            "value": "Branch manager"
+          },
+          "scope": {
+            "value": "Branch-2"
+          },
+          "starts_at": {
+            "value": "2026-01-01"
+          }
+        }
+      },
+      {
+        "name": "RoleTransitionGranted",
+        "aggregate": "Governance::RoleTransition",
+        "id": "Customer administrator:Customer registrar:2026-01-01",
+        "payload": {
+          "from_role": {
+            "value": "Customer administrator"
+          },
+          "to_role": {
+            "value": "Customer registrar"
+          },
+          "starts_at": {
+            "value": "2026-01-01"
+          }
+        }
+      },
+      {
+        "name": "RoleTransitionGranted",
+        "aggregate": "Governance::RoleTransition",
+        "id": "Teller:Branch manager:2026-01-01",
+        "payload": {
+          "from_role": {
+            "value": "Teller"
+          },
+          "to_role": {
+            "value": "Branch manager"
+          },
+          "starts_at": {
+            "value": "2026-01-01"
+          }
+        }
+      },
+      {
+        "name": "IdentityRegistered",
+        "aggregate": "Identity::Identity",
+        "id": "id-1",
+        "payload": {
+          "identity_id": {
+            "value": "id-1"
+          }
+        }
+      },
+      {
+        "name": "IdentityRegistered",
+        "aggregate": "Identity::Identity",
+        "id": "id-2",
+        "payload": {
+          "identity_id": {
+            "value": "id-2"
+          }
+        }
+      },
+      {
+        "name": "ExternalIdentifierLinked",
+        "aggregate": "Identity::ExternalIdentifier",
+        "id": "google:sub-1",
+        "payload": {
+          "identity": "id-1",
+          "key": {
+            "value": "google:sub-1"
+          },
+          "issuer": {
+            "value": "google"
+          },
+          "subject": {
+            "value": "sub-1"
+          }
+        }
+      },
+      {
+        "name": "ExternalIdentifierLinked",
+        "aggregate": "Identity::ExternalIdentifier",
+        "id": "google:sub-2",
+        "payload": {
+          "identity": "id-2",
+          "key": {
+            "value": "google:sub-2"
+          },
+          "issuer": {
+            "value": "google"
+          },
+          "subject": {
+            "value": "sub-2"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking::CardPayment.Pending",
+        "args": {
+        },
+        "rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-flagged"
+            },
+            "amount": {
+              "cents": 250
+            },
+            "merchant": {
+              "value": "Risky Co"
+            },
+            "tags": [
+              {
+                "value": "high_risk"
+              }
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-flagged"
+          },
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-open"
+            },
+            "amount": {
+              "cents": 500
+            },
+            "merchant": {
+              "value": "Grocer"
+            },
+            "tags": [
 
-    {"query": "Banking::CardPayment.Pending"},
-    {"query": "Banking::CardPayment.Disputed"},
-    {"query": "Banking::CardPayment.Flagged"},
-    {"query": "Banking::ExternalTransfer.Sent"},
-    {"query": "Governance::RoleAssignment.AssignmentsForActor", "args": {"actor_id": {"value": "gov-actor-1"}}},
-    {"query": "Governance::RoleTransition.Allowed", "args": {"from_role": {"value": "Customer administrator"}, "to_role": {"value": "Customer registrar"}}},
-    {"query": "Identity::ExternalIdentifier.ResolvedBy", "args": {"issuer": {"value": "google"}, "subject": {"value": "sub-1"}}}
-  ]
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-open"
+          }
+        ],
+        "reference_rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-flagged"
+            },
+            "amount": {
+              "cents": 250
+            },
+            "merchant": {
+              "value": "Risky Co"
+            },
+            "tags": [
+              {
+                "value": "high_risk"
+              }
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-flagged"
+          },
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-open"
+            },
+            "amount": {
+              "cents": 500
+            },
+            "merchant": {
+              "value": "Grocer"
+            },
+            "tags": [
+
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-open"
+          }
+        ]
+      },
+      {
+        "query": "Banking::CardPayment.Disputed",
+        "args": {
+        },
+        "rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": "cust-1",
+            "authorisation": {
+              "value": "pay-disputed"
+            },
+            "amount": {
+              "cents": 900
+            },
+            "merchant": {
+              "value": "Airline"
+            },
+            "tags": [
+
+            ],
+            "status": "disputed",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-disputed"
+          }
+        ],
+        "reference_rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": "cust-1",
+            "authorisation": {
+              "value": "pay-disputed"
+            },
+            "amount": {
+              "cents": 900
+            },
+            "merchant": {
+              "value": "Airline"
+            },
+            "tags": [
+
+            ],
+            "status": "disputed",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-disputed"
+          }
+        ]
+      },
+      {
+        "query": "Banking::CardPayment.Flagged",
+        "args": {
+        },
+        "rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-flagged"
+            },
+            "amount": {
+              "cents": 250
+            },
+            "merchant": {
+              "value": "Risky Co"
+            },
+            "tags": [
+              {
+                "value": "high_risk"
+              }
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-flagged"
+          }
+        ],
+        "reference_rows": [
+          {
+            "account": "acct-1",
+            "disputed_by": null,
+            "authorisation": {
+              "value": "pay-flagged"
+            },
+            "amount": {
+              "cents": 250
+            },
+            "merchant": {
+              "value": "Risky Co"
+            },
+            "tags": [
+              {
+                "value": "high_risk"
+              }
+            ],
+            "status": "authorized",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "pay-flagged"
+          }
+        ]
+      },
+      {
+        "query": "Banking::ExternalTransfer.Sent",
+        "args": {
+        },
+        "rows": [
+          {
+            "account": "acct-1",
+            "end_to_end": {
+              "value": "ext-sent"
+            },
+            "amount": {
+              "cents": 200
+            },
+            "beneficiary": {
+              "value": "Other Bank"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "status": "sent",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "ext-sent"
+          }
+        ],
+        "reference_rows": [
+          {
+            "account": "acct-1",
+            "end_to_end": {
+              "value": "ext-sent"
+            },
+            "amount": {
+              "cents": 200
+            },
+            "beneficiary": {
+              "value": "Other Bank"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "status": "sent",
+            "account_status": "open",
+            "account_customer_status": "active",
+            "id": "ext-sent"
+          }
+        ]
+      },
+      {
+        "query": "Governance::RoleAssignment.AssignmentsForActor",
+        "args": {
+          "actor_id": {
+            "value": "gov-actor-1"
+          }
+        },
+        "rows": [
+          {
+            "actor_id": {
+              "value": "gov-actor-1"
+            },
+            "role_name": {
+              "value": "Teller"
+            },
+            "scope": {
+              "value": "Branch-1"
+            },
+            "starts_at": {
+              "value": "2026-01-01"
+            },
+            "ends_at": null,
+            "id": "gov-actor-1:Teller:2026-01-01"
+          },
+          {
+            "actor_id": {
+              "value": "gov-actor-1"
+            },
+            "role_name": {
+              "value": "Teller"
+            },
+            "scope": {
+              "value": "Branch-1"
+            },
+            "starts_at": {
+              "value": "2026-06-01"
+            },
+            "ends_at": null,
+            "id": "gov-actor-1:Teller:2026-06-01"
+          }
+        ],
+        "reference_rows": [
+          {
+            "actor_id": {
+              "value": "gov-actor-1"
+            },
+            "role_name": {
+              "value": "Teller"
+            },
+            "scope": {
+              "value": "Branch-1"
+            },
+            "starts_at": {
+              "value": "2026-01-01"
+            },
+            "ends_at": null,
+            "id": "gov-actor-1:Teller:2026-01-01"
+          },
+          {
+            "actor_id": {
+              "value": "gov-actor-1"
+            },
+            "role_name": {
+              "value": "Teller"
+            },
+            "scope": {
+              "value": "Branch-1"
+            },
+            "starts_at": {
+              "value": "2026-06-01"
+            },
+            "ends_at": null,
+            "id": "gov-actor-1:Teller:2026-06-01"
+          }
+        ]
+      },
+      {
+        "query": "Governance::RoleTransition.Allowed",
+        "args": {
+          "from_role": {
+            "value": "Customer administrator"
+          },
+          "to_role": {
+            "value": "Customer registrar"
+          }
+        },
+        "rows": [
+          {
+            "from_role": {
+              "value": "Customer administrator"
+            },
+            "to_role": {
+              "value": "Customer registrar"
+            },
+            "starts_at": {
+              "value": "2026-01-01"
+            },
+            "ends_at": null,
+            "id": "Customer administrator:Customer registrar:2026-01-01"
+          }
+        ],
+        "reference_rows": [
+          {
+            "from_role": {
+              "value": "Customer administrator"
+            },
+            "to_role": {
+              "value": "Customer registrar"
+            },
+            "starts_at": {
+              "value": "2026-01-01"
+            },
+            "ends_at": null,
+            "id": "Customer administrator:Customer registrar:2026-01-01"
+          }
+        ]
+      },
+      {
+        "query": "Identity::ExternalIdentifier.ResolvedBy",
+        "args": {
+          "issuer": {
+            "value": "google"
+          },
+          "subject": {
+            "value": "sub-1"
+          }
+        },
+        "rows": [
+          {
+            "identity": "id-1",
+            "key": {
+              "value": "google:sub-1"
+            },
+            "issuer": {
+              "value": "google"
+            },
+            "subject": {
+              "value": "sub-1"
+            },
+            "id": "google:sub-1"
+          }
+        ],
+        "reference_rows": [
+          {
+            "identity": "id-1",
+            "key": {
+              "value": "google:sub-1"
+            },
+            "issuer": {
+              "value": "google"
+            },
+            "subject": {
+              "value": "sub-1"
+            },
+            "id": "google:sub-1"
+          }
+        ]
+      }
+    ],
+    "sagas": [
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-sent",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-sent",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferSent",
+        "instance": "ext-sent",
+        "ended": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "instance": "ext-sent",
+        "dispatch": "ExternalTransfer.SendTransfer",
+        "delivered": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-recalled",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferRequested",
+        "instance": "ext-recalled",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "on": "ExternalTransferSent",
+        "instance": "ext-recalled",
+        "ended": true
+      },
+      {
+        "process_manager": "ExternalSettlement",
+        "instance": "ext-recalled",
+        "dispatch": "ExternalTransfer.SendTransfer",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

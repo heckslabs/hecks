@@ -2,11 +2,180 @@
   "domain": "spec/fixtures/rust_project/group_by_collision_fixture",
   "note": "ADR 0061 decision D1 — a group_by leaf holds one row. `PartsByBin` groups by `bin` alone: it answers while each bin holds one part, then refuses InvariantViolation/group_by_collision once p1 and p2 share bin b1, naming the read model, the key path and both ids, rather than keeping p1 and dropping p2 without a word. `PartsByBinAndRef` covers Part's identity and answers the same data in full. Ruby and Rust must agree on the refusal byte for byte.",
   "steps": [
-    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p1"}, "bin": {"label": "b1"}}},
-    {"query": "GroupByCollisionFixture.PartsByBin"},
-    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p2"}, "bin": {"label": "b1"}}},
-    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p3"}, "bin": {"label": "b2"}}},
-    {"query": "GroupByCollisionFixture.PartsByBin"},
-    {"query": "GroupByCollisionFixture.PartsByBinAndRef"}
-  ]
+    {
+      "verb": "GroupByCollisionFixture::Part.Stock",
+      "args": {
+        "ref": {
+          "value": "p1"
+        },
+        "bin": {
+          "label": "b1"
+        }
+      }
+    },
+    {
+      "query": "GroupByCollisionFixture.PartsByBin"
+    },
+    {
+      "verb": "GroupByCollisionFixture::Part.Stock",
+      "args": {
+        "ref": {
+          "value": "p2"
+        },
+        "bin": {
+          "label": "b1"
+        }
+      }
+    },
+    {
+      "verb": "GroupByCollisionFixture::Part.Stock",
+      "args": {
+        "ref": {
+          "value": "p3"
+        },
+        "bin": {
+          "label": "b2"
+        }
+      }
+    },
+    {
+      "query": "GroupByCollisionFixture.PartsByBin"
+    },
+    {
+      "query": "GroupByCollisionFixture.PartsByBinAndRef"
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "GroupByCollisionFixture.PartsByBin",
+        "error": "PartsByBin groups by bin, but rows \"p1\", \"p2\" share bin = b1 — a group_by leaf holds one row; add a field that tells them apart",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "GroupByCollisionFixture::Part#p1": {
+        "ref": {
+          "value": "p1"
+        },
+        "bin": {
+          "label": "b1"
+        }
+      },
+      "GroupByCollisionFixture::Part#p2": {
+        "ref": {
+          "value": "p2"
+        },
+        "bin": {
+          "label": "b1"
+        }
+      },
+      "GroupByCollisionFixture::Part#p3": {
+        "ref": {
+          "value": "p3"
+        },
+        "bin": {
+          "label": "b2"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "PartStocked",
+        "aggregate": "GroupByCollisionFixture::Part",
+        "id": "p1",
+        "payload": {
+          "ref": {
+            "value": "p1"
+          },
+          "bin": {
+            "label": "b1"
+          }
+        }
+      },
+      {
+        "name": "PartStocked",
+        "aggregate": "GroupByCollisionFixture::Part",
+        "id": "p2",
+        "payload": {
+          "ref": {
+            "value": "p2"
+          },
+          "bin": {
+            "label": "b1"
+          }
+        }
+      },
+      {
+        "name": "PartStocked",
+        "aggregate": "GroupByCollisionFixture::Part",
+        "id": "p3",
+        "payload": {
+          "ref": {
+            "value": "p3"
+          },
+          "bin": {
+            "label": "b2"
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "GroupByCollisionFixture.PartsByBin",
+        "args": {
+        },
+        "rows": [
+          {
+            "parts": {
+              "b1": {
+                "ref": "p1",
+                "id": "p1"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupByCollisionFixture.PartsByBin",
+        "args": {
+        },
+        "rows": null,
+        "error": "PartsByBin groups by bin, but rows \"p1\", \"p2\" share bin = b1 — a group_by leaf holds one row; add a field that tells them apart"
+      },
+      {
+        "query": "GroupByCollisionFixture.PartsByBinAndRef",
+        "args": {
+        },
+        "rows": [
+          {
+            "parts": {
+              "b1": {
+                "p1": {
+                  "id": "p1"
+                },
+                "p2": {
+                  "id": "p2"
+                }
+              },
+              "b2": {
+                "p3": {
+                  "id": "p3"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }
