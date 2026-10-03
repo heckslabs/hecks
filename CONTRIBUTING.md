@@ -168,7 +168,7 @@ you the prose lied.
 
 **Rust.** `rust/` is a second dispatch runtime, generated from the same
 canonical IR and checked against Ruby continuously
-(`spec/codegen_parity_spec.rb`, `spec/rust_conformance_spec.rb`). You
+(`hecks regenerate_corpus --check`, `spec/rust_conformance_spec.rb`). You
 don't need a Rust toolchain to contribute Ruby-only changes — your pull
 request's own CI builds and runs the conformance suite, and the merge
 queue runs it again against main's current tip before anything lands. If
@@ -237,7 +237,7 @@ above:
   build;
 - `hecks model_check`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage` and
   `rubocop`;
-- the Ruby/Rust parity specs and the golden IR (`spec/codegen_parity_spec.rb`,
+- the Ruby/Rust parity specs and the golden IR (`spec/codegen_planted_gaps_spec.rb`,
   `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
   `spec/ir_golden_spec.rb`);
 - every `ruby`-fenced block in the README and the guides, run as a doctest
