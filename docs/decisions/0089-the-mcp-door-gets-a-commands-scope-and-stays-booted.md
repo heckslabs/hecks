@@ -16,11 +16,18 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
 2. **A command is admitted by the verb it resolves to, not by the string it was asked for.** The requested name and each allowed name go through the alias map `dispatch` resolves with, and the resolved verbs are compared. `order.create_pizza` reaches `create_pizza`'s verb when that is allowed. A name that resolves to nothing admits nothing, and a name shared by several aggregates is qualified in the alias map, so an allowed short name cannot reach another aggregate's command. Dry runs and every step of a batch are admitted before anything runs.
 3. **`tools/list` shows what is served.** `dispatch` carries the allowed commands as an `enum` on `command`, on each step, and in its description, so a caller sees the surface as typed tool definitions and does not need a manual.
 4. **A restricted door keeps each named domain booted** until the files of its directory change (a fingerprint of each file's path, size and modification time). Both restricted modes do this; an unrestricted door boots afresh on every call, as before. A domain with in-memory persistence therefore keeps its records between calls on a restricted door.
+5. **A restricted door checks arguments by name, for `dispatch` and for `query`.** A list of commands admits commands, not values, so a command that takes a path or a binary could still be pointed somewhere harmful. Three classes of argument name are checked on the way in, descending into nested objects and every step of a batch:
+   - **Denied names** are refused whatever the command: those that name a host or a URL, a binary to run, a place to write, a port, a store to switch to, or that flip a command from a preview to a change of state (`McpDoorScope::DENIED_ARGUMENTS`).
+   - **Path names** pass only when each value resolves inside `Storehouse::BOOT_ROOT` with symlinks followed (a link above a file that does not exist yet is followed too) and holds no colon, so `host:repo` and `https://host/x` cannot pass as relative paths (`PATH_ARGUMENTS`).
+   - **Ref names** pass only as plain git refs: no leading dash, no `..` (`REF_ARGUMENTS`).
+
+   Other names pass unchecked. A spec lists every argument name of every public command of the Hecks chapter and fails when one is in none of the three classes or a short list of names known to be plain data, so whoever adds an argument that reaches outside the checkout has to say so.
 
 ## Consequences
 
 - An agent can run the allowlisted verbs with typed arguments and a refusal in the domain's own words, with no shell. With the domain kept booted, a call after the first took under 10 ms in the measurement that decided this, against about 1.5 to 3 s when the door re-booted per call (Postgres-backed domain).
-- The list admits commands, not argument values. A command that takes a path or a binary can still be pointed somewhere harmful: `run_spec_example file=` runs the Ruby in any spec file, `bench output=` writes where it is told, and `smoke_http` takes a URL and a payload file. Do not put such a command on the list for an agent you do not trust until per-argument constraints exist. The sample lists in this ADR's tests name only commands whose arguments name domains and paths inside the checkout.
+- Argument checking is by name, which is its limit. For the Hecks chapter the classification is complete and held by a spec; a domain whose own commands take an argument that reaches outside its files has to name it in the constants above, since an unclassified name passes. A path inside the root is still a path the command acts on: `run_spec_example file=` runs the Ruby in any spec file under the root, so keep the root to the checkout and give an agent no way to write a file there.
+- A command whose point is to change state or reach a host (`smoke_http`, `bench` with an output, the publishing commands) is blocked by its argument names where they are denied, but is better left off the list.
 - Identity stays self-asserted: `role:` is a claim the caller makes, as ADR 0072 says. Commands mode limits reach and identifies no one.
 - A resident domain does not notice a change in the hecks code itself or in a chapter it attaches from outside its directory. The door lives for one spawner's session and is restarted with it.
 - The chapter's own era check runs at the first boot, not on each call, so a database era change mid-session is not noticed until the door restarts.
@@ -34,7 +41,7 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
 
 ## Open items
 
-- Per-argument constraints on an allowed command: values confined to paths inside the checkout, and denied argument names, as the shell wrapper's policy does.
+- Constraints declared on the bluebook's own types, not by argument name, so the classification cannot drift from the types: the projection reduces each argument to a primitive type, so this needs the declared type name carried through to it.
 - One tool per verb with a projected argument schema.
 - Whether the door should refuse to start when an allowed name resolves to nothing in a named domain, instead of admitting nothing.
 - Real access control: the roles a command declares are still unassigned and self-asserted.
