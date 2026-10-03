@@ -50,7 +50,26 @@ module Hecks
       end
 
       # What `describe` answers: the loaded declarations and nothing bound to run them.
-      Described = Struct.new(:registry, :directory)
+      #
+      # The declarations load the first time `registry` is asked for, not when `describe` returns,
+      # so a caller that can answer from `directory` alone (a launcher with its help already
+      # remembered) never pays for the load. The directory is checked at once.
+      class Described
+        # @return [String] the domain directory that was described
+        attr_reader :directory
+
+        # @param directory [String] the domain directory
+        # @yield loads the declarations; answers the registry
+        def initialize(directory, &load)
+          @directory = directory
+          @load = load
+        end
+
+        # @return [Registry] the declarations, loaded on first use
+        def registry
+          @registry ||= @load.call
+        end
+      end
 
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
       # persistence adapter is resolved or bound, nothing connects to a database.
@@ -66,15 +85,19 @@ module Hecks
       def self.describe(path, shared: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
-        root      = loading.shared_root(shared, directory)
-        registry  = Registry.new(root: File.dirname(directory))
+        overlay   = selected_environment(environment)
 
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(root)
-          loading.load_domain(directory, environment: selected_environment(environment))
+        Described.new(directory) do
+          root     = loading.shared_root(shared, directory)
+          registry = Registry.new(root: File.dirname(directory))
+
+          Hecks.with_registry(registry) do
+            loading.load_library
+            loading.load_project(root)
+            loading.load_domain(directory, environment: overlay)
+          end
+          registry
         end
-        Described.new(registry, directory)
       end
 
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the

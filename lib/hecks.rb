@@ -29,6 +29,7 @@ require_relative "hecks/projector"
 require_relative "hecks/projections"
 # After `Projector`, which dispatches against the `:cli` projection.
 require_relative "hecks/doors/cli_door"
+require_relative "hecks/doors/usage_cache"
 require_relative "hecks/doors/cli_runner"
 require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"

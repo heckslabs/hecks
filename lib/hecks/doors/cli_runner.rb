@@ -104,7 +104,7 @@ module Hecks
       # @return [Array(String, Integer), nil] the text and status, or nil when the line would
       #   run a command or question and so needs a booted domain
       def usage(runtime:, argv:, program: "hecks run")
-        resolve(runtime, argv, program)[:answer]
+        UsageCache.fetch(runtime, argv, program) { resolve(runtime, argv, program)[:answer] }
       end
 
       # Parses a command line against the projection: either the answer it gives without

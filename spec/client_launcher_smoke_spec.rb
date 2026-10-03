@@ -260,11 +260,11 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a domain that opted in through its world's launcher setting" do
-    it "answers an alias, listed instead of the command it stands for, and the full name too" do
+    it "answers an alias, noted beside the command it stands for, and the full name too" do
       expect(created(@opted[:alias])["id"]).to eq("A")
       expect(@opted[:alias_help][:out]).to include("dispatches Pizzas::Order.CreatePizza")
-      expect(@opted[:listed][:out]).to match(/^  make! /)
-      expect(@opted[:listed][:out]).not_to match(/^  order.create_pizza! /)
+      expect(@opted[:listed][:out]).to match(/^  order\.create_pizza! .*\(also: make!\)/)
+      expect(@opted[:listed][:out]).not_to match(/^  make! /)
       expect(@opted[:plain][:status]).to eq(0)
     end
 

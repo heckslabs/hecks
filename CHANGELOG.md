@@ -13,6 +13,18 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **`AwsBox` generates the tooling to move a project's data onto the new database.** A world that declares `migration({ schemas: [...] })` also gets `restore-to-rds.sh` (a per-schema `pg_dump | pg_restore` through a bastion, with the Hecks materialized-view refresh handled), `verify-copy.sh` (structure and exact row counts of both sides) and `MIGRATION.md` (the steps in order, with the rollback caveat). The bastion, hosts and secrets are arguments, so one set of scripts serves a rehearsal, the cutover and a copy back. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
+**`hecks` prints its help about three times faster on a repeat run, and the help is grouped by
+aggregate with the prefix left off.** Reading the domain's declarations was most of what the launcher
+cost (about 0.9s of 1.2s); the help is now remembered under a digest of the domain's declaration
+files, the gem's own library, the hecks and Ruby versions, the environment overlay and the command
+line, so any edit to one of them is simply a new entry and nothing is ever stale. A repeat `hecks`
+reads no declarations. `Hecks.describe` loads them on the first `registry` call instead of on return.
+`HECKS_NO_USAGE_CACHE=1` turns the cache off and `HECKS_CACHE_DIR` moves it (default
+`~/.cache/hecks`); an entry nobody reads for two weeks is swept on the next write. In the help, each
+aggregate heading is the prefix of every call under it (`language_run:`), and the lines beneath drop
+it (`project_model!`); a command the chapter gives a short name is listed by its real name with
+`(also: mcp!)`.
+
 ## [3.1.0] - 2026-10-03
 
 A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
