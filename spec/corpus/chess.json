@@ -8,75 +8,478 @@
   "steps": [
     {
       "verb": "Chess::Game.Start",
-      "args": { "label": { "value": "g1" } }
-    },
-    {
-      "verb": "Chess::Game.PlacePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "wk" },
-        "kind": { "value": "king" },
-        "color": { "value": "white" },
-        "square": { "file": 4, "rank": 0 }
+        "label": {
+          "value": "g1"
+        }
       }
     },
     {
       "verb": "Chess::Game.PlacePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "wr1" },
-        "kind": { "value": "rook" },
-        "color": { "value": "white" },
-        "square": { "file": 0, "rank": 0 }
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wk"
+        },
+        "kind": {
+          "value": "king"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 4,
+          "rank": 0
+        }
       }
     },
     {
       "verb": "Chess::Game.PlacePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "bk" },
-        "kind": { "value": "king" },
-        "color": { "value": "black" },
-        "square": { "file": 4, "rank": 7 }
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wr1"
+        },
+        "kind": {
+          "value": "rook"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 0,
+          "rank": 0
+        }
       }
     },
     {
       "verb": "Chess::Game.PlacePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "bn1" },
-        "kind": { "value": "knight" },
-        "color": { "value": "black" },
-        "square": { "file": 1, "rank": 7 }
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "bk"
+        },
+        "kind": {
+          "value": "king"
+        },
+        "color": {
+          "value": "black"
+        },
+        "square": {
+          "file": 4,
+          "rank": 7
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "bn1"
+        },
+        "kind": {
+          "value": "knight"
+        },
+        "color": {
+          "value": "black"
+        },
+        "square": {
+          "file": 1,
+          "rank": 7
+        }
       }
     },
     {
       "verb": "Chess::Game.MovePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "wr1" },
-        "destination": { "file": 0, "rank": 3 },
-        "by": { "value": "white" },
-        "outcome": { "value": "ongoing" }
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wr1"
+        },
+        "destination": {
+          "file": 0,
+          "rank": 3
+        },
+        "by": {
+          "value": "white"
+        },
+        "outcome": {
+          "value": "ongoing"
+        }
       }
     },
     {
       "verb": "Chess::Game.MovePiece",
       "args": {
-        "label": { "value": "g1" },
-        "id": { "value": "bn1" },
-        "destination": { "file": 2, "rank": 5 },
-        "by": { "value": "black" },
-        "outcome": { "value": "ongoing" }
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "bn1"
+        },
+        "destination": {
+          "file": 2,
+          "rank": 5
+        },
+        "by": {
+          "value": "black"
+        },
+        "outcome": {
+          "value": "ongoing"
+        }
       }
     },
     {
       "verb": "Chess::Game.OfferDraw",
-      "args": { "label": { "value": "g1" }, "by": { "value": "white" } }
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "by": {
+          "value": "white"
+        }
+      }
     },
     {
       "verb": "Chess::Game.AcceptDraw",
-      "args": { "label": { "value": "g1" }, "by": { "value": "black" } }
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "by": {
+          "value": "black"
+        }
+      }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Chess::Game#g1": {
+        "label": {
+          "value": "g1"
+        },
+        "turn": {
+          "value": "white"
+        },
+        "draw_offer": {
+          "value": "none"
+        },
+        "ply": {
+          "value": 2
+        },
+        "pieces": [
+          {
+            "id": {
+              "value": "wk"
+            },
+            "kind": {
+              "value": "king"
+            },
+            "color": {
+              "value": "white"
+            },
+            "square": {
+              "file": 4,
+              "rank": 0
+            },
+            "moved": {
+              "value": "unmoved"
+            },
+            "status": "on_board"
+          },
+          {
+            "id": {
+              "value": "wr1"
+            },
+            "kind": {
+              "value": "rook"
+            },
+            "color": {
+              "value": "white"
+            },
+            "square": {
+              "file": 0,
+              "rank": 3
+            },
+            "moved": {
+              "value": "moved"
+            },
+            "status": "on_board"
+          },
+          {
+            "id": {
+              "value": "bk"
+            },
+            "kind": {
+              "value": "king"
+            },
+            "color": {
+              "value": "black"
+            },
+            "square": {
+              "file": 4,
+              "rank": 7
+            },
+            "moved": {
+              "value": "unmoved"
+            },
+            "status": "on_board"
+          },
+          {
+            "id": {
+              "value": "bn1"
+            },
+            "kind": {
+              "value": "knight"
+            },
+            "color": {
+              "value": "black"
+            },
+            "square": {
+              "file": 2,
+              "rank": 5
+            },
+            "moved": {
+              "value": "moved"
+            },
+            "status": "on_board"
+          }
+        ],
+        "status": "draw"
+      }
+    },
+    "events": [
+      {
+        "name": "GameStarted",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wk"
+          },
+          "kind": {
+            "value": "king"
+          },
+          "color": {
+            "value": "white"
+          },
+          "square": {
+            "file": 4,
+            "rank": 0
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wr1"
+          },
+          "kind": {
+            "value": "rook"
+          },
+          "color": {
+            "value": "white"
+          },
+          "square": {
+            "file": 0,
+            "rank": 0
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "bk"
+          },
+          "kind": {
+            "value": "king"
+          },
+          "color": {
+            "value": "black"
+          },
+          "square": {
+            "file": 4,
+            "rank": 7
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "bn1"
+          },
+          "kind": {
+            "value": "knight"
+          },
+          "color": {
+            "value": "black"
+          },
+          "square": {
+            "file": 1,
+            "rank": 7
+          }
+        }
+      },
+      {
+        "name": "PieceMoved",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wr1"
+          },
+          "destination": {
+            "file": 0,
+            "rank": 3
+          },
+          "by": {
+            "value": "white"
+          },
+          "outcome": {
+            "value": "ongoing"
+          }
+        }
+      },
+      {
+        "name": "TurnAdvanced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "turn": {
+            "value": "black"
+          }
+        }
+      },
+      {
+        "name": "PieceMoved",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "bn1"
+          },
+          "destination": {
+            "file": 2,
+            "rank": 5
+          },
+          "by": {
+            "value": "black"
+          },
+          "outcome": {
+            "value": "ongoing"
+          }
+        }
+      },
+      {
+        "name": "TurnAdvanced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "turn": {
+            "value": "white"
+          }
+        }
+      },
+      {
+        "name": "DrawOffered",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "by": {
+            "value": "white"
+          }
+        }
+      },
+      {
+        "name": "DrawAgreed",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "by": {
+            "value": "black"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "OnWhiteMovedAdvanceTurn",
+        "on": "PieceMoved",
+        "trigger": "Chess::Game.AdvanceTurn",
+        "delivered": true
+      },
+      {
+        "policy": "OnBlackMovedAdvanceTurn",
+        "on": "PieceMoved",
+        "trigger": "Chess::Game.AdvanceTurn",
+        "delivered": true
+      }
+    ]
+  }
 }

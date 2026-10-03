@@ -2,11 +2,467 @@
   "domain": "examples/banking",
   "note": "Rust mirror of the compensates feature (per-dispatch saga compensation, lib/hecks/bluebook/dsl/process_manager_builder.rb) -- the exact scenario docs/implemented/reference/dispatch.md's own doctest demonstrates: fund a source account, freeze the destination, request a transfer. Account.Debit succeeds and moves the money out; Account.Credit then refuses (the destination is frozen). Settlement's own Account.Debit dispatch declares `compensates Account::Credit`, so the runtime fires that compensation the moment Credit refuses -- the source account's balance ends back at 1000 (not 800), and the saga log names the compensation distinctly (`compensation: true`). This pins that exact instances/events/refusals/reactions/sagas comparison byte-for-byte against Ruby, including the `compensation`/`delivered` tag on the derived Account.Credit compensation entry in `sagas` -- the same log shape spec/rust_conformance_spec.rb's own comparison checks for every other fixture here.",
   "steps": [
-    {"verb": "Banking::Customer.Register", "role": "Branch clerk", "args": {"reference": {"value": "cust-compensation-1"}, "name": {"given": "Nils", "family": "Voss"}, "email": {"address": "nils@example.com"}}},
-    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-compensation-src"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-compensation-1"}},
-    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-compensation-dst"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-compensation-1"}},
-    {"verb": "Banking::Account.Credit", "role": "Teller", "args": {"number": {"value": "acct-compensation-src"}, "amount": {"cents": 1000}, "narrative": {"text": "opening balance"}}},
-    {"verb": "Banking::Account.FreezeAccount", "role": "Compliance officer", "args": {"number": {"value": "acct-compensation-dst"}}},
-    {"verb": "Banking::Transfer.Request", "role": "Customer", "args": {"reference": {"value": "xfer-compensation-1"}, "amount": {"cents": 200}, "narrative": {"text": "rent"}, "source": "acct-compensation-src", "destination": "acct-compensation-dst"}}
-  ]
+    {
+      "verb": "Banking::Customer.Register",
+      "role": "Branch clerk",
+      "args": {
+        "reference": {
+          "value": "cust-compensation-1"
+        },
+        "name": {
+          "given": "Nils",
+          "family": "Voss"
+        },
+        "email": {
+          "address": "nils@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "number": {
+          "value": "acct-compensation-src"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer": "cust-compensation-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "number": {
+          "value": "acct-compensation-dst"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer": "cust-compensation-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "role": "Teller",
+      "args": {
+        "number": {
+          "value": "acct-compensation-src"
+        },
+        "amount": {
+          "cents": 1000
+        },
+        "narrative": {
+          "text": "opening balance"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "role": "Compliance officer",
+      "args": {
+        "number": {
+          "value": "acct-compensation-dst"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "role": "Customer",
+      "args": {
+        "reference": {
+          "value": "xfer-compensation-1"
+        },
+        "amount": {
+          "cents": 200
+        },
+        "narrative": {
+          "text": "rent"
+        },
+        "source": "acct-compensation-src",
+        "destination": "acct-compensation-dst"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#cust-compensation-1": {
+        "reference": {
+          "value": "cust-compensation-1"
+        },
+        "name": {
+          "given": "Nils",
+          "family": "Voss"
+        },
+        "email": {
+          "address": "nils@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-compensation-src": {
+        "customer": "cust-compensation-1",
+        "number": {
+          "value": "acct-compensation-src"
+        },
+        "balance": {
+          "cents": 1000,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 1000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "opening balance"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 200,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 200,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer reversed"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 3
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-compensation-dst": {
+        "customer": "cust-compensation-1",
+        "number": {
+          "value": "acct-compensation-dst"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "active"
+      },
+      "Banking::Transfer#xfer-compensation-1": {
+        "source": "acct-compensation-src",
+        "destination": "acct-compensation-dst",
+        "reference": {
+          "value": "xfer-compensation-1"
+        },
+        "amount": {
+          "cents": 200
+        },
+        "narrative": {
+          "text": "rent"
+        },
+        "status": "reversed",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "frozen",
+        "destination_customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-compensation-1",
+        "payload": {
+          "reference": {
+            "value": "cust-compensation-1"
+          },
+          "name": {
+            "given": "Nils",
+            "family": "Voss"
+          },
+          "email": {
+            "address": "nils@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-src",
+        "payload": {
+          "number": {
+            "value": "acct-compensation-src"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "cust-compensation-1"
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-dst",
+        "payload": {
+          "number": {
+            "value": "acct-compensation-dst"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          },
+          "customer": "cust-compensation-1"
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-src",
+        "payload": {
+          "number": {
+            "value": "acct-compensation-src"
+          },
+          "amount": {
+            "cents": 1000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "opening balance"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-dst",
+        "payload": {
+          "number": {
+            "value": "acct-compensation-dst"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-compensation-1",
+        "payload": {
+          "reference": {
+            "value": "xfer-compensation-1"
+          },
+          "amount": {
+            "cents": 200
+          },
+          "narrative": {
+            "text": "rent"
+          },
+          "source": "acct-compensation-src",
+          "destination": "acct-compensation-dst"
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-src",
+        "payload": {
+          "amount": {
+            "cents": 200,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-compensation-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-compensation-src",
+        "payload": {
+          "amount": {
+            "cents": 200,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer reversed"
+          }
+        }
+      },
+      {
+        "name": "TransferReversed",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-compensation-1",
+        "payload": {
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-compensation-1",
+        "born": true,
+        "state": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "TransferRequested",
+        "instance": "xfer-compensation-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "requested"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountDebited",
+        "instance": "xfer-compensation-1",
+        "advanced": true,
+        "from": "requested",
+        "to": "awaiting_credit"
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-compensation-1",
+        "dispatch": "Transfer.Debited",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-compensation-1",
+        "dispatch": "Account.Credit",
+        "delivered": false,
+        "reason": "Credit refused — status is \"frozen\", and Credit moves it only from \"open\""
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "refused",
+        "instance": "xfer-compensation-1",
+        "advanced": true,
+        "from": "awaiting_credit",
+        "to": "reversed"
+      },
+      {
+        "process_manager": "Settlement",
+        "on": "AccountCredited",
+        "instance": "xfer-compensation-1",
+        "advanced": false,
+        "reason": "in \"reversed\", not \"awaiting_credit\""
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-compensation-1",
+        "dispatch": "Account.Credit",
+        "delivered": true,
+        "compensation": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-compensation-1",
+        "dispatch": "Transfer.Reverse",
+        "delivered": true
+      },
+      {
+        "process_manager": "Settlement",
+        "instance": "xfer-compensation-1",
+        "dispatch": "Account.Debit",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "ReviewOnFreeze",
+        "on": "AccountFrozen",
+        "trigger": "Compliance::AccountFreezeReview.Open",
+        "delivered": false,
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+      }
+    ]
+  }
 }

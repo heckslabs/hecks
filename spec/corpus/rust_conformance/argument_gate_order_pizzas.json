@@ -153,5 +153,81 @@
         }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "CreatePizza does not declare colour — it takes name, pizza",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "CreatePizza was not given name — it takes name, pizza",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "PizzaName.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping does not declare rank — it takes topping, amount",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping was not given topping — it takes topping, amount",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping refused — role: Chef, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Purchase does not declare colour — it takes amount, customer_name",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Purchase was not given amount — it takes amount, customer_name",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Price.cents expects Integer, got \"not a integer\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Purchase refused — role: Customer, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }
