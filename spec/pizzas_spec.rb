@@ -165,7 +165,7 @@ amount: { value: 2 }).state
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
           Hecks.hecksagon("Pizzas") do
-            uses_framework "Governance"
+            attaches "Governance"
             Pizzas::Order.charged_by("Memory")
           end
           Hecks.hecksagon("Governance") do
@@ -230,7 +230,7 @@ amount: { value: 2 }).state
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
           Hecks.hecksagon("Pizzas") do
-            uses_framework "Governance"
+            attaches "Governance"
             Pizzas::Order.charged_by("Memory")
           end
           Hecks.hecksagon("Governance") do
@@ -257,7 +257,7 @@ amount: { value: 2 }).state
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
         Hecks.hecksagon("Pizzas") do
-          uses_framework "Governance"
+          attaches "Governance"
           Pizzas::Order.persisted_by("Memory")
         end
       end

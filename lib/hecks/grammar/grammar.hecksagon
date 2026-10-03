@@ -4,13 +4,13 @@
 Hecks.hecksagon "Expression" do
   # Every command here declares `role "Language designer"` — only real
   # access control once Governance can check it against something (S8).
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 
 Hecks.hecksagon "Translation" do
   # Same reason as Expression, above — S8.
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 

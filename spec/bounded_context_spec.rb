@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# 2.0: `uses_framework` / `uses_embryonaut_bluebook` load bounded contexts
+# 2.0: `attaches` / `attaches ... from: :vendor` load bounded contexts
 # (module wrap, no Object shortcut). A consumer chapter can also write
 # `bounded` itself. An explicit `bounded` mark always needs a `translates`
 # ACL or boot refuses. Attaching a BC without its sibling hecksagon
@@ -79,11 +79,11 @@ RSpec.describe "bounded contexts" do
     end
   end
 
-  it "marks a uses_framework member bounded without writing bounded in that bluebook" do
+  it "marks an attached member bounded without writing bounded in that bluebook" do
     registry = registry_with do
       declare_probe
       Hecks.hecksagon "Probe" do
-        uses_framework "Governance"
+        attaches "Governance"
         Probe::Widget.persisted_by("Memory")
       end
       sibling_governance!
@@ -94,11 +94,11 @@ RSpec.describe "bounded contexts" do
     expect { registry.verify! }.not_to raise_error
   end
 
-  it "refuses boot when uses_framework has no sibling hecksagon" do
+  it "refuses boot when an attachment has no sibling hecksagon" do
     registry = registry_with do
       declare_probe
       Hecks.hecksagon "Probe" do
-        uses_framework "Governance"
+        attaches "Governance"
         Probe::Widget.persisted_by("Memory")
       end
     end
@@ -150,7 +150,7 @@ RSpec.describe "bounded contexts" do
     first = registry_with do
       declare_echo
       Hecks.hecksagon "BoundedEcho" do
-        uses_framework "Governance"
+        attaches "Governance"
         BoundedEcho::Echo.persisted_by("Memory")
       end
       Hecks.hecksagon "Governance" do
@@ -183,7 +183,7 @@ RSpec.describe "bounded contexts" do
         Governance::RoleAssignment.persisted_by("Memory")
       end
       Hecks.hecksagon "BoundedEcho" do
-        uses_framework "Governance"
+        attaches "Governance"
         BoundedEcho::Echo.persisted_by("Memory")
       end
       Hecks.hecksagon "BoundedThing" do
@@ -195,7 +195,7 @@ RSpec.describe "bounded contexts" do
       expect { registry.verify! }.not_to raise_error
       hexagon = registry.hecksagon("BoundedEcho")
       expect(hexagon.bounded?).to be true
-      expect(hexagon.framework_members).to eq(["Governance"])
+      expect(hexagon.member_chapters).to eq(["Governance"])
       expect(hexagon.translates).to eq(["EchoOnThingFired"])
     end
   end

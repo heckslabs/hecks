@@ -20,6 +20,23 @@ module Hecks
       def aggregate_name = Naming.demodulise(aggregate)
     end
 
+    # One chapter a hecksagon attaches, with where it was found.
+    #
+    # `source` is `:gem` for a chapter the gem carries (a framework member such as Governance,
+    # or a language chapter such as Deploy) and `:vendor` for a package vendored into the
+    # consuming project, whose `name` is the package's directory name (`"membership"`).
+    Attachment = Struct.new(:name, :source, keyword_init: true) do
+      # @return [Boolean] whether the chapter is a vendored package
+      def vendor? = source == :vendor
+
+      # @return [String] the chapter's name in the registry: a gem chapter's own name, a
+      #   vendored package's directory name in Pascal case
+      def chapter_name = vendor? ? Naming.pascal(name) : name
+
+      # @return [Hash{Symbol => String}] the attachment as plain data
+      def to_h = { name: name.to_s, source: source.to_s }
+    end
+
     # The built form of a `.hecksagon` file, produced by `DSL::HecksagonBuilder`.
     # `Behaviour::Hecksagon` supplies the bind lookups; this class holds the declared data.
     class Hecksagon
@@ -27,39 +44,31 @@ module Hecks
       include Behaviour::Hecksagon
 
       emits_ir(
-        domain:             :domain,
-        binds:              many(:binds),
-        subscriptions:      -> { subscriptions.map(&:to_s) },
-        framework_members:  -> { framework_members.map(&:to_s) },
-        vendored_bluebooks: -> { vendored_bluebooks.map(&:to_s) },
-        attached_chapters:  -> { attached_chapters.map(&:to_s) },
-        bounded:            :bounded?,
-        translates:         -> { translates.map(&:to_s) }
+        domain:        :domain,
+        binds:         many(:binds),
+        subscriptions: -> { subscriptions.map(&:to_s) },
+        attachments:   -> { attachments.map(&:to_h) },
+        bounded:       :bounded?,
+        translates:    -> { translates.map(&:to_s) }
       )
 
-      attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks,
-                  :attached_chapters, :translates
+      attr_reader :domain, :binds, :subscriptions, :attachments, :translates
 
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
       # @param subscriptions [Array<String, Symbol>] the external events this domain
       #   subscribes to
-      # @param framework_members [Array<String, Symbol>] attached framework members (`Governance`)
-      # @param vendored_bluebooks [Array<String, Symbol>] the vendored embryonaut
-      #   bluebook package names this domain attaches
-      # @param attached_chapters [Array<String, Symbol>] chapters the gem carries, attached by name
+      # @param attachments [Array<Bluebook::Attachment>] every chapter this hecksagon attaches,
+      #   each with its source (`:gem` or `:vendor`)
       # @param bounded [Boolean] whether this chapter is an explicit bounded context
-      #   (consumer-owned; `uses_framework` / `uses_embryonaut_bluebook` mark
-      #   attached chapters bounded on the registry instead)
+      #   (consumer-owned; `attaches` marks attached chapters bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
-      def initialize(domain:, binds: [], subscriptions: [], framework_members: [],
-                     vendored_bluebooks: [], attached_chapters: [], bounded: false, translates: [])
+      def initialize(domain:, binds: [], subscriptions: [], attachments: [], bounded: false,
+                     translates: [])
         @domain             = domain.to_s
         @binds              = binds
         @subscriptions      = subscriptions
-        @framework_members  = framework_members
-        @vendored_bluebooks = vendored_bluebooks
-        @attached_chapters  = attached_chapters
+        @attachments        = attachments
         @bounded            = bounded ? true : false
         @translates         = Array(translates).map(&:to_s)
       end
@@ -69,11 +78,22 @@ module Hecks
       # @return [Boolean] whether `bounded` was declared on this block
       def bounded? = @bounded
 
-      # Every chapter this hecksagon brings into its domain's registry: framework members and
-      # attached chapters alike, which resolve the same way.
+      # Every chapter this hecksagon brings into its domain's registry, gem and vendored alike.
       #
-      # @return [Array<String>] the chapters' names, framework members first
-      def member_chapters = (framework_members + attached_chapters).map(&:to_s)
+      # @return [Array<String>] the chapters' names as the registry holds them, in the order
+      #   they were attached
+      def member_chapters = attachments.map(&:chapter_name)
+
+      # Says whether this hecksagon attaches a chapter, whatever its source.
+      #
+      # @param chapter [String, Symbol] a chapter's name as the registry holds it
+      # @return [Boolean] whether that chapter is attached here
+      def attaches?(chapter) = member_chapters.include?(chapter.to_s)
+
+      # The vendored packages this hecksagon attaches.
+      #
+      # @return [Array<String>] their directory names, in the order they were attached
+      def vendored_packages = attachments.select(&:vendor?).map { |attachment| attachment.name.to_s }
     end
 
     # The built form of a `.world` file, produced by `DSL::WorldBuilder`.

@@ -1,5 +1,5 @@
 Hecks.hecksagon "EmbryonautVendoringDemo" do
-  uses_embryonaut_bluebook "widgets"
+  attaches "widgets", from: :vendor
 
   # Memory because this is an example corpus member, not a real deployment.
   persisted_by "Memory"
