@@ -201,6 +201,13 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # `hecks project_rust` runs the hecks-codegen binary (ADR 0086), so the regeneration below
+      # builds it; cached like every other job that builds that crate.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
       # Regenerates every domain whose Bluebook source lives in this
       # checkout and fails on any diff from the committed rust/src/generated/
       # tree, so a Bluebook change with no matching regen is caught on the
