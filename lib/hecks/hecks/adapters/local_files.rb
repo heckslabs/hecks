@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require_relative "console_capture"
 require "hecks/cli/project_cli"
+require "hecks/cli/domain_stub"
 
 module Hecks
   module Adapters
@@ -38,9 +40,66 @@ module Hecks
         { output: { value: text } }
       end
 
+      # Writes the stub files of a new domain (ADR 0087) into the named directory, or into the
+      # snake-cased name under the current one, and prints what it wrote and what to type next.
+      # Nothing is replaced: every file is checked before the first is written, and a directory
+      # that already holds a bluebook is refused.
+      #
+      # @param held [Hash] the `Door` record: `name`, and optionally `adapter` and `dir`
+      # @return [Hash{Symbol => Hash}] `output:` the report that was printed
+      # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file is already there
+      def scaffold(**held)
+        name   = plain(held[:name])
+        files  = stub_files(name, plain(held[:adapter]))
+        target = File.expand_path(plain(held[:dir]) || CLI::DomainStub.directory(name), Dir.pwd)
+        refuse_existing!(target, files.keys)
+        warn "warning: #{target} is inside the hecks clone; keep a service you deploy outside it." if inside_clone?(target)
+
+        files.each do |path, text|
+          full = File.join(target, path)
+          FileUtils.mkdir_p(File.dirname(full))
+          File.write(full, text)
+        end
+        report = scaffold_report(name, target, files.keys, plain(held[:adapter]))
+        puts report
+        { output: { value: report } }
+      end
+
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      def stub_files(name, adapter)
+        CLI::DomainStub.files(name: name, adapter: adapter)
+      rescue ArgumentError => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
+      def refuse_existing!(target, paths)
+        taken = paths.map { |path| File.join(target, path) }.select { |full| File.exist?(full) }
+        taken |= Dir.glob(File.join(target, "bluebook", "*.bluebook"))
+        return if taken.empty?
+
+        raise ConsoleCapture::Failure,
+              "nothing written; already there: #{taken.map { |full| shown(full) }.join(', ')}"
+      end
+
+      def inside_clone?(target)
+        root = File.expand_path("../../../..", __dir__)
+        File.directory?(File.join(root, ".git")) && target.start_with?("#{root}/")
+      end
+
+      def shown(full) = full.delete_prefix("#{Dir.pwd}/")
+
+      def scaffold_report(name, target, paths, adapter)
+        where = shown(target)
+        lines = ["wrote #{paths.length} files in #{where}/:"] + paths.sort.map { |path| "  #{path}" }
+        lines << "" << "next:" << "  hecks docs #{where}/bluebook" << "  hecks console subject=#{where}"
+        unless %w[Postgres PostgresEra].include?(adapter)
+          lines << "" << "a Lambda deployment needs Postgres: run again with --adapter=Postgres."
+        end
+        lines.join("\n")
+      end
     end
   end
 end
