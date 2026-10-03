@@ -26,7 +26,7 @@ jq --arg ecr "$ECR" --argjson tags "$TAGS" --arg host "$DB_HOST" --arg secret "$
          network_mode: "host", restart: "unless-stopped", logging: log,
          environment: ({PORT: (.port | tostring), DB_HOST: $host, DB_NAME: $db, DB_SECRET_ARN: $secret} + .env)}
         + (if (.secrets | length) > 0 then {env_file: [(.name + ".secrets.env")]} else {} end))))
-      + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8", network_mode: "host", restart: "unless-stopped",
+      + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f", network_mode: "host", restart: "unless-stopped",
                   volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro"], logging: log}
                  + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))}
       + (if $in.tunnel then {cloudflared: {image: $in.tunnel.image, network_mode: "host", restart: "unless-stopped",

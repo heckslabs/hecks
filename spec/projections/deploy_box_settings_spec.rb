@@ -145,7 +145,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
 
         expect(plan.tunnel).to be(true)
         expect(plan.tunnel_service).to have_attributes(container: "stats", port: 3000, token_secret: "shop/tunnel",
-                                                       image: "cloudflare/cloudflared:latest")
+                                                       image: described_class::TUNNEL_IMAGE)
       end
 
       it "takes an image of its own" do
@@ -168,6 +168,19 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(refusal(swap_gb: 100)).to include("swap_gb")
       expect(refusal(engine_version: "sixteen")).to include("engine_version")
       expect(resolve(engine_version: "16.4").engine_version).to eq("16.4")
+    end
+  end
+
+  describe "images" do
+    it "pins both default images by version and digest" do
+      expect(described_class::TUNNEL_IMAGE).to match(%r{\Acloudflare/cloudflared:\d+\.\d+\.\d+@sha256:\h{64}\z})
+      expect(described_class::PROXY_IMAGE).to match(%r{\Apublic\.ecr\.aws/docker/library/caddy:\d+\.\d+@sha256:\h{64}\z})
+      expect(resolve.proxy_image).to eq(described_class::PROXY_IMAGE)
+    end
+
+    it "takes a proxy image of its own and refuses one that could not be spliced safely" do
+      expect(resolve(proxy_image: "caddy:2.9").proxy_image).to eq("caddy:2.9")
+      expect(refusal(proxy_image: "caddy 2.9")).to include("proxy_image")
     end
   end
 

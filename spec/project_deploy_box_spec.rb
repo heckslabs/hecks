@@ -214,7 +214,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     it "describes the tunnel in services.json, not as a container" do
       services = JSON.parse(files["services.json"])
       expect(services["tunnel"]).to eq("url" => "http://127.0.0.1:3000", "token_secret" => "scratch/tunnel-token",
-                                       "image" => "cloudflare/cloudflared:latest")
+                                       "image" => Hecks::Projections::Deploy::Box::Settings::TUNNEL_IMAGE)
       expect(services["services"].keys).to eq(%w[web stats])
     end
 

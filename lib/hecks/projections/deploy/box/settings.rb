@@ -20,7 +20,12 @@ module Hecks
           ENGINE      = /\A\d{2}(\.\d{1,2})?\z/
           PREFIX      = /\A[a-z][a-z0-9-]{0,20}\z/
           IMAGE       = %r{\A[a-z0-9][a-z0-9._/:@-]{1,200}\z}
-          TUNNEL_IMAGE = "cloudflare/cloudflared:latest".freeze
+          # Default images, each a version tag plus the digest of its multi-architecture index,
+          # so a rebuilt box pulls the same bytes.
+          TUNNEL_IMAGE = "cloudflare/cloudflared:2026.9.3" \
+                         "@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c".freeze
+          PROXY_IMAGE  = "public.ecr.aws/docker/library/caddy:2.8" \
+                         "@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f".freeze
           TUNNEL_SHAPE = "tunnel: a hash needs `to` (the container it forwards to) and `token_secret` " \
                          "(the secret holding the tunnel token)".freeze
           ORIGIN_PAIR = "origin_header and origin_secret go together: the header a CDN sends, " \
@@ -55,7 +60,7 @@ module Hecks
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :tunnel, :tunnel_service, keyword_init: true
+            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -91,7 +96,8 @@ module Hecks
               containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
               default_container: read_default(s[:default_container], containers), origin_header: header,
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
-              tunnel: tunnel, tunnel_service: tunnel_service
+              tunnel: tunnel, tunnel_service: tunnel_service,
+              proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE)
             )
           end
 
