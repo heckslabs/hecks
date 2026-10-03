@@ -17,6 +17,8 @@ command whose arguments name a binary, a URL or a path outside the checkout (ADR
 door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
 call after the first no longer pays the boot; an unrestricted door still boots on every call.
 
+**`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **`deployed_to("AwsBox")` is a deploy kind.** `hecks deploy project` now generates one RDS instance and one EC2 box that runs the domain's containers behind Caddy, as an alternative to the Fargate stack ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)). The sizes are validated by a new `Deploy::BoxTarget.Declare` command; every other setting is checked before a template is written.
 
 ## [3.0.5] - 2026-10-03
