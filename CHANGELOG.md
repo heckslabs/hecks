@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks mcp` has a commands scope, and a restricted door stays booted.** With
+`HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
+the door serves the reader tools and `dispatch` for those commands only. A command is admitted by the
+verb it resolves to, so a short name shared by several aggregates (`complete`, `accept`) cannot reach
+another aggregate's command, and every step of a batch is checked before any runs. `tools/list` shows
+the allowed commands as an enum. The list admits commands, not argument values, so leave off any
+command whose arguments name a binary, a URL or a path outside the checkout (ADR 0087). A restricted
+door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
+call after the first no longer pays the boot; an unrestricted door still boots on every call.
+
 **`deployed_to("AwsBox")` is a deploy kind.** `hecks deploy project` now generates one RDS instance and one EC2 box that runs the domain's containers behind Caddy, as an alternative to the Fargate stack ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)). The sizes are validated by a new `Deploy::BoxTarget.Declare` command; every other setting is checked before a template is written.
 
 ## [3.0.5] - 2026-10-03
