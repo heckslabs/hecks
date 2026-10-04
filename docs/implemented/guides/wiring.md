@@ -322,6 +322,10 @@ The block's words are `hosting_scripts true`, `hecks_release "2.5.1"` (required:
 the Hecks release the image is built from), `smoke_repo "owner/name"` (the GitHub
 repository holding the smoke workflow), `smoke_workflow "smoke.yml"` and
 `expected_eras ["199b08"]`, next to the `region` the block already carries.
+`hecks_release "edge"` follows the newest commit on main instead of a release:
+the `edge` tag moves with every merge, each build fetches it afresh and prints the
+commit it got, and the exact-tag check is skipped for it alone. A build from `edge`
+is not reproducible from the name, so a release is still how a deploy is pinned.
 Run `hecks deploy recipe.project <domain> --out=<dir>` on a domain whose `.world` carries
 the block and it writes those files beside `template.yaml`. Without
 `hosting_scripts true` the same run writes only what it always did:
