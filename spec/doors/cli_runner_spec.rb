@@ -42,6 +42,14 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(status).to eq(0)
     end
 
+    it "answers `--all` with the surface and without the hint that offers it" do
+      everything = text("--all")
+
+      expect(everything).to include("Pizzas —", "create_pizza")
+      expect(status).to eq(0)
+      expect(everything).not_to include("--all                  also list")
+    end
+
     it "answers one command's help without dispatching it" do
       expect(text("order.create_pizza", "--help")).to include("dispatches Pizzas::Order.CreatePizza")
       expect(runtime.events).to be_empty

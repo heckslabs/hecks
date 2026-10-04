@@ -20,6 +20,13 @@ module Hecks
         # the legacy `compute-1` form.
         LEGACY_COMPUTE_REGION = "us-east-1".freeze
 
+        # The end of every Caddyfile: sites a rehearsal mounts under `caddy-extra`, such as a
+        # loopback listener that adds the origin secret so a smoke test runs without the CDN. A
+        # glob that matches nothing is not an error, so production, which mounts none, is unchanged.
+        CADDY_EXTRA = "# Rehearsal-only sites are mounted here; nothing matches in production. Restart the proxy\n" \
+                      "# after adding one: the admin API is off, so a reload cannot reach it.\n" \
+                      "import /etc/caddy/extra/*\n".freeze
+
         module_function
 
         # Generates `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`,
@@ -191,7 +198,39 @@ module Hecks
                    "COMPUTE_DOMAIN" => compute_domain(region),
                    "SECRET_RESOURCES" => secret_resources(plan), "TUNNEL_EGRESS" => tunnel_egress(plan),
                    "SWAP_COMMANDS" => swap_commands(plan), "ECR_REPOSITORIES" => ecr_repositories(plan),
-                   "ECR_OUTPUTS" => ecr_outputs(plan))
+                   "ECR_OUTPUTS" => ecr_outputs(plan), "S3_POLICY" => s3_policy(plan))
+        end
+
+        # The role's S3 policy: every declared bucket readable, and writable only on a production
+        # box, so a rehearsal never changes the real objects.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] a policy list item, indented into the role's `Policies`, or nothing
+        def s3_policy(plan)
+          return "" if plan.s3_buckets.empty?
+
+          arn = ->(path) { "arn:${AWS::Partition}:s3:::#{path}" }
+          reads = plan.s3_buckets.flat_map { |b| [arn.call(b.name), arn.call("#{b.name}/*")] }
+          writes = plan.s3_buckets.select(&:write).map { |b| arn.call("#{b.name}/*") }
+          rows = s3_read_rows(reads)
+          rows += s3_write_rows(writes) unless writes.empty?
+          "#{rows.map { |row| "        #{row}" }.join("\n")}\n"
+        end
+
+        # @param resources [Array<String>] the bucket and object ARNs a box may read
+        # @return [Array<String>] the policy's head and its read statement, relative to `Policies`
+        def s3_read_rows(resources)
+          ["- PolicyName: s3-access", "  PolicyDocument:", "    Version: \"2012-10-17\"", "    Statement:",
+           "      - Effect: Allow", "        Action: [s3:GetObject, s3:ListBucket]", "        Resource:"] +
+            resources.map { |r| "          - !Sub \"#{r}\"" }
+        end
+
+        # @param resources [Array<String>] the object ARNs a production box may write
+        # @return [Array<String>] the production-only write statement, relative to `Policies`
+        def s3_write_rows(resources)
+          ["      - !If", "        - IsProduction", "        - Effect: Allow",
+           "          Action: [s3:PutObject, s3:DeleteObject]", "          Resource:"] +
+            resources.map { |r| "            - !Sub \"#{r}\"" } + ["        - !Ref AWS::NoValue"]
         end
 
         # Graviton families end their generation digit with `g` (`t4g`, `m7gd`, `c6gn`).
@@ -309,7 +348,7 @@ module Hecks
             else
               indent(route_blocks(plan))
             end
-          "#{caddy_header(plan)}#{caddy_global(guarded)}\n:80 {\n#{site}}\n"
+          "#{caddy_header(plan)}#{caddy_global(guarded)}\n:80 {\n#{site}}\n\n#{CADDY_EXTRA}"
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -342,9 +381,12 @@ module Hecks
         # @param guarded [Boolean] whether an origin secret guards the site
         # @return [String] the global options block
         def caddy_global(guarded)
-          return "{\n\tauto_https off\n\tadmin off\n}\n" unless guarded
+          options = "\t# No certificate for the :80 site. disable_redirects, not off, so a listener a rehearsal\n" \
+                    "\t# mounts under caddy-extra can still ask for `tls internal`.\n" \
+                    "\tauto_https disable_redirects\n\tadmin off\n"
+          return "{\n#{options}}\n" unless guarded
 
-          "{\n\tauto_https off\n\tadmin off\n\tservers {\n\t\ttrusted_proxies static 0.0.0.0/0 ::/0\n\t}\n}\n"
+          "{\n#{options}\tservers {\n\t\ttrusted_proxies static 0.0.0.0/0 ::/0\n\t}\n}\n"
         end
 
         # @param text [String] lines to indent one level with a tab
@@ -465,20 +507,24 @@ module Hecks
         def makefile(plan)
           <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
-            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c
+            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true]
             #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
             RDS_STACK = #{plan.rds_stack}
             BOX_STACK = #{plan.box_stack}
+            # true makes a throwaway pair: the database is deleted with its stack and the box has no
+            # Elastic IP. The default is a production pair, with deletion protection.
+            REHEARSAL ?= false
 
             .PHONY: stacks deploy
             stacks:
             \taws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \\
-            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS)
+            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS) Rehearsal=$(REHEARSAL)
             \taws cloudformation deploy --template-file box.yaml --stack-name $(BOX_STACK) --capabilities CAPABILITY_IAM \\
             \t\t--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) \\
             \t\tDbSecurityGroupId=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text) \\
             \t\tDbSecretArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text) \\
-            \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text)
+            \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text) \\
+            \t\tRehearsal=$(REHEARSAL)
 
             deploy:
             \tbash ./deploy-box.sh $(#{plan.task_definition ? 'TASKDEF' : 'TAGS'})

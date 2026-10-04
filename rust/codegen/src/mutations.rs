@@ -392,6 +392,23 @@ pub struct Transition {
     pub field: String,
     pub to_state: String,
     pub from_states: Vec<String>,
+    /// A row with no `from:` admits every state, so no check is emitted for the command.
+    pub unconstrained: bool,
+}
+
+/// The `Option<TransitionCheck>` expression a dispatch function is generated with.
+///
+/// `None` covers both "no transition" and an unconstrained one; an empty `from_states` slice
+/// would refuse every state instead of admitting every state.
+pub fn transition_check_arg(transition: Option<&Transition>) -> String {
+    match transition {
+        Some(t) if !t.unconstrained => format!(
+            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
+            naming::ruby_inspect_string(&t.field),
+            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
+        ),
+        _ => "None".to_string(),
+    }
 }
 
 /// Collapses a command's transition rows into the shape `TransitionCheck` wants.
@@ -417,19 +434,25 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
             }
         }
         let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();
-        return Some(Transition { field, to_state: String::new(), from_states });
+        return Some(Transition { field, to_state: String::new(), from_states, unconstrained: false });
     }
 
     let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();
     let to_state = rows[0].get("to_state").map(Json::to_s).unwrap_or_default();
     let mut from_states: Vec<String> = Vec::new();
+    let mut unconstrained = false;
     for row in &rows {
-        let from = row.get("from_state").map(Json::to_s).unwrap_or_default();
-        if !from_states.contains(&from) {
-            from_states.push(from);
+        match row.get_raw("from_state") {
+            None | Some(Json::Null) => unconstrained = true,
+            Some(from) => {
+                let from = from.to_s();
+                if !from_states.contains(&from) {
+                    from_states.push(from);
+                }
+            }
         }
     }
-    Some(Transition { field, to_state, from_states })
+    Some(Transition { field, to_state, from_states, unconstrained })
 }
 
 /// Right-hand side for a `set`, coercing the source into the target attribute's declared type.
@@ -780,5 +803,51 @@ fn emit_mutation_line_body(
         // `corrects` targets no field; entity-level commands do not filter it out first.
         "corrects" => String::new(),
         other => panic!("unsupported mutation op {other:?} — command_skip_reason should have caught this"),
+    }
+}
+
+#[cfg(test)]
+mod transition_tests {
+    use super::*;
+
+    fn aggregate(rows: &str) -> Json {
+        Json::parse(&format!(
+            r#"{{"name":"Account","lifecycle":{{"field":"status","default":"draft","transitions":[{rows}]}}}}"#
+        ))
+        .unwrap()
+    }
+
+    fn command(name: &str) -> Json {
+        Json::parse(&format!(r#"{{"name":"{name}"}}"#)).unwrap()
+    }
+
+    #[test]
+    fn a_transition_without_from_admits_every_state() {
+        let account = aggregate(r#"{"command":"Open","to_state":"open","from_state":null}"#);
+        let transition = lifecycle_transition_for(&command("Open"), &account).unwrap();
+        assert!(transition.unconstrained);
+        assert_eq!(transition.to_state, "open");
+        assert_eq!(transition_check_arg(Some(&transition)), "None");
+    }
+
+    #[test]
+    fn a_transition_with_from_checks_that_state() {
+        let account = aggregate(r#"{"command":"Close","to_state":"closed","from_state":"open"}"#);
+        let transition = lifecycle_transition_for(&command("Close"), &account).unwrap();
+        assert!(!transition.unconstrained);
+        assert_eq!(
+            transition_check_arg(Some(&transition)),
+            r#"Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] })"#
+        );
+    }
+
+    #[test]
+    fn one_unconstrained_row_among_constrained_ones_admits_every_state() {
+        let account = aggregate(
+            r#"{"command":"Reopen","to_state":"open","from_state":"closed"},
+               {"command":"Reopen","to_state":"open","from_state":null}"#,
+        );
+        let transition = lifecycle_transition_for(&command("Reopen"), &account).unwrap();
+        assert_eq!(transition_check_arg(Some(&transition)), "None");
     }
 }

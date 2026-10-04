@@ -411,14 +411,11 @@ module Hecks
         out.join("\n")
       end
 
-      # The commands table then the queries table, sharing one label column. Internal entries
-      # count toward the width only when `all` lists them.
+      # The commands table then the queries table.
       def tables(commands, questions, all:)
-        listed = (commands.values + questions.values).reject { |spec| spec[:internal] && !all }
-        width  = listed.map { |spec| label(spec).length }.max.to_i
-        ["commands:", *listing(commands, width, all: all) { |spec| spec[:summary] }, "",
+        ["commands:", *listing(commands, all: all) { |spec| spec[:summary] }, "",
          "queries (nothing here changes anything):",
-         *listing(questions, width, all: all) { |spec| first_sentence(spec[:summary]) }]
+         *listing(questions, all: all) { |spec| first_sentence(spec[:summary]) }]
       end
 
       # The line saying the internal commands and queries were left out and how to list them,
@@ -431,35 +428,60 @@ module Hecks
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
-      # under a heading per aggregate, so related commands sit together; the bookkeeping a run
+      # under a heading per aggregate, so related commands sit together; the heading is the prefix
+      # every call to them carries, so the lines under it leave it out. The bookkeeping a run
       # records about itself (`internal`: system-role commands and port operations) is left out,
-      # since a person never types them; `all` lists them as names only. A single-aggregate domain
-      # keeps the plain list.
-      def listing(specs, width, all: false)
+      # since a person never types them; `all` lists them as names only. A single-aggregate
+      # domain keeps the plain list, each name in full.
+      def listing(specs, all: false, &description)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
-        groups = shown.group_by { |spec| spec[:group] }
-        lines = []
-        if groups.length > 1
-          groups.each do |group, members|
-            lines << "  #{heading(group)}" if group
-            members.each { |spec| lines << "    #{label(spec).ljust(width)}  #{yield(spec)}" }
-          end
-        else
-          shown.each { |spec| lines << "  #{label(spec).ljust(width)}  #{yield(spec)}" }
-        end
+        grouped = shown.map { |spec| spec[:group] }.uniq.length > 1
+        named = shown.to_h { |spec| [spec, entry_name(spec, grouped)] }
+        lines = listed_rows(shown, named, grouped, &description)
         lines.concat(internal_lines(internal)) if all && !internal.empty?
         lines
       end
 
-      # "LanguageRun" reads "Language": the Run suffix names the journaled-command shape all of
-      # these aggregates share, so it adds nothing under a heading ("Test suite", "Model check").
+      # The rows of one table: one line per spec, under a heading per aggregate when grouped.
+      def listed_rows(shown, named, grouped, &description)
+        width = named.values.map(&:length).max.to_i
+        row = ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{description.call(spec)}#{alias_note(spec)}" }
+        return shown.map { |spec| row.call(spec, "  ") } unless grouped
+
+        shown.group_by { |spec| spec[:group] }.flat_map do |group, members|
+          [("  #{heading(group)}" if group), *members.map { |spec| row.call(spec, "    ") }].compact
+        end
+      end
+
+      # The aggregate's own name as a heading: the prefix of every call to the lines under it.
       def heading(group)
-        words = Naming.snake(group.sub(/Run\z/, "")).tr("_", " ")
-        "#{words.capitalize}:"
+        "#{Naming.snake(group)}:"
+      end
+
+      # A spec's name as listed: under its aggregate's heading the aggregate prefix is left out.
+      # A command the chapter gives a short name (`mcp`) is listed by its real name, so the
+      # heading and the line still spell a call; `alias_note` says the short name.
+      def entry_name(spec, grouped)
+        name = label(spec, real: true)
+        return name unless grouped && spec[:group]
+
+        name.delete_prefix("#{Naming.snake(spec[:group])}.")
+      end
+
+      # " (also: mcp!)" for a spec the chapter gave a short name, else nothing. A short name that
+      # is only the command's own name (`init` for `door.init`) is already in the line.
+      def alias_note(spec)
+        return "" if spec[:short_was].nil? || spec[:short_was].split(".").last == spec[:short]
+
+        " (also: #{label(spec)})"
       end
 
       # A command is written with the `!` that marks it; a query without one.
-      def label(spec) = spec[:kind] == :command ? "#{spec[:short]}!" : spec[:short]
+      # With `real:`, a short name the chapter gave it gives way to the name it was given for.
+      def label(spec, real: false)
+        name = real && spec.key?(:short_was) ? spec[:short_was] : spec[:short]
+        spec[:kind] == :command ? "#{name}!" : name
+      end
 
       # The internal commands as bare names, wrapped, under one line saying what they are.
       def internal_lines(specs)

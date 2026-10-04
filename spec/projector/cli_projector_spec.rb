@@ -197,8 +197,8 @@ RSpec.describe Hecks::Projector::CliProjector do
     it "groups the commands and questions under a heading per aggregate" do
       usage = banking[:usage]
 
-      expect(usage).to match(/^  Customer:\n    customer\.register!\s+Take on a new customer/)
-      expect(usage).to match(/^  Account:\n    account\.open!\s+/)
+      expect(usage).to match(/^  customer:\n    register!\s+Take on a new customer/)
+      expect(usage).to match(/^  account:\n    open!\s+/)
       expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
     end
 
@@ -216,11 +216,25 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(runs[:usage]).not_to match(/^\s+job\.job_outcome\s{2,}How one job ended/)
     end
 
-    it "titles a heading after its aggregate, without a Run suffix" do
-      heading = described_class.send(:heading, "TestSuiteRun")
+    it "titles a heading with its aggregate's name, the prefix of every call under it" do
+      expect(described_class.send(:heading, "TestSuiteRun")).to eq("test_suite_run:")
+      expect(described_class.send(:heading, "Operation")).to eq("operation:")
+    end
 
-      expect(heading).to eq("Test suite:")
-      expect(described_class.send(:heading, "Operation")).to eq("Operation:")
+    it "leaves the aggregate prefix off the lines under its heading, and keeps it without one" do
+      expect(banking[:usage]).not_to match(/^\s+customer\.register!/)
+      expect(banking[:usage]).to match(/^  customer:\n    register!/)
+      expect(banking[:usage]).to match(/^    open!\s/)
+      expect(described_class.send(:entry_name, { kind: :command, short: "pizza.make", group: "Pizza" }, false))
+        .to eq("pizza.make!")
+    end
+
+    it "lists a command the chapter gave a short name by its real name, and says the short name" do
+      spec = { kind: :command, short: "mcp", short_was: "door.serve_mcp", group: "Door" }
+
+      expect(described_class.send(:entry_name, spec, true)).to eq("serve_mcp!")
+      expect(described_class.send(:alias_note, spec)).to eq(" (also: mcp!)")
+      expect(described_class.send(:alias_note, { kind: :command, short: "init", short_was: "door.init" })).to eq("")
     end
 
     # What a run records about itself (system-role commands, port operations) is never typed by a
