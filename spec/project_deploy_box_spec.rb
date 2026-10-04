@@ -273,6 +273,23 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(write["Fn::If"][1]["Resource"].first["Fn::Sub"]).to end_with("s3:::acme-media/*")
     end
 
+    it "waits for the box's first boot before it touches Docker, which is installed by user data" do
+      roll = minimal["deploy-box.sh"]
+      expect(roll).to include("cloud-init status --wait")
+      expect(roll.index("cloud-init status --wait")).to be < roll.index("docker compose -f compose.json pull")
+      expect(roll.index("cloud-init status --wait")).to be < roll.index("mkdir -p")
+    end
+
+    it "lets the Makefile make a throwaway pair, and leaves production the default" do
+      make = minimal["Makefile"]
+      expect(make).to include("REHEARSAL ?= false", "[REHEARSAL=true]")
+      expect(make.scan("Rehearsal=$(REHEARSAL)").size).to eq(2)
+    end
+
+    it "tells a rehearsal to restart the proxy, since the admin API is off" do
+      expect(minimal["Caddyfile"]).to include("Restart the proxy", "admin off")
+    end
+
     it "grants no S3 access to a world that declares none" do
       policies = template_of(minimal["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"]
       expect(policies.map { |policy| policy["PolicyName"] }).to eq(["read-secrets"])

@@ -12,5 +12,6 @@
 	}
 }
 
-# Rehearsal-only sites are mounted here; nothing matches in production.
+# Rehearsal-only sites are mounted here; nothing matches in production. Restart the proxy
+# after adding one: the admin API is off, so a reload cannot reach it.
 import /etc/caddy/extra/*
