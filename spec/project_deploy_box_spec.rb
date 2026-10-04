@@ -110,6 +110,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           origin_header "X-Origin-Secret"
           origin_secret "acme/origin-secret"
           secret_prefixes ["acme/*"]
+          writable_secrets ["acme/payments-account"]
           tunnel true
           s3_access [{ bucket: "acme-media", write: true }, { bucket: "acme-assets" }]
         end
@@ -180,6 +181,18 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   describe "the default world" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
+    it "can mount extra proxy sites, a smoke listener and admit a bastion" do
+      expect(files["Caddyfile"]).to include("auto_https disable_redirects", "import /etc/caddy/extra/*")
+      expect(files["render-compose.sh"]).to include("./caddy-extra:/etc/caddy/extra:ro")
+      expect(files["deploy-box.sh"]).to include("SMOKE_LISTENER", "caddy-extra/smoke.caddy")
+      box = template_of(files["box.yaml"])
+      expect(box["Resources"]["BoxRole"]["Properties"]["Policies"].map { |p| p.is_a?(Hash) ? p["PolicyName"] : nil }.compact)
+        .to include("read-secrets")
+      rds = template_of(files["rds.yaml"])
+      expect(rds["Parameters"]).to include("BastionSecurityGroupId")
+      expect(files["Makefile"]).to include("Rehearsal=$(REHEARSAL)")
+    end
+
     it "has no origin guard, no tunnel egress and one repository" do
       expect(files["Caddyfile"]).not_to include("@origin")
       expect(files["Caddyfile"]).to include("reverse_proxy 127.0.0.1:8080")
@@ -204,6 +217,14 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(caddy).to include("@r1 path /cms/*", "reverse_proxy 127.0.0.1:8081")
       expect(caddy).to include("@r2 path /registrations /registrations/* /webhooks/*", "reverse_proxy 127.0.0.1:8082")
       expect(caddy).to include("respond \"Forbidden\" 403")
+    end
+
+    it "lets only a production box overwrite the secrets the world names as writable" do
+      policy = template_of(files["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"].first
+      write = policy["PolicyDocument"]["Statement"].find { |st| st.is_a?(Hash) && st.key?("Fn::If") }
+      expect(write["Fn::If"].first).to eq("IsProduction")
+      expect(write["Fn::If"][1]["Action"]).to eq("secretsmanager:PutSecretValue")
+      expect(files["box.yaml"]).to include("secret:acme/payments-account-*")
     end
 
     it "opens outbound 7844 for the tunnel and reads only the declared secrets" do

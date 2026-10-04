@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` can overwrite named secrets in production, and mount a smoke listener on a rehearsal.** `writable_secrets ["name"]` lets a production box (never a rehearsal) overwrite those secrets, for a project whose admin page stores a pasted key. `SMOKE_LISTENER=1 make deploy` mounts a loopback HTTPS listener under `caddy-extra` on a rehearsal box that adds the origin secret, so a browser-driven smoke run can reach it without the CDN. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **An `edge` tag follows main, so a project need not wait for a release.** A workflow moves the `edge` tag
 to every commit that lands on main (forward only; nothing publishes from it, since the publish workflows
 listen for `v*`). A Gemfile can take `git: "https://github.com/heckslabs/hecks.git", tag: "edge"`, and a
