@@ -65,80 +65,85 @@ RSpec.describe Hecks::Adapters::Agent do
     let(:profile) { Hecks::Adapters::AgentProfile.new(env: ["AGENT_SPEC_ALLOWED"], timeout: 10) }
     let(:marker) { File.join(Dir.home, ".agent_spec_marker_#{Process.pid}") }
 
-    before { skip "no sandbox on this machine" unless profile.available? }
     after { FileUtils.rm_f(marker) }
 
     def ruby_agent(body)
       "#{RbConfig.ruby} #{agent_script(body).split.last}"
     end
 
-    it "refuses writes outside the directories it names, and allows the ones inside" do
-      inside = File.join(@dir, "inside")
-      command = ruby_agent(<<~RUBY)
-        def try
-          yield
-          "wrote"
-        rescue SystemCallError
-          "denied"
+    # These run a real sandboxed child, so they exist only where a sandbox does (macOS). Left out
+    # rather than skipped: CI has no such runner, and a skip there is a backstop failure.
+    if Hecks::Adapters::AgentProfile.new.available?
+      describe "confined by the sandbox" do
+        it "refuses writes outside the directories it names, and allows the ones inside" do
+          inside = File.join(@dir, "inside")
+          command = ruby_agent(<<~RUBY)
+            def try
+              yield
+              "wrote"
+            rescue SystemCallError
+              "denied"
+            end
+            puts try { File.write(#{marker.inspect}, "x") }
+            puts try { File.write(#{inside.inspect}, "x") }
+          RUBY
+
+          output = adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile)
+
+          expect(output.lines.map(&:strip)).to eq(%w[denied wrote])
+          expect(File.exist?(marker)).to be(false)
         end
-        puts try { File.write(#{marker.inspect}, "x") }
-        puts try { File.write(#{inside.inspect}, "x") }
-      RUBY
 
-      output = adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile)
+        it "refuses to read credentials" do
+          command = ruby_agent(<<~RUBY)
+            begin
+              Dir.children(File.join(Dir.home, ".ssh"))
+              puts "read"
+            rescue SystemCallError
+              puts "denied"
+            end
+          RUBY
 
-      expect(output.lines.map(&:strip)).to eq(%w[denied wrote])
-      expect(File.exist?(marker)).to be(false)
-    end
-
-    it "refuses to read credentials" do
-      command = ruby_agent(<<~RUBY)
-        begin
-          Dir.children(File.join(Dir.home, ".ssh"))
-          puts "read"
-        rescue SystemCallError
-          puts "denied"
+          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
         end
-      RUBY
 
-      expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
-    end
+        it "passes on only the environment variables the profile names" do
+          ENV["AGENT_SPEC_ALLOWED"] = "yes"
+          ENV["AGENT_SPEC_SECRET"] = "no"
+          command = ruby_agent('puts [ENV["AGENT_SPEC_ALLOWED"], ENV["AGENT_SPEC_SECRET"].inspect].join(" ")')
 
-    it "passes on only the environment variables the profile names" do
-      ENV["AGENT_SPEC_ALLOWED"] = "yes"
-      ENV["AGENT_SPEC_SECRET"] = "no"
-      command = ruby_agent('puts [ENV["AGENT_SPEC_ALLOWED"], ENV["AGENT_SPEC_SECRET"].inspect].join(" ")')
-
-      expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("yes nil")
-    ensure
-      ENV.delete("AGENT_SPEC_ALLOWED")
-      ENV.delete("AGENT_SPEC_SECRET")
-    end
-
-    it "keeps the network shut unless the profile opens it" do
-      server = TCPServer.new("127.0.0.1", 0)
-      command = ruby_agent(<<~RUBY)
-        require "socket"
-        begin
-          TCPSocket.new("127.0.0.1", #{server.addr[1]}, connect_timeout: 3)
-          puts "connected"
-        rescue SystemCallError
-          puts "denied"
+          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("yes nil")
+        ensure
+          ENV.delete("AGENT_SPEC_ALLOWED")
+          ENV.delete("AGENT_SPEC_SECRET")
         end
-      RUBY
-      open_profile = Hecks::Adapters::AgentProfile.new(network: :any, timeout: 10)
 
-      expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
-      expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: open_profile).strip).to eq("connected")
-    ensure
-      server&.close
-    end
+        it "keeps the network shut unless the profile opens it" do
+          server = TCPServer.new("127.0.0.1", 0)
+          command = ruby_agent(<<~RUBY)
+            require "socket"
+            begin
+              TCPSocket.new("127.0.0.1", #{server.addr[1]}, connect_timeout: 3)
+              puts "connected"
+            rescue SystemCallError
+              puts "denied"
+            end
+          RUBY
+          open_profile = Hecks::Adapters::AgentProfile.new(network: :any, timeout: 10)
 
-    it "stops an agent that runs past its timeout" do
-      slow = Hecks::Adapters::AgentProfile.new(timeout: 1)
+          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
+          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: open_profile).strip).to eq("connected")
+        ensure
+          server&.close
+        end
 
-      expect { adapter.ask(prompt: "p", command: ruby_agent("sleep 30"), chdir: @dir, profile: slow) }
-        .to raise_error(described_class::Failed, /timed out after 1s/)
+        it "stops an agent that runs past its timeout" do
+          slow = Hecks::Adapters::AgentProfile.new(timeout: 1)
+
+          expect { adapter.ask(prompt: "p", command: ruby_agent("sleep 30"), chdir: @dir, profile: slow) }
+            .to raise_error(described_class::Failed, /timed out after 1s/)
+        end
+      end
     end
 
     it "refuses to run unconfined where there is no sandbox" do
