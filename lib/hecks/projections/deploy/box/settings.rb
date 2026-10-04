@@ -71,7 +71,7 @@ module Hecks
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :tunnel, :tunnel_service, :proxy_image, :task_definition,
+            :secret_prefixes, :writable_secrets, :tunnel, :tunnel_service, :proxy_image, :task_definition,
             :migration, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
@@ -111,6 +111,7 @@ module Hecks
               containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
               default_container: read_default(s[:default_container], containers), origin_header: header,
               origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
+              writable_secrets: read_writable_secrets(s),
               tunnel: tunnel, tunnel_service: tunnel_service,
               proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
               task_definition: task_definition, migration: read_migration(s[:migration], database_name)
@@ -258,6 +259,12 @@ module Hecks
           def read_prefixes(settings, infra_name)
             list = Array(settings.fetch(:secret_prefixes, ["#{infra_name}/*"]))
             list.map { |p| check(:secret_prefixes, p, SECRET_NAME) }
+          end
+
+          # Secrets the box may overwrite, such as one an admin page stores a pasted key in. Production
+          # only: a rehearsal box never changes a secret.
+          def read_writable_secrets(settings)
+            Array(settings.fetch(:writable_secrets, [])).map { |name| check(:writable_secrets, name, SECRET_NAME) }
           end
 
           def string_map(key, value, key_pattern, value_pattern)

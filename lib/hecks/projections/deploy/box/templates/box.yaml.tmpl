@@ -112,6 +112,7 @@ Resources:
                 Resource:
                   - !Ref DbSecretArn
 @@SECRET_RESOURCES@@
+@@WRITABLE_SECRETS@@
         - !If
           - HasMedia
           - PolicyName: media

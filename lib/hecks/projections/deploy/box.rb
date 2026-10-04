@@ -192,7 +192,8 @@ module Hecks
                    "VOLUME_GB" => plan.volume_gb.to_s, "SNAPSHOTS_KEEP" => plan.snapshots_keep.to_s,
                    "AMI_PARAMETER" => ami_parameter(plan.instance_type),
                    "COMPUTE_DOMAIN" => compute_domain(region),
-                   "SECRET_RESOURCES" => secret_resources(plan), "TUNNEL_EGRESS" => tunnel_egress(plan),
+                   "SECRET_RESOURCES" => secret_resources(plan), "WRITABLE_SECRETS" => writable_secrets(plan),
+                   "TUNNEL_EGRESS" => tunnel_egress(plan),
                    "SWAP_COMMANDS" => swap_commands(plan), "ECR_REPOSITORIES" => ecr_repositories(plan),
                    "ECR_OUTPUTS" => ecr_outputs(plan))
         end
@@ -223,6 +224,28 @@ module Hecks
           arns.uniq.map do |pattern|
             "                  - !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
           end.join.chomp
+        end
+
+        # The statement that lets a production box overwrite the secrets the world names as writable.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] a policy statement for the role, or nothing when none are declared
+        def writable_secrets(plan)
+          return "" if plan.writable_secrets.empty?
+
+          arns = plan.writable_secrets.map { |name| name.end_with?("*") ? name : "#{name}-*" }.uniq
+          resources = arns.map do |pattern|
+            "#{' ' * 20}- !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
+          end.join
+          <<~YAML.chomp
+            #{' ' * 14}- !If
+            #{' ' * 16}- IsProduction
+            #{' ' * 16}- Effect: Allow
+            #{' ' * 18}Action: secretsmanager:PutSecretValue
+            #{' ' * 18}Resource:
+            #{resources.chomp}
+            #{' ' * 16}- !Ref AWS::NoValue
+          YAML
         end
 
         # @param plan [Settings::Plan] the resolved settings

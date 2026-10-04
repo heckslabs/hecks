@@ -110,6 +110,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           origin_header "X-Origin-Secret"
           origin_secret "acme/origin-secret"
           secret_prefixes ["acme/*"]
+          writable_secrets ["acme/payments-account"]
           tunnel true
         end
       end
@@ -217,6 +218,14 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(caddy).to include("@r1 path /cms/*", "reverse_proxy 127.0.0.1:8081")
       expect(caddy).to include("@r2 path /registrations /registrations/* /webhooks/*", "reverse_proxy 127.0.0.1:8082")
       expect(caddy).to include("respond \"Forbidden\" 403")
+    end
+
+    it "lets only a production box overwrite the secrets the world names as writable" do
+      policy = template_of(files["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"].first
+      write = policy["PolicyDocument"]["Statement"].find { |st| st.is_a?(Hash) && st.key?("Fn::If") }
+      expect(write["Fn::If"].first).to eq("IsProduction")
+      expect(write["Fn::If"][1]["Action"]).to eq("secretsmanager:PutSecretValue")
+      expect(files["box.yaml"]).to include("secret:acme/payments-account-*")
     end
 
     it "opens outbound 7844 for the tunnel and reads only the declared secrets" do
