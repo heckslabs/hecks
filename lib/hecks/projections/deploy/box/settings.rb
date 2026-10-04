@@ -261,7 +261,7 @@ module Hecks
             list.map { |p| check(:secret_prefixes, p, SECRET_NAME) }
           end
 
-          # Secrets the box may overwrite, such as one an admin page stores a pasted key in. Production
+          # Secrets the box may overwrite, such as one an admin page stores a key in. Production
           # only: a rehearsal box never changes a secret.
           def read_writable_secrets(settings)
             Array(settings.fetch(:writable_secrets, [])).map { |name| check(:writable_secrets, name, SECRET_NAME) }

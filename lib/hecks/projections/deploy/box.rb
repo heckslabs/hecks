@@ -226,7 +226,7 @@ module Hecks
           end.join.chomp
         end
 
-        # The statement that lets a production box overwrite the secrets the world names as writable.
+        # The statement that lets a production box overwrite the secrets named as writable.
         #
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] a policy statement for the role, or nothing when none are declared
