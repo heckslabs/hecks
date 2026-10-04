@@ -42,7 +42,8 @@ B64() { base64 < "$1" | tr -d '\n'; }
 ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$WORK/secrets.json")" \
   --arg caddy "$(B64 "$HERE/Caddyfile")" --arg fetch "$(B64 "$HERE/fetch-secrets.sh")" \
   --arg registry "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com" --arg dir "$DIR" '
-  {commands: ["set -e", "mkdir -p \($dir)/caddy-extra && cd \($dir)", "umask 077",
+  {commands: ["cloud-init status --wait >/dev/null 2>&1 || true",
+    "set -e", "mkdir -p \($dir)/caddy-extra && cd \($dir)", "umask 077",
     "echo \($compose) | base64 -d > compose.json; echo \($secrets) | base64 -d > secrets.json",
     "echo \($caddy) | base64 -d > Caddyfile; echo \($fetch) | base64 -d > fetch-secrets.sh",
     "bash fetch-secrets.sh",
