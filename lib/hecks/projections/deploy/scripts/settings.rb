@@ -12,6 +12,8 @@ module Hecks
           REF       = %r{\A[\w./-]+\z}
           ERA       = /\A[0-9a-zA-Z._-]+\z/
           RELEASE   = /\Av?\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?\z/
+          # The moving tag on main; the one release name that is not a version.
+          EDGE      = "edge".freeze
           SOURCE    = %r{\A[\w.@:/~-]+\z}
           MAKE_PATH = /\A[^\s#]+\z/
 
@@ -43,6 +45,8 @@ module Hecks
             release = fetch(:hecks_release, nil)
             raise ArgumentError, missing_release_message unless release
 
+            return EDGE if release.to_s == EDGE
+
             check(:hecks_release, release.to_s, RELEASE).delete_prefix("v")
           end
 
@@ -63,6 +67,8 @@ module Hecks
                   end
 
               so the domain image is built from a fixed Hecks release, not from a checkout on one machine.
+              `hecks_release "edge"` follows the newest commit on main instead: each build fetches it
+              afresh and prints the commit it got, so a build is not reproducible from the name alone.
             MSG
           end
 
