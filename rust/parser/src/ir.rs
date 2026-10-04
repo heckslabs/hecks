@@ -98,6 +98,8 @@ pub struct Command {
     pub attributes: Vec<Attribute>,
     pub givens: Vec<Given>,
     pub ensures: Vec<Ensures>,
+    // Outside facts the runtime supplies before any given runs (`needs :now`); only `now` today.
+    pub needs: Vec<String>,
     pub mutations: Vec<Mutation>,
     pub emits: Vec<String>,
     // The lifecycle state this command is admissible from; see `CommandFrom`.

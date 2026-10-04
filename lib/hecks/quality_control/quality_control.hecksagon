@@ -3,7 +3,7 @@
 # Hecks chapter binds it through its world's `default_adapter`; the ports every one of them shares
 # are in quality_control.ports.hecksagon.
 Hecks.hecksagon "QualityControl" do
-  uses_framework "Governance"
+  attaches "Governance"
   persisted_by "Memory"
 end
 

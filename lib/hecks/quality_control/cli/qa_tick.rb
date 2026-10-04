@@ -9,9 +9,9 @@ require_relative "child"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control tick`: one QA tick. It needs a clean tree, rebases
-    # on `origin/main`, then runs `QaPrCheck`, `QaSweep --all` and `QaGeneratedDomains --from-dials`
-    # and prints one report.
+    # The command behind `hecks quality_control sweep.tick`: one QA tick. It needs a clean tree,
+    # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all` and `QaGeneratedDomains
+    # --from-dials` and prints one report.
     #
     # It exits 2 if any step found something, 1 if none did but a step errored or it refused, 0 if
     # all are clean. The step order is enforced here, not in prose. `QA_REPO_DIR` picks the

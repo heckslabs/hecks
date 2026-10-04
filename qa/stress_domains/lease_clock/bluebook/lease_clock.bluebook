@@ -56,6 +56,7 @@ Hecks.bluebook "LeaseClock" do
       reference_to Lease
       attribute :holder, LeaseHolder
       attribute :now,    LeaseInstant
+      needs :now
       attribute :expiry, LeaseInstant
 
       given("a live lease is not taken from its own holder") { status != "held" || expires_at.value <= now.value }
@@ -73,6 +74,7 @@ Hecks.bluebook "LeaseClock" do
 
       reference_to Lease
       attribute :now,    LeaseInstant
+      needs :now
       attribute :expiry, LeaseInstant
 
       given("only a still-live lease is renewed") { expires_at.value > now.value }
@@ -97,9 +99,14 @@ Hecks.bluebook "LeaseClock" do
       goal "Reclaim a lease its own holder never released, once its recorded expiry has actually passed"
 
       reference_to Lease
-      attribute :now, LeaseInstant
+      attribute :now,   LeaseInstant
+      needs :now
+      # A grace period past the expiry; a caller who names none gives the holder none.
+      attribute :grace, LeaseInstant, default: { value: 0 }
 
-      given("only a lease whose own recorded expiry the passed clock has reached is reaped") { expires_at.value <= now.value }
+      given("only a lease whose own recorded expiry, plus any grace, the passed clock has reached is reaped") do
+        expires_at.value + grace.value <= now.value
+      end
 
       emits "LeaseReaped"
     end

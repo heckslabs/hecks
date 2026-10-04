@@ -116,17 +116,17 @@ RSpec.describe "the DSL surface" do
         .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
     end
 
-    it ".hecksagon's uses_framework loads a framework member into the same registry" do
+    it ".hecksagon's attaches loads a framework member into the same registry" do
       registry = in_registry do
         Hecks.hecksagon("Hexed") do
-          uses_framework "Governance"
+          attaches "Governance"
           Hexed::Thing.posted_by("Carrier")
         end
       end
 
       expect(registry.bluebook("Governance")).not_to be_nil
       expect(registry.bluebook("Governance").aggregate("RoleAssignment")).not_to be_nil
-      expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
+      expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
     end
 
     it ".hecksagon's bounded marks this chapter as a bounded context" do
@@ -140,14 +140,14 @@ RSpec.describe "the DSL surface" do
       expect(registry.hecksagon("Hexed").bounded?).to be true
     end
 
-    it ".hecksagon's uses_embryonaut_bluebook records the name and needs a registry root to vendor from" do
+    it ".hecksagon's attaches ... from: :vendor records the name and needs a registry root to vendor from" do
       # `in_registry`'s bare `Registry.new` sets no root, so this exercises
       # the real refusal a registry with nowhere to vendor from must
       # raise, not a fixture stand-in for it.
       expect do
         in_registry do
           Hecks.hecksagon("Hexed") do
-            uses_embryonaut_bluebook "payments"
+            attaches "payments", from: :vendor
             Hexed::Thing.posted_by("Carrier")
           end
         end
@@ -303,6 +303,14 @@ RSpec.describe "the DSL surface" do
 
       expect(described).to be_a(Hecks::Runtime::Loader::Described)
       expect(described.registry.bluebooks.values.map(&:name)).to include("Pizzas")
+    end
+
+    it ".boot_described finishes a boot from what describe loaded, reading nothing again" do
+      described = Hecks.describe(File.expand_path("../examples/banking", __dir__))
+
+      runtime = Hecks.boot_described(described, install_doors: false)
+
+      expect(runtime.registry).to be(described.registry)
     end
 
     it ".boot refuses a declaration loaded outside a boot" do
@@ -488,6 +496,44 @@ RSpec.describe "the DSL surface" do
       expect(row).to include(description: "it landed", canonical: "old.balance.cents <= balance.cents")
       # The structured form rides beside the text, derived from it.
       expect(row[:ast]).to eq(Hecks::Bluebook::Expression::AstJson.emit_predicate(row[:canonical]))
+    end
+
+    it "records a needed outside fact on the command and in its IR" do
+      needing = build_command("Stamped") do
+        attribute :now, Instant
+        needs :now
+      end
+
+      expect(needing.needs).to eq([:now])
+      expect(needing.to_h[:needs]).to eq([{ fact: "now" }])
+    end
+
+    it "carries no needs on a command that names none" do
+      expect(build_command("Plain") { emits "Done" }.to_h[:needs]).to eq([])
+    end
+
+    it "refuses a fact the runtime cannot supply" do
+      expect do
+        build_command("Weathered") do
+          attribute :weather, Instant
+          needs :weather
+        end
+      end.to raise_error(Malformed, /cannot supply/)
+    end
+
+    it "refuses a need declared twice" do
+      expect do
+        build_command("Twice") do
+          attribute :now, Instant
+          needs :now
+          needs :now
+        end
+      end.to raise_error(Malformed, /twice/)
+    end
+
+    it "refuses a need with no attribute of that name to fill" do
+      expect { build_command("Unfilled") { needs :now } }
+        .to raise_error(Malformed, /declares no attribute :now/)
     end
 
     it "sets alone, with no operation named at all, means to: the same field — the omittable case" do

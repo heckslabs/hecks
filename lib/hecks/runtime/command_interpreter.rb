@@ -83,10 +83,12 @@ module Hecks
 
       private
 
-      # No-op: `Routing` has already handed `call` a decoded argument hash,
-      # so there is nothing left to decode here yet. Kept as a step so the
-      # generated step enum has a slot to move the real decoder into later.
-      def step_decode_arguments(_ctx); end
+      # `Routing` has already handed `call` a decoded argument hash, so the one thing left to do
+      # here is answer the outside facts the command `needs`, before any refusal or given reads
+      # its arguments. Not traced: the step has always been invisible to a trace observer.
+      def step_decode_arguments(ctx)
+        ctx.args = enrich_arguments(ctx.command, ctx.args)
+      end
 
       def step_refuse_unknown_arguments(ctx)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args) }
@@ -241,6 +243,8 @@ module Hecks
         target_args = ctx.args.merge(
           delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
         )
+        # The target is dispatched as if called directly, so its needs and defaults are filled too.
+        target_args = enrich_arguments(target_command, target_args)
 
         refuse_unknown_arguments(ctx.domain, ctx.aggregate, target_command, target_args,
                                  extra_identity_heads: entity.identity_heads)

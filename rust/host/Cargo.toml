@@ -13,8 +13,8 @@ path = "src/main.rs"
 # No path dependency on `rust`: the compiled `.wasm` is loaded through wasmtime as an untrusted
 # module, so dispatch runs sandboxed with no access to this crate's Postgres connection.
 [dependencies]
-wasmtime = "47.0.3"
-wasmtime-wasi = "47.0.3"
+wasmtime = "49.0.1"
+wasmtime-wasi = "49.0.1"
 lambda_runtime = "0.13"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }
 # Used by server.rs (HECKS_SERVE_MODE=1) to answer the ALB's HTTP on Fargate. HTTP/1.1 only;

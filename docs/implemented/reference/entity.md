@@ -5,7 +5,7 @@ Words available inside `entity do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -20,7 +20,7 @@ further down.
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
 end
@@ -207,7 +207,7 @@ whichever construct declared the wording.
 `LedgerEntry` declares three — `"entry is posted"`, `"customer is
 active"`, and `"account is open"` — and both `Amend` and `Reverse` read
 them all back rather than retyping the `parent.`-qualified predicates
-(`hecks hoist_local_givens` hoisted the third, "entry is
+(`hecks codemod_run.hoist_local_givens` hoisted the third, "entry is
 posted", from the two commands' own identical local declarations —
 the exact same duplication this entity's other two preconditions were
 hand-hoisted for, round 4's own motivating case):

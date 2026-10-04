@@ -44,6 +44,7 @@ pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
         "String" => "as_str",
         "Integer" => "as_i64",
         "Float" => "as_f64",
+        "TrueClass" | "FalseClass" => "as_bool",
         other => panic!("no JSON accessor for scalar type {other:?}"),
     }
 }
@@ -77,6 +78,7 @@ pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
         "String" => format!("crate::kernel::Json::Str({rust_expr}.clone())"),
         "Integer" => format!("crate::kernel::Json::int({rust_expr})"),
         "Float" => format!("crate::kernel::Json::Float({rust_expr})"),
+        "TrueClass" | "FalseClass" => format!("crate::kernel::Json::Bool({rust_expr})"),
         other => panic!("no to_json expr for scalar type {other:?}"),
     }
 }
@@ -565,6 +567,7 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
                 Some("String") => format!("crate::kernel::Json::Str(self.{ident}.to_string())"),
                 Some("Integer") => format!("crate::kernel::Json::int(self.{ident})"),
                 Some("Float") => format!("crate::kernel::Json::Float(self.{ident})"),
+                Some("TrueClass" | "FalseClass") => format!("crate::kernel::Json::Bool(self.{ident})"),
                 _ => String::new(),
             };
             exemplar.render("to_json_field", &[("\"tmpl_field_name\"", naming::ruby_inspect_string(&key)), ("tmpl_json_value_placeholder()", value_expr)])

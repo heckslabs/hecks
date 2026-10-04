@@ -1,7 +1,7 @@
 # The Deploy chapter: what `deployed_to(...)` may declare, and the commands that generate, check and
 # compare a deploy recipe, project the OIDC manifests and provision a tenant.
 #
-# `hecks deploy project` and `hecks deploy provision` boot it directly; the Hecks domain attaches it, so
+# `hecks deploy recipe.project` and `hecks deploy tenant.provision` boot it directly; the Hecks domain attaches it, so
 # each command below is also `hecks deploy <verb>`. The targets validate the `deployed_to` shape
 # that `world.bluebook`'s untyped `Setting` map leaves open. Each run below records that it was
 # requested before its DeployToolchain port is asked, and what came of it after. No command
@@ -10,7 +10,7 @@ Hecks.bluebook "Deploy" do
   vision "Generate, check and compare deploy recipes, project OIDC manifests and provision tenants."
 
   aggregate "LambdaTarget" do
-    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before hecks deploy project generates anything from it."
+    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before hecks deploy recipe.project generates anything from it."
 
     identified_by :domain
 
@@ -20,6 +20,9 @@ Hecks.bluebook "Deploy" do
     attribute :timeout,  Timeout
     attribute :database, Database
     attribute :web,      Web
+    attribute :dispatch, Dispatch,      optional: true
+    attribute :handler_module, HandlerModule, optional: true
+    attribute :secret_env, SecretEnv,   optional: true
 
     value_object "DomainName" do
       attribute :value, String
@@ -35,16 +38,37 @@ Hecks.bluebook "Deploy" do
     # (Serverless v2);
     # only the emitted CloudFormation resource differs, never the runtime adapter. "Shared" borrows
     # another domain's instance under its own Postgres schema and needs an `owner` setting, which
-    # `hecks deploy project` checks, since the owning domain is a deploy-time fact.
+    # `hecks deploy recipe.project` checks, since the owning domain is a deploy-time fact.
     value_object "Database" do
       attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
     end
 
     # "None" (default) or "Rust": the domain's own Lambda (rust/host) also serves a public web UI
     # in-process (rust/host/src/web.rs). "Ruby" is not a member: a Ruby WebFunction comes from a
-    # `lambda_handler.rb` file, and `hecks deploy project` refuses `web "Rust"` alongside one.
+    # `lambda_handler.rb` file, and `hecks deploy recipe.project` refuses `web "Rust"` alongside one.
     value_object "Web" do
       attribute :value, String, one_of: ["None", "Rust"]
+    end
+
+    # "Rust" (default) or "None": a domain with no `.bluebook` command surface to dispatch through
+    # (a webhook that dispatches straight into Ruby) skips the rust/host dispatch Lambda, and its
+    # WebFunction becomes its only Lambda. That WebFunction's `lambda_handler.rb` defines the module
+    # `handler_module` names, so `dispatch "None"` must name one.
+    value_object "Dispatch" do
+      attribute :value, String, one_of: ["Rust", "None"]
+    end
+
+    # The module the domain's `lambda_handler.rb` defines for its WebFunction.
+    value_object "HandlerModule" do
+      attribute :value, String
+      invariant("a handler module is named") { !value.to_s.empty? }
+    end
+
+    # The env var the WebFunction's `lambda_handler.rb` finds the fetched secret's plaintext under,
+    # once it resolves `<name>_ARN`.
+    value_object "SecretEnv" do
+      attribute :value, String
+      invariant("a secret env var is named") { !value.to_s.empty? }
     end
 
     # 128-10240 MB, AWS Lambda's own floor and ceiling.
@@ -63,7 +87,7 @@ Hecks.bluebook "Deploy" do
 
     # All required, no `default:`: command-level defaults apply only at the JSON/Rust-codegen
     # boundary, not Ruby's direct dispatch (interpreting.rb `normalize_args`). Defaults are
-    # resolved by `hecks deploy project` before it dispatches.
+    # resolved by `hecks deploy recipe.project` before it dispatches.
     command "Declare" do
       goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
 
@@ -73,6 +97,13 @@ Hecks.bluebook "Deploy" do
       attribute :timeout,  Timeout
       attribute :database, Database
       attribute :web,      Web
+      attribute :dispatch, Dispatch,      optional: true
+      attribute :handler_module, HandlerModule, optional: true
+      attribute :secret_env, SecretEnv,   optional: true
+
+      given('dispatch "None" names its handler_module: add handler_module "YourModuleName" for the module lambda_handler.rb defines') do
+        dispatch.unset? || dispatch.value != "None" || handler_module.set?
+      end
 
       sets :domain
       sets :region
@@ -80,6 +111,9 @@ Hecks.bluebook "Deploy" do
       sets :timeout
       sets :database
       sets :web
+      sets :dispatch
+      sets :handler_module
+      sets :secret_env
 
       emits "LambdaTargetDeclared"
     end
@@ -88,7 +122,7 @@ Hecks.bluebook "Deploy" do
   # A sibling of `LambdaTarget` with its own value objects, since value objects are not
   # shared across aggregates.
   aggregate "FargateTarget" do
-    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before hecks deploy project generates anything from it."
+    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before hecks deploy recipe.project generates anything from it."
 
     identified_by :domain
 
@@ -143,7 +177,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # All seven required for the same reason as `LambdaTarget.Declare`; this validates a
-    # target already resolved by `hecks deploy project`'s defaults.
+    # target already resolved by `hecks deploy recipe.project`'s defaults.
     command "Declare" do
       goal "Validate one domain's AwsFargate deploy target before anything is generated from it"
 
@@ -167,10 +201,83 @@ Hecks.bluebook "Deploy" do
     end
   end
 
-  # The validated shape of `hecks deploy provision`, which does the generating and provisioning.
+  aggregate "BoxTarget" do
+    description "One domain's validated single-box deploy target — what deployed_to(\"AwsBox\") must resolve to before hecks deploy project generates a box and an RDS instance from it"
+
+    identified_by :domain
+
+    attribute :domain,         DomainName
+    attribute :region,         Region
+    attribute :instance_type,  InstanceType
+    attribute :volume_gb,      VolumeGb
+    attribute :database_class, DatabaseClass
+    attribute :storage_gb,     StorageGb
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # An EC2 instance type such as t4g.medium. The family and size are checked for shape only;
+    # EC2 refuses an unknown type at stack creation.
+    value_object "InstanceType" do
+      attribute :value, String
+      invariant("an instance type is family.size, such as t4g.medium") { value.to_s.match?(/\A[a-z][a-z0-9-]*\.[a-z0-9]+\z/) }
+    end
+
+    # The box's root disk, which holds images, the compose files and container logs; the
+    # database is on RDS.
+    value_object "VolumeGb" do
+      attribute :value, Integer
+      invariant("a volume is at least 8 GB") { value >= 8 }
+      invariant("a volume is at most 16384 GB") { value <= 16384 }
+    end
+
+    # An RDS instance class such as db.t4g.small.
+    value_object "DatabaseClass" do
+      attribute :value, String
+      invariant("a database class is db.family.size, such as db.t4g.small") { value.to_s.match?(/\Adb\.[a-z][a-z0-9-]*\.[a-z0-9]+\z/) }
+    end
+
+    # RDS storage grows with the journal; 20 GB is RDS's gp3 floor.
+    value_object "StorageGb" do
+      attribute :value, Integer
+      invariant("storage is at least 20 GB") { value >= 20 }
+      invariant("storage is at most 65536 GB") { value <= 65536 }
+    end
+
+    # All six required for the same reason as `FargateTarget.Declare`; this validates a target
+    # already resolved by `hecks deploy project`'s defaults.
+    command "Declare" do
+      goal "Validate one domain's AwsBox deploy target before anything is generated from it"
+
+      attribute :domain,         DomainName
+      attribute :region,         Region
+      attribute :instance_type,  InstanceType
+      attribute :volume_gb,      VolumeGb
+      attribute :database_class, DatabaseClass
+      attribute :storage_gb,     StorageGb
+
+      sets :domain
+      sets :region
+      sets :instance_type
+      sets :volume_gb
+      sets :database_class
+      sets :storage_gb
+
+      emits "BoxTargetDeclared"
+    end
+  end
+
+  # The validated shape of `hecks deploy tenant.provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do
-    description "One tenant's validated identity — which realm and Postgres schema `hecks deploy provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
+    description "One tenant's validated identity — which realm and Postgres schema `hecks deploy tenant.provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
 
     identified_by :slug
 
@@ -234,7 +341,7 @@ Hecks.bluebook "Deploy" do
       transition "Abandon"     => "refused",     from: "requested"
     end
 
-    # `hecks deploy provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
+    # `hecks deploy tenant.provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
     # The only command that creates a tenant: its slug, schema and realm are validated by the value
     # objects' patterns and invariants, then the overlay is written through the TenantProvisioning
     # port; the adapter answers PostgresEra when `adapter` is left out. `dry_run?` on this verb
@@ -390,7 +497,7 @@ Hecks.bluebook "Deploy" do
       transition "Fault"    => "faulted",   from: "requested"
     end
 
-    # `hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
+    # `hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
     # needs its tenant; the generator says so, and a domain with no `deployed_to` target, or one
     # whose settings conflict, is faulted with the generator's own sentence.
     command "Project" do
@@ -596,7 +703,7 @@ Hecks.bluebook "Deploy" do
       transition "Refuse" => "refused",  from: "requested"
     end
 
-    # `hecks deploy diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
+    # `hecks deploy template_comparison.diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
     # cosmetic differences (comments, key order); `--json` writes the report as JSON.
     command "Diff" do
       goal "Compare two CloudFormation templates and report what differs by logical id"

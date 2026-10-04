@@ -87,6 +87,7 @@ RSpec.describe "the declared syntax" do
       boot:             "the runtime facade, not a declaration",
       boot_files:       "the runtime facade, not a declaration — the explicit-file sibling of boot",
       describe:         "the runtime facade, not a declaration — boot's declarations-only sibling",
+      boot_described:   "the runtime facade, not a declaration — finishes a boot from what describe loaded",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
@@ -95,15 +96,13 @@ RSpec.describe "the declared syntax" do
       behaviors:        "the behaviors-suite entry point, not a bluebook declaration"
     },
     "Hecksagon" => {
-      binds:              "the builder's own collected Bind records, read by whoever owns them",
-      subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
-      framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
-      vendored_bluebooks: "the builder's own collected vendored-embryonaut-bluebook names, read by whoever owns them",
-      attached_chapters:  "the builder's own collected attached-chapter names, read by whoever owns them",
+      binds:          "the builder's own collected Bind records, read by whoever owns them",
+      subscriptions:  "the builder's own collected subscription strings, read by whoever owns them",
+      attachments:    "the builder's own collected attachments (name and source), read by whoever owns them",
       # The open verb catch-all: `persisted_by "Heki"` bare reaches
       # HecksagonBuilder#method_missing — the verb is whichever bind-shaped
       # word a domain declares, not a closed set this table could enumerate.
-      method_missing:     "the open domain-level-default-bind catch-all — same boundary as World's own"
+      method_missing: "the open domain-level-default-bind catch-all — same boundary as World's own"
     },
     "World"     => {
       # The open verb-settings catch-all: `posted_by("Carrier") { office "EC1" }`
@@ -147,6 +146,7 @@ RSpec.describe "the declared syntax" do
       provides_impl:      "BluebookBuilder's own real implementation, called by GenericDispatch's calls:",
       across_impl:        "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       provenance_impl:    "the owning builder's own real implementation, called by GenericDispatch's calls:",
+      needs_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       identified_by_impl: "IdentityDeclaration's own real implementation, called by GenericDispatch's calls:",
       lifecycle_impl:     "the owning builder's own real implementation, called by GenericDispatch's calls:",
       entity_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:",

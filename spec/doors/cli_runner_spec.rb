@@ -22,7 +22,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
-        uses_framework "Governance"
+        attaches "Governance"
         Banking::Customer.persisted_by("Memory")
         Banking::SafeDepositBox.persisted_by("Memory")
       end
@@ -42,19 +42,19 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(status).to eq(0)
     end
 
-    it "answers one verb's help without dispatching it" do
+    it "answers one command's help without dispatching it" do
       expect(text("order.create_pizza", "--help")).to include("dispatches Pizzas::Order.CreatePizza")
       expect(runtime.events).to be_empty
     end
   end
 
-  # Both spellings reach the same verb.
+  # Both spellings reach the same command.
   describe "routing to another chapter" do
     it "speaks to a chapter the domain attaches when the first word names it" do
       output, code = run("governance")
 
       expect(code).to eq(0)
-      expect(output).to start_with("Governance").and include("hecks run governance <verb>")
+      expect(output).to start_with("Governance").and include("hecks run governance <command>")
     end
 
     it "keeps to the domain's own chapter otherwise" do
@@ -64,8 +64,20 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "naming" do
-    it "takes the short form when no other aggregate declares that verb" do
-      expect(run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+    it "refuses a bare command name, pointing at the one qualified by its aggregate" do
+      output, code = run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small")
+
+      expect(code).to eq(1)
+      expect(output).to include("no such command: create_pizza")
+      expect(output).to include("did you mean").and include("order.create_pizza")
+    end
+
+    it "takes a trailing `!` on a qualified command" do
+      expect(run("order.create_pizza!", "name=Z", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+    end
+
+    it "refuses a bare command name even with a trailing `!`" do
+      expect(run("create_pizza!", "name=Z").last).to eq(1)
     end
 
     it "still takes the aggregate-qualified form" do
@@ -84,7 +96,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(answer.dig("state", "pizza", "price_cents", "cents")).to eq(1200)
     end
 
-    it "reaches an existing record through a bare word, the verb's first argument" do
+    it "reaches an existing record through a bare word, the command's first argument" do
       a_pizza
       output, code = run("order.add_topping", "Margherita", "topping=Basil", "amount=3")
 
@@ -195,12 +207,19 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
     end
 
-    it "answers a question by its bare name when no command shares it" do
+    it "answers through `query`, the word `ask` used to be" do
       a_pizza("Bare")
-      output, code = run("available")
+      output, code = run("query", "order.available")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
+    end
+
+    it "refuses a question by its bare name" do
+      output, code = run("available")
+
+      expect(code).to eq(1)
+      expect(output).to include("no such command: available")
     end
 
     it "changes nothing" do
@@ -222,7 +241,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(output).to match(/topping/i)
     end
 
-    it "names an argument the verb does not take, and points at its help" do
+    it "names an argument the command does not take, and points at its help" do
       output, code = run("order.create_pizza", "nmae=Margherita")
 
       expect(code).to eq(1)
@@ -241,13 +260,13 @@ RSpec.describe Hecks::Doors::CliRunner do
       output, code = run("order.create_piza")
 
       expect(code).to eq(1)
-      expect(output).to include("no such verb: order.create_piza")
+      expect(output).to include("no such command: order.create_piza")
       expect(output).to include("did you mean")
       expect(output).to include("order.create_pizza")
     end
 
-    it "keeps questions and verbs apart when refusing" do
-      expect(text("ask", "order.create_pizza")).to include("no such question")
+    it "keeps questions and commands apart when refusing" do
+      expect(text("ask", "order.create_pizza")).to include("no such query")
     end
   end
 
@@ -257,13 +276,13 @@ RSpec.describe Hecks::Doors::CliRunner do
 
     def usage(*argv) = described_class.usage(runtime: described, argv: argv, program: "hecks run")
 
-    it "answers what `call` answers for help, no arguments, a verb's --help and an unknown verb" do
+    it "answers what `call` answers for help, no arguments, a command's --help and an unknown command" do
       [[], ["--help"], ["order.create_pizza", "--help"], ["no_such_verb"]].each do |argv|
         expect(usage(*argv)).to eq(run(*argv))
       end
     end
 
-    it "answers nil for a line that would run a verb" do
+    it "answers nil for a line that would run a command" do
       expect(usage("order.create_pizza", "name=Margherita")).to be_nil
     end
   end

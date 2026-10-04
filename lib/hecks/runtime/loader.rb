@@ -28,18 +28,21 @@ module Hecks
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
       def self.boot(path, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
-        loading   = Ports::Loading.bootstrap
-        directory = loading.bluebook_directory(path)
-        root      = loading.shared_root(shared, directory)
-        registry  = Registry.new(root: File.dirname(directory))
+        described = describe(path, shared: shared, environment: environment)
+        boot_described(described, install_doors: install_doors, install_facade: install_facade)
+      end
 
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(root)
-          loading.load_domain(directory, environment: selected_environment(environment))
-        end
-
-        run_boot_gates!(registry, directory)
+      # Finishes a boot from declarations `describe` already loaded: runs every boot gate and binds
+      # the dispatcher, without reading the domain's files again.
+      #
+      # @param described [Described] what `describe` answered for the domain to boot
+      # @param install_doors [Boolean] install the `Widget::Item.Add(...)` global facade sugar
+      # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+      # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
+      def self.boot_described(described, install_doors: true, install_facade: nil)
+        registry = described.registry
+        run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
@@ -47,7 +50,26 @@ module Hecks
       end
 
       # What `describe` answers: the loaded declarations and nothing bound to run them.
-      Described = Struct.new(:registry)
+      #
+      # The declarations load the first time `registry` is asked for, not when `describe` returns,
+      # so a caller that can answer from `directory` alone (a launcher with its help already
+      # remembered) never pays for the load. The directory is checked at once.
+      class Described
+        # @return [String] the domain directory that was described
+        attr_reader :directory
+
+        # @param directory [String] the domain directory
+        # @yield loads the declarations; answers the registry
+        def initialize(directory, &load)
+          @directory = directory
+          @load = load
+        end
+
+        # @return [Registry] the declarations, loaded on first use
+        def registry
+          @registry ||= @load.call
+        end
+      end
 
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
       # persistence adapter is resolved or bound, nothing connects to a database.
@@ -63,15 +85,19 @@ module Hecks
       def self.describe(path, shared: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
-        root      = loading.shared_root(shared, directory)
-        registry  = Registry.new(root: File.dirname(directory))
+        overlay   = selected_environment(environment)
 
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(root)
-          loading.load_domain(directory, environment: selected_environment(environment))
+        Described.new(directory) do
+          root     = loading.shared_root(shared, directory)
+          registry = Registry.new(root: File.dirname(directory))
+
+          Hecks.with_registry(registry) do
+            loading.load_library
+            loading.load_project(root)
+            loading.load_domain(directory, environment: overlay)
+          end
+          registry
         end
-        Described.new(registry)
       end
 
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the

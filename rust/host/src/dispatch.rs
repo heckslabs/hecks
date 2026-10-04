@@ -14,6 +14,72 @@ pub struct Outcome {
     pub accepted: bool,
 }
 
+/// Who a command is dispatched for: the role they state and, when the host knows who they are, the
+/// actor Governance holds assignments for. Both absent is an unidentified caller.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Caller<'a> {
+    pub role: Option<&'a str>,
+    pub actor_id: Option<&'a str>,
+}
+
+/// The role an unidentified caller is dispatched under when roles are enforced: no command declares
+/// it, so a command that declares any role refuses it.
+pub const ANONYMOUS_ROLE: &str = "Anonymous";
+
+/// What the host does about the role a command declares (`HECKS_ROLE_ENFORCEMENT`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Enforcement {
+    /// A caller with no role is unchecked, as before.
+    Off,
+    /// An unidentified or unassigned caller is let through and logged as `would_refuse_role`; a
+    /// caller that states a role is checked exactly as under `Enforce`, so shadow never accepts
+    /// what `Off` would not.
+    Shadow,
+    /// An unidentified or unassigned caller is refused.
+    Enforce,
+}
+
+impl Enforcement {
+    /// Reads `off` (the default), `shadow` or `enforce`; anything else is `Off`.
+    pub fn parse(value: Option<&str>) -> Self {
+        match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+            Some("shadow") => Self::Shadow,
+            Some("enforce") => Self::Enforce,
+            _ => Self::Off,
+        }
+    }
+
+    pub fn from_env() -> Self {
+        static MODE: std::sync::OnceLock<Enforcement> = std::sync::OnceLock::new();
+        *MODE.get_or_init(|| Self::parse(std::env::var("HECKS_ROLE_ENFORCEMENT").ok().as_deref()))
+    }
+
+    /// The caller the kernel is asked to check: an unidentified caller becomes the anonymous role
+    /// unless enforcement is off.
+    pub fn effective<'a>(self, caller: Caller<'a>) -> Caller<'a> {
+        if self != Self::Off && caller.role.is_none() && caller.actor_id.is_none() {
+            return Caller { role: Some(ANONYMOUS_ROLE), actor_id: None };
+        }
+        caller
+    }
+}
+
+/// Where a dispatch comes from. A host-internal dispatch is the host acting on its own behalf (a
+/// signup, a provisioning step, a presentation write); it names no caller and is never subject to
+/// `HECKS_ROLE_ENFORCEMENT`, which guards what callers outside the host may do.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Origin {
+    External,
+    HostInternal,
+}
+
+/// Whether the kernel refused the command for the caller's role.
+fn refused_for_role(result: &serde_json::Value) -> bool {
+    result.get("refusals").and_then(|r| r.as_array()).is_some_and(|all| {
+        all.iter().any(|r| r.get("kind").and_then(|k| k.as_str()) == Some("Unauthorized"))
+    })
+}
+
 // Distinguishes a module refusal from a kernel failure to run at all.
 #[derive(Debug, PartialEq)]
 enum KernelAnswer {
@@ -80,6 +146,21 @@ pub async fn handle_routed(
     handle(client, wasm_path, verb, routed_invocation(to, facts)?, role, config, invoker).await
 }
 
+/// `handle_routed` for a caller the host can name.
+#[allow(clippy::too_many_arguments)]
+pub async fn handle_routed_as(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    to: serde_json::Value,
+    facts: serde_json::Value,
+    caller: Caller<'_>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    handle_as(client, wasm_path, verb, routed_invocation(to, facts)?, caller, config, invoker).await
+}
+
 // Facts-only counterpart to `handle_routed`.
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_facts(
@@ -94,6 +175,20 @@ pub async fn handle_facts(
     handle(client, wasm_path, verb, facts_invocation(facts)?, role, config, invoker).await
 }
 
+/// `handle_facts` for a caller the host can name.
+#[allow(clippy::too_many_arguments)]
+pub async fn handle_facts_as(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    facts: serde_json::Value,
+    caller: Caller<'_>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    handle_as(client, wasm_path, verb, facts_invocation(facts)?, caller, config, invoker).await
+}
+
 // A Mutex, not a bare Arc<Client>: `handle` needs `Client::transaction`,
 // which takes `&mut Client`. Locking also means concurrent callers on
 // this connection can't interleave statements.
@@ -105,6 +200,10 @@ pub async fn handle_facts(
 // `role` is optional, matching `Adapters::Lambda::Client#dispatch`'s own
 // `role: nil` default: a step with no role looks the same on the wire
 // whether or not a caller is bound.
+//
+// This entry point and `handle_facts`/`handle_routed` are the host's own: a call with no role is a
+// host-internal dispatch and is unchecked in every enforcement mode. A call that names a role is
+// still checked against it. Callers outside the host go through the `_as` entry points.
 pub async fn handle(
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -114,6 +213,61 @@ pub async fn handle(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
+    let origin = if role.is_none() { Origin::HostInternal } else { Origin::External };
+    dispatch_in(Enforcement::from_env(), origin, client, wasm_path, verb, args, Caller { role, actor_id: None }, config, invoker).await
+}
+
+/// Dispatches for a caller, applying `HECKS_ROLE_ENFORCEMENT`: unidentified callers are refused (or,
+/// in shadow, logged as would-be refusals and let through).
+pub async fn handle_as(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    dispatch_in(Enforcement::from_env(), Origin::External, client, wasm_path, verb, args, caller, config, invoker).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn dispatch_in(
+    mode: Enforcement,
+    origin: Origin,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    let checked = if origin == Origin::HostInternal { caller } else { mode.effective(caller) };
+    let outcome = run(client, wasm_path, verb, args.clone(), checked, config, invoker).await?;
+    // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
+    // is let through; a stated role that does not match stays refused, as it is under `Off`.
+    if mode == Enforcement::Shadow && caller.role.is_none() && !outcome.accepted && refused_for_role(&outcome.result) {
+        crate::log::error("would_refuse_role", serde_json::json!({
+            "verb": verb, "role": checked.role, "actor_id": checked.actor_id,
+            "refusals": outcome.result.get("refusals"),
+        }));
+        return run(client, wasm_path, verb, args, Caller::default(), config, invoker).await;
+    }
+    Ok(outcome)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    let role = caller.role;
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
 
@@ -147,9 +301,20 @@ pub async fn handle(
     // carries whatever role it was dispatched with. Built as a mutable
     // step, not inlined into the `json!` literal, so a roleless call
     // still omits the `"role"` key entirely rather than sending null.
+    // A fact the command `needs` is answered here, before the kernel's gates read the arguments and
+    // before the step is journaled, so a replay re-dispatches the recorded answer (ADR 0081).
+    let mut args = args;
+    if let Some(domain_ir) = crate::ir::ir() {
+        crate::needs::fill_needs(domain_ir, verb, &mut args, &crate::needs::ProcessClock);
+        // An argument with a declared default is filled the same way, so the journal holds it too.
+        crate::needs::fill_defaults(domain_ir, verb, &mut args);
+    }
     let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
     if let Some(role) = role {
         step["role"] = serde_json::Value::String(role.to_string());
+    }
+    if let Some(actor_id) = caller.actor_id {
+        step["actor_id"] = serde_json::Value::String(actor_id.to_string());
     }
     // Stamped only on this live step; replayed history already carries
     // its own real timestamp, and re-stamping today's time onto a
@@ -179,7 +344,19 @@ pub async fn handle(
         }))
         .collect::<Vec<_>>());
 
-    let input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed }).to_string();
+    let mut input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed });
+    // Lets the kernel answer a reaction's command that needs a fact the same way (ADR 0081).
+    if let Some(domain_ir) = crate::ir::ir() {
+        let table = crate::needs::table(domain_ir);
+        if table.as_object().is_some_and(|t| !t.is_empty()) {
+            input["needs"] = table;
+        }
+        let defaults = crate::needs::defaults_table(domain_ir);
+        if defaults.as_object().is_some_and(|t| !t.is_empty()) {
+            input["defaults"] = defaults;
+        }
+    }
+    let input = input.to_string();
     // `wasm_runner::run` is sync, and wasmtime-wasi's sync bridge spins up
     // its own tokio runtime internally — fatal on a thread already
     // driving one. `spawn_blocking` moves it off this async runtime.
@@ -1167,6 +1344,115 @@ pub(crate) mod tests {
         // every other refusal in this file is held to.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
+    }
+
+    #[test]
+    fn enforcement_reads_off_shadow_and_enforce_and_treats_anything_else_as_off() {
+        assert_eq!(Enforcement::parse(None), Enforcement::Off);
+        assert_eq!(Enforcement::parse(Some("")), Enforcement::Off);
+        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Off);
+        assert_eq!(Enforcement::parse(Some("Shadow")), Enforcement::Shadow);
+        assert_eq!(Enforcement::parse(Some(" enforce ")), Enforcement::Enforce);
+    }
+
+    #[test]
+    fn only_an_unidentified_caller_becomes_anonymous_and_only_when_roles_are_checked() {
+        let nobody = Caller::default();
+        assert_eq!(Enforcement::Off.effective(nobody), nobody);
+        for mode in [Enforcement::Shadow, Enforcement::Enforce] {
+            assert_eq!(mode.effective(nobody).role, Some(ANONYMOUS_ROLE));
+            let stated = Caller { role: Some("Teller"), actor_id: None };
+            assert_eq!(mode.effective(stated), stated, "a stated role is kept");
+            let identified = Caller { role: None, actor_id: Some("u1") };
+            assert_eq!(mode.effective(identified), identified, "an identified caller is kept");
+        }
+    }
+
+    // The unidentified caller is the case the host never refused: no role at all.
+    #[tokio::test]
+    async fn an_unidentified_caller_is_refused_when_enforced_and_let_through_when_off_or_shadowed() {
+        let client = scratch_db("rust_host_dispatch_test_enforce").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+        let go = |mode: Enforcement, id: &'static str| {
+            let client = &client;
+            let config = &config;
+            async move {
+                dispatch_in(mode, Origin::External, client, &wasm_path(), "Banking::Customer.Register", register(id), Caller::default(), config, &lambda_client::NeverInvoker)
+                    .await
+                    .unwrap()
+            }
+        };
+
+        let off = go(Enforcement::Off, "CUST-0021").await;
+        assert!(off.accepted, "off keeps the old behaviour: {:?}", off.result);
+
+        let enforced = go(Enforcement::Enforce, "CUST-0022").await;
+        assert!(!enforced.accepted, "an unidentified caller must be refused: {:?}", enforced.result);
+        assert!(refused_for_role(&enforced.result), "{:?}", enforced.result);
+        let error = enforced.result["refusals"][0]["error"].as_str().unwrap();
+        assert!(error.contains("Branch clerk") && error.contains(ANONYMOUS_ROLE), "{error}");
+
+        let shadowed = go(Enforcement::Shadow, "CUST-0023").await;
+        assert!(shadowed.accepted, "shadow lets the command through: {:?}", shadowed.result);
+
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        assert_eq!(steps.len(), 2, "the enforced refusal was not persisted; off and shadow were");
+    }
+
+    // Shadow may only let through what Off would: a caller that stated a wrong role is refused.
+    #[tokio::test]
+    async fn shadow_refuses_a_stated_wrong_role_and_still_lets_an_unidentified_caller_through() {
+        let client = scratch_db("rust_host_dispatch_test_shadow_stated").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+        let go = |mode: Enforcement, origin: Origin, caller: Caller<'static>, id: &'static str| {
+            let client = &client;
+            let config = &config;
+            async move {
+                dispatch_in(mode, origin, client, &wasm_path(), "Banking::Customer.Register", register(id), caller, config, &lambda_client::NeverInvoker)
+                    .await
+                    .unwrap()
+            }
+        };
+        let wrong = Caller { role: Some("Auditor"), actor_id: None };
+
+        let shadow_wrong = go(Enforcement::Shadow, Origin::External, wrong, "CUST-0031").await;
+        assert!(!shadow_wrong.accepted, "shadow must not accept a stated wrong role: {:?}", shadow_wrong.result);
+        assert!(refused_for_role(&shadow_wrong.result), "{:?}", shadow_wrong.result);
+        let off_wrong = go(Enforcement::Off, Origin::External, wrong, "CUST-0032").await;
+        assert!(!off_wrong.accepted, "off refuses it too: {:?}", off_wrong.result);
+
+        let nobody = go(Enforcement::Shadow, Origin::External, Caller::default(), "CUST-0033").await;
+        assert!(nobody.accepted, "shadow lets an unidentified caller through: {:?}", nobody.result);
+
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        assert_eq!(steps.len(), 1, "only the unidentified caller's registration was persisted");
+    }
+
+    // A host-internal dispatch names no caller and is unchecked in every mode, while an external
+    // unidentified caller is refused under enforce.
+    #[tokio::test]
+    async fn a_host_internal_dispatch_is_unchecked_under_enforce_but_an_external_one_is_refused() {
+        let client = scratch_db("rust_host_dispatch_test_internal").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+        let go = |mode: Enforcement, origin: Origin, id: &'static str| {
+            let client = &client;
+            let config = &config;
+            async move {
+                dispatch_in(mode, origin, client, &wasm_path(), "Banking::Customer.Register", register(id), Caller::default(), config, &lambda_client::NeverInvoker)
+                    .await
+                    .unwrap()
+            }
+        };
+
+        let external = go(Enforcement::Enforce, Origin::External, "CUST-0041").await;
+        assert!(!external.accepted, "{:?}", external.result);
+        for (mode, id) in [(Enforcement::Enforce, "CUST-0042"), (Enforcement::Shadow, "CUST-0043"), (Enforcement::Off, "CUST-0044")] {
+            let internal = go(mode, Origin::HostInternal, id).await;
+            assert!(internal.accepted, "{mode:?}: {:?}", internal.result);
+        }
     }
 
     #[tokio::test]

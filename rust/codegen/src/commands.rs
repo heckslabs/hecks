@@ -444,14 +444,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         .collect();
 
     let transition = mutations::lifecycle_transition_for(command, aggregate);
-    let transition_arg = match &transition {
-        Some(t) => format!(
-            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
-            naming::ruby_inspect_string(&t.field),
-            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
-        ),
-        None => "None".to_string(),
-    };
+    let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     // A `delegate` mutation is rendered by `delegation_of`, which overwrites `mutation_lines`;
@@ -772,14 +765,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         })
         .collect();
     let transition = mutations::lifecycle_transition_for(target, entity);
-    let transition_arg = match &transition {
-        Some(t) => format!(
-            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
-            naming::ruby_inspect_string(&t.field),
-            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
-        ),
-        None => "None".to_string(),
-    };
+    let transition_arg = mutations::transition_check_arg(transition.as_ref());
     let mut mutation_lines: Vec<String> = target
         .get("mutations")
         .map(Json::each)
@@ -896,14 +882,7 @@ pub fn emit_entity_command(
         .collect();
 
     let transition = mutations::lifecycle_transition_for(command, entity);
-    let transition_arg = match &transition {
-        Some(t) => format!(
-            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
-            naming::ruby_inspect_string(&t.field),
-            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
-        ),
-        None => "None".to_string(),
-    };
+    let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, entity, command, value_objects_by_name, false)).collect();
@@ -1063,14 +1042,7 @@ pub fn emit_nested_entity_command(
 
     // The nested entity's lifecycle, as in `emit_entity_command`.
     let transition = mutations::lifecycle_transition_for(command, nested);
-    let transition_arg = match &transition {
-        Some(t) => format!(
-            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
-            naming::ruby_inspect_string(&t.field),
-            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
-        ),
-        None => "None".to_string(),
-    };
+    let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, nested, command, value_objects_by_name, false)).collect();

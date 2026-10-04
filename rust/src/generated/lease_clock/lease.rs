@@ -943,6 +943,7 @@ impl crate::kernel::Fielded for ReapArgs {
         
         match name {
             "now" => Some(Field::Nested(&self.now)),
+            "grace" => Some(Field::Nested(&self.grace)),
             _ => None,
         }
     }
@@ -965,12 +966,14 @@ impl crate::kernel::Fielded for ReapArgs {
 #[derive(Debug, Clone)]
 pub struct ReapArgs {
     pub now: LeaseInstant,
+    pub grace: LeaseInstant,
 }
 
 pub fn dispatch_reap(
     repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: ReapArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
         args.now.check_invariants()?;
+        args.grace.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
     let seed_projections = crate::kernel::seeded_projections(&with_references, LEASE_PROJECTED_FIELDS);
 
@@ -983,7 +986,7 @@ pub fn dispatch_reap(
         "key.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "only a lease whose own recorded expiry the passed clock has reached is reaped", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: true, negated: false }, left: Box::new(Expr::Lookup("expires_at.value")), right: Box::new(Expr::Lookup("now.value")) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "only a lease whose own recorded expiry, plus any grace, the passed clock has reached is reaped", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: true, negated: false }, left: Box::new(Expr::Add(Box::new(Expr::Lookup("expires_at.value")), Box::new(Expr::Lookup("grace.value")))), right: Box::new(Expr::Lookup("now.value")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["held"] }),
         |record| {
@@ -1005,7 +1008,8 @@ pub fn dispatch_reap(
 impl ReapArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("now".to_string(), self.now.to_json()),]
+            vec![        ("now".to_string(), self.now.to_json()),
+        ("grace".to_string(), self.grace.to_json()),]
                 .into_iter()
                 .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
                 .collect(),
@@ -1018,27 +1022,30 @@ impl ReapArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("ReapArgs expects an object, got {}", v.inspect())));
 }
-let unknown = v.unknown_keys(&["now", "id", "lease", "key"]);
+let unknown = v.unknown_keys(&["now", "grace", "id", "lease", "key"]);
 if !unknown.is_empty() {
     let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
     return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
         command: "Reap",
         unknown: &unknown,
-        declared: &["now"],
+        declared: &["now", "grace"],
     }.render_args()));
 }
-let absent: Vec<&str> = ["now"].into_iter().filter(|key| v.get(key).is_none()).collect();
+let absent: Vec<&str> = ["grace", "now"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
         command: "Reap",
         absent: &absent,
-        declared: &["now"],
+        declared: &["now", "grace"],
     }.render_args()));
 }
         let now = LeaseInstant::from_json(&(match v.get("now").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReapArgs.now expects LeaseInstant, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         now.check_invariants()?;
+        let grace = LeaseInstant::from_json(&(match v.get("grace").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReapArgs.grace expects LeaseInstant, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        grace.check_invariants()?;
         Ok(Self {
         now,
+        grace,
         })
     }
 }
@@ -1052,25 +1059,25 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["now", "id", "lease", "key"]);
+let unknown = v.unknown_keys(&["now", "grace", "id", "lease", "key"]);
 if !unknown.is_empty() {
     let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
     return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
         command: "Reap",
         unknown: &unknown,
-        declared: &["now"],
+        declared: &["now", "grace"],
     }.render_args()));
 }
         Ok(())
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let absent: Vec<&str> = ["now"].into_iter().filter(|key| v.get(key).is_none()).collect();
+let absent: Vec<&str> = ["grace", "now"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
         command: "Reap",
         absent: &absent,
-        declared: &["now"],
+        declared: &["now", "grace"],
     }.render_args()));
 }
         Ok(())

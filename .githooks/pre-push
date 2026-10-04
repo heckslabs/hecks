@@ -7,13 +7,11 @@
 # Bypass:   git push --no-verify   (say why — a red suite is a real answer)
 #
 # ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`, since an absolute
-# core.hooksPath makes every worktree run this one file. Each check logs to its own file
-# under WORKDIR; results print in a fixed order after `wait`, every check reported even
-# if an earlier one failed.
-#
-# `codegen_drift` catches a Bluebook `given` changing with nobody rerunning `hecks project_rust`
-# (ADR 0057) — CI's own `checks_codegen_drift` only runs on `pull_request`/`merge_group`, not a
-# plain push, so this is the one local backstop.
+# core.hooksPath makes every worktree run this one file. The checks themselves, and why each
+# one blocks, are the `pre_push` stage in lib/hecks/gate/stages.yml; every check is reported
+# even if an earlier one failed. Among them, `codegen_drift` catches a Bluebook `given` changing
+# with nobody rerunning `hecks build.project_rust` (ADR 0057): CI's own `checks_codegen_drift` only
+# runs on `pull_request`/`merge_group`, not a plain push, so this is the one local backstop.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -49,134 +47,16 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# Runs one check in the background: output to $WORKDIR/<id>.log, exit code to <id>.exit.
-# Always returns 0 so a failing check cannot trip a `set -e`.
-run_check() {
-  id="$1"
-  shift
-  "$@" >"$WORKDIR/$id.log" 2>&1
-  echo $? >"$WORKDIR/$id.exit"
-}
-
-exit_of() {
-  cat "$WORKDIR/$1.exit" 2>/dev/null || echo 1
-}
-
-# parallel_rspec is capped to half the cores: at full width it starves spec/fuzzing and the
-# concurrent run is no faster than serial.
-CPU_COUNT=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-RSPEC_WORKERS=$((CPU_COUNT / 2))
-if [ "$RSPEC_WORKERS" -lt 1 ]; then
-  RSPEC_WORKERS=1
-fi
-
-run_check rspec bundle exec parallel_rspec spec -n "$RSPEC_WORKERS" &
-run_check fuzzing bundle exec rspec spec/fuzzing --tag fuzzing &
-run_check query_agreement bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io &
-run_check engine_agreement bundle exec exe/hecks check_engine_agreement --wait &
-run_check model_check bundle exec exe/hecks model_check --wait &
-run_check doc_coverage bundle exec exe/hecks measure_doc_coverage --wait &
-run_check rubocop bundle exec rubocop -c .rubocop.yml &
-run_check codegen_drift bundle exec exe/hecks regenerate_corpus --check --wait &
-run_check comment_blocks bundle exec exe/hecks check_comments paths=lib,spec,examples only=long_block --wait &
-
-wait
-
-fail=0
-
-printf '\n[pre-push] rspec (parallel)\n\n'
-cat "$WORKDIR/rspec.log"
-if [ "$(exit_of rspec)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — the suite is red.\n'
-  printf '           Fix it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like any other local rspec\n\n'
-
-# `parallel_rspec spec` excludes spec/fuzzing, so it is re-run here for commits made with
-# --no-verify or SKIP_POST_COMMIT_FUZZING=1.
-cat "$WORKDIR/fuzzing.log"
-if [ "$(exit_of fuzzing)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — spec/fuzzing is red.\n'
-  printf '           Fix it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] adapter agreement — one declared query, every engine, same answer\n\n'
-
-# Only this io spec runs here: it takes ~5s and falls back to Memory-vs-Sqlite agreement
-# without a local Postgres. The other io specs need a toolchain or cloud resources.
-cat "$WORKDIR/query_agreement.log"
-if [ "$(exit_of query_agreement)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — the engines disagree about a declared query.\n'
-  printf '           One of them is wrong; a self-consistent adapter spec\n'
-  printf '           cannot tell you which. Fix it, or push with --no-verify\n'
-  printf '           and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] engine agreement — every declared comparator, both engines\n\n'
-
-cat "$WORKDIR/engine_agreement.log"
-if [ "$(exit_of engine_agreement)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — a comparator is missing a shared case or cross-engine spec.\n'
-  printf '           Fix it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] model check — unreachable states, dead transitions, orphaned handlers\n\n'
-
-cat "$WORKDIR/model_check.log"
-if [ "$(exit_of model_check)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — the model checker found something.\n'
-  printf '           Fix it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] docs coverage — words with no running example\n\n'
-
-cat "$WORKDIR/doc_coverage.log"
-if [ "$(exit_of doc_coverage)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — the language ships something undocumented.\n'
-  printf '           Write the missing sections and examples, or push with\n'
-  printf '           --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] rubocop — static style/correctness gate\n\n'
-
-cat "$WORKDIR/rubocop.log"
-if [ "$(exit_of rubocop)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — rubocop found an offense.\n'
-  printf '           Fix it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] codegen drift — committed rust/src/generated/ must match a fresh regen\n\n'
-
-cat "$WORKDIR/codegen_drift.log"
-if [ "$(exit_of codegen_drift)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — regenerating hits a diff, so the committed Rust is stale.\n'
-  printf '           Run `bundle exec exe/hecks regenerate_corpus --confirm`, commit the result, or\n'
-  printf '           push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-printf '\n[pre-push] comment blocks — no run of comment lines past ADR 0075'"'"'s cap\n\n'
-
-cat "$WORKDIR/comment_blocks.log"
-if [ "$(exit_of comment_blocks)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — a comment block ran past the cap (hecks check_comments only=long_block).\n'
-  printf '           Shorten it, or push with --no-verify and say why.\n\n'
-  fail=1
-fi
-
-if [ "$fail" -ne 0 ]; then
+# The checks are data in lib/hecks/gate/stages.yml. `hecks gate_run.gate` runs a stage's checks together and
+# prints every red one, so a failure does not hide the others. The tool is called directly, not
+# through the launcher, so a red check's output arrives as text and not inside a journal record
+# (`hecks gate_run.gate pre_push --wait` is the recorded form).
+if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' pre_push; then
+  printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
   exit 1
 fi
 
-printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, codegen matches source, comments in bounds.\n\n'
+printf '\n[pre-push] every gate check is green.\n\n'
 
 # Attestation: a git note under refs/notes/ci, keyed by HEAD^{tree} and carrying an HMAC
 # signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip.

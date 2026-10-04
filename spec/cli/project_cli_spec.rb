@@ -65,12 +65,12 @@ RSpec.describe Hecks::CLI::ProjectCli do
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 
-    it "refuses a name, path, executable or legacy verb that could end its string" do
+    it "refuses a name, path, executable or legacy command that could end its string" do
       expect { source('x"; system("id"); "', "Shelf") }.to raise_error(ArgumentError, /domain path/)
       expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /chapter name/)
       expect { source("shelf", "Shelf", executable: "../out") }.to raise_error(ArgumentError, /launcher executable/)
       expect { source("shelf", "Shelf", executable: "bin/x", legacy: ["run]; exit"]) }
-        .to raise_error(ArgumentError, /legacy verb/)
+        .to raise_error(ArgumentError, /legacy command/)
     end
 
     it "climbs one directory out of lib for an executable at the top of the root" do

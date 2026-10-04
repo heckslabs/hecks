@@ -68,7 +68,7 @@ jobs:
       - name: Determine this shard's own file list
         run: |
           mkdir -p tmp
-          bundle exec exe/hecks ask shard_specs group=${{ matrix.group }} groups=2 runtime_log=.github/rspec_runtime_baseline.log \
+          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=2 runtime_log=.github/rspec_runtime_baseline.log \
             > tmp/rspec_shard_files.txt
 
       # --group-by runtime: without it parallel_rspec splits by file size and one worker can

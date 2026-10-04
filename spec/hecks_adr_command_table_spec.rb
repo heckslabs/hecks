@@ -9,24 +9,22 @@ require "spec_helper"
 # per-section specs (hecks_custodian_table_spec.rb, hecks_codebase_adr_rows_spec.rb,
 # hecks_deploy_table_spec.rb), which check their rows in more depth.
 RSpec.describe "the ADR 0080 command table, every row" do
-  # One command of the table. `verb` is the command's snake name; `launch` is the spelling the
-  # launcher answers to when it differs; `gap` says why the command is not declared yet.
-  TableRow = Struct.new(:script, :chapter, :aggregate, :verb, :launch, :gap, keyword_init: true) do
+  # One command of the table. `verb` is the command's snake name; every command is called by
+  # its aggregate (`era.merge_tail`); `gap` says why the command is not declared yet.
+  TableRow = Struct.new(:script, :chapter, :aggregate, :verb, :gap, keyword_init: true) do
     def name = verb.split("_").map(&:capitalize).join
-    def launcher_verb = launch || verb
-    def argv = [*(chapter == "Hecks" ? [] : [chapter.gsub(/([a-z])([A-Z])/, '\1_\2').downcase]), *launcher_verb.split]
-    def help_name = launcher_verb.split.last
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def argv = [*(chapter == "Hecks" ? [] : [chapter.gsub(/([a-z])([A-Z])/, '\1_\2').downcase]), qualified]
+    def help_name = qualified
   end
 
   def self.rows(script, chapter, aggregate, verbs, gap: nil)
     Array(verbs).map do |verb|
-      launch = verb.is_a?(Hash) ? verb.values.first : nil
-      verb = verb.keys.first if verb.is_a?(Hash)
-      TableRow.new(script: script, chapter: chapter, aggregate: aggregate, verb: verb, launch: launch, gap: gap)
+      TableRow.new(script: script, chapter: chapter, aggregate: aggregate, verb: verb, gap: gap)
     end
   end
 
-  # Custodian and Codebase rows live in the Hecks chapter, Deploy and QualityControl in the
+  # Custodian and Codebase rows live in the Hecks chapter, Deploy, Site and QualityControl in the
   # attached chapters of the same names.
   CUSTODIAN = [
     ["ir", "Introspection", "ir"], ["shape", "Introspection", "shape"],
@@ -70,6 +68,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     ["doc_coverage", "ConformanceRun", %w[measure_doc_coverage]],
     ["argument_gate_matrix", "ConformanceRun", %w[argument_gate_matrix]],
     ["regen_codegen_domains", "RegenerationRun", %w[regenerate_corpus]],
+    ["(new)", "GateRun", %w[gate]],
     ["standardize_comments", "StyleRun", %w[report_comments check_comments fix_comments
                                             write_comment_baseline check_comments_unchanged]],
     ["standardize_comments_rust", "StyleRun", %w[report_rust_comments check_rust_comments fix_rust_comments]],
@@ -98,22 +97,24 @@ RSpec.describe "the ADR 0080 command table, every row" do
     ["project_tenant", "Tenant", "provision"], ["project_tenant", "Tenant", "reprovision"]
   ].flat_map { |script, aggregate, verb| rows(script, "Deploy", aggregate, verb) }.freeze
 
-  # QualityControl names each command by its aggregate where two aggregates share a verb
-  # (`patch.open`, `improvement.open`, `angle.seed`, `target.seed`), and by the bare verb otherwise.
-  # The table's launcher spellings (`open_patch`, `log_bug`) are the ADR's; the chapter answers to
-  # the command's name. The `qa_*` scripts that are not commands of a ledger record (a tick, a
-  # sweep, a seed) are queries answered by a port, since they read and write no record of their own.
+  # Site is new in 3.0: no `bin/` script preceded it, so its row names none.
+  SITE = [
+    ["(new)", "SiteProjection", "project_site"]
+  ].flat_map { |script, aggregate, verb| rows(script, "Site", aggregate, verb) }.freeze
+
+  # Every command is called by its aggregate (`patch.open`, `improvement.open`, `sweep.tick`). The `qa_*`
+  # scripts that are not commands of a ledger record (a tick, a sweep, a seed) are queries answered by a
+  # port, since they read and write no record of their own.
   QUALITY_CONTROL = [
     rows("qa_tick", "QualityControl", "Sweep", "tick"),
-    # `run` alone is the CI port's `Clearance.CI.Run`, so the query is asked for by name.
-    rows("qa_sweep", "QualityControl", "Sweep", [{ "run" => "ask run" }]),
-    rows("qa_sweep", "QualityControl", "Target", [{ "release" => "release" }]),
+    rows("qa_sweep", "QualityControl", "Sweep", "run"),
+    rows("qa_sweep", "QualityControl", "Target", "release"),
     rows("qa_pr_check", "QualityControl", "Clearance", "check_pull_requests"),
-    rows("qa_open_pr", "QualityControl", "Patch", [{ "open" => "patch.open" }]),
-    rows("qa_open_pr", "QualityControl", "Improvement", [{ "open" => "improvement.open" }]),
-    rows("qa_log_bug", "QualityControl", "Bug", [{ "log" => "log" }]),
-    rows("qa_seed_angles", "QualityControl", "Angle", [{ "seed" => "angle.seed" }]),
-    rows("qa_seed_targets", "QualityControl", "Target", [{ "seed" => "target.seed" }]),
+    rows("qa_open_pr", "QualityControl", "Patch", "open"),
+    rows("qa_open_pr", "QualityControl", "Improvement", "open"),
+    rows("qa_log_bug", "QualityControl", "Bug", "log"),
+    rows("qa_seed_angles", "QualityControl", "Angle", "seed"),
+    rows("qa_seed_targets", "QualityControl", "Target", "seed"),
     rows("qa_generated_domains", "QualityControl", "Target", "check_generated_domains"),
     rows("qa_mine_combinations", "QualityControl", "Target", "mine_combinations"),
     rows("qa_domain_novelty", "QualityControl", "Target", "judge_novelty"),
@@ -123,7 +124,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     rows("qa_concurrency_racer", "QualityControl", "Sweep", "race")
   ].flatten.freeze
 
-  ALL_ROWS = (CUSTODIAN + CODEBASE + DEPLOY + QUALITY_CONTROL).freeze
+  ALL_ROWS = (CUSTODIAN + CODEBASE + DEPLOY + SITE + QUALITY_CONTROL).freeze
 
   # The table gives `console` and `mcp` as the launcher's names for OpenConsole and ServeMcp.
   LAUNCHER_HELP_NAME = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze

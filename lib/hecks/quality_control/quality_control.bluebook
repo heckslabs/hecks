@@ -22,7 +22,7 @@ unless defined?(QualityControlDials)
     # `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling.
     WIDENING_TIERS = settings.widening_tiers
 
-    # How many `hecks quality_control ask run <target>` children `--all` keeps running at once.
+    # How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once.
     SWEEP_MAX_PARALLEL = settings.sweep_max_parallel
 
     # How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled.
@@ -53,11 +53,11 @@ unless defined?(QualityControlDials)
     # How many of the least-hit verbs the next seed weights up; 0 turns the lever off.
     FAVOR_RARE_VERBS = settings.favor_rare_verbs
 
-    # Whether `hecks quality_control ask run` also runs the self-consistency pass (cold rehydration, replay
+    # Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay
     # idempotency, value-object JSON round trip) on the same generated sequence.
     SELF_CONSISTENCY_CHECKS = settings.self_consistency_checks
 
-    # Candidate replays `hecks quality_control ask run` may spend shrinking one surprised check; 0 turns shrinking
+    # Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking
     # off. `concurrency` is never shrunk: a race does not reproduce on demand.
     SHRINK_BUDGET = settings.shrink_budget
 
@@ -74,7 +74,7 @@ unless defined?(QualityControlDials)
     ROTATION_STALE_FLOOR_SECONDS = settings.rotation_stale_floor_seconds
 
     # Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch.
-    # `hecks quality_control ask run` clamps down, never up, and prints a note.
+    # `hecks quality_control query sweep.run` clamps down, never up, and prints a note.
     PERSISTENCE_PARITY_SEED_CAP = settings.persistence_parity_seed_cap
 
     # Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed.
@@ -85,11 +85,11 @@ unless defined?(QualityControlDials)
     # disposable database.
     ADAPTER_PARITY_PAIRS = settings.adapter_parity_pairs
 
-    # Which comparison modes `hecks quality_control ask run` may run: the enabled ones intersected with what
+    # Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what
     # `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run.
     #
     # `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are
-    # built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control ask run`
+    # built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run`
     # refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled.
     MODES = settings.modes
 
@@ -101,7 +101,7 @@ unless defined?(QualityControlDials)
     # off. Kept low: a dry run creates no state for later steps to act on.
     DRY_RUN_FRACTION = settings.dry_run_fraction
 
-    # How many generated domains one `hecks quality_control tick` checks after the rotation sweep; 0 skips the
+    # How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the
     # step.
     GENERATED_DOMAINS_PER_TICK = settings.generated_domains_per_tick
 
@@ -140,7 +140,7 @@ Hecks.bluebook "QualityControl" do
     attribute :last_swept, SweptIn
     # Recency-decayed count of how often this chapter was worth sweeping; see `YieldScore`.
     attribute :yield_score, YieldScore
-    # Consecutive `Release`s that came back clean; `hecks quality_control ask run` reads it to choose sweep depth.
+    # Consecutive `Release`s that came back clean; `hecks quality_control query sweep.run` reads it to choose sweep depth.
     # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
     attribute :clean_streak, CleanStreak
     # Comma-joined mode names recorded at release from what the runner inferred. Stored so
@@ -238,6 +238,7 @@ Hecks.bluebook "QualityControl" do
       reference_to Target
       attribute :held_by,    Engineer
       attribute :now,        Instant
+      needs :now
 
       given("a live claim is not taken from the agent holding it") do
         status != "held" || claimed_at.value + window.value <= now.value
@@ -265,6 +266,7 @@ Hecks.bluebook "QualityControl" do
       # carry it. Required, so an omitted streak can neither blank the counter nor guess at it.
       reference_to Target
       attribute :now,          Instant
+      needs :now
       attribute :next_streak,  CleanStreak
       # Required: an in-process dispatch does not fill defaults for absent arguments, so an omitted
       # list refuses rather than blanks. `capabilities.value=""` is an honest value.
@@ -365,7 +367,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "Suspended" do
-      description "Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control ask run <target> --release --notes is how one comes back."
+      description "Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back."
       where(status: "suspended")
       order_by :reference
     end
@@ -852,7 +854,7 @@ Hecks.bluebook "QualityControl" do
     # `default:` keeps rows already on file hydrating as `undecided`.
     attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
     # `default: yes` is true of every bug on file, since `Log` always required a failing
-    # demonstration. `no` is the escape hatch for a real but flaky finding (`hecks quality_control log
+    # demonstration. `no` is the escape hatch for a real but flaky finding (`hecks quality_control bug.log
     # --reproduced no`).
     attribute :reproduced,    one_of("yes", "no"), default: { value: "yes" }
     # Bugs are claimed like chapters so two agents do not fix the same one. A `given` rather than a
@@ -1021,7 +1023,7 @@ Hecks.bluebook "QualityControl" do
       # Optional; `Name` covers bugs logged without one. No `sets`: on a creation command an
       # argument sharing the aggregate field's name lands there directly.
       attribute :name,          BugName, optional: true
-      # Optional; omitted, the aggregate's default `yes` applies. `hecks quality_control log --reproduced no`
+      # Optional; omitted, the aggregate's default `yes` applies. `hecks quality_control bug.log --reproduced no`
       # uses it to skip its must-fail check for a finding with no reliable pass/fail signal.
       attribute :reproduced,    one_of("yes", "no"), optional: true
 
@@ -1057,7 +1059,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     # Not a lifecycle move (the `Rank` shape); `undecided` is only ever the birth value.
-    # `hecks quality_control log --triage` dispatches this right after `Log`.
+    # `hecks quality_control bug.log --triage` dispatches this right after `Log`.
     command "Triage" do
       role "QA engineer"
       goal "Write down whether this can be fixed on the spot or needs a bigger judgment"
@@ -1115,6 +1117,7 @@ Hecks.bluebook "QualityControl" do
       reference_to Bug
       attribute :held_by, Engineer
       attribute :now,     Instant
+      needs :now
 
       given("a live claim is not taken from the agent holding it") do
         held_by.value == "nobody" || claimed_at.value + window.value <= now.value
@@ -1388,6 +1391,7 @@ Hecks.bluebook "QualityControl" do
       attribute :proposer,  Proposer
       # `now:` is filled from the clock port, as in `Target.Claim`; an explicit value wins.
       attribute :now,       Instant
+      needs :now
 
       sets :proposed_at, to: :now
 
@@ -1708,7 +1712,7 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # A PR opened for a Bug's own fix, recorded at open so `hecks quality_control check_pull_requests` looks it up by number.
+  # A PR opened for a Bug's own fix, recorded at open so `hecks quality_control clearance.check_pull_requests` looks it up by number.
   # Not named `PullRequest`: `Ticket::PullRequest` exists and aggregate names install on Object.
   aggregate "Patch" do
     description "One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess."
@@ -1784,6 +1788,7 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
       attribute :title,  PatchTitle
       attribute :now,    Instant
+      needs :now
 
       given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
       given("the bug is fixed") { bug.status == "fixed" }
@@ -1809,9 +1814,9 @@ Hecks.bluebook "QualityControl" do
       emits "PatchClosed"
     end
 
-    # The worklist for `hecks quality_control check_pull_requests`: ask `gh` about each row's exact number, never search.
+    # The worklist for `hecks quality_control clearance.check_pull_requests`: ask `gh` about each row's exact number, never search.
     query "Open" do
-      description "Every PR we've opened that's still open, by number — hecks quality_control check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
+      description "Every PR we've opened that's still open, by number — hecks quality_control clearance.check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
       where(status: "opened")
       order_by :number
     end
@@ -1921,6 +1926,7 @@ Hecks.bluebook "QualityControl" do
       attribute :branch, ImprovementBranch
       attribute :title,  ImprovementTitle
       attribute :now,    Instant
+      needs :now
 
       given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
       given("the angle is under investigation") { angle.unset? || angle.status == "investigating" }
@@ -1973,7 +1979,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "Open" do
-      description "Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
+      description "Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control clearance.check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
       where(status: { in: "opened,landed,needs_fix" })
       order_by :number
     end
@@ -2211,14 +2217,14 @@ Hecks.bluebook "QualityControl" do
   # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.
 
   # The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work: that event
-  # carries no target id, `next_streak` or yield score, so `hecks quality_control ask run` still releases.
+  # carries no target id, `next_streak` or yield score, so `hecks quality_control query sweep.run` still releases.
   # `on Sweep::CheckSurprised`, not `Sweep::Check::...`: an entity command's event is stamped with
   # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
   policy "SuspendOnSurprise" do
     on      Sweep::CheckSurprised
     trigger Target::Suspend, with: {
       target: :target,
-      reason: { value: "a check surprised — a person releases with hecks quality_control ask run <target> --release --notes" }
+      reason: { value: "a check surprised — a person releases with hecks quality_control query sweep.run <target> --release --notes" }
     }
   end
 end

@@ -62,6 +62,16 @@ pub async fn render(
         // Newsletter subscribe shares this gate (same hecksagon as the
         // registration aggregates) and is checked first since it needs none
         // of the Payments::Payment/Event context checkout requires.
+        // The subscriber list is PII (email, names, status): only an Admin or
+        // Owner holding the account cookie may read it, like sending does.
+        if method == "GET" && path == "/newsletter/subscribers" && ir().and_then(crate::ir::newsletter_provider).is_some() {
+            let Some(domain_ir) = ir() else {
+                return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
+            };
+            if let Err(response) = newsletter_send::require_admin(domain_ir, &extract_cookies(body), &session_secret(), client).await {
+                return Some(response);
+            }
+        }
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
@@ -364,10 +374,11 @@ async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>,
     }
 }
 
-// GET /members: admitted people as JSON, for a caller holding the
-// account cookie but not the Governance session /admin/members needs.
+// GET /members: admitted people as JSON, for an Admin or Owner holding the
+// account cookie but not the Governance session /admin/members needs. The list
+// is every person's name, email and role, so a plain member does not get it.
 async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
-    if let Err(response) = active_session_email(domain_ir, cookies, secret, client).await {
+    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, client).await {
         return response;
     }
     match auth::all_people(client, domain_ir).await {
@@ -2293,6 +2304,32 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn members_route_refuses_a_plain_member_with_a_403_and_no_people() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_403").await;
+        client
+            .lock()
+            .await
+            .execute(
+                "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                &[
+                    &"max@example.com",
+                    &json!({"name": {"value": "Max"}, "email": {"value": "max@example.com"},
+                            "role": {"value": "Member"}, "identity_id": {"value": "id-2"}}),
+                ],
+            )
+            .await
+            .unwrap();
+
+        let response = members_route(&domain_ir, &session_cookies(secret, "max@example.com"), secret, &client).await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+        let body = response["body"].as_str().unwrap();
+        for leaked in ["zed@example.com", "amy@example.com", "Zed"] {
+            assert!(!body.contains(leaked), "{leaked:?} leaked to a plain member: {body}");
+        }
+    }
+
     fn session_cookies(secret: &str, email: &str) -> HashMap<String, String> {
         let mut cookies = HashMap::new();
         cookies.insert(auth::account_cookie_name(), auth::account_token(secret, email, 60));
@@ -2799,9 +2836,15 @@ mod tests {
             } else {
                 assert_eq!((add, registrations, disable, enable), (403, 403, 403, 403), "{caller} is refused everywhere");
             }
-            // Listing needs access, not admin: a Member may list, a stranger may not.
+            // Listing is an admin gate too: it carries every person's email and role, so an
+            // Admin or Owner lists, a Member is refused, and a stranger has no session at all.
             let listing = status_of(members_route(&domain_ir, &cookies, secret, &client).await).await;
-            assert_eq!(listing, if caller == "stranger@example.com" { 401 } else { 200 }, "{caller} listing");
+            let expected = match caller {
+                "stranger@example.com" => 401,
+                _ if admits => 200,
+                _ => 403,
+            };
+            assert_eq!(listing, expected, "{caller} listing");
         }
 
         // Anonymous: 401 on every route, before any role is looked at.

@@ -35,6 +35,34 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     expect(state[:timeout].value).to eq(10)
   end
 
+  it "accepts a webhook target that skips the dispatch Lambda and names its handler module" do
+    state = declare(dispatch: { value: "None" }, handler_module: { value: "QaWebhookLambdaHandler" },
+                    secret_env: { value: "GITHUB_WEBHOOK_SECRET" }).instance.state
+
+    expect(state[:dispatch].value).to eq("None")
+    expect(state[:handler_module].value).to eq("QaWebhookLambdaHandler")
+    expect(state[:secret_env].value).to eq("GITHUB_WEBHOOK_SECRET")
+  end
+
+  it "accepts dispatch \"Rust\" with no handler module" do
+    expect(declare(dispatch: { value: "Rust" }).instance.state[:dispatch].value).to eq("Rust")
+  end
+
+  it "refuses dispatch \"None\" with no handler module" do
+    expect { declare(dispatch: { value: "None" }) }
+      .to raise_error(Hecks::Runtime::GivenNotMet, /dispatch "None" names its handler_module/)
+  end
+
+  it "refuses a dispatch other than Rust or None" do
+    expect { declare(dispatch: { value: "Ruby" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /Ruby|one of/i)
+  end
+
+  it "refuses an empty handler module" do
+    expect { declare(handler_module: { value: "" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a handler module is named/)
+  end
+
   # C3.7 (docs/semantics/bluebook-semantics.md): required fields are checked before invariants,
   # so an explicit nil is TypeMismatch while an empty string reaches the invariant.
   it "refuses an absent region" do
@@ -158,6 +186,56 @@ RSpec.describe "the self-hosted Deploy bluebook" do
   it "refuses a port above 65535" do
     expect { declare_fargate(port: { value: 70_000 }) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at most 65535/)
+  end
+
+  def declare_box(**overrides)
+    args = {
+      domain:         { value: "Lifeadelics" },
+      region:         { value: "us-east-1" },
+      instance_type:  { value: "t4g.medium" },
+      volume_gb:      { value: 30 },
+      database_class: { value: "db.t4g.small" },
+      storage_gb:     { value: 20 }
+    }.merge(overrides)
+    dispatcher.dispatch_flat("Deploy::BoxTarget.Declare", **args)
+  end
+
+  describe "BoxTarget.Declare" do
+    it "accepts a fully-specified AwsBox target" do
+      state = declare_box.instance.state
+      expect(state[:domain].value).to eq("Lifeadelics")
+      expect(state[:instance_type].value).to eq("t4g.medium")
+      expect(state[:volume_gb].value).to eq(30)
+      expect(state[:database_class].value).to eq("db.t4g.small")
+      expect(state[:storage_gb].value).to eq(20)
+    end
+
+    it "refuses an empty region" do
+      expect { declare_box(region: { value: "" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a region is named/)
+    end
+
+    it "refuses an instance type that is not family.size" do
+      expect { declare_box(instance_type: { value: "medium" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /an instance type is family.size/)
+    end
+
+    it "refuses a database class that is not db.family.size" do
+      expect { declare_box(database_class: { value: "t4g.small" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a database class is db.family.size/)
+    end
+
+    it "refuses a volume below 8 GB and one above 16384 GB" do
+      expect { declare_box(volume_gb: { value: 4 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a volume is at least 8 GB/)
+      expect { declare_box(volume_gb: { value: 20_000 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a volume is at most 16384 GB/)
+    end
+
+    it "refuses storage below RDS's 20 GB floor" do
+      expect { declare_box(storage_gb: { value: 10 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /storage is at least 20 GB/)
+    end
   end
 
   # End-to-end: hecks deploy project must dispatch into this domain, not a parallel check.

@@ -266,30 +266,28 @@ module Hecks
         end
       end
 
-      # `domain:` is confined to `Storehouse::BOOT_ROOT`, and further to a reader
-      # door's `HECKS_DOOR_DOMAINS`, before anything boots.
+      # `domain:` is confined to `Storehouse::BOOT_ROOT`, and further to a restricted
+      # door's `HECKS_DOOR_DOMAINS`, before anything boots. An unrestricted door boots the
+      # domain afresh on every call; a restricted door lives for one spawner's session and
+      # keeps each named domain booted until the files of its directory change.
       def boot(domain)
-        Hecks.boot(Storehouse.confine!(scope.admit_domain!(domain), "domain"), install_doors: false)
+        path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
+        return Hecks.boot(path, install_doors: false) unless scope.restricted?
+
+        resident = (@resident ||= {})
+        fingerprint = Storehouse.fingerprint(path)
+        return resident[path][:runtime] if resident[path] && resident[path][:fingerprint] == fingerprint
+
+        resident[path] = { fingerprint: fingerprint, runtime: Hecks.boot(path, install_doors: false) }
+        resident[path][:runtime]
       end
 
       # One `when` per tool, so the shared `rescue` catches every branch's escape
       # once; a domain refusal is already `{ok: false, ...}` from `Storehouse`.
       def call_tool(name, args) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
         case name
-        when "dispatch"
-          runtime = boot(args["domain"])
-          if args["steps"]
-            Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
-                                      source: args["source"], role: args["role"], actor_id: args["actor_id"])
-          else
-            Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
-                                args: args["args"] || {}, source: args["source"],
-                                dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"])
-          end
-        when "query"
-          Storehouse.query(runtime: boot(args["domain"]), question: args["question"],
-                           summary: args["summary"], args: args["args"] || {}, source: args["source"],
-                           role: args["role"], actor_id: args["actor_id"])
+        when "dispatch" then dispatch_tool(args)
+        when "query" then query_tool(args)
         when "events"
           Storehouse.events(runtime: boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
                             limit: args["limit"])
@@ -317,6 +315,29 @@ module Hecks
         # A defect, not a refusal: reaching here means a bad domain path or an
         # argument shape `Doors::JsonDoor` could not symbolize.
         { ok: false, error: "#{e.class}: #{e.message}" }
+      end
+
+      # A question, once the scope has admitted its arguments.
+      def query_tool(args)
+        scope.admit_arguments!(args["args"])
+        Storehouse.query(runtime: boot(args["domain"]), question: args["question"],
+                         summary: args["summary"], args: args["args"] || {}, source: args["source"],
+                         role: args["role"], actor_id: args["actor_id"])
+      end
+
+      # A single command or a batch, once the scope has admitted every command in it.
+      def dispatch_tool(args)
+        runtime = boot(args["domain"])
+        if args["steps"]
+          scope.admit_steps!(runtime, args["steps"])
+          Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
+                                    source: args["source"], role: args["role"], actor_id: args["actor_id"])
+        else
+          scope.admit_command!(runtime, args["command"], args["args"])
+          Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
+                              args: args["args"] || {}, source: args["source"],
+                              dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"])
+        end
       end
 
       def answer_tool(name, args)
@@ -352,7 +373,8 @@ module Hecks
         when "notifications/initialized"
           nil # a notification — no id, no response
         when "tools/list"
-          send_response(id, { tools: TOOLS.select { |tool| scope.permits_tool?(tool[:name]) } })
+          served = TOOLS.select { |tool| scope.permits_tool?(tool[:name]) }
+          send_response(id, { tools: served.map { |tool| scope.present(tool) } })
         when "tools/call"
           send_response(id, tool_result(answer_tool(params["name"], params["arguments"] || {})))
         when "ping"

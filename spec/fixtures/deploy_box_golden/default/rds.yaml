@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Plain RDS Postgres for scratch-fixture, read by the app box (box.yaml). Private subnets only; the box's own
+  stack admits itself on 5432, so nothing else can reach it. The master password is managed by RDS in
+  Secrets Manager ({username, password}), which the box reads at deploy time.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  BastionSecurityGroupId:
+    Type: String
+    Default: ""
+    Description: >
+      A security group allowed to reach the database on 5432, for the bastion that restore-to-rds.sh
+      tunnels through. Blank admits nothing but the app box.
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets in different availability zones (an RDS subnet group needs them).
+  InstanceClass:
+    Type: String
+    Default: db.t4g.small
+  AllocatedStorageGb:
+    Type: Number
+    Default: 20
+  DatabaseName:
+    Type: String
+    Default: scratchfixture
+  EngineVersion:
+    Type: String
+    Default: "16"
+    Description: A major version ("16") lets RDS pick its current minor release.
+  BackupRetentionDays:
+    Type: Number
+    Default: 7
+  ExistingAlertTopicArn:
+    Type: String
+    Default: ""
+    Description: An SNS topic that already has subscribers. Blank creates a new topic.
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Subscribed to a new topic (AWS sends one confirmation link). Ignored when ExistingAlertTopicArn is set.
+  Rehearsal:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      true is a throwaway copy (no deletion protection, no final snapshot). false is the real
+      database: deletion protection on and a snapshot taken on delete.
+
+Conditions:
+  NewTopic: !Equals [!Ref ExistingAlertTopicArn, ""]
+  NewTopicWithEmail: !And [!Condition NewTopic, !Not [!Equals [!Ref AlertEmail, ""]]]
+  IsRehearsal: !Equals [!Ref Rehearsal, "true"]
+  HasBastion: !Not [!Equals [!Ref BastionSecurityGroupId, ""]]
+
+Resources:
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: scratch-fixture RDS, 5432 from the app box (the box stack adds the rule) and a bastion if given
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - !If
+          - HasBastion
+          - IpProtocol: tcp
+            FromPort: 5432
+            ToPort: 5432
+            SourceSecurityGroupId: !Ref BastionSecurityGroupId
+            Description: Bastion for restore-to-rds.sh
+          - !Ref AWS::NoValue
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: scratch-fixture RDS subnets
+      SubnetIds: !Ref PrivateSubnetIds
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: !If [IsRehearsal, Delete, Snapshot]
+    UpdateReplacePolicy: !If [IsRehearsal, Delete, Snapshot]
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      DBInstanceClass: !Ref InstanceClass
+      AllocatedStorage: !Ref AllocatedStorageGb
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: !Ref DatabaseName
+      MasterUsername: postgres
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      DeletionProtection: !If [IsRehearsal, false, true]
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      Tags:
+        - Key: Name
+          Value: scratch-fixture-rds
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Condition: NewTopic
+    Properties:
+      DisplayName: scratch-fixture-alerts
+
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: NewTopicWithEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # The journal only grows, and RDS stops accepting writes when storage is full.
+  StorageLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: RDS free storage under 3 GB
+      Namespace: AWS/RDS
+      MetricName: FreeStorageSpace
+      Dimensions: [{ Name: DBInstanceIdentifier, Value: !Ref Database }]
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 3221225472
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+      OKActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+
+  CpuHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "RDS CPU above 80% for 15 minutes (a burstable class may be out of credits)"
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions: [{ Name: DBInstanceIdentifier, Value: !Ref Database }]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+      OKActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+
+  MemoryLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: RDS freeable memory under 100 MB for 15 minutes
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Dimensions: [{ Name: DBInstanceIdentifier, Value: !Ref Database }]
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 104857600
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+      OKActions: [!If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]]
+
+Outputs:
+  AlertTopicArn:
+    Description: Pass as AlertTopicArn to the box stack.
+    Value: !If [NewTopic, !Ref AlertTopic, !Ref ExistingAlertTopicArn]
+  DbEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  DbName:
+    Value: !Ref DatabaseName
+  DbSecretArn:
+    Description: RDS-managed master secret ({username, password}).
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
+  DbSecurityGroupId:
+    Description: Pass as DbSecurityGroupId to the box stack.
+    Value: !Ref DbSecurityGroup

@@ -13,6 +13,7 @@ mod journal;
 mod lambda_client;
 mod log;
 mod mint;
+mod needs;
 mod payments;
 mod presentation;
 mod presentation_write;

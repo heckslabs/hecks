@@ -79,6 +79,18 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
+  test "ProjectCiGates refuses a run that is not named" do
+    tests "ProjectCiGates", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "DecideCiGate refuses a run that is not named" do
+    tests "DecideCiGate", on: "RegenerationRun"
+    input run: { value: "" }, gate: { value: "runtime_changed" }
+    expect refused: "must match"
+  end
+
   test "CheckComments keeps a file with no violations as a completed check" do
     tests "CheckComments", on: "StyleRun"
     input paths: { value: "lib/hecks/canonical_json.rb" }, run: { value: "clean" }

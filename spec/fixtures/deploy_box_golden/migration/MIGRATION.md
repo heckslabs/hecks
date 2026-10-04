@@ -1,0 +1,39 @@
+# Moving widget-shop onto the box and RDS
+
+Generated from the world's `migration` setting. Nothing here has been run for you.
+
+Schemas to copy: `widgets`, `widgets_cms`, in database
+`legacy` on the old server and `widgetdb` on RDS.
+
+## Before cutover
+
+1. Create the stacks: `make stacks VPC=... PRIVATE_SUBNETS=... PUBLIC_SUBNET=...`. To rehearse first,
+   deploy `rds.yaml` and `box.yaml` under other stack names with `Rehearsal=true`: the database is then
+   deleted with its stack and the box gets no stable public address. Delete the rehearsal stacks after.
+2. Copy the data. The bastion is any instance that can reach both databases.
+
+   ```
+   RDS_HOST=$(aws cloudformation describe-stacks --stack-name hecks-widget-shop-rds --query "Stacks[0].Outputs[?OutputKey=='DbEndpoint'].OutputValue" --output text)
+   RDS_SECRET=$(aws cloudformation describe-stacks --stack-name hecks-widget-shop-rds --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text)
+   bash restore-to-rds.sh <bastion-instance-id> <old-host> <old-secret-arn> "$RDS_HOST" "$RDS_SECRET"
+   ```
+
+   It copies each schema, refreshes the materialized views a plain `pg_restore` cannot, then runs
+   `verify-copy.sh`, which compares structure and the exact row count of every table and prints `OK`
+   only if both match. Re-run with `FORCE=1` to reload.
+3. Deploy the app onto the box: `make deploy`. The deploy ends with health checks on the box.
+4. Run the project's own smoke test against the box before any traffic moves.
+
+## Cutover
+
+1. Stop writes on the old stack, then run `restore-to-rds.sh` again with `FORCE=1` for a final copy and
+   wait for `OK`.
+2. Point the CDN's origin at the box stack's `AppOriginDomain` output.
+3. Keep the old database untouched for several days, and take a final snapshot before deleting it.
+
+## Rollback
+
+Until the first write lands on RDS, point the origin back. After that, writes taken by both databases
+cannot be merged: choose one side and copy it over the other (swap the hosts and secrets, and set
+`SRC_DB` and `DST_DB`, with `FORCE=1`). Do not change the domain's era in the same window, so a rollback
+only has to move data.

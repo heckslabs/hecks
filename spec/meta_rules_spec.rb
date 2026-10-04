@@ -225,4 +225,13 @@ RSpec.describe "the language's own rules" do
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Seal", to: @aggregate_id) }.not_to raise_error
   end
+
+  # A need names the fact it asks the runtime for; an empty name asks for nothing.
+  it "refuses a need that names no fact" do
+    command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
+                       name: v("N"), role: v("Clerk"), goal: v("ask for a fact"))
+
+    expect { @runtime.dispatch("Bluebook::Command.Need", to: command_id, with: { fact: v("") }) }
+      .to raise_error(Hecks::Runtime::GivenNotMet, /a fact is named/)
+  end
 end

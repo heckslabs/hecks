@@ -5,7 +5,7 @@ Words available inside `command do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -18,7 +18,7 @@ corpus, so it gets a chapter of its own:
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::SafeDepositBox.persisted_by("Memory")
@@ -437,6 +437,8 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
 
+An argument that declares `default:` is filled when the caller leaves it out, before any refusal reads the arguments, in the Ruby runtime and the Rust host and kernel alike; a value the caller passes, even a null, is kept. The kernel gets each command's declared defaults from the host as a top-level `"defaults"` table in its input, so a harness that runs a domain binary on its own builds that input with `Hecks::RustBuild::KernelInput`.
+
 Omittable when it would only retype what the owner already declared: a bare `sets :field` (no `to:` naming a different source) already says the command takes an argument named `:field`, so when the command itself declares no `attribute :field`, it imports the owning aggregate's (or entity's) own attribute of that name verbatim — type, pattern, `optional:`, `admits:`, all of it. `Install` above never declares `attribute :serial` — it imports `Meter`'s own `serial` — and still takes it as an argument:
 
 ```ruby
@@ -487,6 +489,85 @@ which is what a postcondition looks like when the code is right:
 account.credit!(amount: { cents: 5_000 }, narrative: { text: "funding" })
 account.debit!(amount: { cents: 2_000 }, narrative: { text: "rent" })
 account.balance.cents  # => 3000
+```
+
+## needs
+
+<!-- generated:begin word=needs -->
+`needs fact` — fills `needs`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | fact |
+<!-- generated:end -->
+
+A fact the command needs from outside the record, answered by the runtime before any `given` runs. `needs :now` fills the command's own `now` argument with the time the clock port gives, in whole epoch seconds (UTC), unless the caller passed a time of its own. The command must declare an attribute of that name: `needs :now` with no `attribute :now` is refused when the bluebook is built, as is a fact the runtime cannot supply (`now` is the only one).
+
+Because the answer is written into the command's own arguments, a `given` reads it like any argument, the event records it, and a replay re-dispatches the recorded value instead of asking the clock again. A rule about lifetimes is therefore written once, in the bluebook, and both engines read the same integer. Write a duration as a call on a whole number (`days(730)`, `hours(2)`, `minutes(15)`) and it is folded to seconds when the predicate is stored.
+
+A link is issued at the time the clock gives, and is only honoured for a fixed number of days afterwards. The `given` reads `now` and the duration like any other argument:
+
+```ruby bluebook
+Hecks.bluebook "NeedsLifetime" do
+  vision "A link that carries the time it was issued and judges its own age."
+
+  aggregate "Link" do
+    attribute :ref, Ref
+    attribute :issued_at, Instant, optional: true
+
+    identified_by :ref
+    value_object("Ref")     { attribute :value, String }
+    value_object("Instant") { attribute :value, Integer }
+
+    command "Issue" do
+      attribute :ref, Ref
+      attribute :now, Instant
+      needs :now
+
+      given("the link is issued after the epoch") { now.value + days(1) > days(1) }
+
+      sets :ref
+      sets :issued_at, to: :now
+      emits "LinkIssued"
+    end
+  end
+end
+```
+
+A fixed clock stands in for the real one, so the example does not depend on today's date. The
+`corrects` section below runs against `examples/banking` again, so this boot loads it alongside:
+
+```ruby boot
+module LifetimeClock
+  module_function
+
+  def now = 1_700_000_000
+end
+Hecks::Adapters.const_set(:LifetimeClock, LifetimeClock)
+Hecks.adapter("LifetimeClock") { port "clock" }
+Hecks.hecksagon("NeedsLifetime") { NeedsLifetime::Link.persisted_by("Memory") }
+
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks.hecksagon("Banking") do
+  attaches "Governance"
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+```
+
+Left out, `now` is read from the clock. Named, the caller's time is kept, so a test or a back-fill can choose its own:
+
+```ruby
+from_clock = NeedsLifetime::Link.issue!(ref: { value: "a" })
+from_clock.issued_at.value  # => 1700000000
+
+named = NeedsLifetime::Link.issue!(ref: { value: "b" }, now: { value: 42 })
+named.issued_at.value  # => 42
 ```
 
 ## corrects

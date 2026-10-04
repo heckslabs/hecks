@@ -17,7 +17,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       # otherwise `CliProjector#port_spec` never runs.
       Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
       Hecks.hecksagon("Payments") do
-        uses_framework "Governance"
+        attaches "Governance"
         Payments::Payment.persisted_by("Memory")
 
         Payments::Payment.port "PaymentGateway" do
@@ -43,25 +43,25 @@ RSpec.describe Hecks::Projector::CliProjector do
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
   let(:payments) { described_class.call(bluebook: registry.bluebook("Payments")) }
 
-  def option(projection, verb, path)
-    projection[:verbs].fetch(verb)[:arguments].find { |a| a[:path] == path }
+  def option(projection, command, path)
+    projection[:commands].fetch(command)[:arguments].find { |a| a[:path] == path }
   end
 
   it "is registered under :cli, reachable the way every projector is" do
     expect(Hecks::Projector).to be_registered(:cli)
   end
 
-  it "names a subcommand after its aggregate and verb, and keeps the fully-qualified one" do
-    expect(banking[:verbs]["account.freeze_account"][:verb]).to eq("Banking::Account.FreezeAccount")
-    expect(banking[:verbs]["account.freeze_account"][:kind]).to eq(:command)
+  it "names a subcommand after its aggregate and command, and keeps the fully-qualified one" do
+    expect(banking[:commands]["account.freeze_account"][:command]).to eq("Banking::Account.FreezeAccount")
+    expect(banking[:commands]["account.freeze_account"][:kind]).to eq(:command)
   end
 
   # Banking declares a command and a query both named `Account.Open`, which a flat subcommand
   # list cannot hold; questions live under `ask`.
   it "keeps commands and questions in separate namespaces" do
-    expect(banking[:verbs]).to have_key("account.open")
+    expect(banking[:commands]).to have_key("account.open")
     expect(banking[:questions]).to have_key("account.open")
-    expect(banking[:verbs]["account.open"][:verb]).to eq("Banking::Account.Open")
+    expect(banking[:commands]["account.open"][:command]).to eq("Banking::Account.Open")
     expect(banking[:questions]["account.open"][:kind]).to eq(:query)
   end
 
@@ -99,11 +99,11 @@ RSpec.describe Hecks::Projector::CliProjector do
     it "puts an aggregate receiver in to:, and only on a command that needs one" do
       expect(option(banking, "account.freeze_account", "to")).not_to be_nil
       expect(option(banking, "account.open", "to")).to be_nil
-      expect(banking[:verbs]["account.freeze_account"][:receiver]).to eq(:aggregate)
+      expect(banking[:commands]["account.freeze_account"][:receiver]).to eq(:aggregate)
     end
 
     it "projects aggregate and entity receiver identities separately for Visit.Annotate" do
-      annotate = banking[:verbs].fetch("safe_deposit_box.visit.annotate")
+      annotate = banking[:commands].fetch("safe_deposit_box.visit.annotate")
 
       expect(annotate[:receiver]).to eq(:entity)
       expect(annotate[:arguments].first(2).map { |argument| argument[:path] })
@@ -111,16 +111,16 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(annotate[:arguments].map { |argument| argument[:path] }).not_to include("date", "sequence")
     end
 
-    # A port is a verb too; it shares `command_spec`'s `receiver_options`. This is the only path
+    # A port is a command too; it shares `command_spec`'s `receiver_options`. This is the only path
     # through `#call` that runs when a corpus declares a port.
-    it "projects a port operation as a verb, with the same aggregate receiver a command gets" do
-      receive = payments[:verbs].fetch("payment.receive")
+    it "projects a port operation as a command, with the same aggregate receiver a command gets" do
+      receive = payments[:commands].fetch("payment.receive")
 
       expect(receive[:kind]).to eq(:command)
       expect(receive[:receiver]).to eq(:aggregate)
       expect(receive[:creates]).to be(false)
       expect(receive[:role_gated]).to be(false)
-      expect(receive[:verb]).to eq("Payments::Payment.PaymentGateway.Receive")
+      expect(receive[:command]).to eq("Payments::Payment.PaymentGateway.Receive")
 
       to = option(payments, "payment.receive", "to")
       expect(to[:required]).to be(true)
@@ -128,9 +128,9 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(option(payments, "payment.receive", "amount.cents")).not_to be_nil
     end
 
-    it "shows a port verb's help with its receiver argument and issuing side" do
+    it "shows a port command's help with its receiver argument and issuing side" do
       help = described_class.call(bluebook: registry.bluebook("Payments"),
-                                  options:  { verb: "payment.receive" })[:usage]
+                                  options:  { command: "payment.receive" })[:usage]
 
       expect(help).to include("dispatches Payments::Payment.PaymentGateway.Receive")
       expect(help).to include("issued by PaymentGateway telling Payment")
@@ -138,35 +138,135 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
   end
 
+  # One journaled run: a system-role command, the pair of questions every run has, and two real
+  # questions on the same aggregate. Defined here rather than as a fixture file, which the
+  # corpus accounting spec would ask to be accounted for.
+  def journaled_runs # rubocop:disable Metrics/MethodLength
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.bluebook "Runs" do
+        vision "A journaled run"
+        aggregate "Job" do
+          description "One job, from request to end."
+          attribute :run, RunKey
+          attribute :note, Note, optional: true
+          identified_by :run
+          value_object("RunKey") { attribute :value, String }
+          value_object("Note") { attribute :value, String }
+          value_object("Document") { attribute :text, String }
+          lifecycle(:status, default: "requested") { transition "Fault" => "faulted", from: "requested" }
+          command "Fault" do
+            role "System"
+            goal "Record the failure"
+            reference_to Job
+            emits JobFaulted
+          end
+          query "JobOutcome" do
+            description "How one job ended."
+            attribute :run, RunKey
+            where(run: :run)
+          end
+          query "JobFaulted" do
+            description "Every job that failed."
+            where(status: "faulted")
+          end
+          query "JobsByNote" do
+            description "Jobs by note."
+            attribute :note, Note
+            where(note: :note)
+          end
+          query "JobDigest" do
+            description "A digest."
+            returns Document
+          end
+        end
+      end
+    end
+    registry
+  end
+
   describe "the help" do
-    it "lists verbs and questions separately, with what each is for" do
-      expect(banking[:usage]).to include("verbs:")
-      expect(banking[:usage]).to include("questions (nothing here changes anything):")
+    it "lists commands and questions separately, with what each is for" do
+      expect(banking[:usage]).to include("commands:")
+      expect(banking[:usage]).to include("queries (nothing here changes anything):")
       expect(banking[:usage]).to include("freeze")
     end
 
-    # The short spelling where unambiguous: `pizzas create_pizza`, not `pizzas order.create_pizza`.
-    it "shortens a verb no other aggregate declares, and keeps both spellings" do
-      expect(pizzas[:verbs]["order.create_pizza"][:short]).to eq("create_pizza")
-      expect(pizzas[:names][:command]["create_pizza"]).to eq("order.create_pizza")
+    # A chapter with several aggregates reads as a table of contents: a heading per aggregate, its
+    # commands beneath it, instead of one flat list in declaration order.
+    it "groups the commands and questions under a heading per aggregate" do
+      usage = banking[:usage]
+
+      expect(usage).to match(/^  customer:\n    register!\s+Take on a new customer/)
+      expect(usage).to match(/^  account:\n    open!\s+/)
+      expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
+    end
+
+    # The pair every journaled run has (how one run ended, which ones failed) is read through
+    # `--wait`, not asked for by name. Only a query that reads the run's own records back by its
+    # identity or its status counts; a query that filters on anything else, or returns a document,
+    # is a real question even on the same aggregate.
+    it "sets a run's own outcome and fault questions apart, and keeps real questions listed" do
+      runs = described_class.call(bluebook: journaled_runs.bluebook("Runs"))
+      internal = runs[:questions].values.select { |spec| spec[:internal] }.map { |spec| spec[:short] }
+
+      expect(internal).to contain_exactly("job.job_outcome", "job.job_faulted")
+      expect(runs[:usage]).to match(/^\s+job\.jobs_by_note\s+/)
+      expect(runs[:usage]).to match(/^\s+job\.job_digest\s+/)
+      expect(runs[:usage]).not_to match(/^\s+job\.job_outcome\s{2,}How one job ended/)
+    end
+
+    it "titles a heading with its aggregate's name, the prefix of every call under it" do
+      expect(described_class.send(:heading, "TestSuiteRun")).to eq("test_suite_run:")
+      expect(described_class.send(:heading, "Operation")).to eq("operation:")
+    end
+
+    it "leaves the aggregate prefix off the lines under its heading, and keeps it without one" do
+      expect(banking[:usage]).not_to match(/^\s+customer\.register!/)
+      expect(banking[:usage]).to match(/^  customer:\n    register!/)
+      expect(banking[:usage]).to match(/^    open!\s/)
+      expect(described_class.send(:entry_name, { kind: :command, short: "pizza.make", group: "Pizza" }, false))
+        .to eq("pizza.make!")
+    end
+
+    it "lists a command the chapter gave a short name by its real name, and says the short name" do
+      spec = { kind: :command, short: "mcp", short_was: "door.serve_mcp", group: "Door" }
+
+      expect(described_class.send(:entry_name, spec, true)).to eq("serve_mcp!")
+      expect(described_class.send(:alias_note, spec)).to eq(" (also: mcp!)")
+      expect(described_class.send(:alias_note, { kind: :command, short: "init", short_was: "door.init" })).to eq("")
+    end
+
+    # What a run records about itself (system-role commands, port operations) is never typed by a
+    # person, so the help names it on a line of its own instead of spending a described line each.
+    it "sets bookkeeping commands apart as names only" do
+      usage = payments[:usage]
+      port_verb = payments[:commands].values.find { |spec| spec[:command].include?("PaymentGateway") }
+
+      expect(port_verb[:internal]).to be(true)
+      expect(usage).to include("internal — what a run records about itself")
+      expect(usage).not_to include("#{port_verb[:short].ljust(5)}  #{port_verb[:summary]}")
+      expect(usage).to include(port_verb[:short])
+    end
+
+    # A command is always named with its aggregate: no short spelling is minted.
+    it "names every command with its aggregate, and mints no bare spelling" do
+      expect(pizzas[:commands]["order.create_pizza"][:short]).to eq("order.create_pizza")
       expect(pizzas[:names][:command]["order.create_pizza"]).to eq("order.create_pizza")
+      expect(pizzas[:names][:command]).not_to have_key("create_pizza")
     end
 
-    it "keeps the aggregate when two of them share a verb, rather than choosing" do
-      shared = banking[:verbs].values.group_by { |spec| spec[:verb].split(".").last }
-                              .find { |_, specs| specs.length > 1 }
-      skip "banking declares no verb on two aggregates" unless shared
-
-      expect(shared.last.map { |spec| spec[:short] }).to all(include("."))
+    it "shows every command by its dotted name, whether or not another aggregate shares the command word" do
+      expect(banking[:commands].values.map { |spec| spec[:short] }).to all(include("."))
     end
 
-    it "lists the short spelling and says the long one still works" do
-      expect(banking[:usage]).to include("a verb can always be spelled in full")
+    it "says a command is called with its aggregate" do
+      expect(banking[:usage]).to include("a command is called with its aggregate — customer.register!")
     end
 
-    it "shows one verb's arguments and every way it refuses" do
+    it "shows one command's arguments and every way it refuses" do
       help = described_class.call(bluebook: registry.bluebook("Banking"),
-                                  options:  { verb: "account.freeze_account" })[:usage]
+                                  options:  { command: "account.freeze_account" })[:usage]
 
       expect(help).to include("dispatches Banking::Account.FreezeAccount")
       expect(help).to include("issued by")
@@ -175,9 +275,9 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(help).to include("status is not open")
     end
 
-    it "words a given as what must hold, so the verb is refused unless it does" do
+    it "words a given as what must hold, so the command is refused unless it does" do
       help  = described_class.call(bluebook: registry.bluebook("Banking"),
-                                   options:  { verb: "account.freeze_account" })[:usage]
+                                   options:  { command: "account.freeze_account" })[:usage]
       lines = help.lines.map(&:chomp)
 
       unless_at = lines.index("refused unless:")
@@ -190,10 +290,10 @@ RSpec.describe Hecks::Projector::CliProjector do
     # Without `ask:` a question's help prints the command that shares its name.
     it "picks the namespace the caller asked about" do
       question = described_class.call(bluebook: registry.bluebook("Banking"),
-                                      options:  { verb: "account.open", ask: true })[:usage]
+                                      options:  { command: "account.open", ask: true })[:usage]
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("hecks run ask open")
+      expect(question).to include("hecks run query account.open")
     end
   end
 end

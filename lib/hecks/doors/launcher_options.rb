@@ -1,3 +1,4 @@
+require "stringio"
 require_relative "../ports/identity_generation"
 require_relative "../runtime/errors"
 require_relative "cli_door"
@@ -15,9 +16,11 @@ module Hecks
     # - **run_keys** mints the `run` key of a creating command that was given none.
     # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
+    # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
     module LauncherOptions
       SETTING = "launcher".freeze
       WAIT    = "--wait".freeze
+      STREAM  = "--stream".freeze
       RUN_KEY = "run.value".freeze
 
       module_function
@@ -44,13 +47,30 @@ module Hecks
         { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
       end
 
-      # Takes `--wait` out of a verb's words, unless the verb declares a `wait` argument of its own.
+      # Runs the block with standard error held back, so the wiring notes hecks prints about its own
+      # chapters (a Memory journal loses sagas on restart) do not open a console session. They are
+      # for an operator running a stored journal. A raised error still surfaces, unchanged.
+      #
+      # @param hold [Boolean] whether to hold standard error back; false runs the block as it is
+      # @yield the boot
+      # @return [Object] the block's value
+      def quietly(hold: true)
+        return yield unless hold
+
+        shown = $stderr
+        $stderr = StringIO.new
+        yield
+      ensure
+        $stderr = shown if hold
+      end
+
+      # Takes `--wait` out of a command's words, unless it declares a `wait` argument of its own.
       #
       # `--wait=false` (or `no`, `0`, `off`) is a `--wait` that was switched off; a bare `--wait`
       # may be followed by its Boolean word.
       #
-      # @param spec [Hash] the verb's projected spec
-      # @param words [Array<String>] the words after the verb
+      # @param spec [Hash] the command's projected spec
+      # @param words [Array<String>] the words after the command
       # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--wait` was given
       # @raise [Runtime::TypeMismatch] if `--wait=` carries something that is not a Boolean word
       def take_wait(spec, words)
@@ -65,6 +85,27 @@ module Hecks
           wait_word?(word) ? wait ||= CliDoor.boolean(wait_value(word, queue)) : rest << word
         end
         [rest, wait]
+      end
+
+      # Whether a question may be tailed with `--stream`: the chapter's `launcher` setting lists it
+      # under `streams`, by the question's own name.
+      #
+      # @param launcher [Hash, nil] the chapter's `launcher` setting
+      # @param spec [Hash] the question's projected spec
+      # @return [Boolean] true for a question the setting names
+      def streams?(launcher, spec)
+        return false unless launcher && spec[:kind] == :query
+
+        Array(launcher[:streams]).map(&:to_s).include?(spec[:command].to_s.split(/[.:]+/).last)
+      end
+
+      # Takes `--stream` out of a question's words.
+      #
+      # @param words [Array<String>] the words after the question
+      # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--stream` was
+      #   given
+      def take_stream(words)
+        [words.reject { |word| word == STREAM }, words.include?(STREAM)]
       end
 
       # @api private
@@ -96,7 +137,7 @@ module Hecks
       # rather than sent on without one.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param spec [Hash] the verb's projected spec
+      # @param spec [Hash] the command's projected spec
       # @param args [Hash] the parsed arguments
       # @param settings [Hash, nil] the chapter's `launcher` setting
       # @return [Array(Hash, String)] the arguments, and the key minted (nil when none was)

@@ -31,6 +31,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Checkout"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "closes",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "FindingKey"
         }
       ],
       "commands": [
@@ -108,6 +118,9 @@
             }
           ],
           "name": "Tag",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Maintainer"
@@ -131,6 +144,9 @@
 
           ],
           "name": "MarkPublished",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
@@ -157,6 +173,52 @@
 
           ],
           "name": "Verify",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Release",
+          "role": "Maintainer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": true,
+              "name": "closes",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FindingKey"
+            }
+          ],
+          "emits": [
+            "FindingsClosed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record the findings this version settled",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "closes"
+              },
+              "target": "closes"
+            }
+          ],
+          "name": "CloseFindings",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
@@ -226,6 +288,28 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "FindingKey"
+        },
         {
           "attributes": [
             {
@@ -358,6 +442,9 @@
             }
           ],
           "name": "Record",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": null,
           "role": "Maintainer"
@@ -381,6 +468,9 @@
 
           ],
           "name": "Invalidate",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SyntaxBootCache",
           "role": "Maintainer"
@@ -404,6 +494,9 @@
 
           ],
           "name": "Rebuild",
+          "needs": [
+
+          ],
           "provenance": null,
           "references": "SyntaxBootCache",
           "role": "Maintainer"
@@ -528,6 +621,27 @@
       "replacement": ".size",
       "source_token": ".length",
       "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
     }
   ],
   "classification": null,

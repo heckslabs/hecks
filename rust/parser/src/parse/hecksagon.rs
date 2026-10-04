@@ -1,4 +1,4 @@
-//! The `Hecksagon` construct: a `.hecksagon` file's `port` blocks and `uses_framework` words.
+//! The `Hecksagon` construct: a `.hecksagon` file's `port` blocks and `attaches` words.
 //! Adapter binds (`persisted_by`, `projected_by`, `subscribe`) are shape-matched and dropped.
 
 use super::domain_port;
@@ -14,8 +14,10 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// Applies a `.hecksagon` body onto an already-built `ir::Bluebook`, attaching
 /// aggregate-scoped ports to the aggregates the sibling `.bluebook` registered.
 ///
-/// `uses_framework_names` and `vendored_bluebook_names` collect each argument in file order
-/// for `hecks-parse resolve`; `ir.json` itself carries neither.
+/// `gem_chapter_names` collects each `attaches "Name"` (and the deprecated `uses_framework`) and
+/// `vendored_bluebook_names` each `attaches "name", from: :vendor` (and the deprecated
+/// `uses_embryonaut_bluebook`), in file order, for `hecks-parse resolve`; `ir.json` itself
+/// carries neither.
 ///
 /// `require_matching_aggregate` is `false` for resolve, which never sees a `.bluebook`, so an
 /// aggregate-scoped `port` skips the attach step instead of failing the lookup.
@@ -24,7 +26,7 @@ pub fn apply(
     lines: &[SourceLine],
     pos: &mut usize,
     bluebook: &mut ir::Bluebook,
-    uses_framework_names: &mut Vec<String>,
+    gem_chapter_names: &mut Vec<String>,
     vendored_bluebook_names: &mut Vec<String>,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
@@ -96,9 +98,9 @@ pub fn apply(
                     let built = policy::parse_body(file, lines, pos, &name)?;
                     bluebook.policies.push(built);
                 }
-                // Gated, then collected; `ir.json` carries no `uses_framework` key.
+                // Deprecated spelling of `attaches "Name"`; gated, then collected.
                 "uses_framework" => {
-                    uses_framework_names.push(super::positional_text(
+                    gem_chapter_names.push(super::positional_text(
                         file,
                         gated.line.number,
                         "uses_framework",
@@ -106,7 +108,7 @@ pub fn apply(
                         1,
                     )?);
                 }
-                // Collected like `uses_framework`; a binding fact, absent from `ir.json`.
+                // Deprecated spelling of `attaches "name", from: :vendor`; collected the same way.
                 "uses_embryonaut_bluebook" => {
                     vendored_bluebook_names.push(super::positional_text(
                         file,
@@ -117,10 +119,23 @@ pub fn apply(
                     )?);
                 }
                 "subscribe" => {}
-                // A chapter the gem carries, attached by name (ADR 0080); only the Ruby runtime
-                // loads it, so its one argument is checked and then dropped like `subscribe`.
+                // One word for a chapter the gem carries and for a vendored package; a binding
+                // fact collected for `resolve`, absent from `ir.json`. Only `from: :vendor`
+                // is admitted as a source, and anything else is refused.
                 "attaches" => {
-                    super::positional_text(file, gated.line.number, "attaches", &gated.args, 1)?;
+                    let name =
+                        super::positional_text(file, gated.line.number, "attaches", &gated.args, 1)?;
+                    match super::named_symbol(&gated.args, "from").as_deref() {
+                        None => gem_chapter_names.push(name),
+                        Some("vendor") => vendored_bluebook_names.push(name),
+                        Some(other) => {
+                            return Err(Diagnostic::new(
+                                file,
+                                gated.line.number,
+                                format!("'attaches' from: takes only :vendor, got :{other}"),
+                            ))
+                        }
+                    }
                 }
                 // Consumer-owned bounded-context mark; a wiring fact, dropped like `subscribe`.
                 "bounded" => {}

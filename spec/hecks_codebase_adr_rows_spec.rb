@@ -58,7 +58,13 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "release", verbs: %w[publish],
                note: "without --confirm it is the old --dry-run; --gem-only, --npm-only, --npm-local and " \
                      "--no-wait are booleans (--yes is --confirm)"),
-    AdrRow.new(script: "release_gem", verbs: %w[publish_gem])
+    AdrRow.new(script: "release_gem", verbs: %w[publish_gem]),
+    AdrRow.new(script: "decide_ci_gate", verbs: %w[decide_ci_gate],
+               note: "no bin script: it replaces the base-commit shell of the changed-paths action, so a gated " \
+                     "job's detector is a call to the binary"),
+    AdrRow.new(script: "project_ci_gates", verbs: %w[project_ci_gates],
+               note: "no bin script: it replaces the path-gate shell that sat inline in ci.yml and " \
+                     "ci-postgres-io-parallel.yml, and like regenerate_corpus it only compares without --confirm")
   ].freeze
 
   # The aggregates of codebase.bluebook: each holds commands a maintainer runs in a checkout.
@@ -83,13 +89,26 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end
   end
 
+  # The launcher's name for each verb: its aggregate, snake-cased, then the verb (`style_run.fix_comments`).
+  def qualified_names
+    CODEBASE_RECORDS.flat_map do |name|
+      aggregate = @bluebook.aggregate(name)
+      snake = name.gsub(/([a-z0-9])([A-Z])/, '\1_\2').downcase
+      (aggregate.commands.map(&:hecks_name) + aggregate.queries.map(&:hecks_name)).map do |verb|
+        verb = verb.gsub(/([a-z0-9])([A-Z])/, '\1_\2').downcase
+        [verb, "#{snake}.#{verb}"]
+      end
+    end.to_h
+  end
+
   ADR_CODEBASE_ROWS.each do |row|
     row.verbs.each do |verb|
-      it "answers #{row.script} with `hecks #{verb}`" do
-        out, status = launch([verb, "--help"])
+      it "answers #{row.script} with `hecks #{verb}`, called with its aggregate" do
+        qualified = qualified_names.fetch(verb)
+        out, status = launch([qualified, "--help"])
 
-        expect(status).to eq(0), "no launcher verb #{verb} for the row #{row.script}: #{out.lines.first}"
-        expect(out).to start_with(verb)
+        expect(status).to eq(0), "no launcher verb #{qualified} for the row #{row.script}: #{out.lines.first}"
+        expect(out).to start_with(qualified)
       end
     end
   end

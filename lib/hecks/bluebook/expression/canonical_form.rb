@@ -40,6 +40,7 @@ module Hecks
           case rule.strategy
           when "collapse_whitespace" then map_outside_strings(text) { |segment| segment.gsub(/\s+/, " ") }
           when "replace"             then replace(text, rule)
+          when "scale_call"          then scale_call(text, rule)
           else
             raise ArgumentError, "#{rule.strategy.inspect} is not a linked normalisation strategy"
           end
@@ -52,6 +53,17 @@ module Hecks
             else
               segment.gsub(/#{Regexp.escape(rule.source_token)}(?![[:alnum:]_])/, rule.replacement)
             end
+          end
+        end
+
+        # Folds a duration written as a call on a whole number into seconds: `days(730)` becomes
+        # `63072000` when the rule's token is `days` and its replacement `86400`. A call on anything
+        # but a literal whole number is left as written, and a method call (`x.days(3)`) is not a
+        # duration.
+        def scale_call(text, rule)
+          call = /(?<![[:alnum:]_.])#{Regexp.escape(rule.source_token)}\(\s*(\d+)\s*\)/
+          map_outside_strings(text) do |segment|
+            segment.gsub(call) { (Regexp.last_match(1).to_i * rule.replacement.to_i).to_s }
           end
         end
 

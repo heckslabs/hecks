@@ -1,0 +1,55 @@
+# The checks a stage runs before its change is let through. `hecks gate <stage>` reads this file and
+# the git pre-push hook calls it, so the list of checks lives here and nowhere else.
+#
+# A check is one command run from the repository root, all of a stage's checks at once:
+#   id       the name it is reported and selected by (`only=a,b`)
+#   title    the heading its output is printed under
+#   run      the program and its arguments; `{workers}` is half the machine's cores, at least one
+#   blocked  what a red check means and what to do about it
+#
+# `env` is set only where the caller has not set it: a push check has no use for the Hecks
+# domain's database, so it runs on Memory, as a pull-request run does in CI.
+pre_push:
+  env:
+    HECKS_ENVIRONMENT: memory
+  checks:
+    - id: rspec
+      title: rspec (parallel)
+      run: [bundle, exec, parallel_rspec, spec, -n, "{workers}"]
+      blocked: the suite is red.
+    - id: fuzzing
+      title: spec/fuzzing, which the parallel run above excludes
+      run: [bundle, exec, rspec, spec/fuzzing, --tag, fuzzing]
+      blocked: spec/fuzzing is red.
+    - id: query_agreement
+      title: adapter agreement, one declared query and every engine giving the same answer
+      run: [bundle, exec, rspec, spec/adapters/query_agreement_spec.rb, --tag, io]
+      blocked: the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.
+    - id: engine_agreement
+      title: engine agreement, every declared comparator on both engines
+      run: [bundle, exec, exe/hecks, conformance_run.check_engine_agreement, --wait]
+      blocked: a comparator is missing a shared case or a cross-engine spec.
+    - id: model_check
+      title: model check, unreachable states, dead transitions and orphaned handlers
+      run: [bundle, exec, exe/hecks, model_check, --wait]
+      blocked: the model checker found something.
+    - id: doc_coverage
+      title: docs coverage, words with no running example
+      run: [bundle, exec, exe/hecks, conformance_run.measure_doc_coverage, --wait]
+      blocked: the language ships something undocumented; write the missing sections and examples.
+    - id: rubocop
+      title: rubocop, the static style and correctness gate
+      run: [bundle, exec, rubocop, -c, .rubocop.yml]
+      blocked: rubocop found an offense.
+    - id: codegen_drift
+      title: codegen drift, the committed rust/src/generated/ must match a fresh regeneration
+      run: [bundle, exec, exe/hecks, regeneration_run.regenerate_corpus, --check, --wait]
+      blocked: regenerating hits a diff, so the committed Rust is stale; run `hecks regenerate_corpus --confirm` and commit the result.
+    - id: comment_style
+      title: comment style, every comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md
+      run: [bundle, exec, exe/hecks, style_run.check_comments, paths=lib/hecks, --wait]
+      blocked: a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.
+    - id: comment_blocks
+      title: comment blocks, no run of comment lines past ADR 0075's cap
+      run: [bundle, exec, exe/hecks, style_run.check_comments, "paths=lib,spec,examples", only=long_block, --wait]
+      blocked: a comment block ran past the cap; shorten it.

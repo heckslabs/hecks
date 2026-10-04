@@ -178,3 +178,26 @@ CI does not run `hecks bench`. The figures above were taken on a machine shared 
 unrelated work, and ranges as wide as 84 to 259 commands per second (banking, PostgresEra,
 in the first attempt) were seen, so a scheduled job on a shared runner would not give a
 stable enough signal to publish or gate on.
+
+## Boot time of the `hecks` launcher
+
+`hecks bench` measures dispatch, not how long `hecks <verb>` takes to start. Measured on 2026-10-01 (macOS arm64, Ruby 3.3.7,
+`HECKS_ENVIRONMENT=memory`, best of the runs shown), a verb's start is dominated by one thing, whether the verdict cache is warm:
+
+| command | cache cold | cache warm |
+|---|---|---|
+| `hecks --help` (answers from the projection, boots nothing) | about 22 s | about 0.77 s |
+| `hecks stores lib/hecks/hecks` (boots the Hecks domain) | about 22 s | about 0.77 s |
+| `hecks gate --list` | not measured | about 1.0 s |
+| `require "hecks"` alone | not applicable | about 0.18 s |
+
+"Cold" is a fresh `XDG_CACHE_HOME`; "warm" is the next run. The cold run judges every chapter of the language and the chapters Hecks
+attaches (`MetaValidator::VerdictCache` stores the verdicts; `HECKS_VERDICT_CACHE=off` turns it off).
+
+What decides cold or warm: the cache file's name carries a digest of every file under `lib/`, the Ruby and Hecks versions and the
+cache format. So an edit to any file under `lib/`, including a comment, makes the next launch cold, and a fresh checkout or a CI runner
+that does not keep the cache directory (`Hecks::CacheDir`) starts cold.
+
+Not done, and not safe to do without an audit: keying the digest to the files a verdict actually reads. It would keep the cache warm
+across unrelated edits, but a stale "no refusals" entry would skip validation, so the key must name every input of a verdict, and
+nothing lists them today.

@@ -89,15 +89,20 @@ fn require_signing_secret(secret: &str) -> Result<(), Value> {
     Ok(())
 }
 
+// An active account cookie whose person holds Admin or Owner.
+pub(super) async fn require_admin(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Result<(), Value> {
+    let email = active_session_email(domain_ir, cookies, secret, client).await?;
+    match auth::caller_is_admin(client, domain_ir, &email).await {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(json_error(403, "only an Admin or Owner can do this")),
+        Err(e) => Err(json_error(500, &format!("members lookup failed: {e}"))),
+    }
+}
+
 // Refuses (before anything is marked sent) when the caller isn't an
 // Admin/Owner, mail isn't configured, or there's no signing secret.
 async fn authorize(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Result<Mailer, Value> {
-    let email = active_session_email(domain_ir, cookies, secret, client).await?;
-    match auth::caller_is_admin(client, domain_ir, &email).await {
-        Ok(true) => {}
-        Ok(false) => return Err(json_error(403, "only an Admin or Owner can send the newsletter")),
-        Err(e) => return Err(json_error(500, &format!("members lookup failed: {e}"))),
-    }
+    require_admin(domain_ir, cookies, secret, client).await?;
     require_signing_secret(secret)?;
     match Mailer::from_env() {
         Ok(Some(mailer)) => Ok(mailer),
@@ -127,7 +132,7 @@ pub(super) fn unsubscribe_url(site_url: &str, email: &str, token: &str) -> Strin
     url.to_string()
 }
 
-fn personalize(body: &str, unsubscribe_url: &str) -> String {
+pub(super) fn personalize(body: &str, unsubscribe_url: &str) -> String {
     body.replace(UNSUBSCRIBE_TOKEN, unsubscribe_url)
 }
 

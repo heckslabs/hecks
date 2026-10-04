@@ -245,8 +245,11 @@ RSpec.describe "the operator domain" do
   end
 
   it "keeps the chapter's own Rule set equal to the live rules — no third copy" do
+    # A member's values are read back unmarked, so a whole-number replacement (the seconds a
+    # duration unit is worth) arrives as an Integer; the live rule holds it as the text it is.
     declared = DISPATCHER.registry.bluebook("Expression").aggregate("Normalisation")
                          .value_object("Rule").members.map(&:to_h)
+                         .map { |row| row.merge(replacement: row[:replacement].to_s) }
 
     expect(declared).to eq(CanonicalForm::RULES.map(&:to_h))
   end

@@ -73,7 +73,7 @@ Hecks.bluebook "Bluebook" do
 
     # Expression::CanonicalForm::STRATEGIES
     value_object "NormalisationStrategy" do
-      attribute :name, String, one_of: ["collapse_whitespace", "replace"]
+      attribute :name, String, one_of: ["collapse_whitespace", "replace", "scale_call"]
     end
 
     # Ops Runtime::CommandInterpreter applies. `sign` is the arithmetic delta
@@ -600,6 +600,34 @@ Hecks.bluebook "Bluebook" do
       member name: "url",      pattern: '\b(url|uri|website|link)\b',                             resolves_to: "html_type"
       member name: "tel",      pattern: 'phone|\btel(ephone)?\b',                                 resolves_to: "html_type"
       member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
+    end
+
+    # The path gates the workflows run before an expensive job: one detector job
+    # per row, answering `touched` from the diff of the change against its base.
+    # hecks project_ci_gates writes each row into the marked region of its
+    # `workflow` (.github/workflows/<workflow>), and the job it writes runs
+    # `hecks decide_ci_gate gate=<name>`, which makes the decision from the row.
+    #
+    # `mode` is how `pattern` (an extended regex over changed paths) decides:
+    # `touches` runs the job when any changed path matches, `skips_unless` runs it
+    # when any changed path does NOT match (the pattern is the safe-to-skip list).
+    # `push` is what a push event does: `skip` leaves the gate out of push runs,
+    # `before_sha` diffs against the push's `before` commit.
+    value_object "CiGate" do
+      attribute :name,     String
+      attribute :workflow, String
+      attribute :mode,     String
+      attribute :pattern,  String
+      attribute :push,     String
+      attribute :label,    String
+
+      member name: "runtime_changed", workflow: "ci.yml", mode: "touches",
+             pattern: '^lib/hecks/runtime/', push: "skip",
+             label: "does this change touch lib/hecks/runtime/**?"
+      member name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless",
+             pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
+             push: "before_sha",
+             label: "does this change touch anything rspec_postgres_io_parallel covers?"
     end
 
     # Rust keywords (strict + reserved) a generated identifier must not

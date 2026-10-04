@@ -45,7 +45,7 @@ RSpec.describe Hecks::Ports::IdentityGeneration do
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
         Hecks.hecksagon("Pizzas") do
-          uses_framework "Governance"
+          attaches "Governance"
           Pizzas::Order.persisted_by("Memory")
         end
         Hecks.hecksagon("Governance") do

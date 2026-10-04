@@ -21,6 +21,8 @@ Hecks.bluebook "Bluebook" do
     attribute :givens,     list_of(Rule)
     # Postconditions: same Rule shape as givens, checked after the mutations.
     attribute :ensures,    list_of(Rule)
+    # Outside facts the runtime supplies before any given runs (ADR 0081): `needs :now`.
+    attribute :needs,      list_of(Need)
     attribute :mutations,  list_of(Change)
     attribute :provenance, CommandText
     # Lifecycle guard as a literal (`from: "open"` or `from: ["open", "frozen"]`); ADR 0025.
@@ -46,6 +48,10 @@ Hecks.bluebook "Bluebook" do
 
     value_object "Announcement" do
       attribute :name, String
+    end
+
+    value_object "Need" do
+      attribute :fact, String
     end
 
     value_object "Argument" do
@@ -254,6 +260,23 @@ Hecks.bluebook "Bluebook" do
       emits AnnouncementNamed
     end
 
+    command "Need" do
+      role "Language"
+      goal "Name an outside fact the runtime supplies before any given runs"
+
+      attribute :fact, FactName
+
+      given("a fact is named") { !fact.value.to_s.empty? }
+
+      sets :needs, append: { fact: :fact }
+
+      emits NeedNamed
+    end
+
+    value_object "FactName" do
+      attribute :value, String
+    end
+
     # Keyword rows for this chapter; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -283,6 +306,8 @@ Hecks.bluebook "Bluebook" do
       member word: "state",           context: "Command", body: "none",   inner: "", opens: "", fills: "mutations"
       member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
       member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
+      # An outside fact the runtime supplies before any given runs (ADR 0081; CommandBuilder#needs_impl).
+      member word: "needs",           context: "Command", body: "none",   inner: "", opens: "", fills: "needs", calls: "needs_impl"
       # Amends a specific past event. Stored as a mutation so it round-trips with the other
       # mutation words (CommandBuilder#corrects_impl).
       member word: "corrects",        context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "corrects_impl"
@@ -314,6 +339,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
       member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
       member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
+      member keyword: "needs",           context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "fact"
       member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
       member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
       member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"

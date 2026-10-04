@@ -53,7 +53,7 @@ RSpec.describe "QualityControl" do
       Hecks.adapter("QcClock") { port "clock" }
 
       Hecks.hecksagon "QualityControl" do
-        uses_framework "Governance"
+        attaches "Governance"
 
         [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
          QualityControl::Ticket, QualityControl::Patch, QualityControl::Improvement,
@@ -592,7 +592,7 @@ RSpec.describe "QualityControl" do
       runtime
       text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, program: "bin/qc",
-        argv: ["propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
+        argv: ["angle.propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]
       )
 
@@ -1565,15 +1565,17 @@ RSpec.describe "QualityControl" do
       expect(numbers("Patch.OpenedSince", 1)).to be_empty
     end
 
-    it "must say when" do
+    # `Patch.Open` needs `now`: a caller that names no time has it read from the clock, once, and
+    # the record carries that answer.
+    it "is stamped from the clock when the caller names no time" do
       bug = a_fixed_bug
 
-      expect do
-        QualityControl::Patch.open!(
-          bug: bug.id, number: { value: 1 }, url: { value: "u" }, branch: { value: "qa/x" },
-          commit: { value: "4f2a19c" }, title: { value: "x" }
-        )
-      end.to raise_error(Hecks::Runtime::AbsentArgument, /now/)
+      patch = QualityControl::Patch.open!(
+        bug: bug.id, number: { value: 1 }, url: { value: "u" }, branch: { value: "qa/x" },
+        commit: { value: "4f2a19c" }, title: { value: "x" }
+      )
+
+      expect(patch.opened_at.to_h).to eq(value: 1_000)
     end
   end
 

@@ -91,7 +91,8 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse resolve --chapter <Name> <file.hecksagon>`: prints that chapter's
-/// `uses_framework` and `uses_embryonaut_bluebook` names as JSON, in file order.
+/// `attaches` names as JSON, in file order: `gem_chapters` for a chapter the gem carries and
+/// `vendored_packages` for `from: :vendor`.
 ///
 /// `--chapter` is required because one file can hold several `Hecks.hecksagon` blocks.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
@@ -120,7 +121,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     let value = emit::JsonValue::Object(vec![
         ("domain".to_string(), emit::JsonValue::String(chapter_name)),
         (
-            "uses_framework".to_string(),
+            "gem_chapters".to_string(),
             emit::JsonValue::Array(
                 framework_names
                     .into_iter()
@@ -129,7 +130,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
             ),
         ),
         (
-            "uses_embryonaut_bluebook".to_string(),
+            "vendored_packages".to_string(),
             emit::JsonValue::Array(
                 vendored_names
                     .into_iter()
@@ -179,6 +180,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "Command"),
     ("given", "Command"),
     ("ensures", "Command"),
+    ("needs", "Command"),
     ("sets", "Command"),
     ("corrects", "Command"),
     ("delegates_to", "Command"),

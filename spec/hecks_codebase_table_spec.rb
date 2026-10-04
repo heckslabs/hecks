@@ -10,7 +10,10 @@ require "tmpdir"
 # Where the domain spells a row differently from the ADR, the row says so in `renamed`.
 RSpec.describe "the Codebase rows of the ADR command table" do
   # `args` are the words a run of the verb needs beyond its run key; `query` marks a pure read.
-  CodebaseRow = Struct.new(:script, :aggregate, :name, :verb, :args, :query, :renamed, keyword_init: true)
+  CodebaseRow = Struct.new(:script, :aggregate, :name, :verb, :args, :query, :renamed, keyword_init: true) do
+    # The launcher's name for the row: its aggregate, snake-cased, then its verb.
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+  end
 
   # The aggregates are named for the run, as ModelCheckRun is: the table's Language, Kernel,
   # Conformance, Regeneration and Style are concerns, and some share a name with a module the gem
@@ -50,6 +53,14 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["doc_coverage", "ConformanceRun", "MeasureDocCoverage", "measure_doc_coverage"],
     ["argument_gate_matrix", "ConformanceRun", "ArgumentGateMatrix", "argument_gate_matrix"],
     ["regen_codegen_domains", "RegenerationRun", "RegenerateCorpus", "regenerate_corpus"],
+    ["(new)", "GateRun", "Gate", "gate",
+     { args: %w[pre_push], renamed: "no script ran a stage's checks as data: the pre-push hook did, in shell" }],
+    ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
+     { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
+                "verb only compares" }],
+    ["decide_ci_gate", "RegenerationRun", "DecideCiGate", "decide_ci_gate",
+     { args:    %w[gate=runtime_changed],
+       renamed: "no bin script: the base-commit shell of the changed-paths action, now a call to the binary" }],
     ["standardize_comments", "StyleRun", "ReportComments", "report_comments",
      { args: %w[paths=lib], query: true }],
     ["standardize_comments", "StyleRun", "CheckComments", "check_comments", { args: %w[paths=lib] }],
@@ -99,7 +110,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   end.freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
-  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun
+  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun CodemodRun
                            TestSuiteRun CorpusRun PublishingRun].freeze
 
   before(:all) do
@@ -124,10 +135,10 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.verb}`" do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
-      out, status = launch([row.verb, "--help"])
+      out, status = launch([row.qualified, "--help"])
 
       expect(status).to eq(0)
-      expect(out).to start_with(row.verb)
+      expect(out).to start_with(row.qualified)
     end
 
     it "refuses `hecks #{row.verb}` outside a hecks checkout" do
@@ -135,7 +146,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
         Dir.mkdir(File.join(dir, "lib"))
         Hecks::Adapters::Codebase::Tree.root = dir
 
-        argv = [row.verb, *row.args, ("run=outside-#{row.verb}" unless row.query)].compact
+        argv = [row.qualified, *row.args, ("run=outside-#{row.verb}" unless row.query)].compact
         out, status = launch(argv)
 
         expect(out).to include("needs a hecks checkout")
@@ -150,13 +161,13 @@ RSpec.describe "the Codebase rows of the ADR command table" do
       Dir.mkdir(File.join(dir, "lib"))
       Hecks::Adapters::Codebase::Tree.root = dir
 
-      out, status = launch(["project_vocabulary", "run=refused-1", "--wait"])
+      out, status = launch(["language_run.project_vocabulary", "run=refused-1", "--wait"])
       row = JSON.parse(out).fetch("state")
 
       expect(status).to eq(1)
       expect(row.fetch("status")).to eq("faulted")
       expect(row.dig("refusal", "value")).to include("needs a hecks checkout")
-      expect(JSON.parse(launch(["language_faulted"]).first).map { |run| run.dig("run", "value") })
+      expect(JSON.parse(launch(["language_run.language_faulted"]).first).map { |run| run.dig("run", "value") })
         .to include("refused-1")
     end
   end
@@ -167,11 +178,11 @@ RSpec.describe "the Codebase rows of the ADR command table" do
         Dir.mkdir(File.join(dir, "lib"))
         Hecks::Adapters::Codebase::Tree.root = dir
 
-        out, status = launch([verb, "run=refused-#{verb}", "--wait"])
+        out, status = launch(["publishing_run.#{verb}", "run=refused-#{verb}", "--wait"])
 
         expect(status).to eq(1)
         expect(JSON.parse(out).dig("state", "status")).to eq("faulted")
-        expect(JSON.parse(launch(["publishing_faulted"]).first).map { |run| run.dig("run", "value") })
+        expect(JSON.parse(launch(["publishing_run.publishing_faulted"]).first).map { |run| run.dig("run", "value") })
           .to include("refused-#{verb}")
       end
     end

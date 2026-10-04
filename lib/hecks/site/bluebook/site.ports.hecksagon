@@ -1,0 +1,15 @@
+# The port Site declares, for every hecksagon that attaches the chapter (`Chapters` loads this file
+# with it). Each projection asks the SiteToolchain port, which the Hecks domain binds
+# (lib/hecks/hecks/adapters/site_toolchain.rb): the outside a projection reaches. The ask is
+# answered with the record's own arguments or refused with a reason. The port has to be declared
+# even where no adapter binds it, so ProjectWhenRequested has a target and model_check's
+# deaf-policy check can see it.
+Hecks.hecksagon "Site" do
+  Site::SiteProjection.port "SiteToolchain" do
+    asks "Project", to: SiteProjection do
+      attribute :run, RunKey
+      answers "SiteAnswered"
+      refuses "SiteRefused"
+    end
+  end
+end

@@ -91,6 +91,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "number",
@@ -122,6 +125,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -143,6 +149,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -335,6 +344,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "branch_code",
@@ -375,6 +387,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -396,6 +411,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -589,6 +607,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
             {
               "target": "domain",
@@ -629,6 +650,9 @@
           "ensures": [
 
           ],
+          "needs": [
+
+          ],
           "mutations": [
 
           ],
@@ -650,6 +674,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "needs": [
 
           ],
           "mutations": [
@@ -728,6 +755,27 @@
       "replacement": ".size",
       "boundary": "word",
       "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
     }
   ],
   "lineage": {
@@ -774,5 +822,5 @@
   "translations": [
 
   ],
-  "source_text": "Hecks.bluebook \"Compliance\" do\n  vision \"Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.\"\n  supporting\n\n  # Supports both modes from one source: `uses_framework \"Compliance\"` merges it in-process,\n  # or a separately deployed service is reached with `across \"Compliance\"` on a policy.\n  # examples/compliance/bluebook/compliance.bluebook symlinks here, since a symlink pointing\n  # outside lib/ does not survive `gem build`.\n  #\n  # Contain first, investigate second: the containing action (a freeze, a box surrender) has\n  # already happened elsewhere. This domain is told the fact and records the review after it.\n  #\n  # One aggregate per triggering event: the events carry different fields, so a shared\n  # aggregate would need an artificial union of the shapes.\n\n  aggregate \"AccountFreezeReview\" do\n    description \"The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened.\"\n\n    attribute :number, AccountNumber\n\n    identified_by :number\n\n    value_object \"AccountNumber\" do\n      attribute :value, String\n      invariant(\"an account number is present\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # System-triggered. Takes only `number`, the one field `AccountFrozen` carries; an\n    # unrecognized field is refused at the JSON boundary rather than dropped.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a frozen account needs compliance review\"\n\n      sets :number\n\n      emits AccountFreezeReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the freeze was warranted, or resolve it, with nothing further to escalate\"\n\n      reference_to AccountFreezeReview\n\n      emits AccountFreezeReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral\"\n\n      reference_to AccountFreezeReview\n\n      emits AccountFreezeReviewEscalated\n    end\n  end\n\n  aggregate \"BoxSurrenderReview\" do\n    description \"The compliance review a surrendered safe deposit box gets — audit/escheatment implications, not a fraud contain the way a freeze is, but the same after-the-fact review shape.\"\n\n    attribute :branch_code, BranchCode\n    attribute :box_number,  BoxNumber\n\n    identified_by :branch_code, :box_number\n\n    value_object \"BranchCode\" do\n      attribute :value, String\n      invariant(\"a branch is coded\") { !value.to_s.empty? }\n    end\n\n    value_object \"BoxNumber\" do\n      attribute :value, Integer\n      invariant(\"a box is numbered from one\") { value.positive? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # Takes exactly the fields `BoxSurrendered` carries, as `AccountFreezeReview.Open` does.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a surrendered box needs compliance review\"\n\n      sets :branch_code\n      sets :box_number\n\n      emits BoxSurrenderReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the surrender needs no further compliance action\"\n\n      reference_to BoxSurrenderReview\n\n      emits BoxSurrenderReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next\"\n\n      reference_to BoxSurrenderReview\n\n      emits BoxSurrenderReviewEscalated\n    end\n  end\n\n  # A third shape, not a union of the other two: `Privacy::Marking`'s `Marked` event carries\n  # `domain`/`attribute_path`. Reached via `translates` in whichever `.hecksagon` attaches\n  # both Privacy and Compliance, since which foreign event to conform to is wiring.\n  aggregate \"PrivacyReview\" do\n    description \"The compliance review a newly marked sensitive field gets, opened the moment Privacy::Marking.Mark already happened.\"\n\n    attribute :domain,         Domain\n    attribute :attribute_path, AttributePath\n\n    identified_by :domain, :attribute_path\n\n    value_object \"Domain\" do\n      attribute :value, String\n      invariant(\"a review names the domain whose attribute was marked\") { !value.to_s.empty? }\n    end\n\n    value_object \"AttributePath\" do\n      attribute :value, String\n      invariant(\"a review names the attribute that was marked\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # System-triggered. Takes only `Marking`'s identity fields; `category`/`readable_by` stay\n    # on the marking.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a newly marked sensitive field needs compliance review\"\n\n      sets :domain\n      sets :attribute_path\n\n      emits PrivacyReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the marking was warranted, or resolve it, with nothing further to escalate\"\n\n      reference_to PrivacyReview\n\n      emits PrivacyReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next\"\n\n      reference_to PrivacyReview\n\n      emits PrivacyReviewEscalated\n    end\n  end\nend\n"
+  "source_text": "Hecks.bluebook \"Compliance\" do\n  vision \"Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.\"\n  supporting\n\n  # Supports both modes from one source: `attaches \"Compliance\"` merges it in-process,\n  # or a separately deployed service is reached with `across \"Compliance\"` on a policy.\n  # examples/compliance/bluebook/compliance.bluebook symlinks here, since a symlink pointing\n  # outside lib/ does not survive `gem build`.\n  #\n  # Contain first, investigate second: the containing action (a freeze, a box surrender) has\n  # already happened elsewhere. This domain is told the fact and records the review after it.\n  #\n  # One aggregate per triggering event: the events carry different fields, so a shared\n  # aggregate would need an artificial union of the shapes.\n\n  aggregate \"AccountFreezeReview\" do\n    description \"The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened.\"\n\n    attribute :number, AccountNumber\n\n    identified_by :number\n\n    value_object \"AccountNumber\" do\n      attribute :value, String\n      invariant(\"an account number is present\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # System-triggered. Takes only `number`, the one field `AccountFrozen` carries; an\n    # unrecognized field is refused at the JSON boundary rather than dropped.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a frozen account needs compliance review\"\n\n      sets :number\n\n      emits AccountFreezeReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the freeze was warranted, or resolve it, with nothing further to escalate\"\n\n      reference_to AccountFreezeReview\n\n      emits AccountFreezeReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral\"\n\n      reference_to AccountFreezeReview\n\n      emits AccountFreezeReviewEscalated\n    end\n  end\n\n  aggregate \"BoxSurrenderReview\" do\n    description \"The compliance review a surrendered safe deposit box gets — audit/escheatment implications, not a fraud contain the way a freeze is, but the same after-the-fact review shape.\"\n\n    attribute :branch_code, BranchCode\n    attribute :box_number,  BoxNumber\n\n    identified_by :branch_code, :box_number\n\n    value_object \"BranchCode\" do\n      attribute :value, String\n      invariant(\"a branch is coded\") { !value.to_s.empty? }\n    end\n\n    value_object \"BoxNumber\" do\n      attribute :value, Integer\n      invariant(\"a box is numbered from one\") { value.positive? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # Takes exactly the fields `BoxSurrendered` carries, as `AccountFreezeReview.Open` does.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a surrendered box needs compliance review\"\n\n      sets :branch_code\n      sets :box_number\n\n      emits BoxSurrenderReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the surrender needs no further compliance action\"\n\n      reference_to BoxSurrenderReview\n\n      emits BoxSurrenderReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next\"\n\n      reference_to BoxSurrenderReview\n\n      emits BoxSurrenderReviewEscalated\n    end\n  end\n\n  # A third shape, not a union of the other two: `Privacy::Marking`'s `Marked` event carries\n  # `domain`/`attribute_path`. Reached via `translates` in whichever `.hecksagon` attaches\n  # both Privacy and Compliance, since which foreign event to conform to is wiring.\n  aggregate \"PrivacyReview\" do\n    description \"The compliance review a newly marked sensitive field gets, opened the moment Privacy::Marking.Mark already happened.\"\n\n    attribute :domain,         Domain\n    attribute :attribute_path, AttributePath\n\n    identified_by :domain, :attribute_path\n\n    value_object \"Domain\" do\n      attribute :value, String\n      invariant(\"a review names the domain whose attribute was marked\") { !value.to_s.empty? }\n    end\n\n    value_object \"AttributePath\" do\n      attribute :value, String\n      invariant(\"a review names the attribute that was marked\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n    end\n\n    # System-triggered. Takes only `Marking`'s identity fields; `category`/`readable_by` stay\n    # on the marking.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that a newly marked sensitive field needs compliance review\"\n\n      sets :domain\n      sets :attribute_path\n\n      emits PrivacyReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the marking was warranted, or resolve it, with nothing further to escalate\"\n\n      reference_to PrivacyReview\n\n      emits PrivacyReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next\"\n\n      reference_to PrivacyReview\n\n      emits PrivacyReviewEscalated\n    end\n  end\nend\n"
 }

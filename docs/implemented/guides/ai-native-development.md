@@ -33,7 +33,7 @@ the in-memory adapter:
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
 Hecks.hecksagon("Governance") do
@@ -48,10 +48,10 @@ catalog[:aggregates].first[:commands]   # => ["add_topping!", "create_pizza!", "
 
 pizza = { name: "Diavola", pizza: { price_cents: { cents: 1400 }, size: "large" } }
 
-unbound = Hecks::Storehouse.dispatch(runtime: runtime, command: "create_pizza", summary: "add a pizza", args: pizza)
+unbound = Hecks::Storehouse.dispatch(runtime: runtime, command: "order.create_pizza", summary: "add a pizza", args: pizza)
 unbound[:ok]                             # => false
 
-chef = Hecks::Storehouse.dispatch(runtime: runtime, command: "create_pizza", summary: "add a pizza", args: pizza, role: "Chef")
+chef = Hecks::Storehouse.dispatch(runtime: runtime, command: "order.create_pizza", summary: "add a pizza", args: pizza, role: "Chef")
 chef[:events].map { |event| event[:name] } # => ["PizzaCreated"]
 ```
 
@@ -67,7 +67,7 @@ header for what that does and does not guard against). Every
 domain-scoped tool's `domain:`/`under:` is confined to
 `Hecks::Storehouse::BOOT_ROOT` (the project directory by default) —
 `Hecks.boot` loads real Ruby, and this bus refuses to boot one from
-outside its own root. `hecks serve_query_ir_mcp` is a smaller, older,
+outside its own root. `hecks corpus_run.serve_query_ir_mcp` is a smaller, older,
 read-only sibling exposing structural queries over the language itself
 (`lib/hecks/query_ir.rb`) — meta-tooling for working on hecks, not on a
 business domain. Both speak MCP over stdio only and refuse to start

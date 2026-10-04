@@ -1,5 +1,7 @@
 require "hecks/vocabulary"
 require "hecks/bluebook/model_check"
+require "hecks/rust_build/domain_name"
+require "hecks/rust_build/rust_literal"
 
 module RustProjection
   # Domain-to-Rust codegen support: type mapping, reserved-name checks, and
@@ -59,15 +61,10 @@ module RustProjection
     # feature set.
     #
     # Declared once as the `CargoReservedName` vocabulary.
-    CARGO_RESERVED_DOMAIN_NAMES = Hecks::Vocabulary.fetch("CargoReservedName")
+    CARGO_RESERVED_DOMAIN_NAMES = Hecks::RustBuild::DomainName::CARGO_RESERVED
 
-    # Checks identifier shape locally; delegates the reserved-word half to
-    # `ModelCheck.rust_reserved_name_findings`, the one shared check.
-    def valid_domain_mod_name?(name)
-      str = name.to_s
-      str.match?(/\A[a-z_][a-z0-9_]*\z/) &&
-        Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(domain_name: str).empty?
-    end
+    # Moved to `Hecks::RustBuild::DomainName`, which the codegen-backed `hecks project_rust` uses.
+    def valid_domain_mod_name?(name) = Hecks::RustBuild::DomainName.valid?(name)
 
     # Identifier-shape check only (a PascalCase name always passes); whether
     # the downcased name is a Rust keyword is `reserved_name_refusal`'s job,
@@ -96,6 +93,44 @@ module RustProjection
       "#{source_label}: domain module name #{mod_name.to_s.inspect} can't be used as-is — it has to double as a Rust " \
         "module identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, is a " \
         "Rust keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
+    end
+
+    # Every declared `name` in the IR, in document order. The `fields` maps under
+    # `mutations` are skipped: their keys are attribute names and their values
+    # are source text, not declarations. So is `translations`: an era edge names
+    # data paths (`attendee.first_name`, a backfill into a nested value object)
+    # that the host applies to stored rows and never writes into Rust.
+    def declared_names(node, out = [])
+      case node
+      when Hash
+        node.each do |key, value|
+          if %w[fields translations].include?(key.to_s)
+            next
+          elsif key.to_s == "name" && value.is_a?(String)
+            out << value
+          else
+            declared_names(value, out)
+          end
+        end
+      when Array
+        node.each { |item| declared_names(item, out) }
+      end
+      out
+    end
+
+    # Returns nil when every declared name is a plain identifier, else the
+    # message `DomainGenerator.call` raises. Attribute, command, event, query
+    # and port names are written into the generated crate as field, struct and
+    # function names, so a name like "a: String, pub evil: u8" would otherwise
+    # inject code into it. Must return the identical string as hecks-codegen's
+    # `naming::unsafe_name_refusal` (rust/codegen/src/naming.rs).
+    def unsafe_name_refusal(source_label, ir)
+      refused = declared_names(ir).uniq.reject { |name| name.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/) }
+      return nil if refused.empty?
+
+      "#{source_label}: declared name(s) #{refused.map(&:inspect).join(', ')} can't be used as-is — each is " \
+        "written into the generated Rust as an identifier, and at least one is not a plain identifier (letters, " \
+        "digits and underscores, not starting with a digit). Rename it in the bluebook."
     end
 
     # `r#crate`/`r#self`/`r#super`/`r#Self` are not valid raw-identifier
@@ -182,24 +217,7 @@ module RustProjection
       end
     end
 
-    # Ruby's String#inspect escapes for Ruby's own read-back (e.g. a
-    # brace-less `\uXXXX`), which isn't valid Rust syntax. This escapes
-    # only what Rust's string-literal grammar needs: backslash,
-    # double-quote, and control characters.
-    def rust_string_literal(str)
-      escaped = str.to_s.each_char.map do |ch|
-        case ch
-        when "\\" then "\\\\"
-        when "\"" then "\\\""
-        when "\n" then "\\n"
-        when "\r" then "\\r"
-        when "\t" then "\\t"
-        else
-          cp = ch.ord
-          cp < 0x20 || cp == 0x7F ? format("\\u{%x}", cp) : ch
-        end
-      end.join
-      "\"#{escaped}\""
-    end
+    # Moved to `Hecks::RustBuild::RustLiteral`, which the codegen-backed `hecks project_rust` uses.
+    def rust_string_literal(str) = Hecks::RustBuild::RustLiteral.string(str)
   end
 end

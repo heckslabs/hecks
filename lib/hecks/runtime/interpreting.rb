@@ -1,5 +1,6 @@
 require_relative "value"
 require_relative "aggregate_lock"
+require_relative "../ports/clock"
 
 module Hecks
   module Runtime
@@ -13,7 +14,56 @@ module Hecks
         interpreter.singleton_class.attr_accessor :trace
       end
 
+      # What answers each outside fact a command may `needs` (ADR 0081). A fact is answered once,
+      # before any given runs, and the answer rides in the command's own arguments, so the event
+      # records it and a replay re-dispatches the recorded value rather than asking again.
+      NEED_ANSWERS = { now: ->(registry) { Ports::Clock.now(registry) } }.freeze
+
       private
+
+      # Fills each outside fact the command `needs` and the caller left out. A value the caller
+      # supplied is kept, so a test or a back-fill can name its own time.
+      #
+      # @param command [Class] the command being dispatched
+      # @param args [Hash{Symbol => Object}] the arguments the caller passed
+      # @return [Hash{Symbol => Object}] `args`, with each missing needed fact answered
+      # @raise [Runtime::WiringError] when the port that answers a fact is not bound exactly once
+      def enrich_arguments(command, args)
+        fill_defaults(command, fill_needs(command, args))
+      end
+
+      # Answers each fact the command `needs` that the caller left out.
+      def fill_needs(command, args)
+        missing = command.needs.reject { |fact| args.key?(fact) || args.key?(fact.to_s) }
+        return args if missing.empty?
+
+        args.merge(missing.to_h { |fact| [fact, need_value(command, fact)] })
+      end
+
+      # Gives each argument the caller left out the default its attribute declares
+      # (`attribute :runs, Count, default: 30`), so a declared default holds on every way in and
+      # not only where a door spells it out. An argument the caller passed is kept, whatever it is.
+      #
+      # @param command [Class] the command being dispatched
+      # @param args [Hash{Symbol => Object}] the arguments the caller passed
+      # @return [Hash{Symbol => Object}] `args`, with each absent defaulted argument filled
+      def fill_defaults(command, args)
+        absent = command.attributes.reject do |attribute|
+          attribute.default.nil? || args.key?(attribute.name.to_sym) || args.key?(attribute.name.to_s)
+        end
+        return args if absent.empty?
+
+        args.merge(absent.to_h { |attribute| [attribute.name.to_sym, attribute.default] })
+      end
+
+      # The answer to one fact, in the shape the command's argument of that name takes: a bare
+      # Integer for an Integer attribute, else the one-field value object the language declares
+      # for an instant.
+      def need_value(command, fact)
+        answer    = NEED_ANSWERS.fetch(fact).call(@registry)
+        attribute = command.attributes.find { |held| held.name.to_s == fact.to_s }
+        attribute&.type.to_s == "Integer" ? answer : { value: answer }
+      end
 
       # Logged after the step's work, so trace order is completion order.
       def step(name)

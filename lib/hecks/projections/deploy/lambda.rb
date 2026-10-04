@@ -85,7 +85,9 @@ module Hecks
                 memory:   { value: deploy_settings.fetch(:memory, 512) },
                 timeout:  { value: deploy_settings.fetch(:timeout, 10) },
                 database: { value: deploy_settings.fetch(:database, "Postgres") },
-                web: { value: deploy_settings.fetch(:web, "None") }
+                web: { value: deploy_settings.fetch(:web, "None") },
+                **%i[dispatch handler_module secret_env].select { |key| deploy_settings.key?(key) }
+                                                        .to_h { |key| [key, { value: deploy_settings[key].to_s }] }
               }
             ).instance
           rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
@@ -105,12 +107,9 @@ module Hecks
           # The module name `lambda_handler.rb` actually defines; named here
           # since `dispatch "None"` domains may each pick their own.
           webhook_handler_module = deploy_settings.fetch(:handler_module, "WebLambdaHandler")
-          if dispatch_none && !deploy_settings.key?(:handler_module)
-            raise ArgumentError, "#{world_file}'s deployed_to(\"AwsLambda\") declares dispatch \"None\" but no handler_module — add handler_module \"YourModuleName\" naming the module #{domain}/lambda_handler.rb defines."
-          end
 
           # Scans every loaded chapter, not just this domain's own — a
-          # `uses_framework`-attached chapter can itself declare a cross-domain
+          # `attaches`-attached chapter can itself declare a cross-domain
           # policy, including one nested inside `aggregate "X" do ... end`.
           cross_domain_lambda_targets = cross_domain_registry.bluebooks.flat_map { |chapter_name, bluebook|
             bluebook.policies.select(&:target_domain).map(&:target_domain)
@@ -910,8 +909,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               # settings -- the exact same call this target runs automatically
               # for a domain with its own dedicated instance.
               #
-              # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (uses_embryonaut_
-              # bluebook, uses_framework), `check!` alone leaves THAT chapter's own
+              # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (attaches,
+              # attaches ... from: :vendor), `check!` alone leaves THAT chapter's own
               # aggregates with no snapshot table at all -- it only provisions the
               # ONE bluebook it's called with (era_resolver.rb's own `bluebook.
               # aggregates.each`), never the whole registry. Found live minting
@@ -999,7 +998,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               # hecks_eras at all. The fix reuses the SAME loading pipeline
               # `Loader.boot` itself does (`Ports::Loading.bootstrap`/
               # `load_library`/`load_project`/`load_domain`) to build a real,
-              # fully-loaded registry (bluebook + any uses_framework attachments),
+              # fully-loaded registry (bluebook + any attaches attachments),
               # then calls straight into PostgresEra's own `LineageManager.check!`
               # with THIS deploy's actual `DATABASE_URL` — bypassing the world
               # file's own adapter choice entirely, the same targeted pattern
@@ -1073,7 +1072,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             end
 
           # Shares mint_era_recipe's bastion/tunnel/retry/teardown chain but
-          # runs `hecks ask scaffold_translation` or `hecks ask audit_translation` over it.
+          # runs `hecks query era.scaffold_translation` or
+          # `hecks query era.audit_translation` over it.
           #
           # Neither script actually reads DATABASE_URL/HECKS_SCHEMA (both call
           # `registry.binding_settings`, a lookup against the literal `database
@@ -1148,12 +1148,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
 
           # `hecks ask` answers the scaffold as text, and refuses (exit 1) where the script aborted.
           scaffold_translation_recipe = translation_recipe.call(
-            "scaffold-translation", "exe/hecks ask scaffold_translation", db_env_blind: true,
+            "scaffold-translation", "exe/hecks query era.scaffold_translation", db_env_blind: true,
             run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
           )
           # A refused audit is a refused query: `hecks ask` exits 1, so the target fails too.
           translation_audit_recipe = translation_recipe.call(
-            "translation-audit", "exe/hecks ask audit_translation", db_env_blind: true,
+            "translation-audit", "exe/hecks query era.audit_translation", db_env_blind: true,
             run_prefix: "HECKS_ENVIRONMENT=memory ruby", domain_arg: "domain=$(DOMAIN) "
           )
 
@@ -1394,7 +1394,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # field). `hecks build_wasm` recompiles fast enough that "always
             # rebuild" is the safe default, matching rust/host's own bootstrap
             # build just below, which was never guarded this way to begin with.
-            \tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build_wasm domain=#{domain} --wait
+            \tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm domain=#{domain} --wait
             \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
             # `rustup run stable`, not a bare `cargo lambda` — same reasoning
             # `hecks build_wasm`'s own Makefile-equivalent line holds itself to: a
@@ -1496,12 +1496,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             .PHONY: verify-parity-#{logical_id}
             verify-parity-#{logical_id}:
             \t@if [ -f #{root}/spec/corpus/#{domain_name}.json ]; then \\
-            \t\tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks check_conformance domain=#{domain} script=spec/corpus/#{domain_name}.json artifact=$(WASM) --wait; \\
+            \t\tcd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.check_conformance domain=#{domain} script=spec/corpus/#{domain_name}.json artifact=$(WASM) --wait; \\
             \telse \\
             \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (hecks fuzz/hecks run's own script shape) before this domain's next deploy."; \\
             \tfi
             \t@echo "verify-parity-#{logical_id}: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
-            \t-@cd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks fuzz_conformance domain=#{domain} artifact=$(WASM) --wait
+            \t-@cd #{root} && HECKS_ENVIRONMENT=memory ruby exe/hecks build.fuzz_conformance domain=#{domain} artifact=$(WASM) --wait
 
             # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
             # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
