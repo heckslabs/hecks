@@ -4,7 +4,7 @@ A port is a second implementation of dispatch — a runtime, likely in a
 different language, that accepts the same commands and queries a
 bluebook declares and produces the same refusals and events a real
 boot of it would. One exists: `rust/` (Cargo crate + Ruby generator,
-`hecks project_rust` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
+`hecks build.project_rust` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
 for the architecture decision, and `docs/HECKS_IMPLEMENTATION_PLAN.md`
 §8 for its current, honestly-scoped status). This page is what running
 it, extending it to a new domain construct, or starting an analogous
@@ -47,7 +47,7 @@ every aggregate to `"Memory"` — and read it off `runtime.registry`:
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::ATMCard.persisted_by("Memory")
@@ -89,7 +89,7 @@ ir[:ir_version] # => 1
 ir[:version]    # => "v1"
 ```
 
-If your build step shells out instead of running in-process, `hecks ir
+If your build step shells out instead of running in-process, `hecks 
 <domain>` prints the same thing — with one trap: booting a domain's
 *real* `.hecksagon` (as opposed to the Memory wiring above) may wire a
 Postgres-backed adapter, and Postgres's own `NOTICE` lines land on the
@@ -733,7 +733,7 @@ This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
 and `interpret()` (`rust/src/kernel/expr.rs`) are the generic
 READING/behavior half, hand-written once; `dispatch()`
 (`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
-also hand-written once; `hecks project_rust` (driving `rust/project.rb`)
+also hand-written once; `hecks build.project_rust` (driving `rust/project.rb`)
 is the small, per-command WRITING glue this paragraph names as the one
 place generation still earns its keep — real Rust struct literals and
 `Vec::push` calls, generated because constructing a specific type has

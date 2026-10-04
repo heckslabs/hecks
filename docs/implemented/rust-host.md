@@ -28,6 +28,7 @@ also served only when the domain's IR declares `provides "payments"`.
 | --- | --- | --- |
 | `HECKS_CHECKOUT_DOMAIN` | unset (routes off) | the domain whose guest routes are on; must equal `HECKS_DOMAIN` |
 | `SITE_URL` | `http://localhost:4321` | the site's public origin |
+| `NEWSLETTER_CONFIRMATION_TEMPLATE_URL` | unset (plain text) | URL of an HTML template for the signup confirmation email; `{{CONFIRM_URL}}` is required, `{{UNSUBSCRIBE_URL}}` optional. Fetched per send (5 s timeout, 256 KiB cap); any failure falls back to the plain-text email |
 | `PAYMENTS_WEBHOOK_BASE_URL` | `SITE_URL` | the public origin Stripe delivers webhooks to; the webhook the host creates points at `<this>/webhooks/stripe` |
 | `PAYMENTS_WEBHOOK_DESCRIPTION` | `<HECKS_DOMAIN> website` | the description Stripe shows beside the webhook endpoint the host creates in the business's account; blank means the default |
 | `PAYMENTS_ACCOUNT_SECRET_ID` | none | the name of the Secrets Manager secret that holds the business's saved payment keys; required on AWS when checkout is enabled (below) |

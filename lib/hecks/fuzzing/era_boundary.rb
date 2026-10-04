@@ -9,7 +9,7 @@ module Hecks
 
       # `kind:` on a `checked: false` result distinguishes a target with no
       # lineage to audit (`:not_applicable`) from an audit that failed to
-      # run (`:error`) — `hecks quality_control ask run` holds the first and surfaces the
+      # run (`:error`) — `hecks quality_control query sweep.run` holds the first and surfaces the
       # second as a finding, instead of treating both as a clean audit.
       def diverged_ancestor_writes(domain_path)
         registry, directory = load_registry(domain_path)

@@ -4,12 +4,14 @@ require_relative "replay"
 require_relative "properties"
 require_relative "self_consistency"
 require_relative "rust_gap_manifest"
+require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
     # The Ruby-vs-Rust comparison of one generated sequence, shared by the QualityControl sweep
-    # (`hecks quality_control ask run`) and `hecks quality_control check_generated_domains --rust`.
+    # (`hecks quality_control query sweep.run`) and `hecks quality_control
+    # target.check_generated_domains --rust`.
     #
     # `differ` is duck-typed (the `RustConformanceHelpers` comparison helpers plus a
     # `structural_skips` set) so lib never requires spec/.
@@ -91,7 +93,7 @@ module Hecks
           outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite.call
         end
 
-        stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
+        stdout, status = Open3.capture2(binary, stdin_data: RustBuild::KernelInput.json(domain_path, steps))
         unless status.success?
           return outcomes.merge(differential: [{ field:  "process",
                                                  detail: "rust binary exited #{status.exitstatus}: #{stdout}" }])

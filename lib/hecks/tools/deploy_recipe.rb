@@ -11,7 +11,7 @@ module Hecks
     # target and dispatches to the matching `Projector` export, writing the recipe (template,
     # scripts and Makefile) under `deploy/<stack>/` of the checkout.
     #
-    #   hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>]
+    #   hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
     #       [--out=<dir>] [--environment=<name>]
     #
     # `--environment` layers an overlay `.world` file over the base one; a missing overlay is an
@@ -96,7 +96,7 @@ module Hecks
 
         File.exist?(world_file) or
           abort "#{world_file} does not exist — a domain needs a .world file to declare " \
-                "deployed_to(\"AwsLambda\") or deployed_to(\"AwsFargate\")"
+                "deployed_to(\"AwsLambda\"), deployed_to(\"AwsFargate\") or deployed_to(\"AwsBox\")"
         world_file
       end
 
@@ -150,7 +150,7 @@ module Hecks
       # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
       # cross-domain invoke grant can live in any attached chapter. A domain with no bluebook of
       # its own (the QA ledger) gets its chapter from the hecksagon's `Chapters.load!`. `root:` is
-      # required or `uses_embryonaut_bluebook` refuses with "needs a registry with a root to
+      # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
       # vendor from".
       #
       # @param domain [String] the domain directory
@@ -176,15 +176,16 @@ module Hecks
       # @param deploy_settings [Hash] the world's `deployed_to` settings
       # @param world_file [String] the `.world` file, named in the refusal
       # @param domain [String] the domain directory, named in the refusal
-      # @return [Symbol] `:aws_lambda` or `:aws_fargate`
-      # @raise [SystemExit] with an example block when the world declares neither
+      # @return [Symbol] `:aws_lambda`, `:aws_fargate` or `:aws_box`
+      # @raise [SystemExit] with an example block when the world declares none of them
       def target_key(deploy_settings, world_file, domain)
         case deploy_settings[:adapter]
         when "AwsLambda" then :aws_lambda
         when "AwsFargate" then :aws_fargate
+        when "AwsBox" then :aws_box
         else
           abort <<~MSG
-            #{world_file} declares no deployed_to("AwsLambda") or deployed_to("AwsFargate") block. Add one, e.g.:
+            #{world_file} declares no deployed_to("AwsLambda"), deployed_to("AwsFargate") or deployed_to("AwsBox") block. Add one, e.g.:
 
                 deployed_to("AwsLambda") do
                   region "us-east-1"
@@ -199,6 +200,13 @@ module Hecks
                   cpu 256
                   memory 512
                   port 8080
+                end
+
+            or:
+
+                deployed_to("AwsBox") do
+                  region "us-east-1"
+                  containers [{ name: "web", port: 8080 }]
                 end
 
             then re-run hecks deploy project #{domain}.

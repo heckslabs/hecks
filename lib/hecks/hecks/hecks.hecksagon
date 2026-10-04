@@ -1,9 +1,9 @@
 Hecks.hecksagon "Hecks" do
-  uses_framework "Governance"
+  attaches "Governance"
 
   # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
-  # Expression, Tenancy, Deploy and QualityControl (which brings its own ports and adapters).
-  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy QualityControl]
+  # Expression, Tenancy, Deploy, Site, Tickets and QualityControl (the last three bring their own ports).
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets QualityControl]
     .each { |chapter| attaches chapter }
   # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
   # environments/memory.world can swap the whole domain without a double bind.
@@ -95,10 +95,22 @@ Hecks.hecksagon "Hecks" do
       answers "DoorAnswered"
       refuses "DoorRefused"
     end
+
+    asks "Scaffold", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
   end
 
   Hecks::Door.port "Terminal" do
     asks "Serve", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
+
+    asks "Converse", to: Door do
       attribute :run, DoorKey
       answers "DoorAnswered"
       refuses "DoorRefused"
@@ -394,7 +406,7 @@ Hecks.hecksagon "Hecks" do
 end
 
 # The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
-# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy provision`
+# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy tenant.provision`
 # registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
 Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do

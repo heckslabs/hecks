@@ -5,7 +5,7 @@ Words available inside `command do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -18,7 +18,7 @@ corpus, so it gets a chapter of its own:
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::SafeDepositBox.persisted_by("Memory")
@@ -437,6 +437,8 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
 
+An argument that declares `default:` is filled when the caller leaves it out, before any refusal reads the arguments, in the Ruby runtime and the Rust host and kernel alike; a value the caller passes, even a null, is kept. The kernel gets each command's declared defaults from the host as a top-level `"defaults"` table in its input, so a harness that runs a domain binary on its own builds that input with `Hecks::RustBuild::KernelInput`.
+
 Omittable when it would only retype what the owner already declared: a bare `sets :field` (no `to:` naming a different source) already says the command takes an argument named `:field`, so when the command itself declares no `attribute :field`, it imports the owning aggregate's (or entity's) own attribute of that name verbatim — type, pattern, `optional:`, `admits:`, all of it. `Install` above never declares `attribute :serial` — it imports `Meter`'s own `serial` — and still takes it as an argument:
 
 ```ruby
@@ -547,7 +549,7 @@ Hecks.hecksagon("NeedsLifetime") { NeedsLifetime::Link.persisted_by("Memory") }
 
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::SafeDepositBox.persisted_by("Memory")

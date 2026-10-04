@@ -5,24 +5,101 @@
     {
       "verb": "CompositeLineLedger::Venue.Open",
       "args": {
-        "code": { "value": "golf" }
+        "code": {
+          "value": "golf"
+        }
       }
     },
     {
       "verb": "CompositeLineLedger::Venue.AddLine",
       "args": {
         "batch": "north wing",
-        "sequence": { "value": 654 },
-        "code": { "value": "golf" }
+        "sequence": {
+          "value": 654
+        },
+        "code": {
+          "value": "golf"
+        }
       }
     },
     {
       "verb": "CompositeLineLedger::Venue.AddLine",
       "args": {
         "batch": "north wing",
-        "sequence": { "value": 654 },
-        "code": { "value": "golf" }
+        "sequence": {
+          "value": 654
+        },
+        "code": {
+          "value": "golf"
+        }
       }
     }
-  ]
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "CompositeLineLedger::Venue.AddLine",
+        "error": "a Line already exists on Venue — batch.value, sequence.value \"north wing\", 654",
+        "kind": "AlreadyExists"
+      }
+    ],
+    "instances": {
+      "CompositeLineLedger::Venue#golf": {
+        "code": {
+          "value": "golf"
+        },
+        "lines": [
+          {
+            "batch": {
+              "value": "north wing"
+            },
+            "sequence": {
+              "value": 654
+            },
+            "label": null
+          }
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "VenueOpened",
+        "aggregate": "CompositeLineLedger::Venue",
+        "id": "golf",
+        "payload": {
+          "code": {
+            "value": "golf"
+          }
+        }
+      },
+      {
+        "name": "VenueLineAdded",
+        "aggregate": "CompositeLineLedger::Venue",
+        "id": "golf",
+        "payload": {
+          "batch": {
+            "value": "north wing"
+          },
+          "sequence": {
+            "value": 654
+          },
+          "code": {
+            "value": "golf"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
 }

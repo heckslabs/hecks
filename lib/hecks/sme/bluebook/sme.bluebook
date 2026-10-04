@@ -1,0 +1,336 @@
+# SME: learn a business from the people who know it (ADR 0088).
+#
+# An interview is the record of one conversation with a subject matter expert about a domain: what
+# was asked, what was said, and what a developer then accepted as established. It is development
+# time work, so this chapter ships in the gem but is not attached to the Hecks domain: nothing
+# boots it except the command that runs an interview.
+Hecks.bluebook "SME" do
+  vision "Learn a business from the people who know it: an interview with a subject matter expert, kept as a record of what was asked, what was said, and what was accepted as established."
+  supporting
+
+  aggregate "Interview" do
+    description "One sitting with a subject matter expert about a domain: planned, held, and concluded, with every question and answer kept in order and every proposed finding accepted or rejected by name."
+
+    identified_by :reference
+
+    attribute :reference, Reference
+    attribute :subject,   Subject
+    attribute :expert,    Expert
+    attribute :exchanges, list_of(Exchange)
+
+    attribute :thing_findings,  list_of(ThingFinding)
+    attribute :action_findings, list_of(ActionFinding)
+    attribute :rule_findings,   list_of(RuleFinding)
+
+    # Held as counts because a rule cannot look inside a list: `Conclude` needs to know that at least
+    # one thing and one action were accepted, and each acceptance adds one here (see the policies).
+    attribute :accepted_things,  Tally
+    attribute :accepted_actions, Tally
+
+    value_object "Reference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # The domain being discovered, spelled as its bluebook will spell it. Many interviews, with
+    # different experts on different days, name the same subject; the domain is not modelled here.
+    value_object "Subject" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # Who is being interviewed.
+    value_object "Expert" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Question" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The expert's answer in their own words.
+    value_object "Answer" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # A label for grouping exchanges ("lending rules"); optional on every exchange.
+    value_object "Topic" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Exchange" do
+      attribute :question, String, pattern: '[^\t\n\r]'
+      attribute :answer,   String, pattern: '[^\t\n\r]'
+      attribute :topic,    String, optional: true
+    end
+
+    # The number of the exchange a finding rests on, counted from one in the order they were recorded.
+    value_object "Source" do
+      attribute :value, Integer
+      invariant("a finding cites an exchange by its number, from one") { value.positive? }
+    end
+
+    value_object "FindingNumber" do
+      attribute :value, Integer
+      invariant("a finding is numbered from one") { value.positive? }
+    end
+
+    value_object "Name" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # How many findings of a kind were accepted.
+    value_object "Tally" do
+      attribute :value, Integer, default: 0
+      invariant("a tally is not negative") { !value.negative? }
+    end
+
+    value_object "Statement" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # Whether an action brings its thing into being, as opposed to happening to one that exists.
+    value_object "Creates" do
+      attribute :value, Boolean
+    end
+
+    # A thing the domain keeps track of, and the field that identifies one: an aggregate to be.
+    entity "ThingFinding" do
+      description "A thing the expert described, proposed as an aggregate, with the field that identifies one."
+
+      identified_by :number
+
+      attribute :number,     FindingNumber
+      attribute :name,       Name
+      attribute :identifier, Name
+      attribute :source,     Source
+
+      lifecycle :status, default: "proposed" do
+        transition "AcceptThing" => "accepted", from: "proposed"
+        transition "RejectThing" => "rejected", from: "proposed"
+      end
+
+      command "AcceptThing", from: "proposed" do
+        goal "Establish that the thing is real"
+
+        attribute :number, FindingNumber
+
+        emits "ThingAccepted"
+      end
+
+      command "RejectThing", from: "proposed" do
+        goal "Set the proposed thing aside"
+
+        attribute :number, FindingNumber
+
+        emits "ThingRejected"
+      end
+    end
+
+    # Something that happens to a thing, and what it announces: a command and its event to be.
+    entity "ActionFinding" do
+      description "Something the expert said happens to a thing, proposed as a command and the event it announces."
+
+      identified_by :number
+
+      attribute :number,  FindingNumber
+      attribute :name,    Name
+      attribute :thing,   Name
+      attribute :event,   Name
+      attribute :creates, Creates, optional: true
+      attribute :source,  Source
+
+      lifecycle :status, default: "proposed" do
+        transition "AcceptAction" => "accepted", from: "proposed"
+        transition "RejectAction" => "rejected", from: "proposed"
+      end
+
+      command "AcceptAction", from: "proposed" do
+        goal "Establish that the action is real"
+
+        attribute :number, FindingNumber
+
+        emits "ActionAccepted"
+      end
+
+      command "RejectAction", from: "proposed" do
+        goal "Set the proposed action aside"
+
+        attribute :number, FindingNumber
+
+        emits "ActionRejected"
+      end
+    end
+
+    # A rule is kept as the expert's sentence, and never turned into code from prose (ADR 0088).
+    entity "RuleFinding" do
+      description "A rule in the expert's words, kept as text for a developer to turn into a given."
+
+      identified_by :number
+
+      attribute :number,    FindingNumber
+      attribute :statement, Statement
+      attribute :source,    Source
+
+      lifecycle :status, default: "proposed" do
+        transition "AcceptRule" => "accepted", from: "proposed"
+        transition "RejectRule" => "rejected", from: "proposed"
+      end
+
+      command "AcceptRule", from: "proposed" do
+        goal "Establish that the rule is real"
+
+        attribute :number, FindingNumber
+
+        emits "RuleAccepted"
+      end
+
+      command "RejectRule", from: "proposed" do
+        goal "Set the proposed rule aside"
+
+        attribute :number, FindingNumber
+
+        emits "RuleRejected"
+      end
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "Begin"    => "underway",  from: "planned"
+      transition "Conclude" => "concluded", from: "underway"
+      transition "Cancel"   => "cancelled", from: ["planned", "underway"]
+    end
+
+    command "Plan" do
+      goal "Arrange an interview with an expert about a domain"
+
+      attribute :reference, Reference
+      attribute :subject,   Subject
+      attribute :expert,    Expert
+
+      emits "InterviewPlanned"
+    end
+
+    command "Begin" do
+      goal "Sit down with the expert"
+
+      reference_to Interview
+
+      emits "InterviewBegun"
+    end
+
+    command "Record" do
+      goal "Keep a question and the expert's answer to it"
+
+      reference_to Interview
+      attribute :question, Question
+      attribute :answer,   Answer
+      attribute :topic,    Topic, optional: true
+
+      given("answers are recorded only while the interview is underway") { status == "underway" }
+
+      sets :exchanges, append: { question: :question, answer: :answer, topic: :topic }
+
+      emits "ExchangeRecorded"
+    end
+
+    command "ProposeThing" do
+      goal "Propose a thing the expert described as an aggregate"
+
+      reference_to Interview
+      attribute :number,     FindingNumber
+      attribute :name,       Name
+      attribute :identifier, Name
+      attribute :source,     Source
+
+      given("findings are proposed only while the interview is underway") { status == "underway" }
+      given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :thing_findings, append: { number: :number, name: :name, identifier: :identifier, source: :source }
+
+      emits "ThingProposed"
+    end
+
+    command "ProposeAction" do
+      goal "Propose something that happens to a thing as a command and its event"
+
+      reference_to Interview
+      attribute :number,  FindingNumber
+      attribute :name,    Name
+      attribute :thing,   Name
+      attribute :event,   Name
+      attribute :creates, Creates, optional: true
+      attribute :source,  Source
+
+      given("findings are proposed only while the interview is underway") { status == "underway" }
+      given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :action_findings, append: { number: :number, name: :name, thing: :thing, event: :event, creates: :creates, source: :source }
+
+      emits "ActionProposed"
+    end
+
+    command "ProposeRule" do
+      goal "Keep a rule in the expert's words"
+
+      reference_to Interview
+      attribute :number,    FindingNumber
+      attribute :statement, Statement
+      attribute :source,    Source
+
+      given("findings are proposed only while the interview is underway") { status == "underway" }
+      given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :rule_findings, append: { number: :number, statement: :statement, source: :source }
+
+      emits "RuleProposed"
+    end
+
+    command "CountThing" do
+      goal "Count one more accepted thing"
+
+      reference_to Interview
+
+      sets :accepted_things, increment: { value: 1 }
+
+      emits "ThingCounted"
+    end
+
+    command "CountAction" do
+      goal "Count one more accepted action"
+
+      reference_to Interview
+
+      sets :accepted_actions, increment: { value: 1 }
+
+      emits "ActionCounted"
+    end
+
+    command "Conclude" do
+      goal "End the interview with something established to show for it"
+
+      reference_to Interview
+
+      given("an interview that recorded nothing has not happened") { exchanges.size.positive? }
+      given("a thing must be accepted before the interview ends") { accepted_things.value.positive? }
+      given("an action must be accepted before the interview ends") { accepted_actions.value.positive? }
+
+      emits "InterviewConcluded"
+    end
+
+    command "Cancel" do
+      goal "Call the interview off"
+
+      reference_to Interview
+
+      emits "InterviewCancelled"
+    end
+  end
+
+  policy "CountAcceptedThing" do
+    on      "Interview.ThingAccepted"
+    trigger Interview::CountThing, with: { interview: :reference }
+  end
+
+  policy "CountAcceptedAction" do
+    on      "Interview.ActionAccepted"
+    trigger Interview::CountAction, with: { interview: :reference }
+  end
+end

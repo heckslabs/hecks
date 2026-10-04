@@ -136,11 +136,11 @@ RSpec.describe Hecks::Projector::Exporter do
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
         Hecks.hecksagon("Probe") do
-          uses_framework "Identity"
-          uses_framework "Governance"
+          attaches "Identity"
+          attaches "Governance"
         end
         Hecks.hecksagon("Identity") do
-          uses_framework "Governance"
+          attaches "Governance"
           Identity::Identity.persisted_by("Memory")
           Identity::ExternalIdentifier.persisted_by("Memory")
         end
@@ -159,7 +159,7 @@ RSpec.describe Hecks::Projector::Exporter do
   describe ".lineage" do
     # Needs a real PostgresEra binding, not `boot_in_memory`'s Memory override, and the
     # era plugin loaded (ADR 0033). `require "pg"` stays lazy, so no database is needed.
-    def registry_with_pizzas_bound_to_postgres
+    def registry_with_directory_bound_to_postgres
       require InMemoryDomain::ERA_PLUGIN
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -168,17 +168,17 @@ RSpec.describe Hecks::Projector::Exporter do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
-        Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
       end
       registry
     end
 
     it "names a Postgres-bound aggregate, qualified by name and storage_name" do
-      registry = registry_with_pizzas_bound_to_postgres
+      registry = registry_with_directory_bound_to_postgres
 
-      expect(described_class.lineage(registry, "Pizzas"))
-        .to eq(capable_aggregates: [{ name: "Order", storage_name: "order" }])
+      expect(described_class.lineage(registry, "Directory"))
+        .to eq(capable_aggregates: [{ name: "Member", storage_name: "member" }])
     end
 
     it "answers empty for a domain with nothing bound to a lineage-capable adapter" do
@@ -188,9 +188,9 @@ RSpec.describe Hecks::Projector::Exporter do
     end
 
     it "agrees with Runtime::EraCheck's own capability predicates, not a re-derived rule" do
-      registry = registry_with_pizzas_bound_to_postgres
-      order = registry.bluebooks.fetch("Pizzas").aggregate("Order")
-      adapter = Hecks::Runtime::EraCheck.adapter_for(registry, "Pizzas", order)
+      registry = registry_with_directory_bound_to_postgres
+      member = registry.bluebooks.fetch("Directory").aggregate("Member")
+      adapter = Hecks::Runtime::EraCheck.adapter_for(registry, "Directory", member)
 
       expect(adapter).to eq("PostgresEra")
       expect(Hecks::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true

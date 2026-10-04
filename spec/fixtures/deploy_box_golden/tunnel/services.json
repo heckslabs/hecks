@@ -1,0 +1,24 @@
+{
+  "services": {
+    "web": {
+      "name": "web",
+      "repository": "scratch-fixture-web",
+      "port": 8080,
+      "env": {},
+      "secrets": {}
+    },
+    "stats": {
+      "name": "stats",
+      "repository": "scratch-fixture-stats",
+      "port": 3000,
+      "env": {},
+      "secrets": {}
+    }
+  },
+  "origin": null,
+  "tunnel": {
+    "url": "http://127.0.0.1:3000",
+    "token_secret": "scratch/tunnel-token",
+    "image": "cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c"
+  }
+}

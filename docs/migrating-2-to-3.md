@@ -9,15 +9,15 @@ CHANGELOG entry for 3.0.0 has the full wording.
 The `bin/` directory is gone. The launcher is `exe/hecks`, which the gem ships and `hecks project_cli`
 regenerates. The verb a script became is in [docs/tools.md](tools.md), and `hecks <verb> --help`
 says what it takes. Arguments are projected from the command, so flags and argument order can
-differ from the old script: `bin/compact` is `hecks compact <domain> [aggregates=A,B] --confirm`.
+differ from the old script: `bin/compact` is `hecks era.compact <domain> [aggregates=A,B] --confirm`.
 
-Two launcher names differ from their command: `hecks mcp` runs `ServeMcp` (also `hecks serve_mcp`)
-and `hecks console` runs `OpenConsole` (also `hecks open_console`).
+Two launcher names differ from their command: `hecks mcp` runs `ServeMcp` (also `hecks door.serve_mcp`)
+and `hecks console` runs `OpenConsole` (also `hecks operation.open_console`).
 
 Look in these places in your project:
 - CI jobs, git hooks, Makefiles and shell scripts that call `bin/<name>`.
 - Docs that quote those calls.
-- A generated deploy `Makefile` or script: regenerate it with `hecks deploy project <domain>`, which
+- A generated deploy `Makefile` or script: regenerate it with `hecks deploy recipe.project <domain>`, which
   now writes `hecks <verb>` calls.
 
 A check that used to print a result and exit now takes `--wait`: it re-reads the run it recorded and
@@ -27,7 +27,7 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 ## 2. Rename `Hecks::Facade` to `Hecks::Doors`
 
 `Surface` is now `Doors::RubyDoor`, and the MCP door lives beside it. `install_facade:` is now
-`install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.1.0. Regenerate
+`install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.2.0. Regenerate
 launchers with `hecks project_cli`.
 
 ## 3. Reach Hecks-chapter constants through `Hecks::Domain`
@@ -64,9 +64,23 @@ new approvals as the file.
 ## 7. Expect a larger gem
 
 The gem ships `rust/` (without `rust/tests/`, `rust/src/generated/` and `target/`) and `exe/hecks`,
-so `hecks build_wasm` and the other Build commands work from an installed gem. A build copies the
+so `hecks build.build_wasm` and the other Build commands work from an installed gem. A build copies the
 workspace to `.hecks/rust/<version>/` and never writes into the gem. Anything that read the gem's
 file list to leave the tooling out no longer can.
+
+## 8. Write `attaches` instead of `uses_framework` and `uses_embryonaut_bluebook`
+
+A hecksagon attaches a chapter with one word, `attaches`. `uses_framework "Governance"` is now
+`attaches "Governance"`, and `uses_embryonaut_bluebook "membership"` is now
+`attaches "membership", from: :vendor`. Without `from:` the name is found among the chapters the
+gem carries (a framework member or a chapter of the language, Tenancy, Deploy); `from: :vendor`
+loads the package vendored into the project, and is never a fallback for a misspelt gem name.
+
+The two old words still work in 3.x. They behave as before and print a one-line warning, and they
+are removed in 3.2.0. Two things read differently: a hecksagon's `framework_members`,
+`vendored_bluebooks` and `attached_chapters` are one list, `attachments` (each with its source,
+`:gem` or `:vendor`), and `hecks project_rust` now stamps its generated files with the `attaches`
+spelling, so regenerate them.
 
 ## Security fixes since 3.0.0
 
@@ -78,5 +92,5 @@ outside `[a-z][a-z0-9_]*`; and code generation refuses declared names that are n
 ## Check your upgrade
 
 1. `bundle update hecks`, then `hecks project_cli` to regenerate the launcher.
-2. `hecks model_check --wait` and `hecks regenerate_corpus --check --wait` exit 0.
+2. `hecks model_check --wait` and `hecks regeneration_run.regenerate_corpus --check --wait` exit 0.
 3. Run your suite with `HECKS_ENVIRONMENT=memory` if no Postgres is reachable.

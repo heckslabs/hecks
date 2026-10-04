@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/chapters"
 
 # `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy,
-# QualityControl) into a domain by name (ADR 0080, section 4). Like `uses_framework`, the attached
+# Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the attached
 # chapter is a bounded context, and the consumer's sibling hecksagon for it is the
 # anti-corruption layer.
 RSpec.describe "a hecksagon attaching a chapter the gem carries" do
@@ -56,9 +56,18 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     registry = attach("Deploy")
 
     expect(registry.bluebook("Deploy")).not_to be_nil
-    expect(registry.hecksagon("Console").attached_chapters).to eq(["Deploy"])
-    expect(registry.hecksagon("Console").to_h[:attached_chapters]).to eq(["Deploy"])
+    expect(registry.hecksagon("Console").member_chapters).to eq(["Deploy"])
+    expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Deploy", source: "gem" }])
     expect(registry.bounded?("Deploy")).to be true
+    expect { registry.verify! }.not_to raise_error
+  end
+
+  it "attaches the Site chapter, with the closed sets a route table is read against" do
+    registry = attach("Site")
+
+    expect(registry.bluebook("Site").aggregate("Route")).not_to be_nil
+    expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Site", source: "gem" }])
+    expect(registry.bounded?("Site")).to be true
     expect { registry.verify! }.not_to raise_error
   end
 
@@ -69,7 +78,7 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
   end
 
   it "refuses a name no attachable chapter has, listing the ones that exist" do
-    expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no attachable chapter named "Nowhere".*Deploy/)
+    expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no chapter of that name.*Deploy.*from: :vendor/)
   end
 
   # QualityControl ships its ports and adapters beside its bluebook, so every hecksagon that
@@ -109,5 +118,58 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     paths = Hecks::Chapters.index.fetch("Translation")
 
     expect(paths).to all(include("/language/translation/"))
+  end
+
+  # `attaches` is the one word for a gem chapter and for a vendored package; the two older words
+  # are deprecated spellings that behave as before and warn.
+  describe "attaches, from the gem or from vendor" do
+    it "finds a framework member and a language chapter through the one table" do
+      expect(Hecks::Chapters.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
+    end
+
+    it "records each attachment with its source" do
+      registry = registry_with { Hecks.hecksagon("Hexed") { attaches "Governance" } }
+
+      expect(registry.hecksagon("Hexed").attachments.map(&:to_h)).to eq([{ name: "Governance", source: "gem" }])
+    end
+
+    it "refuses a vendored name used without from:, naming the way to attach a vendored package" do
+      expect { registry_with { Hecks.hecksagon("Hexed") { attaches "membership" } } }
+        .to raise_error(Hecks::Runtime::WiringError, /known: .*Governance.*from: :vendor/)
+    end
+
+    it "refuses a gem name used with from: :vendor, since a vendored package is never a fallback" do
+      expect { registry_with { Hecks.hecksagon("Hexed") { attaches "Governance", from: :vendor } } }
+        .to raise_error(Hecks::Runtime::WiringError, /needs a registry with a root to vendor from/)
+    end
+
+    it "refuses a source other than :vendor" do
+      expect { registry_with { Hecks.hecksagon("Hexed") { attaches "Governance", from: :gem } } }
+        .to raise_error(Hecks::Runtime::WiringError, /`from:` takes only :vendor/)
+    end
+
+    it "keeps uses_framework as a deprecated alias that warns and attaches" do
+      registry = nil
+      expect { registry = registry_with { Hecks.hecksagon("Hexed") { uses_framework "Governance" } } }
+        .to output(/`uses_framework` is deprecated and is removed in 3\.2\.0; use `attaches "Governance"`/).to_stderr
+
+      expect(registry.hecksagon("Hexed").attachments.map(&:to_h)).to eq([{ name: "Governance", source: "gem" }])
+      expect(registry.bounded?("Governance")).to be true
+    end
+
+    it "keeps uses_embryonaut_bluebook as a deprecated alias that warns and vendors" do
+      expect { registry_with { Hecks.hecksagon("Hexed") { uses_embryonaut_bluebook "payments" } } }
+        .to output(/`uses_embryonaut_bluebook` is deprecated.*use `attaches "payments", from: :vendor`/)
+        .to_stderr.and raise_error(Hecks::Runtime::WiringError, /needs a registry with a root/)
+    end
+
+    it "merges two hecksagon blocks' attachments without repeating one" do
+      registry = registry_with do
+        Hecks.hecksagon("Hexed") { attaches "Governance" }
+        Hecks.hecksagon("Hexed") { attaches "Governance" }
+      end
+
+      expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
+    end
   end
 end

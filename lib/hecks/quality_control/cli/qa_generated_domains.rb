@@ -12,8 +12,8 @@ require_relative "child"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control check_generated_domains`: generates domains nobody
-    # wrote and checks them the way the rotation does (`USAGE` lists the forms: generate,
+    # The command behind `hecks quality_control target.check_generated_domains`: generates domains
+    # nobody wrote and checks them the way the rotation does (`USAGE` lists the forms: generate,
     # `--blueprint`, `--source` and `--promote`).
     #
     # Exit codes: 0 every valid domain clean; 2 at least one finding; 1 operational error.
@@ -202,8 +202,8 @@ module Hecks
         ::QualityControlDials.const_get(name)
       end
 
-      # `--from-dials` is how `hecks quality_control tick` runs this. The dials come from the text
-      # of the bluebook before `Hecks.bluebook`, so the ledger's Postgres is not needed.
+      # `--from-dials` is how `hecks quality_control sweep.tick` runs this. The dials come from the
+      # text of the bluebook before `Hecks.bluebook`, so the ledger's Postgres is not needed.
       # `QA_GENERATED_DOMAINS_PER_TICK` overrides the count for one run.
       #
       # @return [Boolean] false when the dials turn the step off, true once they are applied

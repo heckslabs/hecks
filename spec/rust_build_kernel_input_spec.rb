@@ -1,0 +1,34 @@
+require "spec_helper"
+require "hecks/rust_build/kernel_input"
+
+# The stdin a domain binary reads carries each command's declared argument defaults, as the Rust
+# host's own table does, so a harness that runs the binary alone fills what Ruby fills.
+RSpec.describe Hecks::RustBuild::KernelInput do
+  let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }
+  let(:steps)  { [{ "verb" => "LeaseClock::Lease.Register", "args" => { "key" => { "value" => "a" } } }] }
+
+  it "lists a command's declared default under its qualified verb" do
+    expect(described_class.defaults_for(domain)).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
+  end
+
+  it "builds the input from the steps and the defaults table" do
+    input = described_class.build(domain, steps)
+
+    expect(input["steps"]).to eq(steps)
+    expect(input["defaults"]).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
+  end
+
+  it "renders the same input as JSON for a binary's stdin" do
+    expect(JSON.parse(described_class.json(domain, steps))).to eq(described_class.build(domain, steps))
+  end
+
+  it "adds no table for a domain whose commands declare no default" do
+    pizzas = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+
+    expect(described_class.build(pizzas, steps)).to eq("steps" => steps)
+  end
+
+  it "adds no table for a domain with no generated IR" do
+    expect(described_class.build("/no/such/domain", steps)).to eq("steps" => steps)
+  end
+end

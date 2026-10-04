@@ -13,49 +13,51 @@ you're not.
 
 1. **[Getting started](getting-started.md)** — a domain declared, wired,
    booted, and refused, in one sitting.
-2. **[Aggregates and value objects](aggregates-and-value-objects.md)** —
+2. **[Your own domain](your-own-domain.md)** — write a bluebook of your
+   own, run it, and deploy it to AWS Lambda.
+3. **[Aggregates and value objects](aggregates-and-value-objects.md)** —
    identity, shape, closed sets, and the trap in nesting them.
-3. **[Commands](commands.md)** — everything a command may do, everything
+4. **[Commands](commands.md)** — everything a command may do, everything
    it may refuse, and the roster of refusal classes you'll actually hit.
-4. **[Queries and read models](queries-and-read-models.md)** — what the
+5. **[Queries and read models](queries-and-read-models.md)** — what the
    build-time seal catches for you, and the one open question it doesn't.
-5. **[Lifecycles](lifecycles.md)** — states, transitions, and what
+6. **[Lifecycles](lifecycles.md)** — states, transitions, and what
    `hecks model_check` flags before you ship one wrong.
-6. **[Entities](entities.md)** — identity and behavior that lives inside
+7. **[Entities](entities.md)** — identity and behavior that lives inside
    an aggregate, never addressed alone.
-7. **[Policies and process managers](policies-and-process-managers.md)**
+8. **[Policies and process managers](policies-and-process-managers.md)**
    — reactions, sagas, correlation, and the depth limit that keeps a
    feedback loop from becoming an incident.
-8. **[Wiring](wiring.md)** — the hecksagon and the world: what's decided
+9. **[Wiring](wiring.md)** — the hecksagon and the world: what's decided
    where, and why persistence is never the domain's problem.
-9. **[Schema evolution](schema-evolution.md)** — a shape change, and
+10. **[Schema evolution](schema-evolution.md)** — a shape change, and
    proof that the data underneath it survives. Needs a real Postgres.
-10. **[Verification](verification.md)** — model_check, fuzz, the corpus,
+11. **[Verification](verification.md)** — model_check, fuzz, the corpus,
     and which one to reach for at which stage of actually shipping.
-11. **[Writing an adapter](writing-an-adapter.md)** — the contract a new
+12. **[Writing an adapter](writing-an-adapter.md)** — the contract a new
     persistence or driving adapter has to keep, walked against the
     smallest real one.
-12. **[Extending hecks](extending-hecks.md)** — adding a word to the
+13. **[Extending hecks](extending-hecks.md)** — adding a word to the
     language itself, and the conformance gates that stop it drifting
     from what it says.
-13. **[Running a runtime](running-a-runtime.md)** — a second runtime
+14. **[Running a runtime](running-a-runtime.md)** — a second runtime
     exists (`rust/`); this is how it works and how to run or extend
     it: the canonical IR's exact shape, the dispatch order, and how
     the expression grammar `given`/`ensures`/`invariant` compile down
     to.
-14. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
-    is used, in its own vocabulary, run as tests: `hecks run_behaviors`, the
+15. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
+    is used, in its own vocabulary, run as tests: `hecks operation.run_behaviors`, the
     rspec shim, and what `emits:` sees through a real policy cascade.
-15. **[Language versioning](language-versioning.md)** — how the bluebook
+16. **[Language versioning](language-versioning.md)** — how the bluebook
     surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
-    and what `hecks rename` does with a rename.
-16. **[Projections: Rust and WebAssembly](projections.md)** — the
+    and what `hecks language_run.rename` does with a rename.
+17. **[Projections: Rust and WebAssembly](projections.md)** — the
     bluebook as the one definition, projected to generated Rust and WASM,
     and how that output is held equal to Ruby's.
-17. **[AI-native development](ai-native-development.md)** — the
+18. **[AI-native development](ai-native-development.md)** — the
     storehouse bus and its MCP door: one checked surface an agent works
     through, and what its identity check does not do.
-18. **[Project status](project-status.md)** — what works today, what is
+19. **[Project status](project-status.md)** — what works today, what is
     experimental or partial, and where the gaps are written down.
 
 ## Beyond the guides

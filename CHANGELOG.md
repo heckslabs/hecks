@@ -7,13 +7,150 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
-and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
-`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
-generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
-CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
-carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
-`boot_described`.
+**An `edge` tag follows main, so a project need not wait for a release.** A workflow moves the `edge` tag
+to every commit that lands on main (forward only; nothing publishes from it, since the publish workflows
+listen for `v*`). A Gemfile can take `git: "https://github.com/heckslabs/hecks.git", tag: "edge"`, and a
+deploy can say `hecks_release "edge"`: the generated `hosting.mk` then fetches the tag afresh on every
+build, skips the exact-release-tag check for it alone, and prints the commit it built. A build from `edge`
+is not reproducible from the name, so pin a release when that matters. Regenerate a project's
+`hosting.mk` (`hecks deploy recipe.project`) to get the new recipe.
+
+**`hecks-codegen` admits every state for a lifecycle transition with no `from:`, as the Ruby generator did.** A `transition "Open" => "open"` with no `from:` is unconstrained, but the generated Rust checked the command against the empty state, so a command that creates its aggregate (which starts at the lifecycle default) was refused with "moves it only from \"\"". The generator now emits no transition check for an unconstrained row, which is what 3.0.x emitted. A domain that declares such a transition and built on 3.1.0 or 3.1.1 should rebuild its wasm on the fixed release.
+
+## [3.1.1] - 2026-10-04
+
+A patch: nothing breaking and no behavior change for a running system unless it opts in. It fixes a 3.1.0 regression: a domain with `TrueClass` or `FalseClass` attributes no longer compiled to Rust (see the `hecks build.project_rust` entry below). Skip 3.1.0 if your domain declares Boolean attributes in a value object.
+
+**`AwsBox` fixes from its first real deploy.** The generated `deploy-box.sh` raced the box's first boot, because Docker and the Compose plugin are installed by user data, and failed on a fresh box; it now waits for first boot to finish. `make stacks REHEARSAL=true` makes a throwaway pair (the Makefile could not pass `Rehearsal`, and both templates default to production). The Caddyfile and the guide now say a rehearsal restarts the proxy to pick up a `caddy-extra` file, since its admin API is off. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`AwsBox` can render its Compose file from an ECS task definition.** `task_definition "<family>"` makes `render-compose.sh` read each container's image, environment and secrets from that task at deploy time, so a project running on Fargate moves its box by pointing it at the task it already has; the world lists only names and ports, and no ECR repositories are made. `deploy-box.sh` and `make deploy TASKDEF=family:revision` take a revision. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`AwsBox` generates three more parts of the stack it was modeled on.** The RDS stack takes an optional `BastionSecurityGroupId`, so the migration scripts' bastion can reach the new database. The Caddyfile imports `/etc/caddy/extra/*` and the proxy mounts `caddy-extra`, so a rehearsal can add a loopback listener and smoke-test without the CDN. `s3_access [{ bucket:, write: }]` gives the box role read on each bucket and write only on a production box. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`AwsBox` generates the tooling to move a project's data onto the new database.** A world that declares `migration({ schemas: [...] })` also gets `restore-to-rds.sh` (a per-schema `pg_dump | pg_restore` through a bastion, with the Hecks materialized-view refresh handled), `verify-copy.sh` (structure and exact row counts of both sides) and `MIGRATION.md` (the steps in order, with the rollback caveat). The bastion, hosts and secrets are arguments, so one set of scripts serves a rehearsal, the cutover and a copy back. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`hecks` prints its help about three times faster on a repeat run, and the help is grouped by
+aggregate with the prefix left off.** Reading the domain's declarations was most of what the launcher
+cost (about 0.9s of 1.2s); the help is now remembered under a digest of the domain's declaration
+files, the gem's own library, the hecks and Ruby versions, the environment overlay and the command
+line, so any edit to one of them is simply a new entry and nothing is ever stale. A repeat `hecks`
+reads no declarations. `Hecks.describe` loads them on the first `registry` call instead of on return.
+`HECKS_NO_USAGE_CACHE=1` turns the cache off and `HECKS_CACHE_DIR` moves it (default
+`~/.cache/hecks`); an entry nobody reads for two weeks is swept on the next write. In the help, each
+aggregate heading is the prefix of every call under it (`language_run:`), and the lines beneath drop
+it (`project_model!`); a command the chapter gives a short name is listed by its real name with
+`(also: mcp!)`.
+
+**`hecks build.project_rust` maps `TrueClass` and `FalseClass` attributes to Rust `bool` again.** Since `hecks-codegen` became the only generator, a boolean attribute written in the Ruby-class spelling (`attribute :flag, TrueClass`) was emitted as a type named `TrueClass`, so the generated Rust failed to compile with `cannot find type TrueClass`. The scalar table in `hecks-codegen` now carries both spellings through the struct field, the JSON read and write, and the `Fielded` value, as `rust/project` did.
+
+## [3.1.0] - 2026-10-03
+
+A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
+
+**A restricted `hecks mcp` door checks arguments by name (ADR 0089).** In reader and commands mode,
+`dispatch` and `query` refuse an argument that names a host or a URL, a binary, an output, a port, a
+store to switch to, or a switch from preview to change (`McpDoorScope::DENIED_ARGUMENTS`), a path
+value that does not resolve inside the root with symlinks followed or that holds a colon
+(`PATH_ARGUMENTS`), and a git ref that is not a plain name (`REF_ARGUMENTS`), including inside nested
+values and every step of a batch. This closes the gap where an allowed command such as
+`run_spec_example` could be handed a file outside the checkout. A spec lists every argument name of
+every public command of the Hecks chapter and fails when one is unclassified. An unrestricted door is
+unchanged.
+
+**A `Site` chapter projects a site's route table into one `routes.ts`.** A project declares its routes
+once, as `member` rows of a `value_object "Route"` in a chapter of its own, attaches `Site`, and runs
+`hecks site site_projection.project_site <project>`. The projection (`:site_routes_ts`) writes a
+dependency-free TypeScript module with the table as `as const` data and a few pure helpers: `pageIsOn`,
+`isOffPath`, `notForSearch`, `previewUrl`, the middleware rules as data, the desktop, mobile, footer and
+admin navigation, the sitemap paths, the robots prefixes, and a map from each CMS global to its page. A row
+whose source is a `command:` or `query:` takes its path from the forms scheme (`/Chapter/Aggregate/Verb`)
+and is checked against the chapters the project attaches. The closed sets a row's values come from (kind,
+render, auth, cache class, origin, preview) are value objects of the Site chapter, so a row naming a cache
+class that is not a member is refused with the members listed, and so are a path declared twice, an off page
+in a navigation, and an off page with no switch. `--check` writes nothing and exits 1 naming each file
+that differs. It is the first TypeScript Hecks generates. See `docs/site-routes.md`.
+
+**`project_site` also projects the CDN.** A route table that declares an edge (`Edge`, `EdgePolicy`,
+`EdgeOrigin` and `EdgeRule` rows beside its `Route` rows) has the same command rewrite two marked regions,
+`BEGIN`/`END GENERATED site_cdn behaviors` and `listener_rules`, of the CloudFormation template the project
+owns: the distribution's default and ordered cache behaviours, and the load balancer's listener rules with their
+priorities and origin-secret condition. A route gets a behaviour only when CloudFront would otherwise apply a
+different one; the order is the order the rows are declared in, and a pattern that a broader earlier one would
+shadow is refused. Rows gain `compress`, `alb_rule` and `cdn`. The refusals name an unknown or unmapped origin,
+a cache class with no policy, a duplicate priority and a rule that carries no route. `--check` covers the
+regions, `out=<dir>` writes a copy of the template, and the catch-all row `/*` hides nothing from `NOT_FOR_SEARCH`.
+`Fargate::Cdn.behavior_lines` is public and renders a `ResponseHeadersPolicyId`.
+
+**One `attaches` word in the hecksagon.** `attaches "Governance"` loads a chapter the gem carries
+(a framework member, or a chapter of the language, Tenancy, Deploy or QualityControl), found by
+name in one table (`Hecks::Chapters.table`). `attaches "membership", from: :vendor` loads a package
+vendored into the project at `vendor/embryonaut_bluebooks/<name>/bluebook`. `from: :vendor` is
+required for a vendored package, so a typo cannot silently pick one over a gem chapter; an unknown
+name refuses with a `WiringError` that lists the gem's chapters and says how to attach a vendored
+package. A hecksagon now holds one list, `attachments`, each with its source (`:gem` or `:vendor`),
+in place of `framework_members`, `vendored_bluebooks` and `attached_chapters`. The Rust parser and
+build accept the same forms. `hecks model_check` now also flags `across "X"` on a hecksagon that
+attaches a chapter the gem carries beyond the framework members, which it missed before.
+
+Deprecated: `uses_framework` and `uses_embryonaut_bluebook` are the old spellings of `attaches`.
+They behave as before, print a one-line warning, and are removed in 3.2.0, one release after the warning. Generated Rust files
+now name their source as `attaches "X"`. See `docs/migrating-2-to-3.md`.
+
+**Behavior change: the launcher says "command", not "verb".** `hecks` help lists `commands:` and `queries:`, each name
+under its aggregate. A command is written with a trailing `!` (`hecks gate_run.gate! stage=pre_push`); the `!`
+is optional on the command line. Queries are read with
+`hecks query <name>`; `ask` stays as the same word. The projector's result keys are now `:commands`
+and each spec's qualified name is `:command` (was `:verbs` / `:verb`); the journal's own `verb`
+field is unchanged. The aggregate is part of the call: `hecks gate_run.gate`, not `hecks gate`. A bare name
+is refused with the qualified names that end in it. A chapter's `names` table still gives
+explicit short names (`mcp`, `console`). This breaks scripts, CI steps and Makefiles that call bare
+names: qualify them (the bare-name refusal lists the candidates).
+
+**Behavior change: `HECKS_ROLE_ENFORCEMENT=enforce` no longer refuses the host's own dispatches.** Signups, newsletter and registration flows, presentation saves, payment connection writes and the identity provisioning in sign-in dispatch with no caller of their own; under `shadow`/`enforce` they were read as the anonymous role and any command declaring a role refused them. A dispatch with no role from the host's own code is now unchecked in every mode, as it is under `off`. `shadow` also no longer lets through a caller that states a wrong role: only an unidentified or unassigned caller is let through and logged, so `shadow` is never looser than `off`.
+
+**`hecks mcp` has a commands scope, and a restricted door stays booted.** With
+`HECKS_DOOR_TOOLS=commands`, `HECKS_DOOR_DOMAINS` and `HECKS_DOOR_COMMANDS=check_comments,model_check`,
+the door serves the reader tools and `dispatch` for those commands only. A command is admitted by the
+verb it resolves to, so a short name shared by several aggregates (`complete`, `accept`) cannot reach
+another aggregate's command, and every step of a batch is checked before any runs. `tools/list` shows
+the allowed commands as an enum. The list admits commands, not argument values, so leave off any
+command whose arguments name a binary, a URL or a path outside the checkout (ADR 0089). A restricted
+door (reader or commands mode) now keeps each named domain booted until its directory changes, so a
+call after the first no longer pays the boot; an unrestricted door still boots on every call.
+
+**`AwsBox` pins its default images.** The Caddy proxy and the Cloudflare Tunnel default to a version tag plus the digest of the multi-architecture index, not a floating tag, so a rebuilt box pulls the same bytes. `proxy_image` sets the proxy's image; the tunnel hash already took `image`. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`AwsBox` can run a Cloudflare Tunnel.** `tunnel({ to: "<container>", token_secret: "<name>" })` adds a `cloudflared` service to the box's Compose project, forwarding to that container, reading its token from a Secrets Manager secret the box role may read, and waiting for a registered connection after the roll. `tunnel true` still only opens the outbound port. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`deployed_to("AwsBox")` is a deploy kind.** `hecks deploy project` now generates one RDS instance and one EC2 box that runs the domain's containers behind Caddy, as an alternative to the Fargate stack ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)). The sizes are validated by a new `Deploy::BoxTarget.Declare` command; every other setting is checked before a template is written.
+
+## [3.0.5] - 2026-10-03
+
+A patch: nothing breaking and no behavior change for a running system unless it opts in.
+
+**Opt-in (no change unless the variable is set).** The host's branded signup confirmation, below, behaves exactly as before until `NEWSLETTER_CONFIRMATION_TEMPLATE_URL` is set.
+
+**Fix: `hecks console` no longer quits without a prompt.** IRB read the launcher's `ARGV` (the verb and `subject=<domain>`) as a script to run, failed, and the session ended after the banner with no error. The console now starts IRB with an empty command line and restores `ARGV` after (#959).
+
+**A command attribute's declared default fills an omitted argument.** `attribute :runs, Count, default: 30` was carried into the IR and shown in help, but a caller who left `runs` out was refused with `AbsentArgument`. The interpreter now fills an absent argument that declares a default on every way in (the flat call, the strict `with:` envelope, a delegated entity command); an argument the caller passes is kept and an attribute with no default is still required. No command in the corpus declares a default yet, so nothing existing changes. The Rust host and kernel do not fill defaults yet, so a domain that starts using one needs the Rust side mirrored first (#958).
+
+**The conformance corpus is language-neutral data; neither runtime is the oracle.** Every
+`spec/corpus/rust_conformance/*.json` fixture, and the full `banking.json` and `chess.json` scripts,
+now carries a frozen `expect` (instances, events, refusals with kind, queries, sagas, dry runs,
+reactions) beside its `domain` and `steps`. `spec/conformance_corpus_spec.rb` holds Ruby to it and
+`spec/rust_conformance_spec.rb` holds the compiled Rust kernel to it, where Rust used to be diffed
+against a live Ruby replay. Ruby stays the reference implementation; the corpus is the authority.
+`hecks test_suite_run.seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing).
+
+`hecks seed_semantics_corpus` now seeds both corpora (deliberately, once; review before committing). A test-suite change; the runtime is unchanged (#951).
+
+**`hecks help` groups verbs by aggregate and sets the bookkeeping verbs apart.** Output change only; no verb is renamed or removed (#947).
+
+**Pre-push runs the comment style check CI runs.** A line past 100 characters used to pass the hook and fail CI; the check takes about 20 seconds (#952).
+
+**Docs and guides.** The newcomer path now works from the docs alone (#953), the getting-started guide shows how to hook up SQLite (#955), and a new guide covers writing, running and deploying your own domain (#956).
+
+**The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`) (#957).** Opt-in: with the variable unset, the confirmation is the plain-text email as before. Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
 
 **The `Agent` adapter can run an agent under a profile.** `Agent#ask(profile: AgentProfile.new(...))`
 names the tools the agent holds, the directories it may write, whether it may reach the network
@@ -45,6 +182,21 @@ the journal. `hecks gate --list` shows the stages. CI workflows are still hand-w
 **The host can refuse a caller that holds no role (`HECKS_ROLE_ENFORCEMENT=off|shadow|enforce`).** Until now a dispatch that stated no role skipped the check, and the host never passed an `actor_id`, so Governance assignments were not consulted. A `POST /dispatch` body may now carry `actor_id`; an identified caller that states no role is held to what Governance assigned them (the kernel's `check_role_via`), and unchecked only when no Governance provider is compiled in. With `shadow` an unidentified caller is dispatched as role `Anonymous`, and a refusal that would follow is logged as `would_refuse_role` while the command goes through; with `enforce` it is refused. The default is `off`, so nothing changes until a deploy sets it. Host-internal steps (the registration pipeline, the Stripe and newsletter routes) remain unchecked.
 
 **The host can set a Reply-To on newsletter email (`RESEND_REPLY_TO`).** A site that sends from a Resend-verified address it has no mailbox for (`news@mail.example.com`) can still have replies reach a real inbox: set `RESEND_REPLY_TO` and each email carries `reply_to`. Blank or unset sends no `reply_to`, as before. The mock mailer ignores it.
+
+**A command can declare `needs :now` (ADR 0081, first slice).** A fact the command needs from
+outside the record, answered by the runtime before any `given` runs: `needs :now` fills the command's
+own `now` argument with the time the clock gives. The answer is written into the arguments, so a
+`given` reads it like any argument, the event records it, and a replay re-dispatches the recorded
+value. `days()`, `hours()` and `minutes()` fold to seconds, in Ruby and in the Rust kernel. Rules
+that need a record other than the command's own are the next slice (see the ADR).
+
+**A launcher reads its domain once, not twice.** `exe/hecks` answered usage from `Hecks.describe`
+and then, for a line that runs a verb, called `Hecks.boot`, which loaded every chapter again.
+`Hecks.boot_described(described)` finishes a boot from what `describe` already loaded, and the
+generated launcher calls it, so a verb call costs about a quarter less (about 1.46 s to 1.13 s of
+CPU for `hecks ask word_status`). Usage lines still open no database. `Loader::Described` now
+carries the `directory` it resolved. `Hecks.boot(path)` is unchanged: it is `describe` then
+`boot_described`.
 
 ## [3.0.3] - 2026-10-01
 

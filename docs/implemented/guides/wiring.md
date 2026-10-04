@@ -81,7 +81,7 @@ the entire reason a `.hecksagon` exists.
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Pizzas") do
-  uses_framework "Governance"
+  attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 
   # An event this hecksagon takes from OUTSIDE Pizzas' own bluebook —
@@ -298,7 +298,7 @@ Hecks.world "Banking" do
 end
 ```
 
-`deployed_to("AwsLambda")` is read by `hecks deploy project` (see
+`deployed_to("AwsLambda")` is read by `hecks deploy recipe.project` (see
 [Projections: Rust and
 WebAssembly](projections.md), and [architecture-map.md](../../architecture-map.md) for
 the projector inventory) to generate a SAM template, build Makefile and
@@ -308,7 +308,7 @@ the stack named by `owner` instead of creating its own; a domain that
 declares no shared database gets its own VPC and RDS instance, plus a
 bastion config for minting its first era. A deployment that must name a
 specific owner stack or stack prefix does so in an environment overlay
-(`hecks deploy project <domain> --environment=<name>`) kept outside this
+(`hecks deploy recipe.project <domain> --environment=<name>`) kept outside this
 repository.
 
 ### Hosting scripts for `AwsFargate`
@@ -322,7 +322,11 @@ The block's words are `hosting_scripts true`, `hecks_release "2.5.1"` (required:
 the Hecks release the image is built from), `smoke_repo "owner/name"` (the GitHub
 repository holding the smoke workflow), `smoke_workflow "smoke.yml"` and
 `expected_eras ["199b08"]`, next to the `region` the block already carries.
-Run `hecks deploy project <domain> --out=<dir>` on a domain whose `.world` carries
+`hecks_release "edge"` follows the newest commit on main instead of a release:
+the `edge` tag moves with every merge, each build fetches it afresh and prints the
+commit it got, and the exact-tag check is skipped for it alone. A build from `edge`
+is not reproducible from the name, so a release is still how a deploy is pinned.
+Run `hecks deploy recipe.project <domain> --out=<dir>` on a domain whose `.world` carries
 the block and it writes those files beside `template.yaml`. Without
 `hosting_scripts true` the same run writes only what it always did:
 
@@ -362,7 +366,7 @@ generate = lambda do |hosting|
     end
   WORLD
   out = File.join(domain_dir, "out-#{hosting.empty? ? 'plain' : 'hosting'}")
-  _stdout, stderr, status = Open3.capture3("ruby", hecks_exe, "deploy", "project", domain_dir, "--out=#{out}")
+  _stdout, stderr, status = Open3.capture3("ruby", hecks_exe, "deploy", "recipe.project", domain_dir, "--out=#{out}")
   raise stderr unless status.success?
 
   Dir.children(out).sort
@@ -383,10 +387,10 @@ generate.call(hosting) - generate.call("")   # => ["deploy-service.sh", "expecte
 | `deploy-service.sh` | Pushes a local image under a fresh tag, swaps one container's image in the active task definition, and syncs that container's CloudFormation `*ImageTag` parameter, checking that no other parameter changed |
 | `smoke-after-deploy.sh` | Waits for the roll to settle, then dispatches the smoke workflow and reports the result |
 | `hosting.mk` | Included by the `Makefile`: pins the Hecks release (`HECKS_ROOT` is a cached checkout of its tag) and adds `deploy-service`, `smoke-after-deploy` and `check-era` |
-| `expected-era` | The eras `hecks check_era` accepts from a host's `GET /version` |
+| `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
 
 The settings, with their defaults, are documented on
-`Hecks::Projections::Deploy::Scripts`. `hecks check_era <url> expected=expected-era`
+`Hecks::Projections::Deploy::Scripts`. `hecks host.check_era <url> expected=expected-era`
 compares the era a running host reports with that file and exits 1 when it
 is not listed. The scripts take their containers, ECR repositories and
 image-tag parameters from the same resolved settings the stack template is
@@ -397,6 +401,67 @@ container's repository and image-tag parameter the same way.
 
 The other opt-in files below share its rule: nothing is generated for a block
 that does not ask, so a stack that never mentions them is unchanged.
+
+### One box and one database: `AwsBox`
+
+`deployed_to("AwsBox")` generates an RDS stack and an EC2 box that runs the
+domain's containers with Docker Compose behind Caddy, for a project that does
+not need a load balancer or a container service ([ADR 0085](../../decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md)).
+
+```text
+deployed_to("AwsBox") do
+  region "us-east-1"
+  containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081 }]
+  default_container "website"
+  routes [{ container: "cms", paths: ["/cms/*"] }]
+  origin_header "X-Origin-Secret"   # only requests carrying it are proxied
+  origin_secret "acme/origin-secret" # a Secrets Manager name, read on the box
+end
+```
+
+`hecks deploy project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
+`services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a
+`Makefile`. Secrets are named, never written down: the box resolves them when it
+deploys. A world with no `containers` is refused with an example.
+
+A project moving off an existing database adds
+`migration({ schemas: ["app", "app_cms"], source_database: "legacy" })`, and
+three more files are written: `restore-to-rds.sh` (copy each schema through a
+bastion, then verify), `verify-copy.sh` (structure and exact row counts of both
+sides) and `MIGRATION.md`, the steps in order with the rollback caveat. The
+bastion, hosts and secrets are arguments to the scripts, so the same files serve
+a rehearsal, the cutover and a copy back. To let that bastion reach the new
+database, pass its security group as `BastionSecurityGroupId` to the RDS stack.
+
+A box whose containers use S3 declares it with
+`s3_access [{ bucket: "acme-media", write: true }]`: the role reads every listed
+bucket, and writes only on a production box (`Rehearsal=false`), so a rehearsal
+never changes the real objects.
+
+For a rehearsal that needs a smoke test without the CDN, the proxy imports any
+site file placed under `caddy-extra` on the box, for example a loopback listener
+that adds the origin secret; production mounts none. The proxy has its admin API
+off, so restart it after adding a file (`docker compose -f compose.json restart caddy`
+in the box's directory); a reload cannot reach it.
+
+`make stacks` makes a production pair by default, with deletion protection and an
+Elastic IP. `make stacks REHEARSAL=true` makes a throwaway pair instead, which is
+how to try the generated stacks without touching anything that matters. The
+deploy waits for the box's first boot to finish, so it can be run as soon as the
+stacks exist.
+
+To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
+`tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
+`cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
+waits for a registered connection. `tunnel true` alone only opens the outbound
+port, for a tunnel you run yourself.
+
+A project that already runs on Fargate can point the box at the task definition it
+has: `task_definition "acme-platform"`. The box is then rendered at deploy time from
+that task, so its images, environment and secrets are the task's, and the world
+lists only each container's name and port (a container that also sets `env`,
+`secrets` or `repository` is refused). `make deploy TASKDEF=acme-platform:7` rolls a
+chosen revision; with no argument it takes the latest.
 
 ### Per-branch previews for `AwsFargate`
 
@@ -443,7 +508,7 @@ with a message naming it. The defaults and every pattern are documented on
 
 `smoke true` in the same block adds `smoke/harness.js`, a JavaScript smoke
 harness that knows nothing about any site, and `smoke/workflow.yml`, a GitHub
-Actions workflow that runs it on a schedule and on demand. `hecks deploy project`
+Actions workflow that runs it on a schedule and on demand. `hecks deploy recipe.project`
 adds them to whatever the deploy target produced; copy the workflow into the
 repository's `.github/workflows/`.
 
@@ -472,7 +537,7 @@ What stays with the site is its own `config.js`, which this never writes: the
 pages and flows to assert, the cookie name and the expected-era file. The
 harness owns the rest: the check runner and its summary, HTTP helpers, signed
 claims and session cookies, sandbox guest addresses, the expected-era check
-against `GET /version` (the same allow-list format `hecks check_era` reads), and a
+against `GET /version` (the same allow-list format `hecks host.check_era` reads), and a
 sweep that takes a run's own rows back out. It runs `SMOKE_MODE=safe` by default,
 which tags every guest address with a sandbox mailbox so a run against
 production never mails a real person; `SMOKE_MODE=full` is for a throwaway
@@ -493,8 +558,8 @@ exactly this; the [world reference](../reference/world.md) has the
 resolution order.
 
 A chapter can also come from a package of the shared bluebook registry
-instead of hecks's own `lib/`: `uses_embryonaut_bluebook` in the hecksagon
-loads the package vendored into the project, and `hecks vendor` pins
+instead of hecks's own `lib/`: `attaches "<name>", from: :vendor` in the
+hecksagon loads the package vendored into the project, and `hecks package.vendor` pins
 one there. The [hecksagon reference](../reference/hecksagon.md#vendoring-a-package)
 has the command, the `VENDORED_COMMIT` and `bluebook.lock` files it writes, and
 what it refuses. The environment the host itself reads (checkout, payments and

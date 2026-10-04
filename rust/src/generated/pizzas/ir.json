@@ -811,10 +811,7 @@
   ],
   "lineage": {
     "capable_aggregates": [
-      {
-        "name": "Order",
-        "storage_name": "order"
-      }
+
     ]
   },
   "persistence": {
@@ -822,7 +819,7 @@
       {
         "name": "Order",
         "storage_name": "order",
-        "adapter": "PostgresEra"
+        "adapter": "Memory"
       }
     ]
   },

@@ -5,7 +5,7 @@ Words available inside `read_model do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -19,7 +19,7 @@ declared by no read model in the corpus, so they get one of their own:
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
+  attaches "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::ATMCard.persisted_by("Memory")

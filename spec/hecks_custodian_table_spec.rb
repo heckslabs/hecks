@@ -9,7 +9,10 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   # Aggregate names differ from the table's where the table's name is a constant the gem already
   # owns (`Hecks::Fuzzing` is the fuzzing toolkit), or where one record holds a family of changes
   # (`ModelCheckRun`, `Era`).
-  CustodianRow = Struct.new(:script, :aggregate, :name, :verb, :renamed, keyword_init: true)
+  CustodianRow = Struct.new(:script, :aggregate, :name, :verb, :renamed, keyword_init: true) do
+    # The launcher's name for the row: its aggregate, snake-cased, then its verb.
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+  end
 
   CUSTODIAN_LAUNCHER_NAMES = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze
 
@@ -109,14 +112,14 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   end
 
   CUSTODIAN_ROWS.each do |row|
-    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.verb}`" do
+    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.qualified}`" do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
-      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [row.verb, "--help"], program: "hecks")
+      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [row.qualified, "--help"], program: "hecks")
 
       expect(status).to eq(0)
       # The help names the command as the launcher lists it (hecks.world `names`).
-      expect(out).to start_with(CUSTODIAN_LAUNCHER_NAMES.fetch(row.verb, row.verb))
+      expect(out).to start_with(CUSTODIAN_LAUNCHER_NAMES.fetch(row.verb, row.qualified))
     end
   end
 
