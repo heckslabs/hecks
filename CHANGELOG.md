@@ -15,6 +15,10 @@ build, skips the exact-release-tag check for it alone, and prints the commit it 
 is not reproducible from the name, so pin a release when that matters. Regenerate a project's
 `hosting.mk` (`hecks deploy recipe.project`) to get the new recipe.
 
+## [3.1.1] - 2026-10-04
+
+A patch: nothing breaking and no behavior change for a running system unless it opts in. It fixes a 3.1.0 regression: a domain with `TrueClass` or `FalseClass` attributes no longer compiled to Rust (see the `hecks build.project_rust` entry below). Skip 3.1.0 if your domain declares Boolean attributes in a value object.
+
 **`AwsBox` fixes from its first real deploy.** The generated `deploy-box.sh` raced the box's first boot, because Docker and the Compose plugin are installed by user data, and failed on a fresh box; it now waits for first boot to finish. `make stacks REHEARSAL=true` makes a throwaway pair (the Makefile could not pass `Rehearsal`, and both templates default to production). The Caddyfile and the guide now say a rehearsal restarts the proxy to pick up a `caddy-extra` file, since its admin API is off. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`AwsBox` can render its Compose file from an ECS task definition.** `task_definition "<family>"` makes `render-compose.sh` read each container's image, environment and secrets from that task at deploy time, so a project running on Fargate moves its box by pointing it at the task it already has; the world lists only names and ports, and no ECR repositories are made. `deploy-box.sh` and `make deploy TASKDEF=family:revision` take a revision. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
