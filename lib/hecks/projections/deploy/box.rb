@@ -23,7 +23,8 @@ module Hecks
         # The end of every Caddyfile: sites a rehearsal mounts under `caddy-extra`, such as a
         # loopback listener that adds the origin secret so a smoke test runs without the CDN. A
         # glob that matches nothing is not an error, so production, which mounts none, is unchanged.
-        CADDY_EXTRA = "# Rehearsal-only sites are mounted here; nothing matches in production.\n" \
+        CADDY_EXTRA = "# Rehearsal-only sites are mounted here; nothing matches in production. Restart the proxy\n" \
+                      "# after adding one: the admin API is off, so a reload cannot reach it.\n" \
                       "import /etc/caddy/extra/*\n".freeze
 
         module_function
@@ -506,20 +507,24 @@ module Hecks
         def makefile(plan)
           <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
-            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c
+            #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true]
             #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
             RDS_STACK = #{plan.rds_stack}
             BOX_STACK = #{plan.box_stack}
+            # true makes a throwaway pair: the database is deleted with its stack and the box has no
+            # Elastic IP. The default is a production pair, with deletion protection.
+            REHEARSAL ?= false
 
             .PHONY: stacks deploy
             stacks:
             \taws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \\
-            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS)
+            \t\t--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS) Rehearsal=$(REHEARSAL)
             \taws cloudformation deploy --template-file box.yaml --stack-name $(BOX_STACK) --capabilities CAPABILITY_IAM \\
             \t\t--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) \\
             \t\tDbSecurityGroupId=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text) \\
             \t\tDbSecretArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text) \\
-            \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text)
+            \t\tAlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text) \\
+            \t\tRehearsal=$(REHEARSAL)
 
             deploy:
             \tbash ./deploy-box.sh $(#{plan.task_definition ? 'TASKDEF' : 'TAGS'})
