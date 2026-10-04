@@ -344,6 +344,76 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
       end
     end
 
+    describe "with hecks_release \"edge\", the tag that follows main" do
+      let(:edge_world) { opted_in.sub('hecks_release "2.5.1"', 'hecks_release "edge"') }
+
+      it "is the one name accepted that is not a version, and anything else is still refused" do
+        generate(edge_world) { |files, _| expect(files["hosting.mk"]).to include("HECKS_VERSION   ?= edge") }
+
+        status, stderr = refusal(opted_in.sub('hecks_release "2.5.1"', 'hecks_release "latest"'))
+
+        expect(status).not_to be_success
+        expect(stderr).to include("hecks_release")
+      end
+
+      it "fetches the edge tag afresh and does not demand an exact release tag" do
+        skip "make is not installed" unless system("command -v make >/dev/null 2>&1")
+
+        generate(edge_world) do |_files, out|
+          output, status = Open3.capture2e("make", "-n", "-C", out, "hecks-release", "HECKS_CACHE_DIR=#{out}/cache")
+
+          expect(status).to be_success, output
+          expect(output).to include("--branch edge", "+refs/tags/edge:refs/tags/edge")
+          expect(output).not_to include("describe --tags --exact-match")
+        end
+      end
+
+      # Runs git in the throwaway repository that stands in for the hecks source.
+      def source_git(source, *args)
+        out, status = Open3.capture2e("git", "-C", source, *args)
+        raise out unless status.success?
+
+        out.strip
+      end
+
+      # Commits one new file and points the edge tag at it; answers the short commit.
+      def commit_and_move_edge(source, file)
+        File.write(File.join(source, file), "x")
+        source_git(source, "add", "-A")
+        source_git(source, "commit", "--quiet", "-m", file)
+        source_git(source, "tag", "--force", "edge")
+        source_git(source, "rev-parse", "--short", "HEAD")
+      end
+
+      def build_edge(out, source)
+        Open3.capture2e("make", "-C", out, "hecks-release", "HECKS_CACHE_DIR=#{out}/cache",
+                        "HECKS_SOURCE=file://#{source}")
+      end
+
+      it "follows the tag when it moves, and says which commit it built" do
+        skip "make or git is not installed" unless system("command -v make >/dev/null 2>&1 && command -v git >/dev/null 2>&1")
+
+        Dir.mktmpdir("hecks-edge-source") do |source|
+          source_git(source, "init", "--quiet")
+          source_git(source, "config", "user.email", "spec@example.test")
+          source_git(source, "config", "user.name", "Spec")
+          FileUtils.mkdir_p(File.join(source, "exe"))
+          first = commit_and_move_edge(source, "exe/hecks")
+
+          generate(edge_world) do |_files, out|
+            output, status = build_edge(out, source)
+            expect(status).to be_success, output
+            expect(output).to include("hecks edge at #{first}")
+
+            second = commit_and_move_edge(source, "later")
+            output, status = build_edge(out, source)
+            expect(status).to be_success, output
+            expect(output).to include("hecks edge at #{second}")
+          end
+        end
+      end
+    end
+
     it "lists the expected eras beside the roll procedure" do
       generate(pinned_world) do |files, _|
         require "hecks/ports/persistence/plugins/era/expected_era"

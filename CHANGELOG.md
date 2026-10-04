@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**An `edge` tag follows main, so a project need not wait for a release.** A workflow moves the `edge` tag
+to every commit that lands on main (forward only; nothing publishes from it, since the publish workflows
+listen for `v*`). A Gemfile can take `git: "https://github.com/heckslabs/hecks.git", tag: "edge"`, and a
+deploy can say `hecks_release "edge"`: the generated `hosting.mk` then fetches the tag afresh on every
+build, skips the exact-release-tag check for it alone, and prints the commit it built. A build from `edge`
+is not reproducible from the name, so pin a release when that matters. Regenerate a project's
+`hosting.mk` (`hecks deploy recipe.project`) to get the new recipe.
+
 ## [3.1.1] - 2026-10-04
 
 A patch: nothing breaking and no behavior change for a running system unless it opts in. It fixes a 3.1.0 regression: a domain with `TrueClass` or `FalseClass` attributes no longer compiled to Rust (see the `hecks build.project_rust` entry below). Skip 3.1.0 if your domain declares Boolean attributes in a value object.

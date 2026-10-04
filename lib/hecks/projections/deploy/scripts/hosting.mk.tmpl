@@ -8,11 +8,15 @@
 # machine. It replaces any path to a working copy: ROOT below points the
 # Makefile's build and mint-era steps at it. Override HECKS_VERSION to build
 # from another release, or HECKS_ROOT to use a checkout you manage yourself.
+#
+# HECKS_VERSION=edge is the one exception to "pinned": it follows the newest commit on main,
+# is fetched afresh on every build, and prints the commit it got.
 
 HECKS_VERSION   ?= @@RELEASE@@
 HECKS_SOURCE    ?= @@SOURCE@@
 HECKS_CACHE_DIR ?= @@CACHE_DIR@@
 HECKS_ROOT      ?= $(HECKS_CACHE_DIR)/hecks-$(HECKS_VERSION)
+HECKS_TAG       := $(if $(filter edge,$(HECKS_VERSION)),edge,v$(HECKS_VERSION))
 ROOT            := $(HECKS_ROOT)
 SERVICE         ?= @@SERVICE@@
 URL             ?= @@URL@@
@@ -22,20 +26,32 @@ URL             ?= @@URL@@
 build: hecks-release
 
 # Fetches the pinned release's tag into HECKS_ROOT unless it is already there,
-# and refuses a checkout that is not exactly that tag.
+# and refuses a checkout that is not exactly that tag. The edge tag moves, so it is
+# fetched afresh on every build and its commit is printed, not checked.
 hecks-release:
+ifeq ($(HECKS_VERSION),edge)
+	@mkdir -p "$(HECKS_CACHE_DIR)"; \
+		if [ -d "$(HECKS_ROOT)/.git" ]; then \
+			git -C "$(HECKS_ROOT)" fetch --quiet --depth 1 origin "+refs/tags/edge:refs/tags/edge" && \
+			git -C "$(HECKS_ROOT)" checkout --quiet --detach edge; \
+		else \
+			git clone --quiet --depth 1 --branch edge "$(HECKS_SOURCE)" "$(HECKS_ROOT)"; \
+		fi; \
+		echo "hecks edge at $$(git -C "$(HECKS_ROOT)" rev-parse --short HEAD) in $(HECKS_ROOT)"
+else
 	@if [ -f "$(HECKS_ROOT)/exe/hecks" ]; then \
 		echo "hecks v$(HECKS_VERSION) is already at $(HECKS_ROOT)"; \
 	else \
 		echo "Fetching hecks v$(HECKS_VERSION) from $(HECKS_SOURCE) into $(HECKS_ROOT)..."; \
 		mkdir -p "$(HECKS_CACHE_DIR)" && \
-		git clone --quiet --depth 1 --branch "v$(HECKS_VERSION)" "$(HECKS_SOURCE)" "$(HECKS_ROOT)"; \
+		git clone --quiet --depth 1 --branch "$(HECKS_TAG)" "$(HECKS_SOURCE)" "$(HECKS_ROOT)"; \
 	fi
 	@tag="$$(git -C "$(HECKS_ROOT)" describe --tags --exact-match 2>/dev/null)"; \
-		if [ "$$tag" != "v$(HECKS_VERSION)" ]; then \
-			echo "$(HECKS_ROOT) is at '$$tag', not v$(HECKS_VERSION). Remove it and re-run, or set HECKS_ROOT."; \
+		if [ "$$tag" != "$(HECKS_TAG)" ]; then \
+			echo "$(HECKS_ROOT) is at '$$tag', not $(HECKS_TAG). Remove it and re-run, or set HECKS_ROOT."; \
 			exit 1; \
 		fi
+endif
 
 # Pushes one container's already-built local image under a fresh tag and rolls
 # it out. Build the image first (docker-build); see deploy-service.sh.
