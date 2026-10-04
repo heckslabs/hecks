@@ -111,6 +111,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           origin_secret "acme/origin-secret"
           secret_prefixes ["acme/*"]
           tunnel true
+          s3_access [{ bucket: "acme-media", write: true }, { bucket: "acme-assets" }]
         end
       end
     WORLD
@@ -230,6 +231,68 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(services["origin"]).to eq("header" => "X-Origin-Secret", "secret" => "acme/origin-secret")
       expect(services["services"]["website"]["secrets"]).to eq("AUTH_SECRET" => "acme/session-secret")
       expect(services["services"]["domain"]["env"]).to eq("HECKS_SCHEMA" => "widgets")
+    end
+  end
+
+  describe "the reference stack's parts" do
+    let(:minimal) { cached("default", BOX_WORLDS.fetch("default")).first }
+    let(:full) { cached("full", BOX_WORLDS.fetch("full")).first }
+    let(:taskdef) { cached("taskdef", BOX_WORLDS.fetch("taskdef")).first }
+
+    it "lets a bastion reach the database only when one is named" do
+      rds = template_of(minimal["rds.yaml"])
+      expect(rds["Parameters"]["BastionSecurityGroupId"]["Default"]).to eq("")
+      expect(rds["Conditions"]).to include("HasBastion")
+      ingress = rds["Resources"]["DbSecurityGroup"]["Properties"]["SecurityGroupIngress"].first
+      expect(ingress["Fn::If"].first).to eq("HasBastion")
+      source = { "Ref" => "BastionSecurityGroupId" }
+      expect(ingress["Fn::If"][1]).to include("FromPort" => 5432, "SourceSecurityGroupId" => source)
+    end
+
+    it "ends the Caddyfile with the rehearsal import, and keeps the :80 site free of certificates" do
+      [minimal, full, taskdef].each do |files|
+        expect(files["Caddyfile"]).to include("auto_https disable_redirects")
+        expect(files["Caddyfile"].lines.last).to eq("import /etc/caddy/extra/*\n")
+      end
+    end
+
+    it "mounts caddy-extra into the proxy and creates it on the box" do
+      [minimal, taskdef].each do |files|
+        expect(files["render-compose.sh"]).to include('"./caddy-extra:/etc/caddy/extra:ro"')
+      end
+      expect(minimal["deploy-box.sh"]).to include("caddy-extra && cd")
+    end
+
+    it "gives the role read on every bucket and write on a production box, only where declared" do
+      policies = template_of(full["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"]
+      read, write = policies.last["PolicyDocument"]["Statement"]
+      expect(read["Action"]).to eq(%w[s3:GetObject s3:ListBucket])
+      expect(read["Resource"].size).to eq(4)
+      expect(write["Fn::If"].first).to eq("IsProduction")
+      expect(write["Fn::If"][1]["Resource"].size).to eq(1)
+      expect(write["Fn::If"][1]["Resource"].first["Fn::Sub"]).to end_with("s3:::acme-media/*")
+    end
+
+    it "waits for the box's first boot before it touches Docker, which is installed by user data" do
+      roll = minimal["deploy-box.sh"]
+      expect(roll).to include("cloud-init status --wait")
+      expect(roll.index("cloud-init status --wait")).to be < roll.index("docker compose -f compose.json pull")
+      expect(roll.index("cloud-init status --wait")).to be < roll.index("mkdir -p")
+    end
+
+    it "lets the Makefile make a throwaway pair, and leaves production the default" do
+      make = minimal["Makefile"]
+      expect(make).to include("REHEARSAL ?= false", "[REHEARSAL=true]")
+      expect(make.scan("Rehearsal=$(REHEARSAL)").size).to eq(2)
+    end
+
+    it "tells a rehearsal to restart the proxy, since the admin API is off" do
+      expect(minimal["Caddyfile"]).to include("Restart the proxy", "admin off")
+    end
+
+    it "grants no S3 access to a world that declares none" do
+      policies = template_of(minimal["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"]
+      expect(policies.map { |policy| policy["PolicyName"] }).to eq(["read-secrets"])
     end
   end
 

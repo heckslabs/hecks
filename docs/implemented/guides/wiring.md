@@ -426,7 +426,25 @@ three more files are written: `restore-to-rds.sh` (copy each schema through a
 bastion, then verify), `verify-copy.sh` (structure and exact row counts of both
 sides) and `MIGRATION.md`, the steps in order with the rollback caveat. The
 bastion, hosts and secrets are arguments to the scripts, so the same files serve
-a rehearsal, the cutover and a copy back.
+a rehearsal, the cutover and a copy back. To let that bastion reach the new
+database, pass its security group as `BastionSecurityGroupId` to the RDS stack.
+
+A box whose containers use S3 declares it with
+`s3_access [{ bucket: "acme-media", write: true }]`: the role reads every listed
+bucket, and writes only on a production box (`Rehearsal=false`), so a rehearsal
+never changes the real objects.
+
+For a rehearsal that needs a smoke test without the CDN, the proxy imports any
+site file placed under `caddy-extra` on the box, for example a loopback listener
+that adds the origin secret; production mounts none. The proxy has its admin API
+off, so restart it after adding a file (`docker compose -f compose.json restart caddy`
+in the box's directory); a reload cannot reach it.
+
+`make stacks` makes a production pair by default, with deletion protection and an
+Elastic IP. `make stacks REHEARSAL=true` makes a throwaway pair instead, which is
+how to try the generated stacks without touching anything that matters. The
+deploy waits for the box's first boot to finish, so it can be run as soon as the
+stacks exist.
 
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs

@@ -32,7 +32,7 @@ jq --argjson def "$DEF" --arg host "$DB_HOST" --arg secret "$DB_SECRET" '
             + (if (($c.secrets // []) | length) > 0 then {env_file: [($s.name + ".secrets.env")]} else {} end)
           end)))
       + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f", network_mode: "host", restart: "unless-stopped",
-                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro"], logging: log}
+                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log}
                  + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))}
       + (if $in.tunnel then {cloudflared: {image: $in.tunnel.image, network_mode: "host", restart: "unless-stopped",
                   command: ["tunnel", "--no-autoupdate", "--url", $in.tunnel.url, "run"],

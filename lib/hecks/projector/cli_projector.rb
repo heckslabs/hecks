@@ -400,16 +400,15 @@ module Hecks
           return command_help(program, spec[:short], spec, ask: options[:ask]) if spec
         end
 
-        width = (commands.values + questions.values).map { |spec| label(spec).length }.max.to_i
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
 
         out << "commands:"
-        out.concat(listing(commands, width) { |spec| spec[:summary] })
+        out.concat(listing(commands) { |spec| spec[:summary] })
         out << ""
         out << "queries (nothing here changes anything):"
-        out.concat(listing(questions, width) { |spec| first_sentence(spec[:summary]) })
+        out.concat(listing(questions) { |spec| first_sentence(spec[:summary]) })
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
         out << "  a command is called with its aggregate — #{example_qualified(commands)}"
@@ -417,34 +416,59 @@ module Hecks
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
-      # under a heading per aggregate, so related commands sit together; the bookkeeping a run
+      # under a heading per aggregate, so related commands sit together; the heading is the prefix
+      # every call to them carries, so the lines under it leave it out. The bookkeeping a run
       # records about itself (`internal`: system-role commands and port operations) is set apart as
-      # names only, since a person never types them. A single-aggregate domain keeps the plain list.
-      def listing(specs, width)
+      # names only, since a person never types them. A single-aggregate domain keeps the plain
+      # list, each name in full.
+      def listing(specs)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
         groups = shown.group_by { |spec| spec[:group] }
+        grouped = groups.length > 1
+        named = shown.to_h { |spec| [spec, entry_name(spec, grouped)] }
+        width = named.values.map(&:length).max.to_i
         lines = []
-        if groups.length > 1
+        if grouped
           groups.each do |group, members|
             lines << "  #{heading(group)}" if group
-            members.each { |spec| lines << "    #{label(spec).ljust(width)}  #{yield(spec)}" }
+            members.each { |spec| lines << "    #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
           end
         else
-          shown.each { |spec| lines << "  #{label(spec).ljust(width)}  #{yield(spec)}" }
+          shown.each { |spec| lines << "  #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
         end
         lines.concat(internal_lines(internal)) unless internal.empty?
         lines
       end
 
-      # "LanguageRun" reads "Language": the Run suffix names the journaled-command shape all of
-      # these aggregates share, so it adds nothing under a heading ("Test suite", "Model check").
+      # The aggregate's own name as a heading: the prefix of every call to the lines under it.
       def heading(group)
-        words = Naming.snake(group.sub(/Run\z/, "")).tr("_", " ")
-        "#{words.capitalize}:"
+        "#{Naming.snake(group)}:"
+      end
+
+      # A spec's name as listed: under its aggregate's heading the aggregate prefix is left out.
+      # A command the chapter gives a short name (`mcp`) is listed by its real name, so the
+      # heading and the line still spell a call; `alias_note` says the short name.
+      def entry_name(spec, grouped)
+        name = label(spec, real: true)
+        return name unless grouped && spec[:group]
+
+        name.delete_prefix("#{Naming.snake(spec[:group])}.")
+      end
+
+      # " (also: mcp!)" for a spec the chapter gave a short name, else nothing. A short name that
+      # is only the command's own name (`init` for `door.init`) is already in the line.
+      def alias_note(spec)
+        return "" if spec[:short_was].nil? || spec[:short_was].split(".").last == spec[:short]
+
+        " (also: #{label(spec)})"
       end
 
       # A command is written with the `!` that marks it; a query without one.
-      def label(spec) = spec[:kind] == :command ? "#{spec[:short]}!" : spec[:short]
+      # With `real:`, a short name the chapter gave it gives way to the name it was given for.
+      def label(spec, real: false)
+        name = real && spec.key?(:short_was) ? spec[:short_was] : spec[:short]
+        spec[:kind] == :command ? "#{name}!" : name
+      end
 
       # The internal commands as bare names, wrapped, under one line saying what they are.
       def internal_lines(specs)
