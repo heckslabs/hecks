@@ -403,41 +403,54 @@ module Hecks
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
-
-        out << "commands:"
-        out.concat(listing(commands) { |spec| spec[:summary] })
-        out << ""
-        out << "queries (nothing here changes anything):"
-        out.concat(listing(questions) { |spec| first_sentence(spec[:summary]) })
+        out.concat(tables(commands, questions, all: options[:all]))
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
+        out.concat(all_hint(program, commands, questions)) unless options[:all]
         out << "  a command is called with its aggregate — #{example_qualified(commands)}"
         out.join("\n")
+      end
+
+      # The commands table then the queries table.
+      def tables(commands, questions, all:)
+        ["commands:", *listing(commands, all: all) { |spec| spec[:summary] }, "",
+         "queries (nothing here changes anything):",
+         *listing(questions, all: all) { |spec| first_sentence(spec[:summary]) }]
+      end
+
+      # The line saying the internal commands and queries were left out and how to list them,
+      # or no line when there are none.
+      def all_hint(program, commands, questions)
+        hidden = (commands.values + questions.values).count { |spec| spec[:internal] }
+        return [] if hidden.zero?
+
+        ["  #{program} --all                  also list the #{hidden} internal commands and queries"]
       end
 
       # The command or question lines of the help. A domain with more than one aggregate is listed
       # under a heading per aggregate, so related commands sit together; the heading is the prefix
       # every call to them carries, so the lines under it leave it out. The bookkeeping a run
-      # records about itself (`internal`: system-role commands and port operations) is set apart as
-      # names only, since a person never types them. A single-aggregate domain keeps the plain
-      # list, each name in full.
-      def listing(specs)
+      # records about itself (`internal`: system-role commands and port operations) is left out,
+      # since a person never types them; `all` lists them as names only. A single-aggregate
+      # domain keeps the plain list, each name in full.
+      def listing(specs, all: false, &description)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
-        groups = shown.group_by { |spec| spec[:group] }
-        grouped = groups.length > 1
+        grouped = shown.map { |spec| spec[:group] }.uniq.length > 1
         named = shown.to_h { |spec| [spec, entry_name(spec, grouped)] }
-        width = named.values.map(&:length).max.to_i
-        lines = []
-        if grouped
-          groups.each do |group, members|
-            lines << "  #{heading(group)}" if group
-            members.each { |spec| lines << "    #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
-          end
-        else
-          shown.each { |spec| lines << "  #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
-        end
-        lines.concat(internal_lines(internal)) unless internal.empty?
+        lines = listed_rows(shown, named, grouped, &description)
+        lines.concat(internal_lines(internal)) if all && !internal.empty?
         lines
+      end
+
+      # The rows of one table: one line per spec, under a heading per aggregate when grouped.
+      def listed_rows(shown, named, grouped, &description)
+        width = named.values.map(&:length).max.to_i
+        row = ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{description.call(spec)}#{alias_note(spec)}" }
+        return shown.map { |spec| row.call(spec, "  ") } unless grouped
+
+        shown.group_by { |spec| spec[:group] }.flat_map do |group, members|
+          [("  #{heading(group)}" if group), *members.map { |spec| row.call(spec, "    ") }].compact
+        end
       end
 
       # The aggregate's own name as a heading: the prefix of every call to the lines under it.

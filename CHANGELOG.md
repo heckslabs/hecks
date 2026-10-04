@@ -13,6 +13,12 @@ A patch: nothing breaking. It fixes a second 3.1.0 regression: a lifecycle `tran
 
 **`AwsBox` can overwrite named secrets in production, and mount a smoke listener on a rehearsal.** `writable_secrets ["name"]` lets a production box (never a rehearsal) overwrite those secrets, for a project whose admin page stores a pasted key. `SMOKE_LISTENER=1 make deploy` mounts a loopback HTTPS listener under `caddy-extra` on a rehearsal box that adds the origin secret, so a browser-driven smoke run can reach it without the CDN. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
+**`hecks` help no longer lists the internal commands.** The bookkeeping each journaled run dispatches
+for itself (`accept`, `complete`, `fault`, `examine`, `perform` and the read-backs of every `*_run`
+aggregate, about 128 names) nobody types, and they filled two blocks of the default output. The help
+leaves them out and ends with a line saying how many were left out; `hecks --all` lists them as before,
+and `--help` on any of them still works.
+
 **An `edge` tag follows main, so a project need not wait for a release.** A workflow moves the `edge` tag
 to every commit that lands on main (forward only; nothing publishes from it, since the publish workflows
 listen for `v*`). A Gemfile can take `git: "https://github.com/heckslabs/hecks.git", tag: "edge"`, and a
