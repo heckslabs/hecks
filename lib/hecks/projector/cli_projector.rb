@@ -405,10 +405,10 @@ module Hecks
                "  #{program} query <query> [name=value …]    read something", ""]
 
         out << "commands:"
-        out.concat(listing(commands) { |spec| spec[:summary] })
+        out.concat(listing(commands, notes: aggregate_notes(bluebook)) { |spec| spec[:summary] })
         out << ""
         out << "queries (nothing here changes anything):"
-        out.concat(listing(questions) { |spec| first_sentence(spec[:summary]) })
+        out.concat(listing(questions, notes: aggregate_notes(bluebook)) { |spec| first_sentence(spec[:summary]) })
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
         out << "  a command is called with its aggregate — #{example_qualified(commands)}"
@@ -421,7 +421,9 @@ module Hecks
       # records about itself (`internal`: system-role commands and port operations) is set apart as
       # names only, since a person never types them. A single-aggregate domain keeps the plain
       # list, each name in full.
-      def listing(specs)
+      #
+      # @param notes [Hash{String => String}] a line of prose per aggregate, shown under its heading
+      def listing(specs, notes: {})
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
         groups = shown.group_by { |spec| spec[:group] }
         grouped = groups.length > 1
@@ -431,6 +433,7 @@ module Hecks
         if grouped
           groups.each do |group, members|
             lines << "  #{heading(group)}" if group
+            lines << "    #{notes[group]}" if notes[group]
             members.each { |spec| lines << "    #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
           end
         else
@@ -438,6 +441,13 @@ module Hecks
         end
         lines.concat(internal_lines(internal)) unless internal.empty?
         lines
+      end
+
+      # The first sentence of each aggregate's description, keyed by aggregate name; an aggregate
+      # with no description has no entry.
+      def aggregate_notes(bluebook)
+        bluebook.aggregates.to_h { |aggregate| [aggregate.hecks_name, first_sentence(aggregate.description)] }
+                .reject { |_, note| note.empty? }
       end
 
       # The aggregate's own name as a heading: the prefix of every call to the lines under it.
