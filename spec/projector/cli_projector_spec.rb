@@ -198,7 +198,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       usage = banking[:usage]
 
       expect(usage).to match(/^  customer:\n(?:    [A-Z][^\n]*\n)?    register!\s+Take on a new customer/)
-      expect(usage).to match(/^  account:\n    open!\s+/)
+      expect(usage).to match(/^  account:\n(?:    [A-Z][^\n]*\n)?    open!\s+/)
       expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
     end
 
