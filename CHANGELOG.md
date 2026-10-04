@@ -164,6 +164,18 @@ against a live Ruby replay. Ruby stays the reference implementation; the corpus 
 
 **The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`) (#957).** Opt-in: with the variable unset, the confirmation is the plain-text email as before. Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
 
+**The `Agent` adapter can run an agent under a profile.** `Agent#ask(profile: AgentProfile.new(...))`
+names the tools the agent holds, the directories it may write, whether it may reach the network
+(`none`, `https` or `any`), the environment variables it sees, a timeout and a spending cap. On macOS
+the run goes under the sandbox with that policy, reads of credentials are refused, and the agent
+starts with only the environment it was given; where there is no sandbox, a confined run refuses to
+start. Without a profile an ask behaves as before. `https` is written but not exercised by the specs.
+A profile can instead confine by `claude`'s own permission rules (`confinement: :permissions`): the
+agent holds the writing tools only for the directories named, runs with no MCP servers, and keeps
+the user's own `claude` login, which the sandbox cannot (it refuses the keychain). `hecks
+quality_control mine_combinations --confine` uses it, so the miner's agent writes only its
+candidates directory, with a twenty-minute timeout and a two-dollar cap.
+
 ## [3.0.4] - 2026-10-02
 
 **Fix (3.0.2 regression): code generation no longer refuses the data paths an era edge names.** The identifier check added in 3.0.2 walked every `name` in the IR, including `translations`, so a backfill into a nested value object (`backfill "attendee.first_name"`) was refused as "not a plain identifier" and `hecks build_wasm` failed for any domain with one. An era edge names stored-data paths that the host applies to rows; none is written into Rust. `translations` is skipped by both twins of the check (`rust/project/naming.rb` and `rust/codegen/src/naming.rs`); every other declared name is still checked.

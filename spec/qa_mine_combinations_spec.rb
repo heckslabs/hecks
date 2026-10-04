@@ -25,6 +25,13 @@ RSpec.describe "hecks quality_control mine_combinations" do
     expect(out).to include("the agent wrote no candidates")
   end
 
+  it "refuses --confine for an agent that is not the default claude command" do
+    out, status = run_miner("--confine", "--candidates", "1")
+
+    expect(status.exitstatus).to eq(1), out
+    expect(out).to include("permission confinement applies only to the default claude command")
+  end
+
   it "is opt-in: neither the tick nor the dials ever run it" do
     tick  = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/cli/qa_tick.rb"))
     dials = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"))
