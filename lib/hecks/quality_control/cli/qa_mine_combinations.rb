@@ -16,16 +16,14 @@ module Hecks
     # The command behind `hecks quality_control target.mine_combinations`: asks an agent to mine the
     # adversarial corpus for new domain combinations, then checks them. It is opt-in and never run
     # by `hecks quality_control sweep.tick` (an agent call costs money and answers differently each
-    # run).
-    # `--brief` prints the agent's prompt and stops; `--from <dir>` re-checks an earlier run;
+    # run). `--brief` prints the agent's prompt and stops; `--from <dir>` re-checks an earlier run;
     # `--against <domain>` narrows the census; `--agent "cmd"` reads the prompt on stdin;
     # `--confine` limits the default agent to writing the run's candidates directory.
     #
     # The agent defaults to `claude -p` (`QA_MINER_AGENT` overrides); candidates that boot are
     # checked by `hecks quality_control target.check_generated_domains --source`, whose report is
     # this command's report. Exit 0: all clean. 2: a finding (see
-    # `.claude/skills/hecks_qa/SKILL.md`). 1: an operational
-    # error.
+    # `.claude/skills/hecks_qa/SKILL.md`). 1: an operational error.
     class QaMineCombinations
       EXIT_OK = 0
       EXIT_ERROR = 1
