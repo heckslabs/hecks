@@ -2,7 +2,7 @@ module Hecks
   # The class-free public surface, installed per boot by `Runtime::Loader.bind_runtime`.
   module Doors
     # The removal release of the `Facade` and `install_facade:` spellings.
-    REMOVAL = "3.2.0".freeze
+    REMOVAL = "3.3.0".freeze
 
     module_function
 
