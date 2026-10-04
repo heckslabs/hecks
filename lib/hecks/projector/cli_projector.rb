@@ -432,8 +432,7 @@ module Hecks
         lines = []
         if grouped
           groups.each do |group, members|
-            lines << "  #{heading(group)}" if group
-            lines << "    #{notes[group]}" if notes[group]
+            lines.concat(heading_lines(group, notes))
             members.each { |spec| lines << "    #{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
           end
         else
@@ -441,6 +440,13 @@ module Hecks
         end
         lines.concat(internal_lines(internal)) unless internal.empty?
         lines
+      end
+
+      # The lines that open an aggregate's group: its heading, then its note when it has one.
+      def heading_lines(group, notes)
+        return [] unless group
+
+        ["  #{heading(group)}", *notes[group]&.then { |note| "    #{note}" }]
       end
 
       # The first sentence of each aggregate's description, keyed by aggregate name; an aggregate
