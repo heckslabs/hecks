@@ -367,6 +367,12 @@ pub(crate) async fn registration_complete_route(
         }
     }
 
+    // Only a payment that settled just now earns a receipt; a repeat click was
+    // refused above as already settled.
+    if outcome == "succeeded" && outcome_result.accepted {
+        super::registration_receipt::send_receipt(registration_id, client, wasm_path, config, payments).await;
+    }
+
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -675,8 +681,14 @@ pub(crate) async fn webhook_route(
             // A refusal here (e.g. a redelivered webhook — Stripe's delivery
             // is at-least-once) is a benign no-op: the payment already holds
             // the right status, and 200 tells Stripe's retry logic to stop.
-            if let Err(e) = dispatch::handle_routed(client, wasm_path, verb, json!(reference), facts, None, config, invoker).await {
-                return respond(500, "text/plain", &format!("{e:#}"));
+            match dispatch::handle_routed(client, wasm_path, verb, json!(reference), facts, None, config, invoker).await {
+                Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+                // Only the delivery that settles the payment sends the receipt;
+                // a redelivery is refused and stays quiet.
+                Ok(settled) if settled.accepted && event_type == "checkout.session.completed" => {
+                    super::registration_receipt::send_receipt(&reference, client, wasm_path, config, payments).await;
+                }
+                Ok(_) => {}
             }
         }
     }
