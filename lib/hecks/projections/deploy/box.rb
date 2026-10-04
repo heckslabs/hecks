@@ -196,7 +196,8 @@ module Hecks
                    "VOLUME_GB" => plan.volume_gb.to_s, "SNAPSHOTS_KEEP" => plan.snapshots_keep.to_s,
                    "AMI_PARAMETER" => ami_parameter(plan.instance_type),
                    "COMPUTE_DOMAIN" => compute_domain(region),
-                   "SECRET_RESOURCES" => secret_resources(plan), "TUNNEL_EGRESS" => tunnel_egress(plan),
+                   "SECRET_RESOURCES" => secret_resources(plan), "WRITABLE_SECRETS" => writable_secrets(plan),
+                   "TUNNEL_EGRESS" => tunnel_egress(plan),
                    "SWAP_COMMANDS" => swap_commands(plan), "ECR_REPOSITORIES" => ecr_repositories(plan),
                    "ECR_OUTPUTS" => ecr_outputs(plan), "S3_POLICY" => s3_policy(plan))
         end
@@ -259,6 +260,28 @@ module Hecks
           arns.uniq.map do |pattern|
             "                  - !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
           end.join.chomp
+        end
+
+        # The statement that lets a production box overwrite the secrets named as writable.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] a policy statement for the role, or nothing when none are declared
+        def writable_secrets(plan)
+          return "" if plan.writable_secrets.empty?
+
+          arns = plan.writable_secrets.map { |name| name.end_with?("*") ? name : "#{name}-*" }.uniq
+          resources = arns.map do |pattern|
+            "#{' ' * 20}- !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
+          end.join
+          <<~YAML.chomp
+            #{' ' * 14}- !If
+            #{' ' * 16}- IsProduction
+            #{' ' * 16}- Effect: Allow
+            #{' ' * 18}Action: secretsmanager:PutSecretValue
+            #{' ' * 18}Resource:
+            #{resources.chomp}
+            #{' ' * 16}- !Ref AWS::NoValue
+          YAML
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -437,7 +460,14 @@ module Hecks
           template("deploy-box.sh.tmpl", "STACK" => plan.infra_name, "BOX_STACK" => plan.box_stack,
                                          "RDS_STACK" => plan.rds_stack, "REGION" => region,
                                          "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan),
-                                         "USAGE" => deploy_usage(plan))
+                                         "SMOKE_HEADER" => smoke_header(plan), "USAGE" => deploy_usage(plan))
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] the line that adds the origin secret to the smoke listener's requests, or
+        #   nothing when the world has no origin guard
+        def smoke_header(plan)
+          plan.origin_header ? "\t\theader_up #{plan.origin_header} {$ORIGIN_SECRET}" : ""
         end
 
         # @param plan [Settings::Plan] the resolved settings

@@ -21,6 +21,18 @@ DB_SECRET=$(out "$RDS_STACK" DbSecretArn)
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
+
+# SMOKE_LISTENER=1 (a rehearsal box only) mounts a loopback HTTPS site on 127.0.0.1:8443 that adds the
+# origin secret, so a browser-driven smoke run can reach the box through an SSM port-forward without the
+# CDN. TLS because a site that treats a request carrying the origin secret as https expects an https
+# Origin on every form post.
+cat > "$WORK/smoke.caddy" <<'SMOKE_EOF'
+https://127.0.0.1:8443 {
+	tls internal
+	reverse_proxy 127.0.0.1:80 {
+	}
+}
+SMOKE_EOF
 ( cd "$WORK" && bash "$HERE/render-compose.sh" "$DB_HOST" "$DB_SECRET" "$@" )
 
 # Run a script on the box over SSM, wait for it, print its output, return its status.
@@ -41,12 +53,14 @@ run_on_box() {
 B64() { base64 < "$1" | tr -d '\n'; }
 ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$WORK/secrets.json")" \
   --arg caddy "$(B64 "$HERE/Caddyfile")" --arg fetch "$(B64 "$HERE/fetch-secrets.sh")" \
+  --arg smokefile "$(B64 "$WORK/smoke.caddy")" --arg smoke "${SMOKE_LISTENER:-}" \
   --arg registry "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com" --arg dir "$DIR" '
   {commands: ["cloud-init status --wait >/dev/null 2>&1 || true",
     "set -e", "mkdir -p \($dir)/caddy-extra && cd \($dir)", "umask 077",
     "echo \($compose) | base64 -d > compose.json; echo \($secrets) | base64 -d > secrets.json",
     "echo \($caddy) | base64 -d > Caddyfile; echo \($fetch) | base64 -d > fetch-secrets.sh",
     "bash fetch-secrets.sh",
+    (if $smoke == "1" then "echo \($smokefile) | base64 -d > caddy-extra/smoke.caddy" else "rm -f caddy-extra/smoke.caddy" end),
     "aws ecr get-login-password --region '"$REGION"' | docker login --username AWS --password-stdin \($registry) >/dev/null",
     "docker compose -f compose.json pull --quiet",
     "docker compose -f compose.json up -d --remove-orphans",
