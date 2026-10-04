@@ -120,6 +120,7 @@ module Hecks
 
         name = argv.first
         return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
+        return { answer: [all_usage(bluebook, options), 0] } if name == "--all"
 
         asking, name, argv = entry_word(cli, argv)
         return { answer: [cli[:usage], 1] } if name.nil?
@@ -139,6 +140,11 @@ module Hecks
 
         { spec: spec, name: name, rest: rest, asking: asking, program: program, bluebook: bluebook,
           launcher: launcher }
+      end
+
+      # The usage with the internal commands and queries listed too, which `--all` asks for.
+      def all_usage(bluebook, options)
+        Projector.call(:cli, bluebook: bluebook, options: options.merge(all: true))[:usage]
       end
 
       # Reads the entry words of a line: whether it asks a query, the bare name, and the words
