@@ -35,6 +35,8 @@ aggregate heading is the prefix of every call under it (`language_run:`), and th
 it (`project_model!`); a command the chapter gives a short name is listed by its real name with
 `(also: mcp!)`.
 
+**`hecks build.project_rust` maps `TrueClass` and `FalseClass` attributes to Rust `bool` again.** Since `hecks-codegen` became the only generator, a boolean attribute written in the Ruby-class spelling (`attribute :flag, TrueClass`) was emitted as a type named `TrueClass`, so the generated Rust failed to compile with `cannot find type TrueClass`. The scalar table in `hecks-codegen` now carries both spellings through the struct field, the JSON read and write, and the `Fielded` value, as `rust/project` did.
+
 ## [3.1.0] - 2026-10-03
 
 A minor with two `Behavior change` entries, the first of which can break scripts: read them before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework` and `uses_embryonaut_bluebook` still work and warn; their removal, announced for 3.1.0, is now 3.2.0.
