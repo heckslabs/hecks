@@ -98,6 +98,7 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(result[:state].keys.map(&:to_s)).to contain_exactly("task", "subject", "expert", "verbs", "exchanges", "accepted",
                                                                "gaps")
     expect(result[:state][:subject]).to eq("Lending")
+    expect(result[:state][:task]).to include("Do not assume what kind of business it is")
     expect(result[:state][:exchanges].length).to eq(2)
     expect(result[:state][:accepted][:things].first).to eq(name: "Book", identifier: "isbn")
   end

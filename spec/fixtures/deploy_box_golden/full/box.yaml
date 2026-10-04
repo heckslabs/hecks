@@ -26,12 +26,6 @@ Parameters:
   RootVolumeGb:
     Type: Number
     Default: 50
-  MediaBucket:
-    Type: String
-    Default: ""
-    Description: >
-      An S3 bucket the containers read (and, outside Rehearsal, write): uploaded media. Blank omits S3
-      access. A rehearsal box can read but never write the bucket.
   AlertTopicArn:
     Type: String
     Default: ""
@@ -52,8 +46,6 @@ Conditions:
   HasPrefixList: !Not [!Equals [!Ref CdnPrefixListId, ""]]
   HasAlerts: !Not [!Equals [!Ref AlertTopicArn, ""]]
   IsProduction: !Equals [!Ref Rehearsal, "false"]
-  HasMedia: !Not [!Equals [!Ref MediaBucket, ""]]
-  MediaWrite: !And [!Condition HasMedia, !Condition IsProduction]
 
 Resources:
   BoxSecurityGroup:
@@ -130,18 +122,24 @@ Resources:
                   Resource:
                     - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme/payments-account-*"
                 - !Ref AWS::NoValue
-        - !If
-          - HasMedia
-          - PolicyName: media
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
+        - PolicyName: s3-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket]
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-media"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-media/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-assets"
+                  - !Sub "arn:${AWS::Partition}:s3:::acme-assets/*"
+              - !If
+                - IsProduction
                 - Effect: Allow
-                  Action: !If [MediaWrite, [s3:GetObject, s3:PutObject, s3:DeleteObject, s3:ListBucket], [s3:GetObject, s3:ListBucket]]
+                  Action: [s3:PutObject, s3:DeleteObject]
                   Resource:
-                    - !Sub "arn:${AWS::Partition}:s3:::${MediaBucket}"
-                    - !Sub "arn:${AWS::Partition}:s3:::${MediaBucket}/*"
-          - !Ref AWS::NoValue
+                    - !Sub "arn:${AWS::Partition}:s3:::acme-media/*"
+                - !Ref AWS::NoValue
 
   BoxProfile:
     Type: AWS::IAM::InstanceProfile

@@ -7,6 +7,12 @@ Description: >
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
+  BastionSecurityGroupId:
+    Type: String
+    Default: ""
+    Description: >
+      A security group allowed to reach the database on 5432, for the bastion that restore-to-rds.sh
+      tunnels through. Blank admits nothing but the app box.
   PrivateSubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: At least two subnets in different availability zones (an RDS subnet group needs them).
@@ -26,12 +32,6 @@ Parameters:
   BackupRetentionDays:
     Type: Number
     Default: 7
-  BastionSecurityGroupId:
-    Type: String
-    Default: ""
-    Description: >
-      Optional extra security group admitted on 5432 (a bastion that runs restore-to-rds.sh). Blank by
-      default: the app box is admitted by its own stack and can tunnel to the database over SSM.
   ExistingAlertTopicArn:
     Type: String
     Default: ""
@@ -49,28 +49,26 @@ Parameters:
       database: deletion protection on and a snapshot taken on delete.
 
 Conditions:
-  HasBastion: !Not [!Equals [!Ref BastionSecurityGroupId, ""]]
   NewTopic: !Equals [!Ref ExistingAlertTopicArn, ""]
   NewTopicWithEmail: !And [!Condition NewTopic, !Not [!Equals [!Ref AlertEmail, ""]]]
   IsRehearsal: !Equals [!Ref Rehearsal, "true"]
+  HasBastion: !Not [!Equals [!Ref BastionSecurityGroupId, ""]]
 
 Resources:
   DbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: widget-shop RDS, 5432 from the app box only (the box stack adds the rule)
+      GroupDescription: widget-shop RDS, 5432 from the app box (the box stack adds the rule) and a bastion if given
       VpcId: !Ref VpcId
-
-  BastionIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Condition: HasBastion
-    Properties:
-      GroupId: !Ref DbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref BastionSecurityGroupId
-      Description: Bastion for dump and restore
+      SecurityGroupIngress:
+        - !If
+          - HasBastion
+          - IpProtocol: tcp
+            FromPort: 5432
+            ToPort: 5432
+            SourceSecurityGroupId: !Ref BastionSecurityGroupId
+            Description: Bastion for restore-to-rds.sh
+          - !Ref AWS::NoValue
 
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup

@@ -7,6 +7,7 @@ pub fn scalar_rust_type(type_name: &str) -> Option<&'static str> {
         "String" => Some("String"),
         "Integer" => Some("i64"),
         "Float" => Some("f64"),
+        "TrueClass" | "FalseClass" => Some("bool"),
         _ => None,
     }
 }
@@ -29,6 +30,8 @@ pub fn effective_scalar_type(type_name: &str) -> Option<&'static str> {
         "String" => Some("String"),
         "Integer" => Some("Integer"),
         "Float" => Some("Float"),
+        "TrueClass" => Some("TrueClass"),
+        "FalseClass" => Some("FalseClass"),
         _ => None,
     }
 }
@@ -250,6 +253,7 @@ pub fn scalar_to_value(type_name: &str, rust_expr: &str) -> Option<String> {
         "String" => Some(format!("Value::Str({rust_expr}.clone())")),
         "Integer" => Some(format!("Value::Int({rust_expr})")),
         "Float" => Some(format!("Value::Float({rust_expr})")),
+        "TrueClass" | "FalseClass" => Some(format!("Value::Bool({rust_expr})")),
         _ => None,
     }
 }

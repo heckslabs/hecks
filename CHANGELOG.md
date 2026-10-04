@@ -7,11 +7,43 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-**`AwsBox` closes three gaps against the hand-written Lifeadelics box.** The box stack takes a `MediaBucket` (the containers read it, and write it only outside a rehearsal), the database stack takes an optional `BastionSecurityGroupId` so a separate bastion can run `restore-to-rds.sh`, and the Caddyfile imports extra sites from `/etc/caddy/extra` (the compose file mounts `./caddy-extra`), so `SMOKE_LISTENER=1 make deploy` can mount a loopback HTTPS listener on a rehearsal box for a browser-driven smoke run. The Caddyfile now uses `auto_https disable_redirects`, which lets that listener get its certificate. `make stacks` passes `REHEARSAL` and `MEDIA_BUCKET` through. `writable_secrets ["name"]` lets a production box (never a rehearsal) overwrite those secrets, for a project whose admin page stores a pasted key; `deploy-box.sh` also waits for the box's first-boot setup before rolling. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+**`AwsBox` can overwrite named secrets in production, and mount a smoke listener on a rehearsal.** `writable_secrets ["name"]` lets a production box (never a rehearsal) overwrite those secrets, for a project whose admin page stores a pasted key. `SMOKE_LISTENER=1 make deploy` mounts a loopback HTTPS listener under `caddy-extra` on a rehearsal box that adds the origin secret, so a browser-driven smoke run can reach it without the CDN. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**An `edge` tag follows main, so a project need not wait for a release.** A workflow moves the `edge` tag
+to every commit that lands on main (forward only; nothing publishes from it, since the publish workflows
+listen for `v*`). A Gemfile can take `git: "https://github.com/heckslabs/hecks.git", tag: "edge"`, and a
+deploy can say `hecks_release "edge"`: the generated `hosting.mk` then fetches the tag afresh on every
+build, skips the exact-release-tag check for it alone, and prints the commit it built. A build from `edge`
+is not reproducible from the name, so pin a release when that matters. Regenerate a project's
+`hosting.mk` (`hecks deploy recipe.project`) to get the new recipe.
+
+**`hecks-codegen` admits every state for a lifecycle transition with no `from:`, as the Ruby generator did.** A `transition "Open" => "open"` with no `from:` is unconstrained, but the generated Rust checked the command against the empty state, so a command that creates its aggregate (which starts at the lifecycle default) was refused with "moves it only from \"\"". The generator now emits no transition check for an unconstrained row, which is what 3.0.x emitted. A domain that declares such a transition and built on 3.1.0 or 3.1.1 should rebuild its wasm on the fixed release.
+
+## [3.1.1] - 2026-10-04
+
+A patch: nothing breaking and no behavior change for a running system unless it opts in. It fixes a 3.1.0 regression: a domain with `TrueClass` or `FalseClass` attributes no longer compiled to Rust (see the `hecks build.project_rust` entry below). Skip 3.1.0 if your domain declares Boolean attributes in a value object.
+
+**`AwsBox` fixes from its first real deploy.** The generated `deploy-box.sh` raced the box's first boot, because Docker and the Compose plugin are installed by user data, and failed on a fresh box; it now waits for first boot to finish. `make stacks REHEARSAL=true` makes a throwaway pair (the Makefile could not pass `Rehearsal`, and both templates default to production). The Caddyfile and the guide now say a rehearsal restarts the proxy to pick up a `caddy-extra` file, since its admin API is off. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`AwsBox` can render its Compose file from an ECS task definition.** `task_definition "<family>"` makes `render-compose.sh` read each container's image, environment and secrets from that task at deploy time, so a project running on Fargate moves its box by pointing it at the task it already has; the world lists only names and ports, and no ECR repositories are made. `deploy-box.sh` and `make deploy TASKDEF=family:revision` take a revision. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
+**`AwsBox` generates three more parts of the stack it was modeled on.** The RDS stack takes an optional `BastionSecurityGroupId`, so the migration scripts' bastion can reach the new database. The Caddyfile imports `/etc/caddy/extra/*` and the proxy mounts `caddy-extra`, so a rehearsal can add a loopback listener and smoke-test without the CDN. `s3_access [{ bucket:, write: }]` gives the box role read on each bucket and write only on a production box. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **`AwsBox` generates the tooling to move a project's data onto the new database.** A world that declares `migration({ schemas: [...] })` also gets `restore-to-rds.sh` (a per-schema `pg_dump | pg_restore` through a bastion, with the Hecks materialized-view refresh handled), `verify-copy.sh` (structure and exact row counts of both sides) and `MIGRATION.md` (the steps in order, with the rollback caveat). The bastion, hosts and secrets are arguments, so one set of scripts serves a rehearsal, the cutover and a copy back. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`hecks` prints its help about three times faster on a repeat run, and the help is grouped by
+aggregate with the prefix left off.** Reading the domain's declarations was most of what the launcher
+cost (about 0.9s of 1.2s); the help is now remembered under a digest of the domain's declaration
+files, the gem's own library, the hecks and Ruby versions, the environment overlay and the command
+line, so any edit to one of them is simply a new entry and nothing is ever stale. A repeat `hecks`
+reads no declarations. `Hecks.describe` loads them on the first `registry` call instead of on return.
+`HECKS_NO_USAGE_CACHE=1` turns the cache off and `HECKS_CACHE_DIR` moves it (default
+`~/.cache/hecks`); an entry nobody reads for two weeks is swept on the next write. In the help, each
+aggregate heading is the prefix of every call under it (`language_run:`), and the lines beneath drop
+it (`project_model!`); a command the chapter gives a short name is listed by its real name with
+`(also: mcp!)`.
+
+**`hecks build.project_rust` maps `TrueClass` and `FalseClass` attributes to Rust `bool` again.** Since `hecks-codegen` became the only generator, a boolean attribute written in the Ruby-class spelling (`attribute :flag, TrueClass`) was emitted as a type named `TrueClass`, so the generated Rust failed to compile with `cannot find type TrueClass`. The scalar table in `hecks-codegen` now carries both spellings through the struct field, the JSON read and write, and the `Fielded` value, as `rust/project` did.
 
 ## [3.1.0] - 2026-10-03
 
