@@ -48,27 +48,93 @@ place.
 | `kind` | `page` (default), `endpoint`, `redirect`, `rewrite` or `proxy`. |
 | `render`, `auth`, `origin`, `preview` | closed sets: `prerender` or `ssr`; `public`, `admin` or `signed`; `website`, `cms`, `domain` or `assets`; `public` or `draft`. |
 | `cache` | `page`, `home`, `static`, `media`, `immutable` or `no_store`. Defaults to `no_store` for an admin or signed route and an endpoint, `immutable` from `assets`, `page` otherwise. |
-| `methods` | comma separated, `GET` by default, `POST` for a command. |
+| `methods` | the verbs the route answers, comma separated, `GET` by default, `POST` for a command. |
+| `edge_methods` | the verbs the edge lets through for the route, when more than `methods` (below). Defaults to `methods`. |
 | `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Chapter>.<Aggregate>.<Command>` or `query:...`. |
 | `indexable` | whether the sitemap lists it; true for a public page that is on. |
-| `switch`, `off` | the id a page is switched by, and whether it is off now. An off page answers 404 and stays out of every navigation. |
+| `switch`, `off` | the id a page is switched by, and whether it is off now. An off page answers 404 and stays out of the sitemap; it may keep its navigation slots (below). |
 | `compress`, `alb_rule`, `cdn` | for the edge, below: whether CloudFront compresses the response (true by default); the listener rule that carries the path; false for a path the CDN never sees. |
-| `label`, `seo` | the text a navigation shows, and an id for the page's search metadata. |
+| `label`, `seo`, `seo_title` | the text a navigation shows, an id for the page's search metadata, and the title search engines show for it. |
 | `redirect_to`, `aliases` | the target of a redirect or rewrite, and extra paths that redirect to a page. |
-| `nav_group`, `nav_order`, `mobile_order`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation. |
+| `nav_group`, `nav_order`, `mobile_order`, `mobile_heading`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation, and the heading that opens a section of the mobile menu. |
+
+### Navigation
+
+A row sits in a menu with `nav_order` (desktop), `mobile_order`, `footer_column` or `admin_key`, and needs a `label`. What it may be:
+
+- **Any route that answers GET**, whatever its kind: a page, an endpoint, a redirect, a rewrite or a proxy. An admin link to an
+  endpoint that redirects is a row of that endpoint with an `admin_key`. A route that answers only POST, or has a parameter, is refused.
+- **An off page keeps its slots.** The page stays in the arrays; its entry carries `switch: "<id>"` and `on: false`, and the site drops
+  an entry whose `pageIsOn(entry.switch)` is false. Switching the page on is `off: false` and a regeneration, and the slots are
+  already there. An entry of a page that is on carries neither key, so a table with no off page in a menu generates what it did before.
+- **A heading in the mobile menu** is `mobile_heading: "Experiences"` on the first row of a section; its entry in `NAV_MOBILE`
+  carries `heading: "Experiences"` and the site draws the heading above it. The list stays flat, in `mobile_order`.
+- **A link to a fragment, or a second link to a page**, is a `member` row of a `value_object "NavLink"` of the same chapter. A route
+  sits in each menu once, and one path is declared once, so a second link to `/about` is not a second route: it is a `NavLink` with
+  the `path` of a route that answers GET, an optional `fragment` (an element id, without `#`), a `label`, and the same slot fields
+  as a route (`nav_group`, `nav_order`, `mobile_order`, `mobile_heading`, `footer_column`, `footer_order`, `admin_key`,
+  `admin_order`). Its entry carries `fragment: "opening-hours"`; the site links to `path + "#" + fragment`. It is off with the route it
+  points at, and is refused when the route is not declared, has no slot or label, or is an admin page in a public menu.
+
+```ruby
+value_object "NavLink" do
+  attribute :path, String
+  attribute :fragment, String
+  attribute :label, String
+  attribute :footer_column, String
+  member path: "/about", fragment: "opening-hours", label: "Opening hours", footer_column: "Gallery"
+end
+```
+
+### Search metadata
+
+`seo` is an id and `seo_title` the title for it. A row that sets `seo_title` has `seoTitle` in its `ROUTES` entry, after
+`redirectTo`; a row that does not has no such key, so a consumer reads it with `"seoTitle" in route`.
+
+### Matching paths in the module
+
+`matchesPath(pattern, pathname)` reads a path pattern as the CDN does: `:name` is one segment, and `*` is any run of characters,
+`/` included, wherever it stands. `/pay/*` matches `/pay/7` and `/pay/7/receipt` but not `/pay`; `/admin*` matches `/admin`,
+`/admin-inbox` and `/admin/members`. The rule applies to the off paths, `NOT_FOR_SEARCH` and any pattern a consumer passes. A
+pathname is compared without `.html` and without a trailing slash.
+
+### A public page beneath a prefix that is not
+
+A sign-in page is public and sits under `/admin*`. A route's cache class comes from its auth (`no_store` for admin and signed,
+`page` for public), and a public row under a prefix that is admin or signed would get `page` from that rule, so such a row has to
+name its cache class: `member path: "/admin-login", render: "ssr", cache: "no_store", edge_methods: "GET,POST", indexable: false`.
+Without `cache` the table is refused, naming the prefix. `indexable: false` keeps it out of the sitemap, which a public page is in
+by default. With the same edge verbs and cache class as the prefix the row rides the prefix's behaviour and makes none of its own.
 
 `hecks site site_projection.project_site <project>` refuses a table that contradicts itself and names every problem at once.
 
 ## Projecting it
 
 ```
-hecks site site_projection.project_site <project> [out=<dir>] [--check]
+hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [extension=ts|mts] [--check]
 ```
 
-`<project>` is a directory whose `bluebook/` holds the chapters. `routes.ts` is written to `<project>/generated`,
-or to `out`. With `--check` nothing is written: the command exits 1 and names each file that differs from the
-table, so a CI job fails on drift. The file starts with `// Generated by hecks site site_projection.project_site. Do not edit.`, holds
-no time or machine, and is the same text on every run.
+It runs from a project, with the installed gem; it needs no hecks checkout. Three places are independent of one another:
+
+| what | where | default |
+|---|---|---|
+| the chapters | `<project>/bluebook/`, and the `<project>/vendor/` they attach from | the project is the argument |
+| `routes.ts` | the directory `out` names, anywhere | `<project>/generated` |
+| the template | the file `template` names, anywhere; rewritten in place | the `Edge` row's `template:`, relative to the project |
+
+Relative paths are read from where the command runs. The `Edge` row's `template:` may be left out when `template` names the file. When
+`out` is given and `template` is not, `out` also receives a copy of the Edge row's template at the same relative path and the project's
+own is left alone, which is how a project previews a change. The command refuses: an `extension` outside `ts`, `mts`; an `out` that is a
+file; a `template` that does not exist, or one named for a project that declares no Edge rows; and an Edge row's `template:` that is
+absolute or climbs out of the project with `..` (name the file with `template` instead).
+
+With `--check` nothing is written: the command exits 1 and names each file that differs from the table, so a CI job fails on drift. The
+file starts with `// Generated by hecks site site_projection.project_site. Do not edit.`, holds no time or machine, and is the same
+text on every run.
+
+`extension=mts` writes `routes.mts` instead of `routes.ts`, with the same text. The module is an ES module either way; the `.mts`
+name is what lets Node import it (`import * as site from "./routes.mts"`) from a package whose `package.json` says
+`"type": "commonjs"`, where Node reads a `.ts` file as CommonJS.
 
 ## Routes from the domain
 
@@ -86,7 +152,7 @@ for the facts only its template knows, and marks two regions in the template it 
 
 | value object | fields |
 |---|---|
-| `Edge`, one row | `template` (the CloudFormation file, relative to the project), `listener` (a reference to the listener), and `secret_header` with `secret_value` (the header the distribution adds; every rule requires it). |
+| `Edge`, one row | `template` (the CloudFormation file, relative to the project), `listener` (a reference to the listener), `secret_header` with `secret_value` (the header the distribution adds; every rule requires it), and `alb` (`false` when the project has no load balancer; true by default). |
 | `EdgePolicy` | `cache_class`, optionally `origin` (it then applies to that origin only), and `cache`, `origin_request`, `response_headers`. A policy is a managed one by name (`caching_disabled`, `caching_optimized`, `all_viewer`, `all_viewer_except_host`), a policy id, or an intrinsic such as `!Ref PagePolicy`. |
 | `EdgeOrigin` | an `origin` and the CloudFront origin `id` it is, and for a server behind the load balancer its `target_group`. |
 | `EdgeRule` | a listener rule's logical id (`rule`), its numeric `priority`, and the `origin` it forwards to. |
@@ -97,7 +163,7 @@ for the facts only its template knows, and marks two regions in the template it 
 ```
 
 The template holds one `behaviors` region, where `DefaultCacheBehavior` and `CacheBehaviors` go, and one
-`listener_rules` region, where the listener rules go. Everything between the markers is rewritten on each run, at
+`listener_rules` region, where the listener rules go; a project with no load balancer has the first alone (below). Everything between the markers is rewritten on each run, at
 the markers' indentation; the rest of the template, and any comment about why a path is routed as it is, stays the
 project's and belongs outside the markers. `--check` compares the regions too, so a template edited by hand in a
 region is named as out of date.
@@ -122,6 +188,25 @@ How a route becomes a behaviour:
   an ALB rule holds five condition values in all. A rule is refused that carries no route, that a lower-numbered
   rule of another origin would answer first for one of its routes, or whose priority another rule shares.
 - `cdn: false` keeps a route out of the behaviours and in its rule: a path only the site's own server reaches.
+- `edge_methods` separates the verbs the edge lets through from the verbs the route answers. A route's `methods` are its own, as
+  `routes.ts` reports them: an admin page answers `GET`. The edge allows what the behaviour that carries the page allows, which
+  for a page under `/admin*` is `GET,POST`, so the page says `edge_methods: "GET,POST"` and, with the prefix's cache class, makes no
+  behaviour of its own. Without `edge_methods` the edge allows the route's `methods`, as before. `edge_methods` must include
+  every one of the route's `methods`. `routes.ts` does not carry it.
+
+### A site with no load balancer
+
+A project behind Caddy or any other proxy has no ALB, and no listener rules to write. Its `Edge` row says `alb: false`:
+
+```ruby
+member template: "deploy/template.yaml", alb: false
+```
+
+The template then has no `listener_rules` region and the command writes none; a template that still holds one is refused so the
+stale rules are removed. `EdgeRule` rows and `alb_rule` on a route describe a load balancer, so they are refused while the
+project says it has none; `listener` and `target_group` are ignored. What is still checked is
+that every route reaches an origin: a route on the cms or the domain needs an `EdgeOrigin` that maps its origin, whether or not the
+CDN fronts it, and its cache class needs an `EdgePolicy`. A project with a load balancer is unchanged.
 
 Each refusal names every problem at once, as the table's do: an origin that no `EdgeOrigin` maps or the Site
 chapter does not know, a cache class no `EdgePolicy` maps, a policy reference that is none of the three forms, a

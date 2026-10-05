@@ -95,12 +95,14 @@ Hecks.bluebook "Site" do
   aggregate "SiteProjection" do
     description "One projection of a site's route table into its routes.ts, or the check that the file on disk is current."
 
-    attribute :domain,  DomainPath
-    attribute :run,     RunKey
-    attribute :out,     Location, optional: true
-    attribute :check,   Switch,   optional: true
-    attribute :output,  Report,   optional: true
-    attribute :refusal, Report,   optional: true
+    attribute :domain,    DomainPath
+    attribute :run,       RunKey
+    attribute :out,       Location,  optional: true
+    attribute :template,  Location,  optional: true
+    attribute :extension, Extension, optional: true
+    attribute :check,     Switch,    optional: true
+    attribute :output,    Report,    optional: true
+    attribute :refusal,   Report,    optional: true
     identified_by :run
 
     value_object "RunKey" do
@@ -116,9 +118,16 @@ Hecks.bluebook "Site" do
       invariant("a project is named by its path") { !value.to_s.empty? }
     end
 
-    # Where routes.ts is written, when not beside the project's bluebook.
+    # A directory or file anywhere on disk, relative to where the command runs: where routes.ts is
+    # written when not in the project's generated/ directory, or the template to rewrite in place.
     value_object "Location" do
       attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The file extension of the generated module: `ts` (routes.ts), or `mts` (routes.mts), which
+    # Node loads as an ES module even in a package whose "type" is "commonjs".
+    value_object "Extension" do
+      attribute :value, String, one_of: ["ts", "mts"]
     end
 
     value_object "Switch" do
@@ -134,19 +143,24 @@ Hecks.bluebook "Site" do
       transition "Fault"    => "faulted",   from: "requested"
     end
 
-    # `hecks site site_projection.project_site <project> [out=<dir>] [--check]`. With `check` nothing is written: a
-    # routes.ts that differs from the table is faulted, naming the file, so a CI job fails on drift.
+    # `hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [extension=ts|mts] [--check]`.
+    # With `check` nothing is written: a routes.ts that differs from the table is faulted, naming the
+    # file, so a CI job fails on drift.
     command "ProjectSite" do
       goal "Project a site's route table into routes.ts, or with check only compare it with the file on disk"
 
-      attribute :domain, DomainPath
-      attribute :run,    RunKey
-      attribute :out,    Location, optional: true
-      attribute :check,  Switch,   optional: true
+      attribute :domain,    DomainPath
+      attribute :run,       RunKey
+      attribute :out,       Location,  optional: true
+      attribute :template,  Location,  optional: true
+      attribute :extension, Extension, optional: true
+      attribute :check,     Switch,    optional: true
 
       sets :domain
       sets :run
       sets :out
+      sets :template
+      sets :extension
       sets :check
 
       emits "SiteProjectionRequested"

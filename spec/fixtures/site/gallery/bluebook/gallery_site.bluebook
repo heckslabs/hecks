@@ -1,0 +1,126 @@
+# A gallery's site: a second neutral sample project beside the studio. It exercises what the
+# studio's table does not use: a site with no load balancer, a page that is off but keeps its
+# navigation slots, links to an endpoint and to a fragment of a page, a heading in the mobile menu,
+# edge verbs that differ from a route's own, a SEO title, and a public sign-in page beneath the
+# admin prefix.
+Hecks.bluebook "GallerySite" do
+  vision "The routes of a gallery's website, which has no load balancer."
+
+  aggregate "SiteMap" do
+    description "The gallery site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,           String
+      attribute :kind,           String
+      attribute :render,         String
+      attribute :auth,           String
+      attribute :methods,        String
+      attribute :edge_methods,   String
+      attribute :cache,          String
+      attribute :origin,         String
+      attribute :source,         String
+      attribute :indexable,      Boolean
+      attribute :switch,         String
+      attribute :off,            Boolean
+      attribute :label,          String
+      attribute :seo,            String
+      attribute :seo_title,      String
+      attribute :nav_group,      String
+      attribute :nav_order,      Integer
+      attribute :mobile_order,   Integer
+      attribute :mobile_heading, String
+      attribute :footer_column,  String
+      attribute :footer_order,   Integer
+      attribute :admin_key,      String
+      attribute :admin_order,    Integer
+      attribute :compress,       Boolean
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", seo: "home",
+             seo_title: "Harbor Gallery | Contemporary art", nav_order: 1, mobile_order: 1
+      member path: "/exhibitions", label: "Exhibitions", source: "global:exhibitions", seo: "exhibitions",
+             seo_title: "Exhibitions | Harbor Gallery", nav_group: "Visit", nav_order: 2, mobile_order: 2,
+             mobile_heading: "Visit"
+      member path: "/about",       label: "About", source: "global:about", seo: "about",
+             nav_group: "Visit", nav_order: 3, mobile_order: 3, footer_column: "Gallery", footer_order: 1
+      member path: "/shop",        label: "Shop", source: "global:shop", switch: "shop", off: true,
+             nav_order: 4, mobile_order: 4, mobile_heading: "More", footer_column: "Gallery", footer_order: 2
+      member path: "/press-kit",   kind: "redirect", redirect_to: "/about", label: "Press kit",
+             footer_column: "Gallery", footer_order: 3
+      member path: "/ticket-file", kind: "endpoint", label: "Download tickets", mobile_order: 5
+
+      # Rows that exist for the edge. The sign-in page is public, sits beneath /admin*, and rides
+      # that prefix's behaviour: it says so by naming its cache class and the verbs the edge allows.
+      member path: "/_assets/*",   kind: "proxy", cache: "immutable"
+      member path: "/api/*",       kind: "endpoint", methods: "GET,POST", compress: false
+      member path: "/api/ping",    kind: "endpoint", edge_methods: "GET,POST", compress: false
+      member path: "/cms/*",       kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST,PUT,PATCH,DELETE"
+      member path: "/admin*",      kind: "proxy", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", edge_methods: "GET,POST", indexable: false
+      member path: "/admin-orders", render: "ssr", auth: "admin", edge_methods: "GET,POST", label: "Orders",
+             admin_key: "orders", admin_order: 1
+      member path: "/admin-export", kind: "endpoint", auth: "admin", edge_methods: "GET,POST", label: "Export",
+             admin_key: "export", admin_order: 2
+      member path: "/*",           kind: "proxy"
+    end
+
+    # Links that point at a route the table declares: the same page under another label, and a
+    # section of a page.
+    value_object "NavLink" do
+      attribute :path,          String
+      attribute :fragment,      String
+      attribute :label,         String
+      attribute :mobile_order,  Integer
+      attribute :footer_column, String
+      attribute :footer_order,  Integer
+
+      member path: "/about", fragment: "opening-hours", label: "Opening hours",
+             footer_column: "Gallery", footer_order: 1, mobile_order: 3
+    end
+
+    # The edge: no load balancer, so no listener rules and no target groups, and the template has no
+    # listener_rules region.
+    value_object "Edge" do
+      attribute :template, String
+      attribute :alb,      Boolean
+
+      member template: "deploy/template.yaml", alb: false
+    end
+
+    value_object "EdgePolicy" do
+      attribute :cache_class,      String
+      attribute :cache,            String
+      attribute :origin_request,   String
+      attribute :response_headers, String
+
+      member cache_class: "page",      cache: "!Ref PageCachePolicy", origin_request: "all_viewer"
+      member cache_class: "home",      cache: "!Ref HomeCachePolicy", origin_request: "all_viewer"
+      member cache_class: "immutable", cache: "caching_optimized", origin_request: "all_viewer_except_host"
+      member cache_class: "no_store",  cache: "caching_disabled", origin_request: "all_viewer"
+    end
+
+    value_object "EdgeOrigin" do
+      attribute :origin, String
+      attribute :id,     String
+
+      member origin: "website", id: "WebsiteOrigin"
+      member origin: "cms",     id: "CmsOrigin"
+    end
+
+    command "Name" do
+      goal "Name the gallery's route table"
+
+      attribute :name, MapName
+
+      sets :name
+
+      emits "SiteMapNamed"
+    end
+  end
+end

@@ -101,15 +101,55 @@ RSpec.describe "the Site row of the ADR command table" do
     end
   end
 
-  it "refuses outside a hecks checkout, where the generator is not" do
+  it "runs outside a hecks checkout, since the tool ships in the gem and reads only the project" do
     Dir.mktmpdir("not_a_checkout") do |dir|
       Dir.mkdir(File.join(dir, "lib"))
       Hecks::Adapters::Codebase::Tree.root = dir
 
-      json, status = answer(["site_projection.project_site", PROJECT, "--wait"])
+      Dir.mktmpdir("site_out") do |out|
+        json, status = answer(["site_projection.project_site", PROJECT, "out=#{out}", "--wait"])
 
-      expect(status).to eq(1)
-      expect(json.dig("state", "refusal", "value")).to include("needs a hecks checkout")
+        expect(status).to eq(0)
+        expect(json.dig("state", "status")).to eq("projected")
+      end
     end
+  end
+
+  it "takes a template anywhere and an extension, and writes routes.mts beside an in-place template" do
+    Dir.mktmpdir("site_beside") do |dir|
+      FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra.yaml"))
+      json, status = answer(["site_projection.project_site", PROJECT, "out=#{dir}/web", "template=#{dir}/infra.yaml",
+                             "extension=mts", "--wait"])
+
+      expect(status).to eq(0)
+      expect(json.dig("state", "status")).to eq("projected")
+      expect(File.read(File.join(dir, "web/routes.mts"))).to eq(File.read(File.join(PROJECT, "../routes.ts")))
+      expect(File.read(File.join(dir, "infra.yaml"))).to eq(File.read(File.join(PROJECT, "../template.yaml")))
+    end
+  end
+
+  it "reads a project, an out and a template relative to where the command runs" do
+    Dir.mktmpdir("site_relative") do |dir|
+      FileUtils.cp_r(PROJECT, File.join(dir, "client"))
+      FileUtils.rm_rf(File.join(dir, "client/generated"))
+      FileUtils.mkdir_p(File.join(dir, "infra"))
+      FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra/stack.yaml"))
+
+      Dir.chdir(dir) do
+        _, status = answer(["site_projection.project_site", "client", "out=client/web", "template=infra/stack.yaml", "--wait"])
+
+        expect(status).to eq(0)
+      end
+
+      expect(File.read(File.join(dir, "client/web/routes.ts"))).to eq(File.read(File.join(PROJECT, "../routes.ts")))
+      expect(File.read(File.join(dir, "infra/stack.yaml"))).to eq(File.read(File.join(PROJECT, "../template.yaml")))
+    end
+  end
+
+  it "refuses an extension outside the set, naming the set" do
+    out, status = launch(["site_projection.project_site", PROJECT, "extension=cjs", "--wait"])
+
+    expect(status).to eq(1)
+    expect(out).to include('Extension admits "ts", "mts"')
   end
 end

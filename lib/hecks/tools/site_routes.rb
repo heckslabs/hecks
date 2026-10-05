@@ -14,41 +14,47 @@ module Hecks
     # it declares an edge, into the behaviours and listener rules of its template
     # (`Projections::Site::SiteCdn`).
     #
-    #   hecks site site_projection.project_site [<project>] [--out=<dir>] [--check]
+    #   hecks site site_projection.project_site [<project>] [--out=<dir>] [--template=<file>]
+    #                                           [--extension=ts|mts] [--check]
     #
-    # `<project>` is the directory whose `bluebook/` holds the chapter that declares the rows and a
-    # hecksagon that attaches Site; it defaults to the checkout. `routes.ts` is written to
-    # `<project>/generated` unless `--out` names another directory. The template is rewritten in
-    # place between its `BEGIN`/`END GENERATED site_cdn` markers, or under `--out` a copy of it is
-    # written at the same relative path. With `--check` nothing is written: the tool answers 1 and
-    # names each file that differs from the table.
+    # `<project>` (default: the working directory) holds `bluebook/` and the `vendor/` it attaches
+    # from. `routes.ts` goes to `<project>/generated` or to `--out`, anywhere. The template is the
+    # `Edge` row's, relative to the project, or `--template`, anywhere; it is rewritten in place
+    # between its `BEGIN`/`END GENERATED site_cdn` markers. With `--out` alone, `--out` receives a
+    # copy of it instead. `--extension=mts` names the module `routes.mts`; `--check` writes nothing.
     module SiteRoutes
       # Where the files go, relative to the project, when `--out` names no directory.
       DEFAULT_OUT = "generated"
 
-      USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] [--check]"
+      # The extensions the module may take; the first is the default.
+      EXTENSIONS = %w[ts mts].freeze
+
+      USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] " \
+              "[--template=<file>] [--extension=#{EXTENSIONS.join('|')}] [--check]".freeze
 
       module_function
 
       # Projects the route table, writes what differs and prints a line for each file written.
       #
       # @param argv [Array<String>] the project directory, then the flags
-      # @param root [String] the checkout, used as the project when `argv` names none
+      # @param root [String] the project used when `argv` names none; the working directory
       # @return [Integer] 0, or 1 when `--check` finds a file out of date
-      # @raise [SystemExit] with the reason on stderr when the project declares no route table or
-      #   the table is refused
-      def main(argv, root: Tools::ROOT)
+      # @raise [SystemExit] with the reason on stderr when the project declares no route table, the
+      #   table is refused, or a flag is refused
+      def main(argv, root: Dir.pwd)
         argv = argv.dup
-        out = nil
+        out = template = extension = nil
         check = false
         OptionParser.new do |parser|
           parser.on("--out=DIR") { |value| out = value }
+          parser.on("--template=FILE") { |value| template = value }
+          parser.on("--extension=EXT") { |value| extension = value }
           parser.on("--check") { check = true }
         end.parse!(argv)
         project = argv.empty? ? root : File.expand_path(argv.shift)
         abort USAGE unless argv.empty?
 
-        files = projection(project, out: out)
+        files = projection(project, out: out, template: template, extension: extension)
         stale = files.reject { |path, text| File.file?(path) && File.read(path) == text }.keys
         return report(stale, project, check) if check
 
@@ -63,16 +69,26 @@ module Hecks
 
       # @param root [String] the project directory
       # @param out [String, nil] the directory to write to; `generated/` of the project when nil
+      # @param template [String, nil] the template to rewrite in place, wherever it lies; the
+      #   `Edge` row's template, relative to the project, when nil
+      # @param extension [String, nil] `ts` (the default) or `mts`, the module's file extension
       # @return [Hash{String => String}] each file's absolute path to the text it should hold
-      # @raise [SystemExit] when the project declares no route table or the table is refused
-      def projection(root, out: nil)
+      # @raise [SystemExit] when the project declares no route table, the table is refused, or a
+      #   path or the extension is refused
+      def projection(root, out: nil, template: nil, extension: nil)
+        extension ||= EXTENSIONS.first
+        unless EXTENSIONS.include?(extension)
+          abort "project_site: --extension is one of #{EXTENSIONS.join(', ')}, not #{extension.inspect}"
+        end
+        dir = out ? File.expand_path(out) : File.join(root, DEFAULT_OUT)
+        abort "project_site: --out #{dir} is a file; it names the directory routes.#{extension} goes in" if File.file?(dir)
+
         registry = registry_for(root)
         chapter = Projections::Site::Table.chapter(registry)
         table = Projections::Site::Table.read(chapter, registry: registry)
         files = Projector.call(:site_routes_ts, bluebook: chapter, options: { table: table })
-        dir = out ? File.expand_path(out) : File.join(root, DEFAULT_OUT)
-        written = files.to_h { |name, text| [File.join(dir, name), text] }
-        written.merge(template_files(root, out, chapter, table, registry))
+        written = files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
+        written.merge(template_files(root, out, chapter, table, registry, template: template))
       rescue Projections::Site::Table::Invalid => e
         abort "project_site: #{e.message}"
       end
@@ -84,25 +100,50 @@ module Hecks
       # @param chapter [Bluebook::Chapter] the chapter that declares the route table
       # @param table [Projections::Site::Table] the checked table
       # @param registry [Hecks::Runtime::Registry] the registry the project booted into
+      # @param template [String, nil] a template named on the command line, rewritten in place
       # @return [Hash{String => String}] the template's path to its text; empty with no edge
-      # @raise [SystemExit] when the template is missing or lacks a region
-      def template_files(root, out, chapter, table, registry)
-        edge = Projections::Site::Edge.read(chapter, table: table, vocabulary: Projections::Site::Table.vocabulary(registry))
-        return {} unless edge
+      # @raise [SystemExit] when a template is named and the project declares no edge, the
+      #   template is missing or lacks a region it needs, or holds a region an edge without a load
+      #   balancer does not use
+      def template_files(root, out, chapter, table, registry, template: nil)
+        edge = Projections::Site::Edge.read(chapter, table: table, template: template,
+                                                     vocabulary: Projections::Site::Table.vocabulary(registry))
+        unless edge
+          abort "project_site: --template names #{template}, but the project declares no Edge rows" if template
+          return {}
+        end
 
         regions = Projector.call(:site_cdn, bluebook: chapter, options: { table: table, edge: edge })
-        relative = edge.setting.template
-        source = File.join(root, relative)
-        abort "project_site: the template #{relative} does not exist in #{root}" unless File.file?(source)
+        relative = template || edge.setting.template
+        source = template ? File.expand_path(template) : File.join(root, relative)
+        unless File.file?(source)
+          abort "project_site: the template #{relative} does not exist#{" in #{root}" unless template}"
+        end
 
-        text = regions.reduce(File.read(source)) do |current, (name, block)|
+        text = rewritten(File.read(source), regions, relative, edge)
+        in_place = template || out.nil?
+        { (in_place ? source : File.join(File.expand_path(out), relative)) => text }
+      end
+
+      # @param text [String] the template
+      # @param regions [Hash{String => String}] each region's name to the block that goes in it
+      # @param relative [String] the template's name, for a message
+      # @param edge [Projections::Site::Edge] the checked edge
+      # @return [String] the template with each region rewritten
+      # @raise [SystemExit] when a region is missing, or a listener_rules region is left behind
+      #   by an edge with no load balancer
+      def rewritten(text, regions, relative, edge)
+        if !edge.alb? && Projections::Site::Regions.region?(text, "listener_rules")
+          abort "project_site: #{relative} has a BEGIN/END GENERATED site_cdn listener_rules region, " \
+                "and the Edge row says alb: false; remove the region"
+        end
+        regions.reduce(text) do |current, (name, block)|
           unless Projections::Site::Regions.region?(current, name)
             abort "project_site: #{relative} has no BEGIN/END GENERATED site_cdn #{name} region"
           end
 
           Projections::Site::Regions.replace(current, name, block)
         end
-        { (out ? File.join(File.expand_path(out), relative) : source) => text }
       end
 
       # Loads the project's chapters the way a deploy does: the bluebooks, then the hecksagons that

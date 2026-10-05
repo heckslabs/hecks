@@ -28,7 +28,9 @@ module Hecks
           # @param rows [Array<Table::Row>] the route table's rows
           # @param vocabulary [Hash{Symbol => Array<String>}] the Site chapter's closed sets
           # @param problems [Array<String>] collects each problem found, one line each
-          def initialize(edge, rows, vocabulary, problems)
+          # @param template_named [Boolean] whether the caller names the template itself
+          def initialize(edge, rows, vocabulary, problems, template_named: false)
+            @template_named = template_named
             @edge = edge
             @rows = rows
             @vocabulary = vocabulary
@@ -48,13 +50,19 @@ module Hecks
 
           def check_setting
             setting = @edge.setting
-            return problem("Edge", "has no row naming the template; declare one member with template:") unless setting
+            return problem("Edge", "has no row; declare one member with template:") unless setting
 
-            template = setting.template.to_s
-            problem("Edge", "template #{template.inspect} must be a path inside the project") if
-              template.empty? || template.start_with?("/") || template.split("/").include?("..")
+            check_template(setting.template) if setting.template || !@template_named
+
             problem("Edge", "has secret_header but no secret_value") if setting.secret_header && !setting.secret_value
             problem("Edge", "has secret_value but no secret_header") if setting.secret_value && !setting.secret_header
+          end
+
+          def check_template(template)
+            template = template.to_s
+            problem("Edge", "has no template; declare template: or name the file to the tool") if template.empty?
+            problem("Edge", "template #{template.inspect} must be a path inside the project") if
+              template.start_with?("/") || template.split("/").include?("..")
           end
 
           def check_policies
@@ -86,10 +94,28 @@ module Hecks
           end
 
           def check_rules
+            return check_no_alb unless @edge.alb?
+
             problem("EdgeRule", "rows need an Edge row with listener:") if @edge.rules.any? && !@edge.setting&.listener
             @edge.rules.each { |rule| check_rule(rule) }
             repeated(@edge.rules.map(&:rule), "EdgeRule", &:itself)
             repeated(@edge.rules.map(&:priority), "EdgeRule priority", &:to_s)
+          end
+
+          # With `alb: false` nothing routes by listener rule, so a rule row, or a route that names
+          # one, describes a load balancer the project says it does not have. Every route that is
+          # served by a server behind the edge still needs the origin that reaches it.
+          def check_no_alb
+            problem("EdgeRule", "rows describe a load balancer, and the Edge row says alb: false") if @edge.rules.any?
+            @rows.select(&:alb_rule).each do |row|
+              problem(row.path, "names alb_rule #{row.alb_rule}, and the Edge row says alb: false")
+            end
+            @rows.each do |row|
+              next if row.cdn || !%w[cms domain].include?(row.origin) || @edge.upstream(row.origin)
+
+              problem(row.path, "is served from #{row.origin}, which no EdgeOrigin maps, and with alb: false " \
+                                "nothing else reaches it")
+            end
           end
 
           def check_rule(rule)

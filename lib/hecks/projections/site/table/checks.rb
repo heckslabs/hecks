@@ -1,19 +1,23 @@
 # frozen_string_literal: true
 
+require_relative "../edge/pattern"
+
 module Hecks
   module Projections
     module Site
       class Table
         # What no single row can show, and what a row contradicts in itself once its defaults are
-        # filled: a path declared twice, a switch the rows disagree on, an off route that sits in a
-        # navigation, an indexable route that is not public.
+        # filled: a path declared twice, a switch the rows disagree on, a navigation entry that
+        # cannot be linked to, an indexable route that is not public, a public route beneath a
+        # prefix that is not.
         class Checks
           SWITCH_ID = /\A[a-z][a-z0-9_]*\z/
+          FRAGMENT = /\A[A-Za-z0-9][\w:.-]*\z/
           PUBLIC_MENUS = %w[desktop mobile footer].freeze
 
           # The navigation slots a row sits in.
           #
-          # @param row [Row] a row
+          # @param row [Row, Link] a row or link
           # @return [Array<String>] some of `desktop`, `mobile`, `footer`, `admin`
           def self.navigation(row)
             { "desktop" => row.nav_order, "mobile" => row.mobile_order, "footer" => row.footer_column,
@@ -22,8 +26,10 @@ module Hecks
 
           # @param rows [Array<Row>] the table's rows, defaults filled in
           # @param problems [Array<String>] collects each problem found, one line each
-          def initialize(rows, problems)
+          # @param links [Array<Link>] the table's extra navigation entries
+          def initialize(rows, problems, links: [])
             @rows = rows
+            @links = links
             @problems = problems
           end
 
@@ -32,7 +38,8 @@ module Hecks
             check_duplicate_paths
             check_switches
             @rows.each { |row| check_row(row) }
-            check_unique(@rows.filter_map(&:admin_key), "admin key")
+            @links.each { |link| check_link(link) }
+            check_unique((@rows + @links).filter_map(&:admin_key), "admin key")
             check_unique(@rows.map(&:source).grep(/\Aglobal:/), "source")
           end
 
@@ -63,6 +70,7 @@ module Hecks
             check_redirect(row, path)
             check_navigation(row, path)
             check_indexing(row, path)
+            check_beneath_prefix(row, path)
             return unless row.preview == "draft" && row.source == "none"
 
             problem(path, "previews as a draft but has source none; a draft preview needs a global: or collection: source")
@@ -90,11 +98,49 @@ module Hecks
             slots = self.class.navigation(row)
             return if slots.empty?
 
-            problem(path, "is off and sits in the #{slots.join(' and ')} navigation") if row.off
-            problem(path, "sits in the navigation but is a #{row.kind}; only a page does") unless row.kind == "page"
+            unless row.verbs.include?("GET")
+              problem(path, "sits in the navigation but answers #{row.verbs.join(',')}; a link is a GET")
+            end
             problem(path, "sits in the navigation and has a parameter") if path.match?(/[:*]/)
             problem(path, "sits in the navigation and has no label") if row.label.to_s.empty?
+            check_heading(row, path)
             check_menu_audience(row, path, slots)
+          end
+
+          def check_heading(item, path)
+            return unless item.mobile_heading
+            return problem(path, "has a mobile_heading but no mobile_order") if item.mobile_order.nil?
+
+            problem(path, "has an empty mobile_heading") if item.mobile_heading.strip.empty?
+          end
+
+          def check_link(link)
+            path = "NavLink #{link.path}"
+            slots = self.class.navigation(link)
+            problem(path, "sits in no navigation; give it nav_order, mobile_order, footer_column or admin_key") if slots.empty?
+            problem(path, "has a parameter; a link is to one page") if link.path.to_s.match?(/[:*]/)
+            problem(path, "has no label") if link.label.to_s.empty?
+            if link.fragment && !link.fragment.match?(FRAGMENT)
+              problem(path, "has fragment #{link.fragment.inspect}; a fragment is an element id, written without #")
+            end
+            check_heading(link, path)
+            check_menu_audience(link, path, slots)
+          end
+
+          # A public route under a prefix that is not public (the sign-in page beside the admin
+          # pages) inherits nothing from the prefix, so the row has to say what it is: its cache
+          # class is declared, not derived from its auth.
+          def check_beneath_prefix(row, path)
+            return if row.auth != "public" || row.explicit_cache || row.path.nil?
+
+            pattern = Edge::Pattern.edge(row.path)
+            prefix = @rows.find do |other|
+              other.auth != "public" && other.path && Edge::Pattern.strictly_covers?(Edge::Pattern.edge(other.path), pattern)
+            end
+            return unless prefix
+
+            problem(path, "is public but sits beneath #{prefix.path}, which is #{prefix.auth}; " \
+                          "name its cache class (cache: \"no_store\" for a sign-in page) to say that is meant")
           end
 
           def check_menu_audience(row, path, slots)

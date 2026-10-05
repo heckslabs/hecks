@@ -77,10 +77,12 @@ module Hecks
         end
 
         def route_fields(row)
-          { path: row.path, kind: row.kind, render: row.render, auth: row.auth, methods: row.verbs,
-            cache: row.cache, origin: row.origin, source: row.source, indexable: row.indexable,
-            switch: blank_to_nil(row.switch), off: row.off, preview: row.preview,
-            label: blank_to_nil(row.label), seo: blank_to_nil(row.seo), redirectTo: row.redirect_to }
+          fields = { path: row.path, kind: row.kind, render: row.render, auth: row.auth, methods: row.verbs,
+                     cache: row.cache, origin: row.origin, source: row.source, indexable: row.indexable,
+                     switch: blank_to_nil(row.switch), off: row.off, preview: row.preview,
+                     label: blank_to_nil(row.label), seo: blank_to_nil(row.seo), redirectTo: row.redirect_to }
+          fields[:seoTitle] = row.seo_title if row.seo_title
+          fields
         end
 
         def switches(rows)
@@ -112,13 +114,16 @@ module Hecks
           TS
         end
 
+        # The navigation arrays hold every entry that has a slot, a switched-off page's too: an
+        # entry of an off page carries its `switch` and `on: false`, and the site drops it while
+        # `pageIsOn(switch)` is false. An entry of a page that is on carries neither.
         def navigation(table)
-          rows = live(table.rows)
+          items = table.rows + table.links
           [nav_const("NAV_DESKTOP", "The desktop navigation: a page with no group is its own entry; a group holds its pages.",
-                     desktop(rows)),
-           nav_const("NAV_MOBILE", "The mobile navigation, in its own order.", mobile(rows)),
-           nav_const("NAV_FOOTER", "The footer columns, left to right, each with its links.", footer(rows)),
-           nav_const("NAV_ADMIN", "The admin navigation: each admin page under its key.", admin(rows))].join("\n\n")
+                     desktop(items)),
+           nav_const("NAV_MOBILE", "The mobile navigation, in its own order.", mobile(items)),
+           nav_const("NAV_FOOTER", "The footer columns, left to right, each with its links.", footer(items)),
+           nav_const("NAV_ADMIN", "The admin navigation: each admin page under its key.", admin(items))].join("\n\n")
         end
 
         def nav_const(name, comment, entries)
@@ -126,32 +131,41 @@ module Hecks
           "// #{comment}\nexport const #{name} = #{body.empty? ? '[]' : "[\n#{body.join("\n")}\n]"} as const;"
         end
 
-        def desktop(rows)
-          items = rows.reject { |row| row.nav_order.nil? }.sort_by { |row| [row.nav_order, row.path] }
+        # One link: a row's or a link's path and label, the fragment a link names, and for a page
+        # that is off the switch that turns it on.
+        def entry(item, **before)
+          link = { **before, path: item.path, label: item.label }
+          link[:fragment] = item.fragment if item.respond_to?(:fragment) && item.fragment
+          link.merge!(switch: item.switch, on: false) if item.off
+          link
+        end
+
+        def order_key(item, order) = [order, item.path, item.respond_to?(:fragment) ? item.fragment.to_s : ""]
+
+        def desktop(items)
           entries = []
-          items.each do |row|
-            item = { path: row.path, label: row.label }
-            group = row.nav_group
-            slot = group && entries.find { |entry| entry[:group] == group }
-            slot ? slot[:items] << item : entries << { group: group, items: [item] }
+          items.reject { |item| item.nav_order.nil? }.sort_by { |item| order_key(item, item.nav_order) }.each do |item|
+            group = item.nav_group
+            slot = group && entries.find { |candidate| candidate[:group] == group }
+            slot ? slot[:items] << entry(item) : entries << { group: group, items: [entry(item)] }
           end
           entries
         end
 
-        def mobile(rows)
-          rows.reject { |row| row.mobile_order.nil? }.sort_by { |row| [row.mobile_order, row.path] }
-              .map { |row| { path: row.path, label: row.label } }
+        def mobile(items)
+          items.reject { |item| item.mobile_order.nil? }.sort_by { |item| order_key(item, item.mobile_order) }
+               .map { |item| item.mobile_heading ? entry(item, heading: item.mobile_heading) : entry(item) }
         end
 
-        def footer(rows)
-          columns = rows.select(&:footer_column).sort_by { |row| [row.footer_order, row.path] }.group_by(&:footer_column)
+        def footer(items)
+          columns = items.select(&:footer_column).sort_by { |item| order_key(item, item.footer_order) }.group_by(&:footer_column)
           columns.sort_by { |name, group| [group.first.footer_order, name] }
-                 .map { |name, group| { column: name, items: group.map { |row| { path: row.path, label: row.label } } } }
+                 .map { |name, group| { column: name, items: group.map { |item| entry(item) } } }
         end
 
-        def admin(rows)
-          rows.select(&:admin_key).sort_by { |row| [row.admin_order, row.admin_key] }
-              .map { |row| { key: row.admin_key, path: row.path, label: row.label } }
+        def admin(items)
+          items.select(&:admin_key).sort_by { |item| [item.admin_order, item.admin_key] }
+               .map { |item| entry(item, key: item.admin_key) }
         end
 
         def search(rows)
@@ -216,13 +230,22 @@ module Hecks
               const source = stripHtml(pattern)
                 .split("/")
                 .map((part) =>
-                  part === "*" ? ".*" : part.startsWith(":") ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                  part.startsWith(":")
+                    ? "[^/]+"
+                    : part
+                        .split("*")
+                        .map((piece) => piece.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+                        .join(".*"),
                 )
                 .join("/");
               return new RegExp("^" + source + "$");
             }
 
-            /** Whether a pathname is one a route pattern (`/blog/:slug.html`, `/pay/*`) describes, with or without `.html`. */
+            /**
+             * Whether a pathname is one a route pattern describes, with or without `.html`. A `:name` is one
+             * segment; a `*` is any run of characters, `/` included, wherever it stands, as in a CDN's path
+             * pattern: `/pay/*` matches `/pay/7` and `/admin*` matches `/admin`, `/admin-inbox` and `/admin/x`.
+             */
             export function matchesPath(pattern: string, pathname: string): boolean {
               return toRegExp(pattern).test(stripHtml(pathname));
             }
