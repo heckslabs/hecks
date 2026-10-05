@@ -403,7 +403,7 @@ module Hecks
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
-        out.concat(tables(commands, questions, all: options[:all]))
+        out.concat(tables(commands, questions, all: options[:all], notes: aggregate_notes(bluebook)))
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
         out.concat(all_hint(program, commands, questions)) unless options[:all]
@@ -412,10 +412,10 @@ module Hecks
       end
 
       # The commands table then the queries table.
-      def tables(commands, questions, all:)
-        ["commands:", *listing(commands, all: all) { |spec| spec[:summary] }, "",
+      def tables(commands, questions, all:, notes:)
+        ["commands:", *listing(commands, all: all, notes: notes) { |spec| spec[:summary] }, "",
          "queries (nothing here changes anything):",
-         *listing(questions, all: all) { |spec| first_sentence(spec[:summary]) }]
+         *listing(questions, all: all, notes: notes) { |spec| first_sentence(spec[:summary]) }]
       end
 
       # The line saying the internal commands and queries were left out and how to list them,
@@ -433,24 +433,40 @@ module Hecks
       # records about itself (`internal`: system-role commands and port operations) is left out,
       # since a person never types them; `all` lists them as names only. A single-aggregate
       # domain keeps the plain list, each name in full.
-      def listing(specs, all: false, &description)
+      #
+      # @param notes [Hash{String => String}] a line of prose per aggregate, shown under its heading
+      def listing(specs, all: false, notes: {}, &description)
         shown, internal = specs.values.partition { |spec| !spec[:internal] }
         grouped = shown.map { |spec| spec[:group] }.uniq.length > 1
         named = shown.to_h { |spec| [spec, entry_name(spec, grouped)] }
-        lines = listed_rows(shown, named, grouped, &description)
+        lines = listed_rows(shown, named, grouped, notes, &description)
         lines.concat(internal_lines(internal)) if all && !internal.empty?
         lines
       end
 
       # The rows of one table: one line per spec, under a heading per aggregate when grouped.
-      def listed_rows(shown, named, grouped, &description)
+      def listed_rows(shown, named, grouped, notes, &description)
         width = named.values.map(&:length).max.to_i
         row = ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{description.call(spec)}#{alias_note(spec)}" }
         return shown.map { |spec| row.call(spec, "  ") } unless grouped
 
         shown.group_by { |spec| spec[:group] }.flat_map do |group, members|
-          [("  #{heading(group)}" if group), *members.map { |spec| row.call(spec, "    ") }].compact
+          [*heading_lines(group, notes), *members.map { |spec| row.call(spec, "    ") }]
         end
+      end
+
+      # The lines that open an aggregate's group: its heading, then its note when it has one.
+      def heading_lines(group, notes)
+        return [] unless group
+
+        ["  #{heading(group)}", *notes[group]&.then { |note| "    #{note}" }]
+      end
+
+      # The first sentence of each aggregate's description, keyed by aggregate name; an aggregate
+      # with no description has no entry.
+      def aggregate_notes(bluebook)
+        bluebook.aggregates.to_h { |aggregate| [aggregate.hecks_name, first_sentence(aggregate.description)] }
+                .reject { |_, note| note.empty? }
       end
 
       # The aggregate's own name as a heading: the prefix of every call to the lines under it.
