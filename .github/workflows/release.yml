@@ -1,0 +1,216 @@
+name: Release
+
+# Cuts the release a merged release PR describes, so nobody runs `hecks publishing_run.publish
+# --confirm` from a laptop. It runs when a commit on main changes lib/hecks/version.rb, and does
+# what the local publish does, in the same order:
+#
+#   1. check that Hecks::VERSION, packages/hecks-client, rust/host/HECKS_RELEASE and a
+#      `## [X.Y.Z]` heading in CHANGELOG.md all name the same version, and refuse if they do not;
+#   2. tag the commit vX.Y.Z (annotated);
+#   3. push the gem to rubygems.org;
+#   4. start publish-client.yml for the tag, which publishes @hecks/client to npm (OIDC);
+#   5. create the GitHub Release from the CHANGELOG section and mark it latest.
+#
+# Every step looks at what already exists first and skips it, so a run that stopped halfway, or a
+# release that was already cut by hand, is finished by re-running: the workflow never tags,
+# pushes or releases the same thing twice. A tag that stands on a different commit is an error,
+# never moved.
+#
+# The npm publish is started with `gh workflow run` rather than left to the tag push: a tag
+# pushed with the workflow's own GITHUB_TOKEN does not trigger other workflows, and the
+# alternative (a personal access token that does) would add a long-lived credential to a
+# repository that otherwise holds none for the npm side.
+#
+# Secret: RUBYGEMS_API_KEY, a RubyGems API key allowed to push the `hecks` gem. It is handed to
+# the one step that pushes, as GEM_HOST_API_KEY, and nowhere else.
+#
+# Re-run: `gh workflow run release.yml -f tag=vX.Y.Z` (from main). If the tag already exists the
+# run checks out that tag, so a missing piece of an older release can be filled in.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - lib/hecks/version.rb
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to cut or finish, such as v3.2.1"
+        required: true
+        type: string
+
+# Releases queue behind each other and a running one is never cancelled halfway.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the tag, create the GitHub Release
+  actions: write # start publish-client.yml
+
+jobs:
+  release:
+    if: github.repository == 'heckslabs/hecks' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      REQUESTED_TAG: ${{ inputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A by-hand run for a tag that already exists works from that tag's tree.
+      - name: Check out the requested tag
+        if: env.REQUESTED_TAG != ''
+        run: |
+          case "$REQUESTED_TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$REQUESTED_TAG' is not a release tag such as v3.2.1"; exit 1 ;;
+          esac
+          git fetch --force --tags origin
+          if git rev-parse -q --verify "refs/tags/$REQUESTED_TAG^{commit}" > /dev/null; then
+            git checkout --detach "refs/tags/$REQUESTED_TAG"
+          fi
+
+      - name: The files agree on one version
+        id: release
+        run: |
+          version="$(sed -n 's/^ *VERSION = "\(.*\)".*/\1/p' lib/hecks/version.rb)"
+          client="$(node -p "require('./packages/hecks-client/package.json').version")"
+          host="$(tr -d '[:space:]' < rust/host/HECKS_RELEASE)"
+          if [ -z "$version" ] || [ "$client" != "$version" ] || [ "$host" != "$version" ]; then
+            echo "::error::Hecks::VERSION is '$version', packages/hecks-client is '$client', rust/host/HECKS_RELEASE is '$host'; they must all match. Fix them in the release PR."
+            exit 1
+          fi
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$version]' heading; add the release entry in the release PR."
+            exit 1
+          fi
+          if [ -n "$REQUESTED_TAG" ] && [ "$REQUESTED_TAG" != "v$version" ]; then
+            echo "::error::$REQUESTED_TAG was requested, but this tree is release $version."
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Read from the registries and GitHub, so a skipped step is a fact and not a memory.
+      - name: What already exists
+        id: state
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          remote="$(git ls-remote origin "refs/tags/$TAG^{}" "refs/tags/$TAG" | awk '{print $1}' | tail -n 1)"
+          if [ -z "$remote" ]; then
+            echo "tagged=false" >> "$GITHUB_OUTPUT"
+          elif [ "$remote" = "$SHA" ]; then
+            echo "tagged=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::$TAG already points at ${remote:0:7} on origin, not at this release commit ${SHA:0:7}; it is never moved. If it was never released, delete it and re-run."
+            exit 1
+          fi
+
+          gem_status="$(curl -sS -o gem.json -w '%{http_code}' https://rubygems.org/api/v1/versions/hecks.json)"
+          [ "$gem_status" = "200" ] || { echo "::error::rubygems.org answered $gem_status; re-run this workflow"; exit 1; }
+          if jq -e --arg v "$VERSION" 'any(.[]; .number == $v)' gem.json > /dev/null; then
+            echo "gem=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gem=false" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f gem.json
+
+          npm_status="$(curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@hecks%2Fclient/$VERSION")"
+          case "$npm_status" in
+            200) echo "npm=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "npm=false" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "::error::the npm registry answered $npm_status; re-run this workflow"; exit 1 ;;
+          esac
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag the release commit
+        if: steps.state.outputs.tagged == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $VERSION" "$SHA"
+          git push origin "refs/tags/$TAG"
+
+      - uses: ruby/setup-ruby@v1
+        if: steps.state.outputs.gem == 'false'
+        with:
+          ruby-version: "3.3"
+
+      - name: Build and push the gem
+        if: steps.state.outputs.gem == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          if [ -z "$GEM_HOST_API_KEY" ]; then
+            echo "::error::the repository secret RUBYGEMS_API_KEY is not set"
+            exit 1
+          fi
+          gem build hecks.gemspec
+          gem push "hecks-$VERSION.gem"
+          rm -f "hecks-$VERSION.gem"
+
+      # The registry lists a new version within moments; a push that was accepted but never
+      # appears is a failure worth seeing.
+      - name: The gem is listed
+        if: steps.state.outputs.gem == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          for _ in 1 2 3 4 5 6; do
+            curl -sS https://rubygems.org/api/v1/versions/hecks.json -o gem.json
+            if jq -e --arg v "$VERSION" 'any(.[]; .number == $v)' gem.json > /dev/null; then
+              echo "hecks $VERSION is on rubygems.org."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::hecks $VERSION was pushed but rubygems.org does not list it yet; check it by hand"
+          exit 1
+
+      - name: Start the npm publish
+        if: steps.state.outputs.npm == 'false'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh workflow run publish-client.yml -f "tag=$TAG"
+
+      - name: Create the GitHub Release
+        if: steps.state.outputs.release == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if [ -z "$(tr -d '[:space:]' < "$RUNNER_TEMP/notes.md")" ]; then
+            echo "::error::the CHANGELOG section for $VERSION is empty"
+            exit 1
+          fi
+          gh release create "$TAG" --verify-tag --title "hecks $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest

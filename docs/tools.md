@@ -133,6 +133,17 @@ gem, no checkout: `<project>` holds `bluebook/`, `out=` is any directory for `ro
 | `hecks gate_run.gate <stage> [only=]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
+## Releasing from CI
+
+`.github/workflows/release.yml` cuts a release, so it does not need `hecks publishing_run.publish --confirm` run
+from a laptop. It starts when a commit on `main` changes `lib/hecks/version.rb` (the merged release PR), or by
+hand with `gh workflow run release.yml -f tag=vX.Y.Z`. It refuses unless `Hecks::VERSION`,
+`packages/hecks-client`, `rust/host/HECKS_RELEASE` and a `## [X.Y.Z]` heading in `CHANGELOG.md` agree. It then
+tags the commit, pushes the gem (repository secret `RUBYGEMS_API_KEY`), starts `publish-client.yml` for the npm
+package, and creates the GitHub Release from the CHANGELOG section. Each step is skipped when its result already
+exists, so re-running a release that stopped halfway finishes it, and a tag that stands on another commit is an
+error, never moved. The local command remains for a release made by hand.
+
 ## QualityControl, for maintaining Hecks
 
 <!-- generated:begin tools section=QualityControl -->
