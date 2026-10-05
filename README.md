@@ -24,7 +24,7 @@ The project uses its own words (bluebook, hecksagon, world, chapter, era and
 others). You can skip them at first; the [Glossary](#glossary) defines each
 one.
 
-**Status:** Current release: `3.3.0`. See [Project status](#project-status)
+**Status:** Current release: `3.4.0`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
 
@@ -490,7 +490,7 @@ through.
 
 ## Project status
 
-Current release: `3.3.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
+Current release: `3.4.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
 states plainly what the stability promise made at `1.0.0` covers — the DSL
 and runtime API in [the DSL reference](docs/implemented/reference/index.md)
 won't change in a breaking way without a major-version bump — and what it

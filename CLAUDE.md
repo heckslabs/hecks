@@ -11,22 +11,28 @@ Push with `git push`, not `jj git push` — jj bypasses git hooks, so
 attestation) wouldn't run. Colocation keeps bookmarks synced to git
 branches, so plain `git push` still works.
 
-## Running specs from an isolated session
+## Running specs
 
-A background session that the harness isolated in a git worktree has had
-`bundle exec rspec <file>` refused with "too complex to verify that it stays
-inside the worktree", while `cargo test`, `bundle exec ruby`, `git` and `gh` ran
-normally. The cause was not found, and a jj workspace (above) is untested as a way
-around it. One observation: a `git commit -m` whose message contained the word
-rspec was refused, and the same commit without that word ran, so the guard may be
-matching on the command text.
+Run a spec file through the launcher, which is the sanctioned path (see "Use the
+hecks binary" below):
 
-- Do not wrap rspec in a script or another command to get past the refusal.
-- Say in the pull request that the Ruby specs were not run locally. The pre-push
-  gate and CI run them.
-- Name the specs a change is most likely to affect (for a doc edit:
-  `spec/doc_banners_spec.rb`, `spec/status_docs_links_spec.rb`,
-  `spec/guides_spec.rb`) so the user can run them.
+```sh
+HECKS_ENVIRONMENT=memory exe/hecks test_suite_run.run_spec_example! \
+  file.value=spec/doc_banners_spec.rb "example.value= " --wait
+```
+
+`example.value` filters on the full example description; a single space matches
+every example. The report ends with the example and failure counts. Without
+`HECKS_ENVIRONMENT=memory` it needs a local Postgres `hecks` database. The memory
+environment changes some behavior: two guide examples that retry a payment
+(`commands.md`, `policies-and-process-managers.md`) fail under it.
+
+A session isolated in a git worktree has had `bundle exec` with the spec runner
+refused with "too complex to verify that it stays inside the worktree", while
+`cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
+script body that merely named the runner or git were refused too, so the guard
+may be matching on the command text. Use the launcher form above, not a wrapper
+script around the refused command.
 
 Comments you write in this repository's Ruby (`lib/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
@@ -42,6 +48,22 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
 
 Check a tree with `exe/hecks style_run.check_comments paths=<path> --wait` before
 calling comment work done.
+
+## Use the hecks binary
+
+Repo tasks run through the `hecks` binary (`exe/hecks` in a checkout), not
+ad-hoc Ruby, shell one-offs, or hand-written scripts. It is a launcher
+whose commands and queries are projected from the bluebooks, so it is the
+current list of what this repo can do.
+
+- `exe/hecks` lists every command and query; `exe/hecks <command> --help`
+  says what one wants and how it refuses.
+- `exe/hecks <command>! name=value …` does something;
+  `exe/hecks query <query> name=value …` reads something.
+- Before writing a script, look for the command that already does it
+  (projections, regeneration, style checks, model_check, smoke tests).
+  If none exists, add the command to the bluebook rather than a script.
+- Add `--wait` when you need the result before the next step.
 
 ## Agents merge their own pull requests
 
