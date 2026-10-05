@@ -43,6 +43,7 @@ Hecks.world "Hecks" do
                                   operation.bootstrap_admin],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
                                 "interview" => "door.interview", "package.check" => "registry.check",
+                                "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
