@@ -200,12 +200,16 @@ fn purpose_key(secret: &str, purpose: &str) -> String {
     format!("{purpose}:{secret}")
 }
 
+/// How long a session cookie, and the account token minted beside it, stays valid.
+pub const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14;
+
 pub fn session_cookie(secret: &str, session: &Session) -> String {
     let payload = json!({
         "identity_id": session.identity_id,
         "email": session.email,
         "name": session.name,
         "role": session.role,
+        "exp": now_secs() + SESSION_TTL_SECS,
     });
     let encoded = base64_encode(payload.to_string().as_bytes());
     format!("{encoded}.{}", sign(secret, &encoded))
@@ -215,6 +219,11 @@ pub fn parse_session_cookie(secret: &str, cookie: &str) -> Option<Session> {
     let payload = verify_sig(secret, cookie)?;
     let bytes = base64_decode(&payload);
     let value: Value = serde_json::from_slice(&bytes).ok()?;
+    // A cookie with no `exp`, or one in the past, is no session: a signed
+    // payload alone would otherwise stay valid until the secret changed.
+    if now_secs() > value.get("exp")?.as_u64()? {
+        return None;
+    }
     Some(Session {
         identity_id: value.get("identity_id")?.as_str()?.to_string(),
         email: value.get("email")?.as_str()?.to_string(),
@@ -1039,6 +1048,29 @@ mod tests {
 
         assert!(parse_session_cookie("wrong-secret", &cookie).is_none());
         assert!(parse_session_cookie("s3cret", "garbage.notasignature").is_none());
+    }
+
+    fn signed_session_cookie(secret: &str, exp: Option<u64>) -> String {
+        let mut payload = json!({"identity_id": "id-1", "email": "chris@example.com", "name": "Chris Young", "role": "Admin"});
+        if let Some(exp) = exp {
+            payload["exp"] = json!(exp);
+        }
+        let encoded = base64_encode(payload.to_string().as_bytes());
+        format!("{encoded}.{}", sign(secret, &encoded))
+    }
+
+    #[test]
+    fn session_cookie_is_refused_once_expired() {
+        let expired = signed_session_cookie("s3cret", Some(now_secs() - 1));
+        assert!(parse_session_cookie("s3cret", &expired).is_none());
+        let live = signed_session_cookie("s3cret", Some(now_secs() + 60));
+        assert!(parse_session_cookie("s3cret", &live).is_some());
+    }
+
+    #[test]
+    fn session_cookie_without_an_expiry_is_refused() {
+        let no_exp = signed_session_cookie("s3cret", None);
+        assert!(parse_session_cookie("s3cret", &no_exp).is_none());
     }
 
     #[test]

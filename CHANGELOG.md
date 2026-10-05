@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Behavior change: the host's `session` cookie now expires.** The host refuses a `session` cookie with no `exp` field or
+one in the past, the same as a forged one. Before, a validly signed cookie stayed good until `SESSION_SECRET` changed, so a
+stolen cookie never lapsed. The host never issues this cookie (an operator mints it with the secret), so nothing logs out
+by itself, but every cookie already minted stops working and must be minted again with an `exp` (Unix seconds); the recipe
+in `docs/running-a-rules-service.md` section 7.2 now includes it. The lifetime `session_cookie` stamps is
+`auth::SESSION_TTL_SECS` (14 days), the same constant the account cookie uses.
+
 **Removed (3.4.0): the five spellings 3.3.0 warned about.** The removal was promised in 3.3.0 and in #1012; each now fails
 instead of warning. Replace them before upgrading a pin past 3.3.x (the table is in `docs/migrating-2-to-3.md`):
 

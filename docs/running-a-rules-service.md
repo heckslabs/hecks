@@ -683,12 +683,15 @@ redirects to `/login`.
 The cookie is `<payload>.<signature>`:
 
 - `<payload>` is base64url without padding (alphabet `A-Z a-z 0-9 - _`) of a
-  JSON object with the four fields `identity_id`, `email`, `name`, `role`.
+  JSON object with the fields `identity_id`, `email`, `name`, `role`, and
+  `exp`, a Unix time in seconds after which the cookie is refused.
 - `<signature>` is the lowercase hex HMAC-SHA256 of the `<payload>` string,
   keyed with `SESSION_SECRET`.
 
-The host verifies the signature and nothing else. There is no expiry field;
-a cookie stays valid until the secret changes.
+The host verifies the signature and the expiry. A cookie with no `exp`, or
+one in the past, is refused like a forged one. Earlier releases had no
+expiry field and a cookie stayed valid until the secret changed, so a cookie
+minted then must be minted again.
 
 **Nothing in the host ever issues this cookie.** `session_cookie` in
 `rust/host/src/auth.rs` is called only from tests, and the Google sign-in
@@ -701,7 +704,8 @@ invalidate every cookie.
 Minting one needs only `openssl`, so a non-Ruby operator can do it:
 
 ```sh
-payload=$(printf '%s' '{"identity_id":"ops-1","email":"ops@example.com","name":"Ops","role":"Admin"}' \
+exp=$(( $(date +%s) + 14 * 24 * 3600 ))
+payload=$(printf '{"identity_id":"ops-1","email":"ops@example.com","name":"Ops","role":"Admin","exp":%s}' "$exp" \
   | openssl base64 -A | tr '+/' '-_' | tr -d '=')
 sig=$(printf '%s' "$payload" | openssl dgst -sha256 -hmac "$SESSION_SECRET" -hex | sed 's/^.* //')
 COOKIE="session=$payload.$sig"
