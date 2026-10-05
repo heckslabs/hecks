@@ -16,7 +16,7 @@ module Hecks
       # files reports drift and writes only when it is confirmed.
       module Regeneration
         # Every operation this family carries out.
-        OPERATIONS = %w[regenerate_corpus project_ci_gates decide_ci_gate].freeze
+        OPERATIONS = %w[regenerate_corpus project_ci_gates project_tools_doc decide_ci_gate].freeze
 
         # How many lines of a script's output a refusal keeps.
         KEPT_LINES = 60
@@ -37,6 +37,7 @@ module Hecks
           check = flag.call(:check) || !flag.call(:confirm)
           child = RubyChild.new(tree)
           return project_ci_gates(child, check) if operation == "project_ci_gates"
+          return project_tools_doc(child, check) if operation == "project_tools_doc"
           return decide_ci_gate(child, held) if operation == "decide_ci_gate"
 
           result = child.capture("regen_codegen_domains", *("--check" if check))
@@ -51,6 +52,14 @@ module Hecks
         # @raise [ConsoleCapture::Failure] with the stale workflows, when a check finds drift
         def project_ci_gates(child, check)
           child.answer("project_ci_gates", *("--check" if check))
+        end
+
+        # @param child [RubyChild] the checkout's tool runner
+        # @param check [Boolean] whether to only compare
+        # @return [String] what the tool printed
+        # @raise [ConsoleCapture::Failure] with the stale sections, when a check finds drift
+        def project_tools_doc(child, check)
+          child.answer("project_tools_doc", *("--check" if check))
         end
 
         # @param child [RubyChild] the checkout's tool runner

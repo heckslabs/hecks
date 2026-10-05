@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is
+declared once, as `RetiredScript` rows in the Vocabulary chapter, and `hecks
+regeneration_run.project_tools_doc` writes the document's tables from them, rendering each form from
+the command's own arguments (the same projection the launcher parses against): the first argument is
+the bare word, `name=` takes the rest, a switch is `--name`. A form can no longer keep an argument its
+command dropped. Without `--confirm` the verb only compares, and CI runs it. `Hecks::ThreeZero::FORMS`
+and `lib/hecks/three_zero/forms.yml` are gone; `Hecks::Tools::ToolsDoc.forms` answers the same table,
+rendered. The ADR command-table spec reads the rows instead of its own copy of them.
+
 **Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
 first spec example and returned empty reports, marked completed, for every later one: RSpec keeps
 the first run's output stream, so the next run wrote into that. The runner now resets RSpec before

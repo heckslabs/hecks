@@ -238,6 +238,12 @@ jobs:
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
         run: bundle exec exe/hecks regeneration_run.project_ci_gates --wait
 
+      # The launcher forms of docs/tools.md are written from the RetiredScript rows in
+      # vocabulary.bluebook and each command's own arguments. Without --confirm the verb only
+      # compares, so a command whose arguments changed with no regenerated doc fails here.
+      - name: "tools doc: project the RetiredScript rows into docs/tools.md, fail on drift"
+        run: bundle exec exe/hecks regeneration_run.project_tools_doc --wait
+
       # Checks whether hecks project_rust generated something for every
       # construct each domain's own IR declares, from the already-committed
       # manifest.json + ir.json — no build needed first (see
