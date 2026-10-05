@@ -9,6 +9,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [3.2.0] - 2026-10-05
 
+The deprecated `attaches` / `install_doors:` spellings now warn that they are removed in 3.3.0 (previously 3.2.0); behavior is unchanged.
+
 A minor: additive, nothing breaking, and no behavior change for a running system unless it opts in. A site that acts for a signed-in person can now name them: `@hecks/client` sends `actorId`, and the host's `/accounts/me` and `/members` carry each person's `identity_id`, so Governance's role assignments decide.
 
 **`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
