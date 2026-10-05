@@ -24,36 +24,59 @@ module Hecks
 
       TASK = "You interview a subject matter expert, through the developer who sits beside them, about the " \
              "business domain called %<subject>s, so the developer can model it. Ask one plain-language " \
-             "question at a time about what the business keeps track of, what happens to it, and what must " \
-             "never happen. Use the expert's own words. Do not assume what kind of business it is, or an " \
+             "question at a time about what the business keeps track of, what each thing has, what happens to " \
+             "it and who does it, how it moves from one state to the next, and what must never happen. Use the " \
+             "expert's own words. Do not assume what kind of business it is, or an " \
              "industry, from the name of the domain: learn it from what the expert says. When you interpret " \
              "an answer, propose findings only with the verbs listed under `verbs`, using the argument " \
              "names given there, and nothing else.".freeze
 
       VERBS = {
-        "SME::Interview.ProposeThing"  => {
+        "SME::Interview.ProposeThing"      => {
           "meaning"   => "a thing the business keeps track of, and the field that identifies one of it",
           "arguments" => %w[name identifier]
         },
-        "SME::Interview.ProposeAction" => {
-          "meaning"   => "something that happens to a thing, and the event it announces, in the past tense",
-          "arguments" => %w[name thing event creates]
+        "SME::Interview.ProposeAction"     => {
+          "meaning"   => "something that happens to a thing, and the event it announces, in the past tense; " \
+                         "creates is true for the action that brings the thing into being; takes lists, comma " \
+                         "separated, the fields it needs to be told; by says who does it",
+          "arguments" => %w[name thing event creates takes by]
         },
-        "SME::Interview.ProposeRule"   => {
+        "SME::Interview.ProposeField"      => {
+          "meaning"   => "something a thing has; values lists, comma separated, what it may be when the " \
+                         "expert gave a closed set, and is left out for free text",
+          "arguments" => %w[thing name values]
+        },
+        "SME::Interview.ProposeTransition" => {
+          "meaning"   => "the state an action leaves a thing in, and the state it had to be in before; the " \
+                         "action that creates the thing has no from",
+          "arguments" => %w[thing action to from]
+        },
+        "SME::Interview.ProposeRule"       => {
           "meaning"   => "a rule the expert stated, in their own words",
           "arguments" => %w[statement]
         }
       }.freeze
 
-      # What each finding verb needs, and the SME commands that carry it out and decide it.
+      # What each finding verb needs, the fields it may leave out, and the SME commands that
+      # carry it out and decide it.
       KINDS = {
-        "SME::Interview.ProposeThing"  => { kind: "thing", fields: %w[name identifier], propose: :propose_thing!,
-                                           entity: "ThingFinding", accept: "AcceptThing", reject: "RejectThing" },
-        "SME::Interview.ProposeAction" => { kind: "action", fields: %w[name thing event creates],
-                                            propose: :propose_action!, entity: "ActionFinding",
-                                            accept: "AcceptAction", reject: "RejectAction" },
-        "SME::Interview.ProposeRule"   => { kind: "rule", fields: %w[statement], propose: :propose_rule!,
-                                          entity: "RuleFinding", accept: "AcceptRule", reject: "RejectRule" }
+        "SME::Interview.ProposeThing"      => { kind: "thing", fields: %w[name identifier], optional: [],
+                                           propose: :propose_thing!, entity: "ThingFinding",
+                                           accept: "AcceptThing", reject: "RejectThing" },
+        "SME::Interview.ProposeAction"     => { kind: "action", fields: %w[name thing event creates takes by],
+                                            optional: %w[creates takes by], propose: :propose_action!,
+                                            entity: "ActionFinding", accept: "AcceptAction", reject: "RejectAction" },
+        "SME::Interview.ProposeRule"       => { kind: "rule", fields: %w[statement], optional: [],
+                                          propose: :propose_rule!, entity: "RuleFinding",
+                                          accept: "AcceptRule", reject: "RejectRule" },
+        "SME::Interview.ProposeField"      => { kind: "field", fields: %w[thing name values], optional: %w[values],
+                                          propose: :propose_field!, entity: "FieldFinding",
+                                          accept: "AcceptField", reject: "RejectField" },
+        "SME::Interview.ProposeTransition" => { kind: "transition", fields: %w[thing action to from],
+                                                optional: %w[from], propose: :propose_transition!,
+                                                entity: "TransitionFinding", accept: "AcceptTransition",
+                                                reject: "RejectTransition" }
       }.freeze
 
       TRUE_WORDS = %w[true yes y 1].freeze
@@ -153,7 +176,7 @@ module Hecks
         return say("Ignored a proposal for #{proposal.verb}: not a finding I know.") unless config
 
         fields = fields_of(proposal, config)
-        missing = config[:fields].reject { |f| f == "creates" || fields[f].to_s.strip != "" }
+        missing = config[:fields].reject { |f| config[:optional].include?(f) || fields[f].to_s.strip != "" }
         return say("Ignored a #{config[:kind]} proposal with no #{missing.join(', ')}.") unless missing.empty?
 
         number = propose(config, fields) or return
@@ -166,7 +189,7 @@ module Hecks
         rows = proposal.arguments.to_h { |row| [row[:name].to_s, row[:value]] }
         fields = rows.slice(*config[:fields])
         fields["creates"] = TRUE_WORDS.include?(fields["creates"].to_s.downcase) if fields.key?("creates")
-        fields
+        fields.reject { |key, value| key != "creates" && config[:optional].include?(key) && value.to_s.strip.empty? }
       end
 
       def propose(config, fields)
@@ -192,19 +215,27 @@ module Hecks
         case config[:kind]
         when "thing" then "thing: #{fields['name']}, identified by #{fields['identifier']}"
         when "action" then "action: #{fields['name']} on #{fields['thing']}, announcing #{fields['event']}" \
-                           "#{', creating it' if fields['creates']}"
+                           "#{', creating it' if fields['creates']}#{action_extras(fields)}"
+        when "field" then "field: #{fields['name']} of #{fields['thing']}#{", one of #{fields['values']}" if fields['values']}"
+        when "transition" then "transition: #{fields['action']} leaves #{fields['thing']} #{fields['to']}" \
+                               "#{", from #{fields['from']}" if fields['from']}"
         else "rule: #{fields['statement']}"
         end
+      end
+
+      # @api private
+      def action_extras(fields)
+        "#{", taking #{fields['takes']}" if fields['takes']}#{", by #{fields['by']}" if fields['by']}"
       end
 
       # The plain prompt: findings typed by the developer, accepted as they are entered.
       def manual_findings
         loop do
-          kind = ask("Add a finding from that answer? thing, action or rule (enter to skip): ")
+          kind = ask("Add a finding from that answer? thing, action, rule, field or transition (enter to skip): ")
           kind = kind.to_s.strip.downcase
           break if kind.empty?
 
-          typed = typed_finding(kind) or next say("  I only know thing, action and rule.")
+          typed = typed_finding(kind) or next say("  I only know thing, action, rule, field and transition.")
           config = KINDS["SME::Interview.Propose#{kind.capitalize}"]
           number = propose(config, typed) or next
           decide(config, number, true)
@@ -216,6 +247,11 @@ module Hecks
         when "thing" then named("Name" => "name", "Identified by" => "identifier")
         when "action" then typed_action
         when "rule" then named("The rule, in the expert's words" => "statement")
+        when "field" then named({ "On which thing" => "thing", "Name" => "name",
+                                  "Values it may take, comma separated (enter for any)" => "values" }, %w[values])
+        when "transition" then named({ "On which thing" => "thing", "Caused by which action" => "action",
+                                       "Leaves it in the state" => "to",
+                                       "From the state (enter if it starts there)" => "from" }, %w[from])
         end
       end
 
@@ -224,9 +260,11 @@ module Hecks
         fields.merge("creates" => TRUE_WORDS.include?(ask("  Does it create the thing? [y/N] ").to_s.strip.downcase))
       end
 
-      def named(prompts)
+      def named(prompts, optional = [])
         fields = prompts.to_h { |label, key| [key, ask("  #{label}: ").to_s.strip] }
-        fields.values.all? { |v| !v.empty? } ? fields : nil
+        return nil unless fields.all? { |key, value| optional.include?(key) || !value.empty? }
+
+        fields.reject { |key, value| optional.include?(key) && value.empty? }
       end
 
       def suggest_enough
@@ -271,9 +309,11 @@ module Hecks
       end
 
       def accepted_state(plain)
-        { things:  InterviewDraft.accepted(plain, :things).map { |f| f.slice(:name, :identifier) },
-          actions: InterviewDraft.accepted(plain, :actions).map { |f| f.slice(:name, :thing, :event, :creates) },
-          rules:   InterviewDraft.accepted(plain, :rules).map { |f| f.slice(:statement) } }
+        { things:      InterviewDraft.accepted(plain, :things).map { |f| f.slice(:name, :identifier) },
+          actions:     InterviewDraft.accepted(plain, :actions).map { |f| f.slice(:name, :thing, :event, :creates, :takes, :by) },
+          fields:      InterviewDraft.accepted(plain, :fields).map { |f| f.slice(:thing, :name, :values) },
+          transitions: InterviewDraft.accepted(plain, :transitions).map { |f| f.slice(:thing, :action, :to, :from) },
+          rules:       InterviewDraft.accepted(plain, :rules).map { |f| f.slice(:statement) } }
       end
 
       # What the interview has not yet pinned down, in words a model can act on.
@@ -283,7 +323,18 @@ module Hecks
         gaps = things.reject { |t| actions.any? { |a| a[:thing] == t } }.map { |t| "nothing is yet said to happen to #{t}" }
         gaps += things.reject { |t| actions.any? { |a| a[:thing] == t && a[:creates] } }.map { |t| "nothing yet creates #{t}" }
         unplaced = actions.reject { |a| things.include?(a[:thing].to_s) }
-        gaps + unplaced.map { |a| "#{a[:name]} names #{a[:thing]}, not yet a thing" }
+        gaps + unplaced.map { |a| "#{a[:name]} names #{a[:thing]}, not yet a thing" } + shape_gaps(plain, things, actions)
+      end
+
+      # What a thing is not yet said to have, and how it moves from one state to the next.
+      def shape_gaps(plain, things, actions)
+        fields = InterviewDraft.accepted(plain, :fields)
+        steps = InterviewDraft.accepted(plain, :transitions)
+        bare = things.reject { |t| fields.any? { |f| f[:thing] == t } }
+        gaps = bare.map { |t| "nothing is yet said #{t} has, beyond its identifier" }
+        changing = things.select { |t| actions.count { |a| a[:thing] == t && !a[:creates] } > 1 }
+        unmoved = changing.reject { |t| steps.any? { |s| s[:thing] == t } }
+        gaps + unmoved.map { |t| "nothing yet says how #{t} moves from one state to the next" }
       end
 
       def reason(error) = error.message.sub(/\A[A-Z]\w* refused\s+[—-]\s+/, "").strip

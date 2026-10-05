@@ -35,20 +35,31 @@ RSpec.describe "the SME chapter" do
     step("first_topic") { i.exchanges.first[:topic] || i.exchanges.first.to_h[:topic] }
     step("cite_unrecorded_exchange") { i.propose_thing!(number: 1, name: "Book", identifier: "isbn", source: 9); nil }
     i.propose_thing!(number: 1, name: "Book", identifier: "isbn", source: 1)
-    i.propose_action!(number: 2, name: "Lend", thing: "Book", event: "BookLent", source: 2)
+    i.propose_action!(number: 2, name: "Lend", thing: "Book", event: "BookLent", takes: "borrower", by: "a librarian", source: 2)
     i.propose_rule!(number: 3, statement: "A book cannot be lent twice at once", source: 2)
+    i.propose_field!(number: 4, thing: "Book", name: "condition", values: "good, worn", source: 1)
+    i.propose_transition!(number: 5, thing: "Book", action: "Lend", to: "lent", from: "shelved", source: 2)
     step("conclude_nothing_accepted") { i.conclude!; nil }
     step("accept_thing") { decide(rt, "ThingFinding", "AcceptThing", 1) }
     step("conclude_without_action") { Interview.find("INT-1").conclude!; nil }
     step("accept_action") { decide(rt, "ActionFinding", "AcceptAction", 2) }
     step("accept_action_twice") { decide(rt, "ActionFinding", "AcceptAction", 2) }
     step("reject_rule") { decide(rt, "RuleFinding", "RejectRule", 3) }
+    step("accept_field") { decide(rt, "FieldFinding", "AcceptField", 4) }
+    step("accept_field_twice") { decide(rt, "FieldFinding", "AcceptField", 4) }
+    step("reject_transition") { decide(rt, "TransitionFinding", "RejectTransition", 5) }
+    step("field_without_values") { Interview.find("INT-1").propose_field!(number: 6, thing: "Book", name: "title", source: 1); nil }
+    step("transition_without_from") { Interview.find("INT-1").propose_transition!(number: 7, thing: "Book", action: "Shelve", to: "shelved", source: 1); nil }
     step("conclude") { Interview.find("INT-1").conclude!; nil }
     final = Interview.find("INT-1")
     step("status") { final.status }
     step("record_after_conclude") { final.record!(question: "q", answer: "a"); nil }
     step("tallies") { "\#{final.accepted_things.value},\#{final.accepted_actions.value}" }
     step("rule_status") { final.rule_findings.first[:status] }
+    step("field_status") { final.field_findings.first[:status] }
+    step("transition_status") { final.transition_findings.first[:status] }
+    step("action_takes") { final.action_findings.first[:takes].to_h[:value].to_s }
+    step("action_by") { final.action_findings.first[:by].to_h[:value].to_s }
   RUBY
 
   let(:outcome) do
@@ -84,6 +95,21 @@ RSpec.describe "the SME chapter" do
     expect(outcome["accept_thing"]).to eq("ok")
     expect(outcome["accept_action_twice"]).to match(/REFUSED:LifecycleRefused:.*moves it only from "proposed"/)
     expect(outcome["rule_status"]).to eq("rejected")
+  end
+
+  it "keeps what a thing has and how it changes state as findings decided the same way" do
+    expect(outcome["accept_field"]).to eq("ok")
+    expect(outcome["accept_field_twice"]).to match(/REFUSED:LifecycleRefused:.*moves it only from "proposed"/)
+    expect(outcome.values_at("field_status", "transition_status")).to eq(%w[accepted rejected])
+  end
+
+  it "lets a field leave its values out and a transition leave its from out" do
+    expect(outcome.values_at("field_without_values", "transition_without_from")).to eq(%w[ok ok])
+  end
+
+  it "keeps what an action takes and who does it" do
+    expect(outcome["action_takes"]).to include("borrower")
+    expect(outcome["action_by"]).to include("a librarian")
   end
 
   it "ships in the gem" do

@@ -22,6 +22,23 @@ status: "accepted" }],
   end
 
   let(:bluebook) { described_class.files(interview).fetch("bluebook/lending.bluebook") }
+  # A Book with fields, commands that take some of them, and the steps of its lifecycle.
+  let(:shaped) do
+    interview(
+      fields:      [accepted(number: 2, thing: "Book", name: "title"),
+                    accepted(number: 3, thing: "Book", name: "condition", values: "good, worn or new"),
+                    accepted(number: 4, thing: "Book", name: "status", values: "shelved, lent")],
+      actions:     [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, takes: "title"),
+                    accepted(number: 6, name: "Lend a book", thing: "Book", event: "BookLent",
+                             takes: "condition, colour", by: "a librarian")],
+      transitions: [accepted(number: 7, thing: "Book", action: "Shelve", to: "Shelved"),
+                    accepted(number: 8, thing: "Book", action: "Lend a book", from: "shelved", to: "lent"),
+                    accepted(number: 9, thing: "Book", action: "Archive", from: "lent", to: "archived")]
+    )
+  end
+  let(:shaped_bluebook) { described_class.files(shaped).fetch("bluebook/lending.bluebook") }
+
+  def accepted(**finding) = { status: "accepted", source: 1 }.merge(finding)
 
   it "writes an aggregate for an accepted thing, identified by the field the expert named" do
     expect(bluebook).to include('aggregate "Book" do', "identified_by :isbn", "attribute :isbn, Isbn", 'value_object "Isbn" do')
@@ -65,6 +82,85 @@ status: "accepted" }])
     text = described_class.files(messy).fetch("bluebook/lending.bluebook")
 
     expect(text).to include('aggregate "LibraryCard" do', "identified_by :card_number", 'emits "LibraryCardCreated"')
+  end
+
+  it "writes a field as an attribute, required when the creating action takes it and optional otherwise" do
+    expect(shaped_bluebook).to include("attribute :title, Title\n", "attribute :condition, Condition, optional: true")
+    expect(shaped_bluebook).not_to include("attribute :title, Title, optional")
+  end
+
+  it "writes a closed set when the expert listed values, and free text when they did not" do
+    expect(shaped_bluebook).to include('attribute :value, String, one_of: ["good", "worn", "new"]')
+    expect(shaped_bluebook[/value_object "Title".*?^    end/m]).not_to include("one_of")
+  end
+
+  it "gives a command the fields it takes and sets them, and notes who may do it without declaring a role" do
+    lend = shaped_bluebook[/command "LendABook".*?^    end/m]
+
+    expect(lend).to include("attribute :condition, Condition", "sets :condition", "# Who: a librarian")
+    expect(lend).to include("# TODO: takes colour, but no accepted field of that name.")
+    expect(shaped_bluebook).not_to match(/^\s+role\b/)
+    expect(shaped_bluebook[/command "Shelve".*?^    end/m]).to include("attribute :title, Title")
+  end
+
+  it "starts the lifecycle where the creating action leaves the thing, and leaves a status field out" do
+    expect(shaped_bluebook).to include('lifecycle :status, default: "shelved" do',
+                                       'transition "LendABook" => "lent", from: "shelved"')
+    expect(shaped_bluebook).not_to include("attribute :status")
+  end
+
+  it "keeps a transition for an action nobody accepted as a comment, not lost" do
+    expect(shaped_bluebook).to include("# UNPLACED transition: Archive to archived")
+    expect(shaped_bluebook).not_to include('transition "Archive"')
+  end
+
+  it "does not count the identifier among what an action takes" do
+    takes_it = shaped.merge(actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved",
+                                               creates: true, takes: "isbn, title")])
+    text = described_class.files(takes_it).fetch("bluebook/lending.bluebook")
+
+    expect(text).not_to include("TODO: takes isbn")
+    expect(text[/command "Shelve".*?^    end/m]).to include("attribute :title, Title")
+  end
+
+  it "starts the lifecycle at the first state a change names when no action creates the thing" do
+    unnamed = shaped.merge(actions:     [accepted(number: 5, name: "Lend a book", thing: "Book", event: "BookLent")],
+                           transitions: [accepted(number: 6, thing: "Book", action: "Lend a book", from: "shelved",
+                                                  to: "lent")])
+    text = described_class.files(unnamed).fetch("bluebook/lending.bluebook")
+
+    expect(text).to include('lifecycle :status, default: "shelved" do', 'transition "LendABook" => "lent", from: "shelved"')
+  end
+
+  it "writes no lifecycle when no transition was accepted" do
+    expect(bluebook).not_to include("lifecycle")
+  end
+
+  it "joins steps that lead an action to the same state from different ones" do
+    twice = shaped.merge(transitions: [accepted(number: 7, thing: "Book", action: "Shelve", to: "shelved"),
+                                       accepted(number: 8, thing: "Book", action: "Lend a book", from: "shelved", to: "lent"),
+                                       accepted(number: 9, thing: "Book", action: "Lend a book", from: "returned", to: "lent")])
+    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+
+    expect(text.scan('transition "LendABook"').size).to eq(1)
+    expect(text).to include('transition "LendABook" => "lent", from: %w[shelved returned]')
+  end
+
+  it "allows a transition from several states" do
+    several = shaped.merge(transitions: [accepted(number: 7, thing: "Book", action: "Shelve", to: "shelved"),
+                                         accepted(number: 8, thing: "Book", action: "Lend a book", from: "shelved, returned",
+                                                  to: "lent")])
+
+    expect(described_class.files(several).fetch("bluebook/lending.bluebook")).to include("from: %w[shelved returned]")
+  end
+
+  it "records fields, transitions and what an action takes in the record, and offers them as additions" do
+    record = described_class.record(shaped)
+
+    expect(record).to include("- Field 3, accepted: **condition** on Book, one of good, worn or new (exchange 1)",
+                              "- Transition 8, accepted: **Lend a book** on Book to lent from shelved (exchange 1)",
+                              "takes condition, colour, by a librarian")
+    expect(described_class.additions(shaped).fetch("interviews/INT-1.md")).to include("lifecycle :status")
   end
 
   it "refuses an interview with no accepted thing" do
@@ -117,11 +213,17 @@ status: "accepted" }])
     i.propose_action!(number: 2, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, source: 2)
     i.propose_action!(number: 3, name: "Lend a book", thing: "Book", event: "BookLent", source: 3)
     i.propose_rule!(number: 4, statement: "A book cannot be lent twice at once", source: 3)
+    i.propose_field!(number: 5, thing: "Book", name: "condition", values: "good, worn", source: 1)
+    i.propose_transition!(number: 6, thing: "Book", action: "Shelve", to: "shelved", source: 2)
+    i.propose_transition!(number: 7, thing: "Book", action: "Lend a book", from: "shelved", to: "lent", source: 3)
     decide = ->(entity, verb, n) { rt.dispatch_flat("SME::Interview.\#{entity}.\#{verb}", reference: { value: "INT-1" }, number: { value: n }) }
     decide.("ThingFinding", "AcceptThing", 1)
     decide.("ActionFinding", "AcceptAction", 2)
     decide.("ActionFinding", "AcceptAction", 3)
     decide.("RuleFinding", "AcceptRule", 4)
+    decide.("FieldFinding", "AcceptField", 5)
+    decide.("TransitionFinding", "AcceptTransition", 6)
+    decide.("TransitionFinding", "AcceptTransition", 7)
     Interview.find("INT-1").conclude!
     draft = Hecks::CLI::InterviewDraft.files(Hecks::CLI::InterviewDraft.from_record(Interview.find("INT-1")), adapter: "Memory")
     draft.each do |path, text|
@@ -137,6 +239,7 @@ status: "accepted" }])
     book = Book.shelve!(isbn: "978-0")
     book.lend_a_book!
     puts "EVENTS=" + book.events.map(&:name).join(",")
+    puts "STATUS=" + book.status.to_s
   RUBY
 
   it "turns a real interview into a domain that boots and runs" do
@@ -146,7 +249,7 @@ status: "accepted" }])
 
       out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", DRAFT_BOOT, dir, chdir: InMemoryDomain::ROOT)
       expect(status).to be_success, err
-      expect(out).to include("EVENTS=BookShelved,BookLent")
+      expect(out).to include("EVENTS=BookShelved,BookLent", "STATUS=lent")
       expect(File.read(File.join(dir, "interviews/INT-1.md"))).to include("Rule 4, accepted: A book cannot be lent twice at once")
     end
   end

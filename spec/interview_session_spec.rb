@@ -60,6 +60,10 @@ RSpec.describe "hecks interview, held at a terminal" do
   ACTION = { verb: "SME::Interview.ProposeAction", why: "arrival creates a book",
              args: { name: "Shelve", thing: "Book", event: "BookShelved", creates: "true" } }.freeze
   RULE = { verb: "SME::Interview.ProposeRule", why: "a rule", args: { statement: "A book cannot be lent twice" } }.freeze
+  FIELD = { verb: "SME::Interview.ProposeField", why: "a book has a condition",
+            args: { thing: "Book", name: "condition", values: "good, worn" } }.freeze
+  TRANSITION = { verb: "SME::Interview.ProposeTransition", why: "shelving leaves a book shelved",
+                 args: { thing: "Book", action: "Shelve", to: "shelved" } }.freeze
 
   def run_interview(scenario)
     out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", INTERVIEW_CHILD, JSON.generate(scenario),
@@ -103,6 +107,33 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(result[:state][:accepted][:things].first).to eq(name: "Book", identifier: "isbn")
   end
 
+  it "puts a proposed field and transition to the developer, and writes the field they accepted" do
+    script = { questions: ["What do you keep track of?", "What happens, and what does a book have?"],
+               proposals: [[THING], [ACTION, FIELD, TRANSITION]] }
+    result = run_interview(agent: script, keys: ["Books.", "y", "On the shelf, and each is good or worn.", "y", "y", "n", "done"])
+
+    expect(result[:transcript]).to include("Proposed field: condition of Book, one of good, worn",
+                                           "Proposed transition: Shelve leaves Book shelved")
+    bluebook = result[:files]["bluebook/lending.bluebook"]
+    expect(bluebook).to include("attribute :condition, Condition, optional: true", 'one_of: ["good", "worn"]')
+    expect(result[:files]["interviews/INT-1.md"]).to include("- Transition 4, rejected: **Shelve** on Book to shelved")
+  end
+
+  it "ignores a field proposal with no name, and says so" do
+    nameless = FIELD.merge(args: { thing: "Book", values: "good, worn" })
+    script = { questions: ["What do you keep track of?", "What happens?"], proposals: [[THING], [ACTION, nameless]] }
+    result = run_interview(agent: script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
+
+    expect(result[:transcript]).to include("Ignored a field proposal with no name.")
+  end
+
+  it "tells the interviewer what a thing is not yet said to have, so it asks next" do
+    result = run_interview(agent: ai_script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
+
+    expect(result[:state][:gaps]).to include("nothing is yet said Book has, beyond its identifier")
+    expect(result[:state][:accepted].keys.map(&:to_s)).to include("fields", "transitions")
+  end
+
   it "refuses to finish with nothing accepted, says why, and carries on" do
     script = { questions: ["What do you keep?", "Say more.", "And then?"], proposals: [[THING], [THING], [ACTION]] }
     result = run_interview(agent: script,
@@ -138,6 +169,17 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(result[:transcript]).not_to include("sent to a model")
     expect(result[:transcript]).to include("What is the main thing this business keeps track of?")
     expect(result[:files]["bluebook/lending.bluebook"]).to include('aggregate "Book" do', 'command "Shelve" do')
+  end
+
+  it "takes a typed field and a typed transition under --no-ai, leaving the optional parts blank" do
+    result = run_interview(ai: false, keys: ["Books.", "thing", "Book", "isbn", "field", "Book", "condition", "good, worn",
+                                             "transition",
+                                             "Book", "Shelve", "shelved", "", "", "On the shelf.", "action", "Shelve", "Book",
+                                             "BookShelved", "y", "", "done"])
+
+    expect(result[:files]["bluebook/lending.bluebook"]).to include("attribute :condition, Condition, optional: true",
+                                                                   'one_of: ["good", "worn"]')
+    expect(result[:files]["interviews/INT-1.md"]).to include("**Shelve** on Book to shelved (exchange 1)")
   end
 
   it "offers a later interview's findings as additions, and leaves the existing bluebook alone" do
