@@ -28,6 +28,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
       QualityControl::Ticket.persisted_by("PostgresEra")
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
+      QualityControl::DailyQuota.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
     end
   RUBY
