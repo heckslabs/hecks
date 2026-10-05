@@ -85,6 +85,12 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
+  test "ProjectToolsDoc refuses a run that is not named" do
+    tests "ProjectToolsDoc", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
   test "DecideCiGate refuses a run that is not named" do
     tests "DecideCiGate", on: "RegenerationRun"
     input run: { value: "" }, gate: { value: "runtime_changed" }
