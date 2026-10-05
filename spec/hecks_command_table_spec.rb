@@ -738,7 +738,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       toolchain_says
       stage = File.join(@dir, "stage")
 
-      run_verb("build.build_host", @shelf, "run=host-1", "target=aarch64-unknown-linux-gnu", "stage=#{stage}")
+      run_verb("build.build_host", @shelf, "run=host-1", "target=aarch64-unknown-linux-gnu", "stage_dir=#{stage}")
       _out, status = run_verb("build.build_host", @shelf, "run=host-2", "target=arm64")
 
       expect(asked).to eq([["project_host", @shelf, "--target=aarch64-unknown-linux-gnu", "--stage=#{stage}"]])

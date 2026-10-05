@@ -1482,7 +1482,7 @@ policy "RecordTheEra" do
     attribute :script,   ScriptPath, optional: true
     attribute :artifact, Artifact,   optional: true
     attribute :target,   TargetTriple, optional: true
-    attribute :stage,    StagePath,  optional: true
+    attribute :stage_dir, StagePath, optional: true
     attribute :seeds,    Count,      optional: true
     attribute :steps,    Count,      optional: true
     attribute :output,   Report,     optional: true
@@ -1577,7 +1577,7 @@ policy "RecordTheEra" do
     end
 
     # Compiles the host binary from the installed gem's workspace for the target and stages it with
-    # the domain's `.wasm` and `.ir.json` (in `.hecks/host/<target>/` unless `stage` names a
+    # the domain's `.wasm` and `.ir.json` (in `.hecks/host/<target>/` unless `stage_dir` names a
     # directory), the files a container image copies in.
     command "BuildHost" do
       role "Operator"
@@ -1586,12 +1586,12 @@ policy "RecordTheEra" do
       attribute :domain, DomainPath
       attribute :run,    BuildKey
       attribute :target, TargetTriple, optional: true
-      attribute :stage,  StagePath,    optional: true
+      attribute :stage_dir, StagePath, optional: true
 
       sets :domain
       sets :run
       sets :target
-      sets :stage
+      sets :stage_dir
 
       emits HostBuildRequested
     end

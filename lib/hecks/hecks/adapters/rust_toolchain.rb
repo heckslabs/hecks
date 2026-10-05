@@ -77,14 +77,14 @@ module Hecks
       # the workspace and stages the three files in a directory an image copies from.
       #
       # @param held [Hash] the `Build` record: `domain`, `target` (the machine's own when absent)
-      #   and `stage` (`.hecks/host/<target>/` when absent)
+      #   and `stage_dir` (`.hecks/host/<target>/` when absent)
       # @return [Hash{Symbol => Hash}] `output:` where the files were staged
       # @raise [ConsoleCapture::Failure] when the toolchain or the target is missing, or a step
       #   fails
       def host(**held)
         argv = [plain(held[:domain])]
         argv << "--target=#{plain(held[:target])}" if plain(held[:target])
-        argv << "--stage=#{plain(held[:stage])}" if plain(held[:stage])
+        argv << "--stage=#{plain(held[:stage_dir])}" if plain(held[:stage_dir])
         child(:host, argv)
       end
 

@@ -401,7 +401,7 @@ copies in:
 ```sh
 hecks build.build_host domain="$DOMAIN" --wait                                  # this machine
 hecks build.build_host domain="$DOMAIN" target=aarch64-unknown-linux-gnu \
-  stage=build/domain --wait                                                    # an arm64 image
+  stage_dir=build/domain --wait                                                    # an arm64 image
 ```
 
 A target that is not installed is refused with the `rustup target add <triple> --toolchain stable` that
