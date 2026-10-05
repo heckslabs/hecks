@@ -19,7 +19,7 @@ module Hecks
       # `EdgePolicy`, `EdgeOrigin` and `EdgeRule`. `docs/site-routes.md` lists their fields. A
       # project that declares none of the four has no edge to project.
       class Edge
-        Setting  = Struct.new(:template, :listener, :secret_header, :secret_value, keyword_init: true)
+        Setting  = Struct.new(:template, :listener, :secret_header, :secret_value, :alb, keyword_init: true)
         Policy   = Struct.new(:cache_class, :origin, :cache, :origin_request, :response_headers, keyword_init: true)
         Upstream = Struct.new(:origin, :id, :target_group, keyword_init: true)
         Rule     = Struct.new(:rule, :priority, :origin, keyword_init: true)
@@ -29,15 +29,15 @@ module Hecks
 
         # The fields each kind of row may carry, with the Ruby class each takes.
         FIELDS = {
-          setting:  { template: String, listener: String, secret_header: String, secret_value: String },
+          setting:  { template: String, listener: String, secret_header: String, secret_value: String, alb: :bool },
           policy:   { cache_class: String, origin: String, cache: String, origin_request: String,
                     response_headers: String },
           upstream: { origin: String, id: String, target_group: String },
           rule:     { rule: String, priority: Integer, origin: String }
         }.freeze
 
-        # The fields a row of each kind must carry.
-        REQUIRED = { setting: [:template], policy: %i[cache_class cache], upstream: %i[origin id],
+        # The fields a row of each kind must carry. The template may instead be named to the tool.
+        REQUIRED = { setting: [], policy: %i[cache_class cache], upstream: %i[origin id],
                      rule: %i[rule priority origin] }.freeze
 
         STRUCTS = { setting: Setting, policy: Policy, upstream: Upstream, rule: Rule }.freeze
@@ -62,15 +62,17 @@ module Hecks
         # @param chapter [Bluebook::Chapter] the chapter that declares the route table
         # @param table [Table] the checked route table
         # @param vocabulary [Hash{Symbol => Array<String>}] the Site chapter's closed sets
+        # @param template [String, nil] the template the caller names, which stands in for the
+        #   `Edge` row's own `template:`
         # @return [Edge, nil] the checked edge, or nil when the chapter declares none
         # @raise [Table::Invalid] when a row is refused or the edge contradicts the routes
-        def self.read(chapter, table:, vocabulary:)
+        def self.read(chapter, table:, vocabulary:, template: nil)
           declared = OBJECTS.transform_values { |name| Table.rows_of(chapter, name) }
           return nil if declared.values.all?(&:empty?)
 
           problems = []
           records = declared.to_h { |kind, members| [kind, build(kind, members, problems)] }
-          new(records, table: table, vocabulary: vocabulary, problems: problems)
+          new(records, table: table, vocabulary: vocabulary, problems: problems, template: template)
         end
 
         # @param kind [Symbol] a key of `OBJECTS`
@@ -86,27 +88,35 @@ module Hecks
             end
             (REQUIRED.fetch(kind) - member.keys).each { |field| problems << "#{label} needs #{field}" }
             typed = member.slice(*FIELDS.fetch(kind).keys).select do |field, value|
-              value.is_a?(FIELDS.fetch(kind).fetch(field)) || (problems << "#{label} has #{field} #{value.inspect}; " \
-                                                                           "#{field} is a #{FIELDS.fetch(kind).fetch(field)}")
+              typed?(value, FIELDS.fetch(kind).fetch(field)) ||
+                (problems << "#{label} has #{field} #{value.inspect}; " \
+                             "#{field} is #{type_name(FIELDS.fetch(kind).fetch(field))}")
             end
             STRUCTS.fetch(kind).new(**typed)
           end
         end
         private_class_method :build
 
+        def self.typed?(value, type) = type == :bool ? [true, false].include?(value) : value.is_a?(type)
+        private_class_method :typed?
+
+        def self.type_name(type) = type == :bool ? "true or false" : "a #{type}"
+        private_class_method :type_name
+
         # @param records [Hash{Symbol => Array<Struct>}] the rows of each kind
         # @param table [Table] the checked route table
         # @param vocabulary [Hash{Symbol => Array<String>}] the closed sets
         # @param problems [Array<String>] the problems already found in reading the rows
+        # @param template [String, nil] the template the caller names, if any
         # @raise [Table::Invalid] naming every problem when there is one
-        def initialize(records, table:, vocabulary:, problems:)
+        def initialize(records, table:, vocabulary:, problems:, template: nil)
           @setting = records.fetch(:setting).first
           @policies = records.fetch(:policy)
           @upstreams = records.fetch(:upstream)
           @rules = records.fetch(:rule)
-          Checks.new(self, table.rows, vocabulary, problems).call
+          Checks.new(self, table.rows, vocabulary, problems, template_named: !template.nil?).call
           if problems.empty?
-            @listener_rules = Rules.new(self, table.rows, problems).call
+            @listener_rules = alb? ? Rules.new(self, table.rows, problems).call : []
             built = Behaviours.new(self, table.rows, problems).call
             @default_behaviour = built.fetch(:default)
             @behaviours = built.fetch(:list)
@@ -115,6 +125,10 @@ module Hecks
 
           raise Table::Invalid, "the edge is refused:\n#{problems.map { |line| "  - #{line}" }.join("\n")}"
         end
+
+        # @return [Boolean] whether the project has a load balancer, and so listener rules; true
+        #   unless the `Edge` row says `alb: false`
+        def alb? = setting.nil? || setting.alb != false
 
         # @param origin [String] an origin of the Origin set
         # @return [Upstream, nil] its CloudFront origin and target group

@@ -11,9 +11,10 @@ module Hecks
       # on it: the distribution's cache behaviours and the load balancer's listener rules.
       #
       # The blocks are returned by name, `"behaviors"` and `"listener_rules"`, as text from the
-      # left margin. `Regions` puts each between the markers of the same name in the project's
-      # template, at the markers' indentation. The text is a pure function of the table and the
-      # edge rows.
+      # left margin; a project whose `Edge` row says `alb: false` has no load balancer and gets
+      # `"behaviors"` alone. `Regions` puts each between the markers of the same name in the
+      # project's template, at the markers' indentation. The text is a pure function of the table
+      # and the edge rows.
       module SiteCdn
         extend Projector::Target
 
@@ -25,13 +26,15 @@ module Hecks
         # @param options [Hash{Symbol => Object}] `:registry` (Runtime::Registry) the project booted
         #   into; or `:table` (Table) and `:edge` (Edge), already read
         # @return [Hash{String => String}] each region's name to its text; empty when the chapter
-        #   declares no edge
+        #   declares no edge, and without `"listener_rules"` when the edge has no load balancer
         # @raise [Table::Invalid] when the table or the edge is refused
         def call(bluebook:, options: {})
           registry = options[:registry]
           table = options[:table] || Table.read(bluebook, registry: registry)
           edge = options[:edge] || Edge.read(bluebook, table: table, vocabulary: Table.vocabulary(registry))
           return {} unless edge
+
+          return { "behaviors" => behaviors(edge) } unless edge.alb?
 
           { "behaviors" => behaviors(edge), "listener_rules" => listener_rules(edge) }
         end

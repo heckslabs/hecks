@@ -1,5 +1,5 @@
 //! Free-function accessors over an `IR::Attribute#to_h`-shaped `Json::Object`, mirroring the
-//! bare Hash lookups in rust/project/*.rb.
+//! bare Hash lookups the retired Ruby generator used.
 
 use crate::json::Json;
 

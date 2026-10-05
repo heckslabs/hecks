@@ -183,9 +183,8 @@ RSpec.describe Hecks::Tools::SiteRoutes do
         .to include("switch talks is on for /y and off for the rest")
     end
 
-    it "refuses an off route in the navigation" do
-      expect(refused({ path: "/x", switch: "x", off: true, label: "X", nav_order: 1 }))
-        .to include("/x is off and sits in the desktop navigation")
+    it "accepts an off route in the navigation, since the page keeps its slots while it is off" do
+      expect(refused({ path: "/x", switch: "x", off: true, label: "X", nav_order: 1 })).to be_nil
     end
 
     it "refuses a navigation entry with no label, a parameter, or an admin page in a public menu" do

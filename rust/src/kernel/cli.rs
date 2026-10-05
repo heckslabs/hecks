@@ -159,7 +159,7 @@ pub fn run(input: &str) -> String {
                              real declared query whose shape this generator's codegen doesn't cover yet (order_by/limit/\
                              cursor/consistency/freshness/authorization/null_semantics/inspection/index_hints, a where \
                              clause hopping through a reference, or a literal comparator value whose true JSON type \
-                             can't be recovered from the exported IR — rust/project/queries.rb's own header has the \
+                             can't be recovered from the exported IR — rust/codegen/src/queries.rs's own header has the \
                              full argument); the wheres-only, single-aggregate field-comparator subset and the ad hoc \
                              filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for real"
                         )),
@@ -195,7 +195,7 @@ pub fn run(input: &str) -> String {
                              or a real declared read model whose shape this generator's codegen doesn't cover yet \
                              (anything beyond a root aggregate fetched by reference id plus reference-matched sibling \
                              heads — where/order_by/limit/offset/cursor/consistency/freshness/authorize(TenantScope)/\
-                             nulls/inspect_query/use_index — rust/project/read_models.rb's own header has the full \
+                             nulls/inspect_query/use_index — rust/codegen/src/read_models.rs's own header has the full \
                              argument, including why where/order_by/limit specifically can never be recovered from the \
                              canonical IR at all); the named/declared AGGREGATE query form (\"Domain::Aggregate.Query\") \
                              and the ad hoc filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for \

@@ -1,5 +1,5 @@
 //! Rust port of `Exporter.lineage` (`lib/hecks/projector/exporter.rb`), by way
-//! of `rust/project_rust_pipeline.rb::derive_lineage`.
+//! of the retired Ruby pipeline's `derive_lineage`.
 
 use std::collections::HashMap;
 use std::path::Path;

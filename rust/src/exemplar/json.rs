@@ -1,4 +1,4 @@
-// Exemplar shapes for rust/project/json_codec.rb; see mod.rs.
+// Exemplar shapes for rust/codegen/src/json_codec.rs; see mod.rs.
 // Kept out of the fenced region so its prose is not baked into every generated codec.
 #![allow(dead_code, unused_variables)]
 

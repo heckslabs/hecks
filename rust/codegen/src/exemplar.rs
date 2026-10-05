@@ -1,4 +1,4 @@
-//! Port of `rust/project/exemplar.rb`: loads the template shapes in `rust/src/exemplar/*.rs`.
+//! Port of the retired Ruby generator's `exemplar.rb`: loads the template shapes in `rust/src/exemplar/*.rs`.
 //! Both codegens read those files at runtime, so the shapes cannot drift.
 use std::collections::HashMap;
 use std::path::PathBuf;

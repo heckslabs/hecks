@@ -4,7 +4,7 @@
 > FIRST Rust attempt's retirement (2026-08-03) — the decision below did not
 > hold. Rust was restarted fresh on `feat/rust-projection` days later and is
 > now very much alive: `rust/parser` parses `.bluebook` source directly,
-> `rust/codegen`/`rust/project` generate real compiled domains, and
+> `rust/codegen` generates real compiled domains, and
 > `rust/src/kernel` is the hand-written runtime deployed live on AWS Lambda.
 > `.githooks/pre-push`'s own header comment still cites this document as if
 > the retirement held — it doesn't; there is a second, real runtime now, and

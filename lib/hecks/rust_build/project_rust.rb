@@ -17,9 +17,8 @@ module Hecks
     #   ProjectRust.call(["path/to/domain"])
     #
     # `hecks-codegen` is the generator (ADR 0086): this class builds the IR from the live registry
-    # and `CodegenRun` runs the binary on it. `HECKS_CODEGEN=ruby` selects the Ruby generator in
-    # `rust/project` until that is deleted; `HECKS_PARSER=rust` with `HECKS_CODEGEN=rust` runs
-    # `rust/project_rust_pipeline.rb` instead, with no Ruby load of the domain.
+    # and `CodegenRun` runs the binary on it. The Ruby-free path is `hecks-build`, which feeds the
+    # same binary from `hecks-parse`.
     #
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
@@ -46,13 +45,7 @@ module Hecks
       # @return [Integer] the exit status
       def call
         validate_name!
-        if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
-          require_relative "../../../rust/project"
-          require_relative "../../../rust/project_rust_pipeline"
-          RustProjectPipeline.call(@domain)
-        else
-          generate
-        end
+        generate
         0
       end
 
@@ -78,16 +71,9 @@ module Hecks
         FileUtils.mkdir_p(@out_root)
         build_target_ir
         FileUtils.rm_rf(File.join(@out_root, "active"))
-        ENV["HECKS_CODEGEN"] == "ruby" ? generate_with_ruby : generate_with_codegen
+        generate_with_codegen
         write_root_mod
         sync_cargo_features
-      end
-
-      # The rollback path (ADR 0086): the Ruby generator in `rust/project`, until it is deleted.
-      def generate_with_ruby
-        require_relative "../../../rust/project"
-        write_meta
-        write_target
       end
 
       # `hecks-codegen` is the generator; this process only builds the IR it reads from the live
@@ -105,8 +91,8 @@ module Hecks
         ).call
       end
 
-      # The IR as `rust/project` hands it to its generators: string-keyed through JSON, with the
-      # append-optional fields marked, since `ir.json` records them.
+      # The IR as the generator reads it: string-keyed through JSON, with the append-optional
+      # fields marked, since `ir.json` records them.
       def prepared_ir(tree, shaped: true)
         AppendOptionals.mark(shaped ? json_shaped(tree) : tree)
       end
@@ -186,123 +172,11 @@ module Hecks
         )
       end
 
-      # The self-hosted language goes through the same codegen as the target, read from the
-      # grammar registry `MetaValidator` boots with.
-      def write_meta
-        meta_ir = json_shaped(
-          Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
-        )
-        dir = File.join(@out_root, "meta")
-        # Tracked per directory: several domains coexist on disk, and `pop_and_prune` deletes only
-        # the files this run never touched. `active` is a set of feature re-exports in the root
-        # `mod.rs`, never a directory.
-        WriteIfChanged.push_directory(dir)
-        result = RustProjection::DomainGenerator.call(
-          meta_ir, "the self-hosted language (lib/hecks/language/bluebook)", dir, "meta"
-        )
-        write_merged(File.join(dir, "merged.rs"), result[:aggregates], result[:queries], result[:read_models],
-                     policies: RustProjection::Projector.emit_policy_table(meta_ir[:name], meta_ir[:policies],
-                                                                           meta_ir[:aggregates]),
-                     cross:    RustProjection::Projector.emit_cross_domain_policy_table(meta_ir[:name],
-                                                                                        meta_ir[:policies]),
-                     managers: meta_ir[:process_managers],
-                     keys:     [[meta_ir[:name], result[:aggregates].map { |a| a[:name] }]])
-        append_merged_mod(File.join(dir, "mod.rs"))
-        WriteIfChanged.pop_and_prune(dir)
-      end
-
-      def write_target
-        dir = File.join(@out_root, @mod_name)
-        WriteIfChanged.push_directory(dir)
-        result = RustProjection::DomainGenerator.call(@ir, @domain, dir, @mod_name)
-        chapters = write_chapters
-        aggregates = result[:aggregates] + chapters[:aggregates]
-        write_merged(File.join(dir, "merged.rs"), aggregates, result[:queries] + chapters[:queries],
-                     result[:read_models] + chapters[:read_models],
-                     policies: RustProjection::Projector.emit_merged_policy_table(chapters[:policy_sources]),
-                     cross:    RustProjection::Projector.emit_merged_cross_domain_policy_table(chapters[:policy_sources]),
-                     managers: @ir[:process_managers] + chapters[:process_managers],
-                     keys:     reference_keys(result[:aggregates], chapters))
-        append_merged_mod(File.join(dir, "mod.rs"))
-        WriteIfChanged.pop_and_prune(dir)
-      end
-
-      # Every other bluebook the target's `attaches` calls pulled into the registry, each
-      # generated into its own module. A framework chapter is a function of its bluebook alone, so
-      # regenerating one is safe whichever domain last touched it.
-      def write_chapters
-        totals = { aggregates: [], queries: [], read_models: [], process_managers: [],
-                   policy_sources: [{ domain_name: @domain_name, policies: @ir[:policies],
-                                      aggregates: @ir[:aggregates] }],
-                   mod_names: { @mod_name => @domain_name } }
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
-        (@registry.bluebooks.keys - [@domain_name]).each { |chapter| write_chapter(chapter, vendored, totals) }
-        totals
-      end
-
-      def write_chapter(chapter_name, vendored, totals)
-        mod_name = chapter_name.downcase
-        totals[:mod_names][mod_name] = chapter_name
-        chapter_ir = json_shaped(Hecks::Projector::Exporter.call(@registry).fetch(chapter_name))
-        result = nil
-        WriteIfChanged.track_directory(File.join(@out_root, mod_name)) do
-          result = RustProjection::DomainGenerator.call(chapter_ir, "#{@domain} (#{attachment(chapter_name, vendored)})",
-                                                        File.join(@out_root, mod_name), mod_name,
-                                                        merged_module: false)
-        end
-        totals[:aggregates].concat(result[:aggregates])
-        totals[:queries].concat(result[:queries])
-        totals[:read_models].concat(result[:read_models])
-        totals[:process_managers].concat(chapter_ir[:process_managers])
-        totals[:policy_sources] << { domain_name: chapter_name, policies: chapter_ir[:policies],
-                                     aggregates: chapter_ir[:aggregates] }
-      end
-
       # How the target attached a chapter, across every hecksagon the registry loaded: a chapter a
       # sibling hecksagon vendors in is labelled as vendored.
       def attachment(chapter_name, vendored)
         name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
         name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{chapter_name.inspect}"
-      end
-
-      def reference_keys(target_aggregates, chapters)
-        chapters[:mod_names].map do |mod_name, chapter_name|
-          own = mod_name == @mod_name ? target_aggregates : chapters[:aggregates].select { |a| a[:chapter_mod] == mod_name }
-          [chapter_name, own.map { |a| a[:name] }]
-        end
-      end
-
-      # Writes a module's `merged.rs`: the registry and every dispatch table over its aggregates.
-      def write_merged(path, aggregates, queries, read_models, policies:, cross:, managers:, keys:)
-        projector = RustProjection::Projector
-        wrote = WriteIfChanged.block(path) do |file|
-          [projector.emit_registry(aggregates), projector.emit_reference_lookup(aggregates), policies, cross,
-           projector.emit_process_manager_table(managers), projector.emit_reference_key_table(keys),
-           projector.emit_creates_table(aggregates), projector.emit_identity_head_table(aggregates),
-           projector.emit_entity_identity_head_table(aggregates),
-           projector.emit_command_attributes_table(aggregates), projector.emit_query_table(queries),
-           projector.emit_query_arg_check_table(queries)].each do |table|
-            file.puts table
-            file.puts
-          end
-          # A read model's `group_by` function is written before the table names it.
-          read_models.each do |model|
-            next unless model[:group_by_fn_body]
-
-            file.puts model[:group_by_fn_body]
-            file.puts
-          end
-          file.puts projector.emit_read_model_table(read_models)
-        end
-        puts(wrote ? "wrote #{path}" : "#{path} unchanged")
-      end
-
-      # Appends the `pub mod merged;` line once; appending it again would grow the file and bump
-      # its mtime on every run.
-      def append_merged_mod(path)
-        return if File.exist?(path) && File.read(path).include?("pub mod merged;")
-
-        File.open(path, "a") { |file| file.puts "pub mod merged;" }
       end
 
       # `src/generated/mod.rs`: every domain ever generated, scanned off disk. A directory is a
