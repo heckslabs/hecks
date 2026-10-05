@@ -1,5 +1,5 @@
 # Dials for the hecks_qa practice; edit values here and review the diff.
-# Meaning and rationale per key live in lib/hecks/quality_control/quality_control.bluebook;
+# What each key is and takes is its `QaDial` row in lib/hecks/language/bluebook/vocabulary.bluebook;
 # loaded by Hecks::Fuzzing::QaSettings, which rejects missing, extra, or mistyped keys.
 #
 # automated_engineer stays a literal in the bluebook: spec/quality_control_spec.rb pins it.

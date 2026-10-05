@@ -1,7 +1,8 @@
 # Quality control: every check writes its expectation down before it looks at the answer.
 # A bug is logged with the failing test that proves it, or it is not logged.
 
-# Tunable dials for the QA loop: values in qa/settings.yml, reasoning here.
+# Tunable dials for the QA loop: values in qa/settings.yml, what each is in the `QaDial` rows of the
+# Vocabulary chapter.
 # `require`, not `require_relative`: isolated fuzz boots load a copy of this file from a tmpdir.
 require "hecks/fuzzing/qa_settings"
 
@@ -11,111 +12,15 @@ unless defined?(QualityControlDials)
     # boots. HECKS_QA_SETTINGS_PATH lets a subprocess test read a different settings file.
     settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
 
-    # Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately.
-    # Read by the `/loop hecks_qa` caller, not by any script.
-    CADENCE_SECONDS = settings.cadence_seconds
-
-    # Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped.
-    PR_CAP_PER_DAY = settings.pr_cap_per_day
-
-    # Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by
-    # `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling.
-    WIDENING_TIERS = settings.widening_tiers
-
-    # How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once.
-    SWEEP_MAX_PARALLEL = settings.sweep_max_parallel
-
-    # How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled.
-    LIVENESS_FALLBACK_SECONDS = settings.liveness_fallback_seconds
+    # Each dial of qa/settings.yml as a constant named for it: `PR_CAP_PER_DAY` is `pr_cap_per_day`.
+    # What each is and takes is declared once, as its `QaDial` row in the Vocabulary chapter.
+    Hecks::Vocabulary.rows("QaDial").each do |dial|
+      const_set(dial.fetch("name").upcase, settings.public_send(dial.fetch("name")))
+    end
 
     # The identity the loop runs as. `WaivedBy` repeats this literal (invariants read literals,
     # not constants); `spec/quality_control_spec.rb` pins the two equal.
     AUTOMATED_ENGINEER = "qa_sweep"
-
-    # How `hecks quality_control patch.open` opens a PR: not a draft, queued for auto-merge, on a branch that starts
-    # with BRANCH_PREFIX.
-    DRAFT_ONLY    = settings.draft_only
-    AUTO_MERGE    = settings.auto_merge
-    BRANCH_PREFIX = settings.branch_prefix
-
-    # Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off.
-    # Higher finds refusal-ordering splits sooner but reaches deep state less often.
-    ADVERSARIAL_FRACTION = settings.adversarial_fraction
-
-    # Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`).
-    GUIDED_GENERATION = settings.guided_generation
-
-    # Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage.
-    # Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state
-    # tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost.
-    CORPUS_SPLICE_PROBABILITY = settings.corpus_splice_probability
-
-    # How many of the least-hit verbs the next seed weights up; 0 turns the lever off.
-    FAVOR_RARE_VERBS = settings.favor_rare_verbs
-
-    # Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay
-    # idempotency, value-object JSON round trip) on the same generated sequence.
-    SELF_CONSISTENCY_CHECKS = settings.self_consistency_checks
-
-    # Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking
-    # off. `concurrency` is never shrunk: a race does not reproduce on demand.
-    SHRINK_BUDGET = settings.shrink_budget
-
-    # Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`.
-    # Zero would make yield invisible, so pick a number that lets it matter.
-    YIELD_WEIGHT_SECONDS = settings.yield_weight_seconds
-
-    # Percent of the prior yield score kept at each release, so recent findings dominate.
-    # Applied by the caller: the mutation language cannot express "decay, then add" in `Release`.
-    YIELD_DECAY_PERCENT = settings.yield_decay_percent
-
-    # Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield
-    # score, so a quiet target cannot starve.
-    ROTATION_STALE_FLOOR_SECONDS = settings.rotation_stale_floor_seconds
-
-    # Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch.
-    # `hecks quality_control query sweep.run` clamps down, never up, and prints a note.
-    PERSISTENCE_PARITY_SEED_CAP = settings.persistence_parity_seed_cap
-
-    # Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed.
-    CONCURRENCY_SEED_CAP = settings.concurrency_seed_cap
-
-    # The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new
-    # entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no
-    # disposable database.
-    ADAPTER_PARITY_PAIRS = settings.adapter_parity_pairs
-
-    # Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what
-    # `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run.
-    #
-    # `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are
-    # built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run`
-    # refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled.
-    MODES = settings.modes
-
-    # How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`);
-    # 0 turns the draw off.
-    ROLE_DRAW_PROBABILITY = settings.role_draw_probability
-
-    # Fraction of generated command steps offered as a dry run instead of a real dispatch; 0 is
-    # off. Kept low: a dry run creates no state for later steps to act on.
-    DRY_RUN_FRACTION = settings.dry_run_fraction
-
-    # How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the
-    # step.
-    GENERATED_DOMAINS_PER_TICK = settings.generated_domains_per_tick
-
-    # Whether generated domains are also compared against a compiled Rust binary built in a scratch
-    # copy.
-    GENERATED_DOMAINS_RUST = settings.generated_domains_rust
-
-    # Generated sequences run per generated domain.
-    GENERATED_DOMAIN_SEEDS = settings.generated_domain_seeds
-
-    # Construct families a skipped query verb may belong to. A skip inside the list is logged Held,
-    # one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a
-    # family here is declared by no committed manifest.
-    STRUCTURAL_REFUSAL_BOUNDARY = settings.structural_refusal_boundary
   end
 end
 

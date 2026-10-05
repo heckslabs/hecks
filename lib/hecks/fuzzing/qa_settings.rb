@@ -1,43 +1,25 @@
 require "yaml"
+require "hecks/vocabulary"
 
 module Hecks
   module Fuzzing
     # Loads and validates `qa/settings.yml`, the hecks_qa dials.
     #
     # Fails loud: a missing key, unknown key or wrong-typed value raises at load time.
-    # The meaning of each dial is documented on `QualityControlDials` in the bluebook.
+    # What each dial is and takes is declared as a `QaDial` row in the Vocabulary chapter.
     class QaSettings
-      # Accessor name to the class (or classes) a valid value must be an instance of.
-      # Booleans list both TrueClass and FalseClass; Numeric admits `0` as well as `0.0`.
-      EXPECTED_TYPES = {
-        cadence_seconds:              Integer,
-        pr_cap_per_day:               Integer,
-        widening_tiers:               Array,
-        sweep_max_parallel:           Integer,
-        liveness_fallback_seconds:    Integer,
-        draft_only:                   [TrueClass, FalseClass],
-        auto_merge:                   [TrueClass, FalseClass],
-        branch_prefix:                String,
-        adversarial_fraction:         Numeric,
-        guided_generation:            [TrueClass, FalseClass],
-        corpus_splice_probability:    Numeric,
-        favor_rare_verbs:             Integer,
-        self_consistency_checks:      [TrueClass, FalseClass],
-        shrink_budget:                Integer,
-        yield_weight_seconds:         Integer,
-        yield_decay_percent:          Integer,
-        rotation_stale_floor_seconds: Integer,
-        persistence_parity_seed_cap:  Integer,
-        concurrency_seed_cap:         Integer,
-        adapter_parity_pairs:         Hash,
-        modes:                        Hash,
-        role_draw_probability:        Numeric,
-        dry_run_fraction:             Numeric,
-        generated_domains_per_tick:   Integer,
-        generated_domains_rust:       [TrueClass, FalseClass],
-        generated_domain_seeds:       Integer,
-        structural_refusal_boundary:  Array
+      # The classes a value of each `type` of a `QaDial` row must be an instance of. Booleans list
+      # both TrueClass and FalseClass; Numeric admits `0` as well as `0.0`.
+      TYPE_CLASSES = {
+        "Integer" => [Integer], "Numeric" => [Numeric], "Boolean" => [TrueClass, FalseClass],
+        "String" => [String], "Array" => [Array], "Hash" => [Hash]
       }.freeze
+
+      # Accessor name to the classes a valid value must be an instance of, one entry per `QaDial`
+      # row of the Vocabulary chapter, where each dial is declared with its type and its meaning.
+      EXPECTED_TYPES = Hecks::Vocabulary.rows("QaDial").to_h do |dial|
+        [dial.fetch("name").to_sym, TYPE_CLASSES.fetch(dial.fetch("type"))]
+      end.freeze
 
       attr_reader(*EXPECTED_TYPES.keys)
 
@@ -68,8 +50,7 @@ module Hecks
         end
       end
 
-      # @param raw [Hash] parsed YAML settings keyed by symbol, one entry per dial in
-      #   `EXPECTED_TYPES`
+      # @param raw [Hash] parsed YAML settings keyed by symbol, one entry per `QaDial` row
       # @param path [String] path to the settings file, used only in error messages
       # @raise [ArgumentError] if `raw` is missing a required key, declares an unknown
       #   key, or gives a value the wrong type for its dial
@@ -81,7 +62,7 @@ module Hecks
         if extra.any?
           raise ArgumentError,
                 "#{path} declares unknown key(s) #{extra.sort.join(', ')} — " \
-                "Hecks::Fuzzing::QaSettings::EXPECTED_TYPES doesn't recognise them"
+                "no QaDial row of the Vocabulary chapter declares them"
         end
 
         EXPECTED_TYPES.each do |key, expected|
