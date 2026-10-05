@@ -7,6 +7,9 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The per-day PR cap is a `DailyQuota` aggregate.** `hecks quality_control patch.open` no longer counts `Patch` and `Improvement` rows since local midnight: the QualityControl ledger has a `DailyQuota`, one record per UTC day, whose `Take` refuses once `PR_CAP_PER_DAY` is spent and whose day the runtime fills (`needs :today`). The script dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The `OpenedSince` queries and the adapter's `assert_under_daily_cap!` are gone, and so is the `branch_prefix` dial, which repeated the prefix `Patch.Open` and `Improvement.Open` already declare. The day is now the UTC day.
+
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the
