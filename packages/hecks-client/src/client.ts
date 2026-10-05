@@ -3,13 +3,20 @@
 //
 //   { "read": true }
 //     -> { instances: { "Domain::Aggregate#<id>": { ...state } }, refusals: [] }
-//   { "verb": "Domain::Aggregate.Verb", "to": "<id>", "with": { ... }, "role": "Role" }
+//   { "verb": "Domain::Aggregate.Verb", "to": "<id>", "with": { ... },
+//     "role": "Role", "actor_id": "<id>" }
 //     -> the same shape after the command ran
 //
 // The host answers HTTP 200 whether or not the domain refused, and its
 // `refusals` list can carry entries replayed from history, so a command is
 // judged by the state that comes back (see `HostClient#apply`), never by the
 // list alone.
+//
+// An identified caller passes `actorId`, the Governance identity id of the
+// signed-in person, and leaves `role` unset: the host then checks the roles
+// Governance has assigned to that actor. A stated `role` is a label the
+// caller writes, not a proof. The host honors `actor_id` only on its
+// internal protocol, from its own peers.
 //
 // The protocol carries no authentication. It is meant for server-to-server
 // calls on a private network, never for a browser.
@@ -33,6 +40,13 @@ export interface ClientOptions {
    * no role check.
    */
   role?: string;
+  /**
+   * The Governance identity id of the person on whose behalf commands run,
+   * sent as `actor_id` with every command unless a call names its own. Pass
+   * it for an identified caller and leave `role` unset, so Governance's role
+   * assignments decide. The host honors it only on its internal protocol.
+   */
+  actorId?: string;
   /** How long one request may take before it counts as unreachable. Defaults to 8000. */
   timeoutMs?: number;
   /** The fetch to send requests with. Defaults to the global `fetch`, looked up on each call. */
@@ -51,6 +65,8 @@ export interface Command<T> {
   /** The target instance id; absent for a command that creates one. */
   to?: string;
   role?: string;
+  /** The Governance identity id of the caller; see `ClientOptions.actorId`. */
+  actorId?: string;
   parse: (answer: Answer) => T;
   confirm: (parsed: T) => boolean;
 }
@@ -67,6 +83,7 @@ export class HostClient {
   /** The host's base URL, without a trailing slash. */
   readonly url: string;
   private readonly role: string | undefined;
+  private readonly actorId: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch | undefined;
 
@@ -78,6 +95,7 @@ export class HostClient {
     this.domain = domain;
     this.url = url.replace(/\/+$/, "");
     this.role = options.role;
+    this.actorId = options.actorId;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetch;
   }
@@ -101,9 +119,16 @@ export class HostClient {
    * Sends one command and returns the raw answer. Callers judge the outcome
    * from the state in it and turn a miss into a refusal with `refusalOf`.
    */
-  dispatch(verb: string, args: Record<string, unknown> = {}, to?: string, role?: string): Promise<Answer> {
+  dispatch(verb: string, args: Record<string, unknown> = {}, to?: string, role?: string, actorId?: string): Promise<Answer> {
     const asRole = role ?? this.role;
-    return this.post({ verb: this.qualify(verb), ...(to ? { to } : {}), with: args, ...(asRole ? { role: asRole } : {}) });
+    const asActor = actorId ?? this.actorId;
+    return this.post({
+      verb: this.qualify(verb),
+      ...(to ? { to } : {}),
+      with: args,
+      ...(asRole ? { role: asRole } : {}),
+      ...(asActor ? { actor_id: asActor } : {}),
+    });
   }
 
   /**
@@ -112,7 +137,7 @@ export class HostClient {
    * carrying the domain's own words for why.
    */
   async apply<T>(command: Command<T>): Promise<T> {
-    const answer = await this.dispatch(command.verb, command.with, command.to, command.role);
+    const answer = await this.dispatch(command.verb, command.with, command.to, command.role, command.actorId);
     const parsed = command.parse(answer);
     if (command.confirm(parsed)) return parsed;
     throw refusalOf(answer, command.verb);
