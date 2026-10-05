@@ -110,7 +110,7 @@ fn write_domain(
     mod_name: &str,
     out_dir: &str,
 ) -> Result<domain_generator::GeneratedDomain, String> {
-    // Refuse before writing anything; same message as `RustProjection::DomainGenerator.call`.
+    // Refuse before writing anything, so a name collision is reported before any file exists.
     let aggregate_names: Vec<&str> = ir
         .get("aggregates")
         .map(Json::each)
