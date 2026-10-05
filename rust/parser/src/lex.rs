@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn does_not_strip_a_bare_lowercase_call() {
         assert_eq!(
-            strip_aggregate_receiver("uses_framework \"Governance\""),
+            strip_aggregate_receiver("attaches \"Governance\""),
             None
         );
         assert_eq!(strip_aggregate_receiver("subscribe \"Deposited\""), None);

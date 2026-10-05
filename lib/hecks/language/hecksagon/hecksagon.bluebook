@@ -83,9 +83,6 @@ Hecks.bluebook "Hecksagon" do
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
       member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments"
-      # Deprecated spellings of `attaches`; they warn and are removed in 3.4.0.
-      member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
-      member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", status: "deprecated"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
@@ -116,8 +113,6 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
       member keyword: "attaches",        context: "Hecksagon", at: "",  named: "from", kind: "symbol", required: "false", fills: "source"
-      member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
-      member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 

@@ -27,8 +27,9 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 ## 2. Rename `Hecks::Facade` to `Hecks::Doors`
 
 `Surface` is now `Doors::RubyDoor`, and the MCP door lives beside it. `install_facade:` is now
-`install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.4.0. Regenerate
-launchers with `hecks project_cli`.
+`install_doors:`. The old names worked in 3.0 to 3.3 with a warning; they were removed in 3.4.0, so
+`Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:` now raise `NameError` and
+`ArgumentError`. Regenerate launchers with `hecks project_cli`.
 
 ## 3. Reach Hecks-chapter constants through `Hecks::Domain`
 
@@ -76,8 +77,9 @@ A hecksagon attaches a chapter with one word, `attaches`. `uses_framework "Gover
 gem carries (a framework member or a chapter of the language, Tenancy, Deploy); `from: :vendor`
 loads the package vendored into the project, and is never a fallback for a misspelt gem name.
 
-The two old words still work in 3.x. They behave as before and print a one-line warning, and they
-are removed in 3.4.0. Two things read differently: a hecksagon's `framework_members`,
+The two old words worked in 3.0 to 3.3 with a one-line warning, and were removed in 3.4.0. A
+hecksagon that still writes one now fails to load with ``uses_framework was removed in 3.4.0; use
+`attaches "Name"` `` (the Rust parser refuses it the same way). Two things read differently: a hecksagon's `framework_members`,
 `vendored_bluebooks` and `attached_chapters` are one list, `attachments` (each with its source,
 `:gem` or `:vendor`), and `hecks project_rust` now stamps its generated files with the `attaches`
 spelling, so regenerate them.
@@ -86,8 +88,21 @@ spelling, so regenerate them.
 
 Upgrade to 3.0.3 or later, not 3.0.0. 3.0.1 to 3.0.3 closed: `GET /members` and
 `GET /newsletter/subscribers` now require an Admin or Owner (a client that read them with a plain
-member's cookie, or none, must use an admin's); `uses_embryonaut_bluebook` refuses a package name
+member's cookie, or none, must use an admin's); a vendored `attaches` refuses a package name
 outside `[a-z][a-z0-9_]*`; and code generation refuses declared names that are not plain identifiers.
+
+## Removed in 3.4.0
+
+Each spelling that 3.3.0 warned about is gone. Replace it before upgrading a pin past 3.3.x; if you
+are still on an old pin, 3.3.0 prints the warning for each use, so run it once and fix what it names.
+
+| Removed | Use instead |
+|---|---|
+| `uses_framework "X"` | `attaches "X"` |
+| `uses_embryonaut_bluebook "x"` | `attaches "x", from: :vendor` |
+| `Hecks::Facade` | `Hecks::Doors` |
+| `Hecks::Doors::Surface` | `Hecks::Doors::RubyDoor` |
+| `install_facade:` (on `boot`, `boot_files`, `boot_described`) | `install_doors:` |
 
 ## Check your upgrade
 

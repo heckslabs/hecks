@@ -27,9 +27,9 @@ module Hecks
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
+      def self.boot(path, shared: nil, install_doors: true, environment: FROM_ENV)
         described = describe(path, shared: shared, environment: environment)
-        boot_described(described, install_doors: install_doors, install_facade: install_facade)
+        boot_described(described, install_doors: install_doors)
       end
 
       # Finishes a boot from declarations `describe` already loaded: runs every boot gate and binds
@@ -37,16 +37,15 @@ module Hecks
       #
       # @param described [Described] what `describe` answered for the domain to boot
       # @param install_doors [Boolean] install the `Widget::Item.Add(...)` global facade sugar
-      # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_described(described, install_doors: true, install_facade: nil)
+      def self.boot_described(described, install_doors: true)
         registry = described.registry
         run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
-        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
+        install_doors ? bind_runtime(dispatcher) : dispatcher
       end
 
       # What `describe` answers: the loaded declarations and nothing bound to run them.
@@ -153,7 +152,7 @@ module Hecks
       #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
+      def self.boot_files(paths, shared: nil, install_doors: true, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
@@ -168,7 +167,7 @@ module Hecks
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
-        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
+        install_doors ? bind_runtime(dispatcher) : dispatcher
       end
 
       # Runs every registered boot gate against `registry`, in order:

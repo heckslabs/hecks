@@ -1,5 +1,5 @@
 Hecks.bluebook "Widgets" do
-  vision "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise uses_embryonaut_bluebook end to end (create, refuse, retire, query)."
+  vision "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise a vendored attaches end to end (create, refuse, retire, query)."
   supporting
 
   # Vendored copy kept in this repo so the corpus proof stays self-contained; a real consumer

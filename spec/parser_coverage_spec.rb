@@ -80,7 +80,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[rekey TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
       %w[retype TranslationAggregate], %w[secret Adapter], %w[signal DomainPort], %w[signal Port],
       %w[subscribe Hecksagon], %w[tells DomainPort], %w[unresolved TranslationAggregate],
-      %w[uses_embryonaut_bluebook Hecksagon], %w[uses_framework Hecksagon], %w[verb DomainPort],
+      %w[verb DomainPort],
       %w[verb Port], %w[world File]
     ]],
     # Declared query/read-model options no tracked corpus member happens to

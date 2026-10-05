@@ -241,8 +241,7 @@ module Hecks
                               "of rust/src/generated, and there is no directory to fuzz")
     }.freeze
 
-    # Every place a Rust-facing domain's own `attaches` (or the deprecated `uses_framework` /
-    # `uses_embryonaut_bluebook`) attachment could be declared.
+    # Every place a Rust-facing domain's own `attaches` attachment could be declared.
     #
     # @param root [String] repository root to search under
     # @return [String] every reachable hecksagon file's own text, joined by newlines
@@ -310,11 +309,10 @@ module Hecks
 
     # The stamp hecks project_rust writes into metadata.rs, e.g.
     # `examples/pizzas` or `the self-hosted language (...)`, with any
-    # ` (attaches "X")`/` (attaches "x", from: :vendor)` suffix stripped (the deprecated
-    # `uses_framework` / `uses_embryonaut_bluebook` spellings too).
+    # ` (attaches "X")`/` (attaches "x", from: :vendor)` suffix stripped.
     SOURCE_STAMP = /
       GENERATED\ by\ hecks\ project_rust\ —\ (.+?)
-      (?:\ \((?:attaches|uses_framework|uses_embryonaut_bluebook)\ "\w+"(?:,\ from:\ :vendor)?\))?
+      (?:\ \(attaches\ "\w+"(?:,\ from:\ :vendor)?\))?
       's\ own\ canonical\ IR,
     /x
 

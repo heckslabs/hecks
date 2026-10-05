@@ -42,8 +42,8 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     File.write(path, content)
   end
 
-  def consumer_hecksagon(*uses, word: %(attaches "%s", from: :vendor))
-    lines = uses.map { |name| "  #{format(word, name)}" }
+  def consumer_hecksagon(*uses)
+    lines = uses.map { |name| "  attaches \"#{name}\", from: :vendor" }
     <<~HECKSAGON
       Hecks.hecksagon "Widgets" do
       #{lines.join("\n")}
@@ -53,8 +53,8 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     HECKSAGON
   end
 
-  def project(root, uses:, vendored: %w[widgets], word: nil)
-    write(root, "bluebook/consumer.hecksagon", consumer_hecksagon(*uses, **{ word: word }.compact))
+  def project(root, uses:, vendored: %w[widgets])
+    write(root, "bluebook/consumer.hecksagon", consumer_hecksagon(*uses))
     write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     vendored.each do |name|
       write(root, "vendor/embryonaut_bluebooks/#{name}/bluebook/#{name}.bluebook", WIDGETS_BLUEBOOK)
@@ -72,18 +72,6 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
         end
 
         expect(booted).not_to be_nil
-      end
-    end
-
-    it "carries a package the deprecated uses_embryonaut_bluebook word names" do
-      Dir.mktmpdir do |root|
-        domain = project(root, uses: %w[widgets], word: %(uses_embryonaut_bluebook "%s"))
-
-        vendor = described_class.call(domain) do |copy|
-          Dir.children(File.join(File.dirname(copy), "vendor", "embryonaut_bluebooks"))
-        end
-
-        expect(vendor).to eq(%w[widgets])
       end
     end
 

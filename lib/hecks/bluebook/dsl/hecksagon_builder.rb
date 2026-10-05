@@ -57,9 +57,12 @@ module Hecks
           end
         end
 
-        # The release that drops the deprecated spellings of `attaches`; independent of
-        # `Hecks::Doors::REMOVAL`, which covers the older `Facade` aliases.
-        REMOVAL = "3.4.0".freeze
+        # Spellings of `attaches` that 3.4.0 removed, each with the form that replaces it. They
+        # are refused by name so an old hecksagon fails loudly, never as a stray default bind.
+        REMOVED_WORDS = {
+          "uses_framework"           => ->(name) { "attaches #{name.to_s.inspect}" },
+          "uses_embryonaut_bluebook" => ->(name) { "attaches #{name.to_s.inspect}, from: :vendor" }
+        }.freeze
 
         attr_reader :binds, :subscriptions, :attachments
 
@@ -98,20 +101,6 @@ module Hecks
           end
 
           from == :vendor ? attach_vendored(name) : attach_gem(name)
-        end
-
-        # The deprecated spelling of `attaches "Name"` for a framework member.
-        def uses_framework(name)
-          deprecated_word("uses_framework", "attaches #{name.to_s.inspect}")
-          @attachments << Attachment.new(name: name.to_s, source: :gem)
-          self.class.with_real_modules { Hecks::Framework.load!(name) }
-          Hecks.current_registry&.mark_bounded(name.to_s)
-        end
-
-        # The deprecated spelling of `attaches "name", from: :vendor`.
-        def uses_embryonaut_bluebook(name)
-          deprecated_word("uses_embryonaut_bluebook", "attaches #{name.to_s.inspect}, from: :vendor")
-          attach_vendored(name)
         end
 
         # Declares a port at the hecksagon's root — the chapter as a whole, not one aggregate.
@@ -170,15 +159,11 @@ module Hecks
         end
         private :attach_vendored
 
-        # Tells the author that a word is going away.
-        def deprecated_word(word, instead)
-          warn "[hecks] `#{word}` is deprecated and is removed in #{REMOVAL}; use `#{instead}`"
-        end
-        private :deprecated_word
-
         # Records any verb the grammar doesn't own as a domain-wide default bind, e.g. bare
         # `persisted_by "Heki"` at the top of a block, applied unless an aggregate overrides it.
         def method_missing(verb, *args, **kwargs, &block)
+          refuse_removed_word(verb, args.first)
+
           # Grammar words (like `port`) get first refusal via explicit dispatch; only when that's
           # not admitted does the open-ended `persisted_by`-style bind vocabulary below apply.
           result = word_gate_dispatch(verb, args, kwargs, block)
@@ -190,6 +175,19 @@ module Hecks
           block&.call
           self
         end
+
+        # Raises for a word 3.4.0 removed, naming the spelling that replaces it.
+        #
+        # @param verb [Symbol] the word the hecksagon block called
+        # @param name [Object, nil] its first argument, echoed into the replacement
+        # @raise [Malformed] when the word is one of `REMOVED_WORDS`
+        def refuse_removed_word(verb, name)
+          instead = REMOVED_WORDS[verb.to_s]
+          return unless instead
+
+          raise Malformed, "`#{verb}` was removed in 3.4.0; use `#{instead.call(name)}`"
+        end
+        private :refuse_removed_word
 
         def respond_to_missing?(_name, _include_private = false) = true
 

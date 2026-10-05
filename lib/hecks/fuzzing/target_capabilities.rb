@@ -16,7 +16,7 @@ module Hecks
       POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
 
       # Captures the member a hecksagon attaches; authorization is read off its declaration.
-      FRAMEWORK_ATTACHED = /(?:attaches|uses_framework)\s*\(?\s*"([^"]+)"/
+      FRAMEWORK_ATTACHED = /attaches\s*\(?\s*"([^"]+)"/
 
       # A command-level `role "..."`, the only construct a role check can compare a caller against.
       ROLE_GATED = /^\s*role\s+"/
