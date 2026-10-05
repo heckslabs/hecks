@@ -20,6 +20,41 @@ A minor: additive, nothing breaking, and no behavior change for a running system
 
 **`@hecks/client` can send `actorId`.** `ClientOptions.actorId` (a default for every command), `Command.actorId` and a fifth `dispatch(verb, args, to, role, actorId)` argument send the body's `actor_id`, the Governance identity id of an identified caller. Leave `role` unset and Governance's role assignments decide; the host honors `actor_id` only on its internal protocol. The key is omitted when unset, so existing calls are unchanged.
 
+The Site chapter, after its first adoption by a client project. A route table written for 3.1.x generates the same
+`routes.ts` and the same template regions, apart from the one change under **Changed** (the `matchesPath` helper in the
+module), unless it uses what is added below; the one new refusal is noted there too.
+
+### Added
+
+- **`hecks site site_projection.project_site` runs from a client project with the installed gem.** It no longer needs a hecks
+  checkout, and the project, the output and the template are independent: `out=<dir>` is any directory for `routes.ts`, and
+  the new `template=<file>` is any file to rewrite in place (the `Edge` row may then leave out `template:`). Both are read from
+  where the command runs; with `out=` alone the template is still copied under it. A flag outside the rules is refused: an `out=`
+  that is a file, a `template=` that does not exist or is named for a project with no Edge rows.
+- **`extension=mts`** writes `routes.mts` (the same text) so Node can import the module from a `"type": "commonjs"` package.
+  `ts` stays the default.
+- **`alb: false` on the `Edge` row** for a project with no load balancer: no `listener_rules` region is needed or written, and
+  `EdgeRule` rows and `alb_rule` are refused. A route on the cms or the domain still needs an `EdgeOrigin` mapping its origin.
+- **Navigation to anything that answers GET, to a fragment, and under a heading.** A row of any kind may sit in a menu; a
+  `NavLink` row (`path`, optional `fragment`, `label`, and the slot fields) adds a second link to a route, such as
+  `/about#hours`; `mobile_heading` on a row opens a section of the mobile menu. Entries carry `fragment` and `heading` only when set.
+- **An off page keeps its navigation slots.** Its entries carry `switch` and `on: false`, and the site drops them while
+  `pageIsOn(switch)` is false. Entries of pages that are on are as before.
+- **`edge_methods` on a route**: the verbs the edge lets through, apart from the verbs the route answers (`methods`), so an admin
+  page can answer `GET` and still ride the `/admin*` behaviour.
+- **`seo_title` on a route**, written to `ROUTES` as `seoTitle` for the rows that set it.
+- **A public page beneath an admin prefix** is expressible: name its `cache` (and `indexable: false`) and it rides the prefix.
+
+### Changed
+
+- **`matchesPath` in the generated `routes.ts` reads `*` as a CDN does**: any run of characters, `/` included, wherever it stands.
+  A prefix row such as `/admin*` used to match nothing and now matches `/admin`, `/admin-inbox` and `/admin/members`. This changes
+  the text of the helper in every project's `routes.ts`, so `--check` reports it until the file is regenerated; only a pattern with
+  a `*` inside a segment, which matched literally before, changes meaning.
+- **A public row beneath a route that is admin or signed must name its `cache`.** Such a row used to take the `page` class from
+  its auth; a table that has one with no `cache:` is now refused, naming the prefix, and is fixed by writing the class it meant.
+- **An off row may now sit in a navigation**; it was refused before, so no existing table is affected.
+
 **The host's account routes carry each person's identity id.** `GET /accounts/me` now answers
 `{"email", "identity_id"}` and each row of `GET /members` gains a trailing `identity_id`, so a site or
 CMS acting for a person can pass it as `actor_id` and have Governance check the right role assignment.

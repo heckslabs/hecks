@@ -63,9 +63,11 @@ module Hecks
 
           def reference(text) = text.nil? || text == "none" ? nil : Checks.resolve(text)
 
-          # CloudFront takes three sets of methods: read, read with `OPTIONS`, and all.
+          # CloudFront takes three sets of methods: read, read with `OPTIONS`, and all. A route's
+          # `edge_methods` are the verbs the edge lets through; they are its own `methods` unless
+          # the row says more.
           def methods(rows)
-            verbs = rows.flat_map(&:verbs).uniq
+            verbs = rows.flat_map(&:edge_verbs).uniq
             return Deploy::Fargate::Cdn::METHODS.fetch("all") unless (verbs - ["GET"]).empty?
 
             assets = rows.all? { |row| row.origin == "assets" }
@@ -76,7 +78,7 @@ module Hecks
           # http and redirected; anything else (a form, an API, a signed or admin page, a route of
           # the cms or the domain) is served over https only.
           def protocol(row)
-            plain = row.auth == "public" && row.verbs == ["GET"] && %w[website assets].include?(row.origin)
+            plain = row.auth == "public" && row.edge_verbs == ["GET"] && %w[website assets].include?(row.origin)
             plain ? "redirect-to-https" : "https-only"
           end
 
