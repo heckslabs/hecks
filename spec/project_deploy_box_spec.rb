@@ -69,6 +69,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           routes [{ container: "cms", paths: ["/cms/*"] }]
           origin_header "X-Origin-Secret"
           origin_secret "widget/origin-secret"
+          origin_env ["WIDGET_ORIGIN"]
         end
       end
     WORLD
@@ -180,6 +181,24 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
   describe "the default world" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
+
+    it "writes its shell scripts executable, and waits for the containers instead of sleeping" do
+      Dir.mktmpdir do |dir|
+        domain = File.join(dir, BOX_FIXTURE_NAME)
+        FileUtils.mkdir_p(File.join(domain, "bluebook"))
+        File.write(File.join(domain, "bluebook", "#{BOX_FIXTURE_NAME}.bluebook"), BOX_BLUEBOOK)
+        File.write(File.join(domain, "bluebook", "#{BOX_FIXTURE_NAME}.world"), BOX_WORLDS.fetch("default"))
+        out = File.join(dir, "out")
+        _stdout, stderr, status = ProjectDeployRunner.run(domain, "--out=#{out}", root: BOX_ROOT_DIR)
+        expect(status.success?).to be(true), stderr
+
+        scripts = Dir.children(out).select { |name| name.end_with?(".sh") }
+        expect(scripts).to include("deploy-box.sh", "render-compose.sh", "fetch-secrets.sh")
+        expect(scripts.reject { |name| File.executable?(File.join(out, name)) }).to eq([])
+      end
+      expect(files["deploy-box.sh"]).not_to include("sleep 20")
+      expect(files["deploy-box.sh"]).to include("Up (Less than a second|[0-4] seconds?)")
+    end
 
     it "can mount extra proxy sites, a smoke listener and admit a bastion" do
       expect(files["Caddyfile"]).to include("auto_https disable_redirects", "import /etc/caddy/extra/*")
@@ -340,6 +359,64 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   describe "the taskdef world" do
     let(:files) { cached("taskdef", BOX_WORLDS.fetch("taskdef")).first }
 
+    it "records which variables hold the origin secret in services.json" do
+      expect(JSON.parse(files["services.json"])["origin"]).to eq(
+        "header" => "X-Origin-Secret", "secret" => "widget/origin-secret", "env" => ["WIDGET_ORIGIN"]
+      )
+    end
+
+    # Runs the generated render-compose.sh in a scratch directory with `aws` replaced by a stub that
+    # answers the two calls it makes, so what it refuses is tested without AWS.
+    def render(origin_value:, copies:)
+      skip "jq is not installed" unless system("jq", "--version", out: File::NULL, err: File::NULL)
+
+      Dir.mktmpdir do |dir|
+        files.each { |name, text| File.write(File.join(dir, name), text) }
+        bin = File.join(dir, "bin")
+        FileUtils.mkdir_p(bin)
+        File.write(File.join(bin, "aws"), <<~STUB)
+          #!/bin/bash
+          case "$1 $2" in
+            "ecs describe-task-definition") cat "$STUB_TASK_DEFINITION" ;;
+            "secretsmanager get-secret-value") printf '%s\\n' "$STUB_ORIGIN_SECRET" ;;
+            *) echo "unexpected aws call: $*" >&2; exit 9 ;;
+          esac
+        STUB
+        File.chmod(0o755, File.join(bin, "aws"))
+        containers = [
+          { name: "website", image: "img/website", environment: copies.map { |name, value| { name: name, value: value } } },
+          { name: "cms", image: "img/cms", environment: [] }
+        ]
+        File.write(File.join(dir, "task.json"), JSON.generate(containers))
+        env = { "PATH" => "#{bin}:#{ENV.fetch('PATH')}", "STUB_TASK_DEFINITION" => File.join(dir, "task.json"),
+                "STUB_ORIGIN_SECRET" => origin_value }
+        _out, err, status = Open3.capture3(env, "bash", File.join(dir, "render-compose.sh"), "db.example", "arn:db", chdir: dir)
+        [status.success?, err, File.exist?(File.join(dir, "compose.json"))]
+      end
+    end
+
+    it "renders when the container's copy of the origin secret equals the named secret" do
+      ok, err, composed = render(origin_value: "s3cret-value", copies: { "WIDGET_ORIGIN" => "s3cret-value" })
+      expect(ok).to be(true), err
+      expect(composed).to be(true)
+    end
+
+    it "refuses when a container's copy differs, naming the container and never printing a value" do
+      ok, err, composed = render(origin_value: "s3cret-value", copies: { "WIDGET_ORIGIN" => "other-value" })
+      expect(ok).to be(false)
+      expect(composed).to be(false)
+      expect(err).to include("WIDGET_ORIGIN", "container: website", "widget/origin-secret", "differs")
+      expect(err).not_to include("s3cret-value")
+      expect(err).not_to include("other-value")
+    end
+
+    it "refuses when no container sets a variable the world names, so a typo cannot skip the check" do
+      ok, err, composed = render(origin_value: "s3cret-value", copies: { "SOMETHING_ELSE" => "s3cret-value" })
+      expect(ok).to be(false)
+      expect(composed).to be(false)
+      expect(err).to include("origin_env names WIDGET_ORIGIN", "no container")
+    end
+
     it "writes only names and ports to services.json, and the family it renders from" do
       services = JSON.parse(files["services.json"])
       expect(services["task_definition"]).to eq("widget-platform")
@@ -430,6 +507,20 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       WORLD
       expect(files).to be_nil
       expect(stderr).to include('deployed_to("AwsBox") is invalid').and include("family.size")
+    end
+
+    it "refuses origin_env without an origin secret and a task definition to compare against" do
+      files, stderr = generate(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsBox") do
+            region "us-east-1"
+            containers [{ name: "web", port: 8080 }]
+            origin_env ["ORIGIN"]
+          end
+        end
+      WORLD
+      expect(files).to be_nil
+      expect(stderr).to include("origin_env", "origin_secret", "task_definition")
     end
 
     it "refuses a route to a container that is not declared" do
