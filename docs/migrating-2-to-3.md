@@ -27,7 +27,7 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 ## 2. Rename `Hecks::Facade` to `Hecks::Doors`
 
 `Surface` is now `Doors::RubyDoor`, and the MCP door lives beside it. `install_facade:` is now
-`install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.2.0. Regenerate
+`install_doors:`. The old names still work in 3.0 and warn; they are removed in 3.3.0. Regenerate
 launchers with `hecks project_cli`.
 
 ## 3. Reach Hecks-chapter constants through `Hecks::Domain`
@@ -77,7 +77,7 @@ gem carries (a framework member or a chapter of the language, Tenancy, Deploy); 
 loads the package vendored into the project, and is never a fallback for a misspelt gem name.
 
 The two old words still work in 3.x. They behave as before and print a one-line warning, and they
-are removed in 3.2.0. Two things read differently: a hecksagon's `framework_members`,
+are removed in 3.3.0. Two things read differently: a hecksagon's `framework_members`,
 `vendored_bluebooks` and `attached_chapters` are one list, `attachments` (each with its source,
 `:gem` or `:vendor`), and `hecks project_rust` now stamps its generated files with the `attaches`
 spelling, so regenerate them.
