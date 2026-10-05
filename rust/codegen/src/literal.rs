@@ -1,7 +1,7 @@
 //! Port of `Literal.read` from `lib/hecks/literal.rb`, the inverse of `Literal.render`.
 //! `Literal::from_json` covers values embedded raw in ir.json, which were never rendered.
 
-use crate::json::Json;
+use crate::json::{Json, Number};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
@@ -22,8 +22,11 @@ impl Literal {
         match value {
             Json::Null => Literal::Nil,
             Json::Bool(b) => Literal::Bool(*b),
-            Json::Int(n) => Literal::Int(*n),
-            Json::Float(n) => Literal::Float(*n),
+            Json::Number(_) => match value.number() {
+                Some(Number::Int(n)) => Literal::Int(n),
+                Some(Number::Float(n)) => Literal::Float(n),
+                None => Literal::Nil,
+            },
             Json::String(s) => Literal::Str(s.clone()),
             Json::Array(items) => Literal::Array(items.iter().map(Literal::from_json).collect()),
             Json::Object(pairs) => Literal::Hash(pairs.iter().map(|(k, v)| (k.clone(), Literal::from_json(v))).collect()),
