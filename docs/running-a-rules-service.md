@@ -734,10 +734,9 @@ not usable from this repository alone, for three reasons.
    one. Sending an account cookie to `/api/me` answers `401`.
 3. **The first administrator cannot be created through the host.**
    `/members` and the grant routes require the caller to already be an
-   active `Admin` or `Owner` in the membership records. A comment in
-   `auth.rs` points at a `bin/grant_first_admin` script, but no such script
-   exists in `bin/`. The first membership row has to be written some other
-   way; the comments in `auth.rs` say membership lives in the era-managed
+   active `Admin` or `Owner` in the membership records. No script in this
+   repository writes the first membership row. It has to be written some
+   other way; the comments in `auth.rs` say membership lives in the era-managed
    head tables and is written by the Ruby runtime, so the likely route is
    the Ruby runtime dispatching the membership chapter's `Admit` and
    `GrantAccess` against the same database. That was not tried.

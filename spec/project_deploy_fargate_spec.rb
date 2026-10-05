@@ -163,7 +163,7 @@ RSpec.describe "hecks deploy project — deployed_to(\"AwsFargate\")", :io do
         deployed_to("AwsFargate") do
           region "us-east-1"
           database "Shared"
-          owner "Embryonaut"
+          owner "Core"
         end
       end
     WORLD
@@ -207,7 +207,7 @@ RSpec.describe "hecks deploy project — deployed_to(\"AwsFargate\")", :io do
         deployed_to("AwsFargate") do
           region "us-east-1"
           database "Shared"
-          owner "Embryonaut"
+          owner "Core"
         end
       end
     WORLD

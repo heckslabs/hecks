@@ -15,9 +15,6 @@ gem "google-id-token", "~> 1.4"
 # Test-only: the Lambda adapter and remote dispatcher, required lazily.
 gem "aws-sdk-lambda", "~> 1.0"
 
-# Used by qa/lambda_handler.rb to fetch secrets at Lambda cold start.
-gem "aws-sdk-secretsmanager", "~> 1.0"
-
 # The forms app needs only Rack::Request/Response; rackup and webrick serve hecks present.
 gem "rack", "~> 3.0"
 gem "rackup", "~> 2.0"

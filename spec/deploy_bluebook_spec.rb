@@ -190,7 +190,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   def declare_box(**overrides)
     args = {
-      domain:         { value: "Lifeadelics" },
+      domain:         { value: "Storefront" },
       region:         { value: "us-east-1" },
       instance_type:  { value: "t4g.medium" },
       volume_gb:      { value: 30 },
@@ -203,7 +203,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
   describe "BoxTarget.Declare" do
     it "accepts a fully-specified AwsBox target" do
       state = declare_box.instance.state
-      expect(state[:domain].value).to eq("Lifeadelics")
+      expect(state[:domain].value).to eq("Storefront")
       expect(state[:instance_type].value).to eq("t4g.medium")
       expect(state[:volume_gb].value).to eq(30)
       expect(state[:database_class].value).to eq("db.t4g.small")
@@ -319,7 +319,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
           deployed_to("AwsLambda") do
             region "us-east-1"
             database "Shared"
-            owner "Embryonaut"
+            owner "Core"
           end
         end
       WORLD
@@ -343,8 +343,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
             deployed_to("AwsLambda") do
               region "us-east-1"
               database "Shared"
-              owner "Embryonaut"
-              owner_stack "hecksagain-embryonaut"
+              owner "Core"
+              owner_stack "custom-core-stack"
             end
           end
         WORLD
@@ -353,8 +353,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
         status.success? or raise "hecks deploy project failed: #{stderr}"
 
         makefile = File.read(File.join(generated_dir, "Makefile"))
-        expect(makefile).to include("--stack-name hecksagain-embryonaut")
-        expect(makefile).not_to include("--stack-name hecks-embryonaut")
+        expect(makefile).to include("--stack-name custom-core-stack")
+        expect(makefile).not_to include("--stack-name hecks-core")
       end
     ensure
       FileUtils.rm_rf(generated_dir)
@@ -404,12 +404,12 @@ RSpec.describe "the self-hosted Deploy bluebook" do
         Hecks.world "Scratch" do
           deployed_to("AwsLambda") do
             region "us-east-1"
-            stack_prefix "hecksagain"
+            stack_prefix "acme"
           end
         end
       WORLD
 
-      expected = "hecksagain-#{FIXTURE_BASENAME}"
+      expected = "acme-#{FIXTURE_BASENAME}"
       expect(files["samconfig.toml"]).to include(%(stack_name = "#{expected}"))
       expect(files["template.yaml"]).to include("FunctionName: #{expected}\n")
       expect(files["template.yaml"]).to include("FunctionName: #{expected}-web\n")
@@ -438,7 +438,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
           deployed_to("AwsLambda") do
             region "us-east-1"
             database "Shared"
-            owner "Embryonaut"
+            owner "Core"
           end
         end
       WORLD
