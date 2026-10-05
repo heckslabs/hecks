@@ -16,23 +16,28 @@ module Hecks
     # The command behind `hecks quality_control target.mine_combinations`: asks an agent to mine the
     # adversarial corpus for new domain combinations, then checks them. It is opt-in and never run
     # by `hecks quality_control sweep.tick` (an agent call costs money and answers differently each
-    # run).
-    # `--brief` prints the agent's prompt and stops; `--from <dir>` re-checks an earlier run;
-    # `--against <domain>` narrows the census; `--agent "cmd"` reads the prompt on stdin.
+    # run). `--brief` prints the agent's prompt and stops; `--from <dir>` re-checks an earlier run;
+    # `--against <domain>` narrows the census; `--agent "cmd"` reads the prompt on stdin;
+    # `--confine` limits the default agent to writing the run's candidates directory.
     #
     # The agent defaults to `claude -p` (`QA_MINER_AGENT` overrides); candidates that boot are
     # checked by `hecks quality_control target.check_generated_domains --source`, whose report is
     # this command's report. Exit 0: all clean. 2: a finding (see
-    # `.claude/skills/hecks_qa/SKILL.md`). 1: an operational
-    # error.
+    # `.claude/skills/hecks_qa/SKILL.md`). 1: an operational error.
     class QaMineCombinations
       EXIT_OK = 0
       EXIT_ERROR = 1
       RESULT_MARKER = "QA_GENERATED_RESULT "
 
+      # What `--confine` lets the default agent do: read anything, write the candidates directory,
+      # run for twenty minutes and spend two dollars.
+      CONFINED_TOOLS = %w[Read Glob Grep Write Edit].freeze
+      CONFINED_TIMEOUT = 1200
+      CONFINED_BUDGET = 2.0
+
       USAGE = "usage: hecks quality_control mine_combinations [--candidates N] [--rust] [--seeds K] " \
               "[--steps M] " \
-              "[--adversarial F] [--repair-rounds R] [--agent CMD] [--from <candidates-dir>] " \
+              "[--adversarial F] [--repair-rounds R] [--agent CMD] [--confine] [--from <candidates-dir>] " \
               "[--against <domain> …] [--brief]"
 
       Miner = Hecks::Fuzzing::CombinationMiner
@@ -65,7 +70,8 @@ module Hecks
         @out_dir = @options[:from] || File.join(@run_dir, "candidates")
         @agent_log = File.join(@run_dir, "agent.log")
         @agent = Hecks::Adapters::Agent.new
-        @command = @agent.command_for(@options[:agent])
+        @profile = confinement_profile if @options[:confine]
+        @command = @agent.command_for(@options[:agent], @profile)
         corpus = @options[:against].empty? ? Miner.corpus_paths(@root) : @options[:against]
         @brief = Miner.brief(corpus, root: @root, bug_titles: Miner.recent_bug_titles(@root))
         prompt = Miner.prompt(@root, @brief, count: @options[:candidates], out_dir: @out_dir)
@@ -89,7 +95,7 @@ module Hecks
 
       def parse(argv)
         options = { candidates: 3, rust: false, seeds: 5, steps: 25, adversarial: 0.3, repair_rounds: 1,
-                    agent: nil, from: nil, brief: false, against: [] }
+                    agent: nil, from: nil, brief: false, confine: false, against: [] }
         until argv.empty?
           arg = argv.shift
           if %w[-h --help].include?(arg)
@@ -108,6 +114,7 @@ module Hecks
           options[key] = reader.call(argv.shift)
         when "--rust" then options[:rust] = true
         when "--brief" then options[:brief] = true
+        when "--confine" then options[:confine] = true
         when "--against" then options[:against] << File.expand_path(argv.shift)
         else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
         end
@@ -124,10 +131,17 @@ module Hecks
 
       # Returns nil when the agent finished, else why it did not.
       def ask_agent(prompt)
-        @agent.ask(prompt: prompt, command: @command, chdir: @root, log: @agent_log)
+        @agent.ask(prompt: prompt, command: @command, chdir: @root, log: @agent_log, profile: @profile)
         nil
       rescue Hecks::Adapters::Agent::Failed => e
         e.message
+      end
+
+      # The profile `--confine` runs the agent under: it writes only the candidates directory.
+      def confinement_profile
+        FileUtils.mkdir_p(@out_dir)
+        Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: CONFINED_TOOLS, writable: [@out_dir],
+                                          timeout: CONFINED_TIMEOUT, budget: CONFINED_BUDGET)
       end
 
       def boot_error(candidate, boot_root)
