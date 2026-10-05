@@ -1,0 +1,18 @@
+# The domain eras the post-deploy check accepts as "the era that should be
+# running", one era id per line. Blank lines and lines starting with # are
+# ignored. While no era is listed the check only verifies that the host reports
+# one, and does not compare it.
+#
+# Changing the era on a roll:
+#   1. Add the NEW era id below and merge that BEFORE the roll, so a scheduled
+#      check does not fail the moment the new era boots.
+#   2. Roll. The check then passes on the new era.
+#   3. Once the roll has settled, delete the OLD era id, so a rollback to it, or
+#      a fork of the journal back onto it, fails the check instead of passing.
+#
+# The id is what the host reports at GET /version, the same id the era mint
+# prints. Compare a live host with this file:
+#
+#   hecks check_era host=https://host.example expected=expected-era --wait
+#   make check-era URL=https://host.example
+

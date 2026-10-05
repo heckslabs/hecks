@@ -1,0 +1,77 @@
+echo "==> setting the stack's ${CFN_PARAM_KEY} to ${TAG} (registers the new task definition revision)"
+stack_parameters() {
+  aws cloudformation describe-stacks --stack-name "$IMAGE_STACK" --region "$REGION" \
+    --query 'Stacks[0].Parameters[].{k:ParameterKey,v:ParameterValue}' --output json
+}
+stack_parameters > "${SCRATCH_DIR}/params-before.json"
+ALL_PARAM_KEYS="$(jq -r '.[].k' "${SCRATCH_DIR}/params-before.json")"
+CFN_ARGS=()
+found=0
+for key in $ALL_PARAM_KEYS; do
+  if [ "$key" = "$CFN_PARAM_KEY" ]; then
+    CFN_ARGS+=("ParameterKey=${key},ParameterValue=${TAG}")
+    found=1
+  else
+    CFN_ARGS+=("ParameterKey=${key},UsePreviousValue=true")
+  fi
+done
+if [ "$found" != "1" ]; then
+  echo "stack ${IMAGE_STACK} has no parameter named ${CFN_PARAM_KEY}; the image was pushed but nothing was rolled" >&2
+  exit 1
+fi
+
+if UPDATE_OUT="$(aws cloudformation update-stack --stack-name "$IMAGE_STACK" --region "$REGION" \
+    --use-previous-template --capabilities CAPABILITY_IAM --parameters "${CFN_ARGS[@]}" \
+    --query 'StackId' --output text 2>&1)"; then
+  echo "==> waiting for the CloudFormation stack update to settle"
+  started=$SECONDS
+  while true; do
+    stack_status="$(aws cloudformation describe-stacks --stack-name "$IMAGE_STACK" --region "$REGION" \
+      --query 'Stacks[0].StackStatus' --output text)"
+    case "$stack_status" in
+      UPDATE_COMPLETE) echo "    -> ${stack_status}"; break ;;
+      *ROLLBACK*|*FAILED*)
+        echo "    -> ${stack_status}: the stack update failed, investigate before rolling anything" >&2
+        exit 1 ;;
+    esac
+    if timed_out "$started"; then
+      echo "==> the stack update did not settle within ${SETTLE_TIMEOUT_SECS}s (last: ${stack_status})" >&2
+      exit 1
+    fi
+    sleep 10
+  done
+elif echo "$UPDATE_OUT" | grep -q "No updates are to be performed"; then
+  echo "    -> the stack already has ${TAG}; nothing to update"
+else
+  echo "$UPDATE_OUT" >&2
+  exit 1
+fi
+
+echo "==> checking that only ${CFN_PARAM_KEY} changed"
+stack_parameters > "${SCRATCH_DIR}/params-after.json"
+CHANGED="$(jq -rn --slurpfile before "${SCRATCH_DIR}/params-before.json" --slurpfile after "${SCRATCH_DIR}/params-after.json" '
+  ($before[0] | map({(.k): .v}) | add // {}) as $b
+  | ($after[0] | map({(.k): .v}) | add // {}) as $a
+  | [($b + $a) | keys[] | select($b[.] != $a[.])] | join(" ")')"
+NOW="$(jq -r --arg k "$CFN_PARAM_KEY" '.[] | select(.k == $k) | .v' "${SCRATCH_DIR}/params-after.json")"
+if [ "$NOW" != "$TAG" ] || { [ -n "$CHANGED" ] && [ "$CHANGED" != "$CFN_PARAM_KEY" ]; }; then
+  echo "expected only ${CFN_PARAM_KEY} to change to ${TAG}; it is ${NOW} and changed: ${CHANGED:-nothing}" >&2
+  exit 1
+fi
+echo "    -> ${CFN_PARAM_KEY} is ${TAG}; no other parameter changed"
+
+# The newest active revision of the family is what the stack just registered. Roll it only if it
+# really carries the image pushed above: a stack update that registered something else would
+# otherwise roll an old image and still look like a deploy.
+TD="$(aws ecs describe-task-definition --task-definition "$FAMILY" --region "$REGION" \
+  --query 'taskDefinition.[family,revision]' --output text | tr '\t' ':')"
+RUNNING_IMAGE="$(aws ecs describe-task-definition --task-definition "$TD" --region "$REGION" \
+  --query "taskDefinition.containerDefinitions[?name=='${SERVICE_NAME}'].image | [0]" --output text)"
+if [ "$RUNNING_IMAGE" != "$IMAGE_URI" ]; then
+  echo "task definition ${TD} has ${RUNNING_IMAGE}, not ${IMAGE_URI}; refusing to roll" >&2
+  exit 1
+fi
+echo "==> task definition ${TD} carries ${SERVICE_NAME}=${TAG}"
+
+bash ./deploy-box.sh "$TD"
+export TASKDEF="$TD"
