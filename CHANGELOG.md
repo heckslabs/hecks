@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Operator-only code leaves the gem, and client and organisation names are scrubbed from the tree.** `qa/lambda_handler.rb` (the Lambda entry for the GitHub CI webhook) and the `deploy/quality-control-webhook/` SAM stack moved to the operator's own platform repository; `GithubCiWebhook` stays here. The `deployed_to("AwsLambda")` block that generated that stack is gone from `qa/bluebook/quality_control.world`, and `aws-sdk-secretsmanager`, which only the handler used, is out of the Gemfile. Generator comments, examples, specs, fixtures and the deploy goldens now use neutral owners and names (`owner "Core"`), `SECURITY.md` names GitHub's private vulnerability reporting as the reporting channel, and the comment-style guides spell the launcher verbs as they are (`hecks style_run.check_comments`, `hecks build.project_rust`).
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the

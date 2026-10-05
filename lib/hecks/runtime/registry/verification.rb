@@ -409,7 +409,8 @@ module Hecks
         end
 
         # Two packages can share a chapter name by coincidence (a stale vendored
-        # fork of Governance/Identity/Deploy still on an app's load paths). Intentional accumulation (several files declaring the same chapter on
+        # fork of Governance/Identity/Deploy still on an app's load paths).
+        # Intentional accumulation (several files declaring the same chapter on
         # purpose) is distinguished by package root, not file identity, and is left
         # untouched here — checked once, after every file has loaded.
         def refuse_cross_package_bluebook_merge!
