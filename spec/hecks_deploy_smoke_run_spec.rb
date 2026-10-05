@@ -1,5 +1,7 @@
 require "spec_helper"
 require "json"
+require "tmpdir"
+require "fileutils"
 require_relative "support/box_hosting_stubs"
 
 # `hecks deploy smoke_run.run` end to end: the Deploy chapter's SmokeRun asks the DeployToolchain
@@ -23,9 +25,9 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
                  "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "3", "SSM_POLL_SECS" => "0.1" }
     saved = ENV.to_h.slice(*settings.merge(env).keys)
     ENV.update(settings.merge(env))
-    script = File.join(runner.dir, "scripts", "smoke-after-deploy.sh")
+    project = File.join(runner.dir, "scripts")
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "smoke_run.run", script, *argv, "--wait"])
+                                               argv: ["deploy", "smoke_run.run", project, *argv, "--wait"])
     [JSON.parse(out), status]
   ensure
     settings.merge(env).each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
@@ -95,17 +97,56 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
     end
   end
 
-  it "flags a script that does not exist" do
+  def refusal_for(*argv)
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "smoke_run.run", "/nonexistent/smoke.sh", "--wait"])
+                                               argv: ["deploy", "smoke_run.run", *argv, "--wait"])
+    [JSON.parse(out).dig("state", "refusal", "value"), status]
+  end
+
+  it "finds the script beside the Makefile, or the only one under the project" do
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "deploy-aws", "box-generated"))
+      script = File.join(dir, "deploy-aws", "box-generated", "smoke-after-deploy.sh")
+      File.write(script, "echo found-it\n")
+
+      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                 argv: ["deploy", "smoke_run.run", dir, "--wait"])
+
+      expect(status).to eq(0)
+      expect(JSON.parse(out).dig("state", "report", "value")).to eq("found-it")
+    end
+  end
+
+  it "flags a project with no script, or with several, and names script= as the way out" do
+    Dir.mktmpdir do |dir|
+      reason, status = refusal_for(dir)
+      expect(status).to eq(1)
+      expect(reason).to include("no smoke-after-deploy.sh under")
+
+      %w[a b].each do |sub|
+        FileUtils.mkdir_p(File.join(dir, sub))
+        File.write(File.join(dir, sub, "smoke-after-deploy.sh"), "echo #{sub}\n")
+      end
+      reason, = refusal_for(dir)
+      expect(reason).to include("2 smoke-after-deploy.sh files", "script=<path>")
+
+      override = "script=#{File.join(dir, 'b', 'smoke-after-deploy.sh')}"
+      out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
+                                          argv: ["deploy", "smoke_run.run", dir, override, "--wait"])
+      expect(JSON.parse(out).dig("state", "report", "value")).to eq("b")
+    end
+  end
+
+  it "flags a script override that does not exist" do
+    reason, status = refusal_for("/nonexistent", "script=/nonexistent/smoke.sh")
 
     expect(status).to eq(1)
-    expect(JSON.parse(out).dig("state", "refusal", "value")).to include("no such script")
+    expect(reason).to include("no such script")
   end
 
   it "refuses a task definition that is not a family name, before anything runs" do
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "smoke_run.run", "x.sh", "taskdef=a b", "--wait"])
+                                               argv: ["deploy", "smoke_run.run", "x", "taskdef=a b", "--wait"])
 
     expect(status).not_to eq(0)
     expect(out).to match(/taskdef/i)

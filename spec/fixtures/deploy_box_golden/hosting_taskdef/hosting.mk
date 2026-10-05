@@ -13,10 +13,11 @@ URL     ?= https://widgets.example.com
 deploy-service:
 	bash ./deploy-service.sh $(SERVICE)
 
-# Waits for the last roll to settle, then dispatches and follows the smoke.
+# Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
+# command, which runs smoke-after-deploy.sh and records how it ended.
 # SKIP_POST_DEPLOY_SMOKE=1 opts out, DRY_RUN=1 dispatches nothing.
 smoke-after-deploy:
-	bash ./smoke-after-deploy.sh
+	HECKS_ENVIRONMENT=memory $(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait
 
 # Compares the era a live host reports at GET /version with expected-era.
 check-era:

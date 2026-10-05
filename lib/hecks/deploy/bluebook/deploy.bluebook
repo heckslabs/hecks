@@ -773,7 +773,8 @@ Hecks.bluebook "Deploy" do
   aggregate "SmokeRun" do
     description "One post-deploy smoke: the generated smoke-after-deploy script run, and how it ended."
 
-    attribute :script,  Location
+    attribute :project, Location
+    attribute :script,  Location, optional: true
     attribute :run,     RunKey
     attribute :taskdef, TaskDefinition, optional: true
     attribute :skip,    Switch, optional: true
@@ -792,7 +793,7 @@ Hecks.bluebook "Deploy" do
     value_object "Location" do
       attribute :value, String, pattern: '[^\t\n\r]'
 
-      invariant("a script is named by its path") { !value.to_s.empty? }
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
 
     # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
@@ -813,21 +814,24 @@ Hecks.bluebook "Deploy" do
       transition "Flag" => "flagged", from: "requested"
     end
 
-    # `hecks deploy smoke_run.run <generated smoke-after-deploy.sh> [taskdef=<family[:rev]>] [skip=true]
-    # [async=true] [dry_run=true]`. Runs the script a project's AwsBox projection generated, once a
-    # roll has settled: the script waits for the box, dispatches the smoke workflow and follows it.
+    # `hecks deploy smoke_run.run <project> [script=<path>] [taskdef=<family[:rev]>] [skip=true]
+    # [async=true] [dry_run=true]`. Finds the `smoke-after-deploy.sh` the project's AwsBox projection
+    # generated (`script=` names it when the project holds more than one) and runs it once a roll
+    # has settled: the script waits for the box, dispatches the smoke workflow and follows it.
     # It only reads AWS; the smoke itself runs on GitHub. Exit 1 when it did not pass, with the
     # script's own status (20 unsettled, 21 not run, 22 failed, 23 unknown) in the reason.
     command "Run" do
       goal "Run a project's generated post-deploy smoke and record whether the live site passed"
 
-      attribute :script,  Location
+      attribute :project, Location
+      attribute :script,  Location, optional: true
       attribute :run,     RunKey
       attribute :taskdef, TaskDefinition, optional: true
       attribute :skip,    Switch, optional: true
       attribute :async,   Switch, optional: true
       attribute :dry_run, Switch, optional: true
 
+      sets :project
       sets :script
       sets :run
       sets :taskdef

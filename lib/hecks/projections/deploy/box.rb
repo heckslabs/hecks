@@ -28,6 +28,11 @@ module Hecks
                       "# after adding one: the admin API is off, so a reload cannot reach it.\n" \
                       "import /etc/caddy/extra/*\n".freeze
 
+        # The recipe line that runs the post-deploy smoke as a command: it finds
+        # `smoke-after-deploy.sh` beside the Makefile, runs it and records how it ended. The memory
+        # environment keeps it from needing a database, as `check-era` does.
+        SMOKE_COMMAND = 'HECKS_ENVIRONMENT=memory $(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait'.freeze
+
         module_function
 
         # Generates `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`,
@@ -582,7 +587,7 @@ module Hecks
         def hosting_makefile_tail(plan)
           return "" unless plan.hosting
 
-          "\t#{'TASKDEF="$(TASKDEF)" ' if plan.task_definition}bash ./smoke-after-deploy.sh\n\ninclude hosting.mk\n"
+          "\t#{SMOKE_COMMAND}#{' $(if $(TASKDEF),taskdef=$(TASKDEF))' if plan.task_definition}\n\ninclude hosting.mk\n"
         end
 
         # Fills `@@NAME@@` markers. A marker alone on its line is replaced together with the line,

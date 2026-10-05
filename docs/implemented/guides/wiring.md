@@ -461,11 +461,12 @@ the new one. It exits 1 when flagged, and needs AWS credentials that can read Co
 Explorer.
 
 To run the post-deploy smoke as a command, run
-`hecks deploy smoke_run.run deploy-aws/box-generated/smoke-after-deploy.sh --wait`
+`hecks deploy smoke_run.run <project> --wait`, which finds the `smoke-after-deploy.sh` beside the
+project's `Makefile` (or the only one under it; `script=<path>` names it otherwise)
 (`taskdef=<family[:revision]>`, `skip=true`, `async=true` and `dry_run=true` become the
 script's `TASKDEF`, `SKIP_POST_DEPLOY_SMOKE`, `SMOKE_ASYNC` and `DRY_RUN`). It runs the
 generated script, so the settle checks and the workflow dispatch are the ones `make deploy`
-already uses, records the run as `passed` with what the script printed, or as `flagged`
+already runs, records the run as `passed` with what the script printed, or as `flagged`
 with its status (20 the roll did not settle, 21 `gh` missing, 22 the smoke failed, 23 result
 unknown), and exits 1 when flagged. It only reads AWS. The design for the other deploy
 scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
@@ -532,8 +533,11 @@ container runs the image the latest revision names. A roll that looked live but
 left an old image running therefore never reaches the smoke. The box is read over
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
 the stack update and the roll itself. `make deploy` ends with
-`smoke-after-deploy.sh`; `SKIP_POST_DEPLOY_SMOKE=1` skips it and `DRY_RUN=1`
-dispatches nothing.
+`hecks deploy smoke_run.run`, which runs `smoke-after-deploy.sh` and records how it
+ended (under `HECKS_ENVIRONMENT=memory`, so the record lives for that run only);
+`SKIP_POST_DEPLOY_SMOKE=1` skips it and `DRY_RUN=1` dispatches nothing. The
+smoke now exits 1 when it does not pass; the script's own status (20 to 23) is in
+the message.
 
 ### Per-branch previews for `AwsFargate`
 
