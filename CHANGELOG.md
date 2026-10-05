@@ -94,6 +94,8 @@ command dropped. Without `--confirm` the verb only compares, and CI runs it. `He
 and `lib/hecks/three_zero/forms.yml` are gone; `Hecks::Tools::ToolsDoc.forms` answers the same table,
 rendered. The ADR command-table spec reads the rows instead of its own copy of them.
 
+**Fix: a drafted bluebook no longer fails to boot when an action was accepted more than once.** An expert who refines an answer over several exchanges gets the same action accepted again, and the draft wrote one `command` block each, which the runtime refuses ("Declare creates a Command that already exists"). The draft now writes each action once: the first acceptance's event stays, what the acceptances take and who does it are joined, and it creates if any acceptance said so. A thing accepted twice becomes one aggregate.
+
 ## [3.2.1] - 2026-10-05
 
 A patch on 3.2.0, which was tagged before the entries below landed. The deprecated `attaches` / `install_doors:` spellings warn that they are removed in 3.3.0 (previously 3.2.0); the 3.2.0 gem's warnings still say 3.2.0. Behavior is unchanged.

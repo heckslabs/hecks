@@ -114,6 +114,38 @@ status: "accepted" }])
     expect(shaped_bluebook).not_to include('transition "Archive"')
   end
 
+  it "writes one command for an action accepted more than once, joining what it takes and who does it" do
+    twice = shaped.merge(
+      actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, takes: "title"),
+                accepted(number: 6, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition", by: "people"),
+                accepted(number: 7, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition, title",
+                         by: "members")]
+    )
+    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+    lend = text[/command "LendABook".*?^    end/m]
+
+    expect(text.scan('command "LendABook"').size).to eq(1)
+    expect(lend).to include("attribute :condition, Condition", "attribute :title, Title", "# Who: people or members")
+  end
+
+  it "keeps a creating action creating when only one of its acceptances said it creates" do
+    twice = shaped.merge(
+      actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved"),
+                accepted(number: 6, name: "Shelve", thing: "Book", event: "BookShelved", creates: true)]
+    )
+    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+
+    expect(text).not_to include("no action that creates was accepted")
+    expect(text[/command "Shelve".*?^    end/m]).to include("attribute :isbn, Isbn")
+  end
+
+  it "writes an aggregate once when the same thing was accepted twice" do
+    twice = shaped.merge(things: [accepted(number: 1, name: "Book", identifier: "isbn"),
+                                  accepted(number: 8, name: "Book", identifier: "isbn")])
+
+    expect(described_class.files(twice).fetch("bluebook/lending.bluebook").scan('aggregate "Book"').size).to eq(1)
+  end
+
   it "does not count the identifier among what an action takes" do
     takes_it = shaped.merge(actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved",
                                                creates: true, takes: "isbn, title")])
@@ -213,6 +245,7 @@ status: "accepted" }])
     i.propose_action!(number: 2, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, source: 2)
     i.propose_action!(number: 3, name: "Lend a book", thing: "Book", event: "BookLent", source: 3)
     i.propose_rule!(number: 4, statement: "A book cannot be lent twice at once", source: 3)
+    i.propose_action!(number: 8, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition", source: 3)
     i.propose_field!(number: 5, thing: "Book", name: "condition", values: "good, worn", source: 1)
     i.propose_transition!(number: 6, thing: "Book", action: "Shelve", to: "shelved", source: 2)
     i.propose_transition!(number: 7, thing: "Book", action: "Lend a book", from: "shelved", to: "lent", source: 3)
@@ -221,6 +254,7 @@ status: "accepted" }])
     decide.("ActionFinding", "AcceptAction", 2)
     decide.("ActionFinding", "AcceptAction", 3)
     decide.("RuleFinding", "AcceptRule", 4)
+    decide.("ActionFinding", "AcceptAction", 8)
     decide.("FieldFinding", "AcceptField", 5)
     decide.("TransitionFinding", "AcceptTransition", 6)
     decide.("TransitionFinding", "AcceptTransition", 7)
@@ -237,7 +271,7 @@ status: "accepted" }])
     require "hecks"
     Hecks.boot(ARGV.first)
     book = Book.shelve!(isbn: "978-0")
-    book.lend_a_book!
+    book.lend_a_book!(condition: "good")
     puts "EVENTS=" + book.events.map(&:name).join(",")
     puts "STATUS=" + book.status.to_s
   RUBY
