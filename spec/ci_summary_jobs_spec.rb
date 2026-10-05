@@ -8,6 +8,7 @@ require "yaml"
 # and must not claim a skip is expected.
 RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   CI_YML = File.join(InMemoryDomain::ROOT, ".github/workflows/ci.yml")
+  REQUIRE_RESULT = "./.github/actions/require-result".freeze
 
   def self.jobs = YAML.load_file(CI_YML).fetch("jobs")
 
@@ -34,7 +35,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     it "#{name} lets #{job.fetch('needs')}'s skip through only when its own skip condition holds" do
       impl = job.fetch("needs")
       condition = skip_condition(job)
-      step = job.fetch("steps").first
+      step = job.fetch("steps").find { |candidate| candidate["uses"] == REQUIRE_RESULT }
 
       if condition.nil?
         expect(job.fetch("if")).to eq("always() && needs.#{impl}.result != 'success'"),
@@ -42,15 +43,36 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
                                    "(needs.#{impl}.result == 'skipped' && (<skip condition>)))` or, when nothing about " \
                                    "#{impl} ever legitimately skips, `always() && needs.#{impl}.result != 'success'`; " \
                                    "got #{job['if'].inspect}"
-        expect(step.dig("env", "SKIP_EXPECTED")).to be_nil,
-                                                    "#{name} tolerates no skip at all, so it must not claim one is expected"
+        expect(step.dig("with", "skip-expected")).to be_nil,
+                                                     "#{name} tolerates no skip at all, so it must not claim one is expected"
       else
         expect(condition).to include("github.event_name"), "#{name}: the skip condition must be an expression, not a constant"
-        expect(step.dig("env", "SKIP_EXPECTED")).to eq("${{ #{condition} }}")
+        expect(step.dig("with", "skip-expected")).to eq("${{ #{condition} }}")
       end
 
-      expect(step.fetch("run")).to include("exit 1")
-      expect(step.fetch("run")).not_to include("exit 0"), "#{name} runs only to fail — its step must never pass"
+      expect(step.dig("with", "job")).to eq(impl)
+      expect(step.dig("with", "result")).to eq("${{ needs.#{impl}.result }}")
+    end
+  end
+
+  # The step every wrapper shares: it reports the result and fails, whatever it is given.
+  describe "the require-result action" do
+    let(:action) { YAML.load_file(File.join(InMemoryDomain::ROOT, REQUIRE_RESULT, "action.yml")) }
+    let(:script) { action.dig("runs", "steps").first.fetch("run") }
+
+    it "runs only to fail" do
+      expect(script).to include("exit 1")
+      expect(script).not_to include("exit 0"), "a wrapper runs only to fail, so its step must never pass"
+    end
+
+    it "reads its inputs through the environment, never into the script text" do
+      expect(script).not_to include("${{")
+    end
+
+    it "is called by every wrapper, and the wrappers have no shell of their own" do
+      self.class.wrappers.each_value do |job|
+        expect(job.fetch("steps").filter_map { |step| step["run"] }).to be_empty
+      end
     end
   end
 

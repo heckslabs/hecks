@@ -656,8 +656,6 @@ Hecks.bluebook "Bluebook" do
              meaning: "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."
       member name: "auto_merge", type: "Boolean",
              meaning: "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."
-      member name: "branch_prefix", type: "String",
-             meaning: "What the branch `hecks quality_control patch.open` pushes starts with."
       member name: "adversarial_fraction", type: "Numeric",
              meaning: "Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often."
       member name: "guided_generation", type: "Boolean",

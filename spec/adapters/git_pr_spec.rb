@@ -124,21 +124,6 @@ RSpec.describe Hecks::Adapters::GitPr do
     end
   end
 
-  describe "the per-day cap" do
-    it "is no cap at zero" do
-      expect { adapter.assert_under_daily_cap!(opened_today: 50, cap: 0) }.not_to raise_error
-    end
-
-    it "takes a day under the cap" do
-      expect { adapter.assert_under_daily_cap!(opened_today: 1, cap: 2) }.not_to raise_error
-    end
-
-    it "refuses one more pull request than the cap allows" do
-      expect { adapter.assert_under_daily_cap!(opened_today: 2, cap: 2) }
-        .to raise_error(described_class::Refusal, /2 PR\(s\) already opened since local midnight.*PR_CAP_PER_DAY is 2/m)
-    end
-  end
-
   describe "pull requests" do
     it "finds the open one for a branch" do
       gh_answers(JSON.generate(number: 7, state: "OPEN", url: "u", headRefName: "qa/x", headRefOid: @first, title: "t"))
