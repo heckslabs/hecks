@@ -43,6 +43,12 @@ Hecks.hecksagon "Hecks" do
       refuses "OperationRefused"
     end
 
+    asks "Bootstrap", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
     answers_query "Follow"
   end
 
@@ -87,6 +93,18 @@ Hecks.hecksagon "Hecks" do
       answers "PackagePinned"
       refuses "PinRefused"
     end
+
+    answers_query "Verify"
+  end
+
+  Hecks::Registry.port "Git" do
+    asks "Tag", to: Registry do
+      attribute :run, RegistryKey
+      answers "ReleaseTagged"
+      refuses "ReleaseRefused"
+    end
+
+    answers_query "Check"
   end
 
   Hecks::Door.port "Workspace" do

@@ -53,7 +53,7 @@ RSpec.describe "the Site row of the ADR command table" do
     port = @bluebook.aggregate("SiteProjection").ports.find { |candidate| candidate.name == "SiteToolchain" }
 
     expect(port).not_to be_nil
-    expect(port.operations.map(&:hecks_name)).to eq(["Project"])
+    expect(port.operations.map(&:hecks_name)).to eq(%w[Project Compare])
   end
 
   it "writes routes.ts for the sample project, records it projected, and exits 0 under --wait" do
@@ -151,5 +151,113 @@ RSpec.describe "the Site row of the ADR command table" do
 
     expect(status).to eq(1)
     expect(out).to include('Extension admits "ts", "mts"')
+  end
+
+  describe "site_projection.check_live" do
+    require_relative "support/live_distribution"
+
+    let(:edge) do
+      site = Hecks::Projections::Site
+      registry = Hecks::Tools::SiteRoutes.registry_for(PROJECT)
+      chapter = site::Table.chapter(registry)
+      site::Edge.read(chapter, table:      site::Table.read(chapter, registry: registry),
+                               vocabulary: site::Table.vocabulary(registry))
+    end
+    let(:refs) { LiveDistribution.refs_for(edge) }
+    let(:words) { refs.map { |name, id| "#{name}=#{id}" }.join(",") }
+
+    def check(config, *flags)
+      Dir.mktmpdir("site_live") do |dir|
+        file = File.join(dir, "live.json")
+        File.write(file, JSON.generate(config))
+        return launch(["site_projection.check_live", PROJECT, "live=#{file}", "refs=#{words}", *flags])
+      end
+    end
+
+    it "answers --help" do
+      out, status = launch(["site_projection.check_live", "--help"])
+
+      expect(status).to eq(0)
+      expect(out).to start_with("site_projection.check_live")
+    end
+
+    it "records a live distribution that matches as projected and exits 0, without --wait" do
+      out, status = check(LiveDistribution.for(edge, refs: refs))
+      record = JSON.parse(out)
+
+      expect(status).to eq(0)
+      expect(record.dig("state", "status")).to eq("projected")
+      expect(record.dig("state", "output", "value")).to end_with("the live distribution matches the project")
+    end
+
+    it "exits 1 naming each difference, and records the check as faulted" do
+      config = LiveDistribution.for(edge, refs: refs)
+      config.dig("DistributionConfig", "CacheBehaviors", "Items").first["TargetOriginId"] = "SomewhereElse"
+
+      out, status, reason = check(config)
+
+      expect(status).to eq(1)
+      expect(reason).to include("differs in origin")
+      expect(JSON.parse(out).dig("state", "status")).to eq("faulted")
+    end
+
+    it "takes the behaviours a change adds as expected" do
+      config = LiveDistribution.for(edge, refs: refs)
+      config.dig("DistributionConfig", "CacheBehaviors", "Items").reject! { |entry| entry["PathPattern"] == "/pay/*" }
+
+      _out, status, reason = check(config)
+      expect(status).to eq(1)
+      expect(reason).to include("only in the project: /pay/*")
+
+      out, status = check(config, "expect_new=/pay/*")
+      expect(status).to eq(0)
+      expect(JSON.parse(out).dig("state", "output", "value")).to include("expected additions")
+    end
+
+    it "exits 1 when neither or both of a saved configuration and a distribution are named" do
+      out, status = launch(["site_projection.check_live", PROJECT])
+      expect(status).to eq(1)
+      expect(out).to include("exactly one of a saved configuration and a distribution")
+
+      _out, status = launch(["site_projection.check_live", PROJECT, "live=x.json", "distribution=E123"])
+      expect(status).to eq(1)
+    end
+
+    it "fetches the configuration with the one read-only aws call when given a distribution" do
+      config = JSON.generate(LiveDistribution.for(edge, refs: refs))
+      result = Hecks::Adapters::Shell::Result.new(config, "", instance_double(Process::Status, success?: true))
+      shell = instance_double(Hecks::Adapters::Shell)
+      allow(Hecks::Adapters::Shell).to receive(:new).and_return(shell)
+      allow(shell).to receive(:capture)
+        .with("aws", "cloudfront", "get-distribution-config", "--id", "E36ACSIVZJAKNV").and_return(result)
+
+      _out, status = launch(["site_projection.check_live", PROJECT, "distribution=E36ACSIVZJAKNV", "refs=#{words}"])
+
+      expect(status).to eq(0)
+    end
+
+    it "exits 1 with the reason when aws fails or the saved file is missing" do
+      failed = Hecks::Adapters::Shell::Result.new("", "AccessDenied", instance_double(Process::Status, success?: false))
+      shell = instance_double(Hecks::Adapters::Shell, capture: failed)
+      allow(Hecks::Adapters::Shell).to receive(:new).and_return(shell)
+
+      _out, status, reason = launch(["site_projection.check_live", PROJECT, "distribution=E1"])
+      expect(status).to eq(1)
+      expect(reason).to include("get-distribution-config failed: AccessDenied")
+
+      _out, status, reason = launch(["site_projection.check_live", PROJECT, "live=/nonexistent/live.json"])
+      expect(status).to eq(1)
+      expect(reason).to include("cannot read the live configuration")
+    end
+
+    it "exits 1 for a project with no edge" do
+      Dir.mktmpdir("site_noedge") do |dir|
+        FileUtils.mkdir_p(File.join(dir, "bluebook"))
+        _out, status, reason = launch(["site_projection.check_live", dir, "live=#{dir}/x.json"])
+
+        expect(status).to eq(1)
+        expect(reason).to include("no chapter declares a value_object")
+      end
+    end
   end
 end

@@ -60,6 +60,55 @@ module Hecks
         { report: { value: out.string } }
       end
 
+      # Checks a project's vendored packages against their `bluebook.lock` files and describes
+      # them as the manifest a client image carries, through `Hecks::EmbryonautBluebook::Manifest`.
+      #
+      # The manifest records the project's own commit and whether its tree has uncommitted changes,
+      # read from the repository the project stands in (`unknown` outside one).
+      #
+      # @param held [Hash] the `Package` query's arguments: `root` (the project; the current
+      #   directory when absent)
+      # @return [Hash{Symbol => String}] `text:` the manifest as JSON
+      # @raise [Runtime::NotFound] naming each package whose files disagree with its lock
+      def verify(**held)
+        root = File.expand_path(plain(held[:root]) || Dir.pwd)
+        raise Runtime::NotFound, "#{root} is not a directory" unless File.directory?(root)
+
+        { text: EmbryonautBluebook::Manifest.new(root, built_from: built_from(root)).to_json_text }
+      rescue EmbryonautBluebook::Manifest::Mismatch => e
+        raise Runtime::NotFound, e.message
+      end
+
+      # Judges every package of a bluebook registry against its latest release, through
+      # `Hecks::EmbryonautBluebook::Registry#check`.
+      #
+      # @param held [Hash] the `Registry` query's arguments: `root` (the registry; the current
+      #   directory when absent)
+      # @return [Hash{Symbol => String}] `text:` the notes and `versions ok`
+      # @raise [Runtime::NotFound] naming each package at fault, or when `root` is no repository
+      def check(**held)
+        report = registry(held).check
+        raise Runtime::NotFound, report.to_s unless report.ok?
+
+        { text: report.to_s }
+      rescue Vendoring::Error => e
+        raise Runtime::NotFound, e.message
+      end
+
+      # Tags a package of a bluebook registry at the version its `bluebook.yml` carries, through
+      # `Hecks::EmbryonautBluebook::Registry#release`. The tag is made in the local repository and
+      # never pushed.
+      #
+      # @param held [Hash] the `Registry` record: `package`, and `root` (the current directory when
+      #   absent)
+      # @return [Hash{Symbol => Hash}] `report:` the tag made and the command that publishes it
+      # @raise [ConsoleCapture::Failure] when the package breaks a release rule
+      def tag(**held)
+        { report: { value: registry(held).release(plain(held[:package])).to_s } }
+      rescue Vendoring::Error => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
       # Who the repository at a directory commits as: its configured name and email.
       #
       # @param chdir [String, nil] a directory inside the repository; the current one when nil
@@ -86,6 +135,16 @@ module Hecks
       end
 
       private
+
+      def registry(held)
+        EmbryonautBluebook::Registry.new(File.expand_path(plain(held[:root]) || Dir.pwd))
+      end
+
+      def built_from(root)
+        head = capture("rev-parse", "HEAD", chdir: root)
+        status = capture("status", "--porcelain", "--", ".", chdir: root)
+        { "commit" => head.ok? ? head.out.strip : "unknown", "dirty" => status.ok? && !status.out.strip.empty? }
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 

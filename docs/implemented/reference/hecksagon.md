@@ -210,6 +210,42 @@ A release must also be a real one: the `<package>/bluebook.yml` at the tag has t
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
 
+### Checking what is vendored
+
+`hecks package.verify [root=<project>]` checks every package under `vendor/embryonaut_bluebooks/` against its `bluebook.lock` and prints the project's bluebook manifest as JSON. It reads files and writes none, so it keeps no record and runs as often as you like. The digest it compares is `Hecks::EmbryonautBluebook::Lock.digest_of`, the function that wrote the lock.
+
+A package is refused, with exit status 1 and one `FAIL <package>: <reason>` line each, when it has no `bluebook.lock`, the lock lacks `package`, `version`, `tag`, `commit`, `digest` or a `shape`, the lock names another package, its `tag` is not `<package>-v<version>`, or the digest of the vendored `*.bluebook` files is not the lock's.
+
+```json
+{
+  "bluebooks": {
+    "payments": {
+      "commit": "<registry commit>", "digest": "<sha256>", "shape": ["Payments d33c23"],
+      "tag": "payments-v1.0.0", "version": "1.0.0"
+    }
+  },
+  "built_from": { "commit": "<project commit>", "dirty": false }
+}
+```
+
+`built_from` is the project's own commit and whether its working tree has uncommitted changes (`unknown` outside a repository). Keys are sorted and there is no timestamp, so the same inputs give the same text; an image build writes it to a file or a label, and a deploy compares two of them.
+
+### Releasing from a registry
+
+Run in the registry repository itself (packages at `<name>/bluebook.yml`, `<name>/bluebook/*.bluebook` and `<name>/CHANGELOG.md`; a release is the annotated tag `<name>-vX.Y.Z`), two commands keep a package's version honest. `root=` names the repository and defaults to the current directory.
+
+`hecks package.check` is the rule that a package's bluebook files may not change without a version bump. For each package it finds the latest release tag and compares the digest of its `*.bluebook` files (`Lock.digest_of`) with the digest of that tag's. It fails, with exit status 1 and a `FAIL <package>: <why>` line, when:
+
+- `bluebook.yml` has no `X.Y.Z` version, or its `name` is not the directory;
+- a release tag points at a commit whose `bluebook.yml` says another version;
+- the files changed since the latest release and the version is not newer, or `CHANGELOG.md` has no `## <version>` entry.
+
+A package with no release tag yet is a `note`, not a failure. A passing check ends with `versions ok`.
+
+`hecks package.release <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
+
+Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them.
+
 ## port
 
 <!-- generated:begin word=port -->

@@ -217,3 +217,24 @@ property of the distribution among its origins, certificate and logging, and the
 listener and the service that depends on them. A fragment would need an include transform and a bucket to hold it.
 With `out=<dir>` a copy of the template is written beneath it at the same relative path, and the project's own is
 left alone.
+
+### Checking the live distribution
+
+`hecks site site_projection.check_live <project> live=<file> | distribution=<id>` compares the behaviours the project's edge
+generates with those of a live CloudFront distribution, and changes neither. `live=` is a saved answer of
+`aws cloudfront get-distribution-config`; `distribution=` fetches it with that one read-only call, so the command needs
+`aws` and permission to read the configuration, and nothing else. Name exactly one.
+
+A behaviour is matched by its path pattern (`(default)` for the default behaviour) and compared on its origin, allowed
+methods, cached methods, viewer protocol, compression, and cache, origin request and response headers policy ids. The
+command exits 1 and prints a line for each difference: a behaviour only the project or only the distribution has, a field
+that differs, and behaviours the two put in a different order.
+
+A policy the edge names by an intrinsic (`!Ref PageCachePolicy`) is a resource of the stack, while the distribution holds
+its id. Say what each stands for with `refs="!Ref PageCachePolicy=<id>,!Ref StaticHeaders=<id>"`; a reference with no entry
+cannot be compared, is listed as unchecked, and fails the check. `expect_new=/pay/*,/thanks` names behaviours a pending
+deploy adds: they are reported as expected additions and do not fail the check. A behaviour only the distribution has is
+never expected.
+
+Because the check is `settled`, no `--wait` is needed: a distribution that matches ends `projected` with exit status 0, one
+that does not ends `faulted` with the report as the reason on standard error.

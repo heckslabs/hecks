@@ -3,8 +3,11 @@
 # here: hecks.world's `default_adapter` fills the gap, so the memory overlay swaps it with the rest.
 #
 # `run_keys` mints the `run` key of a projection, and `--wait` reports a faulted projection (a
-# routes.ts out of date under `--check`, or a route table the projector refused) as exit 1.
+# routes.ts out of date under `--check`, or a route table the projector refused) as exit 1, and
+# `settled` makes `site_projection.check_live` wait for its reactions without the flag, so a live
+# distribution that differs from the project is an exit status.
 Hecks.world "Site" do
   launcher "Launcher", run_keys: true,
-                       failure_states: %w[faulted refused halted stopped abandoned red needs_fix]
+                       failure_states: %w[faulted refused halted stopped abandoned red needs_fix],
+                       settled: %w[site_projection.check_live]
 end

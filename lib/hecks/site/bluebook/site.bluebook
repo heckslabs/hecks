@@ -101,6 +101,10 @@ Hecks.bluebook "Site" do
     attribute :template,  Location,  optional: true
     attribute :extension, Extension, optional: true
     attribute :check,     Switch,    optional: true
+    attribute :live,      Location,  optional: true
+    attribute :distribution, DistributionId, optional: true
+    attribute :expect_new, PathList, optional: true
+    attribute :refs,      PolicyRefs, optional: true
     attribute :output,    Report,    optional: true
     attribute :refusal,   Report,    optional: true
     identified_by :run
@@ -132,6 +136,21 @@ Hecks.bluebook "Site" do
 
     value_object "Switch" do
       attribute :value, Boolean
+    end
+
+    # A CloudFront distribution's id, whose configuration `check_live` reads.
+    value_object "DistributionId" do
+      attribute :value, String, pattern: '^[A-Z0-9]+$'
+    end
+
+    # Path patterns, comma separated: the behaviours a change is about to add to the live distribution.
+    value_object "PathList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # Policy references and the ids they stand for live, as `!Ref Name=id`, comma separated.
+    value_object "PolicyRefs" do
+      attribute :value, String, pattern: '[^\t\n\r]'
     end
 
     value_object "Report" do
@@ -166,8 +185,36 @@ Hecks.bluebook "Site" do
       emits "SiteProjectionRequested"
     end
 
+    # `hecks site site_projection.check_live <project> live=<saved-config.json> | distribution=<id>
+    # [expect_new=<paths>] [refs=<!Ref Name=id,...>]`. Compares the project's generated CloudFront
+    # behaviours with a live distribution's, changing neither. `live` is a saved answer of
+    # `aws cloudfront get-distribution-config`; `distribution` fetches it with that one read-only call.
+    command "CheckLive" do
+      goal "Compare a project's generated CloudFront behaviours with a live distribution's"
+
+      attribute :domain,       DomainPath
+      attribute :run,          RunKey
+      attribute :live,         Location,       optional: true
+      attribute :distribution, DistributionId, optional: true
+      attribute :expect_new,   PathList,       optional: true
+      attribute :refs,         PolicyRefs,     optional: true
+
+      given("exactly one of a saved configuration and a distribution is named: pass live= or distribution=, not both") do
+        (live.set? && distribution.unset?) || (live.unset? && distribution.set?)
+      end
+
+      sets :domain
+      sets :run
+      sets :live
+      sets :distribution
+      sets :expect_new
+      sets :refs
+
+      emits "LiveCheckRequested"
+    end
+
     command "Complete" do
-      goal "Record that routes.ts was written, or found current, and where"
+      goal "Record that routes.ts was written, or found current, or the live edge matched, and what it said"
 
       reference_to SiteProjection
       attribute :output, Report
@@ -205,6 +252,11 @@ Hecks.bluebook "Site" do
   policy "ProjectWhenRequested" do
     on      "SiteProjection.SiteProjectionRequested"
     trigger SiteProjection::SiteToolchain::Project, with: { run: :run }
+  end
+
+  policy "CheckWhenRequested" do
+    on      "SiteProjection.LiveCheckRequested"
+    trigger SiteProjection::SiteToolchain::Compare, with: { run: :run }
   end
 
   policy "RecordTheProjection" do
