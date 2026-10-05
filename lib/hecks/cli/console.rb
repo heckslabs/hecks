@@ -47,12 +47,15 @@ module Hecks
       end
 
       # @param runtime [Runtime] a booted domain
-      # @return [String] each chapter's vision and its aggregates' commands
+      # @return [String] each chapter's vision, and its aggregates' descriptions and commands
       def overview(runtime)
         runtime.registry.bluebooks.each_value.map do |bluebook|
           aggregates = bluebook.aggregates.map do |aggregate|
             commands = aggregate.commands.map { |command| "#{Naming.snake(command.hecks_name)}!" }.sort.join(", ")
-            "    #{aggregate.name}: #{commands}"
+            description = aggregate.description.to_s.strip
+            lines = ["    #{aggregate.name}: #{commands}"]
+            lines << "      #{description}" unless description.empty?
+            lines.join("\n")
           end
 
           "\n    #{bluebook.name} — #{bluebook.vision}\n#{aggregates.join("\n")}\n"

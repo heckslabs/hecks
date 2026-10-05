@@ -48,6 +48,15 @@ RSpec.describe "Hecks::CLI::Console" do
     expect(stderr).to include("cannot bind PostgresEra")
   end
 
+  describe ".overview" do
+    it "prints each aggregate's description under its commands" do
+      stdout, stderr, status = run_console(stdin: "exit\n")
+
+      expect(status).to be_success, stderr
+      expect(stdout).to match(/^    Order: .*\n      An order that gathers toppings/)
+    end
+  end
+
   describe ".banner" do
     it "offers the pizzas session, in the bare form the README uses, only for the pizzas domain" do
       shown = Hecks::CLI::Console.banner
