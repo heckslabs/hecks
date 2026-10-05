@@ -31,6 +31,7 @@ module Hecks
     TOOLS = {
       "project_rust"          => ["rust_build/project_rust", :ProjectRust],
       "project_wasm"          => ["rust_build/wasm", :Wasm],
+      "project_host"          => ["rust_build/host", :Host],
       "project_wasm_browser"  => ["rust_build/wasm_browser", :WasmBrowser],
       "rust_conformance"      => ["rust_build/conformance", :Conformance],
       "rust_conformance_fuzz" => ["rust_build/conformance_fuzz", :ConformanceFuzz],
