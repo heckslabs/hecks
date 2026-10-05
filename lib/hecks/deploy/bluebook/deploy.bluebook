@@ -665,6 +665,111 @@ Hecks.bluebook "Deploy" do
     trigger MakefileCheck::Flag, with: { refusal: :refusal }
   end
 
+  aggregate "CostCheck" do
+    description "One reading of what hosting costs a month, against a budget."
+
+    attribute :run,     RunKey
+    attribute :budget,  Budget
+    attribute :since,   Since
+    attribute :report,  Report, optional: true
+    attribute :refusal, Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # Whole dollars a month.
+    value_object "Budget" do
+      attribute :value, Integer
+
+      invariant("a budget is positive") { value.positive? }
+    end
+
+    # The first day to count, as `YYYY-MM-DD`: the first complete day after the last change to
+    # what is running, so a bill that still carries the old setup is not read as the new one.
+    value_object "Since" do
+      attribute :value, String, pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "within_budget", from: "requested"
+      transition "Flag" => "flagged",       from: "requested"
+    end
+
+    # The reading is the billed daily total from the first complete day since `since` up to
+    # yesterday, scaled to a month; today is left out because its bill is still partial.
+    command "Check" do
+      goal "Read what hosting has billed since a day and compare its monthly rate to a budget"
+
+      attribute :run,    RunKey
+      attribute :budget, Budget
+      attribute :since,  Since
+
+      sets :run
+      sets :budget
+      sets :since
+
+      emits "CostCheckRequested"
+    end
+
+    command "Pass" do
+      goal "Record that the monthly rate is within the budget, and what it was"
+
+      reference_to CostCheck
+      attribute :report, Report
+
+      sets :report
+
+      emits "CostWithinBudget"
+    end
+
+    command "Flag" do
+      goal "Record that the monthly rate is over the budget, or that it could not be read, and what was said"
+
+      reference_to CostCheck
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "CostFlagged"
+    end
+
+    query "Verdict" do
+      description "What one reading found: its status, and the report or the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every reading that was over its budget or could not be taken."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "MeasureWhenChecked" do
+    on      "CostCheck.CostCheckRequested"
+    trigger CostCheck::CostExplorer::Measure, with: { run: :run }
+  end
+
+  policy "RecordTheCostWithinBudget" do
+    on      "CostCheck.CostAnswered"
+    trigger CostCheck::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedCost" do
+    on      "CostCheck.CostRefused"
+    trigger CostCheck::Flag, with: { refusal: :refusal }
+  end
+
   aggregate "TemplateComparison" do
     description "One offline comparison of two CloudFormation templates, by logical id."
 

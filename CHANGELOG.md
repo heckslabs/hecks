@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 ## [3.1.2] - 2026-10-04
 
 A patch: nothing breaking. It fixes a second 3.1.0 regression: a lifecycle `transition` with no `from:` was read as "only from the empty state", so a command that creates its aggregate, whose lifecycle starts at a default, was refused. 3.1.1 fixed Boolean attributes; this release fixes that one. Skip 3.1.0 and 3.1.1 if a domain builds Rust from a bluebook.
