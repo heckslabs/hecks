@@ -592,8 +592,25 @@ pub async fn active_role(client: &Mutex<Client>, domain_ir: &Value, email: &str)
         .and_then(|(_, state)| role_of(state).map(String::from)))
 }
 
+/// The Governance identity id linked to the member with `email`, read from
+/// the live membership head. `None` when the member has not signed in yet.
+pub async fn member_identity_id(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<String>> {
+    let email = email.to_lowercase();
+    Ok(member_rows(client, domain_ir)
+        .await?
+        .iter()
+        .find(|(id, state)| id.to_lowercase() == email && !is_deleted(state))
+        .and_then(|(_, state)| linked_identity_id(state)))
+}
+
+// The id the sign-in flow wrote onto a Member row, or `None` before then.
+fn linked_identity_id(state: &Value) -> Option<String> {
+    state.get("identity_id").and_then(|v| v.get("value")).and_then(|v| v.as_str()).map(str::to_string)
+}
+
 /// Every admitted person as a JSON row: name, email, role, `linked`
-/// (signed in), `granted` (has access), and `disabled`.
+/// (signed in), `granted` (has access), `disabled`, and `identity_id`
+/// (the Governance identity id, `null` until the person has signed in).
 pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
     Ok(member_rows(client, domain_ir)
         .await?
@@ -610,6 +627,7 @@ pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Re
                 "linked": linked,
                 "granted": role.is_some() && !disabled,
                 "disabled": disabled,
+                "identity_id": linked_identity_id(&state),
             })
         })
         .collect())
@@ -1206,9 +1224,15 @@ mod tests {
         let chris = people.iter().find(|p| p["email"] == "chris@example.com").unwrap();
         assert_eq!(chris["linked"], true);
         assert_eq!(chris["granted"], true);
+        assert_eq!(chris["identity_id"], "id-1");
         let angie = people.iter().find(|p| p["email"] == "angie@example.com").unwrap();
         assert_eq!(angie["linked"], false);
         assert_eq!(angie["granted"], false);
+        assert!(angie["identity_id"].is_null());
+
+        assert_eq!(member_identity_id(&db, &domain_ir, "Chris@Example.com").await.unwrap().as_deref(), Some("id-1"));
+        assert_eq!(member_identity_id(&db, &domain_ir, "angie@example.com").await.unwrap(), None);
+        assert_eq!(member_identity_id(&db, &domain_ir, "nobody@example.com").await.unwrap(), None);
     }
 
     #[tokio::test]
