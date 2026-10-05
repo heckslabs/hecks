@@ -174,7 +174,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   it "keeps two tenants' data completely apart on real PostgresEra, in genuinely separate schemas", :io do
     skip "no local Postgres reachable" unless PostgresProbe.available?
 
-    db = "hecks_tenant_isolation_spec"
+    # Named for the process, so two runs on one Postgres never drop each other's database.
+    db = "hecks_tenant_isolation_spec_#{Process.pid}"
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")

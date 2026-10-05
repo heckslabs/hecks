@@ -946,10 +946,12 @@ module Hecks
           $CHILD_STATUS.success? ? out : nil
         end
 
-        # `.rb` files, plus extensionless scripts with a Ruby shebang.
+        # `.rb` files, plus extensionless scripts with a Ruby shebang. The first line is read as
+        # bytes, so an extensionless binary (a compiled test fixture's output) is passed over
+        # rather than refused for not being UTF-8.
         def ruby_files(dir)
           scripts = Dir[File.join(dir, "**", "*")].select do |path|
-            File.file?(path) && File.extname(path).empty? && File.open(path, &:gets).to_s.match?(/\A#!.*ruby/)
+            File.file?(path) && File.extname(path).empty? && File.open(path, "rb", &:gets).to_s.match?(/\A#!.*ruby/n)
           end
           Dir[File.join(dir, "**", "*.rb")] + scripts
         end
