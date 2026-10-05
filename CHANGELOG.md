@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**CI cuts the release.** `.github/workflows/release.yml` runs when a commit on `main` changes `lib/hecks/version.rb`: it checks that the gem, `@hecks/client`, `rust/host/HECKS_RELEASE` and the CHANGELOG heading name one version, tags the commit, pushes the gem with the `RUBYGEMS_API_KEY` secret, starts the npm publish and creates the GitHub Release from the CHANGELOG section. Every step skips what already exists, so a re-run finishes a release that stopped halfway. `hecks publishing_run.publish --confirm` still works for a release by hand.
+
 ## [3.2.1] - 2026-10-05
 
 A patch on 3.2.0, which was tagged before the entries below landed. The deprecated `attaches` / `install_doors:` spellings warn that they are removed in 3.3.0 (previously 3.2.0); the 3.2.0 gem's warnings still say 3.2.0. Behavior is unchanged.
