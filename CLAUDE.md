@@ -17,7 +17,9 @@ A background session that the harness isolated in a git worktree has had
 `bundle exec rspec <file>` refused with "too complex to verify that it stays
 inside the worktree", while `cargo test`, `bundle exec ruby`, `git` and `gh` ran
 normally. The cause was not found, and a jj workspace (above) is untested as a way
-around it.
+around it. One observation: a `git commit -m` whose message contained the word
+rspec was refused, and the same commit without that word ran, so the guard may be
+matching on the command text.
 
 - Do not wrap rspec in a script or another command to get past the refusal.
 - Say in the pull request that the Ruby specs were not run locally. The pre-push
