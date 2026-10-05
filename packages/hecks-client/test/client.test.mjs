@@ -44,6 +44,24 @@ describe("apply", () => {
     assert.equal(items[0][1].price.cents, 12000);
   });
 
+  it("passes the command's actorId through as actor_id", async () => {
+    const { fetch, sent } = answering({ ...item(12000), refusals: [] });
+    const client = clientFor(fetch, { actorId: "alice" });
+    await client.apply({
+      verb: "Item.Reprice",
+      to: "y-1",
+      with: {},
+      actorId: "bob",
+      parse: (answer) => answer,
+      confirm: () => true,
+    });
+    await reprice(client);
+    assert.deepEqual(
+      sent.map((body) => body.actor_id),
+      ["bob", "alice"],
+    );
+  });
+
   it("says why when the state did not change, using the last refusal", async () => {
     const { fetch } = answering({
       ...item(10800),
@@ -138,6 +156,33 @@ describe("configuration", () => {
       [undefined, "Organizer", "Guest"],
     );
     assert.ok(!("role" in sent[0]));
+  });
+
+  it("sends actor_id when a call names one, and omits the key otherwise", async () => {
+    const { fetch, sent } = answering({});
+    await clientFor(fetch).dispatch("Item.Sell", {}, undefined, undefined, "alice");
+    await clientFor(fetch).dispatch("Item.Sell", {});
+    assert.equal(sent[0].actor_id, "alice");
+    assert.ok(!("role" in sent[0]));
+    assert.ok(!("actor_id" in sent[1]));
+  });
+
+  it("sends the client's actorId option, and a call's own actorId wins", async () => {
+    const { fetch, sent } = answering({});
+    const client = clientFor(fetch, { actorId: "alice" });
+    await client.dispatch("Item.Sell", {});
+    await client.dispatch("Item.Sell", {}, undefined, undefined, "bob");
+    assert.deepEqual(
+      sent.map((body) => body.actor_id),
+      ["alice", "bob"],
+    );
+  });
+
+  it("sends role and actor_id together when both are set", async () => {
+    const { fetch, sent } = answering({});
+    await clientFor(fetch, { role: "Organizer", actorId: "alice" }).dispatch("Item.Sell", {});
+    assert.equal(sent[0].role, "Organizer");
+    assert.equal(sent[0].actor_id, "alice");
   });
 
   it("qualifies bare names with the domain and leaves qualified names alone", async () => {
