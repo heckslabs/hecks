@@ -125,7 +125,7 @@ module Hecks
         return if @allow_downgrade || Gem::Version.new(version) >= Gem::Version.new(previous_version)
 
         raise Vendoring::Error, "#{@name} #{previous_version} is vendored; #{version} is older. " \
-                                "Pass allow_downgrade to do it anyway."
+                                "Pass allow_downgrade (ALLOW_DOWNGRADE=1 on the command line) to do it anyway."
       end
 
       def minor_or_more?(old, new)

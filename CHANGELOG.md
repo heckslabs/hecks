@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
+commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
+a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the
+reason on standard error. Before, the launcher printed the `Package` record still in `requested` and exited 0, so a
+script or CI could not tell the pin had not happened. A bad name was already refused with exit 1. The record is still
+kept (`package.pinning`, `package.unpinned`). The mechanism is general: a `settled` list in the `launcher` world setting
+names commands that always wait, and a `--wait` failure now appends the record's own `refusal` to its reason. A script
+that read the record from the old exit-0 output should read the exit status.
+
 **A query can declare `needs`, and there is a `today` fact (ADR 0081).** A query writes `needs :now`
 (or `needs :today`, the day the clock falls in, whole days since the epoch in UTC) and declares the
 attribute it fills; the runtime answers it before the query's filter reads its arguments, unless the

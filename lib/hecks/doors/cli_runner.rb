@@ -188,6 +188,7 @@ module Hecks
       # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted in
       def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
         rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
+        wait ||= LauncherOptions.settled?(launcher, spec)
         args = CliDoor.arguments(spec, rest)
 
         return answer_query(runtime, spec, args, wait) if spec[:kind] == :query
@@ -252,9 +253,21 @@ module Hecks
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
         if LauncherOptions.failed?(aggregate, state, launcher)
           field = aggregate.lifecycle.field
-          why  += ["#{aggregate.hecks_name} ended in the failure state #{state[field.to_sym].to_s.inspect}"]
+          why  += [failure_sentence(aggregate, state, field)]
         end
         finish(JSON.pretty_generate(answer), why)
+      end
+
+      # The sentence for a record that ended in a failure state: the state, then the record's own
+      # `refusal` when it keeps one, without the class name an adapter's failure carries.
+      def failure_sentence(aggregate, state, field)
+        sentence = "#{aggregate.hecks_name} ended in the failure state #{state[field.to_sym].to_s.inspect}"
+        refusal  = state[:refusal]
+        refusal  = refusal.value if refusal.respond_to?(:value)
+        refusal  = refusal[:value] if refusal.is_a?(Hash)
+        return sentence if refusal.to_s.strip.empty?
+
+        "#{sentence}: #{refusal.to_s.strip.sub(/\A(\w+::)+\w+: /, '')}"
       end
 
       # The answer and its status: 0 when nothing failed, else 1 with the reasons joined.
