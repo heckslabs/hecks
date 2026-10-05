@@ -35,6 +35,14 @@ Hecks.hecksagon "Deploy" do
     end
   end
 
+  Deploy::CostCheck.port "CostExplorer" do
+    asks "Measure", to: CostCheck do
+      attribute :run, RunKey
+      answers "CostAnswered"
+      refuses "CostRefused"
+    end
+  end
+
   Deploy::TemplateComparison.port "DeployToolchain" do
     asks "Compare", to: TemplateComparison do
       attribute :run, RunKey

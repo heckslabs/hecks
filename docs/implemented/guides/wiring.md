@@ -450,6 +450,16 @@ how to try the generated stacks without touching anything that matters. The
 deploy waits for the box's first boot to finish, so it can be run as soon as the
 stacks exist.
 
+To check what the stacks cost against a budget, run
+`hecks deploy cost_check.check budget=75 since=2026-10-05 --wait`. It reads the
+daily bill from `since` up to yesterday (today is still partial), scales the mean
+to a month, and records the check as `within_budget` with a one-line report that
+names the biggest services, or as `flagged` with the figures when the rate is over
+the budget or no complete day has passed. Give it the first complete day after the
+last change to what runs, so a bill that still carries the old setup is not read as
+the new one. It exits 1 when flagged, and needs AWS credentials that can read Cost
+Explorer.
+
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
 `cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
