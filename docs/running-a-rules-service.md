@@ -720,6 +720,13 @@ not usable from this repository alone, for three reasons.
    the Ruby runtime dispatching the membership chapter's `Admit` and
    `GrantAccess` against the same database. That was not tried.
 
+Both routes carry the person's Governance identity id as `identity_id`, the
+value an `actor_id` binds when a caller dispatches on that person's behalf.
+`GET /accounts/me` answers `{"email": ..., "identity_id": ...}`, and each row
+of `GET /members` is `{"name", "email", "role", "linked", "granted",
+"disabled", "identity_id"}`. A member who has never signed in has no identity
+yet, so `identity_id` is `null` there; it becomes a string at first sign-in.
+
 The Governance part of the first-administrator question is settled by ADR
 0025: an identified caller (one that binds an `actor_id`) dispatching
 `Governance::RoleAssignment.Assign` must already hold a live `Governance

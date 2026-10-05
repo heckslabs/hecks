@@ -7,6 +7,12 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The host's account routes carry each person's identity id.** `GET /accounts/me` now answers
+`{"email", "identity_id"}` and each row of `GET /members` gains a trailing `identity_id`, so a site or
+CMS acting for a person can pass it as `actor_id` and have Governance check the right role assignment.
+It is read from the same membership head as `GET /api/me`. A member who has never signed in has no
+identity yet, so their `identity_id` is `null`. Existing fields and their order are unchanged.
+
 ## [3.1.3] - 2026-10-05
 
 A patch: nothing breaking, and no behavior change for a running system. It puts the pizzas example in
