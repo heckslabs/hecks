@@ -285,8 +285,10 @@ pub fn literal_rhs(literal: &crate::json::Json) -> String {
     match literal {
         crate::json::Json::String(s) => format!("{}.to_string()", ruby_inspect_string(s)),
         // Separate arms so a whole-number Float renders as `0.0`, not an integer-typed `0`.
-        crate::json::Json::Int(n) => n.to_string(),
-        crate::json::Json::Float(_) => literal.to_s(),
+        crate::json::Json::Number(_) => match literal.number() {
+            Some(crate::json::Number::Int(n)) => n.to_string(),
+            _ => literal.to_s(),
+        },
         crate::json::Json::Bool(b) => b.to_string(),
         other => panic!("unsupported literal mutation source {other:?} — not one of String/Integer/Float/Boolean"),
     }

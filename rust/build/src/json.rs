@@ -35,13 +35,6 @@ impl Json {
         }
     }
 
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Json> {
-        match self {
-            Json::Object(pairs) => pairs.iter_mut().find(|(k, _)| k == key).map(|(_, v)| v),
-            _ => None,
-        }
-    }
-
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Json::String(s) => Some(s.as_str()),
@@ -56,40 +49,9 @@ impl Json {
         }
     }
 
-    pub fn as_array_mut(&mut self) -> Option<&mut Vec<Json>> {
-        match self {
-            Json::Array(items) => Some(items),
-            _ => None,
-        }
-    }
-
-    pub fn as_object(&self) -> Option<&[(String, Json)]> {
-        match self {
-            Json::Object(pairs) => Some(pairs.as_slice()),
-            _ => None,
-        }
-    }
-
-    /// Ruby truthiness: everything except `false` and `null` is true.
-    pub fn as_bool(&self) -> bool {
-        !matches!(self, Json::Bool(false) | Json::Null)
-    }
-
     /// Iterates an array field; empty for any other value.
     pub fn each(&self) -> &[Json] {
         self.as_array().unwrap_or(&[])
-    }
-
-    /// Sets `key` to `value`, the only mutation the optional-marking pass performs.
-    /// Overwrites the existing pair, or appends one if absent.
-    pub fn set_bool(&mut self, key: &str, value: bool) {
-        if let Json::Object(pairs) = self {
-            if let Some((_, existing)) = pairs.iter_mut().find(|(k, _)| k == key) {
-                *existing = Json::Bool(value);
-                return;
-            }
-            pairs.push((key.to_string(), Json::Bool(value)));
-        }
     }
 
     /// Sets `key` to `value`, overwriting in place or else appending last.
@@ -413,9 +375,9 @@ mod tests {
     }
 
     #[test]
-    fn set_bool_overwrites_an_existing_key() {
+    fn set_overwrites_an_existing_key() {
         let mut value = Json::parse("{\n  \"optional\": false\n}").expect("parses");
-        value.set_bool("optional", true);
+        value.set("optional", Json::Bool(true));
         assert_eq!(write(&value), "{\n  \"optional\": true\n}");
     }
 }

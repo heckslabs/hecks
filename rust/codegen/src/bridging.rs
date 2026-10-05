@@ -1,6 +1,6 @@
 //! Port of the retired Ruby generator's `bridging.rb`: cross-type coercion checks for `:set` and `:append` RHS.
 
-use crate::json::Json;
+use crate::json::{Json, Number};
 use crate::literal::Literal;
 use crate::naming;
 use std::collections::{HashMap, HashSet};
@@ -312,15 +312,15 @@ pub fn arithmetic_amount_expr(source: &Json, command: &Json, value_objects_by_na
     let kind = source.get("kind").map(Json::to_s).unwrap_or_default();
     if kind == "literal" {
         let value = source.get("value")?;
-        if let Json::Int(_) = value {
+        if matches!(value.number(), Some(Number::Int(_))) {
             return Some(naming::literal_rhs(value));
         }
         if !matches!(value, Json::Object(_)) {
             return None;
         }
         let key_value = value.get_raw(target_integer_field)?;
-        return match key_value {
-            Json::Int(_) => Some(naming::literal_rhs(key_value)),
+        return match key_value.number() {
+            Some(Number::Int(_)) => Some(naming::literal_rhs(key_value)),
             _ => None,
         };
     }
@@ -347,9 +347,9 @@ pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
     if items.len() != 2 {
         return None;
     }
-    let Json::Int(min) = &items[0] else { return None };
-    let Json::Int(max) = &items[1] else { return None };
-    Some((*min, *max))
+    let Some(Number::Int(min)) = items[0].number() else { return None };
+    let Some(Number::Int(max)) = items[1].number() else { return None };
+    Some((min, max))
 }
 
 /// An aggregate attribute a creating command's arguments never mention.

@@ -7,9 +7,7 @@ use crate::build_artifact;
 use crate::cargo_sync;
 use crate::json::Json;
 use crate::lineage_pass;
-use crate::optional_pass;
 use crate::resolve;
-use crate::sidecars;
 use crate::subprocess;
 use crate::tmp::TempDir;
 
@@ -77,7 +75,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     if let Some(p) = &hecksagon_path {
         target_files.push(p.clone());
     }
-    let target_ir_text = parse_chapter_with_optionals(&parser_bin, &target_chapter_name, &target_files)?;
+    let target_ir_text = parse_chapter(&parser_bin, &target_chapter_name, &target_files)?;
     // Only the target chapter gets a `lineage` key — a framework chapter or
     // `meta` never does, matching `derive_lineage` (Ruby) re-`JSON.parse`ing
     // rather than chaining a live object through both passes.
@@ -113,7 +111,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
                 fw_path.display()
             ));
         }
-        let fw_ir_text = parse_chapter_with_optionals(&parser_bin, &fw_chapter_name, std::slice::from_ref(&fw_path))?;
+        let fw_ir_text = parse_chapter(&parser_bin, &fw_chapter_name, std::slice::from_ref(&fw_path))?;
         chapters.push(Chapter {
             mod_name: fw_name.to_lowercase(),
             source_label: format!("{domain} (attaches {fw_name:?})"),
@@ -141,7 +139,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
                 pkg_bluebooks.push(path.clone());
             }
         }
-        let pkg_ir_text = parse_chapter_with_optionals(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
+        let pkg_ir_text = parse_chapter(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
         chapters.push(Chapter {
             // Derived from the declared chapter name (asserted equal to
             // `expected_chapter_name` above), not the raw `pkg_name` — that
@@ -172,7 +170,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // The self-hosted language, compiled in too, under the same "Bluebook"
     // chapter name.
     let grammar_files = resolve::grammar_files(root)?;
-    let meta_ir_text = parse_chapter_with_optionals(&parser_bin, "Bluebook", &grammar_files)?;
+    let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
 
     let out_root = root.join("rust/src/generated");
     std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
@@ -213,12 +211,6 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     }
     run_codegen_full(&codegen_bin, &codegen_args)?;
 
-    sidecars::write(&out_root.join("meta"), &meta_ir_text, META_SOURCE_LABEL)?;
-    sidecars::write(&out_root.join(&target_mod_name), &target_ir_text, domain)?;
-    for c in &chapters {
-        sidecars::write(&out_root.join(&c.mod_name), &c.ir_text, &c.source_label)?;
-    }
-
     let cargo_toml_path = root.join("rust/Cargo.toml");
     cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
 
@@ -233,18 +225,15 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     Ok(())
 }
 
-// Parses via `hecks-parse chapter`, then runs `optional_pass::run` and
-// re-serializes — matching `derive_append_optionals` (Ruby).
-fn parse_chapter_with_optionals(parser_bin: &Path, chapter_name: &str, files: &[PathBuf]) -> Result<String, String> {
+// Parses via `hecks-parse chapter`. `hecks-codegen` marks the IR and writes its `ir.json` and
+// `metadata.rs` itself, so the text goes through as `hecks-parse` printed it.
+fn parse_chapter(parser_bin: &Path, chapter_name: &str, files: &[PathBuf]) -> Result<String, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
     let mut args: Vec<String> = vec!["chapter".to_string(), "--chapter".to_string(), chapter_name.to_string()];
     args.extend(files.iter().map(|p| p.to_string_lossy().to_string()));
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
 
-    let stdout = subprocess::run_capture(&parser_bin_str, &arg_refs)?;
-    let mut ir = Json::parse(&stdout).map_err(|e| format!("parsing hecks-parse chapter output for {chapter_name}: {e}"))?;
-    optional_pass::run(&mut ir);
-    Ok(crate::json::write(&ir))
+    subprocess::run_capture(&parser_bin_str, &arg_refs)
 }
 
 fn run_codegen_full(codegen_bin: &Path, args: &[String]) -> Result<(), String> {

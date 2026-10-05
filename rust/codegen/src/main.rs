@@ -19,6 +19,7 @@ mod literal;
 mod manifest;
 mod mutations;
 mod naming;
+mod optional_pass;
 mod ports;
 mod prelude;
 mod queries;
@@ -28,6 +29,7 @@ mod reference_specs;
 mod registry;
 mod reserved_names;
 mod shared;
+mod sidecars;
 mod skip_reason;
 mod types;
 
@@ -85,20 +87,27 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
 }
 
 /// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` — writes one chapter's
-/// `<aggregate>.rs`, `registry.rs`, `mod.rs` and `manifest.json` into `out_dir`.
-///
-/// `metadata.rs` and `ir.json` are left to `hecks project_rust`.
+/// `<aggregate>.rs`, `registry.rs`, `mod.rs`, `manifest.json` and its `ir.json`/`metadata.rs`
+/// sidecars into `out_dir`.
 fn run_domain(args: &[String]) -> Result<(), String> {
     let [ir_path, source_label, mod_name, out_dir] = args else {
         return Err("usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string());
     };
 
-    let text = std::fs::read_to_string(ir_path).map_err(|e| format!("reading {ir_path}: {e}"))?;
-    let ir = Json::parse(&text).map_err(|e| format!("parsing {ir_path}: {e}"))?;
+    let ir = read_ir(ir_path)?;
 
     let ex = exemplar::Exemplar::load();
     write_domain(&ex, &ir, source_label, mod_name, out_dir)?;
     Ok(())
+}
+
+/// Reads one chapter's IR and prepares it for generation: marks the fields an `append` binds to an
+/// optional argument. What it generates from and what it writes to `ir.json` are this same IR.
+fn read_ir(path: &str) -> Result<Json, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("reading {path}: {e}"))?;
+    let mut ir = Json::parse(&text).map_err(|e| format!("parsing {path}: {e}"))?;
+    optional_pass::run(&mut ir);
+    Ok(ir)
 }
 
 /// Writes one chapter's files into `out_dir` and returns the `GeneratedDomain`, so `run_full`
@@ -147,6 +156,10 @@ fn write_domain(
     std::fs::write(&manifest_path, &generated.manifest_json).map_err(|e| format!("writing {manifest_path}: {e}"))?;
     println!("wrote {manifest_path}");
 
+    let (ir_json_path, metadata_path) = sidecars::write(std::path::Path::new(out_dir), ir, source_label)?;
+    println!("wrote {}", ir_json_path.display());
+    println!("wrote {}", metadata_path.display());
+
     Ok(generated)
 }
 
@@ -181,8 +194,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
 
     let ex = exemplar::Exemplar::load();
 
-    let target_text = std::fs::read_to_string(target_ir_path).map_err(|e| format!("reading {target_ir_path}: {e}"))?;
-    let target_ir = Json::parse(&target_text).map_err(|e| format!("parsing {target_ir_path}: {e}"))?;
+    let target_ir = read_ir(target_ir_path)?;
     let target_domain_name = target_ir.get("name").and_then(Json::as_str).unwrap_or("").to_string();
 
     let target_out_dir = format!("{out_root}/{target_mod_name}");
@@ -209,8 +221,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         let chapter_ir_path = &args[i + 2];
         i += 3;
 
-        let text = std::fs::read_to_string(chapter_ir_path).map_err(|e| format!("reading {chapter_ir_path}: {e}"))?;
-        let chapter_ir = Json::parse(&text).map_err(|e| format!("parsing {chapter_ir_path}: {e}"))?;
+        let chapter_ir = read_ir(chapter_ir_path)?;
         let chapter_domain_name = chapter_ir.get("name").and_then(Json::as_str).unwrap_or("").to_string();
 
         let chapter_out_dir = format!("{out_root}/{chapter_mod_name}");
