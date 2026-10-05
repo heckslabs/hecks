@@ -710,6 +710,176 @@ pub fn dispatch_entity_board_card_annotate(
     )
 }
 
+impl crate::kernel::Fielded for CardRemarkNestedEntityArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "note" => Some(Field::Nested(&self.note)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct CardRemarkNestedEntityArgs {
+    pub note: CardNote,
+}
+
+impl CardRemarkNestedEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("note".to_string(), self.note.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl CardRemarkNestedEntityArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CardRemarkNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["note", "id", "reference", "number", "sequence"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Remark",
+        unknown: &unknown,
+        declared: &["note"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Remark",
+        absent: &absent,
+        declared: &["note"],
+    }.render_args()));
+}
+        let note = CardNote::from_json(&(match v.get("note").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardRemarkNestedEntityArgs.note expects CardNote, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
+        note.check_invariants()?;
+        Ok(Self {
+        note,
+        })
+    }
+}
+
+
+impl CardRemarkNestedEntityArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CardRemarkNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["note", "id", "reference", "number", "sequence"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Remark",
+        unknown: &unknown,
+        declared: &["note"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Remark",
+        absent: &absent,
+        declared: &["note"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+
+pub fn dispatch_entity_board_card_remark(
+    repo: &mut impl crate::kernel::Repository<Workspace>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
+    hop2_id: &str, hop2_wants: &str, args: CardRemarkNestedEntityArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Workspace> {
+        args.note.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, WORKSPACE_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &Workspace| &r.boards,
+        |r: &mut Workspace| &mut r.boards,
+        |el: &Board| el.identity() == hop1_id,
+        "Remark",
+        "NestedPieces::Workspace",
+        "Workspace",
+        "reference.value",
+        "Board",
+        "number.value",
+        hop1_wants,
+        &with_references,
+        &[],
+        None,
+        |nested_owner: &mut Board| {
+            crate::kernel::apply_entity_command(
+                nested_owner,
+                hop1_id,
+                |r: &Board| &r.cards,
+                |r: &mut Board| &mut r.cards,
+                |el: &Card| el.identity() == hop2_id,
+                "Remark",
+                "NestedPieces::Workspace",
+                "Workspace",
+                "Card",
+                "sequence.value",
+                hop2_wants,
+                &with_references,
+                &[
+
+                ],
+                None,
+                |record| {
+        record.note = Some(args.note.clone());
+                    Ok(())
+                },
+                &[
+
+                ],
+                true,
+            )
+        },
+        &[],
+        &workspace_invariants(),
+        &["CardRemarked"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
 impl Board {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -1049,6 +1219,155 @@ pub fn dispatch_entity_board_label(
         ],
         &workspace_invariants(),
         &["BoardLabeled"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
+impl crate::kernel::Fielded for BoardRetitleEntityArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "label" => Some(Field::Nested(&self.label)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct BoardRetitleEntityArgs {
+    pub label: BoardLabel,
+}
+
+impl BoardRetitleEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("label".to_string(), self.label.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl BoardRetitleEntityArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardRetitleEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["label", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Retitle",
+        unknown: &unknown,
+        declared: &["label"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Retitle",
+        absent: &absent,
+        declared: &["label"],
+    }.render_args()));
+}
+        let label = BoardLabel::from_json(&(match v.get("label").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BoardRetitleEntityArgs.label expects BoardLabel, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        label.check_invariants()?;
+        Ok(Self {
+        label,
+        })
+    }
+}
+
+
+impl BoardRetitleEntityArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardRetitleEntityArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["label", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Retitle",
+        unknown: &unknown,
+        declared: &["label"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Retitle",
+        absent: &absent,
+        declared: &["label"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+
+pub fn dispatch_entity_board_retitle(
+    repo: &mut impl crate::kernel::Repository<Workspace>, parent_id: &str, element_id: &str, element_wants: &str, args: BoardRetitleEntityArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Workspace> {
+        args.label.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, WORKSPACE_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &Workspace| &r.boards,
+        |r: &mut Workspace| &mut r.boards,
+        |el: &Board| el.identity() == element_id,
+        "Retitle",
+        "NestedPieces::Workspace",
+        "Workspace",
+        "reference.value",
+        "Board",
+        "number.value",
+        element_wants,
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.label = Some(args.label.clone());
+            Ok(())
+        },
+        &[
+
+        ],
+        &workspace_invariants(),
+        &["BoardRetitled"],
         args.to_json(),
         mutations,
         seed_projections,

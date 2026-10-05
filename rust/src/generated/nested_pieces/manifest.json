@@ -23,6 +23,13 @@
   },
   {
     "kind": "entity_command",
+    "id": "NestedPieces::Workspace.Board.Card.Remark",
+    "generated": true,
+    "routed": true,
+    "reason": "routed (`to: { entities: [...] }`) and flat-args (one identity head per hop) both supported (BUG#19)"
+  },
+  {
+    "kind": "entity_command",
     "id": "NestedPieces::Workspace.Board.AddCard",
     "generated": true,
     "routed": true
@@ -30,6 +37,12 @@
   {
     "kind": "entity_command",
     "id": "NestedPieces::Workspace.Board.Label",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "NestedPieces::Workspace.Board.Retitle",
     "generated": true,
     "routed": true
   },
