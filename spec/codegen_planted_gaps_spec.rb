@@ -44,7 +44,8 @@ RSpec.describe "hecks-codegen manifest for every planted construct family", :io 
     end
 
     expect(File.exist?(PLANTED_GOLDEN)).to be(true), "no frozen manifest — run GOLDEN=rewrite to record it"
-    expect(manifest).to eq(File.read(PLANTED_GOLDEN, encoding: Encoding::UTF_8)), "the planted-gap manifest changed — read the diff, then GOLDEN=rewrite"
+    expect(manifest).to eq(File.read(PLANTED_GOLDEN, encoding: Encoding::UTF_8)),
+                        "the planted-gap manifest changed — read the diff, then GOLDEN=rewrite"
   end
 
   it "plants a construct in every family it names" do
