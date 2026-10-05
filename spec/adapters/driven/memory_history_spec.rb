@@ -202,7 +202,7 @@ RSpec.describe "Memory with a growing list" do
     end
 
     it "does not share an element a caller may still change" do
-      adapter = described_class.new(aggregate: aggregate)
+      adapter = Hecks::Adapters::Memory.new(aggregate: aggregate)
       marker = { id: { value: "loose" }, cell: { column: 0, row: 0 } }
       state = { label: { value: "m" }, markers: [marker] }
       adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "m", state: state))
@@ -220,7 +220,7 @@ RSpec.describe "Memory with a growing list" do
       4.times { advance }
       held = repository.find("r")
 
-      replica = described_class.new(aggregate: aggregate)
+      replica = Hecks::Adapters::Memory.new(aggregate: aggregate)
       repository.entries.each { |entry| replica.project(entry) }
       rebuilt = replica.find("r")
 
