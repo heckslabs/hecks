@@ -7,10 +7,19 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks build.build_host` builds the Rust host for a domain and stages it for an image.** It builds the domain's
+`.wasm` and `.ir.json` as `build.build_wasm` does, compiles `rust/host` in release from the installed gem's workspace
+(`.hecks/rust/<version>/` in a project, so the host is the release the Gemfile resolves and nothing is cloned), and
+copies `<domain>-host`, `<domain>.wasm` and `<domain>.ir.json` into `stage_dir=` (default `.hecks/host/<target>/`), the
+files a container image `COPY`s. `target=<triple>` cross-compiles (default: the machine's own); a target that is not
+installed, a wasm target, a missing `rustup` and a malformed triple are refused with the command that fixes them, and
+`--wait` makes a refusal exit 1. Cargo's output stays in the workspace's `target/`, so a second build is incremental.
+The `Build` aggregate gains the `BuildHost` command, the `TargetTriple` and `StagePath` values and the
+`RustToolchain` port's `Host` ask; the Rust meta, vocabulary and frozen Bluebook IR are regenerated.
+
 **CI runs the gate's checks instead of copying them.** `lib/hecks/gate/stages.yml` gains a `ci` stage (every check `ci-checks.yml` ran: model check, engine agreement, doc coverage, rubocop, both comment checks, codegen, vocabulary and kernel drift, rust coverage, the deploy-recipe lint and the three fuzz sweeps) and a `post_commit` stage. A check two stages share is written once, under a YAML anchor, so `pre_push` and `ci` cannot drift. Each `ci-checks.yml` step is now `hecks gate_run.gate stage=ci only=<ids> --wait`: jobs, runners, logs and attestation conditions are unchanged, and only the commands moved. `.githooks/post-commit` is a shim over the `post_commit` stage, as `pre-push` is over `pre_push`. `spec/gate_ci_stage_spec.rb` fails when a workflow step carries a command of its own or a `ci` check is run by no step. The eight required-check wrappers in `ci.yml` share one `require-result` action, and the attestation write is the `write-attestation` action. A green `gate` run prints which checks passed, not their output; a red one prints it all.
 
 **The per-day PR cap is a `DailyQuota` aggregate.** `hecks quality_control patch.open` no longer counts `Patch` and `Improvement` rows since local midnight: the QualityControl ledger has a `DailyQuota`, one record per UTC day, whose `Take` refuses once `PR_CAP_PER_DAY` is spent and whose day the runtime fills (`needs :today`). The script dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The `OpenedSince` queries and the adapter's `assert_under_daily_cap!` are gone, and so is the `branch_prefix` dial, which repeated the prefix `Patch.Open` and `Improvement.Open` already declare. The day is now the UTC day.
-
 
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
