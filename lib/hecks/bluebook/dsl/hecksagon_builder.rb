@@ -59,7 +59,7 @@ module Hecks
 
         # The release that drops the deprecated spellings of `attaches`; independent of
         # `Hecks::Doors::REMOVAL`, which covers the older `Facade` aliases.
-        REMOVAL = "3.3.0".freeze
+        REMOVAL = "3.4.0".freeze
 
         attr_reader :binds, :subscriptions, :attachments
 

@@ -157,7 +157,7 @@ The Hecks domain (ADR 0080) is the main user of the gem form, attaching the lang
 | positional 1 | text | true | attachments |
 <!-- generated:end -->
 
-The deprecated spelling of `attaches "Name"` for a framework member. It behaves as before and prints a one-line warning; it is removed in 3.3.0.
+The deprecated spelling of `attaches "Name"` for a framework member. It behaves as before and prints a one-line warning; it is removed in 3.4.0.
 
 ```ruby
 Hecks.with_registry(runtime.registry) { Hecks.hecksagon("Legacy") { uses_framework "Governance" } }  # warns: use `attaches "Governance"`
@@ -173,7 +173,7 @@ Hecks.with_registry(runtime.registry) { Hecks.hecksagon("Legacy") { uses_framewo
 | positional 1 | text | true | attachments |
 <!-- generated:end -->
 
-The deprecated spelling of `attaches "name", from: :vendor`. It behaves as before and prints a one-line warning; it is removed in 3.3.0.
+The deprecated spelling of `attaches "name", from: :vendor`. It behaves as before and prints a one-line warning; it is removed in 3.4.0.
 
 ```ruby
 Hecks.hecksagon("Legacy") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
