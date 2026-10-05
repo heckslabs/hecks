@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-05
+
+A minor: additive, nothing breaking, and no behavior change for a running system unless it opts in. A site that acts for a signed-in person can now name them: `@hecks/client` sends `actorId`, and the host's `/accounts/me` and `/members` carry each person's `identity_id`, so Governance's role assignments decide.
+
 **`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 **`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
@@ -46,6 +50,12 @@ module), unless it uses what is added below; the one new refusal is noted there 
 - **A public row beneath a route that is admin or signed must name its `cache`.** Such a row used to take the `page` class from
   its auth; a table that has one with no `cache:` is now refused, naming the prefix, and is fixed by writing the class it meant.
 - **An off row may now sit in a navigation**; it was refused before, so no existing table is affected.
+
+**The host's account routes carry each person's identity id.** `GET /accounts/me` now answers
+`{"email", "identity_id"}` and each row of `GET /members` gains a trailing `identity_id`, so a site or
+CMS acting for a person can pass it as `actor_id` and have Governance check the right role assignment.
+It is read from the same membership head as `GET /api/me`. A member who has never signed in has no
+identity yet, so their `identity_id` is `null`. Existing fields and their order are unchanged.
 
 ## [3.1.3] - 2026-10-05
 
