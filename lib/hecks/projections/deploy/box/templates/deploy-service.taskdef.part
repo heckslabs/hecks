@@ -1,0 +1,12 @@
+# The active task definition names the image repository of every container, so the push goes where
+# the box already pulls from.
+active_image() {
+  aws ecs describe-task-definition --task-definition "$FAMILY" --region "$REGION" \
+    --query "taskDefinition.containerDefinitions[?name=='${SERVICE_NAME}'].image | [0]" --output text
+}
+CURRENT_IMAGE="$(active_image)"
+case "$CURRENT_IMAGE" in
+  None|"") echo "task definition family ${FAMILY} has no container named ${SERVICE_NAME}" >&2; exit 1 ;;
+esac
+ECR_REPOSITORY="${CURRENT_IMAGE#*/}"
+ECR_REPOSITORY="${ECR_REPOSITORY%%[:@]*}"
