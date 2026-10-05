@@ -40,7 +40,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   BOX_BLUEBOOK
 
   BOX_WORLDS = {
-    "default"   => <<~WORLD,
+    "default"          => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -48,7 +48,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "tunnel"    => <<~WORLD,
+    "tunnel"           => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -58,7 +58,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "taskdef"   => <<~WORLD,
+    "taskdef"          => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -73,7 +73,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "migration" => <<~WORLD,
+    "migration"        => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "us-east-1"
@@ -84,7 +84,42 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "full"      => <<~WORLD
+    "hosting_taskdef"  => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          stack_name "widget-shop"
+          task_definition "widget-platform"
+          containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081 },
+                      { name: "domain", port: 8082, tag_parameter: "EngineImageTag" }]
+          default_container "website"
+          routes [{ container: "cms", paths: ["/cms/*"] }]
+          origin_header "X-Origin-Secret"
+          origin_secret "widget/origin-secret"
+          origin_env ["WIDGET_ORIGIN"]
+          hosting_scripts true
+          hosting_stack "widget-platform"
+          smoke_repo "acme/widget-shop"
+          smoke_workflow "smoke-prod.yml"
+          expected_eras ["a1b2c3"]
+          public_url "https://widgets.example.com"
+        end
+      end
+    WORLD
+    "hosting_services" => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          stack_name "widget-shop"
+          containers [{ name: "website", port: 8080 }, { name: "cms", port: 8081, repository: "acme-cms" }]
+          default_container "website"
+          routes [{ container: "cms", paths: ["/cms/*"] }]
+          hosting_scripts true
+          smoke_workflow "smoke-prod.yml"
+        end
+      end
+    WORLD
+    "full"             => <<~WORLD
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
           region "eu-west-1"
@@ -171,7 +206,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
         expect { template_of(files["rds.yaml"]) }.not_to raise_error
         expect { template_of(files["box.yaml"]) }.not_to raise_error
-        %w[render-compose.sh fetch-secrets.sh deploy-box.sh].each do |script|
+        files.keys.grep(/\.sh\z/).each do |script|
           ok, err = syntax_ok?(files[script])
           expect(ok).to be(true), "#{script}: #{err}"
         end
@@ -279,6 +314,88 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(services["origin"]).to eq("header" => "X-Origin-Secret", "secret" => "acme/origin-secret")
       expect(services["services"]["website"]["secrets"]).to eq("AUTH_SECRET" => "acme/session-secret")
       expect(services["services"]["domain"]["env"]).to eq("HECKS_SCHEMA" => "widgets")
+    end
+  end
+
+  describe "a world with hosting scripts and a task definition" do
+    let(:files) { cached("hosting_taskdef", BOX_WORLDS.fetch("hosting_taskdef")).first }
+    let(:deploy) { files["deploy-service.sh"] }
+    let(:smoke) { files["smoke-after-deploy.sh"] }
+
+    it "adds the four hosting files and ends `make deploy` with the smoke" do
+      expect(files.keys).to include("deploy-service.sh", "smoke-after-deploy.sh", "expected-era", "hosting.mk")
+      expect(files["Makefile"])
+        .to include("bash ./deploy-box.sh $(TASKDEF)\n\tTASKDEF=\"$(TASKDEF)\" bash ./smoke-after-deploy.sh\n")
+      expect(files["Makefile"]).to end_with("include hosting.mk\n")
+      expect(files["hosting.mk"]).to include("URL     ?= https://widgets.example.com", "SERVICE ?= website")
+      expect(files["expected-era"]).to end_with("\na1b2c3\n")
+    end
+
+    it "pushes under a unique tag that is never reused" do
+      expect(deploy).to include('TAG="${EXISTING_TAG:-${SERVICE_NAME}-$(date -u +%Y%m%d%H%M%S)}"')
+      expect(deploy).to include("a tag is never reused")
+      expect(deploy).to include('docker --config "$DOCKER_CONFIG_DIR" push "$IMAGE_URI"')
+    end
+
+    it "pushes to the repository the active task definition already pulls from" do
+      expect(deploy).to include('--task-definition "$FAMILY"', 'ECR_REPOSITORY="${CURRENT_IMAGE#*/}"')
+      expect(deploy).to include("FAMILY=widget-platform")
+    end
+
+    it "syncs only the container's image-tag parameter and refuses if anything else changed" do
+      expect(deploy).to include("IMAGE_STACK=widget-platform", "website) CFN_PARAM_KEY=WebsiteImageTag")
+      expect(deploy).to include("domain) CFN_PARAM_KEY=EngineImageTag")
+      expect(deploy).to include("UsePreviousValue=true", "--use-previous-template")
+      expect(deploy).to include("expected only ${CFN_PARAM_KEY} to change", "No updates are to be performed")
+    end
+
+    it "refuses to roll a task definition that does not carry the pushed image, then rolls it and smokes" do
+      expect(deploy).to include('"$RUNNING_IMAGE" != "$IMAGE_URI"', "refusing to roll")
+      expect(deploy.index('bash ./deploy-box.sh "$TD"')).to be > deploy.index("refusing to roll")
+      expect(deploy.rstrip).to end_with("bash ./smoke-after-deploy.sh")
+    end
+
+    it "waits for the box to settle before it dispatches the smoke, and follows the run" do
+      expect(smoke).to include("BOX_STACK=hecks-widget-shop-box", "WATCHED_STACKS=hecks-widget-shop-box\\ widget-platform")
+      expect(smoke).to include("docker compose -f compose.json ps", "two consecutive checks agree")
+      expect(smoke).to include('TASK_DEFINITION="${TASKDEF:-widget-platform}"', "runs ${image}, ${TASK_DEFINITION} has ${wanted}")
+      expect(smoke.index("wait_for_settled_roll || rc=$?")).to be < smoke.index("run_smoke || rc=$?")
+      expect(smoke).to include('WORKFLOW="${WORKFLOW:-smoke-prod.yml}"', 'REPO="${REPO:-acme/widget-shop}"')
+      expect(smoke).to include("gh workflow run", "--event workflow_dispatch")
+    end
+
+    it "keeps the smoke's exit codes distinct from a failed deploy step's" do
+      %w[20 21 22 23].each { |code| expect(smoke).to match(/(return|exit) #{code}\b/) }
+    end
+
+    it "names every service the script accepts and refuses any other" do
+      expect(deploy).to include("SERVICES='website cms domain'", "unknown service")
+    end
+  end
+
+  describe "a world with hosting scripts and no task definition" do
+    let(:files) { cached("hosting_services", BOX_WORLDS.fetch("hosting_services")).first }
+
+    it "pushes to the container's own repository and names every service's tag in the roll" do
+      deploy = files["deploy-service.sh"]
+      expect(deploy).to include("website) ECR_REPOSITORY=widget-shop-website", "cms) ECR_REPOSITORY=acme-cms")
+      expect(deploy).to include('TAGS+=("${name}=${TAG}")', 'bash ./deploy-box.sh "${TAGS[@]}"')
+      expect(deploy).not_to include("CFN_PARAM_KEY", "update-stack")
+    end
+
+    it "settles on the box stack and its containers alone" do
+      smoke = files["smoke-after-deploy.sh"]
+      expect(smoke).to include("TASK_DEFINITION=\"${TASKDEF:-}\"", "WATCHED_STACKS=hecks-widget-shop-box\n",
+                               "EXPECTED_SERVICES=website\\ cms\\ caddy")
+      expect(files["expected-era"]).to end_with("\n")
+    end
+  end
+
+  describe "a world without hosting scripts" do
+    it "generates none of the hosting files" do
+      files = cached("taskdef", BOX_WORLDS.fetch("taskdef")).first
+      expect(files.keys).not_to include("deploy-service.sh", "smoke-after-deploy.sh", "expected-era", "hosting.mk")
+      expect(files["Makefile"]).not_to include("hosting.mk")
     end
   end
 

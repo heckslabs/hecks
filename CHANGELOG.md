@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` generates the per-service hosting scripts a project keeps by hand.** `hosting_scripts true` (with `smoke_workflow`, and `hosting_stack` when the world names a `task_definition`) adds `deploy-service.sh`, `smoke-after-deploy.sh`, `expected-era` and a `hosting.mk`, the way `AwsFargate` does. `deploy-service.sh` pushes a local image under a fresh tag that ECR must not already hold, sets only that container's image-tag parameter on the hosting stack and checks that nothing else changed, refuses to roll a task definition that does not carry the pushed image, and rolls it with `deploy-box.sh`; `EXISTING_TAG` redeploys a tag already in ECR. `smoke-after-deploy.sh` waits for the box to settle (stack status, every container and the proxy up and stayed up, and each container running the image the latest task definition names, on two agreeing checks) before it dispatches the smoke workflow and follows the run, with exit codes 20 to 23. `make deploy` then ends with the smoke. A hosting word without `hosting_scripts true`, a missing `smoke_workflow`, and a `task_definition` without a `hosting_stack` are refused. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the

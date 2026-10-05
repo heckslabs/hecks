@@ -253,6 +253,58 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "hosting scripts" do
+    let(:hosting) { { hosting_scripts: true, smoke_workflow: "smoke.yml" } }
+
+    it "are off unless the world opts in" do
+      expect(resolve.hosting).to be_nil
+      expect(resolve(hosting_scripts: false).hosting).to be_nil
+    end
+
+    it "resolve to the smoke defaults and a parameter name per container" do
+      plan = resolve(**hosting)
+
+      expect(plan.hosting).to have_attributes(stack: nil, smoke_repo: nil, smoke_workflow: "smoke.yml",
+                                              smoke_ref: "main", expected_eras: [], public_url: nil)
+      expect(plan.containers.first.tag_parameter).to eq("WebImageTag")
+    end
+
+    it "name the parameter after a dashed container, or take the one the world gives" do
+      listed = [{ name: "web-app", port: 80 }, { name: "cms", port: 81, tag_parameter: "CmsTag" }]
+      plan = resolve(containers: listed, default_container: "web-app")
+
+      expect(plan.containers.map(&:tag_parameter)).to eq(%w[WebAppImageTag CmsTag])
+      expect(refusal(containers: [{ name: "cms", port: 81, tag_parameter: "Cms Tag" }])).to include("tag_parameter")
+    end
+
+    it "refuse a world that names no smoke workflow" do
+      expect(refusal(hosting_scripts: true)).to include("smoke_workflow")
+    end
+
+    it "refuse a flag that is not true or false, and a workflow that is not a file name" do
+      expect(refusal(hosting_scripts: "yes", smoke_workflow: "smoke.yml")).to include("hosting_scripts")
+      expect(refusal(hosting_scripts: true, smoke_workflow: "smoke; rm -rf /")).to include("smoke_workflow")
+      expect(refusal(hosting_scripts: true, smoke_workflow: "smoke.yml", smoke_repo: "not a repo")).to include("smoke_repo")
+      expect(refusal(hosting_scripts: true, smoke_workflow: "smoke.yml", smoke_ref: "main; x")).to include("smoke_ref")
+      expect(refusal(**hosting, expected_eras: ["a b"])).to include("expected_eras")
+      expect(refusal(**hosting, public_url: "javascript:x")).to include("public_url")
+    end
+
+    it "refuse a hosting word when the scripts are not on" do
+      expect(refusal(smoke_workflow: "smoke.yml")).to include("only apply with hosting_scripts true")
+      expect(refusal(hosting_scripts: false, expected_eras: ["a"])).to include("expected_eras")
+    end
+
+    it "need the stack behind a task definition, and refuse a stack when there is none" do
+      with_task = { **hosting, task_definition: "shop-platform" }
+
+      expect(refusal(**with_task)).to include("hosting_stack")
+      expect(resolve(**with_task, hosting_stack: "shop-platform").hosting.stack).to eq("shop-platform")
+      expect(refusal(**with_task, hosting_stack: "bad stack")).to include("hosting_stack")
+      expect(refusal(**hosting, hosting_stack: "shop-platform")).to include("this world has none")
+    end
+  end
+
   describe "the stack name" do
     it "refuses a name CloudFormation would reject" do
       expect(refusal(infra_name: "Shop_Front")).to include("stack_name")

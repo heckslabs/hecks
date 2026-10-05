@@ -1,6 +1,7 @@
 require "json"
 require_relative "../../projector"
 require_relative "box/settings"
+require_relative "box/hosting"
 
 module Hecks
   module Projections
@@ -94,7 +95,7 @@ module Hecks
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
             "Makefile" => makefile(plan)
-          }.merge(migration_files(plan))
+          }.merge(migration_files(plan)).then { |files| Hosting.extend_files(files, plan: plan, region: region) }
         end
 
         # The tooling that moves a project's data from its old database into the RDS instance, for
@@ -546,7 +547,7 @@ module Hecks
         # @param plan [Settings::Plan] the resolved settings
         # @return [String] a Makefile whose targets create the two stacks and roll the box
         def makefile(plan)
-          <<~MAKE
+          base = <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
             #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true]
             #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
@@ -570,6 +571,18 @@ module Hecks
             deploy:
             \tbash ./deploy-box.sh $(#{plan.task_definition ? 'TASKDEF' : 'TAGS'})
           MAKE
+          "#{base}#{hosting_makefile_tail(plan)}"
+        end
+
+        # With hosting scripts, a deploy ends with the post-deploy smoke and the Makefile includes
+        # the fragment that adds the hosting targets.
+        #
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [String] the Makefile lines that follow the `deploy` recipe, or nothing
+        def hosting_makefile_tail(plan)
+          return "" unless plan.hosting
+
+          "\t#{'TASKDEF="$(TASKDEF)" ' if plan.task_definition}bash ./smoke-after-deploy.sh\n\ninclude hosting.mk\n"
         end
 
         # Fills `@@NAME@@` markers. A marker alone on its line is replaced together with the line,
