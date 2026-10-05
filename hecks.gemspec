@@ -30,10 +30,12 @@ Gem::Specification.new do |spec|
   # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
   # spec/gemspec_packaging_spec.rb holds each of these.
   # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks chapter boots.
+  # `examples/pizzas` ships, without its glossary, because it is the domain `hecks console` opens when
+  # given none, so the quickstart works from a plain `gem install`.
   # Each crate's own `rust/<crate>/tests/` (fixtures, corpus tests) stays out with `rust/tests/`.
-  not_shipped = %r{\Arust/(tests/|[^/]+/tests/|src/generated/|(.+/)?target/)}
+  not_shipped = %r{\A(rust/(tests/|[^/]+/tests/|src/generated/|(.+/)?target/)|examples/pizzas/glossary/)}
   spec.files = Dir.chdir(__dir__) do
-    shipped = %w[lib rust exe/hecks qa/settings.yml]
+    shipped = %w[lib rust exe/hecks qa/settings.yml examples/pizzas]
     tracked = begin
       listed = IO.popen(["git", "ls-files", "-z", "--", *shipped], err: File::NULL, &:read)
       Process.last_status.success? ? listed.split("\0") : []
@@ -42,7 +44,7 @@ Gem::Specification.new do |spec|
     end
     candidates = if tracked.empty?
                    Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) +
-                     ["exe/hecks", "qa/settings.yml"]
+                     Dir.glob("examples/pizzas/**/*", File::FNM_DOTMATCH) + ["exe/hecks", "qa/settings.yml"]
                  else
                    tracked
                  end
