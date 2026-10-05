@@ -357,7 +357,7 @@ module Hecks
         {"script"=>"translation_audit", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"approve_translation"}.freeze,
         {"script"=>"compact", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"compact"}.freeze,
         {"script"=>"heki_compact", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"compact_heki"}.freeze,
-        {"script"=>"vendor_bluebook", "section"=>"Custodian", "aggregate"=>"Package", "verb"=>"vendor"}.freeze,
+        {"script"=>"vendor_bluebook", "section"=>"Custodian", "aggregate"=>"Package", "verb"=>"vendor", "note"=>"waits: a refusal exits 1 with its reason on stderr"}.freeze,
         {"script"=>"project_cli", "section"=>"Custodian", "aggregate"=>"Door", "verb"=>"project_cli"}.freeze,
         {"script"=>"hecks_mcp_door", "section"=>"Custodian", "aggregate"=>"Door", "verb"=>"serve_mcp"}.freeze,
         {"script"=>"project_rust", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"project_rust"}.freeze,

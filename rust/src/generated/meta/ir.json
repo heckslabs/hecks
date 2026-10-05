@@ -31903,6 +31903,10 @@
               [
                 "verb",
                 "vendor"
+              ],
+              [
+                "note",
+                "waits: a refusal exits 1 with its reason on stderr"
               ]
             ],
             [

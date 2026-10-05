@@ -680,7 +680,7 @@ Hecks.bluebook "Bluebook" do
       member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "approve_translation"
       member script: "compact", section: "Custodian", aggregate: "Era", verb: "compact"
       member script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki"
-      member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor"
+      member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", note: "waits: a refusal exits 1 with its reason on stderr"
       member script: "project_cli", section: "Custodian", aggregate: "Door", verb: "project_cli"
       member script: "hecks_mcp_door", section: "Custodian", aggregate: "Door", verb: "serve_mcp"
       member script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust"

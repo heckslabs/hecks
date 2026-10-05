@@ -560,6 +560,88 @@ RSpec.describe "the Hecks command table through the launcher" do
       run_verb("package.revendor", "widgets", "from=#{registry.path}", "root=#{project}")
       expect(pinning_of("widgets").fetch("status")).to eq("vendored")
     end
+
+    describe "its exit status", :io do
+      require_relative "support/registry_repo"
+
+      let(:scratch)  { Dir.mktmpdir("vendor-status") }
+      let(:registry) { RegistryRepo.new(File.join(scratch, "registry")) }
+      let(:project)  { File.join(scratch, "project") }
+
+      after { FileUtils.rm_rf(scratch) }
+
+      def release(version, **bluebook)
+        registry.write("widgets/bluebook.yml"              => "name: widgets\nversion: #{version}\nsummary: Widgets.\n",
+                       "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(**bluebook))
+        registry.commit("widgets #{version}")
+        registry.tag("widgets-v#{version}")
+      end
+
+      def vendor(package, *flags)
+        run_verb("package.vendor", package, "from=#{registry.path}", "root=#{project}", *flags)
+      end
+
+      it "is 0 when the package was pinned" do
+        release("2.0.0")
+
+        expect(vendor("widgets").drop(1).first).to eq(0)
+      end
+
+      it "is 1 for a downgrade, with the reason, with or without --wait" do
+        release("3.0.0")
+        release("3.1.0", description: "Reworded.")
+        vendor("widgets@3.1.0")
+
+        _out, status, reason = vendor("widgets@3.0.0")
+        expect(status).to eq(1)
+        expect(reason).to include("widgets 3.1.0 is vendored; 3.0.0 is older")
+
+        _out, status, reason = run_verb("package.revendor", "widgets@3.0.0", "from=#{registry.path}",
+                                        "root=#{project}", "--wait")
+        expect(status).to eq(1)
+        expect(reason).to include("widgets 3.1.0 is vendored; 3.0.0 is older")
+      end
+
+      it "is 1 for a shape change on a patch bump, with the reason" do
+        release("4.0.0")
+        release("4.0.1", extra_attribute: true)
+        vendor("widgets@4.0.0")
+
+        _out, status, reason = vendor("widgets@4.0.1")
+
+        expect(status).to eq(1)
+        expect(reason).to include("changes the storage shape but is only a patch bump")
+        expect(reason).not_to include("Hecks::Adapters")
+      end
+
+      it "is 1 for a package the source does not carry, with the reason" do
+        release("5.0.0")
+
+        _out, status, reason = vendor("gadgets")
+
+        expect(status).to eq(1)
+        expect(reason).to include("no gadgets-v* release tag")
+      end
+
+      it "is 1 for a name that is not a plain name, with the reason" do
+        out, status = vendor("../widgets")
+
+        expect(status).to eq(1)
+        expect(out).to include("must match")
+      end
+
+      it "lists only commands the table has" do
+        settled = Hecks::Doors::LauncherOptions.settings(@hecks, "Hecks").fetch(:settled)
+
+        expect(settled - CUSTODIAN_VERBS).to be_empty
+      end
+
+      it "leaves another command to its own --wait, unchanged" do
+        _out, status = run_verb("package.unpinned", "--wait")
+
+        expect(status).to eq(0)
+      end
+    end
   end
 
   describe "the Door verbs" do
