@@ -11,6 +11,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **Added: `hecks package.digest <package> [root=<dir>]` prints a package's content digest and shape label.** The digest a consumer records in its `bluebook.lock` was reachable only from Ruby (`Lock.digest_of`, in a `ruby -rhecks -e` one-liner). The new query prints it, `digest: <sha256>`, then one `shape: <label>` line per bluebook, over the package's `bluebook/*.bluebook` files alone, from a registry (`<root>/<package>/bluebook`) or a project that vendors it (`<root>/vendor/embryonaut_bluebooks/<package>/bluebook`). It is also spelled `registry.digest`.
 
+**Changed: `hecks operation.bootstrap_admin` says what to add when the domain has no membership chapter.** The refusal named only the missing capability. It now shows the line to add, `provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"`, and says what each verb names; `docs/running-a-rules-service.md` documents the requirement.
+
 ## [3.4.1] - 2026-10-05
 
 A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.
