@@ -352,7 +352,9 @@ module Hecks
       def command_guide
         return unless scope.commands_mode? && scope.default_domain
 
-        Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
+        McpGuideCache.remember(scope.default_domain, scope.allowed_commands) do
+          Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
+        end
       rescue StandardError
         nil
       end

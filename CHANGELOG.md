@@ -12,7 +12,10 @@ optional and fills it in. On a commands door, `dispatch` lists each allowed comm
 with the role it declares, what it does and its argument names (`*` marks a required one), and says to
 pass that role as `role`. `dispatch` now answers the record as it stands once its reactions have run,
 as `--wait` does, so a run record a reaction completes reads as `completed`, not `requested`; this
-holds for every door. Together they let an agent call the door with no usage manual.
+holds for every door. Together they let an agent call the door with no usage manual. The guide is
+kept in a cache (`McpGuideCache`) keyed by the domain's files, the hecks code and the allowed
+commands, so `tools/list` stays as fast as before; a sandboxed door only reads it, so start the door
+once unsandboxed to write it.
 
 **`AwsBox` refuses an origin secret that does not match the task definition's.** With a `task_definition`, only Caddy reads the named origin secret while the containers keep the task definition's copy, so a copy that differs made every request through the CDN fail and nothing said why. A world can now name the variables that hold it (`origin_env ["CLOUDFRONT_ORIGIN_SECRET"]`); `render-compose.sh` compares them with the named secret and refuses to render on any difference, or when no container sets a named variable, without printing a value. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
