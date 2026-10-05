@@ -147,7 +147,7 @@ module Hecks
                   deployed_to("AwsLambda") do
                     ...
                     database "Shared"
-                    owner "Embryonaut"
+                    owner "Core"
                   end
 
               naming the already-deployed domain whose Postgres instance this one borrows.
@@ -273,7 +273,7 @@ module Hecks
                 # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI
                 # deliberately NOT set here — #{domain}'s own .env.local has
                 # no real GOOGLE_CLIENT_ID yet, matching Fly's own current
-                # reality (fly secrets list -a embryonaut-founder-app: only
+                # reality (its secrets list holds only
                 # DATABASE_URL and SESSION_SECRET) that nobody has configured
                 # OAuth for this app at all. Drop real credentials into
                 # .env.local and regenerate to wire this up.
@@ -410,7 +410,7 @@ module Hecks
                   # `stack_name` above exactly — one name, two places it's read
                   # from, never out of sync since both derive from `infra_name`.
                   FunctionName: #{stack_name}
-                  # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
+                  # EXPLICIT, not omitted -- `sam build WebFunction` and
                   # `sam build --use-container WebFunction` run as TWO SEPARATE
                   # single-resource invocations (deploy:'s own comment on why:
                   # cargo-lambda cross-compiles on this host directly, pg's
@@ -434,7 +434,7 @@ module Hecks
                   # "." NOT "#{logical_id}" -- SAM's Makefile build workflow
                   # requires the Makefile to live INSIDE CodeUri itself
                   # (confirmed live: "Makefile not found at
-                  # .../EmbryonautFunction/Makefile" when CodeUri named a
+                  # .../WebFunction/Makefile" when CodeUri named a
                   # directory of its own). This project's one Makefile lives at
                   # the deploy directory's own root, alongside this template --
                   # "." is where it actually is.
@@ -568,7 +568,7 @@ module Hecks
                         "SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]\n        SecurityGroupIds: [!Ref #{logical_id}SecurityGroup]"
                       end}
                   # AWS_IAM by default — this dispatches real domain commands
-                  # (cap-table/governance-shaped data, for Embryonaut's own use);
+                  # (cap-table/governance-shaped data);
                   # an unauthenticated public URL is the wrong default for that,
                   # even though it's the simpler one to demo with. NONE only when
                   # `web "Rust"` (rust/host/src/web.rs) makes this the public web
@@ -586,7 +586,7 @@ module Hecks
             # THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
             # VPC-attached for the SAME reason #{logical_id} is (Member's own
             # persistence needs the private RDS instance directly, permanently —
-            # embryonaut.hecksagon's own comment on why), sharing
+            # the hecksagon's own comment on why), sharing
             # #{logical_id}SecurityGroup rather than minting a second one, since
             # both need the identical egress-to-DB rule. That VPC attachment
             # ALSO cuts off the public internet by default (this stack's own "NO
@@ -674,7 +674,7 @@ module Hecks
               # without reworking that whole from-source pg build for a newer
               # image is a real, separate undertaking (untested container image
               # availability, a different vendor/bundle native-extension path)
-              # out of scope here. Matches Embryonaut's own live, currently-
+              # out of scope here. Matches the live, currently-
               # deployed choice exactly, so both consumers of this one shared
               # WebFunction code path stay on the same, PROVEN runtime.
               Properties:
@@ -763,7 +763,7 @@ module Hecks
                     # documents. But THIS function's consumer (`lambda_handler.rb`)
                     # is not a file this generator writes or this repo carries --
                     # it lives in the deploying app's own domain directory (real,
-                    # live example: Embryonaut's own Sinatra app), outside this
+                    # live example: a Sinatra app), outside this
                     # codebase entirely. Redeploying a domain with an existing
                     # `lambda_handler.rb` BEFORE that handler is updated to fetch
                     # these itself (`aws-sdk-secretsmanager`, not yet in this

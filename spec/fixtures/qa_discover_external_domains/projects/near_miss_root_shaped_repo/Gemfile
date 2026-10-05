@@ -1,5 +1,5 @@
 source "https://rubygems.org"
-# hecksagain aliases itself to `Hecks` but is not the real hecks gem —
+# hecks_fork aliases itself to `Hecks` but is not the real hecks gem —
 # this fixture must stay excluded from discovery the same way
 # near_miss_repo (nested shape) already is.
-gem "hecksagain", path: "vendor/hecksagain"
+gem "hecks_fork", path: "vendor/hecks_fork"

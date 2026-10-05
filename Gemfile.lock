@@ -26,9 +26,6 @@ GEM
     aws-sdk-lambda (1.193.0)
       aws-sdk-core (~> 3, >= 3.254.0)
       aws-sigv4 (~> 1.5)
-    aws-sdk-secretsmanager (1.135.0)
-      aws-sdk-core (~> 3, >= 3.255.0)
-      aws-sigv4 (~> 1.5)
     aws-sigv4 (1.12.1)
       aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.3.0)
@@ -217,7 +214,6 @@ PLATFORMS
 
 DEPENDENCIES
   aws-sdk-lambda (~> 1.0)
-  aws-sdk-secretsmanager (~> 1.0)
   google-id-token (~> 1.4)
   guard (~> 2.19)
   guard-rspec (~> 4.7)

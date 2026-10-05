@@ -48,7 +48,7 @@ RSpec.describe "hecks quality_control discover_external_domains" do
     expect(out).not_to include("unrelated_repo/widgets")
   end
 
-  it "does not false-positive on a near-miss gem name like hecksagain" do
+  it "does not false-positive on a near-miss gem name like hecks_fork" do
     out, _err, status = run_discover
 
     expect(status.exitstatus).to eq(0)
@@ -95,8 +95,8 @@ RSpec.describe "hecks quality_control discover_external_domains" do
     expect(out).not_to include("root_shaped_sibling/adapters")
   end
 
-  it "does not false-positive a root-shaped hecksagain project — the real client-project situation: " \
-     "a root-shaped bluebook reading `Hecks.bluebook`, backed by vendored hecksagain (`Hecks = Hecksagain`), " \
+  it "does not false-positive a root-shaped fork project: " \
+     "a root-shaped bluebook reading `Hecks.bluebook`, backed by a vendored fork (`Hecks = HecksFork`), " \
      "never a dependency on the real hecks gem" do
     out, _err, status = run_discover
 
@@ -117,7 +117,7 @@ RSpec.describe "hecks quality_control discover_external_domains" do
 
   it "finds a monorepo's hecks-dependent domain even though the sibling's own root carries no " \
      "Gemfile at all — the dependency is declared in a nested app directory's own Gemfile " \
-     "(the real ~/Projects/lifeadelics/lifeadelics shape)" do
+     "(the shape of a monorepo with a nested app)" do
     out, err, status = run_discover
 
     expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"

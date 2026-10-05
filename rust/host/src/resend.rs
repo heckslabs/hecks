@@ -256,8 +256,8 @@ mod tests {
 
     #[test]
     fn a_reply_to_address_rides_in_the_payload_and_is_absent_without_one() {
-        let with = payload("f", Some("lifeadelics@gmail.com"), &email("a@b.com", "x"));
-        assert_eq!(with["reply_to"], "lifeadelics@gmail.com");
+        let with = payload("f", Some("replies@example.com"), &email("a@b.com", "x"));
+        assert_eq!(with["reply_to"], "replies@example.com");
         assert!(payload("f", None, &email("a@b.com", "x")).get("reply_to").is_none());
     }
 
@@ -273,11 +273,11 @@ mod tests {
     #[tokio::test]
     async fn a_live_send_carries_the_reply_to_address_to_resend() {
         let fake = FakeResend::start(vec![("200 OK", "", r#"{"id":"em_9"}"#)]);
-        let mailer = Mailer::live("re_x", "News <n@mail.example.com>", &fake.base).replying_to("lifeadelics@gmail.com");
+        let mailer = Mailer::live("re_x", "News <n@mail.example.com>", &fake.base).replying_to("replies@example.com");
 
         mailer.deliver(&email("a@b.com", "x")).await;
 
-        assert!(fake.requests()[0].contains(r#""reply_to":"lifeadelics@gmail.com""#), "{}", fake.requests()[0]);
+        assert!(fake.requests()[0].contains(r#""reply_to":"replies@example.com""#), "{}", fake.requests()[0]);
     }
 
     #[test]

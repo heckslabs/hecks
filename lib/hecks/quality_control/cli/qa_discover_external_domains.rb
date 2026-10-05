@@ -26,7 +26,7 @@ module Hecks
       SKIP_DIR_BASENAMES = %w[.git .hg .svn vendor node_modules .bundle tmp log coverage .yardoc .ruby-lsp
                               .parked bower_components .claude dist build].freeze
 
-      # Word-boundary matched so "hecksagain" (a real, separate gem) and "hecks_site" never
+      # Word-boundary matched so a near-miss gem name (a separate gem) and "hecks_site" never
       # false-positive as a hecks dependency.
       GEMFILE_PATTERN = /gem\s*\(?\s*["']hecks["']/
       GEMFILE_LOCK_PATTERN = /^\s+hecks\s+\(/

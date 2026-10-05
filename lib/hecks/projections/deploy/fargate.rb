@@ -100,7 +100,7 @@ module Hecks
                   deployed_to("AwsFargate") do
                     ...
                     database "Shared"
-                    owner "Embryonaut"
+                    owner "Core"
                   end
 
               naming the already-deployed domain whose Postgres instance this one borrows.
@@ -327,8 +327,8 @@ module Hecks
                   RetentionInDays: 30
 
               # Always minted — HECKS_SERVE_MODE always runs web.rs, which
-              # panics on an empty SESSION_SECRET (found live: hecksagain-pizzas
-              # 502 after the Aurora cutover). rust/host fetches this at cold
+              # panics on an empty SESSION_SECRET (seen live as a 502
+              # after a database cutover). rust/host fetches this at cold
               # start (secrets.rs), never a plain env var.
               #{session_secret_id}:
                 Type: AWS::SecretsManager::Secret

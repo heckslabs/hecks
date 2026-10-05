@@ -45,9 +45,7 @@ module Hecks
       # Rust-specific acronyms beyond the Ruby linter's list.
       RUST_ACRONYMS = %w[EOF RAII RHS SQS DLQ JIT LSP NFA DFA CR].to_set.freeze
 
-      RUST_PROPER_NOUNS = {
-        "EMBRYONAUT" => "Embryonaut"
-      }.freeze
+      RUST_PROPER_NOUNS = {}.freeze
 
       RUST_EXTRA_WORDS = %w[
         cardinality routability prepend safer diff diffed stats earliest unbracketed

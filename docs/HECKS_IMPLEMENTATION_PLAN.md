@@ -1514,7 +1514,7 @@ Example recipe:
 
 ```ruby
 Hecks.ul_projection "Acme Payments" do
-  from "Embryonaut::Payments", version: "1.2"
+  from "Registry::Payments", version: "1.2"
 
   role "Refund agent", as: "Customer success representative"
   role "Payment processor", as: "Finance administrator"
@@ -2230,7 +2230,7 @@ Governance capability required.
 
 Found:
 ✓ Acme Governance
-○ Embryonaut Governance
+○ Core Governance
 ○ External adapter
 ```
 
@@ -2318,7 +2318,7 @@ For example:
   kind: "command",
   fqn: "AcmePayments::Payment.ReverseCharge",
   provenance: {
-    source: "Embryonaut::Payments",
+    source: "Registry::Payments",
     source_id: "command:payment.refund",
     source_version: "1.2"
   }

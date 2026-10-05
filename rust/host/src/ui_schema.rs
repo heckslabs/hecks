@@ -860,7 +860,7 @@ fn humanize(key: &str) -> String {
 mod tests {
     use super::*;
 
-    // Embryonaut-shaped, because that's the domain the Ruby engine
+    // Shaped like a real member-gated app, the kind the Ruby engine
     // actually serves. Each test below pins one rule of ui_schema.rb.
 
     fn domain() -> Value {

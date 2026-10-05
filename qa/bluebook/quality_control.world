@@ -7,20 +7,4 @@ Hecks.world "QualityControl" do
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
   end
-
-  # GitHub webhook deploy. There is no rust/host command surface here, so
-  # qa/lambda_handler.rb is the stack's only Lambda. An auto-generated (never
-  # typed, never committed) Secrets Manager secret gets minted for this
-  # target; the handler reads it at cold start.
-  deployed_to("AwsLambda") do
-    stack_name "quality-control-webhook"
-    region "us-east-1"
-    # Unused for dispatch "None", but Deploy::LambdaTarget.Declare validates all four.
-    memory 512
-    timeout 15
-    database "Postgres"
-    dispatch "None"
-    handler_module "QaWebhookLambdaHandler"
-    secret_env "GITHUB_WEBHOOK_SECRET"
-  end
 end

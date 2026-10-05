@@ -12,8 +12,7 @@ module Hecks
     # rotation `Target`, printing each one's inferred capabilities. It is idempotent: references
     # already on file are skipped whatever their status (re-`Identify` refuses).
     #
-    # It skips `examples/embryonaut` (an external product) and `lib/hecks/framework` (no standalone
-    # Rust binary) on purpose.
+    # It skips `lib/hecks/framework` (no standalone Rust binary) on purpose.
     class QaSeedTargets
       # Identifies the targets the ledger lacks.
       #

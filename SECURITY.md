@@ -8,16 +8,13 @@ and will be taken seriously.
 
 ## Reporting a vulnerability
 
-**Preferred: GitHub Security Advisories.** Use this repository's
+Report privately through GitHub's private vulnerability reporting for this
+repository: open the
 ["Report a vulnerability"](https://github.com/heckslabs/hecks/security/advisories/new)
-form (under the Security tab) to open a private advisory. It reaches
-the maintainer without ever becoming a public issue, and keeps
-discussion, a fix, and the disclosure timeline attached to one thread.
-
-**Alternative: email.**
-chris@embryonaut.ai. If you'd rather not use GitHub at all, use this
-instead; expect slower turnaround than the advisory form since it
-depends on the address actually being watched.
+form (under the Security tab) to start a private advisory. It is the
+reporting channel for this project. It reaches the maintainers without ever
+becoming a public issue, and keeps discussion, a fix, and the disclosure
+timeline attached to one thread.
 
 Please do not open a public issue for a suspected vulnerability.
 
@@ -84,6 +81,6 @@ means more than a bad refusal message:
 
 ## Supported versions
 
-Currently 1.0.2 per `lib/hecks/version.rb`: no parallel maintenance
+The version in `lib/hecks/version.rb` is the supported one: no parallel maintenance
 branches. Fixes land on the latest release; there is no commitment yet
 to backport a security fix to an older tag.

@@ -25,9 +25,9 @@ input, not the decision.
   (`lib/hecks/mcp_stdio_guard.rb:40-42,126-158`). `domain:` is confined to a boot root
   (`storehouse.rb:117-137`), and role-gated `dispatch` and `dry_run` refuse without a `role:`
   (`storehouse.rb:276`).
-- Caller-asserted: `role`, `actor_id` and `source` (`bin/hecks_mcp_door:20-29,109-121`), and the
+- Caller-asserted: `role`, `actor_id` and `source` (`lib/hecks/doors/mcp_door.rb:74-76,104-106,324-334`), and the
   audit log records those claims. Read tools (`state`, `events`, `history`, `follow`,
-  `describe`, `catalog`) take no role, and `bin/hecks_query_ir_mcp` has no identity at all.
+  `describe`, `catalog`) take no role, and `hecks corpus_run.serve_query_ir_mcp` has no identity at all.
 - Any stdin writer can run Ruby: `domain:` calls `Kernel.load` under the boot root, and
   `HECKS_STOREHOUSE_ROOT` widens that root (ADR 0062:24).
 - Identity reaches the grant check through `Hecks.as_caller(role:, actor_id:)`
