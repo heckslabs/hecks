@@ -16,7 +16,10 @@ module Hecks
       # `args` is the creation payload, used only to fill a composite identity's heads.
       # `hydrate: false` skips the default re-walk for an already-hydrated, validated state,
       # keeping a `list_of` entity's Nth save O(1) rather than O(N).
-      def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true)
+      # `hydrate_with:` replaces the default hydration with a callable that takes the given
+      # state and answers the hydrated one (defaults filled), for an adapter that can reuse
+      # work across saves.
+      def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true, hydrate_with: nil)
         @aggregate = aggregate
         @id        = id
         # Inside a persistence adapter call this refuses undecoded stored state.
@@ -24,7 +27,7 @@ module Hecks
         @state = if !hydrate
                    state || self.class.defaults(aggregate)
                  elsif state
-                   self.class.hydrate_with_defaults(aggregate, state)
+                   hydrate_with ? hydrate_with.call(state) : self.class.hydrate_with_defaults(aggregate, state)
                  else
                    self.class.defaults(aggregate)
                  end
