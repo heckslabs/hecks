@@ -29,6 +29,9 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
   end
 
   it "grants a person who was admitted already without admitting them again" do
+    # Boot first: the lazy runtime would otherwise load the chapters inside the Admin caller,
+    # and their own Declare commands are refused for the role they were not gated to.
+    runtime
     Hecks.as_caller(role: "Admin") do
       runtime.dispatch("Crew::Person.Admit", with: { email: { value: "ada@example.com" }, name: { value: "Ada L" } })
     end
