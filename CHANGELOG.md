@@ -9,6 +9,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **`hecks interview` drafts what a thing has and how it changes state.** The interview takes two more findings: a **field** a thing has, with the values it may take when the expert listed a closed set, and a **transition**, the state an action leaves a thing in and the state it had to be in before. An action also records the fields it takes and who does it. The draft writes a field as an attribute (optional unless the creating action takes it), a closed set as `one_of`, a command's inputs as its attributes with `sets`, and the transitions as a lifecycle that starts where the creating action leaves the thing. Who may do an action is written as a comment, not a `role`, because a role is checked only once the domain attaches Governance. The interviewer is also told when a thing is not yet said to have anything, or to change state.
 
+## [3.2.1] - 2026-10-05
+
+A patch on 3.2.0, which was tagged before the entries below landed. The deprecated `attaches` / `install_doors:` spellings warn that they are removed in 3.3.0 (previously 3.2.0); the 3.2.0 gem's warnings still say 3.2.0. Behavior is unchanged.
+
+**`AwsBox` refuses an origin secret that does not match the task definition's.** With a `task_definition`, only Caddy reads the named origin secret while the containers keep the task definition's copy, so a copy that differs made every request through the CDN fail and nothing said why. A world can now name the variables that hold it (`origin_env ["CLOUDFRONT_ORIGIN_SECRET"]`); `render-compose.sh` compares them with the named secret and refuses to render on any difference, or when no container sets a named variable, without printing a value. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**The era check takes its timeout from the caller.** `CheckEra.run`, the old argv entry nothing called, is removed, and `timeout:` is now required in the `ExpectedEra` helpers, so the command's declared default is the only one. ([#1013](https://github.com/heckslabs/hecks/pull/1013))
+
+**`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
+
 **`AwsBox` deploys no longer show a visitor a 502.** A request that arrives while a container is being replaced now waits and is retried every 250 ms for up to 15 seconds (`lb_try_duration` on each upstream), so a roll costs a slow page instead of an error; no second copy of the container, and no extra cost. On the live Lifeadelics box, recreating the website container answered 3 of 108 requests with a 502 before and none after. The roll also restarts the proxy when its Caddyfile changed: the Caddyfile is a bind-mounted file and the admin API is off, so without that a regenerated Caddyfile never took effect. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
@@ -27,21 +37,7 @@ commands, so `tools/list` stays as fast as before. A sandboxed door keeps the ca
 directory, so its first start after a change to the hecks code is cold (about half a minute): start
 it once before an agent needs it.
 
-**`AwsBox` refuses an origin secret that does not match the task definition's.** With a `task_definition`, only Caddy reads the named origin secret while the containers keep the task definition's copy, so a copy that differs made every request through the CDN fail and nothing said why. A world can now name the variables that hold it (`origin_env ["CLOUDFRONT_ORIGIN_SECRET"]`); `render-compose.sh` compares them with the named secret and refuses to render on any difference, or when no container sets a named variable, without printing a value. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
-
-**`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
-
-## [3.2.0] - 2026-10-05
-
-The deprecated `attaches` / `install_doors:` spellings now warn that they are removed in 3.3.0 (previously 3.2.0); behavior is unchanged.
-
-A minor: additive, nothing breaking, and no behavior change for a running system unless it opts in. A site that acts for a signed-in person can now name them: `@hecks/client` sends `actorId`, and the host's `/accounts/me` and `/members` carry each person's `identity_id`, so Governance's role assignments decide.
-
-**`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
-
-**`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
-
-**`@hecks/client` can send `actorId`.** `ClientOptions.actorId` (a default for every command), `Command.actorId` and a fifth `dispatch(verb, args, to, role, actorId)` argument send the body's `actor_id`, the Governance identity id of an identified caller. Leave `role` unset and Governance's role assignments decide; the host honors `actor_id` only on its internal protocol. The key is omitted when unset, so existing calls are unchanged.
+**The Rust host fills a declared default on an entity's command, nested entities included.** ([#1015](https://github.com/heckslabs/hecks/pull/1015))
 
 The Site chapter, after its first adoption by a client project. A route table written for 3.1.x generates the same
 `routes.ts` and the same template regions, apart from the one change under **Changed** (the `matchesPath` helper in the
@@ -77,6 +73,15 @@ module), unless it uses what is added below; the one new refusal is noted there 
 - **A public row beneath a route that is admin or signed must name its `cache`.** Such a row used to take the `page` class from
   its auth; a table that has one with no `cache:` is now refused, naming the prefix, and is fixed by writing the class it meant.
 - **An off row may now sit in a navigation**; it was refused before, so no existing table is affected.
+
+## [3.2.0] - 2026-10-05
+
+A minor: additive, nothing breaking, and no behavior change for a running system unless it opts in. A site that acts for a signed-in person can now name them: `@hecks/client` sends `actorId`, and the host's `/accounts/me` and `/members` carry each person's `identity_id`, so Governance's role assignments decide.
+
+**`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+**`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`@hecks/client` can send `actorId`.** `ClientOptions.actorId` (a default for every command), `Command.actorId` and a fifth `dispatch(verb, args, to, role, actorId)` argument send the body's `actor_id`, the Governance identity id of an identified caller. Leave `role` unset and Governance's role assignments decide; the host honors `actor_id` only on its internal protocol. The key is omitted when unset, so existing calls are unchanged.
 
 **The host's account routes carry each person's identity id.** `GET /accounts/me` now answers
 `{"email", "identity_id"}` and each row of `GET /members` gains a trailing `identity_id`, so a site or
