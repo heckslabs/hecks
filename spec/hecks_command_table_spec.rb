@@ -564,6 +564,9 @@ RSpec.describe "the Hecks command table through the launcher" do
     describe "its exit status", :io do
       require_relative "support/registry_repo"
 
+      # A package spelling names one journaled record, and a shared journal keeps it between
+      # examples and runs, so each example vendors a release number of its own.
+      let(:major)    { rand(1000..999_999) }
       let(:scratch)  { Dir.mktmpdir("vendor-status") }
       let(:registry) { RegistryRepo.new(File.join(scratch, "registry")) }
       let(:project)  { File.join(scratch, "project") }
@@ -582,32 +585,32 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "is 0 when the package was pinned" do
-        release("2.0.0")
+        release("#{major}.0.0")
 
-        expect(vendor("widgets").drop(1).first).to eq(0)
+        expect(vendor("widgets@#{major}.0.0").drop(1).first).to eq(0)
       end
 
       it "is 1 for a downgrade, with the reason, with or without --wait" do
-        release("3.0.0")
-        release("3.1.0", description: "Reworded.")
-        vendor("widgets@3.1.0")
+        release("#{major}.0.0")
+        release("#{major}.1.0", description: "Reworded.")
+        vendor("widgets@#{major}.1.0")
 
-        _out, status, reason = vendor("widgets@3.0.0")
+        _out, status, reason = vendor("widgets@#{major}.0.0")
         expect(status).to eq(1)
-        expect(reason).to include("widgets 3.1.0 is vendored; 3.0.0 is older")
+        expect(reason).to include("widgets #{major}.1.0 is vendored; #{major}.0.0 is older")
 
-        _out, status, reason = run_verb("package.revendor", "widgets@3.0.0", "from=#{registry.path}",
+        _out, status, reason = run_verb("package.revendor", "widgets@#{major}.0.0", "from=#{registry.path}",
                                         "root=#{project}", "--wait")
         expect(status).to eq(1)
-        expect(reason).to include("widgets 3.1.0 is vendored; 3.0.0 is older")
+        expect(reason).to include("widgets #{major}.1.0 is vendored; #{major}.0.0 is older")
       end
 
       it "is 1 for a shape change on a patch bump, with the reason" do
-        release("4.0.0")
-        release("4.0.1", extra_attribute: true)
-        vendor("widgets@4.0.0")
+        release("#{major}.0.0")
+        release("#{major}.0.1", extra_attribute: true)
+        vendor("widgets@#{major}.0.0")
 
-        _out, status, reason = vendor("widgets@4.0.1")
+        _out, status, reason = vendor("widgets@#{major}.0.1")
 
         expect(status).to eq(1)
         expect(reason).to include("changes the storage shape but is only a patch bump")
@@ -615,12 +618,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "is 1 for a package the source does not carry, with the reason" do
-        release("5.0.0")
+        release("#{major}.0.0")
 
-        _out, status, reason = vendor("gadgets")
+        _out, status, reason = vendor("gadgets_#{major}")
 
         expect(status).to eq(1)
-        expect(reason).to include("no gadgets-v* release tag")
+        expect(reason).to include("no gadgets_#{major}-v* release tag")
       end
 
       it "is 1 for a name that is not a plain name, with the reason" do
