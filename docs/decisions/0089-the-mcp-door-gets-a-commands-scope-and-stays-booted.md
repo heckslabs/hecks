@@ -22,6 +22,10 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
    - **Ref names** pass only as plain git refs: no leading dash, no `..` (`REF_ARGUMENTS`).
 
    Other names pass unchecked. A spec lists every argument name of every public command of the Hecks chapter and fails when one is in none of the three classes or a short list of names known to be plain data, so whoever adds an argument that reaches outside the checkout has to say so.
+6. **The door says how to call it, so a caller needs no manual.** Trials of a small model using the door with no usage text showed where it lost turns, and each is answered where the model reads it:
+   - **A door that serves one domain makes `domain:` optional** (not required in the schema, and filled in when left out). A caller that passed another domain, as one did for a model check on a different project, is still refused.
+   - **`dispatch` lists each allowed command in its description** with the role it declares, what it does, and its argument names, a `*` marking a required one, read from the booted domain, and says to pass that role as `role` and that `run` is a key the caller chooses.
+   - **`dispatch` answers the record as it stands once the reactions have run**, as the launcher's `--wait` does, instead of the record as the command left it. A run record that a reaction completes used to read as `requested`, so a caller had to know to read it back with `state`. This applies to every door, restricted or not.
 
 ## Consequences
 

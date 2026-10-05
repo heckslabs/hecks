@@ -299,8 +299,49 @@ RSpec.describe "the stdio MCP servers" do
       expect(tools).not_to have_key("behaviors")
       expect(properties["command"]["enum"]).to eq(["order.create_pizza"])
       expect(properties["steps"]["items"]["properties"]["command"]["enum"]).to eq(["order.create_pizza"])
-      expect(tools["dispatch"]["description"]).to include("dispatches only: order.create_pizza")
+      expect(tools["dispatch"]["description"])
+        .to include("order.create_pizza (role Chef): Put a new pizza on the menu", "Arguments: name*, pizza*",
+                    "pass that role as `role`")
       expect(run[:err]).to include("Commands mode (HECKS_DOOR_TOOLS=commands)", "identifies no one")
+    end
+
+    it "makes domain optional on a door that serves one domain, and fills it in" do
+      run = run_over_pipes(
+        door,
+        [{ jsonrpc: "2.0", id: 1, method: "tools/list" },
+         tool_call(2, "dispatch", { command: "order.create_pizza", summary: "spec", role: "Chef",
+                                    args: pizza_args("Margherita") }),
+         tool_call(3, "state", { aggregate: "Order", summary: "spec" }),
+         tool_call(4, "dispatch", { domain: "elsewhere", command: "order.create_pizza", summary: "spec",
+                                    role: "Chef", args: pizza_args("Margherita") })],
+        env: commands_env
+      )
+      results = results_of(run)
+      tools = results[1]["tools"].to_h { |tool| [tool["name"], tool] }
+
+      expect(tools["dispatch"]["inputSchema"]["required"]).not_to include("domain")
+      expect(tools["state"]["inputSchema"]["properties"]["domain"]["description"]).to include("Optional", domain)
+      expect(payload(results[2])["ok"]).to be true
+      expect(payload(results[3])["count"]).to eq(1)
+      expect(payload(results[4])["error"]).to include("is refused")
+    end
+
+    it "answers the record as it stands once the reactions have run, not as the command left it" do
+      root_domain = "lib/hecks/hecks"
+      env = { "HECKS_STOREHOUSE_ROOT" => root, "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => root_domain,
+              "HECKS_DOOR_COMMANDS" => "style_run.check_comments" }
+      key = "door-settled-#{Process.pid}"
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "dispatch", { command: "style_run.check_comments", summary: "spec",
+                                                         role: "Maintainer",
+                                                         args: { paths: "lib/hecks/cli", run: key } })],
+                             env: env
+                           ))
+      answer = payload(results[1])
+
+      expect(answer["ok"]).to be true
+      expect(answer["state"]["status"]).to eq("completed")
     end
 
     it "dispatches an allowed command by its qualified name" do
