@@ -719,9 +719,15 @@ not usable from this repository alone, for three reasons.
    `auth.rs` points at a `bin/grant_first_admin` script, but no such script
    exists in `bin/`. The first membership row has to be written some other
    way; the comments in `auth.rs` say membership lives in the era-managed
-   head tables and is written by the Ruby runtime, so the likely route is
-   the Ruby runtime dispatching the membership chapter's `Admit` and
-   `GrantAccess` against the same database. That was not tried.
+   head tables and is written by the Ruby runtime, so the route is the Ruby
+   runtime dispatching the membership chapter's `Admit` and `GrantAccess`
+   against the same database. `hecks operation.bootstrap_admin <domain>
+   email=<email> [name=<name>] [role=<role>]` does exactly that, once: it
+   reads the verbs from the chapter's `provides "membership"`, dispatches
+   them as a caller that names the role the grant is gated to and binds no
+   `actor_id` (the unidentified bootstrap caller below), and is refused,
+   with exit status 1 and the holder named, once anyone holds `Admin` or
+   `Owner`. Run it with the database the service uses (`DATABASE_URL`).
 
 Both routes carry the person's Governance identity id as `identity_id`, the
 value an `actor_id` binds when a caller dispatches on that person's behalf.

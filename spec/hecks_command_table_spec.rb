@@ -3,6 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "json"
 require "socket"
+require "securerandom"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
 # Custodian's Introspection, Operation, Host, Era, Package and Door (and the ModelCheck the table
@@ -24,7 +25,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.backfill_projections era.compact era.compact_heki era.approve_translation
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
-    package.pinning package.unpinned package.verify package.check package.release door.project_cli door.serve_mcp
+    package.pinning package.unpinned package.verify package.check package.release
+    operation.bootstrap_admin door.project_cli door.serve_mcp
     door.ended door.stopped build.project_rust build.build_wasm
     build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
@@ -521,6 +523,37 @@ RSpec.describe "the Hecks command table through the launcher" do
 
     it "takes winners as id:old,id:new and refuses a malformed list" do
       out, status = run_verb("era.merge_tail", @shelf, "run=merge-1", "winners=a1", "--confirm")
+
+      expect(status).to eq(1)
+      expect(out).to include("must match")
+    end
+  end
+
+  describe "operation.bootstrap_admin", :io do
+    require_relative "support/crew_domain"
+
+    let(:id)   { SecureRandom.hex(4) }
+    let(:crew) { CrewDomain.write(File.join(@dir, "crew-#{id}"), sqlite: File.join(@dir, "crew-#{id}.sqlite3")) }
+
+    it "admits and grants the first administrator, then exits 1 for a second" do
+      out, status = run_verb("operation.bootstrap_admin", crew, "email=ada@example.com", "name=Ada")
+      expect(status).to eq(0)
+      expect(JSON.parse(out).dig("state", "output", "value")).to eq("Granted Admin access to ada@example.com (admitted first)")
+
+      _out, status, reason = run_verb("operation.bootstrap_admin", crew, "email=grace@example.com")
+      expect(status).to eq(1)
+      expect(reason).to include("an administrator already exists (ada@example.com)")
+    end
+
+    it "exits 1 for a domain that provides no membership" do
+      _out, status, reason = run_verb("operation.bootstrap_admin", File.join(@dir, "clean"), "email=ada@example.com")
+
+      expect(status).to eq(1)
+      expect(reason).to include("provides \"membership\"")
+    end
+
+    it "exits 1 for an email that is not one, before booting anything" do
+      out, status = run_verb("operation.bootstrap_admin", crew, "email=ada")
 
       expect(status).to eq(1)
       expect(out).to include("must match")

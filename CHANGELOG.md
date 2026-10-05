@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**New: `hecks operation.bootstrap_admin` gives a domain its first administrator.** A domain whose chapter `provides "membership"`
+has nobody who may grant access until someone is granted it, and each project wrote a script for that one step. `hecks
+operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]` boots the domain, reads the admit, grant and
+people verbs the chapter declares, admits the person if they are not already, and grants them the role the grant command is gated
+to (or `role`). The dispatches run as a caller that names that role and binds no `actor_id`, the unidentified bootstrap caller
+Governance checks by the role it states (ADR 0025). Once anyone holds `Admin` (or the gating role) or `Owner` it is refused with
+exit status 1, naming the holder, and nothing changes. The domain's persistence must be the one the service uses, so run it with
+that `DATABASE_URL`; a Memory-bound domain forgets the grant when the command ends.
+
 **New: `hecks package.check` and `hecks package.release` run a bluebook registry's version rules and tag its releases.** In a
 registry repository (packages at `<name>/bluebook.yml`, tagged `<name>-vX.Y.Z`), `package.check` fails, with exit status 1 and one
 `FAIL` line per package, when a package's `*.bluebook` files changed since its latest release without a newer version and a

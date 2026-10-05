@@ -43,6 +43,12 @@ Hecks.hecksagon "Hecks" do
       refuses "OperationRefused"
     end
 
+    asks "Bootstrap", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
     answers_query "Follow"
   end
 

@@ -238,6 +238,9 @@ Hecks.bluebook "Hecks" do
     attribute :payload_file, PayloadFile, optional: true
     attribute :health_path,  RoutePath,  optional: true
     attribute :state_path,   RoutePath,  optional: true
+    attribute :email,        Email,      optional: true
+    attribute :name,         PersonName, optional: true
+    attribute :role,         RoleName,   optional: true
     attribute :output,       Output,     optional: true
     attribute :refusal,      Output,     optional: true
     identified_by :run
@@ -292,6 +295,19 @@ Hecks.bluebook "Hecks" do
 
     value_object "Output" do
       attribute :value, String
+    end
+
+    # Who the first administrator is: a person of the domain's membership chapter.
+    value_object "Email" do
+      attribute :value, String, pattern: '^[^ \t\n\r@]+@[^ \t\n\r@]+$'
+    end
+
+    value_object "PersonName" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "RoleName" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
     end
 
     lifecycle :status, default: "requested" do
@@ -404,6 +420,32 @@ Hecks.bluebook "Hecks" do
       emits SmokeHttpRequested
     end
 
+    # `hecks operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]`. A
+    # domain whose chapter `provides "membership"` has nobody who may grant access until someone is
+    # granted it. This admits the person and grants them the role the grant command is gated to
+    # (or `role`), as a caller that names that role and binds no `actor_id`: Governance checks that
+    # caller by the role it states, which is how the first grant gets made (ADR 0025). It is
+    # refused once anyone holds the administrator role (`Admin`, or `Owner`), and the domain's
+    # persistence must be the one the service runs on (`DATABASE_URL`), not Memory.
+    command "BootstrapAdmin" do
+      role "Operator"
+      goal "Admit the first administrator of a domain's membership chapter and grant them access"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+      attribute :email,   Email
+      attribute :name,    PersonName, optional: true
+      attribute :role,    RoleName,   optional: true
+
+      sets :run
+      sets :subject
+      sets :email
+      sets :name
+      sets :role
+
+      emits AdminBootstrapRequested
+    end
+
     command "Succeed" do
       role "System"
       goal "Record that the operation ended well, and what it reported"
@@ -492,6 +534,11 @@ Hecks.bluebook "Hecks" do
   policy "SmokeWhenRequested" do
     on      "Operation.SmokeTestRequested"
     trigger Operation::DomainRuntime::Smoke, with: { run: :run }
+  end
+
+  policy "BootstrapWhenRequested" do
+    on      "Operation.AdminBootstrapRequested"
+    trigger Operation::DomainRuntime::Bootstrap, with: { run: :run }
   end
 
   policy "OpenWhenRequested" do
