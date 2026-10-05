@@ -1,0 +1,37 @@
+name: Require a result
+description: >-
+  The body of a required-check wrapper job in ci.yml: it runs only to fail. A wrapper keeps a
+  required status-check name while the work lives in a reusable workflow, and it runs when that
+  workflow's result is not one it tolerates, so this step reports the result and exits 1. It never
+  passes: the job's own `if:` decides when it runs at all, and a skipped wrapper would count as
+  green for the ruleset.
+inputs:
+  job:
+    description: The name of the job whose result is reported, such as rspec_impl.
+    required: true
+  result:
+    description: That job's `needs.<job>.result`.
+    required: true
+  skip-expected:
+    description: >-
+      Whether a skip is expected on this event (`true` or `false`). Left out, the message says the
+      call is never expected to skip.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Report the result and fail
+      shell: bash
+      env:
+        JOB: ${{ inputs.job }}
+        RESULT: ${{ inputs.result }}
+        SKIP_EXPECTED: ${{ inputs.skip-expected }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        if [ -n "$SKIP_EXPECTED" ]; then
+          echo "$JOB: $RESULT (a skip is expected on $EVENT_NAME here: $SKIP_EXPECTED)" >&2
+        else
+          echo "$JOB: $RESULT (this call is never expected to skip)" >&2
+        fi
+        exit 1
