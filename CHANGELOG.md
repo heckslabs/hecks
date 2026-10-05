@@ -7,6 +7,29 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-10-05
+
+A patch: nothing breaking, and no behavior change for a running system. It puts the pizzas example in
+the gem, so `hecks console` works after a plain `gem install hecks`.
+
+**The gem ships the pizzas example.** `hecks console` opens `examples/pizzas` when given no domain, and
+the gem shipped no examples, so a plain install failed with a `LoadError`. The gem now carries
+`examples/pizzas` (eight small files, without its glossary), and the README quickstart and the
+getting-started guide start from `gem install hecks`. `hecks init` and `hecks interview` already worked
+from the gem.
+
+**`hecks` help hides the internal commands.** The 3.1.2 entry above describes this change, but it landed
+after 3.1.2 was tagged, so it first ships here: the default help leaves out the bookkeeping each
+journaled run dispatches for itself, ends with a line saying how many were left out, and `hecks --all`
+lists them.
+
+**An agent can run under a profile.** `Agent#ask` takes an optional `AgentProfile`: a run under the macOS
+sandbox with credential reads refused, writes limited to the named directories, the network shut unless
+opened, only the named environment variables passed on, and a timeout that kills the agent's whole
+process group. A profile can confine by the sandbox or by `claude`'s own permission rules, which keeps a
+`claude` login working. `hecks quality_control mine_combinations --confine` runs the default agent this
+way. Asks without a profile behave as before.
+
 ## [3.1.2] - 2026-10-04
 
 A patch: nothing breaking. It fixes a second 3.1.0 regression: a lifecycle `transition` with no `from:` was read as "only from the empty state", so a command that creates its aggregate, whose lifecycle starts at a default, was refused. 3.1.1 fixed Boolean attributes; this release fixes that one. Skip 3.1.0 and 3.1.1 if a domain builds Rust from a bluebook.
