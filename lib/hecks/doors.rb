@@ -1,23 +1,6 @@
 module Hecks
   # The class-free public surface, installed per boot by `Runtime::Loader.bind_runtime`.
   module Doors
-    # The removal release of the `Facade` and `install_facade:` spellings.
-    REMOVAL = "3.4.0".freeze
-
-    module_function
-
-    # Resolves the boot switch from the current keyword and its deprecated spelling.
-    #
-    # @param install_doors [Boolean] the `install_doors:` keyword
-    # @param install_facade [Boolean, nil] the deprecated `install_facade:` keyword; nil when
-    #   the caller did not pass it
-    # @return [Boolean] whether to install the Ruby door constants
-    def install?(install_doors, install_facade = nil)
-      return install_doors if install_facade.nil?
-
-      warn "[hecks] `install_facade:` is deprecated and is removed in #{REMOVAL}; use `install_doors:`"
-      install_facade
-    end
   end
 
   # Installs facade constants at top level, replacing only what it installed itself.

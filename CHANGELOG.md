@@ -7,6 +7,22 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Removed (3.4.0): the five spellings 3.3.0 warned about.** The removal was promised in 3.3.0 and in #1012; each now fails
+instead of warning. Replace them before upgrading a pin past 3.3.x (the table is in `docs/migrating-2-to-3.md`):
+
+| Removed | Use instead |
+|---|---|
+| `uses_framework "X"` | `attaches "X"` |
+| `uses_embryonaut_bluebook "x"` | `attaches "x", from: :vendor` |
+| `Hecks::Facade` | `Hecks::Doors` |
+| `Hecks::Doors::Surface` | `Hecks::Doors::RubyDoor` |
+| `install_facade:` on `boot`, `boot_files`, `boot_described` | `install_doors:` |
+
+A hecksagon that still writes either word is refused by name, by Ruby and by the Rust parser alike: ``uses_framework was
+removed in 3.4.0; use `attaches "Name"` ``, rather than being read as a stray default bind. The two words are gone from the
+Hecksagon language table, so `hecks language_run.project_reference` no longer documents them. The other three raise `NameError`
+and `ArgumentError`.
+
 ## [3.3.0] - 2026-10-05
 
 A minor with one `Behavior change` entry: `hecks package.vendor` and `package.revendor` now exit 1 when a package is refused, which can break a script that ignored the status; read it before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework`, `uses_embryonaut_bluebook` and the `attaches` / `install_doors:` spellings still work and now warn that they are removed in 3.4.0 (previously 3.3.0 or 3.2.0).

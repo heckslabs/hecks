@@ -624,3 +624,23 @@ fn a_query_refuses_the_same_fact_twice() {
     assert_eq!(code, Some(1));
     assert!(stderr.contains("twice"), "got: {stderr}");
 }
+
+#[test]
+fn a_removed_attach_spelling_is_refused_naming_its_replacement() {
+    let bluebook = fixture("translates.bluebook");
+    let hecksagon = fixture("removed_attach_word.hecksagon");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureTranslates",
+        bluebook.to_str().unwrap(),
+        hecksagon.to_str().unwrap(),
+    ]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(!output.status.success(), "a removed word must not parse");
+    assert!(
+        stderr.contains("`uses_framework` was removed in 3.4.0; use `attaches \"Name\"`"),
+        "expected the refusal to name the replacement, got: {stderr}"
+    );
+}

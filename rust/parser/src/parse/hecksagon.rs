@@ -14,9 +14,8 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// Applies a `.hecksagon` body onto an already-built `ir::Bluebook`, attaching
 /// aggregate-scoped ports to the aggregates the sibling `.bluebook` registered.
 ///
-/// `gem_chapter_names` collects each `attaches "Name"` (and the deprecated `uses_framework`) and
-/// `vendored_bluebook_names` each `attaches "name", from: :vendor` (and the deprecated
-/// `uses_embryonaut_bluebook`), in file order, for `hecks-parse resolve`; `ir.json` itself
+/// `gem_chapter_names` collects each `attaches "Name"` and
+/// `vendored_bluebook_names` each `attaches "name", from: :vendor`, in file order, for `hecks-parse resolve`; `ir.json` itself
 /// carries neither.
 ///
 /// `require_matching_aggregate` is `false` for resolve, which never sees a `.bluebook`, so an
@@ -65,8 +64,20 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "attaches" | "translates" | "bounded" | "end"
+                "port" | "subscribe" | "attaches" | "translates" | "bounded" | "end"
             ) {
+                let instead = match call.word.as_str() {
+                    "uses_framework" => Some("attaches \"Name\""),
+                    "uses_embryonaut_bluebook" => Some("attaches \"name\", from: :vendor"),
+                    _ => None,
+                };
+                if let Some(instead) = instead {
+                    return Err(Diagnostic::new(
+                        file,
+                        line.number,
+                        format!("`{}` was removed in 3.4.0; use `{instead}`", call.word),
+                    ));
+                }
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
                     skip_dropped_body(file, lines, pos)?;
@@ -97,26 +108,6 @@ pub fn apply(
                     )?;
                     let built = policy::parse_body(file, lines, pos, &name)?;
                     bluebook.policies.push(built);
-                }
-                // Deprecated spelling of `attaches "Name"`; gated, then collected.
-                "uses_framework" => {
-                    gem_chapter_names.push(super::positional_text(
-                        file,
-                        gated.line.number,
-                        "uses_framework",
-                        &gated.args,
-                        1,
-                    )?);
-                }
-                // Deprecated spelling of `attaches "name", from: :vendor`; collected the same way.
-                "uses_embryonaut_bluebook" => {
-                    vendored_bluebook_names.push(super::positional_text(
-                        file,
-                        gated.line.number,
-                        "uses_embryonaut_bluebook",
-                        &gated.args,
-                        1,
-                    )?);
                 }
                 "subscribe" => {}
                 // One word for a chapter the gem carries and for a vendored package; a binding

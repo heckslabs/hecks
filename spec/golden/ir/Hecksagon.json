@@ -1922,66 +1922,6 @@
             [
               [
                 "word",
-                "uses_framework"
-              ],
-              [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "attachments"
-              ],
-              [
-                "status",
-                "deprecated"
-              ]
-            ],
-            [
-              [
-                "word",
-                "uses_embryonaut_bluebook"
-              ],
-              [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "attachments"
-              ],
-              [
-                "status",
-                "deprecated"
-              ]
-            ],
-            [
-              [
-                "word",
                 "port"
               ],
               [
@@ -2340,66 +2280,6 @@
               [
                 "fills",
                 "source"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "uses_framework"
-              ],
-              [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "at",
-                1
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                true
-              ],
-              [
-                "fills",
-                "attachments"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "uses_embryonaut_bluebook"
-              ],
-              [
-                "context",
-                "Hecksagon"
-              ],
-              [
-                "at",
-                1
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                true
-              ],
-              [
-                "fills",
-                "attachments"
               ]
             ],
             [

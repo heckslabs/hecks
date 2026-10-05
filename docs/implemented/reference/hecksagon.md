@@ -147,38 +147,6 @@ Hecks.hecksagon("Widgets") { attaches "payments", from: :vendor }  # ~> WiringEr
 
 The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::Chapters.load!("QualityControl")` and binds it to its own PostgresEra database.
 
-## uses_framework
-
-<!-- generated:begin word=uses_framework -->
-`uses_framework attachments` — fills `attachments`, **status: deprecated**
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | attachments |
-<!-- generated:end -->
-
-The deprecated spelling of `attaches "Name"` for a framework member. It behaves as before and prints a one-line warning; it is removed in 3.4.0.
-
-```ruby
-Hecks.with_registry(runtime.registry) { Hecks.hecksagon("Legacy") { uses_framework "Governance" } }  # warns: use `attaches "Governance"`
-```
-
-## uses_embryonaut_bluebook
-
-<!-- generated:begin word=uses_embryonaut_bluebook -->
-`uses_embryonaut_bluebook attachments` — fills `attachments`, **status: deprecated**
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | attachments |
-<!-- generated:end -->
-
-The deprecated spelling of `attaches "name", from: :vendor`. It behaves as before and prints a one-line warning; it is removed in 3.4.0.
-
-```ruby
-Hecks.hecksagon("Legacy") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
-```
-
 ### Vendoring a package
 
 One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:

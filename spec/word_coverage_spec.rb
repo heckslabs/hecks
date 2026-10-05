@@ -83,13 +83,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # Same shape as plurality_coverage_spec.rb's ALLOWED_SINGLETON: each
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
-  # The deprecated spellings of `attaches` warn on every use, so no corpus member declares them;
-  # spec/hecksagon_attaches_spec.rb runs both.
-  DEPRECATED_SPELLINGS = {
-    "uses_framework (Hecksagon)"           => "the deprecated spelling of `attaches`",
-    "uses_embryonaut_bluebook (Hecksagon)" => "the deprecated spelling of `attaches ... from: :vendor`"
-  }.freeze
-
   EXEMPT = {
     "cursor (Query)"                    =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
@@ -188,7 +181,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                    .reject { |word, _context, _prose| corpus_uses?(word) }
                                    .map { |word, context, _prose| Hecks::Doc::Reference.name_of(word, context) }
 
-    unnamed = missing - EXEMPT.keys - DEPRECATED_SPELLINGS.keys
+    unnamed = missing - EXEMPT.keys
 
     expect(unnamed).to be_empty, <<~WHY
       These live words carry no real corpus declaration — only doctest
@@ -212,7 +205,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # `.port` coverage of Port's own words doesn't collide with these.
     PORT_FILE_ONLY_CONTEXTS = %w[DomainPort PortOperation].freeze
 
-    stale = (EXEMPT.keys + DEPRECATED_SPELLINGS.keys).select do |name|
+    stale = EXEMPT.keys.select do |name|
       word, context = name.match(/\A(.+) \((.+)\)\z/)&.captures
       word && corpus_uses?(word, exclude_extension: PORT_FILE_ONLY_CONTEXTS.include?(context) ? ".port" : nil)
     end
