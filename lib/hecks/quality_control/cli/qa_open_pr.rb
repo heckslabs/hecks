@@ -202,8 +202,9 @@ module Hecks
 
       # Counts the PR just recorded against the day, opening the day's record on its first.
       def take_daily_slot
-        ::QualityControl::DailyQuota.open! unless todays_quota
-        ::QualityControl::DailyQuota.take!(today: todays_quota[:today], cap: { value: dial(:PR_CAP_PER_DAY, 0) })
+        row = todays_quota
+        quota = row ? ::QualityControl::DailyQuota.find(row[:today][:value]) : ::QualityControl::DailyQuota.open!
+        quota.take!(cap: { value: dial(:PR_CAP_PER_DAY, 0) })
       end
 
       def check_ancestry
