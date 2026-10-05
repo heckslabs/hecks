@@ -14,6 +14,10 @@ by itself, but every cookie already minted stops working and must be minted agai
 in `docs/running-a-rules-service.md` section 7.2 now includes it. The lifetime `session_cookie` stamps is
 `auth::SESSION_TTL_SECS` (14 days), the same constant the account cookie uses.
 
+## [3.4.0] - 2026-10-05
+
+A minor that removes the five spellings 3.3.0 warned about (`uses_framework`, `uses_embryonaut_bluebook`, `Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:`), the removal that 3.3.0's warnings named. Using one now fails with a message naming its replacement, so a project must migrate before it moves its pin past 3.3.x: the table is in [`docs/migrating-2-to-3.md`](docs/migrating-2-to-3.md), and the `Removed (3.4.0)` entry below says what each one becomes. Deploys pin exactly (`docs/1.0-readiness.md`, "What a release number promises"), so a running system stays on 3.3.x until it is migrated.
+
 **Removed (3.4.0): the five spellings 3.3.0 warned about.** The removal was promised in 3.3.0 and in #1012; each now fails
 instead of warning. Replace them before upgrading a pin past 3.3.x (the table is in `docs/migrating-2-to-3.md`):
 
@@ -29,6 +33,8 @@ A hecksagon that still writes either word is refused by name, by Ruby and by the
 removed in 3.4.0; use `attaches "Name"` ``, rather than being read as a stray default bind. The two words are gone from the
 Hecksagon language table, so `hecks language_run.project_reference` no longer documents them. The other three raise `NameError`
 and `ArgumentError`.
+
+**Fix: a drafted bluebook no longer fails to boot when an action was accepted more than once.** An expert who refines an answer over several exchanges gets the same action accepted again, and the draft wrote one `command` block each, which the runtime refuses ("Declare creates a Command that already exists"). The draft now writes each action once: the first acceptance's event stays, what the acceptances take and who does it are joined, and it creates if any acceptance said so. A thing accepted twice becomes one aggregate.
 
 ## [3.3.0] - 2026-10-05
 
@@ -123,8 +129,6 @@ the bare word, `name=` takes the rest, a switch is `--name`. A form can no longe
 command dropped. Without `--confirm` the verb only compares, and CI runs it. `Hecks::ThreeZero::FORMS`
 and `lib/hecks/three_zero/forms.yml` are gone; `Hecks::Tools::ToolsDoc.forms` answers the same table,
 rendered. The ADR command-table spec reads the rows instead of its own copy of them.
-
-**Fix: a drafted bluebook no longer fails to boot when an action was accepted more than once.** An expert who refines an answer over several exchanges gets the same action accepted again, and the draft wrote one `command` block each, which the runtime refuses ("Declare creates a Command that already exists"). The draft now writes each action once: the first acceptance's event stays, what the acceptances take and who does it are joined, and it creates if any acceptance said so. A thing accepted twice becomes one aggregate.
 
 ## [3.2.1] - 2026-10-05
 
