@@ -266,15 +266,16 @@ module Hecks
             [check(:origin_header, header, HEADER), check(:origin_secret, secret, SECRET_NAME)]
           end
 
-          # The container environment variables that hold the origin secret in the task definition. Only
-          # Caddy reads the named secret; the containers keep the task definition's copy, so a copy that
-          # differs makes every request through the CDN fail. Naming them lets deploy refuse a mismatch.
+          # The container environment variables that hold the origin secret in the task
+          # definition. Only Caddy reads the named secret; the containers keep the task
+          # definition's copy, so a copy that differs makes every request through the CDN
+          # fail. Naming them lets deploy refuse a mismatch.
           #
           # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
           # @param secret [String, nil] the declared origin secret
           # @param task_definition [String, nil] the declared task definition family
           # @return [Array<String>] the variable names, empty when none are declared
-          # @raise [ArgumentError] when they are named without an origin secret and a task definition
+          # @raise [ArgumentError] when named without an origin secret and a task definition
           def read_origin_env(settings, secret, task_definition)
             names = Array(settings.fetch(:origin_env, []))
             return [] if names.empty?
