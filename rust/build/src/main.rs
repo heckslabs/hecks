@@ -4,6 +4,10 @@
 
 mod build_artifact;
 mod cargo_sync;
+// The one JSON implementation, compiled from `hecks-codegen`'s own source: neither crate depends on
+// the other, and a packaged workspace ships both side by side. This crate reads only part of it.
+#[allow(dead_code)]
+#[path = "../../codegen/src/json.rs"]
 mod json;
 mod lineage_pass;
 mod pipeline;
