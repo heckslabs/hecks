@@ -148,19 +148,14 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
         .to raise_error(Hecks::Runtime::WiringError, /`from:` takes only :vendor/)
     end
 
-    it "keeps uses_framework as a deprecated alias that warns and attaches" do
-      registry = nil
-      expect { registry = registry_with { Hecks.hecksagon("Hexed") { uses_framework "Governance" } } }
-        .to output(/`uses_framework` is deprecated and is removed in 3\.4\.0; use `attaches "Governance"`/).to_stderr
-
-      expect(registry.hecksagon("Hexed").attachments.map(&:to_h)).to eq([{ name: "Governance", source: "gem" }])
-      expect(registry.bounded?("Governance")).to be true
-    end
-
-    it "keeps uses_embryonaut_bluebook as a deprecated alias that warns and vendors" do
-      expect { registry_with { Hecks.hecksagon("Hexed") { uses_embryonaut_bluebook "payments" } } }
-        .to output(/`uses_embryonaut_bluebook` is deprecated.*use `attaches "payments", from: :vendor`/)
-        .to_stderr.and raise_error(Hecks::Runtime::WiringError, /needs a registry with a root/)
+    {
+      "uses_framework"           => ['uses_framework "Governance"', 'attaches "Governance"'],
+      "uses_embryonaut_bluebook" => ['uses_embryonaut_bluebook "payments"', 'attaches "payments", from: :vendor']
+    }.each do |word, (call, instead)|
+      it "refuses #{word}, removed in 3.4.0, naming #{instead}" do
+        expect { registry_with { Hecks.hecksagon("Hexed") { instance_eval(call) } } }
+          .to raise_error(Hecks::Bluebook::DSL::Malformed, /`#{word}` was removed in 3\.4\.0; use `#{Regexp.escape(instead)}`/)
+      end
     end
 
     it "merges two hecksagon blocks' attachments without repeating one" do

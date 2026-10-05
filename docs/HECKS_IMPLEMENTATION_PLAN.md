@@ -640,7 +640,7 @@ end
 `Identity` on 2026-08-08, matching Governance's own singular naming —
 the aggregate inside is ALSO named `Identity`, so its FQN is the
 slightly repetitive but unambiguous `Identity::Identity`). Attached to
-Banking for real via `uses_framework "Identity"` in
+Banking for real via `attaches "Identity"` in
 `examples/banking/bluebook/banking.hecksagon`, the same mechanism
 Governance uses — see `§31`'s own note on `Hecks::Framework`.
 `Identity` (identity_id minted via `§5`'s
@@ -1259,7 +1259,7 @@ dispatch against `Identity::ExternalIdentifier.ResolvedBy`, mirroring
 composes it with `Ports::Authorization.holds_role?` and `Hecks.as_caller`
 — the plan's own sketch, just spelled out — booted through the real
 `Hecks.boot("examples/banking")` path (both Governance and Identity are
-already attached there via `uses_framework`, see `§4`/`§5`'s own notes).
+already attached there via `attaches`, see `§4`/`§5`'s own notes).
 Every acceptance criterion below is proven, not merely asserted: no
 password field exists on `Identity`/`ExternalIdentifier` (checked
 against the real declared attributes), `(issuer, subject)` uniquely

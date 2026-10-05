@@ -92,9 +92,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `port` is covered by `port_impl`. `translates` has no `_impl` split — Ruby's
       # own method lookup finds it directly — and is tested in spec/hecksagon_translates_spec.rb.
       # `attaches` is tested in spec/hecksagon_attaches_spec.rb.
-      # `uses_framework` and `uses_embryonaut_bluebook` are the deprecated spellings of `attaches`;
-      # both are tested in spec/hecksagon_attaches_spec.rb.
-      %i[binds subscribe subscriptions port_impl uses_framework uses_embryonaut_bluebook attaches
+      %i[binds subscribe subscriptions port_impl attaches
          attachments translates bounded method_missing]
     ],
     "TranslationBuilder"          => [

@@ -1,0 +1,4 @@
+# `uses_framework` was removed in 3.4.0; the parser refuses it and names `attaches`.
+Hecks.hecksagon "FixtureTranslates" do
+  uses_framework "Governance"
+end
