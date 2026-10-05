@@ -1,3 +1,5 @@
+require_relative "hosting_settings"
+
 module Hecks
   module Projections
     module Deploy
@@ -47,7 +49,9 @@ module Hecks
           # @!attribute [r] env [Hash{String => String}] plain environment variables
           # @!attribute [r] secrets [Hash{String => String}] environment variable => secret name,
           #   resolved on the box at deploy time and never written into a template
-          Container = Struct.new(:name, :repository, :port, :env, :secrets, keyword_init: true)
+          # @!attribute [r] tag_parameter [String] the stack parameter that holds this container's
+          #   image tag, which a hosting `deploy-service.sh` sets
+          Container = Struct.new(:name, :repository, :port, :env, :secrets, :tag_parameter, keyword_init: true)
 
           # A set of URL paths one container serves.
           #
@@ -82,7 +86,7 @@ module Hecks
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
             :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image, :task_definition,
-            :migration, :s3_buckets, keyword_init: true
+            :migration, :s3_buckets, :hosting, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
             def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
@@ -126,7 +130,8 @@ module Hecks
               tunnel: tunnel, tunnel_service: tunnel_service,
               proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
               task_definition: task_definition, migration: read_migration(s[:migration], database_name),
-              s3_buckets: read_s3_access(s.fetch(:s3_access, []))
+              s3_buckets: read_s3_access(s.fetch(:s3_access, [])),
+              hosting: HostingSettings.read(s, task_definition)
             )
           end
 
@@ -224,8 +229,16 @@ module Hecks
               name: name, repository: check(:repository, spec.fetch(:repository, "#{infra_name}-#{name}"), REPOSITORY),
               port: integer(:port, spec.fetch(:port) { raise ArgumentError, "containers: #{name} has no port" }, 1, 65_535),
               env: string_map(:env, spec.fetch(:env, {}), ENV_KEY, ENV_VALUE),
-              secrets: string_map(:secrets, spec.fetch(:secrets, {}), ENV_KEY, SECRET_NAME)
+              secrets: string_map(:secrets, spec.fetch(:secrets, {}), ENV_KEY, SECRET_NAME),
+              tag_parameter: check(:tag_parameter, spec.fetch(:tag_parameter, default_tag_parameter(name)),
+                                   HostingSettings::PARAMETER)
             )
+          end
+
+          # @param name [String] a container name such as `web-app`
+          # @return [String] the image-tag parameter a stack names it by, such as `WebAppImageTag`
+          def default_tag_parameter(name)
+            "#{name.split('-').map(&:capitalize).join}ImageTag"
           end
 
           def read_routes(list, containers)

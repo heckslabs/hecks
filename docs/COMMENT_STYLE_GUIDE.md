@@ -1,10 +1,10 @@
 # Comment style guide
 
 The standard for comments in this repository's Ruby: `lib/`, `spec/`
-and `examples/`. `hecks check_comments` checks the parts of it a machine
+and `examples/`. `hecks style_run.check_comments` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 
-CI runs `hecks check_comments paths=lib/hecks` as a gate, so a comment that breaks a
+CI runs `hecks style_run.check_comments paths=lib/hecks` as a gate, so a comment that breaks a
 rule the linter checks fails the build. The parts of this guide the linter cannot check are
 still the reviewer's.
 
@@ -185,18 +185,18 @@ block to its length:
   and rewrite the baseline in the same change, or keep the line.
 
 Rewrite the baseline over the gated tree with
-`hecks write_comment_baseline --confirm`, and commit the result. A trimmed
+`hecks style_run.write_comment_baseline --confirm`, and commit the result. A trimmed
 block should leave the file. A block that must be longer is a deliberate baseline change,
 which the diff shows to the reviewer.
 
 ## Checking a tree
 
 ```
-hecks report_comments paths=lib/hecks             # summary tables
-hecks check_comments paths=lib/hecks              # one line per violation
-hecks fix_comments paths=lib/hecks --confirm      # all_caps and long_line only
-hecks write_comment_baseline --confirm            # rewrite the long-block baseline
-hecks check_comments_unchanged ref=main           # prove an edit was comment-only
+hecks style_run.report_comments paths=lib/hecks             # summary tables
+hecks style_run.check_comments paths=lib/hecks              # one line per violation
+hecks style_run.fix_comments paths=lib/hecks --confirm      # all_caps and long_line only
+hecks style_run.write_comment_baseline --confirm            # rewrite the long-block baseline
+hecks style_run.check_comments_unchanged ref=main           # prove an edit was comment-only
 ```
 
 `--fix` rewrites only the two mechanical categories. Do not run it over doc
@@ -206,4 +206,4 @@ non-comment tokens with `REF` and fails if any differ, which is how a
 comment-only change is shown to be one.
 
 Whether documented behaviour is backed by a running example is a separate
-concern with its own gate: see `hecks measure_doc_coverage`.
+concern with its own gate: see `hecks conformance_run.measure_doc_coverage`.

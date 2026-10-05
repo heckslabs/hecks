@@ -64,7 +64,7 @@ RSpec.describe "qa_sweep coverage corpus persistence", :io do
   end
 
   # `qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
-  # domain (e.g. `lifeadelics/lifeadelics`); `coverage_corpus_path` folds that `/` into a filename,
+  # domain (e.g. `shop/shop`); `coverage_corpus_path` folds that `/` into a filename,
   # and `FileUtils.mkdir_p(@corpus_dir)` never creates a matching subdirectory for it, so the
   # filename component is sanitized before the write runs. The reference itself keeps its `/` in
   # the ledger — only the filename derived from it changes.

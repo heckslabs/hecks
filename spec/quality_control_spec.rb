@@ -526,7 +526,7 @@ RSpec.describe "QualityControl" do
   describe "the fix" do
     def investigated
       bug = a_bug(a_sweep)
-      bug.investigate!(site:  { value: "lib/hecksagain/bluebook/dsl/query_builder.rb:88" },
+      bug.investigate!(site:  { value: "lib/hecks/bluebook/dsl/query_builder.rb:88" },
                        cause: { value: "the alias is parsed and then dropped before the IR is built" })
     end
 
@@ -676,7 +676,7 @@ RSpec.describe "QualityControl" do
     def raise_ticket(bug, reference: "TK-1")
       QualityControl::Ticket.raise!(
         bug: bug.id, reference: { value: reference },
-        repository: { value: "chrisyoung/hecksagain" },
+        repository: { value: "acme/widgets" },
         title: { value: "as: is accepted and does not alias" },
         body: { value: "see the demonstration" }
       )
@@ -687,7 +687,7 @@ RSpec.describe "QualityControl" do
       bug = a_paused_bug
       raise_ticket(bug)
       QualityControl::Ticket.raise!(
-        bug: bug.id, reference: { value: "TK-2" }, repository: { value: "chrisyoung/hecksagain" },
+        bug: bug.id, reference: { value: "TK-2" }, repository: { value: "acme/widgets" },
         title: { value: "unsent" }, body: { value: "never submitted" }
       )
       runtime.dispatch_flat("QualityControl::Ticket.Abandon", id: "TK-2")
@@ -701,7 +701,7 @@ RSpec.describe "QualityControl" do
       expect do
         QualityControl::Ticket.raise!(
           bug: "BUG#nope", reference: { value: "TK-9" },
-          repository: { value: "chrisyoung/hecksagain" },
+          repository: { value: "acme/widgets" },
           title: { value: "x" }, body: { value: "y" }
         )
       end.to raise_error(Hecks::Runtime::NotFound)
@@ -738,7 +738,7 @@ RSpec.describe "QualityControl" do
 
       QualityControl::Ticket.raise!(
         bug: bug.id, reference: { value: "TK-1" },
-        repository: { value: "chrisyoung/hecksagain" },
+        repository: { value: "acme/widgets" },
         title: { value: "x" }, body: { value: "y" }
       )
       runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
@@ -1264,7 +1264,7 @@ RSpec.describe "QualityControl" do
     end
 
     it "corrects a stale path and leaves status untouched" do
-      target = a_target("banking", "../../../../embryonaut_platform/.claude/worktrees/gone/bluebook")
+      target = a_target("banking", "../../../../other_repo/.claude/worktrees/gone/bluebook")
 
       relocated = target.relocate!(path: { value: "examples/banking" })
 
