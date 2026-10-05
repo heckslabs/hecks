@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A clean `model_check` run now records how many domains it examined.** `ModelCheckRun` keeps a `checked` count beside the `report`, counted by the adapter from the report's domain headers, so an agent behind the MCP door reads a number instead of counting lines of a long report (three runs of the same check once gave 80, 58 and 69).
+
 ## [3.4.0] - 2026-10-05
 
 A minor that removes the five spellings 3.3.0 warned about (`uses_framework`, `uses_embryonaut_bluebook`, `Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:`), the removal that 3.3.0's warnings named. Using one now fails with a message naming its replacement, so a project must migrate before it moves its pin past 3.3.x: the table is in [`docs/migrating-2-to-3.md`](docs/migrating-2-to-3.md), and the `Removed (3.4.0)` entry below says what each one becomes. Deploys pin exactly (`docs/1.0-readiness.md`, "What a release number promises"), so a running system stays on 3.3.x until it is migrated.
