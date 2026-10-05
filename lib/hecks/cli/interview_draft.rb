@@ -1,5 +1,6 @@
 require_relative "../naming"
 require_relative "domain_stub"
+require_relative "interview_shape"
 
 module Hecks
   module CLI
@@ -20,7 +21,11 @@ module Hecks
 
       # What stands in for a creating command nothing in the interview named.
       STUB_NOTE = "    # TODO: no action that creates was accepted; replace Create with the real one.".freeze
-      private_constant :PATTERN, :STUB_NOTE
+
+      # One accepted thing: what it is called and identified by, its fields, its transitions, the
+      # actions that create it and the others.
+      Shape = Struct.new(:name, :identifier, :type, :fields, :steps, :creating, :rest, keyword_init: true)
+      private_constant :PATTERN, :STUB_NOTE, :Shape
 
       module_function
 
@@ -65,14 +70,21 @@ module Hecks
       #
       # @param interview [Object] the booted record
       # @return [Hash] the plain interview this module takes: `reference`, `subject`, `expert`,
-      #   `exchanges` (`question`, `answer`, `topic`), and `things`, `actions` and `rules`, each a
-      #   finding with its `number`, `source` and `status` and the fields of its kind
+      #   `exchanges` (`question`, `answer`, `topic`), and `things`, `actions`, `rules`,
+      #   `fields` and `transitions`, each a finding with its `number`, `source` and `status`
+      #   and the fields of its kind
       def from_record(interview)
         { reference: plain(interview.reference), subject: plain(interview.subject), expert: plain(interview.expert),
           exchanges: interview.exchanges.map { |ex| slice(ex, :question, :answer, :topic) },
           things:    interview.thing_findings.map { |f| slice(f, :number, :name, :identifier, :source, :status) },
-          actions:   interview.action_findings.map { |f| slice(f, :number, :name, :thing, :event, :creates, :source, :status) },
-          rules:     interview.rule_findings.map { |f| slice(f, :number, :statement, :source, :status) } }
+          actions:   interview.action_findings.map do |f|
+            slice(f, :number, :name, :thing, :event, :creates, :takes, :by, :source, :status)
+          end,
+          rules:     interview.rule_findings.map { |f| slice(f, :number, :statement, :source, :status) },
+          fields:    interview.field_findings.map { |f| slice(f, :number, :thing, :name, :values, :source, :status) },
+          transitions: interview.transition_findings.map do |f|
+            slice(f, :number, :thing, :action, :to, :from, :source, :status)
+          end }
       end
 
       # @api private
@@ -127,24 +139,48 @@ module Hecks
 
       # @api private
       def aggregate(interview, thing, actions)
-        name = word(thing[:name])
-        field = Naming.snake(word(thing[:identifier]))
-        field_type = identifier_type(name, field)
-        mine = actions.select { |a| word(a[:thing]) == name }
-        creating = mine.select { |a| a[:creates] }
-        rest = mine - creating
-        lines = ["  # #{source_note(interview, thing)}".rstrip,
-                 "  aggregate #{name.inspect} do",
-                 "    description #{"TODO: describe what a #{name} is.".inspect}", "",
-                 "    identified_by :#{field}", "",
-                 "    attribute :#{field}, #{field_type}", "",
-                 "    value_object #{field_type.inspect} do",
-                 "      attribute :value, String, pattern: #{PATTERN}",
-                 "    end"]
-        creating = [stub_create(name)] if creating.empty?
-        creating.each { |action| lines.concat(creating_command(interview, action, field, field_type)) }
-        rest.each { |action| lines.concat(mutating_command(interview, action, name)) }
+        shape = shape_of(interview, thing, actions)
+        lines = head_lines(interview, thing, shape)
+        lines.concat(command_lines(interview, shape))
+        lines.concat(InterviewShape.lifecycle(shape.steps, shape.creating, shape.rest))
         (lines << "  end").join("\n")
+      end
+
+      # What one accepted thing is made of: its fields, its actions, and its steps.
+      # @api private
+      def shape_of(interview, thing, actions)
+        name = word(thing[:name])
+        identifier = Naming.snake(word(thing[:identifier]))
+        mine = actions.select { |a| word(a[:thing]) == name }
+        steps = accepted(interview, :transitions).select { |s| word(s[:thing]) == name }
+        found = accepted(interview, :fields).select { |f| word(f[:thing]) == name }
+        type = identifier_type(name, identifier)
+        fields = InterviewShape.fields(found, name, identifier, type, lifecycle: !steps.empty?)
+        creating = mine.select { |a| a[:creates] }
+        Shape.new(name: name, identifier: identifier, type: type, fields: fields, steps: steps,
+                  creating: creating, rest: mine - creating)
+      end
+
+      # The aggregate's opening: its identity, its fields, and the value object of each.
+      # @api private
+      def head_lines(interview, thing, shape)
+        required = shape.creating.flat_map { |action| InterviewShape.takes(action) }
+        ["  # #{source_note(interview, thing)}".rstrip,
+         "  aggregate #{shape.name.inspect} do",
+         "    description #{"TODO: describe what a #{shape.name} is.".inspect}", "",
+         "    identified_by :#{shape.identifier}", "",
+         "    attribute :#{shape.identifier}, #{shape.type}",
+         *InterviewShape.attributes(shape.fields, required), "",
+         "    value_object #{shape.type.inspect} do",
+         "      attribute :value, String, pattern: #{PATTERN}", "    end",
+         *InterviewShape.value_objects(shape.fields)]
+      end
+
+      # @api private
+      def command_lines(interview, shape)
+        creating = shape.creating.empty? ? [stub_create(shape.name)] : shape.creating
+        creating.flat_map { |action| creating_command(interview, action, shape) } +
+          shape.rest.flat_map { |action| mutating_command(interview, action, shape) }
       end
 
       # The creating command nothing in the interview named: a stub, marked for the developer.
@@ -152,19 +188,24 @@ module Hecks
       def stub_create(name) = { name: "Create", event: "#{name}Created", stub: true }
 
       # @api private
-      def creating_command(interview, action, field, field_type)
+      def creating_command(interview, action, shape)
         verb = word(action[:name])
         note = action[:stub] ? STUB_NOTE : "    # #{source_note(interview, action)}"
-        ["", note, "    command #{verb.inspect} do", "      goal #{"TODO: say what #{verb} does".inspect}", "",
-         "      attribute :#{field}, #{field_type}", "", "      emits #{word(action[:event]).inspect}", "    end"]
+        given, unknown = InterviewShape.inputs(action, shape.fields, shape.identifier)
+        ["", note, "    command #{verb.inspect} do", "      goal #{"TODO: say what #{verb} does".inspect}",
+         *InterviewShape.who_lines(action), "", "      attribute :#{shape.identifier}, #{shape.type}",
+         *given.map { |f| "      attribute :#{f[:name]}, #{f[:type]}" }, *InterviewShape.unknown_lines(unknown), "",
+         "      emits #{word(action[:event]).inspect}", "    end"]
       end
 
       # @api private
-      def mutating_command(interview, action, name)
+      def mutating_command(interview, action, shape)
         verb = word(action[:name])
+        given, unknown = InterviewShape.inputs(action, shape.fields, shape.identifier)
         ["", "    # #{source_note(interview, action)}", "    command #{verb.inspect} do",
-         "      goal #{"TODO: say what #{verb} does".inspect}", "", "      reference_to #{name}", "",
-         "      emits #{word(action[:event]).inspect}", "    end"]
+         "      goal #{"TODO: say what #{verb} does".inspect}", *InterviewShape.who_lines(action), "",
+         "      reference_to #{shape.name}", *InterviewShape.input_lines(given), *InterviewShape.unknown_lines(unknown),
+         *InterviewShape.assignment_lines(given), "", "      emits #{word(action[:event]).inspect}", "    end"]
       end
 
       # An action whose thing nobody accepted has nowhere to go; it is kept as a comment, not lost.
@@ -196,10 +237,15 @@ module Hecks
         lines = interview.fetch(:things).map do |f|
           "- Thing #{f[:number]}, #{f[:status]}: **#{f[:name]}**, identified by `#{f[:identifier]}` (exchange #{f[:source]})"
         end
-        lines += interview.fetch(:actions).map do |f|
-          creates = f[:creates] ? ", creates it" : ""
-          "- Action #{f[:number]}, #{f[:status]}: **#{f[:name]}** on #{f[:thing]}, " \
-            "announcing `#{f[:event]}`#{creates} (exchange #{f[:source]})"
+        lines += interview.fetch(:actions).map { |f| action_line(f) }
+        lines += interview.fetch(:fields, []).map do |f|
+          values = f[:values].to_s.strip.empty? ? "" : ", one of #{f[:values]}"
+          "- Field #{f[:number]}, #{f[:status]}: **#{f[:name]}** on #{f[:thing]}#{values} (exchange #{f[:source]})"
+        end
+        lines += interview.fetch(:transitions, []).map do |f|
+          from = f[:from].to_s.strip.empty? ? "" : " from #{f[:from]}"
+          "- Transition #{f[:number]}, #{f[:status]}: **#{f[:action]}** on #{f[:thing]} to #{f[:to]}#{from} " \
+            "(exchange #{f[:source]})"
         end
         lines + interview.fetch(:rules).map do |f|
           "- Rule #{f[:number]}, #{f[:status]}: #{one_line(f[:statement])} (exchange #{f[:source]})"
@@ -207,7 +253,16 @@ module Hecks
       end
 
       # @api private
-      def accepted(interview, kind) = interview.fetch(kind).select { |finding| finding[:status] == ACCEPTED }
+      def action_line(finding)
+        creates = finding[:creates] ? ", creates it" : ""
+        takes = finding[:takes].to_s.strip.empty? ? "" : ", takes #{finding[:takes]}"
+        by = finding[:by].to_s.strip.empty? ? "" : ", by #{finding[:by]}"
+        "- Action #{finding[:number]}, #{finding[:status]}: **#{finding[:name]}** on #{finding[:thing]}, " \
+          "announcing `#{finding[:event]}`#{creates}#{takes}#{by} (exchange #{finding[:source]})"
+      end
+
+      # @api private
+      def accepted(interview, kind) = interview.fetch(kind, []).select { |finding| finding[:status] == ACCEPTED }
 
       # A free-text name as a PascalCase word safe to write into Ruby: `lend a book` is `LendABook`.
       # @api private

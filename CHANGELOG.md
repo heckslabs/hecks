@@ -16,6 +16,10 @@ kept (`package.pinning`, `package.unpinned`). The mechanism is general: a `settl
 names commands that always wait, and a `--wait` failure now appends the record's own `refusal` to its reason. A script
 that read the record from the old exit-0 output should read the exit status.
 
+**CI cuts the release.** `.github/workflows/release.yml` runs when a commit on `main` changes `lib/hecks/version.rb`: it checks that the gem, `@hecks/client`, `rust/host/HECKS_RELEASE` and the CHANGELOG heading name one version, tags the commit, pushes the gem with the `RUBYGEMS_API_KEY` secret, starts the npm publish and creates the GitHub Release from the CHANGELOG section. Every step skips what already exists, so a re-run finishes a release that stopped halfway. `hecks publishing_run.publish --confirm` still works for a release by hand.
+
+**`hecks interview` drafts what a thing has and how it changes state.** The interview takes two more findings: a **field** a thing has, with the values it may take when the expert listed a closed set, and a **transition**, the state an action leaves a thing in and the state it had to be in before. An action also records the fields it takes and who does it. The draft writes a field as an attribute (optional unless the creating action takes it), a closed set as `one_of`, a command's inputs as its attributes with `sets`, and the transitions as a lifecycle that starts where the creating action leaves the thing. Who may do an action is written as a comment, not a `role`, because a role is checked only once the domain attaches Governance. The interviewer is also told when a thing is not yet said to have anything, or to change state.
+
 **The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is
 declared once, as `RetiredScript` rows in the Vocabulary chapter, and `hecks
 regeneration_run.project_tools_doc` writes the document's tables from them, rendering each form from
