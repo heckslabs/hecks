@@ -12,6 +12,7 @@ flowchart LR
     n_angle["Angle"]
     n_ticket["Ticket"]
     n_patch["Patch"]
+    n_daily_quota["Daily quota"]
     n_improvement["Improvement"]
     n_clearance["Clearance"]
     n_sweep -->|"target"| n_target
@@ -610,6 +611,62 @@ Always true: a run says what it ran and what came back.
 
 Put a commit through CI. Done by the qa engineer.
 
+## Daily quota
+
+> One UTC day's count of the pull requests the practice has opened, and the rule that the day's cap is not exceeded.
+
+**How it fits**
+
+```mermaid
+flowchart LR
+    n_daily_quota["Daily quota"]:::focus
+    classDef focus stroke-width:3px
+```
+
+**Always true**
+
+- A day is not before the epoch.
+- A count of pull requests is not negative.
+- A cap is not negative.
+
+### Day
+
+A whole number.
+
+Always true: a day is not before the epoch.
+
+### Open
+
+Open the day the clock reads, with no slot taken yet. Done by the qa engineer.
+
+### Quota opened
+
+Recorded after [Open](#open-1).
+
+### Slot cap
+
+A whole number.
+
+Always true: a cap is not negative.
+
+### Slot taken
+
+Recorded after [Take](#take).
+
+### Slots used
+
+A whole number.
+
+Always true: a count of pull requests is not negative.
+
+### Take
+
+Take one of the day's slots for a pull request, refused once the day's cap is spent. Done by the qa engineer.
+
+### Today
+
+The quota of the day the clock reads: nothing before the day's first pull request.
+
 ## Improvement
 
 > One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix.
@@ -702,7 +759,7 @@ Always true: an improvement is numbered.
 
 ### Improvement opened
 
-Recorded after [Open](#open-1).
+Recorded after [Open](#open-2).
 
 ### Improvement regressed
 
@@ -745,10 +802,6 @@ Record that a deliberate, non-bugfix piece of work has been opened as a pull req
 ### Open (the list)
 
 Every PR we've landed for deliberate, non-bugfix work that's still open, by number — hecks quality_control clearance.check_pull_requests's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
-
-### Opened since
-
-Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY.
 
 ### Regress
 
@@ -826,10 +879,6 @@ Record that a fix has been opened as a pull request, the moment its number, bran
 
 Every PR we've opened that's still open, by number — hecks quality_control clearance.check_pull_requests's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
 
-### Opened since
-
-Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from.
-
 ### Patch branch
 
 Text.
@@ -852,7 +901,7 @@ Always true: a patch is numbered.
 
 ### Patch opened
 
-Recorded after [Open](#open-2).
+Recorded after [Open](#open-3).
 
 ### Patch title
 
@@ -1114,7 +1163,7 @@ Always true: a sweep says what it learned, in at least 40 characters.
 
 ### Sweep opened
 
-Recorded after [Open](#open-3).
+Recorded after [Open](#open-4).
 
 ### Sweep reference
 
@@ -1608,7 +1657,7 @@ Always true: a ticket is titled.
 
 ### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-4), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-3), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (daily quota)](#open-1), [Take](#take), [Open (improvement)](#open-2), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
 
 ### System
 

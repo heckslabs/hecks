@@ -1631,8 +1631,7 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, PatchBranch
     attribute :commit, CommitRef
     attribute :title,  PatchTitle
-    # Makes `PR_CAP_PER_DAY` countable (`OpenedSince`). `default: 0` hydrates older rows at the
-    # epoch, which the cap never counts.
+    # When the PR was opened, in epoch seconds. `default: 0` hydrates older rows at the epoch.
     attribute :opened_at, Instant
 
     value_object "Instant" do
@@ -1680,8 +1679,7 @@ Hecks.bluebook "QualityControl" do
     # the record is written by the process that made it true. `now` is that script's clock read.
     # The script asks `dry_run?` of this command before it opens anything, so the two `given`s are
     # the rules for opening a PR at all: the branch is one this practice recognises as its own, and
-    # the bug it fixes is fixed. The prefix repeats `BRANCH_PREFIX` as a literal, as `WaivedBy`
-    # repeats `AUTOMATED_ENGINEER`; `spec/quality_control_spec.rb` pins the two equal.
+    # the bug it fixes is fixed. The prefix is declared here, once.
     command "Open" do
       role "QA engineer"
       goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
@@ -1733,18 +1731,75 @@ Hecks.bluebook "QualityControl" do
       order_by :number
     end
 
-    # `hecks quality_control patch.open` compares this and `Improvement.OpenedSince` counts, from local midnight,
-    # against `PR_CAP_PER_DAY`. `gte` on a bound argument, the `Account.AtOrAbove` shape.
-    query "OpenedSince" do
-      description "Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from."
-      attribute :since, Instant
-      where(:"opened_at.value" => { gte: :since })
-      order_by :number
-    end
-
     query "All" do
       description "Every patch ever opened — what a runner reads back to reconcile against GitHub's own list."
       order_by :number
+    end
+  end
+
+  # How many pull requests the practice has opened on one UTC day, and the rule that the day's cap
+  # is not exceeded. A rule across many records belongs to an aggregate that owns it (ADR 0081): the
+  # cap is a `given` on one record, not a count over `Patch` and `Improvement`, and a record saves
+  # atomically, so two runs cannot both take the last slot. Identified by the day, so a new day is
+  # a new record. `hecks quality_control patch.open` asks `Today` for the day's record, opens it
+  # with `Open` when there is none, and takes a slot with `Take` once a PR is open.
+  aggregate "DailyQuota" do
+    description "One UTC day's count of the pull requests the practice has opened, and the rule that the day's cap is not exceeded."
+
+    identified_by :today
+
+    # Whole days since the epoch, the fact the runtime calls `today`.
+    attribute :today, Day
+    attribute :used,  SlotsUsed
+
+    value_object "Day" do
+      attribute :value, Integer, default: 0
+      invariant("a day is not before the epoch") { !value.negative? }
+    end
+
+    value_object "SlotsUsed" do
+      attribute :value, Integer, default: 0
+      invariant("a count of pull requests is not negative") { !value.negative? }
+    end
+
+    value_object "SlotCap" do
+      attribute :value, Integer
+      invariant("a cap is not negative") { !value.negative? }
+    end
+
+    command "Open" do
+      role "QA engineer"
+      goal "Open the day the clock reads, with no slot taken yet"
+
+      attribute :today, Day
+      needs :today
+
+      sets :today
+
+      emits "QuotaOpened"
+    end
+
+    # `cap` is the dial's value, `PR_CAP_PER_DAY`; 0 is uncapped. The script asks this as a dry
+    # run before it opens a PR, so a spent day refuses before anything is opened.
+    command "Take" do
+      role "QA engineer"
+      goal "Take one of the day's slots for a pull request, refused once the day's cap is spent"
+
+      reference_to DailyQuota
+      attribute :cap, SlotCap
+
+      given("the day's cap is not spent") { cap.value == 0 || used.value < cap.value }
+
+      sets :used, increment: { value: 1 }
+
+      emits "SlotTaken"
+    end
+
+    query "Today" do
+      description "The quota of the day the clock reads: nothing before the day's first pull request."
+      attribute :today, Day
+      needs :today
+      where(:"today.value" => :today)
     end
   end
 
@@ -1769,7 +1824,7 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, ImprovementBranch
     attribute :commit, CommitRef
     attribute :title,  ImprovementTitle
-    # See `Patch.opened_at`: the same field, for the same cap.
+    # See `Patch.opened_at`.
     attribute :opened_at, Instant
 
     value_object "Instant" do
@@ -1899,14 +1954,6 @@ Hecks.bluebook "QualityControl" do
       description "Every improvement ever landed against one angle — the duplicate check, the same shape Patch.ForBug already gives for a bug."
       attribute :angle_id, AngleRef
       where(angle: :angle_id)
-      order_by :number
-    end
-
-    # `Patch.OpenedSince`'s twin: the cap counts both kinds of PR.
-    query "OpenedSince" do
-      description "Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY."
-      attribute :since, Instant
-      where(:"opened_at.value" => { gte: :since })
       order_by :number
     end
 

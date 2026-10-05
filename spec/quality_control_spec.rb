@@ -57,7 +57,7 @@ RSpec.describe "QualityControl" do
 
         [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
          QualityControl::Ticket, QualityControl::Patch, QualityControl::Improvement,
-         QualityControl::Clearance].each do |aggregate|
+         QualityControl::DailyQuota, QualityControl::Clearance].each do |aggregate|
           aggregate.persisted_by("Memory")
         end
       end
@@ -816,12 +816,6 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    it "spells the branch prefix the dial names" do
-      source = File.read(File.join(QC_ROOT, "quality_control.bluebook"))
-
-      expect(source).to include(%(branch.value.start_with?("#{QualityControlDials::BRANCH_PREFIX}")))
-    end
-
     it "drops out of the worklist once GitHub merges it" do
       patch = open_patch(a_bug_needing_a_patch)
       patch.merge!
@@ -1542,27 +1536,13 @@ RSpec.describe "QualityControl" do
       )
     end
 
-    def numbers(query, since) = rows(query, since: { value: since }).map { |row| row[:number][:value] }
-
-    it "is stamped with when, and counted from any instant since" do
+    it "is stamped with when it opened" do
       bug = a_fixed_bug
       open_patch(bug, 1, 5_000)
-      open_patch(bug, 2, 9_000)
-      open_improvement(3, 9_500)
+      open_improvement(2, 9_500)
 
       expect(QualityControl::Patch.find(1).opened_at.to_h).to eq(value: 5_000)
-      expect(numbers("Patch.OpenedSince", 4_000)).to eq([1, 2])
-      expect(numbers("Patch.OpenedSince", 6_000)).to eq([2])
-      expect(numbers("Patch.OpenedSince", 9_001)).to be_empty
-      expect(numbers("Improvement.OpenedSince", 9_000)).to eq([3])
-    end
-
-    # A row from before the field existed hydrates at the epoch, before any midnight
-    # `hecks quality_control patch.open` counts from.
-    it "never counts a PR recorded at the epoch against a later day" do
-      open_patch(a_fixed_bug, 1, 0)
-
-      expect(numbers("Patch.OpenedSince", 1)).to be_empty
+      expect(QualityControl::Improvement.find(2).opened_at.to_h).to eq(value: 9_500)
     end
 
     # `Patch.Open` needs `now`: a caller that names no time has it read from the clock, once, and
@@ -1576,6 +1556,68 @@ RSpec.describe "QualityControl" do
       )
 
       expect(patch.opened_at.to_h).to eq(value: 1_000)
+    end
+  end
+
+  # The per-day PR cap is a rule across many records, so one aggregate owns it (ADR 0081): the day
+  # is a record, `Take` refuses once the cap is spent, and the runtime supplies which day it is.
+  describe "the day's quota" do
+    before { runtime }
+
+    def quota_rows = rows("DailyQuota.Today")
+
+    it "has no record before the day's first pull request" do
+      expect(quota_rows).to be_empty
+    end
+
+    # The fixed clock reads 1,000 seconds past the epoch: day 0.
+    it "opens the day the clock reads, with nothing taken" do
+      quota = QualityControl::DailyQuota.open!
+
+      expect(quota.today.to_h).to eq(value: 0)
+      expect(quota.used.to_h).to eq(value: 0)
+      expect(quota_rows.map { |row| row[:today][:value] }).to eq([0])
+    end
+
+    it "keeps a day the caller names, and finds only the day the clock reads" do
+      QualityControl::DailyQuota.open!(today: { value: 19_000 })
+
+      expect(quota_rows).to be_empty
+      expect(rows("DailyQuota.Today", today: { value: 19_000 }).map { |row| row[:today][:value] }).to eq([19_000])
+    end
+
+    it "takes a slot until the cap is spent, then refuses the next" do
+      quota = QualityControl::DailyQuota.open!
+      quota.take!(cap: { value: 2 })
+      quota.take!(cap: { value: 2 })
+
+      expect(QualityControl::DailyQuota.find(quota.id).used.to_h).to eq(value: 2)
+      expect { quota.take!(cap: { value: 2 }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /the day's cap is not spent/)
+      expect(QualityControl::DailyQuota.find(quota.id).used.to_h).to eq(value: 2)
+    end
+
+    it "asks, as a dry run, whether a slot is left without taking one" do
+      quota = QualityControl::DailyQuota.open!
+      quota.take!(cap: { value: 1 })
+
+      expect { runtime.dry_run?("QualityControl::DailyQuota.Take", today: quota.today.to_h, cap: { value: 1 }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet)
+      expect(runtime.dry_run?("QualityControl::DailyQuota.Take", today: quota.today.to_h, cap: { value: 2 })).to be(true)
+      expect(QualityControl::DailyQuota.find(quota.id).used.to_h).to eq(value: 1)
+    end
+
+    it "treats a cap of zero as no cap" do
+      quota = QualityControl::DailyQuota.open!
+
+      expect { 5.times { quota.take!(cap: { value: 0 }) } }.not_to raise_error
+      expect(QualityControl::DailyQuota.find(quota.id).used.to_h).to eq(value: 5)
+    end
+
+    it "refuses a day opened twice, so a day is one record" do
+      QualityControl::DailyQuota.open!
+
+      expect { QualityControl::DailyQuota.open! }.to raise_error(Hecks::Runtime::AlreadyExists)
     end
   end
 
@@ -1608,7 +1650,6 @@ RSpec.describe "QualityControl" do
     end
 
     it "say how the loop opens a PR" do
-      expect(QualityControlDials::BRANCH_PREFIX).to end_with("/")
       expect(QualityControlDials::DRAFT_ONLY).to be(true).or be(false)
       expect(QualityControlDials::AUTO_MERGE).to be(true).or be(false)
       expect(QualityControlDials::PR_CAP_PER_DAY).to be_a(Integer).and be >= 0

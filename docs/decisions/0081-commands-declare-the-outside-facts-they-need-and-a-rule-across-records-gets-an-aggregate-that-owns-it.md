@@ -52,7 +52,8 @@ end
 There is no `given` that counts records. A rule that must hold across many records says that something owns those records, and that owner becomes an aggregate:
 
 - **Seats.** `Event` (or a `Seating` aggregate) holds `seats_taken`. A registration first takes a seat with `ReserveSeat`, and cancelling one releases it. The cap is an ordinary given on one aggregate.
-- **A daily cap.** A `DailyQuota` aggregate, identified by date, from which each `Patch.Open` takes a slot. The date comes from `now` (section 1).
+- **A daily cap.** A `DailyQuota` aggregate, identified by date, from which each PR takes a slot. The date comes from `today` (section 1).
+  The QualityControl ledger declares it: `Open` needs `today`, `Take` refuses once the day's cap is spent (`cap` is the `PR_CAP_PER_DAY` dial), and the query `Today` needs `today` to find the day's record. `hecks quality_control patch.open` dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The day is the UTC day, not the local one.
 
 One aggregate saves atomically, so two requests cannot both take the last seat. A count-based given would need the store to run the count inside the save's transaction to get the same guarantee, and it would hide the missing aggregate.
 

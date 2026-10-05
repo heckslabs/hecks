@@ -17,7 +17,6 @@ liveness_fallback_seconds: 1500
 
 draft_only: false
 auto_merge: true
-branch_prefix: "qa/"
 
 adversarial_fraction: 0.3
 guided_generation: true

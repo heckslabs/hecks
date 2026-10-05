@@ -17,7 +17,6 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
       liveness_fallback_seconds: 1500
       draft_only: false
       auto_merge: true
-      branch_prefix: "qa/"
       adversarial_fraction: 0.3
       guided_generation: true
       corpus_splice_probability: 0.0
@@ -67,7 +66,6 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
         expect(settings.cadence_seconds).to eq(0)
         expect(settings.pr_cap_per_day).to eq(3)
         expect(settings.sweep_max_parallel).to eq(4)
-        expect(settings.branch_prefix).to eq("qa/")
         expect(settings.draft_only).to be(false)
         expect(settings.auto_merge).to be(true)
         expect(settings.adversarial_fraction).to eq(0.3)

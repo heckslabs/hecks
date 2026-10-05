@@ -145,7 +145,6 @@ module Hecks
         {"name"=>"liveness_fallback_seconds", "type"=>"Integer", "meaning"=>"How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled."}.freeze,
         {"name"=>"draft_only", "type"=>"Boolean", "meaning"=>"Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."}.freeze,
         {"name"=>"auto_merge", "type"=>"Boolean", "meaning"=>"Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."}.freeze,
-        {"name"=>"branch_prefix", "type"=>"String", "meaning"=>"What the branch `hecks quality_control patch.open` pushes starts with."}.freeze,
         {"name"=>"adversarial_fraction", "type"=>"Numeric", "meaning"=>"Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often."}.freeze,
         {"name"=>"guided_generation", "type"=>"Boolean", "meaning"=>"Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`)."}.freeze,
         {"name"=>"corpus_splice_probability", "type"=>"Numeric", "meaning"=>"Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage. Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost."}.freeze,

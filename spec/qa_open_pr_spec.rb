@@ -121,14 +121,14 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
            .map { |row| [row[:number][:value], row[:status], row[:commit].to_h[:value], row[:angle]] }
   end
 
-  it "refuses a branch outside BRANCH_PREFIX, before touching gh or the ledger" do
+  it "refuses a branch outside the practice's prefix, before touching gh or the ledger" do
     on_branch("loop-parity/old-habit")
     a_fixed_bug(commit: head)
 
     _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the branch is one this practice recognises as its own", "QualityControlDials::BRANCH_PREFIX")
+    expect(stderr).to include("the branch is one this practice recognises as its own")
     expect(gh_calls).to be_empty
     expect(patches_on_file).to be_empty
   end
@@ -236,12 +236,11 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
   # `pr_cap_per_day` is 0 (uncapped) in the real qa/settings.yml, so this example points
   # `HECKS_QA_SETTINGS_PATH` at a copy derived from it with the dial set to 1.
-  it "refuses one more PR than PR_CAP_PER_DAY allows for today" do
+  it "refuses one more PR than the day's quota allows" do
     on_branch("qa/capped")
     a_fixed_bug(commit: head)
     @ledger.boot
-    QualityControl::Improvement.open!(number: { value: 1 }, url: { value: "u" }, branch: { value: "qa/earlier" },
-                                      title: { value: "earlier today" }, now: { value: Time.now.to_i })
+    QualityControl::DailyQuota.open!.take!(cap: { value: 1 })
 
     capped_settings = File.join(Dir.mktmpdir("qa_open_pr_capped"), "settings.yml")
     real = File.read(File.join(InMemoryDomain::ROOT, "qa/settings.yml"))
@@ -254,7 +253,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     _stdout, stderr, status = QaLibCli.run(@ledger, "qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("1 PR(s) already opened since local midnight", "PR_CAP_PER_DAY is 1")
+    expect(stderr).to include("the day's cap is not spent", "PR_CAP_PER_DAY is 1")
     expect(gh_calls).to be_empty
     expect(patches_on_file).to be_empty
   end
