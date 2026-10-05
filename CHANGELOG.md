@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**New: `hecks site site_projection.check_live` compares a project's generated CloudFront behaviours with a live distribution's.**
+Given a saved `aws cloudfront get-distribution-config` answer (`live=<file>`), or a distribution id to fetch it with that one
+read-only call (`distribution=<id>`), it matches each behaviour by path pattern and reports every difference in origin,
+methods, viewer protocol, compression, the three policy ids and order, and the behaviours only one side has. `expect_new` names
+the behaviours a pending deploy adds, and `refs` says what each `!Ref` policy intrinsic stands for live. A difference is exit
+status 1 with the report on standard error; a match is exit 0. Nothing on either side is changed.
+
 **New: `hecks operation.bootstrap_admin` gives a domain its first administrator.** A domain whose chapter `provides "membership"`
 has nobody who may grant access until someone is granted it, and each project wrote a script for that one step. `hecks
 operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]` boots the domain, reads the admit, grant and

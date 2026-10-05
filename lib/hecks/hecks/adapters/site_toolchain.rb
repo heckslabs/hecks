@@ -1,8 +1,13 @@
 # frozen_string_literal: true
 
+require "json"
 require_relative "console_capture"
+require_relative "shell"
 require_relative "codebase/tree"
 require_relative "codebase/ruby_child"
+require "hecks/tools"
+require "hecks/tools/site_routes"
+require "hecks/projections/site/live_edge"
 
 module Hecks
   module Adapters
@@ -44,7 +49,69 @@ module Hecks
         { output: { value: result.out } }
       end
 
+      # Compares the CloudFront behaviours a project's edge generates with a live distribution's.
+      # The live configuration is read from a saved `get-distribution-config` answer (`live`) or
+      # fetched with that one read-only call (`distribution`, the distribution's id); nothing is
+      # changed on either side.
+      #
+      # @param held [Hash] the `SiteProjection` record: `domain`, and `live` or `distribution`,
+      #   with `expect_new` (path patterns, comma separated) and `refs` (`!Ref Name=id` words,
+      #   comma separated) when set
+      # @return [Hash{Symbol => Hash}] `output:` the report of a distribution that matches
+      # @raise [ConsoleCapture::Failure] when the project has no edge, the live configuration
+      #   cannot be read, or the two differ; the message is the report
+      def compare(**held)
+        edge = edge_of(located(:domain, held[:domain]))
+        live = live_configuration(held)
+        live_edge = Projections::Site::LiveEdge
+        comparison = live_edge.new(edge, live, expect_new: words(held[:expect_new]),
+                                               refs:       live_edge.refs_from(plain(held[:refs]))).call
+        raise ConsoleCapture::Failure, comparison.to_s unless comparison.clean?
+
+        { output: { value: comparison.to_s } }
+      end
+
       private
+
+      # The project's checked edge, read the way `project_site` reads it.
+      def edge_of(root)
+        registry = nil
+        outcome = ConsoleCapture.capture { registry = Tools::SiteRoutes.registry_for(root) }
+        raise ConsoleCapture::Failure, outcome.output.strip unless outcome.ok?
+
+        site = Projections::Site
+        chapter = site::Table.chapter(registry)
+        table = site::Table.read(chapter, registry: registry)
+        site::Edge.read(chapter, table: table, vocabulary: site::Table.vocabulary(registry)) ||
+          raise(ConsoleCapture::Failure, "#{root} declares no Edge rows")
+      rescue Projections::Site::Table::Invalid => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
+      def live_configuration(held)
+        file = plain(held[:live])
+        id = plain(held[:distribution])
+        text = file ? read_saved(file) : fetch(id)
+        JSON.parse(text)
+      rescue JSON::ParserError => e
+        raise ConsoleCapture::Failure, "the live configuration is not JSON: #{e.message.lines.first.strip}"
+      end
+
+      def read_saved(path)
+        File.read(File.expand_path(path))
+      rescue SystemCallError => e
+        raise ConsoleCapture::Failure, "cannot read the live configuration: #{e.message}"
+      end
+
+      # The one AWS call: reading a distribution's configuration.
+      def fetch(id)
+        result = Shell.new.capture("aws", "cloudfront", "get-distribution-config", "--id", id.to_s)
+        return result.out if result.ok?
+
+        raise ConsoleCapture::Failure, "aws cloudfront get-distribution-config failed: #{message_of(result)}"
+      end
+
+      def words(argument) = plain(argument).to_s.split(",").map(&:strip).reject(&:empty?)
 
       def message_of(result)
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
