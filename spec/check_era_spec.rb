@@ -1,15 +1,14 @@
 require "socket"
 require "json"
 require "tmpdir"
-require "open3"
-require "rbconfig"
 require "hecks/ports/persistence/plugins/era/expected_era"
+require "hecks/cli/check_era"
 
-# `hecks check_era` (Hecks::CLI::CheckEra) and the library under it, against a stub host that serves
+# The era check (Hecks::CLI::CheckEra) and the library under it, against a stub host that serves
 # `GET /version` the way rust/host's `version_router` does. The stub is a
 # bare TCPServer on an ephemeral port: it answers one canned response per
 # connection and records what was requested.
-RSpec.describe "hecks check_era", :io do
+RSpec.describe "the era check", :io do
   def era_check = Hecks::Runtime::EraCheck::ExpectedEra
 
   # A stub host answering every request with `status` and `body`.
@@ -46,8 +45,6 @@ RSpec.describe "hecks check_era", :io do
     end
   end
 
-  def root = File.expand_path("..", __dir__)
-
   def version_body(era = "199b08") = JSON.generate("era" => era, "ir_hash" => "a" * 64, "build" => "2.5.1")
 
   def with_host(**options)
@@ -65,12 +62,11 @@ RSpec.describe "hecks check_era", :io do
     end
   end
 
-  # The child's whole program: the library entry point that `hecks check_era` runs.
-  def run(*args)
-    entry = '$LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/check_era"; ' \
-            "exit Hecks::CLI::CheckEra.run(ARGV)"
-    Open3.capture3(RbConfig.ruby, "-e", entry, "--", *args, chdir: root)
-  end
+  def assess(url, list, timeout: 2) = Hecks::CLI::CheckEra.assess(url, list, timeout: timeout)
+
+  def unreachable = Hecks::Runtime::EraCheck::ExpectedEra::Unreachable
+
+  def bad_response = Hecks::Runtime::EraCheck::ExpectedEra::BadResponse
 
   describe "the allow-list file" do
     it "reads one era per line, ignoring comments and blanks" do
@@ -93,25 +89,26 @@ RSpec.describe "hecks check_era", :io do
   end
 
   describe "against a host" do
-    it "exits 0 when the reported era is on the list" do
+    it "finds the reported era on the list" do
       with_host(body: version_body("199b08")) do |host|
         with_list("# eras\n199b08\n") do |list|
-          stdout, _stderr, status = run(host.url, list)
+          finding = assess(host.url, list)
 
-          expect(status.exitstatus).to eq(0)
-          expect(stdout).to include("199b08")
+          expect(finding.verdict.status).to eq(:match)
+          expect(finding.line).to include("199b08")
           expect(host.requests.first).to eq("GET /version HTTP/1.1")
         end
       end
     end
 
-    it "exits 1 when the reported era is not on the list" do
+    it "finds the reported era off the list" do
       with_host(body: version_body("199b08")) do |host|
         with_list("aaa111\nbbb222\n") do |list|
-          _stdout, stderr, status = run(host.url, list)
+          finding = assess(host.url, list)
 
-          expect(status.exitstatus).to eq(1)
-          expect(stderr).to include("199b08", "aaa111, bbb222")
+          expect(finding.verdict.status).to eq(:mismatch)
+          expect(finding.verdict).not_to be_ok
+          expect(finding.line).to include("199b08", "aaa111, bbb222")
         end
       end
     end
@@ -119,10 +116,11 @@ RSpec.describe "hecks check_era", :io do
     it "only checks that an era is reported when the list names none" do
       with_host(body: version_body("199b08")) do |host|
         with_list("# nothing listed\n") do |list|
-          stdout, _stderr, status = run(host.url, list)
+          finding = assess(host.url, list)
 
-          expect(status.exitstatus).to eq(0)
-          expect(stdout).to include("lists no era")
+          expect(finding.verdict.status).to eq(:unlisted)
+          expect(finding.verdict).to be_ok
+          expect(finding.line).to include("lists no era")
         end
       end
     end
@@ -130,70 +128,48 @@ RSpec.describe "hecks check_era", :io do
     it "accepts the /version URL itself" do
       with_host(body: version_body("199b08")) do |host|
         with_list("199b08\n") do |list|
-          _stdout, _stderr, status = run("#{host.url}/version", list)
-
-          expect(status.exitstatus).to eq(0)
+          expect(assess("#{host.url}/version", list).verdict.status).to eq(:match)
         end
       end
     end
 
-    it "exits 3 when the host answers something other than 200" do
+    it "refuses a host that answers something other than 200" do
       with_host(status: 502, body: "bad gateway") do |host|
         with_list("199b08\n") do |list|
-          _stdout, stderr, status = run(host.url, list)
-
-          expect(status.exitstatus).to eq(3)
-          expect(stderr).to include("502")
+          expect { assess(host.url, list) }.to raise_error(unreachable, /502/)
         end
       end
     end
 
-    it "exits 3 when the body is not a version document" do
+    it "refuses a body that is not a version document" do
       with_host(body: "<html>not json</html>") do |host|
         with_list("199b08\n") do |list|
-          _stdout, _stderr, status = run(host.url, list)
-
-          expect(status.exitstatus).to eq(3)
+          expect { assess(host.url, list) }.to raise_error(bad_response, /JSON version document/)
         end
       end
     end
 
-    it "exits 3 when the document carries no era" do
+    it "refuses a document that carries no era" do
       with_host(body: JSON.generate("build" => "2.5.1")) do |host|
         with_list("199b08\n") do |list|
-          _stdout, stderr, status = run(host.url, list)
-
-          expect(status.exitstatus).to eq(3)
-          expect(stderr).to include("no era")
+          expect { assess(host.url, list) }.to raise_error(bad_response, /no era/)
         end
       end
     end
 
-    it "exits 3 when nothing is listening" do
+    it "refuses a host nothing is listening on" do
       port = with_host(&:port)
       with_list("199b08\n") do |list|
-        _stdout, _stderr, status = run("http://127.0.0.1:#{port}", list, "--timeout=2")
-
-        expect(status.exitstatus).to eq(3)
+        expect { assess("http://127.0.0.1:#{port}", list) }.to raise_error(unreachable, /could not be reached/)
       end
     end
   end
 
-  describe "usage" do
-    it "exits 2 when the allow-list file does not exist" do
+  describe "a missing allow-list file" do
+    it "is refused before the host is asked" do
       with_host(body: version_body) do |host|
-        _stdout, stderr, status = run(host.url, "/no/such/expected-era")
-
-        expect(status.exitstatus).to eq(2)
-        expect(stderr).to include("cannot read")
+        expect { assess(host.url, "/no/such/expected-era") }.to raise_error(Errno::ENOENT)
       end
-    end
-
-    it "exits 2 without both arguments" do
-      _stdout, stderr, status = run("http://127.0.0.1:1")
-
-      expect(status.exitstatus).to eq(2)
-      expect(stderr).to include("usage")
     end
   end
 end
