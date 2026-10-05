@@ -325,7 +325,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     it "adds the four hosting files and ends `make deploy` with the smoke" do
       expect(files.keys).to include("deploy-service.sh", "smoke-after-deploy.sh", "expected-era", "hosting.mk")
       expect(files["Makefile"])
-        .to include("bash ./deploy-box.sh $(TASKDEF)\n\tTASKDEF=\"$(TASKDEF)\" bash ./smoke-after-deploy.sh\n")
+        .to include("bash ./deploy-box.sh $(TASKDEF)\n\t$(MAKE) smoke-after-deploy\n")
       expect(files["Makefile"]).to end_with("include hosting.mk\n")
       expect(files["hosting.mk"]).to include("URL     ?= https://widgets.example.com", "SERVICE ?= website")
       expect(files["expected-era"]).to end_with("\na1b2c3\n")
