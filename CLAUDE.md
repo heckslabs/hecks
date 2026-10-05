@@ -11,6 +11,21 @@ Push with `git push`, not `jj git push` — jj bypasses git hooks, so
 attestation) wouldn't run. Colocation keeps bookmarks synced to git
 branches, so plain `git push` still works.
 
+## Running specs from an isolated session
+
+A background session that the harness isolated in a git worktree has had
+`bundle exec rspec <file>` refused with "too complex to verify that it stays
+inside the worktree", while `cargo test`, `bundle exec ruby`, `git` and `gh` ran
+normally. The cause was not found, and a jj workspace (above) is untested as a way
+around it.
+
+- Do not wrap rspec in a script or another command to get past the refusal.
+- Say in the pull request that the Ruby specs were not run locally. The pre-push
+  gate and CI run them.
+- Name the specs a change is most likely to affect (for a doc edit:
+  `spec/doc_banners_spec.rb`, `spec/status_docs_links_spec.rb`,
+  `spec/guides_spec.rb`) so the user can run them.
+
 Comments you write in this repository's Ruby (`lib/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
 
