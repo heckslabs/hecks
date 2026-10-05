@@ -28,14 +28,11 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # What only the live registry can supply to `hecks project_rust`: persistence bindings, the optional
   # seams `rust/host` reads, translation edges and the verbatim source text. `hecks-parse` reads
   # none of them, so `ir.json` (and `metadata.rs`, which embeds it) match only without them.
-  #
-  # `lineage` is held out too, and it is a known gap rather than a design difference: `hecks-build`
-  # derives it from the hecksagon and world text and does not load a domain's
-  # `environments/production.hecksagon`, so for compliance it finds no lineage-capable aggregate
-  # where `hecks project_rust` finds three.
+  # `lineage` is not among them: `hecks-build` derives it from the hecksagon and world text, and the
+  # two must agree on which aggregates are lineage-capable (compliance binds three through its world).
   HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity newsletter newsletter_issues
                                 payments registrations payment_connection translations approvals
-                                source_text lineage].freeze
+                                source_text].freeze
 
   # [domain, dirs its run touches]: the target, `meta`, and any framework chapter it attaches.
   HB_PARITY_DOMAINS = {
@@ -73,15 +70,12 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   end
 
   # The file's text as the two commands must agree on it: `ir.json` without the registry-only keys,
-  # `manifest.json` without the `lineage_aggregate` entries that follow from `lineage`, and no
-  # `metadata.rs`, which is that same IR as a string.
+  # and no `metadata.rs`, which is that same IR as a string.
   def comparable_text(dir, basename)
     path = File.join(dir, basename)
     case basename
     when "metadata.rs" then nil
     when "ir.json" then JSON.pretty_generate(JSON.parse(File.read(path)).except(*HB_REGISTRY_ONLY_IR_KEYS))
-    when "manifest.json"
-      JSON.pretty_generate(JSON.parse(File.read(path)).reject { |entry| entry["kind"] == "lineage_aggregate" })
     else File.read(path)
     end
   end
