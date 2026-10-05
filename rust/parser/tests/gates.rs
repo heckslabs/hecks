@@ -552,3 +552,75 @@ fn needs_refuses_the_same_fact_twice() {
     assert_eq!(code, Some(1));
     assert!(stderr.contains("twice"), "got: {stderr}");
 }
+
+#[test]
+fn needs_today_is_a_fact_the_runtime_supplies() {
+    let (code, stdout, stderr) =
+        parse_command_body("needs_today", "      attribute :today, Integer\n      needs :today\n");
+    assert_eq!(code, Some(0), "stderr: {stderr}");
+    assert!(stdout.replace(['\n', ' '], "").contains("\"needs\":[{\"fact\":\"today\"}]"), "got: {stdout}");
+}
+
+/// Parses `body` (a Query's inner lines) as a one-query chapter; returns (exit code, stdout, stderr).
+fn parse_query_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
+    let dir = std::env::temp_dir().join(format!("hecks_parse_{tag}_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("query_needs.bluebook");
+    let source = format!(
+        "Hecks.bluebook \"QueryNeedsFixture\" do\n  aggregate \"Clock\" do\n    query \"Since\" do\n{body}    end\n  end\nend\n"
+    );
+    std::fs::write(&path, source).unwrap();
+    let output = run(&["chapter", "--chapter", "QueryNeedsFixture", path.to_str().unwrap()]);
+    std::fs::remove_dir_all(&dir).ok();
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn a_query_that_needs_a_fact_emits_a_needs_array_after_its_options() {
+    let (code, stdout, stderr) =
+        parse_query_body("qneeds_ok", "      attribute :now, Integer\n      needs :now\n");
+    assert_eq!(code, Some(0), "stderr: {stderr}");
+    let compact = stdout.replace(['\n', ' '], "");
+    assert!(compact.contains("\"needs\":[{\"fact\":\"now\"}]"), "got: {stdout}");
+    assert!(
+        compact.find("\"limit\"").unwrap() < compact.find("\"needs\"").unwrap(),
+        "needs must follow the query's own fields: {stdout}"
+    );
+}
+
+#[test]
+fn a_query_that_needs_nothing_keeps_its_wire_shape() {
+    let (code, stdout, stderr) = parse_query_body("qneeds_none", "      attribute :now, Integer\n");
+    assert_eq!(code, Some(0), "stderr: {stderr}");
+    let compact = stdout.replace(['\n', ' '], "");
+    assert!(!compact.contains("\"needs\""), "got: {stdout}");
+}
+
+#[test]
+fn a_query_refuses_a_fact_the_runtime_cannot_supply() {
+    let (code, _, stderr) =
+        parse_query_body("qneeds_bad", "      attribute :user, String\n      needs :user\n");
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("cannot supply"), "got: {stderr}");
+}
+
+#[test]
+fn a_query_refuses_a_need_with_no_attribute_to_fill() {
+    let (code, _, stderr) = parse_query_body("qneeds_undeclared", "      needs :now\n");
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("declares no attribute :now"), "got: {stderr}");
+}
+
+#[test]
+fn a_query_refuses_the_same_fact_twice() {
+    let (code, _, stderr) = parse_query_body(
+        "qneeds_twice",
+        "      attribute :now, Integer\n      needs :now\n      needs :now\n",
+    );
+    assert_eq!(code, Some(1));
+    assert!(stderr.contains("twice"), "got: {stderr}");
+}

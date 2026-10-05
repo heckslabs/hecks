@@ -186,9 +186,11 @@ fn facts_mut(args: &mut Value) -> Option<&mut serde_json::Map<String, Value>> {
 
 fn answer(fact: &str, attribute_type: Option<&str>, clock: &dyn Clock) -> Option<Value> {
     match fact {
-        "now" => {
+        // `now` is epoch seconds; `today` the day those fall in, whole days since the epoch (UTC).
+        "now" | "today" => {
             let secs = clock.now_secs();
-            Some(if attribute_type == Some("Integer") { json!(secs) } else { json!({ "value": secs }) })
+            let answer = if fact == "today" { secs.div_euclid(86_400) } else { secs };
+            Some(if attribute_type == Some("Integer") { json!(answer) } else { json!({ "value": answer }) })
         }
         _ => None,
     }
@@ -202,6 +204,49 @@ pub fn fill_needs(domain_ir: &Value, verb: &str, args: &mut Value, clock: &dyn C
         return;
     }
     let Some(facts) = facts_mut(args) else { return };
+    for (fact, attribute_type) in needs {
+        if facts.contains_key(fact) {
+            continue;
+        }
+        if let Some(value) = answer(fact, attribute_type, clock) {
+            facts.insert(fact.to_string(), value);
+        }
+    }
+}
+
+/// The facts the query `question` (`Domain::Aggregate.Query`) needs, each with the type of the
+/// argument of the same name. An entity's query is not looked up here.
+fn declared_query_needs<'a>(domain_ir: &'a Value, question: &str) -> Vec<(&'a str, Option<&'a str>)> {
+    let Some((qualified_aggregate, query_name)) = question.rsplit_once('.') else { return Vec::new() };
+    let aggregate = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
+    let Some(query) = list(domain_ir, "aggregates")
+        .iter()
+        .find(|a| named(a, aggregate))
+        .and_then(|a| list(a, "queries").iter().find(|q| named(q, query_name)))
+    else {
+        return Vec::new();
+    };
+    let attributes = list(query, "attributes");
+    list(query, "needs")
+        .iter()
+        .filter_map(|n| n.get("fact").and_then(Value::as_str))
+        .map(|fact| {
+            let attribute_type =
+                attributes.iter().find(|a| named(a, fact)).and_then(|a| a.get("type")).and_then(Value::as_str);
+            (fact, attribute_type)
+        })
+        .collect()
+}
+
+/// Fills each fact the query `question` needs that `args` leaves out, before the kernel checks the
+/// arguments. A key the caller supplied (even a null) is kept; a query that needs nothing, or whose
+/// arguments are not an object, is untouched.
+pub fn fill_query_needs(domain_ir: &Value, question: &str, args: &mut Value, clock: &dyn Clock) {
+    let needs = declared_query_needs(domain_ir, question);
+    if needs.is_empty() {
+        return;
+    }
+    let Some(facts) = args.as_object_mut() else { return };
     for (fact, attribute_type) in needs {
         if facts.contains_key(fact) {
             continue;
@@ -406,6 +451,58 @@ mod tests {
         fill_defaults(&nested_ir(), "Np::Workspace.Shelf.Retitle", &mut args);
         fill_defaults(&nested_ir(), "Np::Workspace.Board.Remark", &mut args);
         assert_eq!(args, json!({"number": 1}));
+    }
+
+    // An aggregate with a query that needs `now` and one that needs `today`.
+    fn query_ir() -> Value {
+        json!({"name": "Lease", "aggregates": [{"name": "Slot", "commands": [], "queries": [
+            {"name": "Expired", "attributes": [{"name": "now", "type": "LeaseInstant"}],
+             "needs": [{"fact": "now"}]},
+            {"name": "IssuedToday", "attributes": [{"name": "today", "type": "Integer"}],
+             "needs": [{"fact": "today"}]},
+            {"name": "Plain", "attributes": [{"name": "now", "type": "LeaseInstant"}]}
+        ]}]})
+    }
+
+    #[test]
+    fn a_needed_query_fact_the_caller_left_out_is_filled_from_the_clock() {
+        let mut args = json!({});
+        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut args, &FixedClock(1_700_000_000));
+        assert_eq!(args["now"], json!({"value": 1_700_000_000}));
+    }
+
+    #[test]
+    fn a_query_value_the_caller_supplied_is_kept_even_when_null() {
+        let mut args = json!({"now": null});
+        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut args, &FixedClock(5));
+        assert!(args["now"].is_null());
+        let mut named = json!({"now": {"value": 9}});
+        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut named, &FixedClock(5));
+        assert_eq!(named["now"], json!({"value": 9}));
+    }
+
+    #[test]
+    fn a_query_that_needs_nothing_or_names_nothing_is_untouched() {
+        let mut args = json!({});
+        fill_query_needs(&query_ir(), "Lease::Slot.Plain", &mut args, &FixedClock(5));
+        fill_query_needs(&query_ir(), "Lease::Slot.Missing", &mut args, &FixedClock(5));
+        fill_query_needs(&query_ir(), "Lease::Shelf.Expired", &mut args, &FixedClock(5));
+        assert_eq!(args, json!({}));
+    }
+
+    #[test]
+    fn today_is_whole_days_since_the_epoch_shaped_for_its_argument() {
+        let mut args = json!({});
+        fill_query_needs(&query_ir(), "Lease::Slot.IssuedToday", &mut args, &FixedClock((19_000 * 86_400) + 86_399));
+        assert_eq!(args["today"], json!(19_000));
+
+        let mut command = json!({"with": {}});
+        let ir = json!({"name": "D", "aggregates": [{"name": "A", "commands": [
+            {"name": "Open", "attributes": [{"name": "day", "type": "Day"}], "needs": [{"fact": "day"}]},
+            {"name": "Take", "attributes": [{"name": "today", "type": "Day"}], "needs": [{"fact": "today"}]}
+        ]}]});
+        fill_needs(&ir, "D::A.Take", &mut command, &FixedClock(19_001 * 86_400));
+        assert_eq!(command["with"]["today"], json!({"value": 19_001}));
     }
 
     #[test]

@@ -115,6 +115,7 @@ Hecks.bluebook "LeaseClock" do
     query "Expired" do
       description "Leases currently held whose own recorded expiry a passed clock value has already reached."
       attribute :now, LeaseInstant
+      needs :now
       where(status: "held")
       where(:"expires_at.value" => { lte: :now })
       order_by :key

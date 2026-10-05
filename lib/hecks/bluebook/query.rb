@@ -25,14 +25,14 @@ module Hecks
         limit:       one(:limit)
       )
 
-      attr_reader :name, :description, :attributes, :returns
+      attr_reader :name, :description, :attributes, :returns, :needs
 
       # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] defaults to
       #   `NullSemantics.default`
       def initialize(name:, description: nil, attributes: [], wheres: [],
                      order_by: nil, limit: nil, offset: nil, cursor: nil,
                      authorization: nil, null_semantics: nil,
-                     inspection: nil, returns: nil)
+                     inspection: nil, returns: nil, needs: [])
         null_semantics ||= QuerySpecification::Common::NullSemantics.default
         super(wheres: wheres, order_by: order_by, limit: limit, offset: offset, cursor: cursor,
               authorization: authorization,
@@ -42,6 +42,7 @@ module Hecks
         @description = description
         @attributes  = attributes
         @returns     = returns&.to_s
+        @needs       = needs
       end
 
       # The value object a `returns` names, without the `list_of(...)` wrapper.
@@ -55,13 +56,15 @@ module Hecks
       def returns_list? = !@returns.nil? && @returns.start_with?("list_of(")
 
       # `extra_options_to_h` (count, median, group_by, scope_to) stays dynamic; `super` covers the
-      # declared emission. `returns` follows, only when the query declares one, so a query that
-      # returns nothing keeps its wire shape.
+      # declared emission. `returns` and `needs` follow, only when the query declares them, so a
+      # query that returns nothing and needs nothing keeps its wire shape.
       #
       # @return [Hash] the declared emission merged with `extra_options_to_h`, then `returns`
+      #   and `needs`
       def to_h
         shape = super.merge(extra_options_to_h)
-        @returns ? shape.merge(returns: @returns) : shape
+        shape = shape.merge(returns: @returns) if @returns
+        @needs.empty? ? shape : shape.merge(needs: @needs.map { |fact| { fact: fact.to_s } })
       end
     end
   end

@@ -18,6 +18,8 @@ pub fn run(input: &str) -> String {
 
     // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.
     super::needs::install(parsed.get("needs"));
+    // Optional `"query_needs"`: which queries need which outside facts, filled the same way.
+    super::needs::install_queries(parsed.get("query_needs"));
     // Optional `"defaults"`: each command's declared argument defaults, filled the same way.
     super::needs::install_defaults(parsed.get("defaults"));
 
@@ -86,6 +88,14 @@ pub fn run(input: &str) -> String {
         // A query step's `args` sit at the sibling `"args"` key, as for a command step.
         let empty_args = Json::Object(vec![]);
         let args = step.get("args").unwrap_or(&empty_args);
+        // What the caller offered is what the log echoes; a fact the query `needs` is answered
+        // for the run alone (ADR 0081), so the log holds no value that depends on the clock.
+        let offered = args;
+        let filled = match step.get("query") {
+            Some(Json::Str(question)) => super::needs::enrich_query(question, args, step.get("occurred_at").and_then(Json::as_str)),
+            _ => None,
+        };
+        let args = filled.as_ref().unwrap_or(args);
 
         // A `"query"` step carries no verb and takes one of three shapes:
         //   - `"Domain::Aggregate.Query"`: a declared aggregate query, looked up in `QUERIES`.
@@ -106,7 +116,7 @@ pub fn run(input: &str) -> String {
                             let rows = Json::Array(rows);
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", rows.clone()),
                                 ("reference_rows", rows),
                             ]));
@@ -115,7 +125,7 @@ pub fn run(input: &str) -> String {
                             let message = refusal.to_string();
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", Json::Null),
                                 ("error", Json::Str(message.clone())),
                                 ("reference_rows", Json::Null),
@@ -131,7 +141,7 @@ pub fn run(input: &str) -> String {
                             let rows = Json::Array(entries.into_iter().map(|(id, record)| repository::row_json(id, record)).collect());
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", rows.clone()),
                                 // Same as `rows`: one compiled path (named_query.rs).
                                 ("reference_rows", rows),
@@ -143,7 +153,7 @@ pub fn run(input: &str) -> String {
                             let message = refusal.to_string();
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", Json::Null),
                                 ("error", Json::Str(message.clone())),
                                 ("reference_rows", Json::Null),
@@ -170,7 +180,7 @@ pub fn run(input: &str) -> String {
                         Ok(row) => {
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", Json::Array(vec![row])),
                                 // No `reference_rows` key: Ruby sets it only for questions with a
                                 // reference twin, and a read model has none.
@@ -181,7 +191,7 @@ pub fn run(input: &str) -> String {
                             let message = refusal.to_string();
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
-                                ("args", args.clone()),
+                                ("args", offered.clone()),
                                 ("rows", Json::Null),
                                 ("error", Json::Str(message)),
                             ]));

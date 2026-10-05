@@ -101,6 +101,7 @@ module Hecks
             order_by:       [:order_by,        :order_by],
             limit:          [:limit,           :limit],
             returns:        [:returns,         :plain],
+            needs:          [:needs,           [:each, :need]],
             # Held by the language as an open map, so every one of these reads the
             # same way and a ninth option needs no new field on either side.
             offset:         [:offset,          [:option, :offset]],
@@ -111,7 +112,7 @@ module Hecks
           },
           rows: { wheres: :where_rows, options: :option_rows },
           reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
-                  order_by: [:call, :order_by], limit: [:call, :limit] },
+                  needs: [:each, :need], order_by: [:call, :order_by], limit: [:call, :limit] },
           derived: {
             position:    :walk,
             order_field: [:folded, :order_by, :field],

@@ -111,6 +111,31 @@ Hecks.bluebook "QueryReference" do
       order_by :tag
     end
   end
+
+  aggregate "Lamp" do
+    attribute :ref, LampRef
+    attribute :lit_until, LampInstant, optional: true
+
+    identified_by :ref
+    value_object("LampRef")     { attribute :value, String }
+    value_object("LampInstant") { attribute :value, Integer }
+
+    command "Light" do
+      attribute :ref, LampRef
+      attribute :lit_until, LampInstant
+      sets :ref
+      sets :lit_until
+      emits "LampLit"
+    end
+
+    # Asked with no `now`, the runtime answers it from the clock.
+    query "Lit" do
+      attribute :now, LampInstant
+      needs :now
+      where("lit_until.value": { gte: :now })
+      order_by :ref
+    end
+  end
 end
 ```
 
@@ -122,9 +147,19 @@ end
 Hecks::Adapters.const_set(:RefFieldGuide, RefFieldGuide) unless Hecks::Adapters.const_defined?(:RefFieldGuide, false)
 Hecks.adapter("RefFieldGuide") { port "FieldGuide" }
 
+# A fixed clock, so the `needs` example does not depend on today's date.
+module QueryReferenceClock
+  module_function
+
+  def now = 1_700_000_000
+end
+Hecks::Adapters.const_set(:QueryReferenceClock, QueryReferenceClock) unless Hecks::Adapters.const_defined?(:QueryReferenceClock, false)
+Hecks.adapter("QueryReferenceClock") { port "clock" }
+
 Hecks.hecksagon("QueryReference") do
   QueryReference::Warden.persisted_by("Memory")
   QueryReference::Sighting.persisted_by("Memory")
+  QueryReference::Lamp.persisted_by("Memory")
 
   QueryReference::Sighting.port "FieldGuide" do
     answers_query "TallyBySpecies"
@@ -470,6 +505,44 @@ sighting = runtime.registry.bluebook("QueryReference").aggregate("Sighting")
 tally = sighting.queries.find { |query| query.hecks_name == "TallyBySpecies" }
 [tally.returns, tally.returns_list?]  # => ["list_of(Census)", true]
 ```
+
+## needs
+
+<!-- generated:begin word=needs -->
+`needs fact` — fills `needs`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | fact |
+<!-- generated:end -->
+
+A fact the query needs from outside the records, answered by the runtime before its filter reads
+the arguments: the same word, and the same facts, as a command's `needs`. `needs :now` fills the
+query's own `now` argument with the clock port's reading, in whole epoch seconds (UTC), and
+`needs :today` fills `today` with the day that reading falls in, whole days since the epoch (UTC).
+The caller's own value wins, even a null, so a test or a back-fill can ask as of another time. The
+query must declare an attribute of that name: `needs :now` with no `attribute :now` is refused
+when the bluebook is built, as is a fact the runtime cannot supply or one declared twice.
+
+`Lamp.Lit` asks which lamps are still lit as of `now`, and declares that it needs it. Two lamps are
+lit, one until a little before the clock reads and one until a little after:
+
+```ruby
+runtime.dispatch("QueryReference::Lamp.Light", with: { ref: { value: "old" }, lit_until: { value: 1_699_999_000 } })
+runtime.dispatch("QueryReference::Lamp.Light", with: { ref: { value: "new" }, lit_until: { value: 1_700_000_500 } })
+```
+
+Left out, `now` is the clock's reading (1,700,000,000 here), so only the later lamp is lit. Named, the
+caller's own time is kept, so the same query can be asked as of another moment:
+
+```ruby
+runtime.query("QueryReference::Lamp.Lit").map { |row| row[:ref][:value] }  # => ["new"]
+runtime.query("QueryReference::Lamp.Lit", now: { value: 1_699_999_000 }).map { |row| row[:ref][:value] }  # => ["new", "old"]
+```
+
+Unlike a command, a query writes no event, so nothing records the answer: the fill is for that
+run's filter alone, and the query log echoes the arguments the caller offered. The IR carries
+`"needs": [{"fact": "now"}]` on a query that declares one and nothing on a query that does not.
 
 ## limit
 

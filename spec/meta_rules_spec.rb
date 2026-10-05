@@ -234,4 +234,12 @@ RSpec.describe "the language's own rules" do
     expect { @runtime.dispatch("Bluebook::Command.Need", to: command_id, with: { fact: v("") }) }
       .to raise_error(Hecks::Runtime::GivenNotMet, /a fact is named/)
   end
+
+  # A query's need names the fact it asks the runtime for, as a command's does.
+  it "refuses a query's need that names no fact" do
+    query_id = id_of("Bluebook::Query.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id, name: v("Q"))
+
+    expect { @runtime.dispatch("Bluebook::Query.Need", to: query_id, with: { fact: v("") }) }
+      .to raise_error(Hecks::Runtime::GivenNotMet, /a fact is named/)
+  end
 end

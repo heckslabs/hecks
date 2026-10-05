@@ -1,6 +1,6 @@
 require_relative "value"
 require_relative "aggregate_lock"
-require_relative "../ports/clock"
+require_relative "needs"
 
 module Hecks
   module Runtime
@@ -13,11 +13,6 @@ module Hecks
       def self.included(interpreter)
         interpreter.singleton_class.attr_accessor :trace
       end
-
-      # What answers each outside fact a command may `needs` (ADR 0081). A fact is answered once,
-      # before any given runs, and the answer rides in the command's own arguments, so the event
-      # records it and a replay re-dispatches the recorded value rather than asking again.
-      NEED_ANSWERS = { now: ->(registry) { Ports::Clock.now(registry) } }.freeze
 
       private
 
@@ -32,13 +27,8 @@ module Hecks
         fill_defaults(command, fill_needs(command, args))
       end
 
-      # Answers each fact the command `needs` that the caller left out.
-      def fill_needs(command, args)
-        missing = command.needs.reject { |fact| args.key?(fact) || args.key?(fact.to_s) }
-        return args if missing.empty?
-
-        args.merge(missing.to_h { |fact| [fact, need_value(command, fact)] })
-      end
+      # Answers each fact the command `needs` that the caller left out (see `Needs`).
+      def fill_needs(command, args) = Needs.fill(command, args, registry: @registry)
 
       # Gives each argument the caller left out the default its attribute declares
       # (`attribute :runs, Count, default: 30`), so a declared default holds on every way in and
@@ -54,15 +44,6 @@ module Hecks
         return args if absent.empty?
 
         args.merge(absent.to_h { |attribute| [attribute.name.to_sym, attribute.default] })
-      end
-
-      # The answer to one fact, in the shape the command's argument of that name takes: a bare
-      # Integer for an Integer attribute, else the one-field value object the language declares
-      # for an instant.
-      def need_value(command, fact)
-        answer    = NEED_ANSWERS.fetch(fact).call(@registry)
-        attribute = command.attributes.find { |held| held.name.to_s == fact.to_s }
-        attribute&.type.to_s == "Integer" ? answer : { value: answer }
       end
 
       # Logged after the step's work, so trace order is completion order.

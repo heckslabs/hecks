@@ -5,6 +5,7 @@ require_relative "../ports/query/ordering"
 require_relative "../query_specification/field_path"
 require_relative "../query_specification/common/comparison"
 require_relative "errors"
+require_relative "needs"
 require_relative "reference_hop"
 require_relative "refusal_wording"
 require_relative "tenant_scope"
@@ -203,6 +204,7 @@ module Hecks
       def entity_rows(domain, aggregate, dotted, args)
         entity_name, query_name = Naming.split_dotted(dotted)
         entity, declared, list_attr = resolve_entity_query(aggregate, entity_name, query_name)
+        args = Needs.fill(declared, args, registry: @registry)
         declared = TenantScope.apply(declared, args)
 
         parent_key = Naming.reference_key(aggregate.hecks_name)
@@ -282,6 +284,7 @@ module Hecks
       # from field defaults and only refuses when a field has none. `null_vo_argument!`
       # refuses like any other wrong-shaped value. Command arguments are untouched.
       def normalize_args(aggregate, declared, args)
+        args = Needs.fill(declared, args, registry: @registry)
         declared.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 

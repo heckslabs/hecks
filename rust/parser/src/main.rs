@@ -205,6 +205,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("limit", "Query"),
     ("authorize", "Query"),
     ("returns", "Query"),
+    ("needs", "Query"),
     ("on", "Policy"),
     ("trigger", "Policy"),
     ("across", "Policy"),

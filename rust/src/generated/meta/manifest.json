@@ -414,6 +414,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Query.Need",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Query.Argument",
     "generated": true,
     "routed": true

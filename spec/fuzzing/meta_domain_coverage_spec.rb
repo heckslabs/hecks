@@ -74,6 +74,12 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "ReadModel#aggregate_heads"         => "multi-head `include` composition (beyond the single reduced head " \
                                            "aggregation_matches_recompute checks) has no property of its own",
     "ReadModel#options"                 => "same class of gap as Query#options",
+    "Query#needs"                       => "a generated query step always carries every argument, so the runtime's fill " \
+                                           "of a needed fact (ADR 0081) is never reached by a fuzzed sequence; " \
+                                           "spec/query_needs_spec.rb holds the Ruby fill and the " \
+                                           "lease_clock_expired_now_from_the_clock conformance fixture holds both engines " \
+                                           "to it. A property would draw a query step that omits a needed fact and compare " \
+                                           "its rows with one naming the clock's reading",
     "Aggregate#projected_fields"        => "the local half of a cross-aggregate read (S12, ADR 0025) is read by " \
                                            "GuardState the same way an attribute is (ProjectionAbsent vs. " \
                                            "AttributeAbsent), but nothing populates it inside a normal command dispatch " \

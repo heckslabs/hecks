@@ -501,7 +501,7 @@ account.balance.cents  # => 3000
 | positional 1 | symbol | true | fact |
 <!-- generated:end -->
 
-A fact the command needs from outside the record, answered by the runtime before any `given` runs. `needs :now` fills the command's own `now` argument with the time the clock port gives, in whole epoch seconds (UTC), unless the caller passed a time of its own. The command must declare an attribute of that name: `needs :now` with no `attribute :now` is refused when the bluebook is built, as is a fact the runtime cannot supply (`now` is the only one).
+A fact the command needs from outside the record, answered by the runtime before any `given` runs. `needs :now` fills the command's own `now` argument with the time the clock port gives, in whole epoch seconds (UTC), unless the caller passed a time of its own. The command must declare an attribute of that name: `needs :now` with no `attribute :now` is refused when the bluebook is built, as is a fact the runtime cannot supply (`now` and `today` are the two it supplies: `today` is the day the clock falls in, whole days since the epoch in UTC, for a rule that is counted by the day).
 
 Because the answer is written into the command's own arguments, a `given` reads it like any argument, the event records it, and a replay re-dispatches the recorded value instead of asking the clock again. A rule about lifetimes is therefore written once, in the bluebook, and both engines read the same integer. Write a duration as a call on a whole number (`days(730)`, `hours(2)`, `minutes(15)`) and it is folded to seconds when the predicate is stored.
 

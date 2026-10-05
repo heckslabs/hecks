@@ -75,6 +75,7 @@ module Hecks
           ["Query", "where"] => :where_impl,
           ["Query", "order_by"] => :order_by_impl,
           ["Query", "authorize"] => :authorize_impl,
+          ["Query", "needs"] => :needs_impl,
           ["ValueObject", "attribute"] => :attribute_impl,
           ["ValueObject", "one_of"] => :one_of_impl,
           ["ValueObject", "invariant"] => :invariant_impl,

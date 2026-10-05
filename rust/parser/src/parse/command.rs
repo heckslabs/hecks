@@ -164,7 +164,7 @@ pub fn parse_body(
                 owner_entities,
             );
             refuse_duplicate_targets(file, *pos, &command)?;
-            refuse_undeclared_needs(file, *pos, &command)?;
+            super::needs::refuse_undeclared(file, *pos, &command.name, &command.needs, &command.attributes)?;
             return Ok((command, pending));
         };
         let line = gated.line.number;
@@ -206,27 +206,7 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 });
             }
-            "needs" => {
-                let fact = super::positional_symbol(file, line, "needs", &gated.args, 1)?;
-                if !NEEDABLE_FACTS.contains(&fact.as_str()) {
-                    return Err(Diagnostic::new(
-                        file,
-                        line,
-                        format!(
-                            "{} needs :{fact}, which the runtime cannot supply — it supplies :now",
-                            command.name
-                        ),
-                    ));
-                }
-                if command.needs.contains(&fact) {
-                    return Err(Diagnostic::new(
-                        file,
-                        line,
-                        format!("{} declares needs :{fact} twice", command.name),
-                    ));
-                }
-                command.needs.push(fact);
-            }
+            "needs" => super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?,
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
@@ -317,28 +297,6 @@ fn state_ref(raw: &str) -> Option<String> {
         return None;
     }
     Some(inner.to_string())
-}
-
-/// The outside facts a command may declare it needs; mirrors `CommandBuilder::NEEDABLE_FACTS`.
-const NEEDABLE_FACTS: &[&str] = &["now"];
-
-/// A need names the attribute the runtime fills, so the command must declare it.
-fn refuse_undeclared_needs(file: &str, line: usize, command: &ir::Command) -> ParseResult<()> {
-    match command
-        .needs
-        .iter()
-        .find(|fact| !command.attributes.iter().any(|a| &a.name == *fact))
-    {
-        Some(fact) => Err(Diagnostic::new(
-            file,
-            line,
-            format!(
-                "{} needs :{fact} but declares no attribute :{fact} for the runtime to fill — add `attribute :{fact}, <type>`",
-                command.name
-            ),
-        )),
-        None => Ok(()),
-    }
 }
 
 /// Refuses a field written twice: a command's effects are one update set (C4.2).

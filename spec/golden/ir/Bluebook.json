@@ -19397,6 +19397,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "needs",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Need"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "options",
           "optional": false,
           "pattern": null,
@@ -19774,6 +19784,67 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "fact",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FactName"
+            }
+          ],
+          "emits": [
+            "AskNeedNamed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "fact",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!fact.value.to_s.empty?",
+              "description": "a fact is named"
+            }
+          ],
+          "goal": "Name an outside fact the runtime supplies before the query's filter reads its arguments",
+          "mutations": [
+            {
+              "fields": {
+                "fact": ":fact"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "needs"
+            }
+          ],
+          "name": "Need",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "name",
               "optional": false,
               "pattern": null,
@@ -20003,6 +20074,50 @@
 
           ],
           "name": "QueryText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fact",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Need"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "FactName"
         },
         {
           "attributes": [
@@ -20546,6 +20661,36 @@
               [
                 "fills",
                 "returns"
+              ]
+            ],
+            [
+              [
+                "word",
+                "needs"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "needs"
+              ],
+              [
+                "calls",
+                "needs_impl"
               ]
             ]
           ],
@@ -21263,6 +21408,36 @@
               [
                 "fills",
                 "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "needs"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "fact"
               ]
             ]
           ],
