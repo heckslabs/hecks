@@ -82,6 +82,7 @@ const repriced = await client.apply({
 | `domain` | The domain's name as its bluebook declares it. Falls back to the `HECKS_DOMAIN` environment variable. Required. |
 | `url` | Where the host listens. Trailing slashes are trimmed. Falls back to the `HECKS_SERVICE_URL` environment variable. Required. |
 | `role` | The role sent with every command unless a call names its own. The host compares it as a plain string against the roles a command declares. When neither the client nor the call sets one, no role is sent and the host performs no role check. |
+| `actorId` | The Governance identity id of the signed-in person, sent as `actor_id` with every command unless a call names its own. An identified caller should pass this and leave `role` unset, so Governance's role assignments decide. The host honors `actor_id` only on its internal protocol, from its own peers. |
 | `timeoutMs` | How long one request may take before it counts as unreachable. Defaults to `8000`. |
 | `fetch` | The `fetch` to send requests with, for tests or a custom agent. Defaults to the global `fetch`, looked up on each call. |
 
@@ -95,8 +96,8 @@ missing domain or URL throws a `TypeError`.
 - `domain`, `url`: the resolved configuration.
 - `qualify(name)`: places a bare name in the client's domain (`"Event"` becomes `"Shop::Event"`). A name that already contains `::` is returned unchanged.
 - `read(): Promise<Answer>`: posts `{"read": true}` and returns everything the domain holds.
-- `dispatch(verb, args = {}, to?, role?): Promise<Answer>`: posts one command and returns the raw answer. `verb` is `Aggregate.Verb` or fully qualified. `to` targets an existing instance and is omitted for a command that creates one.
-- `apply<T>(command): Promise<T>`: dispatches `command.verb` with `command.with`, `command.to` and `command.role`, reads the answer with `command.parse`, and returns the result when `command.confirm` accepts it. Otherwise it throws `DomainRefusal` built from the answer's last refusal.
+- `dispatch(verb, args = {}, to?, role?, actorId?): Promise<Answer>`: posts one command and returns the raw answer. `verb` is `Aggregate.Verb` or fully qualified. `to` targets an existing instance and is omitted for a command that creates one.
+- `apply<T>(command): Promise<T>`: dispatches `command.verb` with `command.with`, `command.to`, `command.role` and `command.actorId`, reads the answer with `command.parse`, and returns the result when `command.confirm` accepts it. Otherwise it throws `DomainRefusal` built from the answer's last refusal.
 - `instancesOf(answer, aggregate): [string, state][]`: the states of one aggregate, bare or qualified name.
 
 Standalone readers, importable without a client:

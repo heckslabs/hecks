@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
+**`@hecks/client` can send `actorId`.** `ClientOptions.actorId` (a default for every command), `Command.actorId` and a fifth `dispatch(verb, args, to, role, actorId)` argument send the body's `actor_id`, the Governance identity id of an identified caller. Leave `role` unset and Governance's role assignments decide; the host honors `actor_id` only on its internal protocol. The key is omitted when unset, so existing calls are unchanged.
+
 **The host's account routes carry each person's identity id.** `GET /accounts/me` now answers
 `{"email", "identity_id"}` and each row of `GET /members` gains a trailing `identity_id`, so a site or
 CMS acting for a person can pass it as `actor_id` and have Governance check the right role assignment.
