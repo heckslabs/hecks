@@ -16,6 +16,8 @@ one, so no existing IR changes; a query's log echoes the arguments the caller of
 `Expired` query now needs `now`. `Hecks::RustBuild::KernelInput` also sends a standalone binary the
 `needs` and `query_needs` tables, as the host does.
 
+**CI cuts the release.** `.github/workflows/release.yml` runs when a commit on `main` changes `lib/hecks/version.rb`: it checks that the gem, `@hecks/client`, `rust/host/HECKS_RELEASE` and the CHANGELOG heading name one version, tags the commit, pushes the gem with the `RUBYGEMS_API_KEY` secret, starts the npm publish and creates the GitHub Release from the CHANGELOG section. Every step skips what already exists, so a re-run finishes a release that stopped halfway. `hecks publishing_run.publish --confirm` still works for a release by hand.
+
 **`hecks interview` drafts what a thing has and how it changes state.** The interview takes two more findings: a **field** a thing has, with the values it may take when the expert listed a closed set, and a **transition**, the state an action leaves a thing in and the state it had to be in before. An action also records the fields it takes and who does it. The draft writes a field as an attribute (optional unless the creating action takes it), a closed set as `one_of`, a command's inputs as its attributes with `sets`, and the transitions as a lifecycle that starts where the creating action leaves the thing. Who may do an action is written as a comment, not a `role`, because a role is checked only once the domain attaches Governance. The interviewer is also told when a thing is not yet said to have anything, or to change state.
 
 **The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is
@@ -128,7 +130,10 @@ sandbox with credential reads refused, writes limited to the named directories, 
 opened, only the named environment variables passed on, and a timeout that kills the agent's whole
 process group. A profile can confine by the sandbox or by `claude`'s own permission rules, which keeps a
 `claude` login working. `hecks quality_control mine_combinations --confine` runs the default agent this
-way. Asks without a profile behave as before.
+way. Asks without a profile behave as before. A profile also sets the network (`none`, `https` or `any`),
+a timeout and a spending cap; under the permission rules the agent runs with no MCP servers, and
+`--confine` lets the miner write only its candidates directory, for at most twenty minutes and two
+dollars. The `https` network setting is written but not exercised by the specs.
 
 ## [3.1.2] - 2026-10-04
 
@@ -288,18 +293,6 @@ against a live Ruby replay. Ruby stays the reference implementation; the corpus 
 **Docs and guides.** The newcomer path now works from the docs alone (#953), the getting-started guide shows how to hook up SQLite (#955), and a new guide covers writing, running and deploying your own domain (#956).
 
 **The host can send a branded signup confirmation (`NEWSLETTER_CONFIRMATION_TEMPLATE_URL`) (#957).** Opt-in: with the variable unset, the confirmation is the plain-text email as before. Set it to the URL of an HTML page and the confirmation email is that page with `{{CONFIRM_URL}}` (required) and `{{UNSUBSCRIBE_URL}}` (optional) replaced by the signed links, HTML-escaped. The host fetches it with a 5 second timeout and a 256 KiB cap. A missing variable, a failed, slow, non-2xx or oversize fetch, or a template with no `{{CONFIRM_URL}}` is logged and the plain-text confirmation goes out as before; signup is never failed or held beyond the timeout. Hecks ships no brand: the template lives with the site.
-
-**The `Agent` adapter can run an agent under a profile.** `Agent#ask(profile: AgentProfile.new(...))`
-names the tools the agent holds, the directories it may write, whether it may reach the network
-(`none`, `https` or `any`), the environment variables it sees, a timeout and a spending cap. On macOS
-the run goes under the sandbox with that policy, reads of credentials are refused, and the agent
-starts with only the environment it was given; where there is no sandbox, a confined run refuses to
-start. Without a profile an ask behaves as before. `https` is written but not exercised by the specs.
-A profile can instead confine by `claude`'s own permission rules (`confinement: :permissions`): the
-agent holds the writing tools only for the directories named, runs with no MCP servers, and keeps
-the user's own `claude` login, which the sandbox cannot (it refuses the keychain). `hecks
-quality_control mine_combinations --confine` uses it, so the miner's agent writes only its
-candidates directory, with a twenty-minute timeout and a two-dollar cap.
 
 ## [3.0.4] - 2026-10-02
 
