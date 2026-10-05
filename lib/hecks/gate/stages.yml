@@ -9,6 +9,16 @@
 #
 # `env` is set only where the caller has not set it: a push check has no use for the Hecks
 # domain's database, so it runs on Memory, as a pull-request run does in CI.
+#
+# A check a second stage repeats is written once, under an anchor (`&name`), and aliased
+# (`*name`) where the other stage takes it, so the two stages cannot drift apart.
+#
+# The `ci` stage is the checks the CI workflow `ci-checks.yml` holds. Each of its steps runs one
+# job's checks with `hecks gate_run.gate stage=ci only=<ids> --wait`, so the commands live here and
+# the workflow keeps only which job runs which ids and what each step is called;
+# spec/gate_ci_stage_spec.rb pins that every check is run by exactly one step. Select checks
+# with `only=`: several of them write generated files and compare, so the stage is not meant to
+# run whole in one checkout.
 pre_push:
   env:
     HECKS_ENVIRONMENT: memory
@@ -17,7 +27,8 @@ pre_push:
       title: rspec (parallel)
       run: [bundle, exec, parallel_rspec, spec, -n, "{workers}"]
       blocked: the suite is red.
-    - id: fuzzing
+    - &check_fuzzing
+      id: fuzzing
       title: spec/fuzzing, which the parallel run above excludes
       run: [bundle, exec, rspec, spec/fuzzing, --tag, fuzzing]
       blocked: spec/fuzzing is red.
@@ -25,31 +36,125 @@ pre_push:
       title: adapter agreement, one declared query and every engine giving the same answer
       run: [bundle, exec, rspec, spec/adapters/query_agreement_spec.rb, --tag, io]
       blocked: the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.
-    - id: engine_agreement
+    - &check_engine_agreement
+      id: engine_agreement
       title: engine agreement, every declared comparator on both engines
       run: [bundle, exec, exe/hecks, conformance_run.check_engine_agreement, --wait]
       blocked: a comparator is missing a shared case or a cross-engine spec.
-    - id: model_check
+    - &check_model_check
+      id: model_check
       title: model check, unreachable states, dead transitions and orphaned handlers
       run: [bundle, exec, exe/hecks, model_check, --wait]
       blocked: the model checker found something.
-    - id: doc_coverage
+    - &check_doc_coverage
+      id: doc_coverage
       title: docs coverage, words with no running example
       run: [bundle, exec, exe/hecks, conformance_run.measure_doc_coverage, --wait]
       blocked: the language ships something undocumented; write the missing sections and examples.
-    - id: rubocop
+    - &check_rubocop
+      id: rubocop
       title: rubocop, the static style and correctness gate
       run: [bundle, exec, rubocop, -c, .rubocop.yml]
       blocked: rubocop found an offense.
-    - id: codegen_drift
+    - &check_codegen_drift
+      id: codegen_drift
       title: codegen drift, the committed rust/src/generated/ must match a fresh regeneration
       run: [bundle, exec, exe/hecks, regeneration_run.regenerate_corpus, --check, --wait]
       blocked: regenerating hits a diff, so the committed Rust is stale; run `hecks regenerate_corpus --confirm` and commit the result.
-    - id: comment_style
+    - &check_comment_style
+      id: comment_style
       title: comment style, every comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md
       run: [bundle, exec, exe/hecks, style_run.check_comments, paths=lib/hecks, --wait]
       blocked: a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.
-    - id: comment_blocks
+    - &check_comment_blocks
+      id: comment_blocks
       title: comment blocks, no run of comment lines past ADR 0075's cap
       run: [bundle, exec, exe/hecks, style_run.check_comments, "paths=lib,spec,examples", only=long_block, --wait]
       blocked: a comment block ran past the cap; shorten it.
+
+# The checks `.githooks/post-commit` runs after each commit. A red one is reported and never
+# blocks the commit; pre_push runs it again as the backstop.
+post_commit:
+  env:
+    HECKS_ENVIRONMENT: memory
+  checks:
+    - *check_fuzzing
+
+# The checks `.github/workflows/ci-checks.yml` runs. It sets no `env`: the job's journal choice
+# (the `hecks-environment` action) reaches every check, as it reached each command before.
+ci:
+  checks:
+    - *check_model_check
+    - *check_engine_agreement
+    - *check_doc_coverage
+    - *check_rubocop
+    - *check_comment_style
+    - *check_comment_blocks
+    - *check_codegen_drift
+    - id: lint_deploy_recipes
+      title: generated deploy recipes, a command with no checked exit status or no echo
+      run: [bundle, exec, exe/hecks, deploy, makefile_check.lint, --wait]
+      blocked: a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen.
+    - id: fuzz
+      title: fuzz, every example domain on the Memory adapter
+      run: [bundle, exec, exe/hecks, fuzz_run.fuzz, --wait]
+      blocked: a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.
+    - id: fuzz_sqlite
+      title: fuzz on a real on-disk SQLite database
+      run: [bundle, exec, exe/hecks, fuzz_run.fuzz, adapter=sqlite, seeds=6, --wait]
+      blocked: the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.
+    - id: fuzz_postgres
+      title: fuzz on real Postgres, one worker (every ephemeral boot recreates the same scratch schema)
+      run: [bundle, exec, exe/hecks, fuzz_run.fuzz, adapter=postgres, seeds=3, steps=20, --wait]
+      blocked: the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.
+    - id: vocabulary_drift
+      title: vocabulary, the reserved-name tables regenerated must match the committed ones
+      run:
+        - sh
+        - -ec
+        - |
+          bundle exec exe/hecks language_run.project_vocabulary --confirm --wait
+          bundle exec exe/hecks language_run.project_reserved_names --confirm --wait
+          git diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs
+      blocked: a generated vocabulary file is stale; the check rewrote it, so commit the result.
+    - id: ci_gates
+      title: ci gates, the CiGate rows must match the marked regions of the workflows
+      run: [bundle, exec, exe/hecks, regeneration_run.project_ci_gates, --wait]
+      blocked: a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`.
+    - id: tools_doc
+      title: tools doc, docs/tools.md must match the RetiredScript rows
+      run: [bundle, exec, exe/hecks, regeneration_run.project_tools_doc, --wait]
+      blocked: a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc --confirm`.
+    - id: rust_coverage
+      title: rust coverage, every generated module
+      run: [bundle, exec, exe/hecks, query, corpus_run.corpus_rust_coverage, --wait]
+      blocked: a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted.
+    - id: rust_coverage_codegen
+      title: rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta
+      run:
+        - sh
+        - -ec
+        - |
+          for module in pizzas governance identity banking meta; do
+            bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait
+          done
+      blocked: hecks-codegen generated nothing for a construct a domain declares.
+    - id: kernel_coverage
+      title: rust kernel coverage, every capability variant has a kernel file
+      run: [bundle, exec, exe/hecks, kernel_run.measure_kernel_coverage, --wait]
+      blocked: a capability's enum variant has no rust/src/kernel file behind it.
+    - id: rust_vocabulary_drift
+      title: rust vocabulary, the kernel vocab tables regenerated must match the committed ones
+      run:
+        - sh
+        - -ec
+        - |
+          bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait
+          git diff --exit-code -- rust/src/kernel/vocab/
+          untracked="$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)"
+          if [ -n "$untracked" ]; then
+            echo "rust/src/kernel/vocab has uncommitted generated files:" >&2
+            echo "$untracked" >&2
+            exit 1
+          fi
+      blocked: the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result.

@@ -1,0 +1,40 @@
+name: Write a CI attestation note
+description: >-
+  Writes and pushes the attestation note .githooks/pre-push writes locally, for this run's own
+  checked-out tree: a git note under refs/notes/ci keyed by HEAD^{tree}, carrying an HMAC of
+  "<tree>:<checks>" signed with the shared key, which check-attestation re-derives to decide which
+  jobs a later run on the same tree may skip. The caller needs `contents: write` and a checkout.
+inputs:
+  checks:
+    description: The comma-separated check names the note vouches for.
+    required: true
+  hmac-key:
+    description: >-
+      The HECKS_CI_ATTEST_KEY secret, passed in by the calling job since a composite action has no
+      secrets of its own. Empty (a fork PR) makes the action do nothing.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Write and push the note
+      shell: bash
+      env:
+        HMAC_KEY: ${{ inputs.hmac-key }}
+        CHECKS: ${{ inputs.checks }}
+      run: |
+        if [ -z "$HMAC_KEY" ]; then
+          echo "[ci_attest_write] no attestation secret on this run (fork PR) — skipping" >&2
+          exit 0
+        fi
+
+        tree=$(git rev-parse HEAD^{tree})
+        hmac=$(printf '%s:%s' "$tree" "$CHECKS" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
+        note="checks=$CHECKS"$'\n'"hmac=$hmac"
+
+        # A notes commit needs an author; the runner carries none by default. Scoped to
+        # this one command (`-c`), not the repo config, since nothing else here commits.
+        git fetch origin refs/notes/ci:refs/notes/ci || true
+        git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+          notes --ref=ci add -f -m "$note" "$tree"
+        git push origin refs/notes/ci
