@@ -1,0 +1,249 @@
+{
+  "domain": "qa/stress_domains/nested_pieces",
+  "note": "A command attribute's declared default fills an omitted argument on an entity's command as it does on an aggregate's, in both engines, at both depths. `Board.Retitle` declares `label` with a default: board 1 is retitled with no label named and takes the default, board 2 names one and keeps it. `Board.Card.Remark`, two hops down, declares `note` with a default and the card takes it when none is named.",
+  "steps": [
+    {
+      "verb": "NestedPieces::Workspace.Open",
+      "args": {
+        "reference": {
+          "value": "W1"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.AddCard",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 1
+        },
+        "sequence": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Retitle",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Retitle",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 2
+        },
+        "label": {
+          "value": "mine"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Card.Remark",
+      "args": {
+        "reference": {
+          "value": "W1"
+        },
+        "number": {
+          "value": 1
+        },
+        "sequence": {
+          "value": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "NestedPieces::Workspace#W1": {
+        "reference": {
+          "value": "W1"
+        },
+        "boards": [
+          {
+            "number": {
+              "value": 1
+            },
+            "label": {
+              "value": "untitled"
+            },
+            "cards": [
+              {
+                "sequence": {
+                  "value": 1
+                },
+                "note": {
+                  "text": "none"
+                }
+              }
+            ]
+          },
+          {
+            "number": {
+              "value": 2
+            },
+            "label": {
+              "value": "mine"
+            },
+            "cards": [
+
+            ]
+          }
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "WorkspaceOpened",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          }
+        }
+      },
+      {
+        "name": "BoardAdded",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "BoardAdded",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "name": "CardAdded",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 1
+          },
+          "sequence": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "BoardRetitled",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 1
+          },
+          "label": {
+            "value": "untitled"
+          }
+        }
+      },
+      {
+        "name": "BoardRetitled",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 2
+          },
+          "label": {
+            "value": "mine"
+          }
+        }
+      },
+      {
+        "name": "CardRemarked",
+        "aggregate": "NestedPieces::Workspace",
+        "id": "W1",
+        "payload": {
+          "reference": {
+            "value": "W1"
+          },
+          "number": {
+            "value": 1
+          },
+          "sequence": {
+            "value": 1
+          },
+          "note": {
+            "text": "none"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

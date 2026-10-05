@@ -11,6 +11,17 @@ RSpec.describe Hecks::RustBuild::KernelInput do
     expect(described_class.defaults_for(domain)).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
   end
 
+  it "lists an entity's commands, and a nested entity's, under their full verb path" do
+    nested = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
+
+    board = "NestedPieces::Workspace.Board"
+
+    expect(described_class.defaults_for(nested)).to eq(
+      "#{board}.Retitle"     => { "label" => { "value" => "untitled" } },
+      "#{board}.Card.Remark" => { "note" => { "text" => "none" } }
+    )
+  end
+
   it "builds the input from the steps and the defaults table" do
     input = described_class.build(domain, steps)
 

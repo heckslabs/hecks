@@ -110,21 +110,34 @@ pub fn table(domain_ir: &Value) -> Value {
     Value::Object(verbs)
 }
 
+fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
+    value.get(key).and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
+}
+
+fn named(value: &Value, name: &str) -> bool {
+    value.get("name").and_then(Value::as_str) == Some(name)
+}
+
+/// The command a verb names: `Domain::Aggregate.Command` on the aggregate itself, or
+/// `Domain::Aggregate.Entity[.Entity].Command` on an entity nested inside it.
+fn command_for<'a>(domain_ir: &'a Value, verb: &str) -> Option<&'a Value> {
+    let mut segments = verb.split('.');
+    let aggregate = segments.next()?.rsplit("::").next()?;
+    let mut path: Vec<&str> = segments.collect();
+    let command_name = path.pop()?;
+    let mut node = list(domain_ir, "aggregates").iter().find(|a| named(a, aggregate))?;
+    for entity in path {
+        node = list(node, "entities").iter().find(|e| named(e, entity))?;
+    }
+    list(node, "commands").iter().find(|c| named(c, command_name))
+}
+
 /// The command's attributes that declare a default (`attribute :runs, Count, default: 30`), each
 /// with the declared value. An attribute whose default is null declares none.
 fn declared_defaults<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, &'a Value)> {
-    let Some((qualified_aggregate, command_name)) = verb.rsplit_once('.') else { return Vec::new() };
-    let aggregate = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
-    let named = |value: &Value, name: &str| value.get("name").and_then(Value::as_str) == Some(name);
-    let list = |value: &'a Value, key: &str| -> Vec<&'a Value> {
-        value.get(key).and_then(Value::as_array).map(|a| a.iter().collect()).unwrap_or_default()
-    };
-    list(domain_ir, "aggregates")
-        .into_iter()
-        .filter(|a| named(a, aggregate))
-        .flat_map(|a| list(a, "commands"))
-        .filter(|c| named(c, command_name))
-        .flat_map(|c| list(c, "attributes"))
+    let Some(command) = command_for(domain_ir, verb) else { return Vec::new() };
+    list(command, "attributes")
+        .iter()
         .filter_map(|a| {
             let default = a.get("default").filter(|d| !d.is_null())?;
             Some((a.get("name").and_then(Value::as_str)?, default))
@@ -133,27 +146,33 @@ fn declared_defaults<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, &'a 
 }
 
 /// Every command's declared defaults as the kernel's input `"defaults"` reads them:
-/// `{ verb: { attribute: value } }`. The kernel fills a reaction's command from this the same way
-/// the host fills the outermost one.
+/// `{ verb: { attribute: value } }`, entity commands included. The kernel fills a reaction's
+/// command from this the same way the host fills the outermost one.
 pub fn defaults_table(domain_ir: &Value) -> Value {
     let domain = domain_ir.get("name").and_then(Value::as_str).unwrap_or_default();
     let mut verbs = serde_json::Map::new();
-    let aggregates = domain_ir.get("aggregates").and_then(Value::as_array).into_iter().flatten();
-    for aggregate in aggregates {
+    for aggregate in list(domain_ir, "aggregates") {
         let aggregate_name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
-        for command in aggregate.get("commands").and_then(Value::as_array).into_iter().flatten() {
-            let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
-            let verb = format!("{domain}::{aggregate_name}.{command_name}");
-            let defaults: serde_json::Map<String, Value> = declared_defaults(domain_ir, &verb)
-                .into_iter()
-                .map(|(name, value)| (name.to_string(), value.clone()))
-                .collect();
-            if !defaults.is_empty() {
-                verbs.insert(verb, Value::Object(defaults));
-            }
-        }
+        collect_defaults(domain_ir, aggregate, &format!("{domain}::{aggregate_name}"), &mut verbs);
     }
     Value::Object(verbs)
+}
+
+/// Adds the defaults of `node`'s commands, then of each entity nested in it, under `prefix`.
+fn collect_defaults(domain_ir: &Value, node: &Value, prefix: &str, verbs: &mut serde_json::Map<String, Value>) {
+    for command in list(node, "commands") {
+        let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
+        let verb = format!("{prefix}.{command_name}");
+        let defaults: serde_json::Map<String, Value> =
+            declared_defaults(domain_ir, &verb).into_iter().map(|(name, value)| (name.to_string(), value.clone())).collect();
+        if !defaults.is_empty() {
+            verbs.insert(verb, Value::Object(defaults));
+        }
+    }
+    for entity in list(node, "entities") {
+        let entity_name = entity.get("name").and_then(Value::as_str).unwrap_or_default();
+        collect_defaults(domain_ir, entity, &format!("{prefix}.{entity_name}"), verbs);
+    }
 }
 
 /// The facts of a command invocation: the `with` object when the call carries one, else the
@@ -350,5 +369,53 @@ mod tests {
     fn the_kernel_table_lists_each_command_that_declares_a_default() {
         assert_eq!(defaults_table(&defaulted_ir()), json!({"Qc::Check.Start": {"runs": 30}}));
         assert_eq!(defaults_table(&integer_ir()), json!({}));
+    }
+
+    // A board entity with a defaulted command, and a card nested inside it with another.
+    fn nested_ir() -> Value {
+        json!({"name": "Np", "aggregates": [{"name": "Workspace", "commands": [], "entities": [
+            {"name": "Board", "commands": [
+                {"name": "Retitle", "attributes": [
+                    {"name": "label", "type": "BoardLabel", "default": {"value": "untitled"}}], "needs": []}
+            ], "entities": [
+                {"name": "Card", "commands": [
+                    {"name": "Remark", "attributes": [
+                        {"name": "note", "type": "CardNote", "default": {"text": "none"}}], "needs": []}
+                ]}
+            ]}
+        ]}]})
+    }
+
+    #[test]
+    fn an_entity_command_is_filled_from_its_own_declared_default() {
+        let mut args = json!({"reference": {"value": "W1"}, "number": {"value": 1}});
+        fill_defaults(&nested_ir(), "Np::Workspace.Board.Retitle", &mut args);
+        assert_eq!(args["label"], json!({"value": "untitled"}));
+    }
+
+    #[test]
+    fn a_command_on_an_entity_nested_in_an_entity_is_filled_too() {
+        let mut args = json!({"with": {"reference": {"value": "W1"}}});
+        fill_defaults(&nested_ir(), "Np::Workspace.Board.Card.Remark", &mut args);
+        assert_eq!(args["with"]["note"], json!({"text": "none"}));
+    }
+
+    #[test]
+    fn an_entity_path_that_names_nothing_is_left_untouched() {
+        let mut args = json!({"number": 1});
+        fill_defaults(&nested_ir(), "Np::Workspace.Shelf.Retitle", &mut args);
+        fill_defaults(&nested_ir(), "Np::Workspace.Board.Remark", &mut args);
+        assert_eq!(args, json!({"number": 1}));
+    }
+
+    #[test]
+    fn the_kernel_table_lists_entity_commands_under_their_full_path() {
+        assert_eq!(
+            defaults_table(&nested_ir()),
+            json!({
+                "Np::Workspace.Board.Retitle": {"label": {"value": "untitled"}},
+                "Np::Workspace.Board.Card.Remark": {"note": {"text": "none"}}
+            })
+        );
     }
 }
