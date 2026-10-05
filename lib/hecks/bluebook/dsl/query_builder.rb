@@ -1,4 +1,5 @@
 require_relative "word_gate"
+require_relative "need_word"
 module Hecks
   module Bluebook
     module DSL
@@ -14,11 +15,13 @@ module Hecks
         include AttributeCollector
         include QuerySpecification::Common::DSL
         include WordGate
+        include NeedWord
 
         # @param name [String] the query's name, as written after `query`
         def initialize(name)
           @name   = name
           @wheres = []
+          @needs  = []
         end
 
         # Sets the human-readable description shown for this query.
@@ -75,6 +78,7 @@ module Hecks
         #   implements
         def build
           seal_cursor
+          refuse_undeclared_needs!
           Query.new(
             name:           @name,
             description:    @description,
@@ -87,7 +91,8 @@ module Hecks
             authorization:  @authorization,
             null_semantics: @null_semantics,
             inspection:     @inspection,
-            returns:        @returns
+            returns:        @returns,
+            needs:          @needs
           )
         end
 

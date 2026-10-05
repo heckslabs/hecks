@@ -5,12 +5,14 @@ require_relative "../rust_build"
 
 module Hecks
   module RustBuild
-    # The stdin a compiled domain binary reads: the steps to run, plus the declared argument
-    # defaults the host would hand its kernel.
+    # The stdin a compiled domain binary reads: the steps to run, plus what the host would hand its
+    # kernel from the domain's IR.
     #
-    # The kernel has no IR of its own, so a command's declared defaults reach it as a top-level
-    # `"defaults"` table, `{ "Domain::Aggregate.Command" => { "attribute" => value } }`, the same
-    # one the Rust host builds from the domain's IR. A harness that sends only `"steps"` would
+    # The kernel has no IR of its own, so the facts a declaration reaches it with arrive as
+    # top-level tables the Rust host builds from the domain's IR: `"defaults"`, a command's declared
+    # argument defaults (`{ "Domain::Aggregate.Command" => { "attribute" => value } }`); `"needs"`,
+    # the outside facts a command needs; and `"query_needs"`, the same for a query (kept apart: a
+    # command and a query may share a qualified name). A harness that sends only `"steps"` would
     # leave the kernel refusing an argument Ruby fills, so every conformance caller builds its
     # input here.
     module KernelInput
@@ -18,11 +20,10 @@ module Hecks
 
       # @param domain_path [String] the domain's directory; its basename names the generated module
       # @param steps [Array<Hash>] the steps to run
-      # @return [Hash{String => Object}] the input; `"defaults"` is there only when one is declared
+      # @return [Hash{String => Object}] the input; each table is there only when it has an entry
       def build(domain_path, steps)
         input = { "steps" => steps }
-        defaults = defaults_for(domain_path)
-        input["defaults"] = defaults unless defaults.empty?
+        tables_for(domain_path).each { |name, table| input[name] = table unless table.empty? }
         input
       end
 
@@ -35,27 +36,48 @@ module Hecks
       #
       # @param domain_path [String] the domain's directory
       # @return [Hash{String => Hash{String => Object}}] empty when the IR is absent or has none
-      def defaults_for(domain_path)
-        ir = generated_ir(domain_path) or return {}
+      def defaults_for(domain_path) = tables_for(domain_path).fetch("defaults")
+
+      # The three tables of one domain: `"defaults"`, `"needs"` and `"query_needs"`.
+      #
+      # @param domain_path [String] the domain's directory
+      # @return [Hash{String => Hash}] each table, empty when the IR is absent or declares none
+      def tables_for(domain_path)
+        tables = { "defaults" => {}, "needs" => {}, "query_needs" => {} }
+        ir = generated_ir(domain_path) or return tables
         domain = ir["name"].to_s
-        Array(ir["aggregates"]).each_with_object({}) do |aggregate, table|
-          collect_defaults(aggregate, "#{domain}::#{aggregate['name']}", table)
-        end
+        Array(ir["aggregates"]).each { |aggregate| collect(aggregate, "#{domain}::#{aggregate['name']}", tables) }
+        tables
       end
 
-      # Adds the defaults of `node`'s commands, then of each entity nested in it, under `prefix`.
+      # Adds what `node`'s commands and queries declare, then what each entity nested in it does,
+      # under `prefix`.
       #
       # @param node [Hash] an aggregate or entity of the IR
       # @param prefix [String] the verb path down to `node`
-      # @param table [Hash] filled in place
+      # @param tables [Hash] filled in place
       # @return [void]
-      def collect_defaults(node, prefix, table)
+      def collect(node, prefix, tables)
         Array(node["commands"]).each do |command|
+          verb = "#{prefix}.#{command['name']}"
           held = Array(command["attributes"]).reject { |attribute| attribute["default"].nil? }
                                              .to_h { |attribute| [attribute["name"], attribute["default"]] }
-          table["#{prefix}.#{command['name']}"] = held unless held.empty?
+          tables["defaults"][verb] = held unless held.empty?
+          tables["needs"][verb] = needs_of(command) unless Array(command["needs"]).empty?
         end
-        Array(node["entities"]).each { |entity| collect_defaults(entity, "#{prefix}.#{entity['name']}", table) }
+        Array(node["queries"]).each do |query|
+          tables["query_needs"]["#{prefix}.#{query['name']}"] = needs_of(query) unless Array(query["needs"]).empty?
+        end
+        Array(node["entities"]).each { |entity| collect(entity, "#{prefix}.#{entity['name']}", tables) }
+      end
+
+      # @param declaration [Hash] a command or query of the IR that declares `needs`
+      # @return [Array<Hash>] each needed fact with the type of the argument of the same name
+      def needs_of(declaration)
+        Array(declaration["needs"]).map do |need|
+          argument = Array(declaration["attributes"]).find { |attribute| attribute["name"] == need["fact"] }
+          { "fact" => need["fact"], "type" => argument ? argument["type"].to_s : "" }
+        end
       end
 
       # @param domain_path [String] the domain's directory

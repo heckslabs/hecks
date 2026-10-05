@@ -16,6 +16,15 @@ kept (`package.pinning`, `package.unpinned`). The mechanism is general: a `settl
 names commands that always wait, and a `--wait` failure now appends the record's own `refusal` to its reason. A script
 that read the record from the old exit-0 output should read the exit status.
 
+**A query can declare `needs`, and there is a `today` fact (ADR 0081).** A query writes `needs :now`
+(or `needs :today`, the day the clock falls in, whole days since the epoch in UTC) and declares the
+attribute it fills; the runtime answers it before the query's filter reads its arguments, unless the
+caller passed a value of its own. Ruby, the Rust parser, the Rust host and the kernel all do it, and
+`today` is available to commands too. The Query IR carries `needs` only on a query that declares
+one, so no existing IR changes; a query's log echoes the arguments the caller offered. `lease_clock`'s
+`Expired` query now needs `now`. `Hecks::RustBuild::KernelInput` also sends a standalone binary the
+`needs` and `query_needs` tables, as the host does.
+
 **`hecks-codegen` prepares its own IR and writes its own sidecars.** It now marks the fields an `append` binds to an optional argument, and writes each chapter's `ir.json` and `metadata.rs`, so `hecks project_rust` and the Ruby-free `hecks-build` both drop their copies: the Ruby `AppendOptionals` and `RustLiteral`, and `hecks-build`'s `optional_pass.rs` and `sidecars.rs`. One mutable JSON type in codegen reads numbers as written and writes what `JSON.pretty_generate` writes. `hecks regenerate_corpus --check` stays clean, so every committed `ir.json` is reproduced byte for byte.
 
 **CI cuts the release.** `.github/workflows/release.yml` runs when a commit on `main` changes `lib/hecks/version.rb`: it checks that the gem, `@hecks/client`, `rust/host/HECKS_RELEASE` and the CHANGELOG heading name one version, tags the commit, pushes the gem with the `RUBYGEMS_API_KEY` secret, starts the npm publish and creates the GitHub Release from the CHANGELOG section. Every step skips what already exists, so a re-run finishes a release that stopped halfway. `hecks publishing_run.publish --confirm` still works for a release by hand.

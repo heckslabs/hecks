@@ -63,8 +63,9 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
-  # `Command.Need` is real DSL surface only a command that asks the runtime for a fact reaches,
-  # and no corpus chapter the judge walks declares one that way, so a small fixture does (ADR 0081).
+  # `Command.Need` and `Query.Need` are real DSL surface only a declaration that asks the runtime
+  # for a fact reaches, and no corpus chapter the judge walks declares one that way, so a small
+  # fixture does (ADR 0081).
   def needs_chapter
     @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage") do
       aggregate "Clocked" do
@@ -82,6 +83,13 @@ RSpec.describe "the judge's coverage of the language" do
           sets :ref
           sets :issued_at, to: :now
           emits "ClockedIssued"
+        end
+
+        query "IssuedBefore" do
+          attribute :now, ClockedInstant
+          needs :now
+          where("issued_at.value": { lte: :now })
+          order_by :ref
         end
       end
     end
