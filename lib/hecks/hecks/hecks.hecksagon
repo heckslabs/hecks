@@ -148,6 +148,12 @@ Hecks.hecksagon "Hecks" do
       refuses "BuildRefused"
     end
 
+    asks "Host", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
     asks "BrowserWasm", to: Build do
       attribute :run, BuildKey
       answers "BuildAnswered"

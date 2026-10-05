@@ -10,7 +10,7 @@ RSpec.describe Hecks::Doors::McpDoorScope do
     gate host_version inner ir_version iterations kind name named new_name no_ai only opens package
     pairs_shape
     parallel profile rehearsal rehearsed_at required role run runs seed_start seeds ships_from snapshot stage
-    stdout steps strict subject tags targets timeout to verb version warmup winners word workers
+    stdout steps strict subject tags target targets timeout to verb version warmup winners word workers
   ].freeze
 
   let(:classes) do

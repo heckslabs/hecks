@@ -28,7 +28,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     package.pinning package.unpinned package.verify package.check package.release
     operation.bootstrap_admin door.project_cli door.serve_mcp
     door.ended door.stopped build.project_rust build.build_wasm
-    build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
+    build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
     fuzz_run.bench fuzz_run.conclusion fuzz_run.halted fuzz_run.generate_sequence
   ].freeze
@@ -863,6 +863,17 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(row.fetch("status")).to eq("faulted")
       expect(row.dig("refusal", "value")).to include("wasm32-wasip1 isn't installed")
       expect(JSON.parse(run_verb("build.faulted").first).map { |build| build.dig("run", "value") }).to include("wasm-1")
+    end
+
+    it "build_host asks project_host with its target and stage, and refuses a target that is no triple" do
+      toolchain_says
+      stage = File.join(@dir, "stage")
+
+      run_verb("build.build_host", @shelf, "run=host-1", "target=aarch64-unknown-linux-gnu", "stage_dir=#{stage}")
+      _out, status = run_verb("build.build_host", @shelf, "run=host-2", "target=arm64")
+
+      expect(asked).to eq([["project_host", @shelf, "--target=aarch64-unknown-linux-gnu", "--stage=#{stage}"]])
+      expect(status).not_to eq(0)
     end
 
     it "build_browser_wasm, check_conformance, fuzz_conformance and check_coverage_allowlist each ask their own script" do
