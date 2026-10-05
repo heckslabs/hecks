@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
+require_relative "shell"
 require_relative "codebase/tree"
 require_relative "codebase/ruby_child"
 require "hecks/projections/deploy/template_diff"
@@ -21,6 +22,10 @@ module Hecks
       # `hecks deploy recipe.project`'s flag for each `Recipe` field it takes.
       GENERATE_FLAGS = { "--tenant" => :tenant, "--schema" => :schema, "--out" => :out,
                          "--environment" => :environment }.freeze
+
+      # What each status of `smoke-after-deploy.sh` means, for the reason a refusal gives.
+      SMOKE_STATUS = { 20 => "the roll did not settle", 21 => "gh missing or no repository, smoke not run",
+                       22 => "the smoke failed", 23 => "the smoke's result is unknown" }.freeze
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -86,7 +91,38 @@ module Hecks
         raise ConsoleCapture::Failure, e.message
       end
 
+      # Runs a project's generated `smoke-after-deploy.sh`, through `hecks deploy smoke_run.run`.
+      #
+      # The script is the one the AwsBox projection writes; it waits for the roll to settle, then
+      # dispatches and follows the smoke workflow, and only ever reads AWS. Its options travel in
+      # the environment variables it documents.
+      #
+      # @param held [Hash] the `SmokeRun` record: `script`, and `taskdef`, `skip`, `async` and
+      #   `dry_run` when set
+      # @return [Hash{Symbol => Hash}] `report:` what the script printed
+      # @raise [ConsoleCapture::Failure] when the script is missing, or ends non-zero; the message
+      #   names the status (20 unsettled, 21 not run, 22 failed, 23 unknown) and what it printed
+      def smoke(**held)
+        script = File.expand_path(plain(held[:script]).to_s)
+        raise ConsoleCapture::Failure, "no such script: #{script}" unless File.file?(script)
+
+        result = Shell.new.capture("bash", script, env: smoke_env(held), chdir: File.dirname(script))
+        report = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
+        return { report: { value: report } } if result.ok?
+
+        code = result.status.exitstatus
+        raise ConsoleCapture::Failure, "smoke ended #{code} (#{SMOKE_STATUS.fetch(code, 'unexpected')})\n#{report}"
+      end
+
       private
+
+      # The variables the generated script reads, set only when the record asks for them.
+      def smoke_env(held)
+        { "TASKDEF" => plain(held[:taskdef]), "SKIP_POST_DEPLOY_SMOKE" => flag(held[:skip]),
+          "SMOKE_ASYNC" => flag(held[:async]), "DRY_RUN" => flag(held[:dry_run]) }.compact
+      end
+
+      def flag(argument) = plain(argument) == true ? "1" : nil
 
       def child(ask, argv)
         tree = Codebase::Tree.new

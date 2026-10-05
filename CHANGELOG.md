@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks deploy smoke_run.run` runs a project's generated post-deploy smoke as a command.** Give it the `smoke-after-deploy.sh` the `AwsBox` projection wrote (`taskdef=`, `skip=true`, `async=true` and `dry_run=true` map to the script's variables) and it records a `SmokeRun` in the Deploy chapter as `passed` with what the script printed, or `flagged` with the script's status (20 the roll did not settle, 21 `gh` unavailable, 22 the smoke failed, 23 result unknown), exiting 1 when flagged. The generated scripts are unchanged and `make deploy` still calls them; the command is the first step of rolling the deploy scripts into the Deploy chapter, which [ADR 0090](docs/decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md) lays out.
+
 ## [3.4.0] - 2026-10-05
 
 A minor that removes the five spellings 3.3.0 warned about (`uses_framework`, `uses_embryonaut_bluebook`, `Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:`), the removal that 3.3.0's warnings named. Using one now fails with a message naming its replacement, so a project must migrate before it moves its pin past 3.3.x: the table is in [`docs/migrating-2-to-3.md`](docs/migrating-2-to-3.md), and the `Removed (3.4.0)` entry below says what each one becomes. Deploys pin exactly (`docs/1.0-readiness.md`, "What a release number promises"), so a running system stays on 3.3.x until it is migrated.

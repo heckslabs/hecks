@@ -460,6 +460,16 @@ last change to what runs, so a bill that still carries the old setup is not read
 the new one. It exits 1 when flagged, and needs AWS credentials that can read Cost
 Explorer.
 
+To run the post-deploy smoke as a command, run
+`hecks deploy smoke_run.run deploy-aws/box-generated/smoke-after-deploy.sh --wait`
+(`taskdef=<family[:revision]>`, `skip=true`, `async=true` and `dry_run=true` become the
+script's `TASKDEF`, `SKIP_POST_DEPLOY_SMOKE`, `SMOKE_ASYNC` and `DRY_RUN`). It runs the
+generated script, so the settle checks and the workflow dispatch are the ones `make deploy`
+already uses, records the run as `passed` with what the script printed, or as `flagged`
+with its status (20 the roll did not settle, 21 `gh` missing, 22 the smoke failed, 23 result
+unknown), and exits 1 when flagged. It only reads AWS. The design for the other deploy
+scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
+
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
 `cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
