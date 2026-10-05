@@ -41,14 +41,22 @@ usage. In a clone of this repository, the same launcher also answers the
 maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
 `hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase chapter).
 
-The gem carries no sample domain, so the quickstart below starts from a
-clone of this repository.
+The gem carries the pizzas example the quickstart uses, so once it is installed
+`hecks console` opens it. A clone adds the rest of the repository: the guides, the
+other examples and the sources.
 
 ## Quickstart
 
-About ten minutes, and no database server. You need Ruby 3.2 or newer and
-Bundler. If `bundle install` fails building the `pg` gem, install Postgres's
-client library (`libpq`) and run it again; nothing here connects to a database.
+About ten minutes, and no database server. You need Ruby 3.2 or newer. If
+installing fails building the `pg` gem, install Postgres's client library
+(`libpq`) and run it again; nothing here connects to a database.
+
+```sh
+gem install hecks
+hecks console
+```
+
+Or from a clone, which is how you work on hecks itself:
 
 ```sh
 git clone https://github.com/heckslabs/hecks

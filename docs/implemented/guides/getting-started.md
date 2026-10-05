@@ -15,16 +15,16 @@ read can be checked.
 
 ## What you need
 
-hecks is published as the `hecks` gem, but the
-repository itself is still the primary way to work with it — clone it
-and the repository is the tool:
+hecks is published as the `hecks` gem, and the gem carries the pizzas example
+this guide walks through:
 
 ```sh
-git clone https://github.com/heckslabs/hecks
-cd hecks
-bundle install
-bundle exec hecks console   # boots the pizzas example this guide walks through
+gem install hecks
+hecks console   # boots the pizzas example this guide walks through
 ```
+
+From a clone of the repository, which also holds the other examples and the
+sources, it is `bundle install` and then `bundle exec hecks console`.
 
 No database server is needed. The console loads pizzas on the in-memory
 adapter and keeps hecks's own journal in memory too. To open another domain, add `subject=<domain>`, for
