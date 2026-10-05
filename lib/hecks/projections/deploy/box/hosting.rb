@@ -33,8 +33,9 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the Makefile fragment the box `Makefile` includes
           def hosting_mk(plan)
-            Box.template("hosting.mk.tmpl", "SERVICE" => plan.containers.first.name,
-                                            "URL"     => plan.hosting.public_url.to_s)
+            Box.template("hosting.mk.tmpl", "SERVICE"      => plan.containers.first.name,
+                                            "URL"          => plan.hosting.public_url.to_s,
+                                            "SMOKE_RECIPE" => Box::SMOKE_RECIPE)
           end
 
           # @param plan [Settings::Plan] the resolved settings

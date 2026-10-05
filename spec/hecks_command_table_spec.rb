@@ -14,6 +14,9 @@ RSpec.describe "the Hecks command table through the launcher" do
   # them.
   COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "door.serve_mcp" => "mcp" }.freeze
 
+  # Settled verbs of the attached Deploy chapter; hecks_deploy_smoke_run_spec.rb runs them.
+  DEPLOY_CHAPTER_VERBS = %w[smoke_run.run].freeze
+
   CUSTODIAN_VERBS = %w[
     introspection.ir introspection.shape introspection.stores introspection.history
     introspection.statements introspection.narrate introspection.docs introspection.project_diagrams
@@ -767,7 +770,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       it "lists only commands the table has" do
         settled = Hecks::Doors::LauncherOptions.settings(@hecks, "Hecks").fetch(:settled)
 
-        expect(settled - CUSTODIAN_VERBS).to be_empty
+        expect(settled - CUSTODIAN_VERBS - DEPLOY_CHAPTER_VERBS).to be_empty
       end
 
       it "leaves another command to its own --wait, unchanged" do

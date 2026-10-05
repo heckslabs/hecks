@@ -77,6 +77,21 @@
       "role": null
     },
     {
+      "scope": "deploy:smoke_run.flag",
+      "verb": "Deploy::SmokeRun.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:smoke_run.pass",
+      "verb": "Deploy::SmokeRun.Pass",
+      "role": null
+    },
+    {
+      "scope": "deploy:smoke_run.run",
+      "verb": "Deploy::SmokeRun.Run",
+      "role": null
+    },
+    {
       "scope": "deploy:template_comparison.diff",
       "verb": "Deploy::TemplateComparison.Diff",
       "role": null

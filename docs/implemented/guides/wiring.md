@@ -460,6 +460,17 @@ last change to what runs, so a bill that still carries the old setup is not read
 the new one. It exits 1 when flagged, and needs AWS credentials that can read Cost
 Explorer.
 
+To run the post-deploy smoke as a command, run
+`hecks deploy smoke_run.run <project> --wait`, which finds the `smoke-after-deploy.sh` beside the
+project's `Makefile` (or the only one under it; `script=<path>` names it otherwise)
+(`taskdef=<family[:revision]>`, `skip=true`, `async=true` and `dry_run=true` become the
+script's `TASKDEF`, `SKIP_POST_DEPLOY_SMOKE`, `SMOKE_ASYNC` and `DRY_RUN`). It runs the
+generated script, so the settle checks and the workflow dispatch are the ones `make deploy`
+already runs, records the run as `passed` with what the script printed, or as `flagged`
+with its status (20 the roll did not settle, 21 `gh` missing, 22 the smoke failed, 23 result
+unknown), and exits 1 when flagged. It only reads AWS. The design for the other deploy
+scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
+
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
 `cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
@@ -522,8 +533,22 @@ container runs the image the latest revision names. A roll that looked live but
 left an old image running therefore never reaches the smoke. The box is read over
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
 the stack update and the roll itself. `make deploy` ends with
-`smoke-after-deploy.sh`; `SKIP_POST_DEPLOY_SMOKE=1` skips it and `DRY_RUN=1`
-dispatches nothing.
+`hecks deploy smoke_run.run`, which runs `smoke-after-deploy.sh` and records how it
+ended in the Hecks database, so every deploy leaves a `SmokeRun` that
+`hecks deploy smoke_run.verdict` and `smoke_run.flagged` can query.
+`SKIP_POST_DEPLOY_SMOKE=1` skips the smoke and `DRY_RUN=1` dispatches nothing. It
+exits 1 when the smoke does not pass; the script's own status (20 to 23) is in the
+message.
+
+The record needs a database on the machine that runs `make deploy`. The Hecks
+domain reads `HECKS_DATABASE` and defaults to `postgres://hecks@localhost/hecks`,
+so a deploying machine needs, once, a local Postgres with that database (`createdb
+hecks`), or `HECKS_DATABASE` pointing at one it can reach; the first run creates the
+tables. A CI job that runs `make deploy` needs the same: a Postgres service and
+`HECKS_DATABASE` set. Without the database the command cannot start, so the
+generated `smoke-after-deploy` target says so, runs the script anyway so the smoke's
+result is printed, and exits non-zero with the database error stated apart from the
+smoke's outcome: the smoke's own status when it failed, or 24 when it passed.
 
 ### Per-branch previews for `AwsFargate`
 
