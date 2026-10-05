@@ -201,18 +201,40 @@ module Hecks
         end
       end
 
-      # The tool as `tools/list` shows it: on a commands door, `dispatch` names the commands it
-      # serves, so a caller sees them as an enum instead of finding out by being refused.
+      # The one domain a restricted door serves, when it serves exactly one: a call may leave
+      # `domain:` out and get it. Nil for an unrestricted door and for one that names several.
+      #
+      # @return [String, nil] the domain path as `HECKS_DOOR_DOMAINS` named it, resolved
+      def default_domain
+        @allowed_domains.first if restricted? && @allowed_domains.size == 1
+      end
+
+      # The arguments with the default domain filled in when the caller left it out.
+      #
+      # @param args [Hash] a tool call's arguments
+      # @return [Hash] `args`, with `"domain"` set when the door has a default and none was given
+      def with_default_domain(args)
+        return args unless default_domain && args["domain"].to_s.strip.empty?
+
+        args.merge("domain" => default_domain)
+      end
+
+      # The tool as `tools/list` shows it. A door that serves one domain makes `domain:` optional.
+      # On a commands door, `dispatch` also names the commands it serves as an enum, so a caller
+      # sees them as typed choices instead of finding out by being refused, and says what each
+      # takes and which role it declares.
       #
       # @param tool [Hash] a tool definition from `McpDoor::TOOLS`
+      # @param guide [Array<String>, nil] one line per allowed command (`Storehouse.command_guide`)
       # @return [Hash] the definition, narrowed for this door
-      def present(tool)
+      def present(tool, guide = nil)
+        tool = domain_optional(tool) if default_domain
         return tool unless commands_mode? && tool[:name] == "dispatch"
 
         properties = tool[:inputSchema][:properties]
         narrowed = properties.merge(command: with_enum(properties[:command]),
                                     steps:   properties[:steps].merge(items: step_items(properties[:steps][:items])))
-        tool.merge(description: "#{tool[:description]} This door dispatches only: #{allowed_commands.join(', ')}.",
+        tool.merge(description: dispatch_description(tool[:description], guide),
                    inputSchema: tool[:inputSchema].merge(properties: narrowed))
       end
 
@@ -285,6 +307,23 @@ module Hecks
           current = parent
         end
         File.join(File.realpath(current), *missing)
+      end
+
+      def domain_optional(tool)
+        schema = tool[:inputSchema]
+        return tool unless schema[:properties].key?(:domain)
+
+        note = "Optional: this door serves one domain, #{default_domain}, and uses it when you leave this out."
+        properties = schema[:properties].merge(domain: schema[:properties][:domain].merge(description: note))
+        tool.merge(inputSchema: schema.merge(properties: properties, required: schema[:required] - ["domain"]))
+      end
+
+      def dispatch_description(base, guide)
+        intro = "#{base} This door dispatches only the commands below, each with the role it declares: pass " \
+                "that role as `role`. A command that takes `run` takes a key you choose, and the call answers " \
+                "the record as it stands once its reactions have run; an argument marked * is required."
+        entries = Array(guide).empty? ? allowed_commands : guide
+        ([intro] + entries.map { |entry| "- #{entry}" }).join("\n")
       end
 
       def with_enum(property)
