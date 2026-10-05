@@ -13,6 +13,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **Changed: `hecks operation.bootstrap_admin` says what to add when the domain has no membership chapter.** The refusal named only the missing capability. It now shows the line to add, `provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"`, and says what each verb names; `docs/running-a-rules-service.md` documents the requirement.
 
+**Fixed: `hecks deploy recipe.project` runs from an installed gem.** It refused with "needs a hecks checkout" outside a checkout of this repository, and it read a relative `<domain>` from the gem's own directory rather than from where the command ran. It now reads the project it is given, a path absolute or relative to the current directory, and writes the recipe under `deploy/<stack>/` of that directory (or `out=`). In a checkout the generated recipe is unchanged; outside one the Makefiles name the directory the command ran in as their root. `makefile_check.lint` and `oidc_manifest.project_oidc` still need a checkout.
+
 ## [3.4.1] - 2026-10-05
 
 A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.

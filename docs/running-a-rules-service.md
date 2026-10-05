@@ -969,7 +969,10 @@ an outside team would meet it.
 
 1. **The path starts from a clone.** ADR 0066 decides that the gem ships a
    `hecks` executable and that dev tooling stays in the repository; until
-   that is built, `hecks deploy recipe.project` and `hecks build.build_wasm` need a checkout.
+   that is built, `hecks build.build_wasm` needs a checkout. `hecks deploy recipe.project <domain>`
+   does not: it reads the project it is given, a path absolute or relative to where you run it, and
+   writes `deploy/<stack>/` there (or `out=<dir>`), from the installed gem. The generated Makefiles
+   name that directory as their root.
    A clone also brings the whole Rust tree and its build time.
 2. **The self-contained Lambda function may not be able to read its
    database password.** `main.rs` fetches the password from Secrets Manager
