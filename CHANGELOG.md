@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks interview` drafts what a thing has and how it changes state.** The interview takes two more findings: a **field** a thing has, with the values it may take when the expert listed a closed set, and a **transition**, the state an action leaves a thing in and the state it had to be in before. An action also records the fields it takes and who does it. The draft writes a field as an attribute (optional unless the creating action takes it), a closed set as `one_of`, a command's inputs as its attributes with `sets`, and the transitions as a lifecycle that starts where the creating action leaves the thing. Who may do an action is written as a comment, not a `role`, because a role is checked only once the domain attaches Governance. The interviewer is also told when a thing is not yet said to have anything, or to change state.
+
 **The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is
 declared once, as `RetiredScript` rows in the Vocabulary chapter, and `hecks
 regeneration_run.project_tools_doc` writes the document's tables from them, rendering each form from

@@ -21,6 +21,8 @@ Hecks.bluebook "SME" do
     attribute :thing_findings,  list_of(ThingFinding)
     attribute :action_findings, list_of(ActionFinding)
     attribute :rule_findings,   list_of(RuleFinding)
+    attribute :field_findings,      list_of(FieldFinding)
+    attribute :transition_findings, list_of(TransitionFinding)
 
     # Held as counts because a rule cannot look inside a list: `Conclude` needs to know that at least
     # one thing and one action were accepted, and each acceptance adds one here (see the policies).
@@ -92,6 +94,17 @@ Hecks.bluebook "SME" do
       attribute :value, Boolean
     end
 
+    # A list the expert gave in a breath, comma separated: the values a field may take, or the
+    # fields an action needs to be told. Absent when the expert gave none.
+    value_object "Listing" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # Who may do an action, in the expert's words ("a maintainer", "QA engineer").
+    value_object "Actor" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
     # A thing the domain keeps track of, and the field that identifies one: an aggregate to be.
     entity "ThingFinding" do
       description "A thing the expert described, proposed as an aggregate, with the field that identifies one."
@@ -136,6 +149,8 @@ Hecks.bluebook "SME" do
       attribute :thing,   Name
       attribute :event,   Name
       attribute :creates, Creates, optional: true
+      attribute :takes,   Listing, optional: true
+      attribute :by,      Actor, optional: true
       attribute :source,  Source
 
       lifecycle :status, default: "proposed" do
@@ -189,6 +204,77 @@ Hecks.bluebook "SME" do
         attribute :number, FindingNumber
 
         emits "RuleRejected"
+      end
+    end
+
+    # Something the expert said a thing has, and the values it may take when they listed them: an
+    # attribute to be, with a closed set when the expert gave one.
+    entity "FieldFinding" do
+      description "A field the expert said a thing has, with the values it may take when they listed them."
+
+      identified_by :number
+
+      attribute :number, FindingNumber
+      attribute :thing,  Name
+      attribute :name,   Name
+      attribute :values, Listing, optional: true
+      attribute :source, Source
+
+      lifecycle :status, default: "proposed" do
+        transition "AcceptField" => "accepted", from: "proposed"
+        transition "RejectField" => "rejected", from: "proposed"
+      end
+
+      command "AcceptField", from: "proposed" do
+        goal "Establish that the field is real"
+
+        attribute :number, FindingNumber
+
+        emits "FieldAccepted"
+      end
+
+      command "RejectField", from: "proposed" do
+        goal "Set the proposed field aside"
+
+        attribute :number, FindingNumber
+
+        emits "FieldRejected"
+      end
+    end
+
+    # The state a thing is in after an action, and the state it had to be in before: one step of a
+    # lifecycle to be. The step an action that creates the thing makes names the state it starts in.
+    entity "TransitionFinding" do
+      description "A change of state an action makes to a thing, and the state it must be in before."
+
+      identified_by :number
+
+      attribute :number, FindingNumber
+      attribute :thing,  Name
+      attribute :action, Name
+      attribute :to,     Name
+      attribute :from,   Name, optional: true
+      attribute :source, Source
+
+      lifecycle :status, default: "proposed" do
+        transition "AcceptTransition" => "accepted", from: "proposed"
+        transition "RejectTransition" => "rejected", from: "proposed"
+      end
+
+      command "AcceptTransition", from: "proposed" do
+        goal "Establish that the change of state is real"
+
+        attribute :number, FindingNumber
+
+        emits "TransitionAccepted"
+      end
+
+      command "RejectTransition", from: "proposed" do
+        goal "Set the proposed change of state aside"
+
+        attribute :number, FindingNumber
+
+        emits "TransitionRejected"
       end
     end
 
@@ -257,14 +343,55 @@ Hecks.bluebook "SME" do
       attribute :thing,   Name
       attribute :event,   Name
       attribute :creates, Creates, optional: true
+      attribute :takes,   Listing, optional: true
+      attribute :by,      Actor, optional: true
       attribute :source,  Source
 
       given("findings are proposed only while the interview is underway") { status == "underway" }
       given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
 
-      sets :action_findings, append: { number: :number, name: :name, thing: :thing, event: :event, creates: :creates, source: :source }
+      sets :action_findings, append: { number: :number, name: :name, thing: :thing, event: :event, creates: :creates,
+                                       takes: :takes, by: :by, source: :source }
 
       emits "ActionProposed"
+    end
+
+    command "ProposeField" do
+      goal "Propose a field the expert said a thing has, and the values it may take"
+
+      reference_to Interview
+      attribute :number, FindingNumber
+      attribute :thing,  Name
+      attribute :name,   Name
+      attribute :values, Listing, optional: true
+      attribute :source, Source
+
+      given("findings are proposed only while the interview is underway") { status == "underway" }
+      given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :field_findings, append: { number: :number, thing: :thing, name: :name, values: :values, source: :source }
+
+      emits "FieldProposed"
+    end
+
+    command "ProposeTransition" do
+      goal "Propose the change of state an action makes to a thing"
+
+      reference_to Interview
+      attribute :number, FindingNumber
+      attribute :thing,  Name
+      attribute :action, Name
+      attribute :to,     Name
+      attribute :from,   Name, optional: true
+      attribute :source, Source
+
+      given("findings are proposed only while the interview is underway") { status == "underway" }
+      given("a finding cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :transition_findings, append: { number: :number, thing: :thing, action: :action, to: :to, from: :from,
+                                           source: :source }
+
+      emits "TransitionProposed"
     end
 
     command "ProposeRule" do
