@@ -7,6 +7,27 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Fixed
+
+**A Memory-backed aggregate with one large nested value object no longer pays for its whole size on every save.** The 3.4.1 fix shared the elements of a top-level `list_of`; a single value-object attribute that holds a list (directly, or through a nested value object) was still copied whole into the journal and hydrated whole into the record on every save, so a `Step` that changed one counter cost O(size of the value object). A hydrated value object is frozen, so Memory now copies it once, freezes the copy, and shares it between every journal entry and record that holds it; a new version of the value object reuses the copies of the list elements it still holds (`Memory::SharedElements`, plus `Runtime::Value#raw_fields`, a reader for the stored fields). A journalled value object now refuses an in-place change (`FrozenError`), the same tightening 3.4.1 made for list elements; an entry still has exactly the shape `StateCodec.copy` gives a durable adapter, and a returned instance still shares nothing mutable with the journal. A value object that is not frozen, or an attribute with no list in it, takes the whole-copy path as before. One game whose `Log` value object holds N cells (Memory), one `Step` that touches only a counter:
+
+| Cells in the value object | Before: time per step, allocations | After |
+|---|---|---|
+| 20 | 4.3 ms, 1,338 | 0.15 ms, 513 |
+| 200 | 20.7 ms, 8,718 | 0.25 ms, 513 |
+| 2,000 | 200 ms, 82,518 | 0.43 ms, 513 |
+| 20,000 | 1,971 ms, 820,520 | 0.15 ms, 513 |
+
+A value object that gains a cell on every save (save only):
+
+| Cells | Before: time, allocations | After |
+|---|---|---|
+| 20 | 0.21 ms, 1,126 | 0.17 ms, 311 |
+| 200 | 3.2 ms, 8,506 | 0.28 ms, 311 |
+| 2,000 | 215 ms, 82,306 | 1.1 to 2.5 ms, 311 |
+
+Allocations per save no longer follow the size. A value object whose list is rebuilt still costs one cheap pointer lookup per existing element in time (about 1 ms per 2,000 cells), not a copy of each.
+
 ## [3.4.1] - 2026-10-05
 
 A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.
