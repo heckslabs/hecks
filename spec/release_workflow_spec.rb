@@ -49,7 +49,7 @@ RSpec.describe ".github/workflows/release.yml" do
   end
 
   it "skips each step whose result already exists" do
-    gated = steps.select { |step| step["if"] }.to_h { |step| [step["name"] || step["uses"], step["if"]] }
+    gated = steps.select { |step| step["name"] && step["if"] }.to_h { |step| [step["name"], step["if"]] }
 
     expect(gated.fetch("Tag the release commit")).to eq("steps.state.outputs.tagged == 'false'")
     expect(gated.fetch("Build and push the gem")).to eq("steps.state.outputs.gem == 'false'")
