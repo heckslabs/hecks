@@ -1,6 +1,5 @@
 require "spec_helper"
 require "json"
-require "hecks/three_zero"
 
 # `hecks deploy cost_check.check` end to end: the Deploy chapter's CostCheck asks the CostExplorer
 # port, the Hecks domain binds its adapter, and the answer or the refusal is recorded on the check.

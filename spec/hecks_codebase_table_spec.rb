@@ -58,6 +58,9 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
      { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
                 "verb only compares" }],
+    ["project_tools_doc", "RegenerationRun", "ProjectToolsDoc", "project_tools_doc",
+     { renamed: "no bin script: the launcher forms of docs/tools.md were hand-copied; without --confirm the " \
+                "verb only compares" }],
     ["decide_ci_gate", "RegenerationRun", "DecideCiGate", "decide_ci_gate",
      { args:    %w[gate=runtime_changed],
        renamed: "no bin script: the base-commit shell of the changed-paths action, now a call to the binary" }],

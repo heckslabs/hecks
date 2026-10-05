@@ -1,12 +1,13 @@
 require "spec_helper"
-require "yaml"
+require "hecks/tools/tools_doc"
 
-# Each `name=` a form in forms.yml (and so docs/tools.md) teaches must be an argument the verb's
-# own `--help` lists, so a form cannot keep an argument the command dropped.
-RSpec.describe "the 3.0 forms' arguments" do
+# Each `name=` a form of docs/tools.md teaches must be an argument the verb's own `--help` lists.
+# The forms are rendered from the command's arguments, so this is a cross-check on the renderer: a
+# form cannot name an argument the verb does not take.
+RSpec.describe "the launcher forms' arguments" do
   before(:all) do
     @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
-    @forms   = YAML.load_file(File.join(InMemoryDomain::ROOT, "lib/hecks/three_zero/forms.yml"))
+    @forms   = Hecks::Tools::ToolsDoc.forms(root: InMemoryDomain::ROOT)
   end
 
   def help_for(words)
