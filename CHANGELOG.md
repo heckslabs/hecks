@@ -11,6 +11,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 A minor with one `Behavior change` entry: `hecks package.vendor` and `package.revendor` now exit 1 when a package is refused, which can break a script that ignored the status; read it before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework`, `uses_embryonaut_bluebook` and the `attaches` / `install_doors:` spellings still work and now warn that they are removed in 3.4.0 (previously 3.3.0 or 3.2.0).
 
+**Changed: the release workflow no longer needs a laptop when the RubyGems API key fails.** `release.yml` retries the
+`RUBYGEMS_API_KEY` push with backoff, then falls back inside the same job to RubyGems trusted publishing over OIDC. A version
+already on rubygems.org counts as pushed, so a re-run finishes a half-done release, and when both paths fail the error names
+the key scope or the trusted publisher entry to configure. Later steps wait until the registry lists the version.
+
 **New: `hecks site site_projection.check_live` compares a project's generated CloudFront behaviours with a live distribution's.**
 Given a saved `aws cloudfront get-distribution-config` answer (`live=<file>`), or a distribution id to fetch it with that one
 read-only call (`distribution=<id>`), it matches each behaviour by path pattern and reports every difference in origin,
