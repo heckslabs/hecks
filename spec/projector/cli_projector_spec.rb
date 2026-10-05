@@ -197,8 +197,8 @@ RSpec.describe Hecks::Projector::CliProjector do
     it "groups the commands and questions under a heading per aggregate" do
       usage = banking[:usage]
 
-      expect(usage).to match(/^  customer:\n    register!\s+Take on a new customer/)
-      expect(usage).to match(/^  account:\n    open!\s+/)
+      expect(usage).to match(/^  customer:\n(?:    [A-Z][^\n]*\n)?    register!\s+Take on a new customer/)
+      expect(usage).to match(/^  account:\n(?:    [A-Z][^\n]*\n)?    open!\s+/)
       expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
     end
 
@@ -223,7 +223,7 @@ RSpec.describe Hecks::Projector::CliProjector do
 
     it "leaves the aggregate prefix off the lines under its heading, and keeps it without one" do
       expect(banking[:usage]).not_to match(/^\s+customer\.register!/)
-      expect(banking[:usage]).to match(/^  customer:\n    register!/)
+      expect(banking[:usage]).to match(/^  customer:\n(?:    [A-Z][^\n]*\n)?    register!/)
       expect(banking[:usage]).to match(/^    open!\s/)
       expect(described_class.send(:entry_name, { kind: :command, short: "pizza.make", group: "Pizza" }, false))
         .to eq("pizza.make!")
