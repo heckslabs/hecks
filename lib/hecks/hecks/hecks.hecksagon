@@ -91,6 +91,16 @@ Hecks.hecksagon "Hecks" do
     answers_query "Verify"
   end
 
+  Hecks::Registry.port "Git" do
+    asks "Tag", to: Registry do
+      attribute :run, RegistryKey
+      answers "ReleaseTagged"
+      refuses "ReleaseRefused"
+    end
+
+    answers_query "Check"
+  end
+
   Hecks::Door.port "Workspace" do
     asks "Write", to: Door do
       attribute :run, DoorKey

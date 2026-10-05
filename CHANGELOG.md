@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**New: `hecks package.check` and `hecks package.release` run a bluebook registry's version rules and tag its releases.** In a
+registry repository (packages at `<name>/bluebook.yml`, tagged `<name>-vX.Y.Z`), `package.check` fails, with exit status 1 and one
+`FAIL` line per package, when a package's `*.bluebook` files changed since its latest release without a newer version and a
+`CHANGELOG.md` entry, when a `bluebook.yml` has no `X.Y.Z` version or the wrong name, or when a release tag sits on a commit whose
+`bluebook.yml` says another version. `package.release <package>` makes the annotated tag locally, refusing for an existing tag, a
+version that is not newer, a missing changelog entry, uncommitted changes, or files identical to the last release; it never
+pushes and ends its report in the push command. Both are answered by a new `Registry` aggregate in the Custodian chapter, through
+the `Git` adapter and `Hecks::EmbryonautBluebook::Registry`. Run against a copy of a real registry, the verbs made the same
+decisions and wrote the same tag messages as its `bin/check_versions` and `bin/release` scripts.
+
 **New: `hecks package.verify` checks the vendored packages against `bluebook.lock` and prints the project's bluebook manifest.** A
 project that vendors registry packages no longer needs its own script to prove the files match their locks before an image is
 built. `hecks package.verify [root=<project>]` reads every `vendor/embryonaut_bluebooks/<package>/`, compares the digest of its

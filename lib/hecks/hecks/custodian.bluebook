@@ -1283,6 +1283,125 @@ policy "RecordTheEra" do
     trigger Package::Abandon, with: { refusal: :refusal }
   end
 
+  aggregate "Registry" do
+    description "A bluebook registry repository: packages versioned in it and released as tags."
+
+    attribute :run,     RegistryKey
+    attribute :package, PackageName, optional: true
+    attribute :root,    Location,    optional: true
+    attribute :report,  Report,      optional: true
+    attribute :refusal, Report,      optional: true
+    identified_by :run
+
+    value_object "RegistryKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a release is named") { !value.to_s.empty? }
+    end
+
+    value_object "PackageName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # The registry repository: the current directory when absent.
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "tagged",  from: "requested"
+      transition "Abandon"  => "refused", from: "requested"
+    end
+
+    # `hecks package.release <package> [root=path]`. Tags the package's current version as
+    # `<package>-vX.Y.Z` in the local repository and never pushes; the report ends in the command
+    # that does. A refusal says which rule the package broke.
+    command "Release" do
+      role "Operator"
+      goal "Tag a package of this registry at the version its bluebook.yml carries"
+
+      attribute :run,     RegistryKey
+      attribute :package, PackageName
+      attribute :root,    Location, optional: true
+
+      sets :run
+      sets :package
+      sets :root
+
+      emits ReleaseRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the release was tagged, and the command that publishes it"
+
+      reference_to Registry
+      attribute :report, Report
+
+      sets :report
+
+      emits ReleaseRecorded
+    end
+
+    command "Abandon" do
+      role "System"
+      goal "Record that the release was refused, and why"
+
+      reference_to Registry
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ReleaseAbandoned
+    end
+
+    # `hecks package.check [root=path]`: a read of the repository's files and tags, so it keeps no
+    # record. A package that changed since its latest release without a version bump and a changelog
+    # entry refuses it, naming each one.
+    query "Check" do
+      description "Judge every package against its latest release: a changed package needs a newer version and a changelog entry."
+      attribute :root, Location, optional: true
+      returns Document
+    end
+
+    query "Releasing" do
+      description "What releasing one run did: its status, and the report or the refusal."
+      attribute :run, RegistryKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Refused" do
+      description "Every release that was refused."
+      where(status: "refused")
+      order_by :run
+    end
+  end
+
+  policy "TagWhenReleased" do
+    on      "Registry.ReleaseRequested"
+    trigger Registry::Git::Tag, with: { run: :run }
+  end
+
+  policy "RecordTheTag" do
+    on      "Registry.ReleaseTagged"
+    trigger Registry::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedTag" do
+    on      "Registry.ReleaseRefused"
+    trigger Registry::Abandon, with: { refusal: :refusal }
+  end
+
   # A run record for opening a door onto the framework, not a door: the doors live in `Hecks::Doors`.
   aggregate "Door" do
     description "A way into the framework opened for a project: its launchers, or an MCP server."

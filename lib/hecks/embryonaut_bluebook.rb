@@ -4,6 +4,7 @@ module Hecks
   module EmbryonautBluebook
     autoload :Lock, File.join(__dir__, "embryonaut_bluebook/lock")
     autoload :Manifest, File.join(__dir__, "embryonaut_bluebook/manifest")
+    autoload :Registry, File.join(__dir__, "embryonaut_bluebook/registry")
     autoload :Shape, File.join(__dir__, "embryonaut_bluebook/shape")
     autoload :Vendor, File.join(__dir__, "embryonaut_bluebook/vendor")
     autoload :VendorCli, File.join(__dir__, "embryonaut_bluebook/vendor_cli")

@@ -24,7 +24,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.backfill_projections era.compact era.compact_heki era.approve_translation
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
-    package.pinning package.unpinned package.verify door.project_cli door.serve_mcp
+    package.pinning package.unpinned package.verify package.check package.release door.project_cli door.serve_mcp
     door.ended door.stopped build.project_rust build.build_wasm
     build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
@@ -593,6 +593,69 @@ RSpec.describe "the Hecks command table through the launcher" do
 
         expect(status).to eq(1)
         expect(out).to include("FAIL widgets: vendored files hash to")
+      end
+    end
+
+    describe "package.check and package.release", :io do
+      require_relative "support/registry_repo"
+
+      let(:scratch)  { Dir.mktmpdir("registry-verbs") }
+      let(:registry) { RegistryRepo.new(File.join(scratch, "registry")) }
+
+      def publish(version, description: "A widget.")
+        registry.write("widgets/bluebook.yml"              => "name: widgets\nversion: #{version}\nsummary: Widgets.\n",
+                       "widgets/CHANGELOG.md"              => "## #{version}\n\nChanged.\n",
+                       "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(description: description))
+        registry.commit("widgets #{version}")
+      end
+
+      before do
+        registry.git("config", "user.name", "Spec")
+        registry.git("config", "user.email", "spec@example.com")
+      end
+
+      after { FileUtils.rm_rf(scratch) }
+
+      it "check answers versions ok, then exits 1 naming a changed package that was not bumped" do
+        publish("1.0.0")
+        registry.tag("widgets-v1.0.0")
+        out, status = run_verb("package.check", "root=#{registry.path}")
+        expect(status).to eq(0)
+        expect(out).to eq("versions ok")
+
+        publish("1.0.0", description: "Reworded.")
+        out, status = run_verb("package.check", "root=#{registry.path}")
+        expect(status).to eq(1)
+        expect(out).to include("FAIL widgets: bluebook files changed since widgets-v1.0.0")
+      end
+
+      it "release tags the version locally, keeps the record, and exits 0" do
+        publish("1.0.0")
+
+        out, status = run_verb("package.release", "widgets", "root=#{registry.path}")
+
+        expect(status).to eq(0)
+        expect(JSON.parse(out).dig("state", "report", "value")).to include("git push origin widgets-v1.0.0")
+        expect(registry.git("tag", "--list")).to eq("widgets-v1.0.0\n")
+      end
+
+      it "release exits 1 with the reason when a rule is broken, and makes no tag" do
+        publish("1.0.0")
+        registry.tag("widgets-v1.0.0")
+
+        _out, status, reason = run_verb("package.release", "widgets", "root=#{registry.path}")
+
+        expect(status).to eq(1)
+        expect(reason).to include("widgets-v1.0.0 already exists")
+        expect(registry.git("tag", "--list")).to eq("widgets-v1.0.0\n")
+      end
+
+      it "release lists the refused run among registry.refused" do
+        publish("1.0.0")
+        registry.tag("widgets-v1.0.0")
+        run_verb("package.release", "widgets", "root=#{registry.path}", "run=refused-#{rand(1_000_000)}")
+
+        expect(JSON.parse(run_verb("registry.refused").first)).not_to be_empty
       end
     end
 

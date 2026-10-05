@@ -39,9 +39,10 @@ Hecks.world "Hecks" do
   launcher "Launcher", run_keys: true,
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
                                           abandoned red needs_fix],
-                       settled: %w[package.vendor package.revendor],
+                       settled: %w[package.vendor package.revendor package.release],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
-                                "interview" => "door.interview" },
+                                "interview" => "door.interview", "package.check" => "registry.check",
+                                "package.release" => "registry.release" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
                        memory_commands: %w[console init interview],
