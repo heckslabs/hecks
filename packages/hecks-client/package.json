@@ -1,6 +1,6 @@
 {
   "name": "@hecks/client",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Client for the body-shaped dispatch protocol a Hecks host answers: read the domain, dispatch commands, read the answers.",
   "license": "Apache-2.0",
   "private": false,
