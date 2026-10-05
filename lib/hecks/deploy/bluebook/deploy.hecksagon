@@ -46,6 +46,7 @@ Hecks.hecksagon "Deploy" do
   Deploy::SmokeRun.port "DeployToolchain" do
     asks "Smoke", to: SmokeRun do
       attribute :run, RunKey
+      attribute :after, Origin, default: { value: "alone" }
       answers "SmokeAnswered"
       refuses "SmokeRefused"
     end

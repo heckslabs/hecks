@@ -577,6 +577,8 @@ module Hecks
             # Elastic IP. The default is a production pair, with deletion protection.
             REHEARSAL ?= false
 
+            HECKS ?= hecks
+
             .PHONY: stacks deploy
             stacks:
             \taws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \\

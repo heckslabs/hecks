@@ -25,13 +25,7 @@ deploy-service:
 	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
 	  [ $$rc -ne 0 ] || rc=24; exit $$rc; \
 	fi; \
-	cat "$$err" >&2; rm -f "$$err"; [ $$rc -eq 0 ] || exit $$rc; \
-	[ -z "$(SKIP_POST_DEPLOY_SMOKE)" ] || exit 0; \
-	smoke=$$($(HECKS) deploy smoke_run.verdict run="$$run"); \
-	status=$$(echo "$$smoke" | jq -r '.[0].status // "missing"'); \
-	[ "$$status" = passed ] && exit 0; \
-	echo "==> the post-deploy smoke ended $$status (hecks deploy smoke_run.verdict run=$$run)" >&2; \
-	echo "$$smoke" | jq -r '.[0].refusal.value // empty' >&2; exit 1
+	cat "$$err" >&2; rm -f "$$err"; exit $$rc
 
 # Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
 # command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database

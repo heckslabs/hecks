@@ -49,8 +49,8 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
   it "declares both rolls in the Deploy chapter, with the DeployToolchain port they ask" do
     chapter = @hecks.registry.bluebook("Deploy")
 
-    expect(chapter.aggregate("ServiceRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag])
-    expect(chapter.aggregate("BoxRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag])
+    expect(chapter.aggregate("ServiceRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
+    expect(chapter.aggregate("BoxRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
   end
 
   describe "service_roll.run" do
@@ -65,12 +65,28 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
                                env: { "STUB_ECR_HAS_TAG" => "1" })
 
         expect(status).to eq(0), json.to_json
-        expect(json.dig("state", "status")).to eq("rolled")
+        expect(json.dig("state", "status")).to eq("verified")
         expect(json.dig("state", "tag", "value")).to eq("cms-old")
         expect(json.dig("state", "taskdef", "value")).to eq("widget-platform:7")
         expect(runner.calls).to include("deploy-box widget-platform:7")
         expect(smoke_dispatched?(runner)).to be(true)
         expect(smoke_status(json)).to eq("passed")
+      end
+    end
+
+    it "flags the roll, and exits 1, when the smoke it requested fails" do
+      BoxHostingStubs.with_runner(taskdef_golden) do |runner|
+        settled(runner, names: %w[website cms domain])
+        runner.pin_task_definition("widget-platform:7", "website" => "website-old", "cms" => "cms-old",
+                                                        "domain" => "domain-old")
+
+        json, status = command(runner, "service_roll.run", "service=cms", "existing_tag=cms-old",
+                               env: { "STUB_ECR_HAS_TAG" => "1", "STUB_CONCLUSION" => "failure" })
+
+        expect(status).to eq(1)
+        expect(json.dig("state", "status")).to eq("flagged")
+        expect(json.dig("state", "tag", "value")).to eq("cms-old")
+        expect(json.dig("state", "refusal", "value")).to include("smoke ended 22")
       end
     end
 
@@ -80,6 +96,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
 
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("rolled")
+        expect(json.dig("state", "smoke", "value")).to eq("smoke skipped: skip_smoke=true")
         expect(runner.calls.grep(/\Agh /)).to be_empty
         expect(smoke_status(json)).to be_nil
       end
@@ -149,23 +166,39 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
         json, status = command(runner, "box_roll.run", "tags=website=website-old cms=cms-old")
 
         expect(status).to eq(0), json.to_json
-        expect(json.dig("state", "status")).to eq("rolled")
+        expect(json.dig("state", "status")).to eq("verified")
         expect(json.dig("state", "report", "value")).to include("box roll done")
         expect(runner.calls.grep(/ssm send-command/).size).to be >= 2
         expect(smoke_dispatched?(runner)).to be(true)
       end
     end
 
-    it "leaves the roll rolled when its smoke fails; the smoke's own record is flagged" do
+    it "flags the roll, and exits 1, when the smoke it requested fails" do
       BoxHostingStubs.with_runner(services_golden, real_box: true) do |runner|
         settled(runner)
 
         json, status = command(runner, "box_roll.run", "tags=website=website-old cms=cms-old",
                                env: { "STUB_CONCLUSION" => "failure" })
 
-        expect(status).to eq(0)
-        expect(json.dig("state", "status")).to eq("rolled")
+        expect(status).to eq(1)
+        expect(json.dig("state", "status")).to eq("flagged")
+        expect(json.dig("state", "refusal", "value")).to include("smoke ended 22 (the smoke failed)")
+        expect(json.dig("state", "report", "value")).to include("box roll done")
         expect(smoke_status(json)).to eq("flagged")
+      end
+    end
+
+    it "rolls a project with no smoke script and records that the smoke was skipped for that" do
+      BoxHostingStubs.with_runner(services_golden, real_box: true) do |runner|
+        FileUtils.rm(File.join(runner.dir, "scripts", "smoke-after-deploy.sh"))
+
+        json, status = command(runner, "box_roll.run", "tags=website=website-old cms=cms-old")
+
+        expect(status).to eq(0), json.to_json
+        expect(json.dig("state", "status")).to eq("rolled")
+        expect(json.dig("state", "smoke", "value")).to eq("smoke skipped: no smoke script")
+        expect(smoke_status(json)).to be_nil
+        expect(runner.calls.grep(/\Agh /)).to be_empty
       end
     end
 
@@ -207,7 +240,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
   end
 
   # The generated Makefile and hosting.mk call the commands. A stand-in `hecks` answers them, so the
-  # recipes' own logic (arguments, the smoke's verdict, the missing-database path) runs for real.
+  # recipes' own logic (arguments, the missing-database path) runs for real.
   describe "the generated Makefile" do
     let(:fake_hecks) do
       <<~BASH
@@ -232,37 +265,47 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
       [err, status.exitstatus]
     end
 
-    it "deploy runs box_roll.run with the task definition, then reads the smoke's verdict" do
+    it "deploy runs box_roll.run with the task definition and reads nothing else" do
       BoxHostingStubs.with_runner(taskdef_golden) do |runner|
         err, status = make(runner, "deploy", "TASKDEF=widget-platform:5")
 
         expect(status).to eq(0), err
         expect(runner.calls.first)
           .to match(%r{\Ahecks deploy box_roll.run project=.+/scripts run=deploy-\d+ taskdef=widget-platform:5})
-        expect(runner.calls.last).to match(/\Ahecks deploy smoke_run.verdict run=deploy-\d+\z/)
+        expect(runner.calls.grep(/\Ahecks /).size).to eq(1)
       end
     end
 
-    it "deploy fails when the smoke did not pass, naming the verdict, and when the roll failed" do
+    it "deploy fails when the command fails, whether the roll or its smoke was flagged" do
       BoxHostingStubs.with_runner(taskdef_golden) do |runner|
-        verdict = { "FAKE_VERDICT" => %([{"status": "flagged", "refusal": {"value": "smoke ended 22"}}]) }
-        err, status = make(runner, "deploy", env: verdict)
-        expect(status).not_to eq(0)
-        expect(err).to include("the post-deploy smoke ended flagged", "smoke ended 22")
-
         _err, status = make(runner, "deploy", env: { "FAKE_ROLL_STATUS" => "1" })
+
         expect(status).not_to eq(0)
-        expect(runner.calls.grep(/smoke_run.verdict/).size).to eq(1)
       end
     end
 
-    it "deploy passes SKIP_POST_DEPLOY_SMOKE on as skip_smoke and reads no verdict" do
+    it "deploy of a project without the hosting scripts is box_roll.run too, with its tags" do
+      BoxHostingStubs.with_runner(taskdef_golden) do |runner|
+        plain = File.join(runner.dir, "plain")
+        FileUtils.mkdir_p(plain)
+        FileUtils.cp(File.join(__dir__, "fixtures", "deploy_box_golden", "default", "Makefile"), plain)
+        File.write(File.join(runner.dir, "bin", "hecks"), fake_hecks)
+        File.chmod(0o755, File.join(runner.dir, "bin", "hecks"))
+
+        _out, err, status = Open3.capture3({ "PATH"     => "#{File.join(runner.dir, 'bin')}:#{ENV.fetch('PATH')}",
+                                             "STUB_DIR" => runner.dir }, "make", "-C", plain, "deploy", "TAGS=web=1")
+
+        expect(status.exitstatus).to eq(0), err
+        expect(runner.calls.first).to match(%r{\Ahecks deploy box_roll.run project=.+/plain run=deploy-\d+ tags=web=1})
+      end
+    end
+
+    it "deploy passes SKIP_POST_DEPLOY_SMOKE on as skip_smoke" do
       BoxHostingStubs.with_runner(taskdef_golden) do |runner|
         _err, status = make(runner, "deploy", env: { "SKIP_POST_DEPLOY_SMOKE" => "1" })
 
         expect(status).to eq(0)
         expect(runner.calls.grep(/box_roll.run.*skip_smoke=true/).size).to eq(1)
-        expect(runner.calls.grep(/verdict/)).to be_empty
       end
     end
 

@@ -12,8 +12,18 @@
       "role": null
     },
     {
+      "scope": "deploy:box_roll.flag_smoke",
+      "verb": "Deploy::BoxRoll.FlagSmoke",
+      "role": null
+    },
+    {
       "scope": "deploy:box_roll.run",
       "verb": "Deploy::BoxRoll.Run",
+      "role": null
+    },
+    {
+      "scope": "deploy:box_roll.verify",
+      "verb": "Deploy::BoxRoll.Verify",
       "role": null
     },
     {
@@ -102,8 +112,18 @@
       "role": null
     },
     {
+      "scope": "deploy:service_roll.flag_smoke",
+      "verb": "Deploy::ServiceRoll.FlagSmoke",
+      "role": null
+    },
+    {
       "scope": "deploy:service_roll.run",
       "verb": "Deploy::ServiceRoll.Run",
+      "role": null
+    },
+    {
+      "scope": "deploy:service_roll.verify",
+      "verb": "Deploy::ServiceRoll.Verify",
       "role": null
     },
     {

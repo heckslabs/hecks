@@ -7,6 +7,8 @@ BOX_STACK = hecks-widget-shop-box
 # Elastic IP. The default is a production pair, with deletion protection.
 REHEARSAL ?= false
 
+HECKS ?= hecks
+
 .PHONY: stacks deploy
 stacks:
 	aws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \
@@ -19,4 +21,15 @@ stacks:
 		Rehearsal=$(REHEARSAL)
 
 deploy:
-	bash ./deploy-box.sh $(TAGS)
+	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
+	$(HECKS) deploy box_roll.run project="$(CURDIR)" run="$$run" $(if $(TAGS),tags="$(TAGS)") \
+	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
+	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
+	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
+	  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \
+	  echo "    deploying anyway so the deploy is not lost" >&2; \
+	  rm -f "$$err"; bash ./deploy-box.sh $(TAGS); rc=$$?; \
+	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
+	  [ $$rc -ne 0 ] || rc=24; exit $$rc; \
+	fi; \
+	cat "$$err" >&2; rm -f "$$err"; exit $$rc

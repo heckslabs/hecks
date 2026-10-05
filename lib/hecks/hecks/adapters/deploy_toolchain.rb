@@ -144,7 +144,7 @@ module Hecks
                 "SMOKE_BY_COMMAND" => "1" }.compact
         answer = run_script(SERVICE_SCRIPT, held, env, "service roll", SERVICE_STATUS, args: [plain(held[:service])])
         match = answer[:report][:value].match(/^==> rolled taskdef=(\S*) tag=(\S+)$/)
-        answer.merge(taskdef: wrapped(match&.[](1)), tag: wrapped(match&.[](2))).merge(carried(held))
+        answer.merge(taskdef: wrapped(match&.[](1)), tag: wrapped(match&.[](2))).merge(carried(held, "service_roll"))
       end
 
       # Rolls the whole box with a project's generated `deploy-box.sh`, through
@@ -156,15 +156,29 @@ module Hecks
       #   non-zero; the message names its status and what it printed
       def roll_box(**held)
         answer = run_script(BOX_SCRIPT, held, {}, "box roll", BOX_STATUS, args: box_args(held))
-        answer.merge(carried(held)).merge(taskdef: wrapped(plain(held[:taskdef])))
+        answer.merge(carried(held, "box_roll")).merge(taskdef: wrapped(plain(held[:taskdef])))
       end
 
       private
 
-      # What a roll's answer hands on to the policy that requests the smoke: the project to find the
-      # smoke script in, and whether the record opted out of it.
-      def carried(held)
-        { project: { value: plain(held[:project]) }, skip_smoke: { value: plain(held[:skip_smoke]) == true } }
+      # What a roll's answer hands on to the policies that follow it: the project to find the smoke
+      # in, whether to request the smoke (not when the record opted out or the project has no smoke
+      # script, either of which is noted on the record), and which roll asked.
+      def carried(held, kind)
+        skipped = plain(held[:skip_smoke]) == true
+        script = smoke_script?(plain(held[:project]))
+        note = "smoke skipped: skip_smoke=true" if skipped
+        note ||= "smoke skipped: no smoke script" unless script
+        { project: { value: plain(held[:project]) }, skip_smoke: { value: skipped },
+          run_smoke: { value: note.nil? }, smoke: wrapped(note), kind: { value: kind } }
+      end
+
+      # Whether the project has a generated smoke script the smoke could run.
+      def smoke_script?(project)
+        script_for(SMOKE_SCRIPT, project, nil)
+        true
+      rescue ConsoleCapture::Failure
+        false
       end
 
       def wrapped(text) = text.to_s.empty? ? nil : { value: text }

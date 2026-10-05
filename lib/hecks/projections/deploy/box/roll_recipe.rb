@@ -5,24 +5,21 @@ module Hecks
         # The Makefile recipes that run a roll as `box_roll.run` or `service_roll.run`.
         #
         # The command rolls with the generated script and, through its policy, requests the
-        # smoke, so one deploy leaves a `BoxRoll` or `ServiceRoll` and a `SmokeRun` in the Hecks
-        # database. A failed roll is the command's exit 1, with the script's status in its message.
-        # A smoke that did not pass is read back with `smoke_run.verdict` and fails the target.
-        # With no database the command never starts, so the recipe runs the script itself, states
-        # the database error apart from the deploy's result, and fails (`Error 24` if all passed).
+        # smoke, so one deploy leaves a `BoxRoll` or `ServiceRoll` (which also records the smoke's
+        # outcome) and a `SmokeRun` in the Hecks database. A failed roll or smoke is the command's
+        # exit 1, with the script's status in its message. With no database the command never
+        # starts, so the recipe runs the script itself, states the database error apart from the
+        # deploy's result, and fails (`Error 24` if all passed).
         module RollRecipe
           module_function
 
           # @param plan [Settings::Plan] the resolved settings
-          # @return [String] the `deploy` target's recipe, tab-indented: `box_roll.run` for a
-          #   project with the hosting scripts, else the generated script alone
+          # @return [String] the `deploy` target's recipe, tab-indented: the `box_roll.run` command
           def deploy(plan)
             variable = plan.task_definition ? "TASKDEF" : "TAGS"
-            return "\tbash ./deploy-box.sh $(#{variable})" unless plan.hosting
-
             args = plan.task_definition ? "$(if $(TASKDEF),taskdef=$(TASKDEF))" : "$(if $(TAGS),tags=\"$(TAGS)\")"
-            direct = "bash ./deploy-box.sh $(#{variable}) || exit $$?; " \
-                     "TASKDEF=\"$(TASKDEF)\" bash ./smoke-after-deploy.sh"
+            direct = "bash ./deploy-box.sh $(#{variable})"
+            direct += " || exit $$?; TASKDEF=\"$(TASKDEF)\" bash ./smoke-after-deploy.sh" if plan.hosting
             "\t#{call(command: 'box_roll.run', args: args, direct: direct)}"
           end
 
@@ -52,13 +49,7 @@ module Hecks
           end
 
           def outcome_lines
-            ['cat "$$err" >&2; rm -f "$$err"; [ $$rc -eq 0 ] || exit $$rc; \\',
-             '[ -z "$(SKIP_POST_DEPLOY_SMOKE)" ] || exit 0; \\',
-             'smoke=$$($(HECKS) deploy smoke_run.verdict run="$$run"); \\',
-             'status=$$(echo "$$smoke" | jq -r \'.[0].status // "missing"\'); \\',
-             '[ "$$status" = passed ] && exit 0; \\',
-             'echo "==> the post-deploy smoke ended $$status (hecks deploy smoke_run.verdict run=$$run)" >&2; \\',
-             'echo "$$smoke" | jq -r \'.[0].refusal.value // empty\' >&2; exit 1']
+            ['cat "$$err" >&2; rm -f "$$err"; exit $$rc']
           end
 
           private_class_method :run_lines, :no_database_lines, :outcome_lines

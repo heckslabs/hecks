@@ -780,6 +780,7 @@ Hecks.bluebook "Deploy" do
     attribute :skip,    Switch, optional: true
     attribute :async,   Switch, optional: true
     attribute :dry_run, Switch, optional: true
+    attribute :after,   Origin, default: { value: "alone" }
     attribute :report,  Report, optional: true
     attribute :refusal, Report, optional: true
     identified_by :run
@@ -799,6 +800,11 @@ Hecks.bluebook "Deploy" do
     # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
     value_object "TaskDefinition" do
       attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+    end
+
+    # What requested the smoke: `alone` for a person, else the roll whose record takes the outcome.
+    value_object "Origin" do
+      attribute :value, String, pattern: '^(alone|service_roll|box_roll)$'
     end
 
     value_object "Switch" do
@@ -830,6 +836,7 @@ Hecks.bluebook "Deploy" do
       attribute :skip,    Switch, optional: true
       attribute :async,   Switch, optional: true
       attribute :dry_run, Switch, optional: true
+      attribute :after,   Origin, default: { value: "alone" }
 
       sets :project
       sets :script
@@ -838,6 +845,7 @@ Hecks.bluebook "Deploy" do
       sets :skip
       sets :async
       sets :dry_run
+      sets :after
 
       emits "SmokeRequested"
     end
@@ -847,8 +855,10 @@ Hecks.bluebook "Deploy" do
 
       reference_to SmokeRun
       attribute :report, Report
+      attribute :after,  Origin, default: { value: "alone" }
 
       sets :report
+      sets :after
 
       emits "SmokePassed"
     end
@@ -858,8 +868,10 @@ Hecks.bluebook "Deploy" do
 
       reference_to SmokeRun
       attribute :refusal, Report
+      attribute :after,   Origin, default: { value: "alone" }
 
       sets :refusal
+      sets :after
 
       emits "SmokeFlagged"
     end
@@ -880,17 +892,17 @@ Hecks.bluebook "Deploy" do
 
   policy "SmokeWhenRequested" do
     on      "SmokeRun.SmokeRequested"
-    trigger SmokeRun::DeployToolchain::Smoke, with: { run: :run }
+    trigger SmokeRun::DeployToolchain::Smoke, with: { run: :run, after: :after }
   end
 
   policy "RecordThePassedSmoke" do
     on      "SmokeRun.SmokeAnswered"
-    trigger SmokeRun::Pass, with: { report: :report }
+    trigger SmokeRun::Pass, with: { report: :report, after: :after }
   end
 
   policy "RecordTheFlaggedSmoke" do
     on      "SmokeRun.SmokeRefused"
-    trigger SmokeRun::Flag, with: { refusal: :refusal }
+    trigger SmokeRun::Flag, with: { refusal: :refusal, after: :after }
   end
 
   aggregate "ServiceRoll" do
@@ -906,6 +918,7 @@ Hecks.bluebook "Deploy" do
     attribute :taskdef,        TaskDefinition, optional: true
     attribute :tag,            ImageTag, optional: true
     attribute :report,         Report, optional: true
+    attribute :smoke,      Report, optional: true
     attribute :refusal,        Report, optional: true
 
     identified_by :run
@@ -953,6 +966,8 @@ Hecks.bluebook "Deploy" do
     lifecycle :status, default: "requested" do
       transition "Complete" => "rolled", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      transition "Verify" => "verified", from: "rolled"
+      transition "FlagSmoke" => "flagged", from: "rolled"
     end
 
     # `hecks deploy service_roll.run <project> service=<name> [existing_tag=<tag>] [local_image=<ref>]
@@ -990,14 +1005,12 @@ Hecks.bluebook "Deploy" do
       attribute :report,     Report
       attribute :taskdef,    TaskDefinition, optional: true
       attribute :tag,        ImageTag, optional: true
-      attribute :project,    Location
-      attribute :skip_smoke, Switch, optional: true
+      attribute :smoke,      Report, optional: true
 
       sets :report
       sets :taskdef
       sets :tag
-      sets :project
-      sets :skip_smoke
+      sets :smoke
 
       emits "ServiceRollCompleted"
     end
@@ -1011,6 +1024,30 @@ Hecks.bluebook "Deploy" do
       sets :refusal
 
       emits "ServiceRollFlagged"
+    end
+
+    command "Verify" do
+      goal "Record that the smoke the roll requested passed"
+
+      reference_to ServiceRoll
+      attribute :smoke, Report
+
+      sets :smoke
+
+      emits "ServiceRollVerified"
+    end
+
+    command "FlagSmoke" do
+      goal "Record that the roll took but the smoke it requested did not pass, and why"
+
+      reference_to ServiceRoll
+      attribute :smoke,   Report
+      attribute :refusal, Report
+
+      sets :smoke
+      sets :refusal
+
+      emits "ServiceRollSmokeFlagged"
     end
 
     query "Verdict" do
@@ -1035,7 +1072,7 @@ Hecks.bluebook "Deploy" do
   policy "RecordTheRolledService" do
     on      "ServiceRoll.ServiceRollAnswered"
     trigger ServiceRoll::Complete,
-            with: { report: :report, taskdef: :taskdef, tag: :tag, project: :project, skip_smoke: :skip_smoke }
+            with: { report: :report, taskdef: :taskdef, tag: :tag, smoke: :smoke }
   end
 
   policy "RecordTheFlaggedServiceRoll" do
@@ -1043,10 +1080,24 @@ Hecks.bluebook "Deploy" do
     trigger ServiceRoll::Flag, with: { refusal: :refusal }
   end
 
+  # Declared after RecordTheRolledService: the roll is recorded before its smoke is requested, and the
+  # smoke is requested from the answer itself because a reaction chain is bounded.
   policy "SmokeAfterServiceRoll" do
-    on      "ServiceRoll.ServiceRollCompleted"
-    where   { !skip_smoke.value }
-    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef }
+    on      "ServiceRoll.ServiceRollAnswered"
+    where   { run_smoke.value }
+    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef, after: :kind }
+  end
+
+  policy "VerifyServiceRollOnPassedSmoke" do
+    on      "SmokeRun.SmokePassed"
+    where   { after.value == "service_roll" }
+    trigger ServiceRoll::Verify, with: { service_roll: :run, smoke: :report }
+  end
+
+  policy "FlagServiceRollOnFlaggedSmoke" do
+    on      "SmokeRun.SmokeFlagged"
+    where   { after.value == "service_roll" }
+    trigger ServiceRoll::FlagSmoke, with: { service_roll: :run, smoke: :refusal, refusal: :refusal }
   end
 
   aggregate "BoxRoll" do
@@ -1059,6 +1110,7 @@ Hecks.bluebook "Deploy" do
     attribute :tags,       Tags, optional: true
     attribute :skip_smoke, Switch, optional: true
     attribute :report,     Report, optional: true
+    attribute :smoke,      Report, optional: true
     attribute :refusal,    Report, optional: true
 
     identified_by :run
@@ -1096,6 +1148,8 @@ Hecks.bluebook "Deploy" do
     lifecycle :status, default: "requested" do
       transition "Complete" => "rolled", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      transition "Verify" => "verified", from: "rolled"
+      transition "FlagSmoke" => "flagged", from: "rolled"
     end
 
     # `hecks deploy box_roll.run <project> [taskdef=<family[:rev]> | tags="name=tag ..."]
@@ -1131,13 +1185,11 @@ Hecks.bluebook "Deploy" do
       reference_to BoxRoll
       attribute :report,     Report
       attribute :taskdef,    TaskDefinition, optional: true
-      attribute :project,    Location
-      attribute :skip_smoke, Switch, optional: true
+      attribute :smoke,      Report, optional: true
 
       sets :report
       sets :taskdef
-      sets :project
-      sets :skip_smoke
+      sets :smoke
 
       emits "BoxRollCompleted"
     end
@@ -1151,6 +1203,30 @@ Hecks.bluebook "Deploy" do
       sets :refusal
 
       emits "BoxRollFlagged"
+    end
+
+    command "Verify" do
+      goal "Record that the smoke the roll requested passed"
+
+      reference_to BoxRoll
+      attribute :smoke, Report
+
+      sets :smoke
+
+      emits "BoxRollVerified"
+    end
+
+    command "FlagSmoke" do
+      goal "Record that the roll took but the smoke it requested did not pass, and why"
+
+      reference_to BoxRoll
+      attribute :smoke,   Report
+      attribute :refusal, Report
+
+      sets :smoke
+      sets :refusal
+
+      emits "BoxRollSmokeFlagged"
     end
 
     query "Verdict" do
@@ -1174,7 +1250,7 @@ Hecks.bluebook "Deploy" do
 
   policy "RecordTheRolledBox" do
     on      "BoxRoll.BoxRollAnswered"
-    trigger BoxRoll::Complete, with: { report: :report, taskdef: :taskdef, project: :project, skip_smoke: :skip_smoke }
+    trigger BoxRoll::Complete, with: { report: :report, taskdef: :taskdef, smoke: :smoke }
   end
 
   policy "RecordTheFlaggedBoxRoll" do
@@ -1183,9 +1259,21 @@ Hecks.bluebook "Deploy" do
   end
 
   policy "SmokeAfterBoxRoll" do
-    on      "BoxRoll.BoxRollCompleted"
-    where   { !skip_smoke.value }
-    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef }
+    on      "BoxRoll.BoxRollAnswered"
+    where   { run_smoke.value }
+    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef, after: :kind }
+  end
+
+  policy "VerifyBoxRollOnPassedSmoke" do
+    on      "SmokeRun.SmokePassed"
+    where   { after.value == "box_roll" }
+    trigger BoxRoll::Verify, with: { box_roll: :run, smoke: :report }
+  end
+
+  policy "FlagBoxRollOnFlaggedSmoke" do
+    on      "SmokeRun.SmokeFlagged"
+    where   { after.value == "box_roll" }
+    trigger BoxRoll::FlagSmoke, with: { box_roll: :run, smoke: :refusal, refusal: :refusal }
   end
 
   aggregate "TemplateComparison" do

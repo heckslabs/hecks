@@ -475,10 +475,13 @@ To roll a project as a command, run `hecks deploy service_roll.run <project> ser
 or `hecks deploy box_roll.run <project> --wait` (`taskdef=<family[:revision]>` for a project with a
 task definition, `tags="web=20260101 worker=20260101"` for one without). Each runs the project's
 generated `deploy-service.sh` or `deploy-box.sh`, found the way the smoke script is, and records a
-`ServiceRoll` or `BoxRoll` as `rolled` (a service roll with its `tag` and `taskdef`) or `flagged`
-with the script's status and what it printed, exiting 1 when flagged. A policy on a successful
-roll then requests a `SmokeRun` under the same run key; `skip_smoke=true` leaves it out. These
-commands write to AWS, as the scripts do. Their statuses:
+`ServiceRoll` or `BoxRoll` (a service roll with its `tag` and `taskdef`). A failed roll is
+`flagged` with the script's status and what it printed. A successful roll's policy requests a
+`SmokeRun` under the same run key, and policies on the smoke's outcome move the roll to `verified`
+(the smoke passed) or `flagged` (the smoke failed, its reason in `refusal`), so the command exits 1 for
+a failed roll or a failed smoke. A roll that stays `rolled` requested no smoke, and its `smoke` field
+says why: `skip_smoke=true` leaves it out, and a project with no `smoke-after-deploy.sh` records
+`smoke skipped: no smoke script`. These commands write to AWS, as the scripts do. Their statuses:
 
 | Status | Meaning |
 | --- | --- |
@@ -556,10 +559,10 @@ left an old image running therefore never reaches the smoke. The box is read ove
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
 the stack update and the roll itself. `make deploy` runs `hecks deploy box_roll.run` and
 `make deploy-service` runs `service_roll.run`; the roll's policy requests
-`smoke_run.run`, which runs `smoke-after-deploy.sh`. Every deploy so leaves a roll and a
-`SmokeRun` in the Hecks database that `hecks deploy box_roll.verdict`,
-`service_roll.flagged`, `smoke_run.verdict` and `smoke_run.flagged` can query.
-The target reads the smoke's verdict after the roll and exits 1 when it did not pass.
+`smoke_run.run`, which runs `smoke-after-deploy.sh`. Every deploy so leaves a roll (that also
+holds the smoke's outcome) and a `SmokeRun` in the Hecks database that `hecks deploy box_roll.verdict`,
+`service_roll.flagged`, `smoke_run.verdict` and `smoke_run.flagged` can query. The command's exit
+covers the whole deploy, so the target reads nothing after it.
 `SKIP_POST_DEPLOY_SMOKE=1` becomes `skip_smoke=true`, and `DRY_RUN=1` dispatches nothing
 when the smoke is run alone. A failed roll or smoke is exit 1; the script's own status
 (the table above, or 20 to 23 for the smoke) is in the message.
@@ -574,7 +577,8 @@ generated `deploy`, `deploy-service` and `smoke-after-deploy` targets say so, ru
 script anyway (and the smoke after a roll) so the result is printed, and fail with the
 database error stated apart from the deploy's outcome: the script's own status when it
 failed, or `Error 24` when it all passed. A project that does not set `hosting_scripts true`
-has no smoke script for the policy, so its `make deploy` stays the generated script.
+deploys through `box_roll.run` as well; it has no smoke script, so its roll stays `rolled` with
+`smoke skipped: no smoke script`.
 
 ### Per-branch previews for `AwsFargate`
 
