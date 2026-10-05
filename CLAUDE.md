@@ -26,6 +26,22 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
 Check a tree with `exe/hecks style_run.check_comments paths=<path> --wait` before
 calling comment work done.
 
+## Use the hecks binary
+
+Repo tasks run through the `hecks` binary (`exe/hecks` in a checkout), not
+ad-hoc Ruby, shell one-offs, or hand-written scripts. It is a launcher
+whose commands and queries are projected from the bluebooks, so it is the
+current list of what this repo can do.
+
+- `exe/hecks` lists every command and query; `exe/hecks <command> --help`
+  says what one wants and how it refuses.
+- `exe/hecks <command>! name=value …` does something;
+  `exe/hecks query <query> name=value …` reads something.
+- Before writing a script, look for the command that already does it
+  (projections, regeneration, style checks, model_check, smoke tests).
+  If none exists, add the command to the bluebook rather than a script.
+- Add `--wait` when you need the result before the next step.
+
 ## Agents merge their own pull requests
 
 Push the branch, open the pull request, and once it is ready and not a
