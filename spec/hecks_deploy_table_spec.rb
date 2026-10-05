@@ -1,8 +1,8 @@
 require "spec_helper"
 require "json"
 require "tmpdir"
-require "hecks/three_zero"
 require "hecks/tools"
+require "hecks/tools/tools_doc"
 require_relative "support/fake_codebase_shell"
 
 # ADR 0080, section 7: the Deploy rows of the command table. The Deploy chapter is attached to the
@@ -64,10 +64,11 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   it "names, for every script it replaces, the form the 2.10 notice promises" do
+    forms = Hecks::Tools::ToolsDoc.forms(root: InMemoryDomain::ROOT)
     DEPLOY_ROWS.map(&:script).uniq.each do |script|
-      expect(Hecks::ThreeZero::FORMS.fetch(script)).to start_with("hecks deploy ")
+      expect(forms.fetch(script)).to start_with("hecks deploy ")
     end
-    promised = DEPLOY_ROWS.map(&:script).uniq.map { |script| Hecks::ThreeZero::FORMS.fetch(script)[/deploy ([\w.]+)/, 1] }
+    promised = DEPLOY_ROWS.map(&:script).uniq.map { |script| forms.fetch(script)[/deploy ([\w.]+)/, 1] }
 
     expect(promised).to all(satisfy { |verb| DEPLOY_ROWS.map(&:qualified).include?(verb) })
   end

@@ -698,6 +698,152 @@ Hecks.bluebook "Bluebook" do
              meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
     end
 
+    # What each retired `bin/` script became in hecks 3.0.0 (ADR 0080, section 7): one row per
+    # command or query that answers it, so a script that became several verbs has several rows.
+    # hecks project_tools_doc writes the launcher forms into the marked tables of docs/tools.md,
+    # rendering each form from the command's own arguments, so a form can neither keep an argument
+    # the command dropped nor miss one it gained; the table specs read the same rows.
+    #
+    # `section` is the part of docs/tools.md the row is listed under (Custodian, Deploy, Site,
+    # Codebase or QualityControl); Custodian and Codebase commands live in the Hecks chapter, the
+    # others in the chapter of their own name. `script` is `(new)` for a command no `bin/` script
+    # preceded. `aggregate` and `verb` name the command (or, in QualityControl, the query) the way
+    # the launcher spells it, `aggregate.verb`.
+    #
+    # The rest is only what the arguments cannot say: `passes` documents the flags a command hands
+    # through to the tool it wraps (its `arguments=` word), `note` is a sentence kept beside the
+    # form, and `form` replaces the rendered form when a launcher route spells it its own way.
+    value_object "RetiredScript" do
+      attribute :script,    String
+      attribute :section,   String
+      attribute :aggregate, String
+      attribute :verb,      String
+      attribute :passes,    String, optional: true
+      attribute :note,      String, optional: true
+      attribute :form,      String, optional: true
+
+      member script: "ir", section: "Custodian", aggregate: "Introspection", verb: "ir"
+      member script: "shape", section: "Custodian", aggregate: "Introspection", verb: "shape"
+      member script: "stores", section: "Custodian", aggregate: "Introspection", verb: "stores"
+      member script: "history", section: "Custodian", aggregate: "Introspection", verb: "history"
+      member script: "statements", section: "Custodian", aggregate: "Introspection", verb: "statements"
+      member script: "narrate", section: "Custodian", aggregate: "Introspection", verb: "narrate"
+      member script: "docs", section: "Custodian", aggregate: "Introspection", verb: "docs"
+      member script: "project_diagrams", section: "Custodian", aggregate: "Introspection", verb: "project_diagrams"
+      member script: "project_glossary", section: "Custodian", aggregate: "Introspection", verb: "glossary"
+      member script: "model_check", section: "Custodian", aggregate: "ModelCheckRun", verb: "model_check"
+      member script: "run", section: "Custodian", aggregate: "Operation", verb: "run", form: "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>"
+      member script: "project", section: "Custodian", aggregate: "Operation", verb: "refresh_projections"
+      member script: "behaviors", section: "Custodian", aggregate: "Operation", verb: "run_behaviors"
+      member script: "console", section: "Custodian", aggregate: "Operation", verb: "open_console"
+      member script: "follow", section: "Custodian", aggregate: "Operation", verb: "follow"
+      member script: "smoke_test", section: "Custodian", aggregate: "Operation", verb: "smoke_test"
+      member script: "smoke_http", section: "Custodian", aggregate: "Operation", verb: "smoke_http"
+      member script: "check_era", section: "Custodian", aggregate: "Host", verb: "check_era"
+      member script: "merge_tail", section: "Custodian", aggregate: "Era", verb: "merge_tail"
+      member script: "reattest_era", section: "Custodian", aggregate: "Era", verb: "reattest"
+      member script: "backfill_era_projections", section: "Custodian", aggregate: "Era", verb: "backfill_projections"
+      member script: "scaffold_translation", section: "Custodian", aggregate: "Era", verb: "scaffold_translation"
+      member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "audit_translation"
+      member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "approve_translation"
+      member script: "compact", section: "Custodian", aggregate: "Era", verb: "compact"
+      member script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki"
+      member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor"
+      member script: "project_cli", section: "Custodian", aggregate: "Door", verb: "project_cli"
+      member script: "hecks_mcp_door", section: "Custodian", aggregate: "Door", verb: "serve_mcp"
+      member script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust"
+      member script: "project_wasm", section: "Custodian", aggregate: "Build", verb: "build_wasm"
+      member script: "project_wasm_browser", section: "Custodian", aggregate: "Build", verb: "build_browser_wasm"
+      member script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "rust_coverage"
+      member script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "check_coverage_allowlist"
+      member script: "rust_conformance", section: "Custodian", aggregate: "Build", verb: "check_conformance"
+      member script: "rust_conformance_fuzz", section: "Custodian", aggregate: "Build", verb: "fuzz_conformance"
+      member script: "fuzz", section: "Custodian", aggregate: "FuzzRun", verb: "fuzz"
+      member script: "generate", section: "Custodian", aggregate: "FuzzRun", verb: "generate_sequence"
+      member script: "bench", section: "Custodian", aggregate: "FuzzRun", verb: "bench"
+      member script: "(new)", section: "Custodian", aggregate: "Era", verb: "hold_first"
+      member script: "project_deploy", section: "Deploy", aggregate: "Recipe", verb: "project"
+      member script: "lint_deploy_recipes", section: "Deploy", aggregate: "MakefileCheck", verb: "lint"
+      member script: "deploy_template_diff", section: "Deploy", aggregate: "TemplateComparison", verb: "diff"
+      member script: "project_oidc", section: "Deploy", aggregate: "OidcManifest", verb: "project_oidc"
+      member script: "project_tenant", section: "Deploy", aggregate: "Tenant", verb: "provision"
+      member script: "project_tenant", section: "Deploy", aggregate: "Tenant", verb: "reprovision"
+      member script: "(new)", section: "Site", aggregate: "SiteProjection", verb: "project_site"
+      member script: "project_model", section: "Codebase", aggregate: "LanguageRun", verb: "project_model"
+      member script: "project_vocabulary", section: "Codebase", aggregate: "LanguageRun", verb: "project_vocabulary"
+      member script: "project_rust_vocabulary", section: "Codebase", aggregate: "LanguageRun", verb: "project_rust_vocabulary"
+      member script: "project_refusal_wording", section: "Codebase", aggregate: "LanguageRun", verb: "project_refusal_wording"
+      member script: "project_reserved_names", section: "Codebase", aggregate: "LanguageRun", verb: "project_reserved_names"
+      member script: "project_parser_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_parser_table"
+      member script: "project_bootstrap_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_bootstrap_table"
+      member script: "project_field_hints", section: "Codebase", aggregate: "LanguageRun", verb: "project_field_hints"
+      member script: "expression_projection", section: "Codebase", aggregate: "LanguageRun", verb: "project_expression_tables"
+      member script: "reference", section: "Codebase", aggregate: "LanguageRun", verb: "project_reference"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "word_status"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "propose"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "admit"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "deprecate"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "retire"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "rename"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "propose_argument"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "admit_argument"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "deprecate_argument"
+      member script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "retire_argument"
+      member script: "project_kernel_capabilities", section: "Codebase", aggregate: "KernelRun", verb: "project_kernel_capabilities"
+      member script: "rust_kernel_coverage", section: "Codebase", aggregate: "KernelRun", verb: "measure_kernel_coverage"
+      member script: "check_engine_agreement", section: "Codebase", aggregate: "ConformanceRun", verb: "check_engine_agreement"
+      member script: "doc_coverage", section: "Codebase", aggregate: "ConformanceRun", verb: "measure_doc_coverage"
+      member script: "argument_gate_matrix", section: "Codebase", aggregate: "ConformanceRun", verb: "argument_gate_matrix"
+      member script: "regen_codegen_domains", section: "Codebase", aggregate: "RegenerationRun", verb: "regenerate_corpus"
+      member script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "report_comments"
+      member script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "check_comments"
+      member script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "fix_comments"
+      member script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "write_comment_baseline"
+      member script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "check_comments_unchanged"
+      member script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "report_rust_comments"
+      member script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "check_rust_comments"
+      member script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "fix_rust_comments"
+      member script: "canonicalise", section: "Codebase", aggregate: "StyleRun", verb: "canonicalise"
+      member script: "codemod_hoist_local_givens", section: "Codebase", aggregate: "CodemodRun", verb: "hoist_local_givens"
+      member script: "codemod_implicit_append_fields", section: "Codebase", aggregate: "CodemodRun", verb: "drop_implicit_append_fields"
+      member script: "rspec_shard_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "shard_specs"
+      member script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "list_io_parallel_specs"
+      member script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "write_io_parallel_spec_list"
+      member script: "refresh_rspec_runtime_baseline", section: "Codebase", aggregate: "TestSuiteRun", verb: "refresh_runtime_baseline"
+      member script: "spec_example", section: "Codebase", aggregate: "TestSuiteRun", verb: "run_spec_example"
+      member script: "stress_concurrency_specs", section: "Codebase", aggregate: "TestSuiteRun", verb: "stress_concurrency"
+      member script: "regenerate_persistence_legacy_fixtures", section: "Codebase", aggregate: "TestSuiteRun", verb: "regenerate_legacy_fixtures"
+      member script: "seed_semantics_corpus", section: "Codebase", aggregate: "TestSuiteRun", verb: "seed_semantics_corpus"
+      member script: "pattern-cases", section: "Codebase", aggregate: "TestSuiteRun", verb: "record_pattern_cases"
+      member script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "rust_domains"
+      member script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "regen_order"
+      member script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "corpus_rust_coverage"
+      member script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_constructs"
+      member script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_duplicates"
+      member script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_impact"
+      member script: "hecks_query_ir_mcp", section: "Codebase", aggregate: "CorpusRun", verb: "serve_query_ir_mcp"
+      member script: "present", section: "Codebase", aggregate: "CorpusRun", verb: "present"
+      member script: "release", section: "Codebase", aggregate: "PublishingRun", verb: "publish", note: "without --confirm, the old --dry-run"
+      member script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem"
+      member script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate"
+      member script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick"
+      member script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"
+      member script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release"
+      member script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests"
+      member script: "qa_open_pr", section: "QualityControl", aggregate: "Patch", verb: "open"
+      member script: "qa_open_pr", section: "QualityControl", aggregate: "Improvement", verb: "open"
+      member script: "qa_log_bug", section: "QualityControl", aggregate: "Bug", verb: "log"
+      member script: "qa_seed_angles", section: "QualityControl", aggregate: "Angle", verb: "seed"
+      member script: "qa_seed_targets", section: "QualityControl", aggregate: "Target", verb: "seed"
+      member script: "qa_generated_domains", section: "QualityControl", aggregate: "Target", verb: "check_generated_domains", passes: "--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"
+      member script: "qa_mine_combinations", section: "QualityControl", aggregate: "Target", verb: "mine_combinations", passes: "--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"
+      member script: "qa_domain_novelty", section: "QualityControl", aggregate: "Target", verb: "judge_novelty", passes: "--against PATH …"
+      member script: "qa_discover_external_domains", section: "QualityControl", aggregate: "Target", verb: "discover_external_domains", passes: "--projects-dir ~/Projects --max-depth 3 --known-path PATH …"
+      member script: "qa_postgres_migrate", section: "QualityControl", aggregate: "Sweep", verb: "migrate_ledger_from_heki", passes: "[aggregate …] --force", note: "a dry run without --force"
+      member script: "qa_postgres_role", section: "QualityControl", aggregate: "Sweep", verb: "create_ledger_role"
+      member script: "qa_concurrency_racer", section: "QualityControl", aggregate: "Sweep", verb: "race", note: "not user-facing; ProcessPool starts it"
+    end
+
     # Rust keywords (strict + reserved) a generated identifier must not
     # collide with. ModelCheck reads this; hecks project_reserved_names
     # projects it into rust/codegen/src/reserved_names.rs, so Ruby and Rust
