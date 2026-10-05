@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: the release workflow no longer needs a laptop when the RubyGems API key fails.** `release.yml` retries the
+`RUBYGEMS_API_KEY` push with backoff, then falls back inside the same job to RubyGems trusted publishing over OIDC. A version
+already on rubygems.org counts as pushed, so a re-run finishes a half-done release, and when both paths fail the error names
+the key scope or the trusted publisher entry to configure. Later steps wait until the registry lists the version.
+
 **New: `hecks site site_projection.check_live` compares a project's generated CloudFront behaviours with a live distribution's.**
 Given a saved `aws cloudfront get-distribution-config` answer (`live=<file>`), or a distribution id to fetch it with that one
 read-only call (`distribution=<id>`), it matches each behaviour by path pattern and reports every difference in origin,

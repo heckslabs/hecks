@@ -140,10 +140,19 @@ gem, no checkout: `<project>` holds `bluebook/`, `out=` is any directory for `ro
 from a laptop. It starts when a commit on `main` changes `lib/hecks/version.rb` (the merged release PR), or by
 hand with `gh workflow run release.yml -f tag=vX.Y.Z`. It refuses unless `Hecks::VERSION`,
 `packages/hecks-client`, `rust/host/HECKS_RELEASE` and a `## [X.Y.Z]` heading in `CHANGELOG.md` agree. It then
-tags the commit, pushes the gem (repository secret `RUBYGEMS_API_KEY`), starts `publish-client.yml` for the npm
+tags the commit, pushes the gem, starts `publish-client.yml` for the npm
 package, and creates the GitHub Release from the CHANGELOG section. Each step is skipped when its result already
 exists, so re-running a release that stopped halfway finishes it, and a tag that stands on another commit is an
 error, never moved. The local command remains for a release made by hand.
+
+The gem push has two paths in the one job. It first runs `gem push` with the repository secret `RUBYGEMS_API_KEY`,
+retrying transient failures with backoff. If that does not push (key missing, wrong, or under-scoped), it falls back to
+RubyGems trusted publishing over OIDC (`rubygems/configure-rubygems-credentials`) and pushes again. A version that is
+already on rubygems.org counts as pushed, and nothing later runs until the registry lists the version. If both paths
+fail the job says what to configure, and the fix is a re-run (`gh workflow run release.yml -f tag=vX.Y.Z`), not a
+local publish. One-time setup, either one: a `RUBYGEMS_API_KEY` secret whose key may push `hecks`, or a trusted
+publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organization `heckslabs`, repository
+`hecks`, workflow `release.yml`).
 
 ## QualityControl, for maintaining Hecks
 

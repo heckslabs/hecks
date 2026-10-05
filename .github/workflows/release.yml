@@ -7,7 +7,7 @@ name: Release
 #   1. check that Hecks::VERSION, packages/hecks-client, rust/host/HECKS_RELEASE and a
 #      `## [X.Y.Z]` heading in CHANGELOG.md all name the same version, and refuse if they do not;
 #   2. tag the commit vX.Y.Z (annotated);
-#   3. push the gem to rubygems.org;
+#   3. push the gem to rubygems.org (the API key first, then trusted publishing, see below);
 #   4. start publish-client.yml for the tag, which publishes @hecks/client to npm (OIDC);
 #   5. create the GitHub Release from the CHANGELOG section and mark it latest.
 #
@@ -21,8 +21,22 @@ name: Release
 # alternative (a personal access token that does) would add a long-lived credential to a
 # repository that otherwise holds none for the npm side.
 #
-# Secret: RUBYGEMS_API_KEY, a RubyGems API key allowed to push the `hecks` gem. It is handed to
-# the one step that pushes, as GEM_HOST_API_KEY, and nowhere else.
+# The gem push has two paths inside the one job, so a bad credential never needs a laptop:
+#
+#   a. `gem push` with the RUBYGEMS_API_KEY secret, retried with backoff when the failure looks
+#      transient. The key is handed to that one step, as GEM_HOST_API_KEY, and nowhere else.
+#   b. If that did not push (key missing, wrong, or under-scoped: 401/403), the job asks
+#      rubygems.org for a short-lived key over OIDC (trusted publishing, `id-token: write`) and
+#      pushes again.
+#
+# A push answered with "already exists" / "Repushing of gem versions is not allowed" counts as
+# done, so a re-run finishes a release whose gem went out but whose later steps did not. If both
+# paths fail the job says what to configure; the next step is then `gh workflow run`, never a
+# local publish.
+#
+# One-time setup: either a RUBYGEMS_API_KEY secret whose key may push `hecks`, or a trusted
+# publisher on rubygems.org > hecks > Trusted publishers > GitHub Actions (organization
+# heckslabs, repository hecks, workflow release.yml, no environment).
 #
 # Re-run: `gh workflow run release.yml -f tag=vX.Y.Z` (from main). If the tag already exists the
 # run checks out that tag, so a missing piece of an older release can be filled in.
@@ -54,6 +68,12 @@ jobs:
     if: github.repository == 'heckslabs/hecks' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    # A job's own permissions replace the workflow's, so all three are listed here.
+    permissions:
+      contents: write
+      actions: write
+      id-token: write # trusted publishing to rubygems.org, the fallback for a failed API-key push
 
     env:
       GH_TOKEN: ${{ github.token }}
@@ -159,22 +179,81 @@ jobs:
         with:
           ruby-version: "3.3"
 
-      - name: Build and push the gem
+      - name: Build the gem
+        if: steps.state.outputs.gem == 'false'
+        run: gem build hecks.gemspec
+
+      # Retries a few times with backoff, but only for failures that look transient; a refused
+      # key is not retried. Never fails the job: it reports pushed=true/false so the OIDC path can
+      # take over.
+      - name: Push the gem with the API key
+        id: api_key_push
         if: steps.state.outputs.gem == 'false'
         env:
           VERSION: ${{ steps.release.outputs.version }}
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
+          echo "pushed=false" >> "$GITHUB_OUTPUT"
           if [ -z "$GEM_HOST_API_KEY" ]; then
-            echo "::error::the repository secret RUBYGEMS_API_KEY is not set"
-            exit 1
+            echo "::warning::the repository secret RUBYGEMS_API_KEY is not set; trying trusted publishing"
+            exit 0
           fi
-          gem build hecks.gemspec
-          gem push "hecks-$VERSION.gem"
-          rm -f "hecks-$VERSION.gem"
+          for attempt in 1 2 3 4; do
+            if gem push "hecks-$VERSION.gem" > push.log 2>&1; then
+              cat push.log
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            cat push.log
+            if grep -qiE 'already exists|repushing of gem versions is not allowed' push.log; then
+              echo "hecks $VERSION is already on rubygems.org; treating the push as done."
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if grep -qiE '401|403|unauthorized|forbidden|access denied|not authorized|invalid api key|scope' push.log; then
+              echo "::warning::rubygems.org refused the RUBYGEMS_API_KEY; trying trusted publishing"
+              exit 0
+            fi
+            [ "$attempt" = "4" ] && break
+            echo "::warning::gem push attempt $attempt failed, retrying in $((attempt * 15))s"
+            sleep $((attempt * 15))
+          done
+          echo "::warning::gem push with the API key failed after retries; trying trusted publishing"
+
+      # Pinned to the commit of v2.1.0, a full SHA because this job can push to the registry.
+      - name: Configure RubyGems trusted publishing
+        if: steps.state.outputs.gem == 'false' && steps.api_key_push.outputs.pushed != 'true'
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
+      - name: Push the gem with trusted publishing
+        if: steps.state.outputs.gem == 'false' && steps.api_key_push.outputs.pushed != 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          for attempt in 1 2 3; do
+            if gem push "hecks-$VERSION.gem" > push.log 2>&1; then
+              cat push.log
+              exit 0
+            fi
+            cat push.log
+            if grep -qiE 'already exists|repushing of gem versions is not allowed' push.log; then
+              echo "hecks $VERSION is already on rubygems.org; treating the push as done."
+              exit 0
+            fi
+            [ "$attempt" = "3" ] && break
+            sleep $((attempt * 15))
+          done
+          echo "::error::hecks $VERSION could not be pushed. Fix ONE of: (1) the repository secret RUBYGEMS_API_KEY, a key with the 'Push rubygem' scope that may push hecks; (2) a trusted publisher on rubygems.org > hecks > Trusted publishers > GitHub Actions: organization heckslabs, repository hecks, workflow release.yml. Then re-run: gh workflow run release.yml -f tag=v$VERSION (from main). No local publish is needed."
+          exit 1
+
+      - name: Remove the built gem
+        if: always() && steps.state.outputs.gem == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: rm -f "hecks-$VERSION.gem" push.log
 
       # The registry lists a new version within moments; a push that was accepted but never
-      # appears is a failure worth seeing.
+      # appears is a failure worth seeing, and nothing after this runs until the gem is visible.
       - name: The gem is listed
         if: steps.state.outputs.gem == 'false'
         env:
@@ -188,7 +267,7 @@ jobs:
             fi
             sleep 10
           done
-          echo "::error::hecks $VERSION was pushed but rubygems.org does not list it yet; check it by hand"
+          echo "::error::hecks $VERSION was pushed but rubygems.org does not list it yet; re-run the workflow (gh workflow run release.yml -f tag=v$VERSION), which skips what is done"
           exit 1
 
       - name: Start the npm publish
