@@ -30,7 +30,8 @@ module Hecks
       # @return [String] the input as JSON, ready for the binary's stdin
       def json(domain_path, steps) = JSON.generate(build(domain_path, steps))
 
-      # Each command's declared defaults, read from the domain's generated IR.
+      # Each command's declared defaults, entity commands included, read from the domain's
+      # generated IR. An entity's commands sit under `Domain::Aggregate.Entity[.Entity].Command`.
       #
       # @param domain_path [String] the domain's directory
       # @return [Hash{String => Hash{String => Object}}] empty when the IR is absent or has none
@@ -38,12 +39,23 @@ module Hecks
         ir = generated_ir(domain_path) or return {}
         domain = ir["name"].to_s
         Array(ir["aggregates"]).each_with_object({}) do |aggregate, table|
-          Array(aggregate["commands"]).each do |command|
-            held = Array(command["attributes"]).reject { |attribute| attribute["default"].nil? }
-                                               .to_h { |attribute| [attribute["name"], attribute["default"]] }
-            table["#{domain}::#{aggregate['name']}.#{command['name']}"] = held unless held.empty?
-          end
+          collect_defaults(aggregate, "#{domain}::#{aggregate['name']}", table)
         end
+      end
+
+      # Adds the defaults of `node`'s commands, then of each entity nested in it, under `prefix`.
+      #
+      # @param node [Hash] an aggregate or entity of the IR
+      # @param prefix [String] the verb path down to `node`
+      # @param table [Hash] filled in place
+      # @return [void]
+      def collect_defaults(node, prefix, table)
+        Array(node["commands"]).each do |command|
+          held = Array(command["attributes"]).reject { |attribute| attribute["default"].nil? }
+                                             .to_h { |attribute| [attribute["name"], attribute["default"]] }
+          table["#{prefix}.#{command['name']}"] = held unless held.empty?
+        end
+        Array(node["entities"]).each { |entity| collect_defaults(entity, "#{prefix}.#{entity['name']}", table) }
       end
 
       # @param domain_path [String] the domain's directory

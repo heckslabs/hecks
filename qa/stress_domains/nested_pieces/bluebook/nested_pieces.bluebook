@@ -92,6 +92,19 @@ Hecks.bluebook "NestedPieces" do
         emits "BoardLabeled"
       end
 
+      # A declared default on an entity's command: a caller who names no label gives the board the
+      # placeholder one.
+      command "Retitle" do
+        role "Owner"
+        goal "Label the board, or give it the placeholder label when none is named"
+
+        attribute :label, BoardLabel, default: { value: "untitled" }
+
+        sets :label
+
+        emits "BoardRetitled"
+      end
+
       # A piece nested inside a piece (ADR 0026): `locate_chain` walks a second hop to reach it.
       entity "Card" do
         description "One card on the board, with a sequence that must be positive."
@@ -111,6 +124,18 @@ Hecks.bluebook "NestedPieces" do
           sets :note
 
           emits "CardAnnotated"
+        end
+
+        # The same default, two hops down: a caller who names no note leaves the card a plain one.
+        command "Remark" do
+          role "Owner"
+          goal "Note the card, or leave it the plain note when none is named"
+
+          attribute :note, CardNote, default: { text: "none" }
+
+          sets :note
+
+          emits "CardRemarked"
         end
       end
     end

@@ -224,6 +224,19 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::nested_pieces::workspace::dispatch_entity_board_label(&mut store.workspace, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "NestedPieces::Workspace.Board.Retitle" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::BoardRetitleEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::BoardRetitleEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::BoardRetitleEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::BoardRetitleEntityArgs::from_json(v)?; args.label.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Retitle", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::BoardRetitleEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retitle acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retitle acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
+              let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::nested_pieces::workspace::dispatch_entity_board_retitle(&mut store.workspace, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "NestedPieces::Workspace.Board.Card.Annotate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -235,6 +248,18 @@ pub fn dispatch_by_name(
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::nested_pieces::workspace::dispatch_entity_board_card_annotate(&mut store.workspace, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "NestedPieces::Workspace.Board.Card.Remark" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(2)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::CardRemarkNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::CardRemarkNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::CardRemarkNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::CardRemarkNestedEntityArgs::from_json(v)?; args.note.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Remark", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::CardRemarkNestedEntityArgs| Ok(()) })?;
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Remark acts on a Workspace's Board.Card — pass reference.value:".to_string()))?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Remark acts on one Board — pass number.value:".to_string()))?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Remark acts on one Card — pass sequence.value:".to_string()))?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::nested_pieces::workspace::dispatch_entity_board_card_remark(&mut store.workspace, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -309,6 +334,7 @@ pub fn command_creates(verb: &str) -> bool {
         "NestedPieces::Workspace.AddBoard" => false,
         "NestedPieces::Workspace.Board.AddCard" => false,
         "NestedPieces::Workspace.Board.Label" => false,
+        "NestedPieces::Workspace.Board.Retitle" => false,
         "Governance::RoleAssignment.Assign" => true,
         "Governance::RoleAssignment.Revoke" => false,
         "Governance::RoleTransition.Grant" => true,
@@ -337,6 +363,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "NestedPieces::Workspace.AddBoard" => &["number"],
         "NestedPieces::Workspace.Board.AddCard" => &["sequence"],
         "NestedPieces::Workspace.Board.Label" => &["label"],
+        "NestedPieces::Workspace.Board.Retitle" => &["label"],
         "Governance::RoleAssignment.Assign" => &["actor_id", "role_name", "scope", "starts_at"],
         "Governance::RoleAssignment.Revoke" => &["ends_at"],
         "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
