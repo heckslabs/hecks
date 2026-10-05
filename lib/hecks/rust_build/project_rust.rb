@@ -5,7 +5,6 @@ require "json"
 require_relative "../../hecks"
 require_relative "../bluebook/meta_validator"
 require_relative "../ports/persistence/plugins/era"
-require_relative "append_optionals"
 require_relative "domain_name"
 require_relative "write_if_changed"
 
@@ -83,18 +82,12 @@ module Hecks
         vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         chapters = (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
-          CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", prepared_ir(ir))
+          CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", json_shaped(ir))
         end
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: prepared_ir(meta), chapters: chapters,
-          target: CodegenRun::Chapter.new(@mod_name, @domain, prepared_ir(@ir, shaped: false))
+          rust_dir: @rust_dir, out_root: @out_root, meta: json_shaped(meta), chapters: chapters,
+          target: CodegenRun::Chapter.new(@mod_name, @domain, @ir)
         ).call
-      end
-
-      # The IR as the generator reads it: string-keyed through JSON, with the append-optional
-      # fields marked, since `ir.json` records them.
-      def prepared_ir(tree, shaped: true)
-        AppendOptionals.mark(shaped ? json_shaped(tree) : tree)
       end
 
       # Round-trips a value through JSON so generators see the string-keyed shape a real `ir.json`
