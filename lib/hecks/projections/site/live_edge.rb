@@ -34,7 +34,7 @@ module Hecks
         # @!attribute [r] counts
         #   @return [Array<Integer>] the number of generated and of live behaviours, default aside
         Comparison = Struct.new(:expected, :differences, :unchecked, :counts, keyword_init: true) do
-          # @return [Boolean] whether the live distribution is as generated, expected additions aside
+          # @return [Boolean] whether live is as generated, expected additions aside
           def clean? = differences.empty? && unchecked.empty?
 
           # @return [String] the report, one section per kind of finding
