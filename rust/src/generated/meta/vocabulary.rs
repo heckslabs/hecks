@@ -1641,6 +1641,7 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "hecks_mcp_door", section: "Custodian", aggregate: "Door", verb: "serve_mcp", passes: "", note: "", form: "" },
     RetiredScript { script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust", passes: "", note: "", form: "" },
     RetiredScript { script: "project_wasm", section: "Custodian", aggregate: "Build", verb: "build_wasm", passes: "", note: "", form: "" },
+    RetiredScript { script: "project_host", section: "Custodian", aggregate: "Build", verb: "build_host", passes: "", note: "", form: "" },
     RetiredScript { script: "project_wasm_browser", section: "Custodian", aggregate: "Build", verb: "build_browser_wasm", passes: "", note: "", form: "" },
     RetiredScript { script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "rust_coverage", passes: "", note: "", form: "" },
     RetiredScript { script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "check_coverage_allowlist", passes: "", note: "", form: "" },

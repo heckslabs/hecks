@@ -52,6 +52,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
 | `hecks build.project_rust <domain>` | `bin/project_rust` |
 | `hecks build.build_wasm <domain>` | `bin/project_wasm` |
+| `hecks build.build_host <domain> [target=] [stage_dir=]` | `bin/project_host` |
 | `hecks build.build_browser_wasm <domain>` | `bin/project_wasm_browser` |
 | `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist` | `bin/rust_coverage` |
 | `hecks build.check_conformance <domain> script= [artifact=]` | `bin/rust_conformance` |

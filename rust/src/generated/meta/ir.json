@@ -32564,6 +32564,24 @@
             [
               [
                 "script",
+                "project_host"
+              ],
+              [
+                "section",
+                "Custodian"
+              ],
+              [
+                "aggregate",
+                "Build"
+              ],
+              [
+                "verb",
+                "build_host"
+              ]
+            ],
+            [
+              [
+                "script",
                 "project_wasm_browser"
               ],
               [

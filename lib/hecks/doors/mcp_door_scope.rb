@@ -28,7 +28,8 @@ module Hecks
       # switch to, or flips a command from a preview to a change of state.
       DENIED_ARGUMENTS = %w[
         adapter artifact confirm expected from gem_only header health_path host no_wait npm_local
-        npm_only output path payload payload_file port rust_binary scheme state_path stdio url write
+        npm_only output path payload payload_file port rust_binary scheme stage_dir state_path stdio url
+        write
       ].freeze
 
       # Argument names whose values are paths (a comma-separated list for some). A restricted door
