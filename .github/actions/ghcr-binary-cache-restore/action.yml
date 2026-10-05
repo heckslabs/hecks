@@ -6,7 +6,7 @@ description: >-
   ACROSS separate runs, never between two SIBLING jobs racing each other in
   the SAME run: a cache save only becomes visible to future runs, never to
   a job still in flight right now. `rspec_rust_io`'s own comment names the
-  real, live instance of this gap: its opt-in `project_rust_pipeline_spec.rb`
+  real, live instance of this gap: its `hecks_build_pipeline_spec.rb`
   step builds rust/parser and rust/codegen for real, redundant with
   rspec_rust_parser/rspec_rust_codegen's own dedicated builds running
   concurrently on separate runners, whenever a PR actually touches either

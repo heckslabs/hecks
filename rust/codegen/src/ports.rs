@@ -1,4 +1,4 @@
-//! Port of `rust/project/ports.rb` — read that file's own header comments
+//! Port of the retired Ruby generator's `ports.rb` — read that file's own header comments
 //! in full; this mirrors its algorithm directly, function for function.
 
 use crate::exemplar::Exemplar;

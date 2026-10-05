@@ -1,4 +1,4 @@
-//! Port of `rust/project/json_codec.rb`, the JSON boundary generator: `to_json`/`from_json`
+//! Port of the retired Ruby generator's `json_codec.rb`, the JSON boundary generator: `to_json`/`from_json`
 //! codecs, closed-set codecs, and `extract_id`/`extract_wants`/`self_identity`.
 
 use crate::exemplar::Exemplar;

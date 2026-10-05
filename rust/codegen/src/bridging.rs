@@ -1,4 +1,4 @@
-//! Port of `rust/project/bridging.rb`: cross-type coercion checks for `:set` and `:append` RHS.
+//! Port of the retired Ruby generator's `bridging.rb`: cross-type coercion checks for `:set` and `:append` RHS.
 
 use crate::json::Json;
 use crate::literal::Literal;

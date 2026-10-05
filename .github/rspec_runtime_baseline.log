@@ -161,7 +161,6 @@ spec/ports/postgres_dump_spec.rb:0.00
 spec/ports/projection_spec.rb:0.00
 spec/ports/query_spec.rb:0.00
 spec/project_deploy_preview_spec.rb:0.17
-spec/project_rust_pipeline_default_adapter_spec.rb:0.00
 spec/projections/deploy_fargate_settings_spec.rb:0.01
 spec/projections/deploy_smoke_spec.rb:0.01
 spec/projections/domain_project_spec.rb:0.38
@@ -290,17 +289,6 @@ spec/runtime/value_object_identity_spec.rb:0.02
 spec/runtime/value_object_string_scalar_shape_spec.rb:0.59
 spec/runtime/value_spec.rb:0.13
 spec/rust_coverage_allowlist_spec.rb:0.29
-spec/rust_project/bridging_spec.rb:0.00
-spec/rust_project/closed_set_fielded_spec.rb:0.00
-spec/rust_project/constraints_spec.rb:0.00
-spec/rust_project/creates_owner_spec.rb:0.00
-spec/rust_project/dependency_planning_spec.rb:0.72
-spec/rust_project/exemplar_spec.rb:0.02
-spec/rust_project/framework_chapter_mod_spec.rb:0.08
-spec/rust_project/json_codec_spec.rb:0.00
-spec/rust_project/naming_landmines_spec.rb:0.00
-spec/rust_project/queries_spec.rb:0.00
-spec/rust_project/reactions_merge_spec.rb:0.00
 spec/rust_vocabulary_spec.rb:0.02
 spec/scalar_value_object_spec.rb:0.06
 spec/scoped_constant_spec.rb:0.02

@@ -36,8 +36,7 @@ rust/
   src/kernel/     the hand-written interpreter — walks given/ensures/mutation data, same job as CommandInterpreter#call in Ruby.
   src/generated/  typed structs and enums per domain, written by hecks build.project_rust — never hand-edited.
   parser/         a generated Rust parser, built from the language's own Syntax chapter (hecks language_run.project_parser_table).
-  codegen/        the Rust code generator itself, driven from canonical IR.
-  project/        RustProjection (rust/project.rb) — the Ruby-side driver hecks build.project_rust calls.
+  codegen/        the Rust code generator itself, driven from canonical IR; hecks build.project_rust builds the IR from the live registry and runs it.
   web/            the wasm-bindgen crate hecks build.build_browser_wasm builds — a separate cdylib from the WASI binary.
 ```
 

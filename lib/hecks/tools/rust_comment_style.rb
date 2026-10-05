@@ -30,7 +30,7 @@ module Hecks
       DOC_LINE = %r{\A\s*(?:///(?!/)|//!)}
 
       # `// TMPL:name BEGIN`/`END` sentinels are parsed verbatim by
-      # `rust/project/exemplar.rb`; every prose rule skips them outright.
+      # `rust/codegen/src/exemplar.rs`; every prose rule skips them outright.
       TMPL_MARKER = /\bTMPL:\S+\s+(?:BEGIN|END)\b/i
       MOD_DOC_LINE = %r{\A\s*//!}
       ATTR_LINE = /\A\s*#\[/
