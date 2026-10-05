@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-05
+
+A minor with one `Behavior change` entry: `hecks package.vendor` and `package.revendor` now exit 1 when a package is refused, which can break a script that ignored the status; read it before bumping a running system. Nothing in the DSL or runtime API is removed. The deprecated `Hecks::Facade` names, `install_facade:`, `uses_framework`, `uses_embryonaut_bluebook` and the `attaches` / `install_doors:` spellings still work and now warn that they are removed in 3.4.0 (previously 3.3.0 or 3.2.0).
+
 **New: `hecks site site_projection.check_live` compares a project's generated CloudFront behaviours with a live distribution's.**
 Given a saved `aws cloudfront get-distribution-config` answer (`live=<file>`), or a distribution id to fetch it with that one
 read-only call (`distribution=<id>`), it matches each behaviour by path pattern and reports every difference in origin,
@@ -56,8 +60,6 @@ The `Build` aggregate gains the `BuildHost` command, the `TargetTriple` and `Sta
 `RustToolchain` port's `Host` ask; the Rust meta, vocabulary and frozen Bluebook IR are regenerated.
 
 **CI runs the gate's checks instead of copying them.** `lib/hecks/gate/stages.yml` gains a `ci` stage (every check `ci-checks.yml` ran: model check, engine agreement, doc coverage, rubocop, both comment checks, codegen, vocabulary and kernel drift, rust coverage, the deploy-recipe lint and the three fuzz sweeps) and a `post_commit` stage. A check two stages share is written once, under a YAML anchor, so `pre_push` and `ci` cannot drift. Each `ci-checks.yml` step is now `hecks gate_run.gate stage=ci only=<ids> --wait`: jobs, runners, logs and attestation conditions are unchanged, and only the commands moved. `.githooks/post-commit` is a shim over the `post_commit` stage, as `pre-push` is over `pre_push`. `spec/gate_ci_stage_spec.rb` fails when a workflow step carries a command of its own or a `ci` check is run by no step. The eight required-check wrappers in `ci.yml` share one `require-result` action, and the attestation write is the `write-attestation` action. A green `gate` run prints which checks passed, not their output; a red one prints it all.
-
-**The per-day PR cap is a `DailyQuota` aggregate.** `hecks quality_control patch.open` no longer counts `Patch` and `Improvement` rows since local midnight: the QualityControl ledger has a `DailyQuota`, one record per UTC day, whose `Take` refuses once `PR_CAP_PER_DAY` is spent and whose day the runtime fills (`needs :today`). The script dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The `OpenedSince` queries and the adapter's `assert_under_daily_cap!` are gone, and so is the `branch_prefix` dial, which repeated the prefix `Patch.Open` and `Improvement.Open` already declare. The day is now the UTC day.
 
 **The per-day PR cap is a `DailyQuota` aggregate.** `hecks quality_control patch.open` no longer counts `Patch` and `Improvement` rows since local midnight: the QualityControl ledger has a `DailyQuota`, one record per UTC day, whose `Take` refuses once `PR_CAP_PER_DAY` is spent and whose day the runtime fills (`needs :today`). The script dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The `OpenedSince` queries and the adapter's `assert_under_daily_cap!` are gone, and so is the `branch_prefix` dial, which repeated the prefix `Patch.Open` and `Improvement.Open` already declare. The day is now the UTC day.
 
