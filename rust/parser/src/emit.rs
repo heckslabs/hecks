@@ -463,6 +463,18 @@ fn query_json(q: &ir::Query) -> JsonValue {
     if let Some(returns) = &q.returns {
         pairs.push(("returns".to_string(), JsonValue::str(returns.clone())));
     }
+    // `needs` follows `returns`, only when declared, so a query that needs nothing keeps its shape.
+    if !q.needs.is_empty() {
+        pairs.push((
+            "needs".to_string(),
+            JsonValue::Array(
+                q.needs
+                    .iter()
+                    .map(|fact| JsonValue::Object(vec![("fact".to_string(), JsonValue::str(fact.clone()))]))
+                    .collect(),
+            ),
+        ));
+    }
     JsonValue::Object(pairs)
 }
 

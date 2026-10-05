@@ -20,6 +20,8 @@ Hecks.bluebook "Bluebook" do
     attribute :returns,     QueryText
     attribute :wheres,      list_of(Filter)
     attribute :attributes,  list_of(AskArgument)
+    # Outside facts the runtime supplies before the filter reads the arguments (ADR 0081): `needs :now`.
+    attribute :needs,       list_of(Need)
     # Every other option a query carries, as an open map: rows of option name, key within it, and
     # value. No value object can hold a map, so options ride as a list on the ask.
     attribute :options,     list_of(AskOption)
@@ -30,6 +32,14 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "QueryText" do
+      attribute :value, String
+    end
+
+    value_object "Need" do
+      attribute :fact, String
+    end
+
+    value_object "FactName" do
       attribute :value, String
     end
 
@@ -138,6 +148,19 @@ Hecks.bluebook "Bluebook" do
       emits OptionAttached
     end
 
+    command "Need" do
+      role "Language"
+      goal "Name an outside fact the runtime supplies before the query's filter reads its arguments"
+
+      attribute :fact, FactName
+
+      given("a fact is named") { !fact.value.to_s.empty? }
+
+      sets :needs, append: { fact: :fact }
+
+      emits AskNeedNamed
+    end
+
     command "Argument" do
       role "Language"
       goal "Attach one parameter to the query"
@@ -179,6 +202,7 @@ Hecks.bluebook "Bluebook" do
       member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
       member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
       member word: "returns",         context: "Query", body: "none", inner: "", opens: "", fills: "returns"
+      member word: "needs",           context: "Query", body: "none", inner: "", opens: "", fills: "needs", calls: "needs_impl"
 
     end
 
@@ -217,6 +241,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
       member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
       member keyword: "returns",         context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "needs",           context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "fact"
 
     end
   end

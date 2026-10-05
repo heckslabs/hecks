@@ -611,6 +611,11 @@ pub async fn query(
     question: &str,
     args: serde_json::Value,
 ) -> anyhow::Result<serde_json::Value> {
+    // A fact the query `needs` is answered before the kernel checks its arguments (ADR 0081).
+    let mut args = args;
+    if let Some(domain_ir) = crate::ir::ir() {
+        crate::needs::fill_query_needs(domain_ir, question, &mut args, &crate::needs::ProcessClock);
+    }
     let state = read(client, wasm_path).await?;
     let seed = state.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
     let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] }).to_string();

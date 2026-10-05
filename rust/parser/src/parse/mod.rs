@@ -9,6 +9,7 @@ pub mod entity;
 pub mod file;
 pub mod hecksagon;
 pub mod lifecycle;
+pub mod needs;
 pub mod policy;
 pub mod process_manager;
 pub mod query;

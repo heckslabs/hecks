@@ -1,6 +1,6 @@
 # Commands declare the outside facts they need, and a rule across records gets an aggregate that owns it
 
-**Status:** Partly built (section 1, for `now` on commands; section 2 and port-answered facts are not). Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Section 1 is built for `needs :now` on commands, as the first slice (see "What is built"); the rest below is not.
+**Status:** Partly built (section 1, for `now` and `today` on commands and queries; section 2 and port-answered facts are not). Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Section 1 is built for `needs :now` on commands, as the first slice (see "What is built"); the rest below is not.
 
 ## Context
 
@@ -81,13 +81,14 @@ The first slice, `needs :now` on commands, in Ruby and Rust:
 - **Durations fold at canonicalisation.** `days(730)`, `hours(2)` and `minutes(15)`, written on a whole-number literal, become seconds when a predicate is stored (`issued_at + days(730) > now` is `issued_at + 63072000 > now`), by a new `scale_call` normalisation strategy. Both engines read one table of cases (`spec/fixtures/canonical_form_cases.json`). No timestamp type was added.
 - **Door fill retired.** The CLI door no longer stamps a `now` argument; QualityControl's six commands and the `lease_clock` stress domain's four declare `needs :now` instead.
 - **The Rust runtime.** The host fills a needed fact before the kernel's gates run and before the step is journaled, from the `needs` list in the IR, behind a small clock seam. It also passes the kernel a table of which commands need which facts, so a command a policy or saga triggers is answered the same way. Commands declared on entities are filled by Ruby but not yet by the Rust host or kernel, and a kernel-run binary relies on the host passing the table: generation would have to emit it for the kernel to fill on its own.
-- **Not covered.** Queries cannot `needs` yet (the one query with a `now` argument still takes it from its caller). Port-answered facts (`needs :fix_on_head, from: ...`) are not built, and a replay refuses them. The seat and daily-cap aggregates (section 2) are not built.
+- **Queries need too.** A query writes `needs :now` and declares the attribute it fills, with the same refusals as a command (a fact the runtime cannot supply, a repeat, a need with no attribute). The Query IR carries `"needs"` only on a query that declares one, so no existing IR changed. Ruby fills in the query interpreter before the arguments are checked, the Rust host before it forwards the query, and the kernel from a `query_needs` table (kept apart from the commands': a command and a query may share a qualified name). The query log echoes the arguments the caller offered, since no event records the answer. `lease_clock`'s `Expired` declares `needs :now`; a conformance fixture asks it with no `now` and both engines answer from their own clock.
+- **`today` is the other fact.** Whole days since the epoch in UTC, the day the clock's reading falls in, for a rule counted by the day. It is the zone-free answer to "since midnight"; a local zone remains a separate, later fact.
+- **Not covered.** Port-answered facts (`needs :fix_on_head, from: ...`) are not built, and a replay refuses them. The seat and daily-cap aggregates (section 2) are not built.
 
 ## Open items
 
 - How a port-answered fact is written in `needs`, and how a replay answers one (the recorded value, or a refusal).
-- The timestamp type's resolution and time zone, since "since midnight" needs a zone.
-- Whether a query may declare `needs`.
+- The timestamp type's resolution and a local time zone: `today` answers the UTC day only.
 - The smaller gaps the same audit found, each for its own ADR:
   - `sets` that compute a value or clear a field
   - scheduled or deferred commands

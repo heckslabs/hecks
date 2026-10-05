@@ -25,6 +25,8 @@ pub fn parse_body(
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Query")? else {
+            let end = lines.get(pos.saturating_sub(1)).map_or(0, |l| l.number);
+            super::needs::refuse_undeclared(file, end, name, &query.needs, &query.attributes)?;
             return Ok(query);
         };
         let line = gated.line.number;
@@ -83,6 +85,7 @@ pub fn parse_body(
                     type_name
                 });
             }
+            "needs" => super::needs::declare(file, line, name, &gated.args, &mut query.needs)?,
             word if OPTION_WORDS.contains(&word) => {
                 query_options::apply(file, line, word, &gated.args, &mut query.options)?
             }
