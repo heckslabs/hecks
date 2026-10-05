@@ -823,7 +823,7 @@ mod tests {
     }
 
     // app.rb: `get "/api/me" { json(session[:member] || {}) }`, where
-    // session[:member] is embryonaut_access_control.rb's own
+    // session[:member] is the access-control module's own
     // `{ "email" =>, "name" =>, "identity_id" =>, "role" => }`.
     #[test]
     fn me_is_the_ruby_engines_own_member_hash() {
