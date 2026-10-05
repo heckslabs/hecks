@@ -482,6 +482,49 @@ differs, or when no container sets one (so a typo cannot skip the check). It nev
 prints a value. `origin_env` without an `origin_secret` and a `task_definition` is
 refused.
 
+### Hosting scripts for `AwsBox`
+
+A `deployed_to("AwsBox")` block that sets `hosting_scripts true` also gets the
+scripts an operator runs after the stacks exist, beside the others. A block
+without it generates exactly what it did before.
+
+```text
+deployed_to("AwsBox") do
+  ...
+  task_definition "acme-platform"
+  hosting_scripts true
+  hosting_stack "acme-platform"      # the stack whose TaskDefinition reads the image tags
+  smoke_workflow "smoke-prod.yml"    # required: the GitHub workflow to dispatch
+  smoke_repo "acme/shop"             # default: the repository `gh` reads in the working directory
+  smoke_ref "main"                   # default
+  expected_eras ["a1b2c3"]
+  public_url "https://shop.example.com"
+end
+```
+
+A container can name its stack parameter with `tag_parameter "EngineImageTag"`; the
+default is the container's name in CamelCase plus `ImageTag` (`web-app` becomes
+`WebAppImageTag`). `hosting_scripts` without a `smoke_workflow` is refused, as is
+a `task_definition` without a `hosting_stack`, a `hosting_stack` without a
+`task_definition`, and any hosting word while `hosting_scripts` is not true.
+
+| File | What it does |
+| --- | --- |
+| `deploy-service.sh` | Pushes a local image under a fresh tag (`<service>-<UTC timestamp>`, refused if ECR already has it), sets that container's parameter on the hosting stack and checks that no other parameter changed, refuses to roll a task definition that does not carry the pushed image, then runs `deploy-box.sh` on it. Without a `task_definition` it names the new tag for the service and the tag the box runs now for every other one. `EXISTING_TAG=<tag>` redeploys a tag already in ECR |
+| `smoke-after-deploy.sh` | Waits for the box to settle, then dispatches the smoke workflow, finds the run that dispatch created and follows it. Exits 20 (did not settle), 21 (no `gh` or repository), 22 (smoke failed) or 23 (result unknown) |
+| `hosting.mk` | Included by the `Makefile`: `deploy-service SERVICE=<name>`, `smoke-after-deploy` and `check-era URL=...` |
+| `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
+
+"Settled" means two consecutive checks, a few seconds apart, agree that the box
+stack (and the hosting stack) is complete, every container and the proxy of the
+box's Compose project is up and has stayed up, and, with a task definition, each
+container runs the image the latest revision names. A roll that looked live but
+left an old image running therefore never reaches the smoke. The box is read over
+SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
+the stack update and the roll itself. `make deploy` ends with
+`smoke-after-deploy.sh`; `SKIP_POST_DEPLOY_SMOKE=1` skips it and `DRY_RUN=1`
+dispatches nothing.
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files

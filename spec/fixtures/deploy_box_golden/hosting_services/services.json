@@ -1,0 +1,19 @@
+{
+  "services": {
+    "website": {
+      "name": "website",
+      "repository": "widget-shop-website",
+      "port": 8080,
+      "env": {},
+      "secrets": {}
+    },
+    "cms": {
+      "name": "cms",
+      "repository": "acme-cms",
+      "port": 8081,
+      "env": {},
+      "secrets": {}
+    }
+  },
+  "origin": null
+}
