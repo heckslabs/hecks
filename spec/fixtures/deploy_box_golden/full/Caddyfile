@@ -16,16 +16,25 @@
 	handle @origin {
 		@r1 path /cms/*
 		handle @r1 {
-			reverse_proxy 127.0.0.1:8081
+			reverse_proxy 127.0.0.1:8081 {
+				lb_try_duration 15s
+				lb_try_interval 250ms
+			}
 		}
 
 		@r2 path /registrations /registrations/* /webhooks/*
 		handle @r2 {
-			reverse_proxy 127.0.0.1:8082
+			reverse_proxy 127.0.0.1:8082 {
+				lb_try_duration 15s
+				lb_try_interval 250ms
+			}
 		}
 
 		handle {
-			reverse_proxy 127.0.0.1:8080
+			reverse_proxy 127.0.0.1:8080 {
+				lb_try_duration 15s
+				lb_try_interval 250ms
+			}
 		}
 	}
 
