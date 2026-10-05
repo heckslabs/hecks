@@ -3,11 +3,12 @@ require "json"
 require "tmpdir"
 require "hecks/tools"
 
-# ADR 0080, section 7: the Site row of the command table. The Site chapter is attached to the Hecks
-# domain, so the row is `hecks site site_projection.project_site`. This spec checks that the command is declared in
-# the Site chapter, that its verb answers `--help` through the launcher, and then runs it against
-# the sample project in spec/fixtures/site/studio: a projection written to a temporary directory,
-# a `--check` that finds the file absent, then current, and a project that declares no route table.
+# ADR 0080, section 7: the Site row of the command table. The Site chapter is attached to the
+# Hecks domain, so the row is `hecks site site_projection.project_site`. This spec checks that the
+# command is declared in the Site chapter, that its verb answers `--help` through the launcher,
+# and then runs it against the sample project in spec/fixtures/site/studio: a projection written
+# to a temporary directory, a `--check` that finds the file absent, then current, and a project
+# that declares no route table.
 RSpec.describe "the Site row of the ADR command table" do
   PROJECT = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio")
 
@@ -181,37 +182,55 @@ RSpec.describe "the Site row of the ADR command table" do
       expect(out).to start_with("site_projection.check_live")
     end
 
-    it "records a live distribution that matches as projected and exits 0, without --wait" do
+    it "prints the report alone for a live distribution that matches and exits 0, without --wait" do
       out, status = check(LiveDistribution.for(edge, refs: refs))
-      record = JSON.parse(out)
 
       expect(status).to eq(0)
-      expect(record.dig("state", "status")).to eq("projected")
-      expect(record.dig("state", "output", "value")).to end_with("the live distribution matches the project")
+      expect(out).to end_with("the live distribution matches the project")
+      expect { JSON.parse(out) }.to raise_error(JSON::ParserError)
     end
 
-    it "exits 1 naming each difference, and records the check as faulted" do
+    it "exits 1 printing each difference as the report" do
       config = LiveDistribution.for(edge, refs: refs)
       config.dig("DistributionConfig", "CacheBehaviors", "Items").first["TargetOriginId"] = "SomewhereElse"
 
       out, status, reason = check(config)
 
       expect(status).to eq(1)
-      expect(reason).to include("differs in origin")
-      expect(JSON.parse(out).dig("state", "status")).to eq("faulted")
+      expect(out).to include("differs in origin")
+      expect(reason).to be_nil
     end
 
     it "takes the behaviours a change adds as expected" do
       config = LiveDistribution.for(edge, refs: refs)
       config.dig("DistributionConfig", "CacheBehaviors", "Items").reject! { |entry| entry["PathPattern"] == "/pay/*" }
 
-      _out, status, reason = check(config)
+      out, status = check(config)
       expect(status).to eq(1)
-      expect(reason).to include("only in the project: /pay/*")
+      expect(out).to include("only in the project: /pay/*")
 
       out, status = check(config, "expect_new=/pay/*")
       expect(status).to eq(0)
-      expect(JSON.parse(out).dig("state", "output", "value")).to include("expected additions")
+      expect(out).to include("expected additions")
+    end
+
+    it "takes template= for a project whose Edge row names none, without reading the file" do
+      Dir.mktmpdir("site_template") do |dir|
+        FileUtils.cp_r(Dir.children(PROJECT).map { |name| File.join(PROJECT, name) }, dir)
+        chapter = Dir.glob(File.join(dir, "bluebook", "*.bluebook")).find { |file| File.read(file).match?(/template:/) }
+        File.write(chapter, File.read(chapter).gsub(/template: "[^"]*",\s*/, ""))
+        file = File.join(dir, "live.json")
+        File.write(file, JSON.generate(LiveDistribution.for(edge, refs: refs)))
+        args = ["site_projection.check_live", dir, "live=#{file}", "refs=#{words}"]
+
+        refused, refused_status = launch(args)
+        out, status = launch([*args, "template=#{dir}/absent.yaml"])
+
+        expect(refused_status).to eq(1)
+        expect(refused).to include("template")
+        expect(status).to eq(0)
+        expect(out).to end_with("the live distribution matches the project")
+      end
     end
 
     it "exits 1 when neither or both of a saved configuration and a distribution are named" do
@@ -241,11 +260,11 @@ RSpec.describe "the Site row of the ADR command table" do
       shell = instance_double(Hecks::Adapters::Shell, capture: failed)
       allow(Hecks::Adapters::Shell).to receive(:new).and_return(shell)
 
-      _out, status, reason = launch(["site_projection.check_live", PROJECT, "distribution=E1"])
+      reason, status = launch(["site_projection.check_live", PROJECT, "distribution=E1"])
       expect(status).to eq(1)
       expect(reason).to include("get-distribution-config failed: AccessDenied")
 
-      _out, status, reason = launch(["site_projection.check_live", PROJECT, "live=/nonexistent/live.json"])
+      reason, status = launch(["site_projection.check_live", PROJECT, "live=/nonexistent/live.json"])
       expect(status).to eq(1)
       expect(reason).to include("cannot read the live configuration")
     end
@@ -253,7 +272,7 @@ RSpec.describe "the Site row of the ADR command table" do
     it "exits 1 for a project with no edge" do
       Dir.mktmpdir("site_noedge") do |dir|
         FileUtils.mkdir_p(File.join(dir, "bluebook"))
-        _out, status, reason = launch(["site_projection.check_live", dir, "live=#{dir}/x.json"])
+        reason, status = launch(["site_projection.check_live", dir, "live=#{dir}/x.json"])
 
         expect(status).to eq(1)
         expect(reason).to include("no chapter declares a value_object")

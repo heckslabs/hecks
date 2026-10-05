@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: `hecks site site_projection.check_live` takes `template=<file>` and prints just the report.** A project whose `Edge` row leaves `template:` out was refused by `check_live` although `project_site` accepted `template=<file>` for it, so a client had to add a placeholder row. `check_live` now takes the same `template=<file>` (it reads no template, so the file need not exist). It also prints the report alone, the differences or the line saying the distribution matches, and exits 1 when any differ, instead of the whole JSON record with the report as a reason on standard error. A world's `launcher` setting names such commands under the new `report:` key.
+
 ## [3.4.1] - 2026-10-05
 
 A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.
