@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-10-05
+
+A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.
+
 **Fixed: a Memory-backed aggregate with a growing `list_of` no longer slows down with every save.** Since 1.4.0 the Memory adapter journals a codec copy of the state, and builds each record from another copy plus a full hydration, so a save cost O(everything the list holds) in time, and the journal kept a full copy per save: quadratic time and memory over a run. A hydrated element of a composite `list_of` is frozen, so Memory now copies and hydrates each element once, freezes the copy, and shares it between every journal entry and record that holds it (a weak, identity-keyed table; `Memory::SharedElements`). A save costs one pointer lookup per existing element plus the full copy of the new ones. A returned instance still shares nothing mutable with the journal, a journalled element now refuses an in-place change (`FrozenError`), and an entry has exactly the shape `StateCodec.copy` gives a durable adapter. One aggregate, 32 pieces per snapshot, one snapshot per step (Memory, `list_of` of value objects):
 
 | Steps | Before: time, last-10 per step, peak RSS | After |
