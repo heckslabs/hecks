@@ -893,6 +893,301 @@ Hecks.bluebook "Deploy" do
     trigger SmokeRun::Flag, with: { refusal: :refusal }
   end
 
+  aggregate "ServiceRoll" do
+    description "One roll of a single service onto the app box: the generated deploy-service script run, and how it ended."
+
+    attribute :project,        Location
+    attribute :script,         Location, optional: true
+    attribute :run,            RunKey
+    attribute :service,        ServiceName
+    attribute :existing_tag,   ImageTag, optional: true
+    attribute :local_image,    ImageName, optional: true
+    attribute :skip_smoke,     Switch, optional: true
+    attribute :taskdef,        TaskDefinition, optional: true
+    attribute :tag,            ImageTag, optional: true
+    attribute :report,         Report, optional: true
+    attribute :refusal,        Report, optional: true
+
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
+    value_object "TaskDefinition" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+    end
+
+    # A container name from the world: lower case words joined by hyphens or underscores.
+    value_object "ServiceName" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9_-]*$'
+    end
+
+    # An ECR image tag, as the script's EXISTING_TAG takes it.
+    value_object "ImageTag" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'
+    end
+
+    # A local image reference to push, as the script's LOCAL_IMAGE takes it.
+    value_object "ImageName" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "rolled", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy service_roll.run <project> service=<name> [existing_tag=<tag>] [local_image=<ref>]
+    # [skip_smoke=true] [script=<path>]`. Runs the project's generated `deploy-service.sh`: push the
+    # local image under a fresh tag (or reuse `existing_tag`), set the stack's tag parameter, roll
+    # the box. A policy then requests a `SmokeRun`, unless `skip_smoke=true`. Exit 1 when flagged,
+    # with the script's status (2 unknown service, 30 to 38 a refused step, 40 to 42 the box roll's).
+
+    command "Run" do
+      goal "Roll one service's local image onto the box and record whether it took (exit 1 when flagged: 2 unknown service, 30-38 a refused step, 40-42 the box roll)"
+
+      attribute :project,      Location
+      attribute :script,       Location, optional: true
+      attribute :run,          RunKey
+      attribute :service,      ServiceName
+      attribute :existing_tag, ImageTag, optional: true
+      attribute :local_image,  ImageName, optional: true
+      attribute :skip_smoke,   Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :service
+      sets :existing_tag
+      sets :local_image
+      sets :skip_smoke
+
+      emits "ServiceRollRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the service rolled, with the task definition and tag it rolled"
+
+      reference_to ServiceRoll
+      attribute :report,     Report
+      attribute :taskdef,    TaskDefinition, optional: true
+      attribute :tag,        ImageTag, optional: true
+      attribute :project,    Location
+      attribute :skip_smoke, Switch, optional: true
+
+      sets :report
+      sets :taskdef
+      sets :tag
+      sets :project
+      sets :skip_smoke
+
+      emits "ServiceRollCompleted"
+    end
+
+    command "Flag" do
+      goal "Record that the roll failed or could not start, with the script's status and what it said"
+
+      reference_to ServiceRoll
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "ServiceRollFlagged"
+    end
+
+    query "Verdict" do
+      description "What one roll found: its status, and the report or the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every roll that failed or could not start."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "RollServiceWhenRequested" do
+    on      "ServiceRoll.ServiceRollRequested"
+    trigger ServiceRoll::DeployToolchain::RollService, with: { run: :run }
+  end
+
+  policy "RecordTheRolledService" do
+    on      "ServiceRoll.ServiceRollAnswered"
+    trigger ServiceRoll::Complete,
+            with: { report: :report, taskdef: :taskdef, tag: :tag, project: :project, skip_smoke: :skip_smoke }
+  end
+
+  policy "RecordTheFlaggedServiceRoll" do
+    on      "ServiceRoll.ServiceRollRefused"
+    trigger ServiceRoll::Flag, with: { refusal: :refusal }
+  end
+
+  policy "SmokeAfterServiceRoll" do
+    on      "ServiceRoll.ServiceRollCompleted"
+    where   { !skip_smoke.value }
+    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef }
+  end
+
+  aggregate "BoxRoll" do
+    description "One roll of the whole app box: the generated deploy-box script run, and how it ended."
+
+    attribute :project,    Location
+    attribute :script,     Location, optional: true
+    attribute :run,        RunKey
+    attribute :taskdef,    TaskDefinition, optional: true
+    attribute :tags,       Tags, optional: true
+    attribute :skip_smoke, Switch, optional: true
+    attribute :report,     Report, optional: true
+    attribute :refusal,    Report, optional: true
+
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
+    value_object "TaskDefinition" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+    end
+
+    # `name=tag` pairs separated by spaces, as a project without a task definition names its images.
+    value_object "Tags" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_-]+=[A-Za-z0-9_.-]+( [A-Za-z0-9_-]+=[A-Za-z0-9_.-]+)*$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "rolled", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy box_roll.run <project> [taskdef=<family[:rev]> | tags="name=tag ..."]
+    # [skip_smoke=true] [script=<path>]`.
+    # Runs the project's generated `deploy-box.sh`: render the Compose files, push them to the box over
+    # SSM, start the containers and check them. A policy then requests a `SmokeRun`, unless
+    # `skip_smoke=true`. Exit 1 when flagged, with the script's status (40 no instance, 41 the roll
+    # failed, 42 the box unhealthy).
+
+    command "Run" do
+      goal "Roll the app box and record whether it came up healthy (exit 1 when flagged: 40 no instance, 41 roll failed, 42 box unhealthy)"
+
+      attribute :project,    Location
+      attribute :script,     Location, optional: true
+      attribute :run,        RunKey
+      attribute :taskdef,    TaskDefinition, optional: true
+      attribute :tags,       Tags, optional: true
+      attribute :skip_smoke, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :taskdef
+      sets :tags
+      sets :skip_smoke
+
+      emits "BoxRollRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the box rolled and answered healthy, and what the script said"
+
+      reference_to BoxRoll
+      attribute :report,     Report
+      attribute :taskdef,    TaskDefinition, optional: true
+      attribute :project,    Location
+      attribute :skip_smoke, Switch, optional: true
+
+      sets :report
+      sets :taskdef
+      sets :project
+      sets :skip_smoke
+
+      emits "BoxRollCompleted"
+    end
+
+    command "Flag" do
+      goal "Record that the roll failed or could not start, with the script's status and what it said"
+
+      reference_to BoxRoll
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "BoxRollFlagged"
+    end
+
+    query "Verdict" do
+      description "What one roll found: its status, and the report or the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every roll that failed or could not start."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "RollBoxWhenRequested" do
+    on      "BoxRoll.BoxRollRequested"
+    trigger BoxRoll::DeployToolchain::RollBox, with: { run: :run }
+  end
+
+  policy "RecordTheRolledBox" do
+    on      "BoxRoll.BoxRollAnswered"
+    trigger BoxRoll::Complete, with: { report: :report, taskdef: :taskdef, project: :project, skip_smoke: :skip_smoke }
+  end
+
+  policy "RecordTheFlaggedBoxRoll" do
+    on      "BoxRoll.BoxRollRefused"
+    trigger BoxRoll::Flag, with: { refusal: :refusal }
+  end
+
+  policy "SmokeAfterBoxRoll" do
+    on      "BoxRoll.BoxRollCompleted"
+    where   { !skip_smoke.value }
+    trigger SmokeRun::Run, with: { project: :project, run: :run, taskdef: :taskdef }
+  end
+
   aggregate "TemplateComparison" do
     description "One offline comparison of two CloudFormation templates, by logical id."
 

@@ -2,6 +2,7 @@ require "json"
 require_relative "../../projector"
 require_relative "box/settings"
 require_relative "box/hosting"
+require_relative "box/roll_recipe"
 
 module Hecks
   module Projections
@@ -588,20 +589,9 @@ module Hecks
             \t\tRehearsal=$(REHEARSAL)
 
             deploy:
-            \tbash ./deploy-box.sh $(#{plan.task_definition ? 'TASKDEF' : 'TAGS'})
+            #{RollRecipe.deploy(plan)}
           MAKE
-          "#{base}#{hosting_makefile_tail(plan)}"
-        end
-
-        # With hosting scripts, a deploy ends with the post-deploy smoke and the Makefile includes
-        # the fragment that adds the hosting targets.
-        #
-        # @param plan [Settings::Plan] the resolved settings
-        # @return [String] the Makefile lines that follow the `deploy` recipe, or nothing
-        def hosting_makefile_tail(plan)
-          return "" unless plan.hosting
-
-          "\t$(MAKE) smoke-after-deploy\n\ninclude hosting.mk\n"
+          plan.hosting ? "#{base}\ninclude hosting.mk\n" : base
         end
 
         # Fills `@@NAME@@` markers. A marker alone on its line is replaced together with the line,

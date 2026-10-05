@@ -408,6 +408,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Deploy::ServiceRoll.port "DeployToolchain" do
+    asks "RollService", to: ServiceRoll do
+      attribute :run, RunKey
+      answers "ServiceRollAnswered"
+      refuses "ServiceRollRefused"
+    end
+  end
+
+  Deploy::BoxRoll.port "DeployToolchain" do
+    asks "RollBox", to: BoxRoll do
+      attribute :run, RunKey
+      answers "BoxRollAnswered"
+      refuses "BoxRollRefused"
+    end
+  end
+
   Deploy::TemplateComparison.port "DeployToolchain" do
     asks "Compare", to: TemplateComparison do
       attribute :run, RunKey

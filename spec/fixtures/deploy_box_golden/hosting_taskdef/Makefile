@@ -19,7 +19,23 @@ stacks:
 		Rehearsal=$(REHEARSAL)
 
 deploy:
-	bash ./deploy-box.sh $(TASKDEF)
-	$(MAKE) smoke-after-deploy
+	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
+	$(HECKS) deploy box_roll.run project="$(CURDIR)" run="$$run" $(if $(TASKDEF),taskdef=$(TASKDEF)) \
+	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
+	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
+	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
+	  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \
+	  echo "    deploying anyway so the deploy is not lost" >&2; \
+	  rm -f "$$err"; bash ./deploy-box.sh $(TASKDEF) || exit $$?; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \
+	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
+	  [ $$rc -ne 0 ] || rc=24; exit $$rc; \
+	fi; \
+	cat "$$err" >&2; rm -f "$$err"; [ $$rc -eq 0 ] || exit $$rc; \
+	[ -z "$(SKIP_POST_DEPLOY_SMOKE)" ] || exit 0; \
+	smoke=$$($(HECKS) deploy smoke_run.verdict run="$$run"); \
+	status=$$(echo "$$smoke" | jq -r '.[0].status // "missing"'); \
+	[ "$$status" = passed ] && exit 0; \
+	echo "==> the post-deploy smoke ended $$status (hecks deploy smoke_run.verdict run=$$run)" >&2; \
+	echo "$$smoke" | jq -r '.[0].refusal.value // empty' >&2; exit 1
 
 include hosting.mk

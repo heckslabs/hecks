@@ -8,10 +8,30 @@ URL     ?=
 
 .PHONY: deploy-service smoke-after-deploy check-era
 
-# Pushes one container's already-built local image under a fresh tag and rolls it onto the box.
-# Build the image first; see deploy-service.sh.
+# Pushes one container's already-built local image under a fresh tag and rolls it onto the box, as the
+# service_roll.run command: it runs deploy-service.sh, records the roll in the Hecks database
+# (HECKS_DATABASE, default postgres://hecks@localhost/hecks) and requests the smoke. Build the image
+# first; see deploy-service.sh. EXISTING_TAG=<tag> redeploys a tag already in ECR. Without the
+# database the script runs by itself and the target exits non-zero (24 if it all passed).
 deploy-service:
-	bash ./deploy-service.sh $(SERVICE)
+	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
+	$(HECKS) deploy service_roll.run project="$(CURDIR)" run="$$run" service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) $(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE)) \
+	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
+	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
+	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
+	  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \
+	  echo "    deploying anyway so the deploy is not lost" >&2; \
+	  rm -f "$$err"; bash ./deploy-service.sh $(SERVICE); rc=$$?; \
+	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
+	  [ $$rc -ne 0 ] || rc=24; exit $$rc; \
+	fi; \
+	cat "$$err" >&2; rm -f "$$err"; [ $$rc -eq 0 ] || exit $$rc; \
+	[ -z "$(SKIP_POST_DEPLOY_SMOKE)" ] || exit 0; \
+	smoke=$$($(HECKS) deploy smoke_run.verdict run="$$run"); \
+	status=$$(echo "$$smoke" | jq -r '.[0].status // "missing"'); \
+	[ "$$status" = passed ] && exit 0; \
+	echo "==> the post-deploy smoke ended $$status (hecks deploy smoke_run.verdict run=$$run)" >&2; \
+	echo "$$smoke" | jq -r '.[0].refusal.value // empty' >&2; exit 1
 
 # Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
 # command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database

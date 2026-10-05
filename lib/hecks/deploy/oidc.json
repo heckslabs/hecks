@@ -2,6 +2,21 @@
   "audience": "Deploy",
   "scopes": [
     {
+      "scope": "deploy:box_roll.complete",
+      "verb": "Deploy::BoxRoll.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:box_roll.flag",
+      "verb": "Deploy::BoxRoll.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:box_roll.run",
+      "verb": "Deploy::BoxRoll.Run",
+      "role": null
+    },
+    {
       "scope": "deploy:box_target.declare",
       "verb": "Deploy::BoxTarget.Declare",
       "role": null
@@ -74,6 +89,21 @@
     {
       "scope": "deploy:recipe.project",
       "verb": "Deploy::Recipe.Project",
+      "role": null
+    },
+    {
+      "scope": "deploy:service_roll.complete",
+      "verb": "Deploy::ServiceRoll.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:service_roll.flag",
+      "verb": "Deploy::ServiceRoll.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:service_roll.run",
+      "verb": "Deploy::ServiceRoll.Run",
       "role": null
     },
     {
