@@ -1543,6 +1543,62 @@ impl CiGate {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct QaDial {
+    pub name: &'static str,
+    pub r#type: &'static str,
+    pub meaning: &'static str,
+}
+
+pub const QA_DIAL: &[QaDial] = &[
+    QaDial { name: "cadence_seconds", r#type: "Integer", meaning: "Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately. Read by the `/loop hecks_qa` caller, not by any script." },
+    QaDial { name: "pr_cap_per_day", r#type: "Integer", meaning: "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped." },
+    QaDial { name: "widening_tiers", r#type: "Array", meaning: "Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling." },
+    QaDial { name: "sweep_max_parallel", r#type: "Integer", meaning: "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once." },
+    QaDial { name: "liveness_fallback_seconds", r#type: "Integer", meaning: "How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled." },
+    QaDial { name: "draft_only", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review." },
+    QaDial { name: "auto_merge", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open." },
+    QaDial { name: "branch_prefix", r#type: "String", meaning: "What the branch `hecks quality_control patch.open` pushes starts with." },
+    QaDial { name: "adversarial_fraction", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often." },
+    QaDial { name: "guided_generation", r#type: "Boolean", meaning: "Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`)." },
+    QaDial { name: "corpus_splice_probability", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage. Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost." },
+    QaDial { name: "favor_rare_verbs", r#type: "Integer", meaning: "How many of the least-hit verbs the next seed weights up; 0 turns the lever off." },
+    QaDial { name: "self_consistency_checks", r#type: "Boolean", meaning: "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence." },
+    QaDial { name: "shrink_budget", r#type: "Integer", meaning: "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand." },
+    QaDial { name: "yield_weight_seconds", r#type: "Integer", meaning: "Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`. Zero would make yield invisible, so pick a number that lets it matter." },
+    QaDial { name: "yield_decay_percent", r#type: "Integer", meaning: "Percent of the prior yield score kept at each release, so recent findings dominate. Applied by the caller: the mutation language cannot express \"decay, then add\" in `Release`." },
+    QaDial { name: "rotation_stale_floor_seconds", r#type: "Integer", meaning: "Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield score, so a quiet target cannot starve." },
+    QaDial { name: "persistence_parity_seed_cap", r#type: "Integer", meaning: "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note." },
+    QaDial { name: "concurrency_seed_cap", r#type: "Integer", meaning: "Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed." },
+    QaDial { name: "adapter_parity_pairs", r#type: "Hash", meaning: "The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no disposable database." },
+    QaDial { name: "modes", r#type: "Hash", meaning: "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled." },
+    QaDial { name: "role_draw_probability", r#type: "Numeric", meaning: "How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`); 0 turns the draw off." },
+    QaDial { name: "dry_run_fraction", r#type: "Numeric", meaning: "Fraction of generated command steps offered as a dry run instead of a real dispatch; 0 is off. Kept low: a dry run creates no state for later steps to act on." },
+    QaDial { name: "generated_domains_per_tick", r#type: "Integer", meaning: "How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the step." },
+    QaDial { name: "generated_domains_rust", r#type: "Boolean", meaning: "Whether generated domains are also compared against a compiled Rust binary built in a scratch copy." },
+    QaDial { name: "generated_domain_seeds", r#type: "Integer", meaning: "Generated sequences run per generated domain." },
+    QaDial { name: "structural_refusal_boundary", r#type: "Array", meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest." },
+];
+
+impl QaDial {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.to_string())),
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.to_string())),
+        ("meaning".to_string(), crate::kernel::Json::Str(self.meaning.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in QA_DIAL {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("type").and_then(crate::kernel::Json::as_str) == Some(row.r#type) && v.get("meaning").and_then(crate::kernel::Json::as_str) == Some(row.meaning) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("QaDial: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RustReservedWord {
     As,
