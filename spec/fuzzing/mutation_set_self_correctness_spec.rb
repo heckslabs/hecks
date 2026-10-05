@@ -11,9 +11,9 @@ require "hecks/fuzzing/self_consistency"
 RSpec.describe "Ruby self-correctness — a defect only mutations_match_recompute can see" do
   MUTATION_SET_NESTED_PIECES = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
 
-  # Seed 2 is the smallest fixed seed whose sequence dispatches `Board.Label` (a plain
-  # entity-owned `:set`) at least once; every example replays the same steps.
-  MUTATION_SET_STEPS = Hecks::Fuzzing::SequenceGenerator.generate(MUTATION_SET_NESTED_PIECES, seed: 2, steps: 25).freeze
+  # Seed 4 is the smallest fixed seed whose sequence dispatches `Board.Label` (a plain
+  # entity-owned `:set`) with arguments that apply; every example replays the same steps.
+  MUTATION_SET_STEPS = Hecks::Fuzzing::SequenceGenerator.generate(MUTATION_SET_NESTED_PIECES, seed: 4, steps: 25).freeze
 
   # Plants a defect in the `:set` branch only: unwraps the resolved Value, mangles the raw
   # scalar, and re-coerces it via `Value.for_attribute`, so other ops stay real.

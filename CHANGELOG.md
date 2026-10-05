@@ -17,6 +17,24 @@ A patch on 3.2.0, which was tagged before the entries below landed. The deprecat
 
 **`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
 
+**Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
+first spec example and returned empty reports, marked completed, for every later one: RSpec keeps
+the first run's output stream, so the next run wrote into that. The runner now resets RSpec before
+each run, and a run that prints nothing is refused, since a real run always prints its summary.
+
+**The `hecks mcp` door says how to call it (ADR 0089).** A door that serves one domain makes `domain:`
+optional and fills it in. On a commands door, `dispatch` lists each allowed command in its description
+with the role it declares, what it does and its argument names (`*` marks a required one), and says to
+pass that role as `role`. `dispatch` now answers the record as it stands once its reactions have run,
+as `--wait` does, so a run record a reaction completes reads as `completed`, not `requested`; this
+holds for every door. Together they let an agent call the door with no usage manual. The guide is
+kept in a cache (`McpGuideCache`) keyed by the domain's files, the hecks code and the allowed
+commands, so `tools/list` stays as fast as before. A sandboxed door keeps the cache under the temp
+directory, so its first start after a change to the hecks code is cold (about half a minute): start
+it once before an agent needs it.
+
+**The Rust host fills a declared default on an entity's command, nested entities included.** ([#1015](https://github.com/heckslabs/hecks/pull/1015))
+
 The Site chapter, after its first adoption by a client project. A route table written for 3.1.x generates the same
 `routes.ts` and the same template regions, apart from the one change under **Changed** (the `matchesPath` helper in the
 module), unless it uses what is added below; the one new refusal is noted there too.

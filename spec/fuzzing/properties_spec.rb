@@ -495,6 +495,30 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
 
+    it "mutations_match_recompute starts from a command's declared default for an argument left out" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.Retitle",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: { value: "untitled" }, cards: [] },
+                      args:   {} }
+                  ] }
+
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
+    end
+
+    it "mutations_match_recompute prefers an argument the caller named over the default" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.Retitle",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: { value: "untitled" }, cards: [] },
+                      args:   { label: "mine" } }
+                  ] }
+
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to include("Retitle").and include("mine")
+    end
+
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
