@@ -1027,6 +1027,22 @@ Hecks.bluebook "Hecks" do
       emits ProjectCiGatesRequested
     end
 
+    command "ProjectToolsDoc" do
+      role "Maintainer"
+      goal "Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_tools_doc"
+
+      emits ProjectToolsDocRequested
+    end
+
     command "DecideCiGate" do
       role "Maintainer"
       goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
@@ -1102,6 +1118,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectToolsDocRequested" do
+    on      "RegenerationRun.ProjectToolsDocRequested"
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 

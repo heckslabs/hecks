@@ -1,0 +1,63 @@
+{
+  "aggregates": [
+    {
+      "name": "Order",
+      "attributes": [
+        { "name": "lines", "type": "Line", "list": true },
+        { "name": "notes", "type": "Note", "list": true }
+      ],
+      "entities": [
+        {
+          "name": "Line",
+          "attributes": [
+            { "name": "sku", "type": "String", "optional": false },
+            { "name": "memo", "type": "String", "optional": false }
+          ]
+        }
+      ],
+      "value_objects": [],
+      "commands": [
+        {
+          "name": "AddLine",
+          "attributes": [
+            { "name": "sku", "type": "String", "optional": false },
+            { "name": "memo", "type": "String", "optional": true }
+          ],
+          "mutations": [
+            { "op": "append", "target": "lines", "fields": { "sku": ":sku", "memo": ":memo" } }
+          ]
+        },
+        {
+          "name": "AddNote",
+          "attributes": [
+            { "name": "text", "type": "String", "optional": true }
+          ],
+          "mutations": [
+            { "op": "append", "target": "notes", "fields": { "text": ":text" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Archive",
+      "attributes": [],
+      "entities": [],
+      "value_objects": [
+        {
+          "name": "Note",
+          "attributes": [
+            { "name": "text", "type": "String", "optional": false }
+          ]
+        },
+        {
+          "name": "Line",
+          "attributes": [
+            { "name": "sku", "type": "String", "optional": false },
+            { "name": "memo", "type": "String", "optional": false }
+          ]
+        }
+      ],
+      "commands": []
+    }
+  ]
+}

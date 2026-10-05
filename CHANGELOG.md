@@ -9,6 +9,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **CI cuts the release.** `.github/workflows/release.yml` runs when a commit on `main` changes `lib/hecks/version.rb`: it checks that the gem, `@hecks/client`, `rust/host/HECKS_RELEASE` and the CHANGELOG heading name one version, tags the commit, pushes the gem with the `RUBYGEMS_API_KEY` secret, starts the npm publish and creates the GitHub Release from the CHANGELOG section. Every step skips what already exists, so a re-run finishes a release that stopped halfway. `hecks publishing_run.publish --confirm` still works for a release by hand.
 
+**The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is
+declared once, as `RetiredScript` rows in the Vocabulary chapter, and `hecks
+regeneration_run.project_tools_doc` writes the document's tables from them, rendering each form from
+the command's own arguments (the same projection the launcher parses against): the first argument is
+the bare word, `name=` takes the rest, a switch is `--name`. A form can no longer keep an argument its
+command dropped. Without `--confirm` the verb only compares, and CI runs it. `Hecks::ThreeZero::FORMS`
+and `lib/hecks/three_zero/forms.yml` are gone; `Hecks::Tools::ToolsDoc.forms` answers the same table,
+rendered. The ADR command-table spec reads the rows instead of its own copy of them.
+
 ## [3.2.1] - 2026-10-05
 
 A patch on 3.2.0, which was tagged before the entries below landed. The deprecated `attaches` / `install_doors:` spellings warn that they are removed in 3.3.0 (previously 3.2.0); the 3.2.0 gem's warnings still say 3.2.0. Behavior is unchanged.
