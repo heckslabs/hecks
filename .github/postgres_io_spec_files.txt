@@ -27,6 +27,8 @@ spec/committed_approval_rehearsal_spec.rb
 spec/deploy_bluebook_spec.rb
 spec/deploy_lint_spec.rb
 spec/deploy_provision_spec.rb
+spec/embryonaut_bluebook_manifest_spec.rb
+spec/embryonaut_bluebook_registry_spec.rb
 spec/exe_hecks_help_spec.rb
 spec/gemspec_packaging_spec.rb
 spec/hecks_command_table_spec.rb

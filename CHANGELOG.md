@@ -7,6 +7,40 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**New: `hecks site site_projection.check_live` compares a project's generated CloudFront behaviours with a live distribution's.**
+Given a saved `aws cloudfront get-distribution-config` answer (`live=<file>`), or a distribution id to fetch it with that one
+read-only call (`distribution=<id>`), it matches each behaviour by path pattern and reports every difference in origin,
+methods, viewer protocol, compression, the three policy ids and order, and the behaviours only one side has. `expect_new` names
+the behaviours a pending deploy adds, and `refs` says what each `!Ref` policy intrinsic stands for live. A difference is exit
+status 1 with the report on standard error; a match is exit 0. Nothing on either side is changed.
+
+**New: `hecks operation.bootstrap_admin` gives a domain its first administrator.** A domain whose chapter `provides "membership"`
+has nobody who may grant access until someone is granted it, and each project wrote a script for that one step. `hecks
+operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]` boots the domain, reads the admit, grant and
+people verbs the chapter declares, admits the person if they are not already, and grants them the role the grant command is gated
+to (or `role`). The dispatches run as a caller that names that role and binds no `actor_id`, the unidentified bootstrap caller
+Governance checks by the role it states (ADR 0025). Once anyone holds `Admin` (or the gating role) or `Owner` it is refused with
+exit status 1, naming the holder, and nothing changes. The domain's persistence must be the one the service uses, so run it with
+that `DATABASE_URL`; a Memory-bound domain forgets the grant when the command ends.
+
+**New: `hecks package.check` and `hecks package.release` run a bluebook registry's version rules and tag its releases.** In a
+registry repository (packages at `<name>/bluebook.yml`, tagged `<name>-vX.Y.Z`), `package.check` fails, with exit status 1 and one
+`FAIL` line per package, when a package's `*.bluebook` files changed since its latest release without a newer version and a
+`CHANGELOG.md` entry, when a `bluebook.yml` has no `X.Y.Z` version or the wrong name, or when a release tag sits on a commit whose
+`bluebook.yml` says another version. `package.release <package>` makes the annotated tag locally, refusing for an existing tag, a
+version that is not newer, a missing changelog entry, uncommitted changes, or files identical to the last release; it never
+pushes and ends its report in the push command. Both are answered by a new `Registry` aggregate in the Custodian chapter, through
+the `Git` adapter and `Hecks::EmbryonautBluebook::Registry`. Run against a copy of a real registry, the verbs made the same
+decisions and wrote the same tag messages as its `bin/check_versions` and `bin/release` scripts.
+
+**New: `hecks package.verify` checks the vendored packages against `bluebook.lock` and prints the project's bluebook manifest.** A
+project that vendors registry packages no longer needs its own script to prove the files match their locks before an image is
+built. `hecks package.verify [root=<project>]` reads every `vendor/embryonaut_bluebooks/<package>/`, compares the digest of its
+`*.bluebook` files with the lock (through `Lock.digest_of`, the one digest implementation), checks that the lock carries every
+field and that its tag is `<package>-v<version>`, and answers the manifest as JSON: per package `version`, `tag`, `commit`,
+`digest` and `shape`, plus the project's `built_from` commit and whether its tree is dirty. A disagreement is exit status 1 with
+one `FAIL` line per package. The text is byte-for-byte what a Python manifest script printed for the same tree.
+
 **Operator-only code leaves the gem, and client and organisation names are scrubbed from the tree.** `qa/lambda_handler.rb` (the Lambda entry for the GitHub CI webhook) and the `deploy/quality-control-webhook/` SAM stack moved to the operator's own platform repository; `GithubCiWebhook` stays here. The `deployed_to("AwsLambda")` block that generated that stack is gone from `qa/bluebook/quality_control.world`, and `aws-sdk-secretsmanager`, which only the handler used, is out of the Gemfile. Generator comments, examples, specs, fixtures and the deploy goldens now use neutral owners and names (`owner "Core"`), `SECURITY.md` names GitHub's private vulnerability reporting as the reporting channel, and the comment-style guides spell the launcher verbs as they are (`hecks style_run.check_comments`, `hecks build.project_rust`).
 
 **`AwsBox` generates the per-service hosting scripts a project keeps by hand.** `hosting_scripts true` (with `smoke_workflow`, and `hosting_stack` when the world names a `task_definition`) adds `deploy-service.sh`, `smoke-after-deploy.sh`, `expected-era` and a `hosting.mk`, the way `AwsFargate` does. `deploy-service.sh` pushes a local image under a fresh tag that ECR must not already hold, sets only that container's image-tag parameter on the hosting stack and checks that nothing else changed, refuses to roll a task definition that does not carry the pushed image, and rolls it with `deploy-box.sh`; `EXISTING_TAG` redeploys a tag already in ECR. `smoke-after-deploy.sh` waits for the box to settle (stack status, every container and the proxy up and stayed up, and each container running the image the latest task definition names, on two agreeing checks) before it dispatches the smoke workflow and follows the run, with exit codes 20 to 23. `make deploy` then ends with the smoke. A hosting word without `hosting_scripts true`, a missing `smoke_workflow`, and a `task_definition` without a `hosting_stack` are refused. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))

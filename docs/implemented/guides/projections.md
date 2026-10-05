@@ -171,7 +171,7 @@ launcher "Launcher", run_keys: true,
   failure state, and says why on standard error (the record's `refusal`, when it keeps one).
   A verb that declares its own `wait` argument keeps it.
 - `settled` lists commands (`aggregate.command`) that always behave as if `--wait` were given,
-  for a verb a script runs for its outcome: `package.vendor` and `package.revendor` exit 1 with
+  for a verb a script runs for its outcome: `package.vendor`, `package.revendor` and `package.release` exit 1 with
   the reason when the package is refused, with no flag.
 
 A policy reaction the domain refused does not undo the command that fired it. The answer lists

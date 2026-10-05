@@ -9,6 +9,7 @@ require_relative "../../cli/stores"
 require_relative "../../cli/shape"
 require_relative "../../cli/history"
 require_relative "in_process_operations"
+require_relative "in_process_access"
 
 module Hecks
   module Adapters
@@ -25,6 +26,7 @@ module Hecks
     # a projection refresh, a behaviors run, a smoke test and a bounded follow.
     class InProcessBoot
       include InProcessOperations
+      include InProcessAccess
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #

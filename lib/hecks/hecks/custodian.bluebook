@@ -238,6 +238,9 @@ Hecks.bluebook "Hecks" do
     attribute :payload_file, PayloadFile, optional: true
     attribute :health_path,  RoutePath,  optional: true
     attribute :state_path,   RoutePath,  optional: true
+    attribute :email,        Email,      optional: true
+    attribute :name,         PersonName, optional: true
+    attribute :role,         RoleName,   optional: true
     attribute :output,       Output,     optional: true
     attribute :refusal,      Output,     optional: true
     identified_by :run
@@ -292,6 +295,19 @@ Hecks.bluebook "Hecks" do
 
     value_object "Output" do
       attribute :value, String
+    end
+
+    # Who the first administrator is: a person of the domain's membership chapter.
+    value_object "Email" do
+      attribute :value, String, pattern: '^[^ \t\n\r@]+@[^ \t\n\r@]+$'
+    end
+
+    value_object "PersonName" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "RoleName" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
     end
 
     lifecycle :status, default: "requested" do
@@ -404,6 +420,32 @@ Hecks.bluebook "Hecks" do
       emits SmokeHttpRequested
     end
 
+    # `hecks operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]`. A
+    # domain whose chapter `provides "membership"` has nobody who may grant access until someone is
+    # granted it. This admits the person and grants them the role the grant command is gated to
+    # (or `role`), as a caller that names that role and binds no `actor_id`: Governance checks that
+    # caller by the role it states, which is how the first grant gets made (ADR 0025). It is
+    # refused once anyone holds the administrator role (`Admin`, or `Owner`), and the domain's
+    # persistence must be the one the service runs on (`DATABASE_URL`), not Memory.
+    command "BootstrapAdmin" do
+      role "Operator"
+      goal "Admit the first administrator of a domain's membership chapter and grant them access"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+      attribute :email,   Email
+      attribute :name,    PersonName, optional: true
+      attribute :role,    RoleName,   optional: true
+
+      sets :run
+      sets :subject
+      sets :email
+      sets :name
+      sets :role
+
+      emits AdminBootstrapRequested
+    end
+
     command "Succeed" do
       role "System"
       goal "Record that the operation ended well, and what it reported"
@@ -492,6 +534,11 @@ Hecks.bluebook "Hecks" do
   policy "SmokeWhenRequested" do
     on      "Operation.SmokeTestRequested"
     trigger Operation::DomainRuntime::Smoke, with: { run: :run }
+  end
+
+  policy "BootstrapWhenRequested" do
+    on      "Operation.AdminBootstrapRequested"
+    trigger Operation::DomainRuntime::Bootstrap, with: { run: :run }
   end
 
   policy "OpenWhenRequested" do
@@ -1173,6 +1220,11 @@ policy "RecordTheEra" do
       attribute :value, String
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     lifecycle :status, default: "requested" do
       transition "Revendor" => "requested", from: %w[vendored refused]
       transition "Complete" => "vendored",  from: "requested"
@@ -1248,6 +1300,14 @@ policy "RecordTheEra" do
       where(status: "refused")
       order_by :package
     end
+
+    # `hecks package.verify [root=path]`: a read of the files, so it keeps no record. The manifest
+    # is the answer; a package that disagrees with its lock refuses it, naming each one.
+    query "Verify" do
+      description "Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries."
+      attribute :root, Location, optional: true
+      returns Document
+    end
   end
 
   policy "PinWhenVendored" do
@@ -1268,6 +1328,125 @@ policy "RecordTheEra" do
   policy "RecordTheRefusedPin" do
     on      "Package.PinRefused"
     trigger Package::Abandon, with: { refusal: :refusal }
+  end
+
+  aggregate "Registry" do
+    description "A bluebook registry repository: packages versioned in it and released as tags."
+
+    attribute :run,     RegistryKey
+    attribute :package, PackageName, optional: true
+    attribute :root,    Location,    optional: true
+    attribute :report,  Report,      optional: true
+    attribute :refusal, Report,      optional: true
+    identified_by :run
+
+    value_object "RegistryKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a release is named") { !value.to_s.empty? }
+    end
+
+    value_object "PackageName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # The registry repository: the current directory when absent.
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "tagged",  from: "requested"
+      transition "Abandon"  => "refused", from: "requested"
+    end
+
+    # `hecks package.release <package> [root=path]`. Tags the package's current version as
+    # `<package>-vX.Y.Z` in the local repository and never pushes; the report ends in the command
+    # that does. A refusal says which rule the package broke.
+    command "Release" do
+      role "Operator"
+      goal "Tag a package of this registry at the version its bluebook.yml carries"
+
+      attribute :run,     RegistryKey
+      attribute :package, PackageName
+      attribute :root,    Location, optional: true
+
+      sets :run
+      sets :package
+      sets :root
+
+      emits ReleaseRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the release was tagged, and the command that publishes it"
+
+      reference_to Registry
+      attribute :report, Report
+
+      sets :report
+
+      emits ReleaseRecorded
+    end
+
+    command "Abandon" do
+      role "System"
+      goal "Record that the release was refused, and why"
+
+      reference_to Registry
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ReleaseAbandoned
+    end
+
+    # `hecks package.check [root=path]`: a read of the repository's files and tags, so it keeps no
+    # record. A package that changed since its latest release without a version bump and a changelog
+    # entry refuses it, naming each one.
+    query "Check" do
+      description "Judge every package against its latest release: a changed package needs a newer version and a changelog entry."
+      attribute :root, Location, optional: true
+      returns Document
+    end
+
+    query "Releasing" do
+      description "What releasing one run did: its status, and the report or the refusal."
+      attribute :run, RegistryKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Refused" do
+      description "Every release that was refused."
+      where(status: "refused")
+      order_by :run
+    end
+  end
+
+  policy "TagWhenReleased" do
+    on      "Registry.ReleaseRequested"
+    trigger Registry::Git::Tag, with: { run: :run }
+  end
+
+  policy "RecordTheTag" do
+    on      "Registry.ReleaseTagged"
+    trigger Registry::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedTag" do
+    on      "Registry.ReleaseRefused"
+    trigger Registry::Abandon, with: { refusal: :refusal }
   end
 
   # A run record for opening a door onto the framework, not a door: the doors live in `Hecks::Doors`.
