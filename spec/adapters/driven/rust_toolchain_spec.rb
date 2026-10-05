@@ -170,6 +170,17 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_wasm project_wasm_browser])
     end
 
+    it "builds the host with the target and stage it is given, and only those" do
+      toolchain.host(domain: { value: "domains/pizzas" })
+      toolchain.host(domain: { value: "domains/pizzas" }, target: { value: "aarch64-unknown-linux-gnu" },
+                     stage_dir: { value: "out/host" })
+
+      expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_host project_host])
+      expect(arguments_of(runner.calls[0])).to eq(%w[domains/pizzas])
+      expect(arguments_of(runner.calls[1]))
+        .to eq(%w[domains/pizzas --target=aarch64-unknown-linux-gnu --stage=out/host])
+    end
+
     it "replays a script against an artifact, or against Ruby alone when none is named" do
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" }, artifact: { value: "native" })
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" })
