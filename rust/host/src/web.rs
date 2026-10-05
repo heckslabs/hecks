@@ -369,7 +369,10 @@ async fn active_session_email(
 
 async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
     match active_session_email(domain_ir, cookies, secret, client).await {
-        Ok(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
+        Ok(email) => match auth::member_identity_id(client, domain_ir, &email).await {
+            Ok(identity_id) => respond(200, "application/json", &json!({"email": email, "identity_id": identity_id}).to_string()),
+            Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+        },
         Err(response) => response,
     }
 }
@@ -434,7 +437,7 @@ pub(crate) async fn add_member_route(
         Ok(true) => respond(
             201,
             "application/json",
-            &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false}).to_string(),
+            &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false, "identity_id": null}).to_string(),
         ),
         Ok(false) => json_error(500, &format!("the person was admitted but the {role} role was not granted")),
         Err(e) => json_error(500, &format!("the person was admitted but the {role} role was not granted: {e}")),
@@ -2173,6 +2176,7 @@ mod tests {
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(body["email"], "zed@example.com");
+        assert_eq!(body["identity_id"], "id-1", "the signed-in account's Governance identity id");
 
         let empty = HashMap::new();
         assert_eq!(accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
@@ -2273,11 +2277,11 @@ mod tests {
         assert_eq!(names, ["amy", "Zed"], "sorted case-insensitively by name");
         assert_eq!(
             people[1],
-            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false})
+            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false, "identity_id": "id-1"})
         );
         assert_eq!(
             people[0],
-            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false})
+            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false, "identity_id": null})
         );
     }
 
@@ -2465,7 +2469,7 @@ mod tests {
         let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(
             created,
-            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false})
+            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false, "identity_id": null})
         );
 
         let listing = members_route(&domain_ir, &cookies, secret, &client).await;
