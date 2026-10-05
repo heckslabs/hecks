@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The per-day PR cap is a `DailyQuota` aggregate.** `hecks quality_control patch.open` no longer counts `Patch` and `Improvement` rows since local midnight: the QualityControl ledger has a `DailyQuota`, one record per UTC day, whose `Take` refuses once `PR_CAP_PER_DAY` is spent and whose day the runtime fills (`needs :today`). The script dry-runs `Take` before it opens a PR and takes the slot once the PR is recorded. The `OpenedSince` queries and the adapter's `assert_under_daily_cap!` are gone, and so is the `branch_prefix` dial, which repeated the prefix `Patch.Open` and `Improvement.Open` already declare. The day is now the UTC day.
+
 **A query can declare `needs`, and there is a `today` fact (ADR 0081).** A query writes `needs :now`
 (or `needs :today`, the day the clock falls in, whole days since the epoch in UTC) and declares the
 attribute it fills; the runtime answers it before the query's filter reads its arguments, unless the

@@ -31,6 +31,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       QualityControl::Ticket.persisted_by("PostgresEra")
       QualityControl::Patch.persisted_by("PostgresEra")
       QualityControl::Improvement.persisted_by("PostgresEra")
+      QualityControl::DailyQuota.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
     end
   RUBY

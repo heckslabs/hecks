@@ -15,9 +15,10 @@ module Hecks
     # take the record and the `GitPr` adapter agrees. The command's `given`s are the rules, asked
     # as a dry run before anything is opened: the branch starts with the practice's prefix; with
     # `--bug`, the bug is `fixed`; with `--angle`, it is `investigating`. The adapter answers the
-    # rest: the tree is clean, `PR_CAP_PER_DAY` (0 = uncapped) is unmet since local midnight, and
-    # the bug's commit is an ancestor of `HEAD`. It is idempotent. `QA_REPO_DIR` picks the checkout
-    # `git` runs in, so a spec can use a throwaway repo and a fake `gh`.
+    # rest: the tree is clean and the bug's commit is an ancestor of `HEAD`. The per-day cap
+    # (`PR_CAP_PER_DAY`, 0 = uncapped) is `DailyQuota.Take`'s own `given`: asked as a dry run with
+    # the others, and taken for real once the PR is recorded. It is idempotent. `QA_REPO_DIR`
+    # picks the checkout `git` runs in, so a spec can use a throwaway repo and a fake `gh`.
     class QaOpenPr
       EXIT_OK = 0
 
@@ -147,7 +148,10 @@ module Hecks
           "reads as picked up before something is built from it)"
         when "the branch is one this practice recognises as its own"
           " (the branch is #{@branch.inspect}; a PR this practice opens is on a branch it can recognise " \
-          "as its own, QualityControlDials::BRANCH_PREFIX)"
+          "as its own)"
+        when "the day's cap is not spent"
+          " (QualityControlDials::PR_CAP_PER_DAY is #{dial(:PR_CAP_PER_DAY, 0)} — leave this as an open " \
+          "Bug/Angle and open it tomorrow, or raise the dial in qa/settings.yml)"
         else ""
         end
       end
@@ -184,15 +188,22 @@ module Hecks
         check_ancestry
       end
 
+      # The record of the UTC day the clock reads: `DailyQuota.Today` fills the day from the clock.
+      def todays_quota = query("DailyQuota.Today").first
+
+      # A day with no record has spent nothing, so only an opened day can refuse.
       def check_daily_cap
         cap = dial(:PR_CAP_PER_DAY, 0)
-        return unless cap.positive?
+        quota = todays_quota
+        return unless cap.positive? && quota
 
-        today = Time.now
-        midnight = Time.new(today.year, today.month, today.day).to_i
-        opened_today = query("Patch.OpenedSince", since: { value: midnight }).size +
-                       query("Improvement.OpenedSince", since: { value: midnight }).size
-        refusing { @git_pr.assert_under_daily_cap!(opened_today: opened_today, cap: cap) }
+        refuse_unless_ledger_takes("QualityControl::DailyQuota.Take", today: quota[:today], cap: { value: cap })
+      end
+
+      # Counts the PR just recorded against the day, opening the day's record on its first.
+      def take_daily_slot
+        ::QualityControl::DailyQuota.open! unless todays_quota
+        ::QualityControl::DailyQuota.take!(today: todays_quota[:today], cap: { value: dial(:PR_CAP_PER_DAY, 0) })
       end
 
       def check_ancestry
@@ -271,6 +282,7 @@ module Hecks
           branch: { value: view[:headRefName] }, commit: { value: sha }, title: { value: view[:title] },
           now: { value: now }
         )
+        take_daily_slot
         puts "recorded Patch ##{number} for #{@bug.id} at #{sha[0, 7]}"
       end
 
@@ -282,12 +294,15 @@ module Hecks
         end
 
         # A run that stopped between `open!` and `land!` leaves the record `opened`: finish it.
-        existing || ::QualityControl::Improvement.open!(
-          **(@angle ? { angle: @angle.id } : {}),
-          number: { value: number }, url: { value: view[:url] },
-          branch: { value: view[:headRefName] }, title: { value: view[:title] },
-          now: { value: now }
-        )
+        unless existing
+          ::QualityControl::Improvement.open!(
+            **(@angle ? { angle: @angle.id } : {}),
+            number: { value: number }, url: { value: view[:url] },
+            branch: { value: view[:headRefName] }, title: { value: view[:title] },
+            now: { value: now }
+          )
+          take_daily_slot
+        end
         ::QualityControl::Improvement.find(number).land!(number: { value: number }, commit: { value: sha })
         puts "recorded Improvement ##{number}#{" for #{@angle.id}" if @angle}, landed at #{sha[0, 7]}"
       end
