@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
+first spec example and returned empty reports, marked completed, for every later one: RSpec keeps
+the first run's output stream, so the next run wrote into that. The runner now resets RSpec before
+each run, and a run that prints nothing is refused, since a real run always prints its summary.
+
 **The `hecks mcp` door says how to call it (ADR 0089).** A door that serves one domain makes `domain:`
 optional and fills it in. On a commands door, `dispatch` lists each allowed command in its description
 with the role it declares, what it does and its argument names (`*` marks a required one), and says to

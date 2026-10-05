@@ -326,6 +326,23 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[4])["error"]).to include("is refused")
     end
 
+    it "runs one spec example after another in the same door, each answering its own summary" do
+      env = { "HECKS_STOREHOUSE_ROOT" => root, "HECKS_DOOR_TOOLS" => "commands",
+              "HECKS_DOOR_DOMAINS" => "lib/hecks/hecks",
+              "HECKS_DOOR_COMMANDS" => "test_suite_run.run_spec_example" }
+      runs = [["spec/doors/cli_runner_spec.rb", "hands back the domain's own wording, and a non-zero status"],
+              ["spec/exe_hecks_spec.rb", "is executable"],
+              ["spec/exe_hecks_spec.rb", "hands every name the gem shipped to Hecks::CLI"]]
+      calls = runs.each_with_index.map do |(file, example), index|
+        tool_call(index + 1, "dispatch", { command: "test_suite_run.run_spec_example", summary: "spec", role: "Maintainer",
+                                           args: { file: file, example: example, run: "door-specs-#{Process.pid}-#{index}" } })
+      end
+      results = results_of(run_over_pipes(door, calls, env: env))
+
+      reports = (1..3).map { |id| payload(results[id]).dig("state", "report", "value").to_s }
+      expect(reports).to all(include("1 example, 0 failures"))
+    end
+
     it "answers the record as it stands once the reactions have run, not as the command left it" do
       root_domain = "lib/hecks/hecks"
       env = { "HECKS_STOREHOUSE_ROOT" => root, "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => root_domain,
