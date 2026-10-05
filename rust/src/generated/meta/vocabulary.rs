@@ -1636,7 +1636,7 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "approve_translation", passes: "", note: "", form: "" },
     RetiredScript { script: "compact", section: "Custodian", aggregate: "Era", verb: "compact", passes: "", note: "", form: "" },
     RetiredScript { script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki", passes: "", note: "", form: "" },
-    RetiredScript { script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", passes: "", note: "", form: "" },
+    RetiredScript { script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", passes: "", note: "waits: a refusal exits 1 with its reason on stderr", form: "" },
     RetiredScript { script: "project_cli", section: "Custodian", aggregate: "Door", verb: "project_cli", passes: "", note: "", form: "" },
     RetiredScript { script: "hecks_mcp_door", section: "Custodian", aggregate: "Door", verb: "serve_mcp", passes: "", note: "", form: "" },
     RetiredScript { script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust", passes: "", note: "", form: "" },
