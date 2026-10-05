@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`@hecks/client` can send `actorId`.** `ClientOptions.actorId` (a default for every command), `Command.actorId` and a fifth `dispatch(verb, args, to, role, actorId)` argument send the body's `actor_id`, the Governance identity id of an identified caller. Leave `role` unset and Governance's role assignments decide; the host honors `actor_id` only on its internal protocol. The key is omitted when unset, so existing calls are unchanged.
+
 ## [3.1.2] - 2026-10-04
 
 A patch: nothing breaking. It fixes a second 3.1.0 regression: a lifecycle `transition` with no `from:` was read as "only from the empty state", so a command that creates its aggregate, whose lifecycle starts at a default, was refused. 3.1.1 fixed Boolean attributes; this release fixes that one. Skip 3.1.0 and 3.1.1 if a domain builds Rust from a bluebook.
