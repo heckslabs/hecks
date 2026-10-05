@@ -17,6 +17,8 @@ A patch on 3.2.0, which was tagged before the entries below landed. The deprecat
 
 **`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
 
+**`AwsBox` deploys no longer show a visitor a 502.** A request that arrives while a container is being replaced now waits and is retried every 250 ms for up to 15 seconds (`lb_try_duration` on each upstream), so a roll costs a slow page instead of an error; no second copy of the container, and no extra cost. On the live Lifeadelics box, recreating the website container answered 3 of 108 requests with a 502 before and none after. The roll also restarts the proxy when its Caddyfile changed: the Caddyfile is a bind-mounted file and the admin API is off, so without that a regenerated Caddyfile never took effect. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
 first spec example and returned empty reports, marked completed, for every later one: RSpec keeps
 the first run's output stream, so the next run wrote into that. The runner now resets RSpec before
