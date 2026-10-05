@@ -58,7 +58,7 @@ module Hecks
         # @return [String] the `era` the host's `/version` document carries
         # @raise [Unreachable] if the request fails or the status is not `200`
         # @raise [BadResponse] if the body is not JSON or its `era` is not a non-empty string
-        def fetch_era(url, timeout: 10)
+        def fetch_era(url, timeout:)
           fetch_version(url, timeout: timeout).fetch("era")
         end
 
@@ -70,7 +70,7 @@ module Hecks
         #   host reports none)
         # @raise [Unreachable] if the request fails or the status is not `200`
         # @raise [BadResponse] if the body is not JSON or its `era` is not a non-empty string
-        def fetch_version(url, timeout: 10)
+        def fetch_version(url, timeout:)
           response = get(version_url(url), timeout)
           raise Unreachable, "#{version_url(url)} answered #{response.code}" unless response.code == "200"
 
@@ -105,7 +105,7 @@ module Hecks
         # @raise [Errno::ENOENT] if the allow-list file does not exist
         # @raise [Unreachable] see `fetch_era`
         # @raise [BadResponse] see `fetch_era`
-        def check(url, file, timeout: 10)
+        def check(url, file, timeout:)
           allowed = parse(File.read(file))
           verdict(fetch_era(url, timeout: timeout), allowed)
         end
