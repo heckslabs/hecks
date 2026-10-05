@@ -121,6 +121,25 @@ module Hecks
          "    end", *loose.map { |step| loose_line(step) }]
       end
 
+      # One action for each name: an expert who refines an answer gets the same action accepted more
+      # than once, and a command can be declared only once. The first one's event and place in the
+      # interview stay; what each takes is joined, who does it is joined, and it creates if any did.
+      #
+      # @param actions [Array<Hash>] a thing's accepted actions
+      # @return [Array<Hash>] the actions, with each name once and in the order first accepted
+      def merged_actions(actions)
+        actions.group_by { |action| InterviewDraft.word(action[:name]) }.values.map do |group|
+          group.first.merge(creates: group.any? { |a| a[:creates] }, takes: joined(group, :takes, ", "),
+                            by: joined(group, :by, " or "))
+        end
+      end
+
+      # @api private
+      def joined(group, key, separator)
+        parts = group.flat_map { |a| a[key].to_s.split(separator == ", " ? /\s*,\s*/ : /\s+or\s+/) }
+        parts.map(&:strip).reject(&:empty?).uniq.join(separator)
+      end
+
       # @api private
       def field_row(finding, taken, identifier, lifecycle)
         field = Naming.snake(InterviewDraft.word(finding[:name]))

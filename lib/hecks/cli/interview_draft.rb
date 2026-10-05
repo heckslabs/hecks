@@ -113,7 +113,7 @@ module Hecks
       # The aggregates, with their commands: the part a later interview offers to merge.
       # @api private
       def fragment(interview)
-        things = accepted(interview, :things)
+        things = accepted(interview, :things).uniq { |t| word(t[:name]) }
         actions = accepted(interview, :actions)
         placed = things.map { |t| word(t[:name]) }
         blocks = things.map { |thing| aggregate(interview, thing, actions) }
@@ -151,7 +151,7 @@ module Hecks
       def shape_of(interview, thing, actions)
         name = word(thing[:name])
         identifier = Naming.snake(word(thing[:identifier]))
-        mine = actions.select { |a| word(a[:thing]) == name }
+        mine = InterviewShape.merged_actions(actions.select { |a| word(a[:thing]) == name })
         steps = accepted(interview, :transitions).select { |s| word(s[:thing]) == name }
         found = accepted(interview, :fields).select { |f| word(f[:thing]) == name }
         type = identifier_type(name, identifier)
