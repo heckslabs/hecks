@@ -7,7 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+<<<<<<< HEAD
 **`hecks deploy cost_check.check` says whether hosting is within a budget.** `budget=75 since=2026-10-05` reads the daily bill from that day up to yesterday with `aws ce`, scales the mean to a month, and records the check as `within_budget` with a one-line report naming the biggest services, or as `flagged` with the figures (exit 1 under `--wait`). It is a `CostCheck` aggregate in the Deploy chapter that asks a new `CostExplorer` port, bound to an adapter in the Hecks domain. Hecks has no scheduler yet, so something outside has to call it. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+=======
+**`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+>>>>>>> origin/main
 
 ## [3.1.3] - 2026-10-05
 
