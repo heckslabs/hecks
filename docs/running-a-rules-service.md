@@ -746,6 +746,18 @@ not usable from this repository alone, for three reasons.
    with exit status 1 and the holder named, once anyone holds `Admin` or
    `Owner`. Run it with the database the service uses (`DATABASE_URL`).
 
+   It works only on a domain whose chapter declares which of its verbs answer
+   membership, as the chapter that keeps who may sign in does:
+
+   ```ruby
+   provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"
+   ```
+
+   `admit` and `grant` name the commands that admit a person and give them a role (the
+   grant command is `role`-gated, to `Admin` for instance), and `people` the query
+   that lists everyone. Without that line the verb is refused with
+   `this domain attaches no chapter that provides "membership"` followed by the line to add.
+
 Both routes carry the person's Governance identity id as `identity_id`, the
 value an `actor_id` binds when a caller dispatches on that person's behalf.
 `GET /accounts/me` answers `{"email": ..., "identity_id": ...}`, and each row
