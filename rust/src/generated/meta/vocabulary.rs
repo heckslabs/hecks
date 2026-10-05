@@ -1558,7 +1558,6 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "liveness_fallback_seconds", r#type: "Integer", meaning: "How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled." },
     QaDial { name: "draft_only", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review." },
     QaDial { name: "auto_merge", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open." },
-    QaDial { name: "branch_prefix", r#type: "String", meaning: "What the branch `hecks quality_control patch.open` pushes starts with." },
     QaDial { name: "adversarial_fraction", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often." },
     QaDial { name: "guided_generation", r#type: "Boolean", meaning: "Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`)." },
     QaDial { name: "corpus_splice_probability", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage. Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost." },

@@ -64,20 +64,6 @@ module Hecks
         raise Refusal, "the working tree at #{@repo_dir} is dirty — commit or discard first:\n#{dirty}"
       end
 
-      # Refuses one more pull request than the day's cap allows; a cap of zero is no cap.
-      #
-      # @param opened_today [Integer] how many PRs the ledger recorded since local midnight
-      # @param cap [Integer] `PR_CAP_PER_DAY`
-      # @return [void]
-      # @raise [Refusal] when `opened_today` has reached a positive `cap`
-      def assert_under_daily_cap!(opened_today:, cap:)
-        return unless cap.positive? && opened_today >= cap
-
-        raise Refusal, "#{opened_today} PR(s) already opened since local midnight, and " \
-                       "QualityControlDials::PR_CAP_PER_DAY is #{cap} — leave this as an open Bug/Angle " \
-                       "and open it tomorrow, or raise the dial in qa/settings.yml"
-      end
-
       # Refuses a fix commit that is not part of the branch being opened.
       #
       # @param commit [String] the commit the ledger says fixes the bug

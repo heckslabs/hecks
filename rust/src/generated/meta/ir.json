@@ -31651,20 +31651,6 @@
             [
               [
                 "name",
-                "branch_prefix"
-              ],
-              [
-                "type",
-                "String"
-              ],
-              [
-                "meaning",
-                "What the branch `hecks quality_control patch.open` pushes starts with."
-              ]
-            ],
-            [
-              [
-                "name",
                 "adversarial_fraction"
               ],
               [
