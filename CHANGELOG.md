@@ -7,6 +7,22 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Fix: `run_spec_example` runs more than once in a process.** A door that stays booted ran the
+first spec example and returned empty reports, marked completed, for every later one: RSpec keeps
+the first run's output stream, so the next run wrote into that. The runner now resets RSpec before
+each run, and a run that prints nothing is refused, since a real run always prints its summary.
+
+**The `hecks mcp` door says how to call it (ADR 0089).** A door that serves one domain makes `domain:`
+optional and fills it in. On a commands door, `dispatch` lists each allowed command in its description
+with the role it declares, what it does and its argument names (`*` marks a required one), and says to
+pass that role as `role`. `dispatch` now answers the record as it stands once its reactions have run,
+as `--wait` does, so a run record a reaction completes reads as `completed`, not `requested`; this
+holds for every door. Together they let an agent call the door with no usage manual. The guide is
+kept in a cache (`McpGuideCache`) keyed by the domain's files, the hecks code and the allowed
+commands, so `tools/list` stays as fast as before. A sandboxed door keeps the cache under the temp
+directory, so its first start after a change to the hecks code is cold (about half a minute): start
+it once before an agent needs it.
+
 **`AwsBox` refuses an origin secret that does not match the task definition's.** With a `task_definition`, only Caddy reads the named origin secret while the containers keep the task definition's copy, so a copy that differs made every request through the CDN fail and nothing said why. A world can now name the variables that hold it (`origin_env ["CLOUDFRONT_ORIGIN_SECRET"]`); `render-compose.sh` compares them with the named secret and refuses to render on any difference, or when no container sets a named variable, without printing a value. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 **`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.

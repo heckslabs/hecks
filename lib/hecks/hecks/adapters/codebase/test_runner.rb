@@ -38,7 +38,9 @@ module Hecks
           status = Dir.chdir(@tree.root) { runner.call(["--example", example, path], out, out) }
           raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
-          out.string.strip
+          out.string.strip.tap do |report|
+            raise ConsoleCapture::Failure, "the test runner printed nothing for #{file}" if report.empty?
+          end
         end
 
         private
@@ -47,7 +49,13 @@ module Hecks
           return self.class.runner if self.class.runner
 
           require "rspec/core"
-          RSpec::Core::Runner.method(:run)
+          # A process that runs one example after another, as a resident door does, has to reset
+          # RSpec between runs: its reporter keeps the first run's output stream, so a later run
+          # would write into that and answer an empty report.
+          lambda do |args, err, out|
+            RSpec.reset
+            RSpec::Core::Runner.run(args, err, out)
+          end
         end
       end
     end

@@ -230,8 +230,42 @@ module Hecks
       result = runtime.dispatch_flat(spec[:command], envelope)
       ok(summary: summary,
          id:      result.id,
-         state:   result.state.nil? ? nil : Doors::JsonDoor.materialize(result.state),
+         state:   settled_state(runtime, spec, result),
          events:  result.events.map { |event| { name: event.name, payload: Doors::JsonDoor.materialize(event.payload) } })
+    end
+
+    # The record as its repository holds it once every reaction has run, which is the state the
+    # dispatch resulted in; the handle's own state is the record as the command left it, so a run
+    # record that a reaction completes would otherwise read as `requested`. Falls back to the
+    # handle's state for a command that belongs to no top-level aggregate or whose record cannot be
+    # read.
+    # :nodoc:
+    def settled_state(runtime, spec, result)
+      return if result.state.nil?
+
+      bluebook = bluebook_for(runtime)
+      head = spec[:command].split("::", 2).last
+      aggregate = bluebook.aggregates.find { |candidate| candidate.hecks_name == head.split(".").first } if
+        head.count(".") == 1
+      record = aggregate && runtime.registry.repository(bluebook.name, aggregate)&.find(result.id)&.to_h
+      Doors::JsonDoor.materialize(record || result.state)
+    end
+
+    # What a caller needs to call each of the named commands: its qualified name, the role it
+    # declares, what it does, and its argument names, a trailing `*` marking a required one.
+    #
+    # @param runtime [Runtime::Dispatcher] the booted domain
+    # @param names [Array<String>] short or qualified command names
+    # @return [Array<String>] one line per name that resolves, in order
+    def command_guide(runtime, names)
+      cli = Projector.call(:cli, bluebook: bluebook_for(runtime), options: { program: "mcp" })
+      names.filter_map do |name|
+        spec = resolve!(cli, name.to_s, asking: false)
+        arguments = spec[:arguments].map { |arg| arg[:path].split(".").first + (arg[:required] ? "*" : "") }
+        "#{name} (role #{spec[:role] || 'none'}): #{spec[:summary]}. Arguments: #{arguments.uniq.join(', ')}"
+      rescue Runtime::NotFound
+        nil
+      end
     end
 
     # :nodoc:

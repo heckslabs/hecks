@@ -343,7 +343,20 @@ module Hecks
       def answer_tool(name, args)
         return scope.refusal(name) unless scope.permits_tool?(name)
 
-        call_tool(name, args)
+        call_tool(name, scope.with_default_domain(args))
+      end
+
+      # One line per allowed command: what it takes and the role it declares, read from the booted
+      # domain the door serves. Nil when the door serves no single domain or it will not boot, so
+      # `tools/list` still answers, with the commands as a bare list.
+      def command_guide
+        return unless scope.commands_mode? && scope.default_domain
+
+        McpGuideCache.remember(scope.default_domain, scope.allowed_commands) do
+          Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
+        end
+      rescue StandardError
+        nil
       end
 
       def tool_result(payload)
@@ -374,7 +387,8 @@ module Hecks
           nil # a notification — no id, no response
         when "tools/list"
           served = TOOLS.select { |tool| scope.permits_tool?(tool[:name]) }
-          send_response(id, { tools: served.map { |tool| scope.present(tool) } })
+          guide = command_guide
+          send_response(id, { tools: served.map { |tool| scope.present(tool, guide) } })
         when "tools/call"
           send_response(id, tool_result(answer_tool(params["name"], params["arguments"] || {})))
         when "ping"
