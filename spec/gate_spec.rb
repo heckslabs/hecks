@@ -79,7 +79,7 @@ RSpec.describe "hecks gate" do
   end
 
   describe "the stages file the gem ships" do
-    let(:shipped) { YAML.load_file(File.expand_path("../lib/hecks/gate/stages.yml", __dir__)) }
+    let(:shipped) { YAML.load_file(File.expand_path("../lib/hecks/gate/stages.yml", __dir__), aliases: true) }
 
     it "gives every check an id, a title, a command and what a red one means" do
       checks = shipped.values.flat_map { |stage| stage.fetch("checks") }
