@@ -72,11 +72,14 @@ that every row's verb is declared and answers `--help`. A `|` inside a form is e
 
 | launcher | replaces |
 |---|---|
-| `hecks site site_projection.project_site <project> [out=] [--check]` | (new: no `bin/` script) |
+| `hecks site site_projection.project_site <project> [out=] [template=] [extension=ts\|mts] [--check]` | (new: no `bin/` script) |
 
 `project_site` has no retired script to point at, so it has no row in `lib/hecks/three_zero/forms.yml`; see
-`docs/site-routes.md`. It writes `routes.ts` and, when the project declares an edge, rewrites the marked regions
-of the infrastructure template with the CloudFront behaviours and the load balancer's listener rules.
+`docs/site-routes.md`. It writes `routes.ts` (`routes.mts` with `extension=mts`, for a commonjs package) and, when the
+project declares an edge, rewrites the marked regions of the infrastructure template with the CloudFront behaviours and,
+unless the Edge row says `alb: false`, the load balancer's listener rules. It runs from a client project with the installed
+gem, no checkout: `<project>` holds `bluebook/`, `out=` is any directory for `routes.ts` (default `<project>/generated`) and
+`template=` is any file to rewrite in place (default the Edge row's `template:`).
 
 ## Codebase, for maintaining Hecks
 

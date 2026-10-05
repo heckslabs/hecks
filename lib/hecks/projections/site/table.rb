@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "table/row_builder"
+require_relative "table/link_builder"
 require_relative "table/checks"
 
 module Hecks
@@ -21,8 +22,14 @@ module Hecks
         # The name of the value object a client declares its rows in.
         ROW_OBJECT = "Route"
 
+        # The name of the value object a client declares its extra navigation entries in.
+        LINK_OBJECT = "NavLink"
+
         # @return [Array<Row>] the rows, in the order the client declared them
         attr_reader :rows
+
+        # @return [Array<Link>] the extra navigation entries, in the order the client declared them
+        attr_reader :links
 
         # Finds the one chapter of a project that declares the route table.
         #
@@ -47,7 +54,8 @@ module Hecks
         # @return [Table] the checked table
         # @raise [Invalid] when the Site chapter is not attached or a row is refused
         def self.read(chapter, registry:)
-          new(rows_of(chapter), vocabulary: vocabulary(registry), registry: registry)
+          new(rows_of(chapter), vocabulary: vocabulary(registry), registry: registry,
+                                links: rows_of(chapter, LINK_OBJECT))
         end
 
         # @param registry [Runtime::Registry] a registry holding the Site chapter
@@ -76,20 +84,23 @@ module Hecks
         # @param vocabulary [Hash{Symbol => Array<String>}] the closed sets
         # @param registry [Runtime::Registry, nil] where a `command:` or `query:` source is looked
         #   up; nil skips that check
+        # @param links [Array<Hash{Symbol => Object}>] the declared `NavLink` rows
         # @raise [Invalid] when a row is refused
-        def initialize(members, vocabulary:, registry: nil)
+        def initialize(members, vocabulary:, registry: nil, links: [])
           problems = []
           builder = RowBuilder.new(vocabulary: vocabulary, registry: registry, problems: problems)
           @rows = members.each_with_index.map { |member, index| builder.call(member, index) }
-          Checks.new(@rows, problems).call
+          link_builder = LinkBuilder.new(@rows, problems)
+          @links = links.each_with_index.map { |member, index| link_builder.call(member, index) }
+          Checks.new(@rows, problems, links: @links).call
           return if problems.empty?
 
           raise Invalid, "the route table is refused:\n#{problems.map { |line| "  - #{line}" }.join("\n")}"
         end
 
-        # The navigation slots a row sits in.
+        # The navigation slots a row or link sits in.
         #
-        # @param row [Row] a row
+        # @param row [Row, Link] a row or link
         # @return [Array<String>] some of `desktop`, `mobile`, `footer`, `admin`
         def navigation(row) = Checks.navigation(row)
       end

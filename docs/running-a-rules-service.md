@@ -610,13 +610,16 @@ What was observed here:
   `Unauthorized`: `Approve refused -- role: Underwriter, and the caller
   stated Applicant`.
 - **A caller that names the right role is accepted**, whoever they are.
-- **`actor_id` in the body is ignored.** The host never passes an actor to
-  the kernel. An `actor_id` naming a person with no grants, sent with the
-  `Underwriter` role, approved an application.
-- **Governance grants are not consulted.** The host never asks whether the
-  caller holds the role. On the Ruby runtime an identified caller is checked
-  against live `RoleAssignment` records; on this path there is no identified
-  caller, so the check is the plain string comparison above.
+- **A stated `role` wins over `actor_id`.** When the body carries a role,
+  the host compares that string and does not consult Governance, whoever
+  `actor_id` names.
+- **An identified caller with no `role` is checked against Governance.**
+  The host reads an optional `actor_id` from the body (only on this internal
+  protocol, from the host's own peers) and passes it to the kernel; the
+  command's declared role must then be assigned to that actor in Governance.
+  A caller that knows who the signed-in person is should send `actor_id` (the
+  Governance identity id) and leave `role` unset. The `@hecks/client`
+  package does this with its `actorId` option.
 
 So on the invoke path a `role` is a label the caller writes, not a proof.
 The only thing standing between an outsider and your rules is whether they
@@ -720,6 +723,13 @@ not usable from this repository alone, for three reasons.
    the Ruby runtime dispatching the membership chapter's `Admit` and
    `GrantAccess` against the same database. That was not tried.
 
+Both routes carry the person's Governance identity id as `identity_id`, the
+value an `actor_id` binds when a caller dispatches on that person's behalf.
+`GET /accounts/me` answers `{"email": ..., "identity_id": ...}`, and each row
+of `GET /members` is `{"name", "email", "role", "linked", "granted",
+"disabled", "identity_id"}`. A member who has never signed in has no identity
+yet, so `identity_id` is `null` there; it becomes a string at first sign-in.
+
 The Governance part of the first-administrator question is settled by ADR
 0025: an identified caller (one that binds an `actor_id`) dispatching
 `Governance::RoleAssignment.Assign` must already hold a live `Governance
@@ -788,7 +798,9 @@ session-cookie API instead. The `curl` examples in this step that target
 | `{"verb": "...", "to": "<id>", "with": {...}, "role": "..."}` | A command on an existing record; `to` is its id. |
 | `{"verb": "...", "args": {...}}` | The older shape, still accepted. Combining it with `to` or `with` answers `500` with `{"error":"cannot combine to/with with legacy args"}`. |
 
-`role` is optional (7.1). The response is always the kernel's outcome
+`role` is optional (7.1). So is `actor_id`, the Governance identity id of an
+identified caller; send it and leave `role` unset so Governance's role
+assignments decide. The host honors it only on this internal protocol. The response is always the kernel's outcome
 document, with these keys that matter to a client:
 
 | Key | Meaning |
@@ -972,8 +984,9 @@ an outside team would meet it.
    (`make mint-era`).
 6. **No shipped way to sign in interactively** (7.3): no membership chapter,
    no first administrator, and the account cookie does not open `/api/`.
-7. **Roles on the invoke path are self-asserted** (7.1), and `actor_id` is
-   ignored. Closing this is deferred to ADR 0072's token work.
+7. **Roles on the invoke path are self-asserted** (7.1), and so is
+   `actor_id`: the host trusts the same-host peer that sends it. Closing
+   this is deferred to ADR 0072's token work.
 8. **`_` in integer literals** fails in the host (step 2), and whether Ruby
    accepts it was not checked. Run the compiled host against your rules
    before deploying, not only `hecks run`.

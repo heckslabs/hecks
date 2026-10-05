@@ -292,7 +292,7 @@ pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
-/// (rust/project/queries.rb) has the full story.
+/// (rust/codegen/src/queries.rs) has the full story.
 pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
     match verb {
 

@@ -119,13 +119,22 @@ function toRegExp(pattern: string): RegExp {
   const source = stripHtml(pattern)
     .split("/")
     .map((part) =>
-      part === "*" ? ".*" : part.startsWith(":") ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      part.startsWith(":")
+        ? "[^/]+"
+        : part
+            .split("*")
+            .map((piece) => piece.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+            .join(".*"),
     )
     .join("/");
   return new RegExp("^" + source + "$");
 }
 
-/** Whether a pathname is one a route pattern (`/blog/:slug.html`, `/pay/*`) describes, with or without `.html`. */
+/**
+ * Whether a pathname is one a route pattern describes, with or without `.html`. A `:name` is one
+ * segment; a `*` is any run of characters, `/` included, wherever it stands, as in a CDN's path
+ * pattern: `/pay/*` matches `/pay/7` and `/admin*` matches `/admin`, `/admin-inbox` and `/admin/x`.
+ */
 export function matchesPath(pattern: string, pathname: string): boolean {
   return toRegExp(pattern).test(stripHtml(pathname));
 }

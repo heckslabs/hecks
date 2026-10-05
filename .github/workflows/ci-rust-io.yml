@@ -64,7 +64,7 @@ jobs:
           name: main
           crate-root: rust
 
-      # project_rust_pipeline_spec.rb builds the parser and codegen crates; sharing
+      # The specs below build the parser and codegen crates; sharing
       # the keys of rspec_rust_parser/rspec_rust_codegen reuses their cached builds
       # from an earlier completed run.
       - uses: ./.github/actions/cargo-cache
@@ -117,19 +117,17 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Runs the io specs that touch the shared `rust/` crate, listed explicitly
-      # because spec/rust_project/ also holds fast non-io specs that already run in
+      # because spec/rust_generated/ also holds fast non-io specs that already run in
       # parallel. Single process: concurrent cargo builds would race on rust/.
       - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
         run: |
           bundle exec rspec --tag io \
-            spec/project_rust_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
             spec/semantics_corpus_spec.rb \
             spec/rust_numeric_coercion_spec.rb \
-            spec/rust_project/domain_feature_exclusivity_spec.rb \
-            spec/rust_project/naming_landmines_spec.rb \
-            spec/rust_project/has_many_spec.rb
+            spec/rust_generated/domain_feature_exclusivity_spec.rb \
+            spec/rust_generated/has_many_spec.rb
 
       # Push only on a miss. `always()` so a spec failure still publishes a
       # freshly built crate for sibling jobs.

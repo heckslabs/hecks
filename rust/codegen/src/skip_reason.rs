@@ -1,4 +1,4 @@
-//! A skip decision plus the construct family that forced it (`rust/project/skip_reason.rb`).
+//! A skip decision plus the construct family that forced it (the retired Ruby generator's `skip_reason.rb`).
 //! `construct` goes to `manifest.json` beside the reason so tools read the family, not the prose.
 
 use std::fmt;

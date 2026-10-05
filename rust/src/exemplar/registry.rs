@@ -1,4 +1,4 @@
-// Exemplar shapes for rust/project/registry.rb; see mod.rs.
+// Exemplar shapes for rust/codegen/src/registry.rs; see mod.rs.
 // `InMemoryRepository<T>` only needs `T: Clone`, so an `i64` record type suffices.
 #![allow(dead_code, unused_variables)]
 

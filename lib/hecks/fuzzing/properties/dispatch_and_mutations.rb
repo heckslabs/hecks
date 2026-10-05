@@ -118,8 +118,9 @@ module Hecks
 
             owner = owner_for_verb(bluebooks, entry[:verb]) || aggregate
 
+            args = with_declared_defaults(command, entry[:args])
             command.mutations.select { |m| RECOMPUTABLE_MUTATION_OPS.include?(m.op) }.filter_map do |mutation|
-              expected = recompute_mutation(mutation, entry[:before][mutation.target], entry[:args], entry[:before],
+              expected = recompute_mutation(mutation, entry[:before][mutation.target], args, entry[:before],
                                             aggregate, command, owner)
               next if expected == :unrecomputable
 
@@ -132,6 +133,21 @@ module Hecks
           end
 
           offenders.empty? || offenders.join("; ")
+        end
+
+        # The arguments the command actually ran with: an argument the caller left out takes the
+        # default its attribute declares, as dispatch fills it, so the recomputation starts from
+        # the same facts.
+        #
+        # @param command [Object] the command the step dispatched
+        # @param args [Hash] the arguments the step offered
+        # @return [Hash] `args`, with each omitted defaulted argument filled
+        def with_declared_defaults(command, args)
+          command.attributes.each_with_object(args.dup) do |attribute, held|
+            next if attribute.default.nil? || held.key?(attribute.name.to_sym) || held.key?(attribute.name.to_s)
+
+            held[attribute.name.to_sym] = attribute.default
+          end
         end
 
         # Root aggregate for `verb`, derived from the verb alone because hand-built

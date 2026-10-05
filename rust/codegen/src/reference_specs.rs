@@ -1,4 +1,4 @@
-//! Port of `rust/project/reference_specs.rb` — read that file's own
+//! Port of the retired Ruby generator's `reference_specs.rb` — read that file's own
 //! header comments in full; this mirrors its algorithm directly,
 //! function for function.
 

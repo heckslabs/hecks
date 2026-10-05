@@ -1,4 +1,4 @@
-// Exemplar shapes for rust/project/mutations.rb; see mod.rs.
+// Exemplar shapes for rust/codegen/src/mutations.rs; see mod.rs.
 // Hosts take `record: &mut Tmpl...`, not `&mut self`, as the generated mutation closures do.
 #![allow(dead_code, unused_variables)]
 

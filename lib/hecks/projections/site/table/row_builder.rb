@@ -8,7 +8,8 @@ module Hecks
         Row = Struct.new(:path, :kind, :render, :auth, :verbs, :cache, :origin, :source,
                          :indexable, :switch, :off, :preview, :label, :seo, :redirect_to, :aliases,
                          :nav_group, :nav_order, :mobile_order, :footer_column, :footer_order,
-                         :admin_key, :admin_order, :compress, :alb_rule, :cdn, keyword_init: true)
+                         :admin_key, :admin_order, :compress, :alb_rule, :cdn,
+                         :seo_title, :edge_verbs, :mobile_heading, :explicit_cache, keyword_init: true)
 
         # Turns a declared member into a `Row`: checks its fields and their types, fills the
         # defaults, and checks each closed-set value against the Site chapter's vocabulary.
@@ -19,7 +20,8 @@ module Hecks
                      off: :bool, preview: String, label: String, seo: String, redirect_to: String,
                      aliases: String, nav_group: String, nav_order: Integer, mobile_order: Integer,
                      footer_column: String, footer_order: Integer, admin_key: String,
-                     admin_order: Integer, compress: :bool, alb_rule: String, cdn: :bool }.freeze
+                     admin_order: Integer, compress: :bool, alb_rule: String, cdn: :bool,
+                     seo_title: String, edge_methods: String, mobile_heading: String }.freeze
 
           # The value objects of the Site chapter's `Route` aggregate whose members are the closed
           # sets, by the row field each constrains.
@@ -50,7 +52,9 @@ module Hecks
             label = path || label
             check_source(label, source)
             verbs = fields.delete(:methods)
-            row = Row.new(**fields, verbs: verbs, path: path, source: source,
+            edge_verbs = fields.delete(:edge_methods)
+            row = Row.new(**fields, verbs: verbs, edge_verbs: edge_verbs, path: path, source: source,
+                                    explicit_cache: !fields[:cache].nil?,
                                     kind: fields[:kind] || default_kind(source), auth: fields[:auth] || "public",
                                     origin: fields[:origin] || default_origin(source))
             fill_defaults(row)
@@ -94,6 +98,7 @@ module Hecks
             row.cdn = true if row.cdn.nil?
             row.render ||= row.kind == "page" ? "prerender" : "ssr"
             row.verbs = list(row.verbs || (row.source.start_with?("command:") ? "POST" : "GET"))
+            row.edge_verbs = row.edge_verbs.nil? ? row.verbs : list(row.edge_verbs)
             row.aliases = list(row.aliases)
             row.cache ||= default_cache(row)
             row.indexable = indexable_by_default?(row) if row.indexable.nil?
@@ -123,11 +128,21 @@ module Hecks
 
               problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(', ')}")
             end
-            row.verbs.each do |verb|
-              next if @vocabulary.fetch(:http_method).include?(verb)
+            check_verbs(row, label)
+          end
 
-              problem(label, "has method #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(', ')}")
+          def check_verbs(row, label)
+            { "method" => row.verbs, "edge method" => row.edge_verbs }.each do |what, verbs|
+              verbs.each do |verb|
+                next if @vocabulary.fetch(:http_method).include?(verb)
+
+                problem(label, "has #{what} #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(', ')}")
+              end
             end
+            return if (row.verbs - row.edge_verbs).empty?
+
+            problem(label, "has edge_methods #{row.edge_verbs.join(',')}, which leave out its methods " \
+                           "#{(row.verbs - row.edge_verbs).join(',')}; the edge must allow every verb the route answers")
           end
 
           def check_source(label, source)

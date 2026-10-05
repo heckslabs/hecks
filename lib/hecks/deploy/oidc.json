@@ -7,6 +7,21 @@
       "role": null
     },
     {
+      "scope": "deploy:cost_check.check",
+      "verb": "Deploy::CostCheck.Check",
+      "role": null
+    },
+    {
+      "scope": "deploy:cost_check.flag",
+      "verb": "Deploy::CostCheck.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:cost_check.pass",
+      "verb": "Deploy::CostCheck.Pass",
+      "role": null
+    },
+    {
       "scope": "deploy:fargate_target.declare",
       "verb": "Deploy::FargateTarget.Declare",
       "role": null
