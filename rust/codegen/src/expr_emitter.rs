@@ -1,4 +1,4 @@
-//! Port of `rust/project/expr_emitter.rb`: turns each IR rule's `ast` tree into `Expr` source.
+//! Port of the retired Ruby generator's `expr_emitter.rb`: turns each IR rule's `ast` tree into `Expr` source.
 //! A literal-array `include?` never reaches here; `AstJson` rewrites it to an or of equalities.
 
 use crate::json::Json;

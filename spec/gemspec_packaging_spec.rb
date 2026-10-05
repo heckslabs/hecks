@@ -139,9 +139,9 @@ RSpec.describe "gem packaging" do
       let(:rust) { gemspec.files.select { |file| file.start_with?("rust/") } }
 
       it "ships the kernel and every crate a domain build uses" do
-        expected = %w[rust/Cargo.toml rust/Cargo.lock rust/project.rb rust/project_rust_pipeline.rb
-                      rust/src/lib.rs rust/src/main.rs rust/codegen/Cargo.toml rust/parser/Cargo.toml
-                      rust/host/Cargo.toml rust/build/Cargo.toml rust/web/Cargo.toml rust/lsp/Cargo.toml]
+        expected = %w[rust/Cargo.toml rust/Cargo.lock rust/src/lib.rs rust/src/main.rs
+                      rust/codegen/Cargo.toml rust/parser/Cargo.toml rust/host/Cargo.toml
+                      rust/build/Cargo.toml rust/web/Cargo.toml rust/lsp/Cargo.toml]
         expect(rust).to include(*expected)
         expect(rust.grep(%r{\Arust/src/kernel/})).not_to be_empty
       end

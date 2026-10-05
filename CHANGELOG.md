@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
+
 ## [3.1.2] - 2026-10-04
 
 A patch: nothing breaking. It fixes a second 3.1.0 regression: a lifecycle `transition` with no `from:` was read as "only from the empty state", so a command that creates its aggregate, whose lifecycle starts at a default, was refused. 3.1.1 fixed Boolean attributes; this release fixes that one. Skip 3.1.0 and 3.1.1 if a domain builds Rust from a bluebook.

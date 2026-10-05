@@ -1,4 +1,4 @@
-//! Exemplar shapes for rust/project/fielded.rb (see mod.rs).
+//! Exemplar shapes for rust/codegen/src/fielded.rs (see mod.rs).
 //!
 //! Each `Fielded::field` arm shape is a standalone leaf so both outer skeletons can reuse it.
 #![allow(dead_code, unused_variables)]

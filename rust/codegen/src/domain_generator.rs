@@ -1,4 +1,4 @@
-//! Port of `rust/project/domain_generator.rb`'s `DomainGenerator.call`: the per-aggregate
+//! Port of the retired Ruby generator's `domain_generator.rb`'s `DomainGenerator.call`: the per-aggregate
 //! `.rs` files plus `registry.rs`. `metadata.rs` and `ir.json` are not emitted here.
 
 use crate::exemplar::Exemplar;
@@ -1181,7 +1181,7 @@ pub fn generate(
             None,
             None,
             Some(format!(
-                "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"{}\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)",
+                "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"{}\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/codegen/src/domain_generator.rs)",
                 lineage_aggregate.get("storage_name").map(Json::to_s).unwrap_or_default()
             )),
         );

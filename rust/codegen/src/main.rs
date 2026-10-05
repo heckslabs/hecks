@@ -1,4 +1,4 @@
-//! `hecks-codegen` — Rust port of the IR-to-Rust-source codegen in `rust/project/*.rb`.
+//! `hecks-codegen` — the IR-to-Rust-source generator, the only one (ADR 0086).
 //! Usage: `hecks-codegen <prelude|domain|full> ...`, one subcommand per function below.
 // Some ported `naming.rs` helpers are not called yet.
 #![allow(dead_code)]
@@ -257,8 +257,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_identity_head_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
-    // Section order must match `rust/project/domain_generator.rb`; the pipeline spec compares
-    // this file byte for byte.
+    // Section order is part of the output: `hecks regenerate_corpus --check` diffs this file byte for byte.
     puts_str(&mut merged_rs, &reactions::emit_entity_identity_head_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_command_attributes_table(&ex, &merged_aggregates));
