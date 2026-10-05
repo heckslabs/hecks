@@ -23,7 +23,7 @@ RSpec.describe "qa_sweep --all", :io do
   end
 
   # `qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
-  # domain (e.g. `lifeadelics/lifeadelics`). `write_shrunk!` folds that `/` into the shrunk-repro
+  # domain (e.g. `shop/shop`). `write_shrunk!` folds that `/` into the shrunk-repro
   # filename, and `FileUtils.mkdir_p` only creates `tmp/qa-shrunk` itself, not the extra directory
   # segment an embedded `/` would otherwise imply, so the filename component is sanitized before
   # `File.write` runs. The reference itself keeps its `/` in the ledger; only the filename derived
