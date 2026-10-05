@@ -91,4 +91,42 @@ RSpec.describe Hecks::Adapters::Git, :io do
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /usage/)
     end
   end
+
+  describe "#verify" do
+    it "answers the manifest of the vendored packages, with the project's own commit" do
+      release("1.2.0")
+      adapter.pin(package: { value: "widgets@1.2.0" }, from: { value: repo.path }, root: { value: root })
+      project = RegistryRepo.new(root)
+      project.commit("vendored")
+
+      manifest = JSON.parse(adapter.verify(root: { value: root }).fetch(:text))
+
+      expect(manifest.dig("built_from", "commit")).to eq(project.git("rev-parse", "HEAD").strip)
+      expect(manifest.dig("built_from", "dirty")).to be(false)
+      expect(manifest.dig("bluebooks", "widgets", "tag")).to eq("widgets-v1.2.0")
+    end
+
+    it "says the tree is dirty and the commit unknown outside a repository" do
+      release("1.0.0")
+      adapter.pin(package: { value: "widgets@1.0.0" }, from: { value: repo.path }, root: { value: root })
+
+      manifest = JSON.parse(adapter.verify(root: { value: root }).fetch(:text))
+
+      expect(manifest.fetch("built_from")).to eq("commit" => "unknown", "dirty" => false)
+    end
+
+    it "refuses with each disagreement" do
+      release("1.0.0")
+      adapter.pin(package: { value: "widgets@1.0.0" }, from: { value: repo.path }, root: { value: root })
+      File.write(File.join(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook"), "#\n", mode: "a")
+
+      expect { adapter.verify(root: { value: root }) }
+        .to raise_error(Hecks::Runtime::NotFound, /FAIL widgets: vendored files hash to/)
+    end
+
+    it "refuses a project directory that is not there" do
+      expect { adapter.verify(root: { value: File.join(scratch, "nowhere") }) }
+        .to raise_error(Hecks::Runtime::NotFound, /is not a directory/)
+    end
+  end
 end

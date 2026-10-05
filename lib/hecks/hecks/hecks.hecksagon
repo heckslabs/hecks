@@ -87,6 +87,8 @@ Hecks.hecksagon "Hecks" do
       answers "PackagePinned"
       refuses "PinRefused"
     end
+
+    answers_query "Verify"
   end
 
   Hecks::Door.port "Workspace" do

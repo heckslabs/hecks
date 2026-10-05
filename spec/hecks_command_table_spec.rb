@@ -24,7 +24,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.backfill_projections era.compact era.compact_heki era.approve_translation
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
-    package.pinning package.unpinned door.project_cli door.serve_mcp
+    package.pinning package.unpinned package.verify door.project_cli door.serve_mcp
     door.ended door.stopped build.project_rust build.build_wasm
     build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
@@ -559,6 +559,41 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       run_verb("package.revendor", "widgets", "from=#{registry.path}", "root=#{project}")
       expect(pinning_of("widgets").fetch("status")).to eq("vendored")
+    end
+
+    describe "package.verify", :io do
+      require_relative "support/registry_repo"
+
+      let(:scratch)  { Dir.mktmpdir("verify-status") }
+      let(:registry) { RegistryRepo.new(File.join(scratch, "registry")) }
+      let(:project)  { File.join(scratch, "project") }
+      let(:bluebook) { File.join(project, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook") }
+
+      before do
+        registry.write("widgets/bluebook.yml"              => "name: widgets\nversion: 1.0.0\nsummary: Widgets.\n",
+                       "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook)
+        registry.commit("widgets 1.0.0")
+        registry.tag("widgets-v1.0.0")
+        Hecks::EmbryonautBluebook.vendor!("widgets", from: registry.path, root: project)
+      end
+
+      after { FileUtils.rm_rf(scratch) }
+
+      it "prints the manifest as JSON and exits 0 when every package matches its lock" do
+        out, status = run_verb("package.verify", "root=#{project}")
+
+        expect(status).to eq(0)
+        expect(JSON.parse(out).dig("bluebooks", "widgets", "version")).to eq("1.0.0")
+      end
+
+      it "exits 1 naming the package whose files were edited" do
+        File.write(bluebook, "# edited\n", mode: "a")
+
+        out, status = run_verb("package.verify", "root=#{project}")
+
+        expect(status).to eq(1)
+        expect(out).to include("FAIL widgets: vendored files hash to")
+      end
     end
 
     describe "its exit status", :io do

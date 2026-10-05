@@ -60,6 +60,25 @@ module Hecks
         { report: { value: out.string } }
       end
 
+      # Checks a project's vendored packages against their `bluebook.lock` files and describes
+      # them as the manifest a client image carries, through `Hecks::EmbryonautBluebook::Manifest`.
+      #
+      # The manifest records the project's own commit and whether its tree has uncommitted changes,
+      # read from the repository the project stands in (`unknown` outside one).
+      #
+      # @param held [Hash] the `Package` query's arguments: `root` (the project; the current
+      #   directory when absent)
+      # @return [Hash{Symbol => String}] `text:` the manifest as JSON
+      # @raise [Runtime::NotFound] naming each package whose files disagree with its lock
+      def verify(**held)
+        root = File.expand_path(plain(held[:root]) || Dir.pwd)
+        raise Runtime::NotFound, "#{root} is not a directory" unless File.directory?(root)
+
+        { text: EmbryonautBluebook::Manifest.new(root, built_from: built_from(root)).to_json_text }
+      rescue EmbryonautBluebook::Manifest::Mismatch => e
+        raise Runtime::NotFound, e.message
+      end
+
       # Who the repository at a directory commits as: its configured name and email.
       #
       # @param chdir [String, nil] a directory inside the repository; the current one when nil
@@ -86,6 +105,12 @@ module Hecks
       end
 
       private
+
+      def built_from(root)
+        head = capture("rev-parse", "HEAD", chdir: root)
+        status = capture("status", "--porcelain", "--", ".", chdir: root)
+        { "commit" => head.ok? ? head.out.strip : "unknown", "dirty" => status.ok? && !status.out.strip.empty? }
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 

@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**New: `hecks package.verify` checks the vendored packages against `bluebook.lock` and prints the project's bluebook manifest.** A
+project that vendors registry packages no longer needs its own script to prove the files match their locks before an image is
+built. `hecks package.verify [root=<project>]` reads every `vendor/embryonaut_bluebooks/<package>/`, compares the digest of its
+`*.bluebook` files with the lock (through `Lock.digest_of`, the one digest implementation), checks that the lock carries every
+field and that its tag is `<package>-v<version>`, and answers the manifest as JSON: per package `version`, `tag`, `commit`,
+`digest` and `shape`, plus the project's `built_from` commit and whether its tree is dirty. A disagreement is exit status 1 with
+one `FAIL` line per package. The text is byte-for-byte what a Python manifest script printed for the same tree.
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the

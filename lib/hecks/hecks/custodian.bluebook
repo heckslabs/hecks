@@ -1173,6 +1173,11 @@ policy "RecordTheEra" do
       attribute :value, String
     end
 
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
     lifecycle :status, default: "requested" do
       transition "Revendor" => "requested", from: %w[vendored refused]
       transition "Complete" => "vendored",  from: "requested"
@@ -1247,6 +1252,14 @@ policy "RecordTheEra" do
       description "Every package the last vendoring of which was refused."
       where(status: "refused")
       order_by :package
+    end
+
+    # `hecks package.verify [root=path]`: a read of the files, so it keeps no record. The manifest
+    # is the answer; a package that disagrees with its lock refuses it, naming each one.
+    query "Verify" do
+      description "Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries."
+      attribute :root, Location, optional: true
+      returns Document
     end
   end
 

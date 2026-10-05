@@ -210,6 +210,26 @@ A release must also be a real one: the `<package>/bluebook.yml` at the tag has t
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
 
+### Checking what is vendored
+
+`hecks package.verify [root=<project>]` checks every package under `vendor/embryonaut_bluebooks/` against its `bluebook.lock` and prints the project's bluebook manifest as JSON. It reads files and writes none, so it keeps no record and runs as often as you like. The digest it compares is `Hecks::EmbryonautBluebook::Lock.digest_of`, the function that wrote the lock.
+
+A package is refused, with exit status 1 and one `FAIL <package>: <reason>` line each, when it has no `bluebook.lock`, the lock lacks `package`, `version`, `tag`, `commit`, `digest` or a `shape`, the lock names another package, its `tag` is not `<package>-v<version>`, or the digest of the vendored `*.bluebook` files is not the lock's.
+
+```json
+{
+  "bluebooks": {
+    "payments": {
+      "commit": "<registry commit>", "digest": "<sha256>", "shape": ["Payments d33c23"],
+      "tag": "payments-v1.0.0", "version": "1.0.0"
+    }
+  },
+  "built_from": { "commit": "<project commit>", "dirty": false }
+}
+```
+
+`built_from` is the project's own commit and whether its working tree has uncommitted changes (`unknown` outside a repository). Keys are sorted and there is no timestamp, so the same inputs give the same text; an image build writes it to a file or a label, and a deploy compares two of them.
+
 ## port
 
 <!-- generated:begin word=port -->

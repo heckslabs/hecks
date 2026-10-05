@@ -3,6 +3,7 @@ module Hecks
   # package that ships outside hecks's own lib/ (see .load! and .vendor!).
   module EmbryonautBluebook
     autoload :Lock, File.join(__dir__, "embryonaut_bluebook/lock")
+    autoload :Manifest, File.join(__dir__, "embryonaut_bluebook/manifest")
     autoload :Shape, File.join(__dir__, "embryonaut_bluebook/shape")
     autoload :Vendor, File.join(__dir__, "embryonaut_bluebook/vendor")
     autoload :VendorCli, File.join(__dir__, "embryonaut_bluebook/vendor_cli")
