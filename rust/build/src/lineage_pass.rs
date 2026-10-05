@@ -119,25 +119,31 @@ fn world_opener_name(line: &str) -> Option<String> {
     Some(quoted[..quoted.find('"')?].to_string())
 }
 
+// Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresEra`,
+// the one adapter that declares itself lineage-capable.
+const ADAPTER_DIRS: [&str; 2] = ["lib/hecks/adapters/driven", "lib/hecks/ports/persistence/plugins/era"];
+
 // Reads each adapter's own source file rather than invoking Ruby.
 fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
-    let dir = root.join("lib/hecks/adapters/driven");
-    let entries = std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
-
     let mut names = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("reading {}: {e}", dir.display()))?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("rb") {
-            continue;
-        }
+    for relative in ADAPTER_DIRS {
+        let dir = root.join(relative);
+        let entries = std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
 
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
-        if !declares_lineage_capable_true(&text) {
-            continue;
-        }
-        if let Some(name) = top_level_class_name(&text) {
-            names.push(name);
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("reading {}: {e}", dir.display()))?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("rb") {
+                continue;
+            }
+
+            let text = std::fs::read_to_string(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+            if !declares_lineage_capable_true(&text) {
+                continue;
+            }
+            if let Some(name) = top_level_class_name(&text) {
+                names.push(name);
+            }
         }
     }
 
@@ -276,6 +282,15 @@ mod tests {
         assert!(declares_lineage_capable_true("      def self.lineage_capable? = true\n"));
         assert!(!declares_lineage_capable_true("      def self.lineage_capable? = false\n"));
         assert!(!declares_lineage_capable_true("no such method here\n"));
+    }
+
+    // The adapter moved out of `lib/hecks/adapters/driven` once and the scan silently found none, which
+    // left every lineage-capable aggregate out of a Ruby-free build's `ir.json`.
+    #[test]
+    fn finds_postgres_era_in_the_real_source_tree() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let names = lineage_capable_adapter_names(&root).expect("scans the adapter directories");
+        assert!(names.iter().any(|name| name == "PostgresEra"), "lineage-capable adapters found: {names:?}");
     }
 
     #[test]

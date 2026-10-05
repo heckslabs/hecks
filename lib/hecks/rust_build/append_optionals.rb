@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../literal"
+
 module Hecks
   module RustBuild
     # Makes an appended element's field `Option<T>` in the IR when any command sources it from an
@@ -58,7 +60,7 @@ module Hecks
       # else is a literal.
       def self.mark_fields(mutation, command, target)
         mutation[:fields].each do |field_name, source|
-          parsed = Hecks::Bluebook::Assembly::Marks.read(source)
+          parsed = Hecks::Literal.read(source)
           next unless parsed.is_a?(Symbol)
 
           source_attr = command[:attributes].find { |attr| attr[:name].to_s == parsed.to_s }

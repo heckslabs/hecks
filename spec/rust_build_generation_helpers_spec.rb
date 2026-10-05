@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "json"
 require "tmpdir"
 require "hecks/rust_build/append_optionals"
 require "hecks/rust_build/domain_name"
@@ -66,6 +67,33 @@ RSpec.describe "hecks project_rust generation helpers" do
 
       expect(described_class.element(aggregate, "Line", "Line" => { name: "Line", attributes: [] }))
         .to equal(aggregate[:entities].first)
+    end
+
+    # The same input and expectation `rust/build/src/optional_pass.rs` reads in its own tests, so the
+    # two implementations cannot drift: a local entity, an append into another aggregate's value
+    # object, and a same-named domain-wide value object left alone.
+    describe "the fixture shared with rust/build" do
+      let(:dir) { File.join(InMemoryDomain::ROOT, "spec/fixtures/append_optionals") }
+      let(:input) { JSON.parse(File.read(File.join(dir, "input.json")), symbolize_names: true) }
+      let(:expected) { JSON.parse(File.read(File.join(dir, "expected.json")), symbolize_names: true) }
+
+      def memo_optional(marked, aggregate, key)
+        element = marked[:aggregates][aggregate][key].find { |candidate| candidate[:name] == "Line" }
+        element[:attributes].find { |attribute| attribute[:name] == "memo" }[:optional]
+      end
+
+      it "marks what the recorded expectation says" do
+        expect(described_class.mark(input)).to eq(expected)
+      end
+
+      it "marks the local entity, the other aggregate's value object, and nothing else" do
+        marked = described_class.mark(input)
+        note = marked[:aggregates][1][:value_objects].find { |value_object| value_object[:name] == "Note" }
+
+        expect(memo_optional(marked, 0, :entities)).to be(true)
+        expect(note[:attributes].first[:optional]).to be(true)
+        expect(memo_optional(marked, 1, :value_objects)).to be(false)
+      end
     end
   end
 
