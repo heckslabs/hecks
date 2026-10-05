@@ -52,6 +52,8 @@ is not reproducible from the name, so pin a release when that matters. Regenerat
 
 **`hecks-codegen` admits every state for a lifecycle transition with no `from:`, as the Ruby generator did.** A `transition "Open" => "open"` with no `from:` is unconstrained, but the generated Rust checked the command against the empty state, so a command that creates its aggregate (which starts at the lifecycle default) was refused with "moves it only from \"\"". The generator now emits no transition check for an unconstrained row, which is what 3.0.x emitted. A domain that declares such a transition and built on 3.1.0 or 3.1.1 should rebuild its wasm on the fixed release.
 
+**Behavior change: a registrant gets a receipt email once their payment settles (added to this entry after the release).** The Rust host emails a registrant whose payment just succeeded (the mock checkout completing, or the Stripe webhook), naming the event and the amount. Only the delivery that settles the payment sends it, so a redelivered webhook stays quiet, and nothing is sent where no mailer is configured. The host also asks the site's `/api/session-details` for the session's date, time and venue, and asks the site for the finished email (editable in the CMS), falling back to its built-in wording; if the site does not answer, the email goes out without those lines.
+
 ## [3.1.1] - 2026-10-04
 
 A patch: nothing breaking and no behavior change for a running system unless it opts in. It fixes a 3.1.0 regression: a domain with `TrueClass` or `FalseClass` attributes no longer compiled to Rust (see the `hecks build.project_rust` entry below). Skip 3.1.0 if your domain declares Boolean attributes in a value object.
