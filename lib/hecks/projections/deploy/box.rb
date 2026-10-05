@@ -384,9 +384,9 @@ module Hecks
           "#{routes.join}handle {\n#{upstream(plan.default.port)}}\n"
         end
 
-        # One upstream. A request that arrives while its container is being replaced waits, and is tried
-        # again every quarter second for up to 15 seconds, so a deploy shows a visitor a slow page instead
-        # of a 502.
+        # One upstream. A request that arrives while its container is being replaced
+        # waits, and is tried again every quarter second for up to 15 seconds, so a
+        # deploy shows a visitor a slow page instead of a 502.
         #
         # @param port [Integer] the container's port
         # @return [String] the `reverse_proxy` block, one tab in, ending in a newline
