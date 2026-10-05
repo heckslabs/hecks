@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**CI runs the gate's checks instead of copying them.** `lib/hecks/gate/stages.yml` gains a `ci` stage (every check `ci-checks.yml` ran: model check, engine agreement, doc coverage, rubocop, both comment checks, codegen, vocabulary and kernel drift, rust coverage, the deploy-recipe lint and the three fuzz sweeps) and a `post_commit` stage. A check two stages share is written once, under a YAML anchor, so `pre_push` and `ci` cannot drift. Each `ci-checks.yml` step is now `hecks gate_run.gate stage=ci only=<ids> --wait`: jobs, runners, logs and attestation conditions are unchanged, and only the commands moved. `.githooks/post-commit` is a shim over the `post_commit` stage, as `pre-push` is over `pre_push`. `spec/gate_ci_stage_spec.rb` fails when a workflow step carries a command of its own or a `ci` check is run by no step. The eight required-check wrappers in `ci.yml` share one `require-result` action, and the attestation write is the `write-attestation` action. A green `gate` run prints which checks passed, not their output; a red one prints it all.
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the

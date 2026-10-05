@@ -25,7 +25,7 @@ module Hecks
       # @param root [String] the checkout the checks run in
       # @return [Integer] 0 when every check passed, 1 when one failed, 2 on bad usage
       def main(argv, root: Tools::ROOT, **)
-        stages = YAML.load_file(STAGES_FILE)
+        stages = YAML.load_file(STAGES_FILE, aliases: true)
         return list(stages) if argv == ["--list"]
 
         name = argv.find { |arg| !arg.include?("=") && !arg.start_with?("--") }
