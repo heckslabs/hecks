@@ -80,6 +80,8 @@ RSpec.describe "the Custodian rows of the ADR command table" do
                      verb: "project_rust"),
     CustodianRow.new(script: "project_wasm", aggregate: "Build", name: "BuildWasm",
                      verb: "build_wasm"),
+    CustodianRow.new(script: "project_host", aggregate: "Build", name: "BuildHost",
+                     verb: "build_host"),
     CustodianRow.new(script: "project_wasm_browser", aggregate: "Build", name: "BuildBrowserWasm",
                      verb: "build_browser_wasm"),
     CustodianRow.new(script: "rust_coverage", aggregate: "Build", name: "RustCoverage",

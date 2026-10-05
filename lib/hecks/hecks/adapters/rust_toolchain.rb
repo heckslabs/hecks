@@ -19,9 +19,9 @@ module Hecks
     # minutes, so it starts as a child through `ProcessPool`.
     class RustToolchain
       # The `Hecks::RustBuild` tool each ask runs.
-      TOOLS = { generate: "project_rust", wasm: "project_wasm", browser_wasm: "project_wasm_browser",
-                conform: "rust_conformance", replay: "rust_conformance_fuzz",
-                coverage: "rust_coverage" }.freeze
+      TOOLS = { generate: "project_rust", wasm: "project_wasm", host: "project_host",
+                browser_wasm: "project_wasm_browser", conform: "rust_conformance",
+                replay: "rust_conformance_fuzz", coverage: "rust_coverage" }.freeze
 
       # The load path the benchmark child runs with: this checkout's or gem's `lib/`.
       LIB = File.expand_path("../../..", __dir__)
@@ -71,6 +71,21 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the wasm target or the build is missing
       def wasm(**held)
         child(:wasm, [plain(held[:domain])])
+      end
+
+      # Generates the domain, compiles it to a `wasm32-wasip1` module, builds the host binary from
+      # the workspace and stages the three files in a directory an image copies from.
+      #
+      # @param held [Hash] the `Build` record: `domain`, `target` (the machine's own when absent)
+      #   and `stage` (`.hecks/host/<target>/` when absent)
+      # @return [Hash{Symbol => Hash}] `output:` where the files were staged
+      # @raise [ConsoleCapture::Failure] when the toolchain or the target is missing, or a step
+      #   fails
+      def host(**held)
+        argv = [plain(held[:domain])]
+        argv << "--target=#{plain(held[:target])}" if plain(held[:target])
+        argv << "--stage=#{plain(held[:stage])}" if plain(held[:stage])
+        child(:host, argv)
       end
 
       # Generates the domain, then compiles it to an ES module for a browser through wasm-bindgen.

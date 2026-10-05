@@ -391,6 +391,7 @@ module Hecks
         {"script"=>"hecks_mcp_door", "section"=>"Custodian", "aggregate"=>"Door", "verb"=>"serve_mcp"}.freeze,
         {"script"=>"project_rust", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"project_rust"}.freeze,
         {"script"=>"project_wasm", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"build_wasm"}.freeze,
+        {"script"=>"project_host", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"build_host"}.freeze,
         {"script"=>"project_wasm_browser", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"build_browser_wasm"}.freeze,
         {"script"=>"rust_coverage", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"rust_coverage"}.freeze,
         {"script"=>"rust_coverage", "section"=>"Custodian", "aggregate"=>"Build", "verb"=>"check_coverage_allowlist"}.freeze,

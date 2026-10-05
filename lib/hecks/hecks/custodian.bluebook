@@ -1481,6 +1481,8 @@ policy "RecordTheEra" do
     attribute :domain,   DomainPath, optional: true
     attribute :script,   ScriptPath, optional: true
     attribute :artifact, Artifact,   optional: true
+    attribute :target,   TargetTriple, optional: true
+    attribute :stage,    StagePath,  optional: true
     attribute :seeds,    Count,      optional: true
     attribute :steps,    Count,      optional: true
     attribute :output,   Report,     optional: true
@@ -1513,6 +1515,17 @@ policy "RecordTheEra" do
     # module, or a binary.
     value_object "Artifact" do
       attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # A Rust target triple: `<arch>-<vendor>-<os>` with an optional `-<env>`. The toolchain
+    # refuses the triples a host cannot be built for (a wasm target) and the ones not installed.
+    value_object "TargetTriple" do
+      attribute :value, String, pattern: '^[a-z0-9_]+(-[a-z0-9_.]+){2,3}$'
+    end
+
+    # The directory a host build stages its files in.
+    value_object "StagePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
     end
 
     value_object "Count" do
@@ -1561,6 +1574,26 @@ policy "RecordTheEra" do
       sets :run
 
       emits WasmBuildRequested
+    end
+
+    # Compiles the host binary from the installed gem's workspace for the target and stages it with
+    # the domain's `.wasm` and `.ir.json` (in `.hecks/host/<target>/` unless `stage` names a
+    # directory), the files a container image copies in.
+    command "BuildHost" do
+      role "Operator"
+      goal "Build the Rust host for a domain, with its wasm and IR, ready to copy into an image"
+
+      attribute :domain, DomainPath
+      attribute :run,    BuildKey
+      attribute :target, TargetTriple, optional: true
+      attribute :stage,  StagePath,    optional: true
+
+      sets :domain
+      sets :run
+      sets :target
+      sets :stage
+
+      emits HostBuildRequested
     end
 
     command "BuildBrowserWasm" do
@@ -1683,6 +1716,11 @@ policy "RecordTheEra" do
   policy "CompileWasmWhenRequested" do
     on      "Build.WasmBuildRequested"
     trigger Build::RustToolchain::Wasm, with: { run: :run }
+  end
+
+  policy "BuildHostWhenRequested" do
+    on      "Build.HostBuildRequested"
+    trigger Build::RustToolchain::Host, with: { run: :run }
   end
 
   policy "CompileBrowserWasmWhenRequested" do

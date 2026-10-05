@@ -392,6 +392,25 @@ build took several minutes (dependencies include wasmtime and the AWS SDK).
 A rebuild after changing only the bluebook needs `hecks build.build_wasm` again and
 not the host build.
 
+`hecks build.build_host` runs both steps and stages the result. It builds the module as
+`build.build_wasm` does, compiles `rust/host` from the workspace of the installed gem (no clone, no tag
+to match: the host is always the release you have installed), and copies `underwriting-host`,
+`underwriting.wasm` and `underwriting.ir.json` into `.hecks/host/<target>/`, the files an image
+copies in:
+
+```sh
+hecks build.build_host domain="$DOMAIN" --wait                                  # this machine
+hecks build.build_host domain="$DOMAIN" target=aarch64-unknown-linux-gnu \
+  stage=build/domain --wait                                                    # an arm64 image
+```
+
+A target that is not installed is refused with the `rustup target add <triple> --toolchain stable` that
+fixes it; a cross target also needs a linker for it (`aarch64-linux-gnu-gcc` on `PATH`, or
+`CARGO_TARGET_<TRIPLE>_LINKER`). Cargo writes to `.hecks/rust/<version>/target` in a project (the
+checkout's `rust/host/target` in a hecks checkout), so only the first build compiles wasmtime; a
+later one recompiles the domain's module and relinks. Keep that directory between CI runs to keep the
+cache. `--wait` makes a refusal exit 1.
+
 The deploy Makefile does the equivalent for the cloud. For Fargate its
 `build` target cross-compiles the host for `aarch64-unknown-linux-gnu`,
 copies `underwriting-host`, `underwriting.wasm` and `underwriting.ir.json`

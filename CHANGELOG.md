@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`hecks build.build_host` builds the Rust host for a domain and stages it for an image.** It builds the domain's
+`.wasm` and `.ir.json` as `build.build_wasm` does, compiles `rust/host` in release from the installed gem's workspace
+(`.hecks/rust/<version>/` in a project, so the host is the release the Gemfile resolves and nothing is cloned), and
+copies `<domain>-host`, `<domain>.wasm` and `<domain>.ir.json` into `stage=` (default `.hecks/host/<target>/`), the
+files a container image `COPY`s. `target=<triple>` cross-compiles (default: the machine's own); a target that is not
+installed, a wasm target, a missing `rustup` and a malformed triple are refused with the command that fixes them, and
+`--wait` makes a refusal exit 1. Cargo's output stays in the workspace's `target/`, so a second build is incremental.
+The `Build` aggregate gains the `BuildHost` command, the `TargetTriple` and `StagePath` values and the
+`RustToolchain` port's `Host` ask; the Rust meta, vocabulary and frozen Bluebook IR are regenerated.
+
 **Behavior change: `hecks package.vendor` and `package.revendor` exit 1 when the package is refused, and say why.** Both
 commands now wait for their reactions as `--wait` does, so a downgrade without `ALLOW_DOWNGRADE=1`, a shape change on
 a patch bump, a package the source does not carry and a missing source repository end with exit status 1 and the

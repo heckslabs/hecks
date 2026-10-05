@@ -176,4 +176,10 @@ Hecks.behaviors "Custodian" do
     input domain: { value: "examples/pizzas" }, run: { value: "" }
     expect refused: "must match"
   end
+
+  test "BuildHost refuses a target that is not a triple" do
+    tests "BuildHost", on: "Build"
+    input domain: { value: "examples/pizzas" }, run: { value: "host" }, target: { value: "arm64" }
+    expect refused: "must match"
+  end
 end
