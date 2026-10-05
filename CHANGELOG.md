@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A query can declare `needs`, and there is a `today` fact (ADR 0081).** A query writes `needs :now`
+(or `needs :today`, the day the clock falls in, whole days since the epoch in UTC) and declares the
+attribute it fills; the runtime answers it before the query's filter reads its arguments, unless the
+caller passed a value of its own. Ruby, the Rust parser, the Rust host and the kernel all do it, and
+`today` is available to commands too. The Query IR carries `needs` only on a query that declares
+one, so no existing IR changes; a query's log echoes the arguments the caller offered. `lease_clock`'s
+`Expired` query now needs `now`. `Hecks::RustBuild::KernelInput` also sends a standalone binary the
+`needs` and `query_needs` tables, as the host does.
+
 **`hecks interview` drafts what a thing has and how it changes state.** The interview takes two more findings: a **field** a thing has, with the values it may take when the expert listed a closed set, and a **transition**, the state an action leaves a thing in and the state it had to be in before. An action also records the fields it takes and who does it. The draft writes a field as an attribute (optional unless the creating action takes it), a closed set as `one_of`, a command's inputs as its attributes with `sets`, and the transitions as a lifecycle that starts where the creating action leaves the thing. Who may do an action is written as a comment, not a `role`, because a role is checked only once the domain attaches Governance. The interviewer is also told when a thing is not yet said to have anything, or to change state.
 
 **The launcher forms of `docs/tools.md` are generated.** What each retired `bin/` script became is

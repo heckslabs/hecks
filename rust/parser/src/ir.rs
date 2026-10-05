@@ -133,6 +133,8 @@ pub struct Query {
     pub options: QueryOptions,
     /// `returns Name` or `returns list_of(Name)`, spelled as `Query#returns` holds it.
     pub returns: Option<String>,
+    /// Outside facts the runtime supplies before the filter reads the arguments (`needs :now`).
+    pub needs: Vec<String>,
 }
 
 /// `AuthorizationSpec#to_h`: both fields are bare `.to_s`, never Literal-rendered.

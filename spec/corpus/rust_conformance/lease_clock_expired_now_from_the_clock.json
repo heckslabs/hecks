@@ -1,0 +1,132 @@
+{
+  "domain": "qa/stress_domains/lease_clock",
+  "note": "A query that declares `needs :now` has the runtime fill the clock reading the caller left out, in both engines (ADR 0081). `Lease.Expired` is asked with no `now` after a lease is acquired to expire at second 200: each engine reads its own clock, which is long past 200, so the lease is expired in both and the rows agree whatever the exact time.",
+  "steps": [
+    {
+      "verb": "LeaseClock::Lease.Register",
+      "args": {
+        "key": {
+          "value": "L1"
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Acquire",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "now": {
+          "value": 100
+        },
+        "expiry": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "query": "LeaseClock::Lease.Expired",
+      "args": {
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "LeaseClock::Lease#L1": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "expires_at": {
+          "value": 200
+        },
+        "status": "held"
+      }
+    },
+    "events": [
+      {
+        "name": "LeaseRegistered",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          }
+        }
+      },
+      {
+        "name": "LeaseAcquired",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          },
+          "holder": {
+            "value": "ann"
+          },
+          "now": {
+            "value": 100
+          },
+          "expiry": {
+            "value": 200
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "LeaseClock::Lease.Expired",
+        "args": {
+        },
+        "rows": [
+          {
+            "key": {
+              "value": "L1"
+            },
+            "holder": {
+              "value": "ann"
+            },
+            "expires_at": {
+              "value": 200
+            },
+            "status": "held",
+            "id": "L1"
+          }
+        ],
+        "reference_rows": [
+          {
+            "key": {
+              "value": "L1"
+            },
+            "holder": {
+              "value": "ann"
+            },
+            "expires_at": {
+              "value": 200
+            },
+            "status": "held",
+            "id": "L1"
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

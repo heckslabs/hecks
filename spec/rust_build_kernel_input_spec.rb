@@ -11,6 +11,19 @@ RSpec.describe Hecks::RustBuild::KernelInput do
     expect(described_class.defaults_for(domain)).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
   end
 
+  it "lists the facts a command needs and, apart, the facts a query needs, with their argument types" do
+    tables = described_class.tables_for(domain)
+
+    expect(tables["needs"]["LeaseClock::Lease.Reap"]).to eq([{ "fact" => "now", "type" => "LeaseInstant" }])
+    expect(tables["query_needs"]).to eq("LeaseClock::Lease.Expired" => [{ "fact" => "now", "type" => "LeaseInstant" }])
+    expect(tables["query_needs"].keys & tables["needs"].keys).to eq([])
+  end
+
+  it "sends each table only when it has an entry" do
+    expect(described_class.build(domain, steps).keys).to eq(%w[steps defaults needs query_needs])
+    expect(described_class.build(File.join(InMemoryDomain::ROOT, "examples/pizzas"), steps).keys).to eq(["steps"])
+  end
+
   it "lists an entity's commands, and a nested entity's, under their full verb path" do
     nested = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
 

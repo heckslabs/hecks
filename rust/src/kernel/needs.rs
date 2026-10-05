@@ -26,15 +26,16 @@ pub struct Need {
 thread_local! {
     static TABLE: RefCell<HashMap<String, Vec<Need>>> = RefCell::new(HashMap::new());
     static DEFAULTS: RefCell<HashMap<String, Vec<(String, Json)>>> = RefCell::new(HashMap::new());
+    static QUERY_TABLE: RefCell<HashMap<String, Vec<Need>>> = RefCell::new(HashMap::new());
     static FIXED_CLOCK: Cell<Option<i64>> = const { Cell::new(None) };
 }
 
-/// Installs the table the host passed (an absent or malformed `"needs"` installs an empty one).
-pub fn install(table: Option<&Json>) {
-    let parsed = match table {
+/// Reads a `{ name: [{fact, type}] }` table (an absent or malformed one reads as empty).
+fn parse_table(table: Option<&Json>) -> HashMap<String, Vec<Need>> {
+    match table {
         Some(Json::Object(entries)) => entries
             .iter()
-            .map(|(verb, needs)| {
+            .map(|(name, needs)| {
                 let needs = needs
                     .as_array()
                     .unwrap_or(&[])
@@ -45,12 +46,23 @@ pub fn install(table: Option<&Json>) {
                         Some(Need { fact, attribute_type })
                     })
                     .collect();
-                (verb.clone(), needs)
+                (name.clone(), needs)
             })
             .collect(),
         _ => HashMap::new(),
-    };
-    TABLE.with(|t| *t.borrow_mut() = parsed);
+    }
+}
+
+/// Installs the table the host passed, command verb to its needs (an absent or malformed
+/// `"needs"` installs an empty one).
+pub fn install(table: Option<&Json>) {
+    TABLE.with(|t| *t.borrow_mut() = parse_table(table));
+}
+
+/// Installs the table of queries that need a fact, `"Domain::Aggregate.Query"` to its needs. Kept
+/// apart from the commands': a command and a query may share a qualified name.
+pub fn install_queries(table: Option<&Json>) {
+    QUERY_TABLE.with(|t| *t.borrow_mut() = parse_table(table));
 }
 
 /// Installs the declared defaults the host passed, `{ verb: { attribute: value } }` (an absent or
@@ -106,9 +118,11 @@ fn parse_iso8601_utc(text: &str) -> Option<i64> {
 
 fn answer(need: &Need, occurred_at: Option<&str>) -> Option<Json> {
     match need.fact.as_str() {
-        "now" => {
+        // `now` is epoch seconds; `today` the day those fall in, whole days since the epoch (UTC).
+        "now" | "today" => {
             let secs = now_secs(occurred_at);
-            Some(if need.attribute_type == "Integer" { Json::int(secs) } else { Json::obj(vec![("value", Json::int(secs))]) })
+            let answer = if need.fact == "today" { secs.div_euclid(86_400) } else { secs };
+            Some(if need.attribute_type == "Integer" { Json::int(answer) } else { Json::obj(vec![("value", Json::int(answer))]) })
         }
         _ => None,
     }
@@ -149,6 +163,27 @@ pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json
     }
     let Json::Object(envelope) = args else { return None };
     Some(Json::Object(envelope.iter().map(|(k, v)| if k == "with" { (k.clone(), Json::Object(filled.clone())) } else { (k.clone(), v.clone()) }).collect()))
+}
+
+/// `args` with each fact the query `question` needs and the caller left out answered, or `None`
+/// when nothing needed filling (the query needs nothing, or every fact is supplied). A query's
+/// arguments are the flat object of its step.
+pub fn enrich_query(question: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json> {
+    let needs = QUERY_TABLE.with(|t| t.borrow().get(question).cloned())?;
+    let Json::Object(held) = args else { return None };
+    let mut filled = held.clone();
+    for need in &needs {
+        if held.iter().any(|(k, _)| k == &need.fact) {
+            continue;
+        }
+        if let Some(value) = answer(need, occurred_at) {
+            filled.push((need.fact.clone(), value));
+        }
+    }
+    if filled.len() == held.len() {
+        return None;
+    }
+    Some(Json::Object(filled))
 }
 
 #[cfg(test)]
@@ -263,5 +298,65 @@ mod tests {
         install(None);
         install_defaults(None);
         assert_eq!(enrich("D::A.Start", &with(vec![]), None), None);
+    }
+
+    fn query_table() -> Json {
+        Json::parse(
+            r#"{"D::A.Expired": [{"fact": "now", "type": "Integer"}],
+                "D::A.Today": [{"fact": "today", "type": "DayNumber"}]}"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_needed_query_fact_the_caller_left_out_is_answered_by_the_clock() {
+        install_queries(Some(&query_table()));
+        fix_clock(Some(1_700_000_000));
+        let filled = enrich_query("D::A.Expired", &Json::obj(vec![]), None).unwrap();
+        assert_eq!(filled.get("now"), Some(&Json::int(1_700_000_000)));
+        fix_clock(None);
+        install_queries(None);
+    }
+
+    #[test]
+    fn a_query_value_the_caller_supplied_is_kept() {
+        install_queries(Some(&query_table()));
+        fix_clock(Some(1));
+        assert_eq!(enrich_query("D::A.Expired", &Json::obj(vec![("now", Json::int(7))]), None), None);
+        fix_clock(None);
+        install_queries(None);
+    }
+
+    #[test]
+    fn a_query_that_needs_nothing_is_untouched() {
+        install_queries(Some(&query_table()));
+        assert_eq!(enrich_query("D::A.Plain", &Json::obj(vec![]), None), None);
+        install_queries(None);
+        assert_eq!(enrich_query("D::A.Expired", &Json::obj(vec![]), None), None);
+    }
+
+    #[test]
+    fn a_command_and_a_query_of_one_name_keep_their_own_needs() {
+        install(Some(&table()));
+        install_queries(Some(&query_table()));
+        fix_clock(Some(5));
+        assert_eq!(enrich_query("D::A.Instant", &Json::obj(vec![]), None), None);
+        assert!(enrich("D::A.Instant", &with(vec![]), None).is_some());
+        fix_clock(None);
+        install(None);
+        install_queries(None);
+    }
+
+    #[test]
+    fn today_is_the_day_the_clock_falls_in_whole_days_since_the_epoch() {
+        install_queries(Some(&query_table()));
+        fix_clock(Some((19_000 * 86_400) + 86_399));
+        let filled = enrich_query("D::A.Today", &Json::obj(vec![]), None).unwrap();
+        assert_eq!(filled.get("today"), Some(&Json::obj(vec![("value", Json::int(19_000))])));
+        fix_clock(Some(19_001 * 86_400));
+        let next = enrich_query("D::A.Today", &Json::obj(vec![]), None).unwrap();
+        assert_eq!(next.get("today"), Some(&Json::obj(vec![("value", Json::int(19_001))])));
+        fix_clock(None);
+        install_queries(None);
     }
 }
