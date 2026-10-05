@@ -538,7 +538,7 @@
     "generated": false,
     "gap_class": "per_instance",
     "construct": "cursor",
-    "reason": "declares cursor — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+    "reason": "declares cursor — out of scope for this generator (rust/codegen/src/queries.rs's own header has the full argument)"
   },
   {
     "kind": "query",

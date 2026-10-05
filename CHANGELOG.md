@@ -15,6 +15,8 @@ A patch on 3.2.0, which was tagged before the entries below landed. The deprecat
 
 **The era check takes its timeout from the caller.** `CheckEra.run`, the old argv entry nothing called, is removed, and `timeout:` is now required in the `ExpectedEra` helpers, so the command's declared default is the only one. ([#1013](https://github.com/heckslabs/hecks/pull/1013))
 
+**`hecks-codegen` is the only Rust generator.** `hecks project_rust` builds the IR from the live registry and runs `hecks-codegen` on it; the Ruby generator in `rust/project`, its `HECKS_PARSER`/`HECKS_CODEGEN` pipeline opt-in and the `HECKS_CODEGEN=ruby` rollback are gone (ADR 0086). Generating Rust now builds `hecks-codegen`, so it needs Cargo; an installed gem builds it into the workspace copy's own target directory, never into the gem. The Ruby-versus-Rust parity specs became `spec/codegen_planted_gaps_spec.rb`, a frozen manifest for the construct families no corpus domain has; `hecks regenerate_corpus --check` still diffs every corpus domain against the committed tree.
+
 The Site chapter, after its first adoption by a client project. A route table written for 3.1.x generates the same
 `routes.ts` and the same template regions, apart from the one change under **Changed** (the `matchesPath` helper in the
 module), unless it uses what is added below; the one new refusal is noted there too.

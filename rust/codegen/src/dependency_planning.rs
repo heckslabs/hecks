@@ -1,4 +1,4 @@
-//! Port of `rust/project/dependency_planning.rb`, an independent re-derivation of the
+//! Port of the retired Ruby generator's `dependency_planning.rb`, an independent re-derivation of the
 //! Analyzer's `complete_state? && state_independent?` predicate. Mirrors the Ruby file.
 
 use crate::json::Json;

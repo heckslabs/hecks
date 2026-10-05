@@ -8,7 +8,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # extension a real domain ships (`.hecksagon`/`.world` carry words no
   # `.bluebook` file could). Uses `InMemoryDomain::ROOT` directly, not
   # aliased to a local `ROOT` — a bare one collides with
-  # project_rust_pipeline_spec.rb's own (see load_hygiene_spec.rb).
+  # another spec's own (see load_hygiene_spec.rb).
   CORPUS_GLOBS = [
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.hecksagon"),
