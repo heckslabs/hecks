@@ -408,9 +408,8 @@ module Hecks
           File.expand_path(path.to_s).start_with?("#{GEM_CHAPTER_DIR}/")
         end
 
-        # Two packages can share a chapter name by coincidence (found live: a stale
-        # vendor/hecksagain fork of Governance/Identity/Deploy, still on 4 apps' load
-        # paths). Intentional accumulation (several files declaring the same chapter on
+        # Two packages can share a chapter name by coincidence (a stale vendored
+        # fork of Governance/Identity/Deploy still on an app's load paths). Intentional accumulation (several files declaring the same chapter on
         # purpose) is distinguished by package root, not file identity, and is left
         # untouched here — checked once, after every file has loaded.
         def refuse_cross_package_bluebook_merge!
