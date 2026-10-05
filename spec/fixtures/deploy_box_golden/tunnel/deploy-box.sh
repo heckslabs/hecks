@@ -57,6 +57,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
   --arg registry "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com" --arg dir "$DIR" '
   {commands: ["cloud-init status --wait >/dev/null 2>&1 || true",
     "set -e", "mkdir -p \($dir)/caddy-extra && cd \($dir)", "umask 077",
+    "CADDY_BEFORE=$(cat Caddyfile 2>/dev/null | sha256sum)",
     "echo \($compose) | base64 -d > compose.json; echo \($secrets) | base64 -d > secrets.json",
     "echo \($caddy) | base64 -d > Caddyfile; echo \($fetch) | base64 -d > fetch-secrets.sh",
     "bash fetch-secrets.sh",
@@ -64,6 +65,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
     "aws ecr get-login-password --region '"$REGION"' | docker login --username AWS --password-stdin \($registry) >/dev/null",
     "docker compose -f compose.json pull --quiet",
     "docker compose -f compose.json up -d --remove-orphans",
+    "[ \"$(sha256sum < Caddyfile)\" = \"$CADDY_BEFORE\" ] || docker compose -f compose.json restart caddy",
     "for i in $(seq 1 40); do docker compose -f compose.json ps --format \"{{.Status}}\" | grep -qE \"^Up (Less than a second|[0-4] seconds?)|Restarting|Created|Exited\" || break; sleep 1; done; docker compose -f compose.json ps --format \"table {{.Service}}\\t{{.Status}}\""],
    executionTimeout: ["900"]}')
 

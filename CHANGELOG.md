@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` deploys no longer show a visitor a 502.** A request that arrives while a container is being replaced now waits and is retried every 250 ms for up to 15 seconds (`lb_try_duration` on each upstream), so a roll costs a slow page instead of an error; no second copy of the container, and no extra cost. On the live Lifeadelics box, recreating the website container answered 3 of 108 requests with a 502 before and none after. The roll also restarts the proxy when its Caddyfile changed: the Caddyfile is a bind-mounted file and the admin API is off, so without that a regenerated Caddyfile never took effect. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 **`AwsBox` rolls the box faster and writes executable scripts.** `deploy-box.sh` no longer sleeps a fixed 20 seconds after starting the containers: it waits until every container has been up at least 5 seconds, and still catches one that restarts or exits right after starting. On the live Lifeadelics box that cut the roll from about 40 seconds to 16. The generated `.sh` files are also written with the executable bit, so a caller can run `./deploy-box.sh` directly. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
 
 ## [3.1.3] - 2026-10-05

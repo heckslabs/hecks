@@ -379,9 +379,19 @@ module Hecks
         def route_blocks(plan)
           routes = plan.routes.each_with_index.map do |route, i|
             port = plan.containers.find { |c| c.name == route.container }.port
-            "@r#{i + 1} path #{route.paths.join(' ')}\nhandle @r#{i + 1} {\n\treverse_proxy 127.0.0.1:#{port}\n}\n\n"
+            "@r#{i + 1} path #{route.paths.join(' ')}\nhandle @r#{i + 1} {\n#{upstream(port)}}\n\n"
           end
-          "#{routes.join}handle {\n\treverse_proxy 127.0.0.1:#{plan.default.port}\n}\n"
+          "#{routes.join}handle {\n#{upstream(plan.default.port)}}\n"
+        end
+
+        # One upstream. A request that arrives while its container is being replaced waits, and is tried
+        # again every quarter second for up to 15 seconds, so a deploy shows a visitor a slow page instead
+        # of a 502.
+        #
+        # @param port [Integer] the container's port
+        # @return [String] the `reverse_proxy` block, one tab in, ending in a newline
+        def upstream(port)
+          "\treverse_proxy 127.0.0.1:#{port} {\n\t\tlb_try_duration 15s\n\t\tlb_try_interval 250ms\n\t}\n"
         end
 
         # @param plan [Settings::Plan] the resolved settings

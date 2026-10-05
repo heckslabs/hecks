@@ -181,6 +181,14 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   describe "the default world" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
+    it "holds and retries a request while a container restarts, and restarts the proxy when its config changed" do
+      caddy = files["Caddyfile"]
+      expect(caddy.scan("reverse_proxy").size).to be >= 1
+      expect(caddy.scan("lb_try_duration 15s").size).to eq(caddy.scan("reverse_proxy").size)
+      expect(caddy.scan("lb_try_interval 250ms").size).to eq(caddy.scan("reverse_proxy").size)
+      expect(files["deploy-box.sh"]).to include("CADDY_BEFORE=", "restart caddy")
+    end
+
     it "writes its shell scripts executable, and waits for the containers instead of sleeping" do
       Dir.mktmpdir do |dir|
         domain = File.join(dir, BOX_FIXTURE_NAME)
