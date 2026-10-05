@@ -35,6 +35,13 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
       .to raise_error(failure, "1 example, 1 failure")
   end
 
+  it "refuses a run that printed nothing, since a real run always prints its summary" do
+    described_class.runner = ->(*) { 0 }
+
+    expect { described_class.new(tree).run(file: "hecks.gemspec", example: "x") }
+      .to raise_error(failure, "the test runner printed nothing for hecks.gemspec")
+  end
+
   it "refuses a spec file that is not there, without starting the runner" do
     described_class.runner = ->(*) { raise "the runner must not start" }
 
