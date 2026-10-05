@@ -581,10 +581,12 @@ RSpec.describe "the Hecks command table through the launcher" do
         run_verb("package.vendor", package, "from=#{registry.path}", "root=#{project}", *flags)
       end
 
+      # A record is named by the spelling asked for and the runtime is shared across examples, so
+      # this one asks for a release no other example vendors; bare "widgets" is already a record.
       it "is 0 when the package was pinned" do
         release("2.0.0")
 
-        expect(vendor("widgets").drop(1).first).to eq(0)
+        expect(vendor("widgets@2.0.0").drop(1).first).to eq(0)
       end
 
       it "is 1 for a downgrade, with the reason, with or without --wait" do
