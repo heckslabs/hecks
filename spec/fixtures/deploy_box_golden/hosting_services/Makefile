@@ -20,6 +20,6 @@ stacks:
 
 deploy:
 	bash ./deploy-box.sh $(TAGS)
-	HECKS_ENVIRONMENT=memory $(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait
+	$(MAKE) smoke-after-deploy
 
 include hosting.mk

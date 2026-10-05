@@ -24,7 +24,10 @@ ADR 0080 settled the shape: a rule becomes a `given`, a side effect sits behind 
 4. Rules about the inputs move to `given`s (a task definition is a family name; exactly one of two options). Rules about the live world (a stack's status, a container's state) stay where the world is read.
 5. Every such command is `hecks deploy <aggregate>.run` and is added to `settled` in `hecks.world`, so a flagged run is exit 1 without `--wait`.
 6. **A roll and its smoke are two aggregates joined by a policy.** A roll records `rolled` and a policy requests a smoke; a smoke can still be run alone. The roll aggregate is not built yet.
-7. **`make deploy` calls the command.** The generated `Makefile` and `hosting.mk` run `HECKS_ENVIRONMENT=memory $(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait` where they ran the script, so a deploy ends with a record and a failed smoke is exit 1 (the script's own 20 to 23 is in the message). The memory environment is the one `check-era` already uses; it means the record lives for the run, and the command's output is what is kept. A journal that persists across deploys needs the Hecks domain bound to a database on the machine that deploys. `deploy-service.sh` still calls the script directly until the roll is a command.
+7. **`make deploy` calls the command, and the record is persisted.** The generated `Makefile` ends `deploy` with `$(MAKE) smoke-after-deploy`, and `hosting.mk`'s target runs `$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait` where it ran the script. The command runs in the normal environment, so the Hecks domain binds to `HECKS_DATABASE` (default `postgres://hecks@localhost/hecks`) and each deploy's `SmokeRun` is durable and queryable. A failed smoke is exit 1 (the script's own 20 to 23 is in the message).
+   - **One-time setup.** A machine that runs `make deploy`, a laptop or a CI runner, needs that database: `createdb hecks` on a local Postgres, or `HECKS_DATABASE` pointing at one it reaches. The first run creates the tables. A CI job that runs `make deploy` needs a Postgres service and the variable too.
+   - **A missing database does not lose the smoke.** The command cannot start without its database, so the target detects the launcher's `cannot open Hecks` failure, prints that error and the setup step, runs `smoke-after-deploy.sh` directly so the smoke's result is still printed, and exits non-zero: with the smoke's own status when it failed, or 24 when it passed but the record could not be written. The database error and the smoke outcome are stated separately.
+   - `deploy-service.sh` still calls the script directly until the roll is a command.
 8. Specs run the generated golden script against the stand-in programs of `spec/support/box_hosting_stubs.rb`, through the launcher. The goldens come from the generator.
 
 ### The command table
@@ -49,7 +52,7 @@ ADR 0080 settled the shape: a rule becomes a `given`, a side effect sits behind 
 ## Consequences
 
 - A smoke becomes a record in the run's journal, and `smoke_run.flagged` lists the ones that failed; the MCP door can run it.
-- `make deploy` now needs a `hecks` on the machine that deploys. The generated `hosting.mk` already assumed one for `check-era`.
+- `make deploy` now needs a `hecks` and a Hecks database on the machine that deploys (decision 7). Which machines and workflows need one is a deployment fact: this repository's workflows do not run `make deploy`.
 - A project must regenerate its recipe to pick up the new Makefile; until then it keeps calling the script.
 - A script whose logic moves into Ruby needs stand-ins for `aws` and `gh` at the adapter boundary, not on `PATH`.
 
@@ -64,5 +67,5 @@ ADR 0080 settled the shape: a rule becomes a `given`, a side effect sits behind 
 
 ## Open items
 
-- A persistent journal for deploy commands: the Makefile uses the memory environment, so the record is the command's printed state. Pointing the Hecks domain at a database on the deploying machine would keep the history.
+- A persistent journal for deploy commands: decided, persisted (decision 7). Retention of old `SmokeRun` rows is not decided.
 - Whether `preview_run` belongs to the Deploy chapter or to a Fargate-specific one, since the preview stack is a separate template from the live one.

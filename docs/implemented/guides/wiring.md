@@ -534,10 +534,21 @@ left an old image running therefore never reaches the smoke. The box is read ove
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
 the stack update and the roll itself. `make deploy` ends with
 `hecks deploy smoke_run.run`, which runs `smoke-after-deploy.sh` and records how it
-ended (under `HECKS_ENVIRONMENT=memory`, so the record lives for that run only);
-`SKIP_POST_DEPLOY_SMOKE=1` skips it and `DRY_RUN=1` dispatches nothing. The
-smoke now exits 1 when it does not pass; the script's own status (20 to 23) is in
-the message.
+ended in the Hecks database, so every deploy leaves a `SmokeRun` that
+`hecks deploy smoke_run.verdict` and `smoke_run.flagged` can query.
+`SKIP_POST_DEPLOY_SMOKE=1` skips the smoke and `DRY_RUN=1` dispatches nothing. It
+exits 1 when the smoke does not pass; the script's own status (20 to 23) is in the
+message.
+
+The record needs a database on the machine that runs `make deploy`. The Hecks
+domain reads `HECKS_DATABASE` and defaults to `postgres://hecks@localhost/hecks`,
+so a deploying machine needs, once, a local Postgres with that database (`createdb
+hecks`), or `HECKS_DATABASE` pointing at one it can reach; the first run creates the
+tables. A CI job that runs `make deploy` needs the same: a Postgres service and
+`HECKS_DATABASE` set. Without the database the command cannot start, so the
+generated `smoke-after-deploy` target says so, runs the script anyway so the smoke's
+result is printed, and exits non-zero with the database error stated apart from the
+smoke's outcome: the smoke's own status when it failed, or 24 when it passed.
 
 ### Per-branch previews for `AwsFargate`
 

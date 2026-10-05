@@ -28,10 +28,24 @@ module Hecks
                       "# after adding one: the admin API is off, so a reload cannot reach it.\n" \
                       "import /etc/caddy/extra/*\n".freeze
 
-        # The recipe line that runs the post-deploy smoke as a command: it finds
-        # `smoke-after-deploy.sh` beside the Makefile, runs it and records how it ended. The memory
-        # environment keeps it from needing a database, as `check-era` does.
-        SMOKE_COMMAND = 'HECKS_ENVIRONMENT=memory $(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait'.freeze
+        # The `smoke-after-deploy` recipe: the smoke runs as `smoke_run.run`, which finds
+        # `smoke-after-deploy.sh` beside the Makefile and records how it ended in the Hecks
+        # database. When that database cannot be opened the command never starts, so the recipe
+        # runs the script itself, states the database error apart from the smoke's result, and
+        # exits non-zero (24 when the smoke passed).
+        SMOKE_RECIPE = [
+          "@err=$$(mktemp); \\",
+          '$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \\',
+          'if [ $$rc -ne 0 ] && grep -q \'^cannot open Hecks\' "$$err"; then \\',
+          '  echo "==> the deploy record was NOT written: $$(grep -m1 \'^cannot open Hecks\' "$$err")" >&2; \\',
+          '  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \\',
+          '  echo "    running the smoke anyway so its result is not lost" >&2; \\',
+          '  rm -f "$$err"; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \\',
+          '  echo "==> smoke exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \\',
+          "  [ $$rc -ne 0 ] || rc=24; exit $$rc; \\",
+          "fi; \\",
+          'cat "$$err" >&2; rm -f "$$err"; exit $$rc'
+        ].join("\n\t").freeze
 
         module_function
 
@@ -587,7 +601,7 @@ module Hecks
         def hosting_makefile_tail(plan)
           return "" unless plan.hosting
 
-          "\t#{SMOKE_COMMAND}#{' $(if $(TASKDEF),taskdef=$(TASKDEF))' if plan.task_definition}\n\ninclude hosting.mk\n"
+          "\t$(MAKE) smoke-after-deploy\n\ninclude hosting.mk\n"
         end
 
         # Fills `@@NAME@@` markers. A marker alone on its line is replaced together with the line,
