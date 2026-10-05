@@ -9,7 +9,7 @@ RSpec.describe "hecks quality_control log", :io do
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
-    @ledger = QaLedgerFixture::Ledger.new(database: "hecks_qa_log_bug_spec").stand_up!
+    @ledger = QaLedgerFixture::Ledger.new(database: "hecks_qa_log_bug_spec_#{Process.pid}").stand_up!
   end
 
   after(:all) { @ledger&.tear_down! }
