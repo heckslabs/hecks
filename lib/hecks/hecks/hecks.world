@@ -25,8 +25,10 @@
 # `Doors::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
 # `failure_states` are the lifecycle states `--wait` reports as exit 1 (every failure state the
 # chapter's lifecycles declare), `names` gives a command the launcher name clients type,
-# `executable` is where `hecks project_cli` writes this chapter's launcher (the gem's
-# `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
+# `settled` names the commands that always wait for their reactions, as if `--wait` were given, so a
+# refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
+# for its outcome), `executable` is where `hecks project_cli` writes this chapter's launcher (the
+# gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
 # positional forms ADR 0066 shipped.
@@ -37,6 +39,7 @@ Hecks.world "Hecks" do
   launcher "Launcher", run_keys: true,
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
                                           abandoned red needs_fix],
+                       settled: %w[package.vendor package.revendor],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
                                 "interview" => "door.interview" },
                        streams: %w[Follow],

@@ -168,7 +168,11 @@ launcher "Launcher", run_keys: true,
 - `names` gives a command the name the launcher lists; the internal spelling keeps working.
 - `failure_states` names the lifecycle states `--wait` treats as a failure. `--wait` re-reads
   the record after its reactions ran, prints its final state and events, and exits 1 in a
-  failure state. A verb that declares its own `wait` argument keeps it.
+  failure state, and says why on standard error (the record's `refusal`, when it keeps one).
+  A verb that declares its own `wait` argument keeps it.
+- `settled` lists commands (`aggregate.command`) that always behave as if `--wait` were given,
+  for a verb a script runs for its outcome: `package.vendor` and `package.revendor` exit 1 with
+  the reason when the package is refused, with no flag.
 
 A policy reaction the domain refused does not undo the command that fired it. The answer lists
 it under `refused_reactions`, read from the dispatch result (`Dispatcher::Result`). Each
