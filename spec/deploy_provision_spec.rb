@@ -12,7 +12,8 @@ RSpec.describe "hecks deploy provision", :io do
   # The child's whole program: the tool the launcher's `deploy provision` runs. A prefixed
   # constant name: a bare one collides with another spec's (caught by load_hygiene_spec.rb).
   TENANT_CHILD = 'require "hecks/tools"; Hecks::Tools.script("project_tenant", ARGV)'.freeze
-  DB = "hecks_project_tenant_spec".freeze
+  # Named for the process, so two runs on one Postgres never drop each other's database.
+  DB = "hecks_project_tenant_spec_#{Process.pid}".freeze
   # The overlay binds the database by URL as a non-superuser owner: PostgresEra refuses to boot
   # as a superuser (see support/fenced_owner.rb).
   DB_URL = FencedOwner.url(DB)
