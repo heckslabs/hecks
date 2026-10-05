@@ -42,7 +42,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
-    @ledger = QaLedgerFixture::Ledger.new(database: "hecks_qa_open_pr_spec").stand_up!
+    @ledger = QaLedgerFixture::Ledger.new(database: "hecks_qa_open_pr_spec_#{Process.pid}").stand_up!
     @shim_dir = Dir.mktmpdir("fake_gh")
     File.write(File.join(@shim_dir, "gh"), FAKE_GH)
     File.chmod(0o755, File.join(@shim_dir, "gh"))

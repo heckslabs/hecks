@@ -10,8 +10,10 @@ require "pathname"
 # `qa_sweep`'s `concurrency` mode against a real subprocess and disposable fixtures; the
 # lock mechanics live in `spec/fuzzing/concurrent_dispatch_spec.rb`, so this proves only wiring.
 RSpec.describe "qa_sweep concurrency", :io do
-  QA_SWEEP_CONCURRENCY_LEDGER_DATABASE = "hecks_qa_sweep_concurrency_spec".freeze
-  QA_SWEEP_CONCURRENCY_TARGET_DATABASE = "hecks_qa_sweep_concurrency_target_spec".freeze
+  # Named for the process, so two runs on one Postgres (parallel sessions) never drop each
+  # other's databases mid-spec.
+  QA_SWEEP_CONCURRENCY_LEDGER_DATABASE = "hecks_qa_sweep_concurrency_spec_#{Process.pid}".freeze
+  QA_SWEEP_CONCURRENCY_TARGET_DATABASE = "hecks_qa_sweep_concurrency_target_spec_#{Process.pid}".freeze
 
   LEDGER_HECKSAGON_FOR_CONCURRENCY_SPEC = <<~RUBY.freeze
     Hecks::Chapters.load!("QualityControl")

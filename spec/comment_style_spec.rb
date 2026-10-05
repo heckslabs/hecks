@@ -156,6 +156,15 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         expect(File.exist?(File.join(@dir, ".standardize_comments_baseline.json"))).to be(true)
       end
 
+      it "passes over an extensionless binary in a scanned directory, and still finds a Ruby script" do
+        File.binwrite(File.join(@dir, "compiled"), "\xFF\xFE\x00\x01 not text \xC3\x28\n")
+        File.write(File.join(@dir, "tool"), "#!/usr/bin/env ruby\n#{source_with_block(limit + 3)}")
+
+        run = Hecks::Tools::CommentStyle::Run.new([@dir], only: ["long_block"], baseline: {})
+
+        expect(run.violations.map(&:path)).to eq([File.join(@dir, "tool")])
+      end
+
       it "loads as empty when there is no file" do
         expect(Hecks::Tools::CommentStyle::Baseline.load(File.join(@dir, "missing.json"))).to eq({})
       end
