@@ -34,6 +34,8 @@ module Hecks
                          "@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f".freeze
           TUNNEL_SHAPE = "tunnel: a hash needs `to` (the container it forwards to) and `token_secret` " \
                          "(the secret holding the tunnel token)".freeze
+          ORIGIN_ENV_SHAPE = "origin_env: the container environment variable names that hold the origin secret " \
+                             "need an origin_secret and a task_definition to compare against".freeze
           ORIGIN_PAIR = "origin_header and origin_secret go together: the header a CDN sends, " \
                         "and the secret that holds its value".freeze
 
@@ -79,7 +81,7 @@ module Hecks
             :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
             :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
             :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :writable_secrets, :tunnel, :tunnel_service, :proxy_image, :task_definition,
+            :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image, :task_definition,
             :migration, :s3_buckets, keyword_init: true
           ) do
             # @return [String] the CloudFormation stack that holds the database
@@ -110,6 +112,7 @@ module Hecks
             task_definition = read_task_definition(s[:task_definition], listed)
             containers = read_containers(listed, infra_name)
             header, secret = read_origin(s)
+            origin_env = read_origin_env(s, secret, task_definition)
             tunnel, tunnel_service = read_tunnel(s.fetch(:tunnel, false), containers)
 
             Plan.new(
@@ -118,7 +121,7 @@ module Hecks
               engine_version: check(:engine_version, s.fetch(:engine_version, "16").to_s, ENGINE),
               containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
               default_container: read_default(s[:default_container], containers), origin_header: header,
-              origin_secret: secret, secret_prefixes: read_prefixes(s, infra_name),
+              origin_secret: secret, origin_env: origin_env, secret_prefixes: read_prefixes(s, infra_name),
               writable_secrets: read_writable_secrets(s),
               tunnel: tunnel, tunnel_service: tunnel_service,
               proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
@@ -261,6 +264,23 @@ module Hecks
             raise ArgumentError, ORIGIN_PAIR if header.nil? || secret.nil?
 
             [check(:origin_header, header, HEADER), check(:origin_secret, secret, SECRET_NAME)]
+          end
+
+          # The container environment variables that hold the origin secret in the task definition. Only
+          # Caddy reads the named secret; the containers keep the task definition's copy, so a copy that
+          # differs makes every request through the CDN fail. Naming them lets deploy refuse a mismatch.
+          #
+          # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
+          # @param secret [String, nil] the declared origin secret
+          # @param task_definition [String, nil] the declared task definition family
+          # @return [Array<String>] the variable names, empty when none are declared
+          # @raise [ArgumentError] when they are named without an origin secret and a task definition
+          def read_origin_env(settings, secret, task_definition)
+            names = Array(settings.fetch(:origin_env, []))
+            return [] if names.empty?
+            raise ArgumentError, ORIGIN_ENV_SHAPE if secret.nil? || task_definition.nil?
+
+            names.map { |name| check(:origin_env, name, ENV_KEY) }.uniq
           end
 
           # `tunnel true` only opens the outbound port; a hash also runs cloudflared as a service.

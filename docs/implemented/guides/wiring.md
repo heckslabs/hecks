@@ -463,6 +463,15 @@ lists only each container's name and port (a container that also sets `env`,
 `secrets` or `repository` is refused). `make deploy TASKDEF=acme-platform:7` rolls a
 chosen revision; with no argument it takes the latest.
 
+With a task definition and an `origin_secret`, only the proxy reads the named secret:
+the containers keep the task definition's own copy of the CDN's secret. A copy that
+differs makes the proxy refuse every request from the CDN. Name the variables that hold
+it, `origin_env ["CLOUDFRONT_ORIGIN_SECRET", "HECKS_PROXY_AUTH_SECRET"]`, and
+`render-compose.sh` fetches the secret and refuses to render when any of them
+differs, or when no container sets one (so a typo cannot skip the check). It never
+prints a value. `origin_env` without an `origin_secret` and a `task_definition` is
+refused.
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files

@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`AwsBox` refuses an origin secret that does not match the task definition's.** With a `task_definition`, only Caddy reads the named origin secret while the containers keep the task definition's copy, so a copy that differs made every request through the CDN fail and nothing said why. A world can now name the variables that hold it (`origin_env ["CLOUDFRONT_ORIGIN_SECRET"]`); `render-compose.sh` compares them with the named secret and refuses to render on any difference, or when no container sets a named variable, without printing a value. ([ADR 0085](docs/decisions/0085-aws-box-is-a-deploy-kind-one-ec2-box-and-one-rds-instance.md))
+
 ## [3.1.3] - 2026-10-05
 
 A patch: nothing breaking, and no behavior change for a running system. It puts the pizzas example in
