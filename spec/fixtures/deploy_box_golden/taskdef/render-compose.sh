@@ -9,6 +9,10 @@
 # are replaced with the RDS stack's values where the task defines them, and every container runs on
 # the box's own network, so the proxy reaches each one on 127.0.0.1:<port>. Secrets (name + valueFrom)
 # are written to secrets.json for fetch-secrets.sh to resolve on the box.
+#
+# When the world names origin_env, the named origin secret is compared with those variables in the
+# task definition and the render refuses on any difference (Caddy checks the CDN's header against
+# the secret; the containers check it against their own copy). Values are never printed.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 DB_HOST=${1:?rds endpoint}
@@ -17,6 +21,19 @@ TD=${3:-widget-platform}
 
 DEF=$(aws ecs describe-task-definition --task-definition "$TD" --query 'taskDefinition.containerDefinitions' --output json)
 echo "rendering from task definition $TD" >&2
+
+ORIGIN_ENV=$(jq -r '.origin.env // [] | .[]' "$HERE/services.json")
+if [ -n "$ORIGIN_ENV" ]; then
+  ORIGIN_SECRET_ID=$(jq -r '.origin.secret' "$HERE/services.json")
+  ORIGIN_VALUE=$(aws secretsmanager get-secret-value --secret-id "$ORIGIN_SECRET_ID" --query SecretString --output text)
+  for NAME in $ORIGIN_ENV; do
+    HOLDERS=$(echo "$DEF" | jq -r --arg n "$NAME" '[.[] | select(any((.environment // [])[]; .name == $n)) | .name] | join(" ")')
+    [ -n "$HOLDERS" ] || { echo "refusing to render: origin_env names $NAME, which no container in $TD sets" >&2; exit 1; }
+    DIFFERENT=$(echo "$DEF" | jq -r --arg n "$NAME" --arg v "$ORIGIN_VALUE" \
+      '[.[] | select(any((.environment // [])[]; .name == $n and .value != $v)) | .name] | join(" ")')
+    [ -z "$DIFFERENT" ] || { echo "refusing to render: $NAME in $TD (container: $DIFFERENT) differs from the origin secret $ORIGIN_SECRET_ID; the proxy would refuse every request from the CDN. Make them equal." >&2; exit 1; }
+  done
+fi
 
 jq --argjson def "$DEF" --arg host "$DB_HOST" --arg secret "$DB_SECRET" '
   def log: {driver: "json-file", options: {"max-size": "10m", "max-file": "3"}};

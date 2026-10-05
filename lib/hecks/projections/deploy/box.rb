@@ -425,6 +425,7 @@ module Hecks
         def services_json(plan)
           services = plan.containers.to_h { |c| [c.name, service_entry(plan, c)] }
           origin = plan.origin_secret ? { "header" => plan.origin_header, "secret" => plan.origin_secret } : nil
+          origin["env"] = plan.origin_env if origin && plan.origin_env.any?
           document = { "services" => services, "origin" => origin }
           document["task_definition"] = plan.task_definition if plan.task_definition
           document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service

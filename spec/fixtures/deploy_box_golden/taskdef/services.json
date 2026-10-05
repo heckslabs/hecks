@@ -11,7 +11,10 @@
   },
   "origin": {
     "header": "X-Origin-Secret",
-    "secret": "widget/origin-secret"
+    "secret": "widget/origin-secret",
+    "env": [
+      "WIDGET_ORIGIN"
+    ]
   },
   "task_definition": "widget-platform"
 }
