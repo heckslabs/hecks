@@ -1,4 +1,4 @@
-//! Predicates ported from `rust/project/mutations.rb` that `types.rs` and `json_codec.rs` share.
+//! Predicates ported from the retired Ruby generator's `mutations.rb` that `types.rs` and `json_codec.rs` share.
 
 use crate::json::Json;
 use std::collections::HashMap;

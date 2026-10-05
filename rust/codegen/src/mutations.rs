@@ -1,4 +1,4 @@
-//! Port of `rust/project/mutations.rb`, function for function.
+//! Port of the retired Ruby generator's `mutations.rb`, function for function.
 //! `mark_append_optional_fields!` is not ported: `Json` has no mutation API and the corpus
 //! already declares `optional: true` on every field that pass would touch.
 

@@ -256,17 +256,9 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     end
   end
 
-  # The Ruby generator (`HECKS_CODEGEN=ruby`, the rollback path), in a copy of a packaged
-  # workspace: no cargo is needed, only Ruby. The default generator also builds `hecks-codegen`.
+  # The real generator, in a copy of a packaged workspace. It builds `hecks-codegen` with Cargo,
+  # into the copy's own target directory, so nothing is written into the gem.
   describe "generating for real", :io do
-    around do |example|
-      saved = ENV.fetch("HECKS_CODEGEN", nil)
-      ENV["HECKS_CODEGEN"] = "ruby"
-      example.run
-    ensure
-      saved ? ENV["HECKS_CODEGEN"] = saved : ENV.delete("HECKS_CODEGEN")
-    end
-
     it "writes the domain into the copy and leaves the gem's own workspace untouched" do
       gem_rust = File.join(dir, "real_gem/rust")
       FileUtils.mkdir_p(File.join(gem_rust, "src"))

@@ -1,4 +1,4 @@
-//! Command router emitter, ported from `rust/project/registry.rb`.
+//! Command router emitter, ported from the retired Ruby generator's `registry.rb`.
 //! The entry structs mirror the Hashes `domain_generator.rb` accumulates while walking the IR.
 
 use crate::exemplar::Exemplar;
@@ -144,7 +144,7 @@ pub fn emit_role_check(
     ))
 }
 
-/// Port of `rust/project/registry.rb#emit_tenant_boundary_check`.
+/// Port of the retired Ruby generator's `registry.rb#emit_tenant_boundary_check`.
 /// Hand-built: the target accessor differs for a single-attribute value object and a bare scalar.
 pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     let ref_ident = naming::rust_ident_field(&check.reference_field);
@@ -740,7 +740,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     format!("{header}{body}")
 }
 
-/// Port of `rust/project/registry.rb#emit_reference_table`.
+/// Port of the retired Ruby generator's `registry.rb#emit_reference_table`.
 pub fn emit_reference_table(aggregates: &[AggregateEntry]) -> String {
     let rows: Vec<String> = aggregates
         .iter()
@@ -760,7 +760,7 @@ pub fn emit_reference_table(aggregates: &[AggregateEntry]) -> String {
     )
 }
 
-/// Port of `rust/project/registry.rb#emit_reference_lookup`.
+/// Port of the retired Ruby generator's `registry.rb#emit_reference_lookup`.
 pub fn emit_reference_lookup(aggregates: &[AggregateEntry]) -> String {
     let arms: Vec<String> = aggregates
         .iter()

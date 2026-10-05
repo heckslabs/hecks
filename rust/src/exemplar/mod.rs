@@ -1,4 +1,4 @@
-// Compile-checked Rust for every shape rust/project/*.rb emits; exemplar.rb slices the fenced
+// Compile-checked Rust for every shape rust/codegen/src/*.rs emits; exemplar.rs slices the fenced
 // `// TMPL:<id> BEGIN` / `END` regions and substitutes real names for the `tmpl_` vocabulary.
 //
 // `tmpl_*_host` functions only give fenced fragments real types and are never called, hence

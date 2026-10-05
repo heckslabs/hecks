@@ -43,7 +43,7 @@ description: >-
   in-flight in the same run) is deliberately deferred: reading these
   jobs' own spec files closely while extending this action found real
   complexity the original proposal didn't account for — several specs
-  (spec/project_rust_pipeline_spec.rb and others; see rspec_rust_io's
+  (spec/hecks_build_pipeline_spec.rb and others; see rspec_rust_io's
   own header) back up and restore rust/src/generated/+Cargo.toml
   PER EXAMPLE, meaning the actual compiled content within a single job
   is NOT a single stable artifact a content hash could name cleanly the

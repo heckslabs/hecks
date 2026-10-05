@@ -1,5 +1,5 @@
 //! Interprets a compiled `report` block (`ReadModelDef`) against a domain's generated
-//! `READ_MODELS` table — the hand-written counterpart to `rust/project/read_models.rb`.
+//! `READ_MODELS` table — the hand-written counterpart to the retired Ruby generator's `read_models.rb`.
 
 use super::refusal_wording::{InvariantViolationGroupByCollisionArgs, NotFoundReadModelReferenceMissingArgs, UnauthorizedTenantRequiredArgs};
 use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};

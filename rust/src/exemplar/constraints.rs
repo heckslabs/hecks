@@ -1,4 +1,4 @@
-//! Exemplar shapes for rust/project/constraints.rb (see mod.rs).
+//! Exemplar shapes for rust/codegen/src/constraints.rs (see mod.rs).
 //!
 //! Both shapes are single-line refusal checks spliced into a `Result`-returning body.
 #![allow(dead_code, unused_variables)]

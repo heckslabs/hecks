@@ -1,4 +1,4 @@
-// Exemplar shape for rust/project/registry.rb's `emit_query_table`; see mod.rs.
+// Exemplar shape for rust/codegen/src/registry.rs's `emit_query_table`; see mod.rs.
 #![allow(dead_code, unused_variables)]
 
 // A `const` cannot call a function, so the row is a real literal substituted wholesale.

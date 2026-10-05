@@ -1,6 +1,6 @@
 # Smallest domain that reaches the `has_many` list-of-references path in the Rust projection:
 # `Circle.Admit` sets the whole `members` list from a `list_of(Handle)` argument.
-# Round-tripped by spec/rust_project/has_many_spec.rb.
+# Round-tripped by spec/rust_generated/has_many_spec.rb.
 Hecks.bluebook "HasManyFixture" do
   vision "The smallest domain that reaches has_many's own Rust codegen path: one aggregate holding a list of references to another, set wholesale by one command."
 

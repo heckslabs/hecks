@@ -1,4 +1,4 @@
-//! Port of `rust/project/naming.rb`, mirrored function for function.
+//! Port of the retired Ruby generator's `naming.rb`, mirrored function for function.
 
 use crate::json::Json;
 

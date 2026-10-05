@@ -1,4 +1,4 @@
-// Exemplar shapes for rust/project/types.rb; see mod.rs.
+// Exemplar shapes for rust/codegen/src/types.rs; see mod.rs.
 // `closed_set_enum` is a one-field closed set (one variant per member); a multi-field closed
 // set is a fixed data table instead.
 #![allow(dead_code, unused_variables)]

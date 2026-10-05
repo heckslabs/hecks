@@ -173,7 +173,7 @@ don't need a Rust toolchain to contribute Ruby-only changes — your pull
 request's own CI builds and runs the conformance suite, and the merge
 queue runs it again against main's current tip before anything lands. If
 you do touch anything
-that changes what gets generated (`rust/project/*.rb`,
+that changes what gets generated (`rust/codegen/src/*.rs`,
 `hecks build.project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
 before you find out from CI:

@@ -22,7 +22,7 @@ module Hecks
       CHECKOUT_MARKER = "hecks.gemspec"
 
       # What a copy holds: the workspace manifest, the kernel and every crate a domain build uses.
-      PACKAGED = %w[Cargo.toml Cargo.lock project.rb project_rust_pipeline.rb project src codegen parser
+      PACKAGED = %w[Cargo.toml Cargo.lock src codegen parser
                     host build web lsp].freeze
 
       # Left out of a copy: build output anywhere, the corpus tests, and the corpus domains.

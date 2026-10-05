@@ -81,7 +81,7 @@ spec/runtime/postgres_era_storage_name_collision_spec.rb
 spec/runtime/postgres_shared_connection_spec.rb
 spec/runtime/saga_durability_postgres_spec.rb
 spec/rust_conformance_dry_runs_spec.rb
-spec/rust_project/has_many_spec.rb
+spec/rust_generated/has_many_spec.rb
 spec/self_consistency_rust_spec.rb
 spec/smoke_harness_node_spec.rb
 spec/smoke_http_spec.rb

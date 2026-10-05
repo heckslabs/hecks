@@ -1,4 +1,4 @@
-//! Exemplar shapes for rust/project/commands.rb (see mod.rs).
+//! Exemplar shapes for rust/codegen/src/commands.rs (see mod.rs).
 //!
 //! `dispatch_fn` proves the outer `pub fn .. -> DispatchResult { .. dispatch(..) .. }` wrapper.
 #![allow(dead_code, unused_variables)]

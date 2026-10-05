@@ -1,4 +1,4 @@
-//! Port of `rust/project/fielded.rb`: emits the `Fielded` impls for structs and records.
+//! Port of the retired Ruby generator's `fielded.rb`: emits the `Fielded` impls for structs and records.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;

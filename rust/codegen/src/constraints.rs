@@ -1,4 +1,4 @@
-//! Port of `rust/project/constraints.rb`: `admits:` and `pattern:` check emission.
+//! Port of the retired Ruby generator's `constraints.rb`: `admits:` and `pattern:` check emission.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;

@@ -21,5 +21,5 @@
 
 ## Anything not covered above
 
-<!-- e.g. touches rust/project/*.rb and you ran the Rust build/coverage
+<!-- e.g. touches rust/codegen/src/*.rs and you ran the Rust build/coverage
      tools locally, or this is docs-only and none of the above applies. -->

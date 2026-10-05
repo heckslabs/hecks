@@ -1,4 +1,4 @@
-//! Port of `rust/project/commands.rb`: emits the per-command dispatch functions.
+//! Port of the retired Ruby generator's `commands.rb`: emits the per-command dispatch functions.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;

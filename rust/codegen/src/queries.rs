@@ -1,4 +1,4 @@
-//! Port of `rust/project/queries.rb`, mirrored function for function.
+//! Port of the retired Ruby generator's `queries.rb`, mirrored function for function.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -302,7 +302,7 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
     let extra_keys = ["cursor", "consistency", "freshness", "inspection"];
     let extras: Vec<&str> = extra_keys.iter().filter(|k| query.get(k).is_some()).copied().collect();
     if !extras.is_empty() {
-        return Some(skip(extras[0], format!("declares {} — out of scope for this generator (rust/project/queries.rb's own header has the full argument)", extras.join(", "))));
+        return Some(skip(extras[0], format!("declares {} — out of scope for this generator (rust/codegen/src/queries.rs's own header has the full argument)", extras.join(", "))));
     }
     if query.get("index_hints").map(Json::each).unwrap_or(&[]).iter().any(|_| true) {
         return Some(skip("index_hints", "declares use_index, out of scope for the same reason the extras above are"));
@@ -780,7 +780,7 @@ pub fn emit_query_arg_check_table(query_defs: &[QueryDef]) -> String {
         })
         .collect();
     format!(
-        "/// C3.7 for a named query's own arguments — `query_arg_checks`\n/// (rust/project/queries.rb) has the full story.\npub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n    match verb {{\n{}\n        _ => Ok(()),\n    }}\n}}\n",
+        "/// C3.7 for a named query's own arguments — `query_arg_checks`\n/// (rust/codegen/src/queries.rs) has the full story.\npub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n    match verb {{\n{}\n        _ => Ok(()),\n    }}\n}}\n",
         arms.join("\n")
     )
 }

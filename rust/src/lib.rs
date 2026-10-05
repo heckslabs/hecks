@@ -3,6 +3,6 @@
 pub mod generated;
 pub mod kernel;
 
-// Test-only: rust/project/exemplar.rb slices shapes out of this; never in a release build.
+// Test-only: rust/codegen/src/exemplar.rs slices shapes out of this; never in a release build.
 #[cfg(test)]
 pub mod exemplar;

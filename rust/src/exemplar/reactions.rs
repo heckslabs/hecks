@@ -1,4 +1,4 @@
-// Exemplar shapes that rust/project/reactions.rb slices into generated tables;
+// Exemplar shapes that rust/codegen/src/reactions.rs slices into generated tables;
 // see mod.rs for how they are used.
 #![allow(dead_code, unused_variables)]
 

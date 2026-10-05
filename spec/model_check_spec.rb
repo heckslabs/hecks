@@ -241,29 +241,6 @@ RSpec.describe "the model checker" do
         expect(reserved_name_findings(domain, aggregate, **options)).to eq(expected)
       end
     end
-
-    describe "the Rust generator refuses through the same check" do
-      before(:context) { require_relative "../rust/project" }
-
-      def generate(mod_name, *aggregate_names)
-        Dir.mktmpdir("model-check-reserved-generator") do |dir|
-          out = File.join(dir, mod_name)
-          ir = { name: "Shop", aggregates: aggregate_names.map { |name| { name: name } } }
-          RustProjection::DomainGenerator.call(ir, "spec", out, mod_name)
-        ensure
-          expect(Dir.exist?(File.join(dir, mod_name))).to be(false), "refused, but still wrote #{mod_name}/"
-        end
-      end
-
-      it "refuses every keyword-named aggregate at once, before writing anything" do
-        expect { generate("shop", "Pizza", "Match", "Type") }
-          .to raise_error(/aggregate name\(s\) "Match", "Type" can't be used as-is .* Rust keyword/)
-      end
-
-      it "refuses a domain module name that is a reserved Cargo.toml key" do
-        expect { generate("package", "Widget") }.to raise_error(/domain module name "package" can't be used as-is/)
-      end
-    end
   end
 
   # The coverage gate: the real corpus stays finding-free against hecks model_check's allowlist.

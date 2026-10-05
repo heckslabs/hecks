@@ -1,4 +1,4 @@
-//! Rust port of `RustProjectPipeline.call` (`rust/project_rust_pipeline.rb`) —
+//! Rust port of the retired Ruby pipeline's `RustProjectPipeline.call` —
 //! this crate's own orchestration core.
 
 use std::path::{Path, PathBuf};

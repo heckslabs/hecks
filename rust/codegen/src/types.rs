@@ -1,4 +1,4 @@
-//! Type emitters ported from `rust/project/types.rb`: records, entities, value objects and
+//! Type emitters ported from the retired Ruby generator's `types.rb`: records, entities, value objects and
 //! closed-set tables.
 
 use crate::exemplar::Exemplar;
@@ -286,7 +286,7 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
     format!("{struct_part}\n\n{fielded_part}")
 }
 
-/// Port of `rust/project/types.rb#projected_field_pseudo_attributes` (ADR 0025).
+/// Port of the retired Ruby generator's `types.rb#projected_field_pseudo_attributes` (ADR 0025).
 pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
     aggregate
         .get("projected_fields")
@@ -318,7 +318,7 @@ pub fn with_projected_field_pseudo_attributes(aggregate: &Json) -> Json {
     Json::Object(pairs)
 }
 
-/// Port of `rust/project/types.rb#emit_set_projected_field`.
+/// Port of the retired Ruby generator's `types.rb#emit_set_projected_field`.
 pub fn emit_set_projected_field(aggregate: &Json) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let arms: Vec<String> = aggregate
@@ -338,7 +338,7 @@ pub fn emit_set_projected_field(aggregate: &Json) -> String {
     )
 }
 
-/// Port of `rust/project/types.rb#emit_projected_field_table`.
+/// Port of the retired Ruby generator's `types.rb#emit_projected_field_table`.
 pub fn emit_projected_field_table(aggregate: &Json) -> String {
     let name = naming::screaming_snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let rows: Vec<String> = aggregate

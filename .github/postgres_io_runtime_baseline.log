@@ -63,7 +63,7 @@ spec/runtime/era_check_postgres_vendored_bluebook_spec.rb:0.75
 spec/runtime/outbox_postgres_spec.rb:0.84
 spec/runtime/postgres_era_storage_name_collision_spec.rb:1.01
 spec/runtime/saga_durability_postgres_spec.rb:0.41
-spec/rust_project/has_many_spec.rb:11.21
+spec/rust_generated/has_many_spec.rb:11.21
 spec/self_consistency_rust_spec.rb:17.79
 spec/smoke_harness_node_spec.rb:2.82
 spec/tenant_isolation_fuzz_spec.rb:4.72

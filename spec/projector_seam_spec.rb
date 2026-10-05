@@ -50,10 +50,7 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
     ["lib/hecks/projector/exporter.rb",
      "registry-WIDE (call(registry), not call(bluebook:, options:)) — consumed directly by hecks ir, hecks project_rust, " \
      "and translation's own approval digest; narrower single-bluebook registration would be the wrong " \
-     "shape for what actually calls it"],
-    ["rust/project.rb",
-     "an EXPORT — RustProjection::Projector needs a declaration's BINDINGS (.world/.hecksagon), which call(bluebook:, " \
-     "options:) has no channel for; a whole second toolchain, not a registry entry"]
+     "shape for what actually calls it"]
   ].to_h.freeze
 
   it "never lets the known-non-projection roster rot — every named file still exists" do

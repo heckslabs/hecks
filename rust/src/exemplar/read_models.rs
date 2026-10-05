@@ -1,4 +1,4 @@
-// Exemplar shapes for rust/project/read_models.rb's `emit_read_model_table`
+// Exemplar shapes for rust/codegen/src/read_models.rs's `emit_read_model_table`
 // — see mod.rs's own header. `ReadModelDef`/`ReadModelHead`/`FilteredHead`/
 // `ReferenceField` are real kernel types (`rust/src/kernel/read_model.rs`).
 #![allow(dead_code, unused_variables)]

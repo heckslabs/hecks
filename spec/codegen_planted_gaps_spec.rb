@@ -32,7 +32,7 @@ RSpec.describe "hecks-codegen manifest for every planted construct family", :io 
       out_dir = File.join(tmp, "out")
       stdout, status = Open3.capture2(PLANTED_CODEGEN_BINARY, "domain", ir_path, "gap_families", "gap_families", out_dir)
       expect(status.success?).to be(true), "hecks-codegen domain failed for the planted gaps:\n#{stdout}"
-      File.binread(File.join(out_dir, "manifest.json"))
+      File.read(File.join(out_dir, "manifest.json"), encoding: Encoding::UTF_8)
     end
   end
 
@@ -40,11 +40,12 @@ RSpec.describe "hecks-codegen manifest for every planted construct family", :io 
     manifest = planted_manifest
     if ENV["GOLDEN"] == "rewrite"
       FileUtils.mkdir_p(File.dirname(PLANTED_GOLDEN))
-      File.binwrite(PLANTED_GOLDEN, manifest)
+      File.write(PLANTED_GOLDEN, manifest)
     end
 
     expect(File.exist?(PLANTED_GOLDEN)).to be(true), "no frozen manifest — run GOLDEN=rewrite to record it"
-    expect(manifest).to eq(File.binread(PLANTED_GOLDEN)), "the planted-gap manifest changed — read the diff, then GOLDEN=rewrite"
+    expect(manifest).to eq(File.read(PLANTED_GOLDEN, encoding: Encoding::UTF_8)),
+                        "the planted-gap manifest changed — read the diff, then GOLDEN=rewrite"
   end
 
   it "plants a construct in every family it names" do

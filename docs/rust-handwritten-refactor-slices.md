@@ -35,8 +35,8 @@ committed immediately after being written, specifically so that can't happen aga
    its own name (`gates::word::gate()`, not `gates::word::word_gate()`).
 3. **Split along the code's own real seams**, verified by actually reading the file and its call
    graph — not by line-count alone, and not by forcing a Ruby correspondence. The one exception:
-   `rust/codegen/` is an explicit, acknowledged port of `rust/project/*.rb`, so for files in that
-   crate specifically, matching the Ruby source's own internal organization is a real signal.
+   `rust/codegen/` began as an acknowledged port of the Ruby generator (deleted in ADR 0086), so for
+   files in that crate specifically, the old Ruby file organization its layout kept is a real signal.
    Everywhere else (parser gates/lexing, `rust/host`, `rust/build`), there is no Ruby analog —
    Rust-native seams only.
 4. **Mechanism over call site.** A helper used by only one caller is not automatically part of

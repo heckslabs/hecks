@@ -497,13 +497,11 @@ Open`, `OnboardingCase.Open`, `Transfer.Request`, and others each carry
 an explicit "OWN GIVEN, NOT SHARED (S12, ADR 0025)" comment) — narrow
 enough that plain fuzzing rarely rolls the combination (a duplicate
 identity AND a failing given, on the SAME dispatch), but real. Both
-Rust codegen pipelines (`rust/project`'s Ruby-hosted generator and
-`rust/codegen`'s Rust-native one) now derive this SAME classification
-independently, straight from the exported IR's own attributes/
-mutations/given/ensures data — see `rust/project/dependency_planning.rb`
-and `rust/codegen/src/dependency_planning.rs`'s own headers for why
-that's a deliberate, separate re-derivation rather than a single
-precomputed fact threaded through `ir.json`.
+Rust code generator (`rust/codegen`) derives this classification
+straight from the exported IR's own attributes/mutations/given/ensures
+data — see `rust/codegen/src/dependency_planning.rs`'s own header for why
+that's a deliberate re-derivation rather than a precomputed fact
+threaded through `ir.json`.
 
 **`assign_creation_attributes` and `apply_mutations` are two different
 steps, and only the first is implicit.** A creating command's
@@ -733,7 +731,7 @@ This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
 and `interpret()` (`rust/src/kernel/expr.rs`) are the generic
 READING/behavior half, hand-written once; `dispatch()`
 (`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
-also hand-written once; `hecks build.project_rust` (driving `rust/project.rb`)
+also hand-written once; `hecks build.project_rust` (driving `rust/codegen`)
 is the small, per-command WRITING glue this paragraph names as the one
 place generation still earns its keep — real Rust struct literals and
 `Vec::push` calls, generated because constructing a specific type has

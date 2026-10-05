@@ -1518,7 +1518,7 @@ pub struct CiGate {
 
 pub const CI_GATE: &[CiGate] = &[
     CiGate { name: "runtime_changed", workflow: "ci.yml", mode: "touches", pattern: "^lib/hecks/runtime/", push: "skip", label: "does this change touch lib/hecks/runtime/**?" },
-    CiGate { name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless", pattern: "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\\.rb$|rust/project_rust_pipeline\\.rb$|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", push: "before_sha", label: "does this change touch anything rspec_postgres_io_parallel covers?" },
+    CiGate { name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless", pattern: "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", push: "before_sha", label: "does this change touch anything rspec_postgres_io_parallel covers?" },
 ];
 
 impl CiGate {

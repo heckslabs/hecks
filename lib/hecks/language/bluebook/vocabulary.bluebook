@@ -625,16 +625,16 @@ Hecks.bluebook "Bluebook" do
              pattern: '^lib/hecks/runtime/', push: "skip",
              label: "does this change touch lib/hecks/runtime/**?"
       member name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless",
-             pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
+             pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
              push: "before_sha",
              label: "does this change touch anything rspec_postgres_io_parallel covers?"
     end
 
     # Rust keywords (strict + reserved) a generated identifier must not
-    # collide with. RustProjection::Projector::RUST_KEYWORDS reads this;
-    # hecks project_reserved_names projects it into
-    # rust/codegen/src/reserved_names.rs, so Ruby and Rust escape or refuse
-    # the same words from one declaration instead of two hand-typed copies.
+    # collide with. ModelCheck reads this; hecks project_reserved_names
+    # projects it into rust/codegen/src/reserved_names.rs, so Ruby and Rust
+    # escape or refuse the same words from one declaration instead of two
+    # hand-typed copies.
     value_object "RustReservedWord" do
       attribute :word, String,
                 one_of: ["as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false",
@@ -648,8 +648,8 @@ Hecks.bluebook "Bluebook" do
     # as a Cargo `[features]` key: every key rust/Cargo.toml already uses
     # outside `[features]` (`[package]`, `[lib]`, `[[bin]]`) plus `default`,
     # which Cargo reserves for the auto-enabled feature set. Read by
-    # RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES and projected by
-    # hecks project_reserved_names, same as RustReservedWord above.
+    # Hecks::RustBuild::DomainName and projected by hecks
+    # project_reserved_names, same as RustReservedWord above.
     value_object "CargoReservedName" do
       attribute :name, String,
                 one_of: ["name", "version", "edition", "path", "authors", "license", "description", "default",

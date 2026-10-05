@@ -1,4 +1,4 @@
-//! Port of `rust/project/reactions.rb`, mirrored function for function.
+//! Port of the retired Ruby generator's `reactions.rb`, mirrored function for function.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;

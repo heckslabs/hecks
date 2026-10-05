@@ -109,8 +109,8 @@ generator genuinely can't compile — a multi-hop reference chain, a
 where clause on a field whose kind can't be resolved from the exported
 IR, `cursor`/`consistency`/`inspection` — refuses with an explicit "is
 not generated for this domain" error in Rust instead of running; both
-sides are documented, allowlisted gaps (`rust/project/queries.rb`,
-`rust/project/read_models.rb`, `hecks build.check_coverage_allowlist`'s own allowlist), not
+sides are documented, allowlisted gaps (`rust/codegen/src/queries.rs`,
+`rust/codegen/src/read_models.rs`, `hecks build.check_coverage_allowlist`'s own allowlist), not
 silent wrong answers.
 
 ## WebAssembly

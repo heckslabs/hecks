@@ -1,4 +1,4 @@
-//! Port of `rust/project/read_models.rb`, mirrored function for function —
+//! Port of the retired Ruby generator's `read_models.rb`, mirrored function for function —
 //! read that file's own header for the full algorithm.
 
 use crate::exemplar::Exemplar;
@@ -267,7 +267,7 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
     None
 }
 
-// Mirrors `rust/project/read_models.rb`'s `group_by_skip_reason`: the one
+// Mirrors the retired Ruby generator's `read_models.rb`'s `group_by_skip_reason`: the one
 // shape the corpus declares — a single rootless head, group_by alone.
 fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
