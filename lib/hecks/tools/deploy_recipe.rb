@@ -252,6 +252,7 @@ module Hecks
       # @return [void]
       def write(artifact, out_dir)
         written = Hecks::Projector.write(artifact, out_dir, as: :files)
+        written.each { |path| File.chmod(0o755, path) if path.end_with?(".sh") }
 
         written.each { |path| puts "wrote #{path}" }
         puts

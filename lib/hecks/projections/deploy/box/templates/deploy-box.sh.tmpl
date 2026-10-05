@@ -62,7 +62,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
     "aws ecr get-login-password --region '"$REGION"' | docker login --username AWS --password-stdin \($registry) >/dev/null",
     "docker compose -f compose.json pull --quiet",
     "docker compose -f compose.json up -d --remove-orphans",
-    "sleep 20; docker compose -f compose.json ps --format \"table {{.Service}}\\t{{.Status}}\""],
+    "for i in $(seq 1 40); do docker compose -f compose.json ps --format \"{{.Status}}\" | grep -qE \"^Up (Less than a second|[0-4] seconds?)|Restarting|Created|Exited\" || break; sleep 1; done; docker compose -f compose.json ps --format \"table {{.Service}}\\t{{.Status}}\""],
    executionTimeout: ["900"]}')
 
 echo "==> rolling $BOX_STACK ($BOX) at $(date -u +%H:%M:%SZ)"

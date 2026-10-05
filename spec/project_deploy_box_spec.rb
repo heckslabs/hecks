@@ -181,6 +181,24 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
   describe "the default world" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
+    it "writes its shell scripts executable, and waits for the containers instead of sleeping" do
+      Dir.mktmpdir do |dir|
+        domain = File.join(dir, BOX_FIXTURE_NAME)
+        FileUtils.mkdir_p(File.join(domain, "bluebook"))
+        File.write(File.join(domain, "bluebook", "#{BOX_FIXTURE_NAME}.bluebook"), BOX_BLUEBOOK)
+        File.write(File.join(domain, "bluebook", "#{BOX_FIXTURE_NAME}.world"), BOX_WORLDS.fetch("default"))
+        out = File.join(dir, "out")
+        _stdout, stderr, status = ProjectDeployRunner.run(domain, "--out=#{out}", root: BOX_ROOT_DIR)
+        expect(status.success?).to be(true), stderr
+
+        scripts = Dir.children(out).select { |name| name.end_with?(".sh") }
+        expect(scripts).to include("deploy-box.sh", "render-compose.sh", "fetch-secrets.sh")
+        expect(scripts.reject { |name| File.executable?(File.join(out, name)) }).to eq([])
+      end
+      expect(files["deploy-box.sh"]).not_to include("sleep 20")
+      expect(files["deploy-box.sh"]).to include("Up (Less than a second|[0-4] seconds?)")
+    end
+
     it "can mount extra proxy sites, a smoke listener and admit a bastion" do
       expect(files["Caddyfile"]).to include("auto_https disable_redirects", "import /etc/caddy/extra/*")
       expect(files["render-compose.sh"]).to include("./caddy-extra:/etc/caddy/extra:ro")
