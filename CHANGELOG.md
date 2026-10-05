@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Fixed: a Memory-backed aggregate with a growing `list_of` no longer slows down with every save.** Since 1.4.0 the Memory adapter journals a codec copy of the state, and builds each record from another copy plus a full hydration, so a save cost O(everything the list holds) in time, and the journal kept a full copy per save: quadratic time and memory over a run. A hydrated element of a composite `list_of` is frozen, so Memory now copies and hydrates each element once, freezes the copy, and shares it between every journal entry and record that holds it (a weak, identity-keyed table; `Memory::SharedElements`). A save costs one pointer lookup per existing element plus the full copy of the new ones. A returned instance still shares nothing mutable with the journal, a journalled element now refuses an in-place change (`FrozenError`), and an entry has exactly the shape `StateCodec.copy` gives a durable adapter. One aggregate, 32 pieces per snapshot, one snapshot per step (Memory, `list_of` of value objects):
+
+| Steps | Before: time, last-10 per step, peak RSS | After |
+|---|---|---|
+| 50 | 1.9 s, 73 ms, 172 MB | 0.07 s, 1.1 ms, 88 MB |
+| 100 | 7.1 s, 127 ms, 244 MB | 0.21 s, 1.5 ms, 95 MB |
+| 200 | 29.5 s, 264 ms, 534 MB | 0.3 s, 1.2 to 1.8 ms, 98 to 104 MB |
+
+A list element that is not frozen, a list of scalars, and every other field still take the whole-copy path. `Runtime::Instance.new` takes an optional `hydrate_with:` callable, used by Memory to hydrate through the shared elements.
+
 ## [3.4.0] - 2026-10-05
 
 A minor that removes the five spellings 3.3.0 warned about (`uses_framework`, `uses_embryonaut_bluebook`, `Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:`), the removal that 3.3.0's warnings named. Using one now fails with a message naming its replacement, so a project must migrate before it moves its pin past 3.3.x: the table is in [`docs/migrating-2-to-3.md`](docs/migrating-2-to-3.md), and the `Removed (3.4.0)` entry below says what each one becomes. Deploys pin exactly (`docs/1.0-readiness.md`, "What a release number promises"), so a running system stays on 3.3.x until it is migrated.

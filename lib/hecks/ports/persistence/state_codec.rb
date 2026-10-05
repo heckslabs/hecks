@@ -46,6 +46,19 @@ module Hecks
         #   Array with `state`; nil when `state` is nil
         def copy(aggregate, state) = decode(aggregate, encode(aggregate, state))
 
+        # Deep-copies one element of a `list_of` composite attribute, exactly as `copy` would
+        # copy it inside its list.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct that declares
+        #   the list attribute
+        # @param attribute [Bluebook::Attribute] a list attribute of `aggregate`
+        # @param element [Hash, Runtime::Value, Object] one element of the live list
+        # @return [Hash, Object] a new decoded Hash sharing nothing with `element`; a leaf
+        #   element is returned as its JSON round trip
+        def copy_list_element(aggregate, attribute, element)
+          decode_composite(aggregate, attribute.type.to_s, encode_value(element))
+        end
+
         # Maps every declared top-level field name to its attribute.
         #
         # An attribute that shares a name with the lifecycle field or a projected field keeps

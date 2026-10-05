@@ -2,6 +2,7 @@ require_relative "../../ports/persistence/append_only"
 require_relative "../../ports/query/in_memory"
 require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
+require_relative "memory/shared_elements"
 
 module Hecks
   module Adapters
@@ -30,6 +31,7 @@ module Hecks
       #   constructor shape and ignored
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
+        @elements  = SharedElements.new(aggregate)
         @records   = {}
         @events    = []
         @entries   = []
@@ -105,7 +107,7 @@ module Hecks
       # @param instance [Runtime::Instance] the instance to store
       # @return [Runtime::Instance] the stored record, a fresh instance over a copy of the state
       def save(instance)
-        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: copy(instance.state))
+        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state)
         append(entry)
         project(entry)
       end
@@ -164,6 +166,7 @@ module Hecks
         @entries = []
         @outbox  = []
         @outbox_deliveries = {}
+        @elements.reset!
         self
       end
 
@@ -260,15 +263,20 @@ module Hecks
       def copy(state)
         return state.dup if bootstrap_fast_path?(state)
 
-        Ports::Persistence::StateCodec.copy(@aggregate, state)
+        @elements.journal_state(state)
       end
 
       def build_instance(entry)
         if bootstrap_fast_path?(entry.state)
           Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state.dup, hydrate: false)
         else
-          decoded = Ports::Persistence::StateCodec.copy(@aggregate, entry.state)
-          Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: decoded)
+          decoded = @elements.journal_state(entry.state)
+          # The state is decoded by construction, so the boundary's re-walk of every shared
+          # list element would only repeat the copy that just built it.
+          Ports::Persistence::CodecBoundary.outside do
+            Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: decoded,
+                                  hydrate_with: @elements.method(:live_state))
+          end
         end
       end
     end
