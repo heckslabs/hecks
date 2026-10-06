@@ -13,7 +13,7 @@ module Hecks
       #
       # Only chapter verdicts live here; `Assembly.call` still runs every boot
       # and a miss judges as a cold process does. The file name carries a digest
-      # of the judging code (every file under `lib/`, the Ruby and Hecks
+      # of the judging code (`lib/` outside `CONSUMER_TREES`, the Ruby and Hecks
       # versions, `FORMAT`); each entry is keyed by the chapter IR's SHA-256.
       # The file is tagged JSON, never `Marshal`, read only from a private,
       # user-owned directory: a forged "no refusals" entry would skip validation.
@@ -27,6 +27,13 @@ module Hecks
 
         # Bumped when the encoding or the entry shape changes.
         FORMAT = 1
+
+        # The subtrees of `lib/` that read the language and never judge it: they
+        # project, serve or deploy from a chapter, and nothing the judge runs
+        # calls into them. An edit there leaves every verdict as it was, so
+        # their files stay out of the key. Paths are relative to `lib/hecks`.
+        CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|doors|fuzzing|projections|
+                            quality_control|release)(?:/|\.rb\z)}x
 
         # Files older than this that do not match the current code digest are
         # pruned on write.
@@ -48,7 +55,8 @@ module Hecks
         def path = File.join(dir, "verdicts-#{code_digest}.json")
 
         # A digest of everything that decides a verdict: each file under
-        # `lib/` (path and bytes), the Ruby and Hecks versions and `FORMAT`.
+        # `lib/` outside `CONSUMER_TREES` (path and bytes), the Ruby and Hecks
+        # versions and `FORMAT`.
         # Computed once per process, at first use, which is when the judging
         # code was loaded.
         #
@@ -63,12 +71,18 @@ module Hecks
         def digest_of(lib)
           state = Digest::SHA256.new
           state << "#{FORMAT}\0#{RUBY_VERSION}\0#{Hecks::VERSION}\0"
-          Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.each do |file|
-            next unless File.file?(file)
-
+          judging_files(lib).each do |file|
             state << file.delete_prefix(lib) << "\0" << File.binread(file) << "\0"
           end
           state.hexdigest
+        end
+
+        # @param lib [String] the directory whose files decide a verdict
+        # @return [Array<String>] every file under it outside `CONSUMER_TREES`, sorted
+        def judging_files(lib)
+          Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.select do |file|
+            File.file?(file) && !file.delete_prefix(lib).match?(CONSUMER_TREES)
+          end
         end
 
         # Loads the stored verdicts, once per process; later calls return an
