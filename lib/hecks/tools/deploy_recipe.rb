@@ -53,12 +53,18 @@ module Hecks
         domain = argv.shift or abort USAGE
 
         deployment = resolve(domain, options)
-        out_dir = options.out ? File.expand_path(options.out) : File.join(root, "deploy", deployment.infra_name)
         blocks = chosen_targets(declared_targets(deployment.world), options.target)
+        out_dir = output_dir(deployment, root)
         # No block at all falls through to the refusal that shows an example.
         return generate_each(deployment, root, out_dir, blocks) if blocks.size > 1
 
         generate_one(deployment, root, out_dir, blocks.first)
+      end
+
+      # @return [String] `--out`, else `deploy/<name>` in the checkout
+      def output_dir(deployment, root)
+        out = deployment.options.out
+        out ? File.expand_path(out) : File.join(root, "deploy", deployment.infra_name)
       end
 
       # One declared target, written straight into `out_dir` as it always was.
@@ -89,7 +95,7 @@ module Hecks
       def for_target(deployment, block)
         settings = tenant_settings(block, deployment.options, File.basename(deployment.domain))
         deployment.dup.tap do |view|
-          view.world = TargetWorld.new(deployment.world, block)
+          view.world = Targets::TargetWorld.new(deployment.world, block)
           view.settings = settings
           view.infra_name = settings[:stack_name] || File.basename(deployment.domain)
         end
@@ -113,10 +119,15 @@ module Hecks
         OptionParser.new do |parser|
           parser.on("--tenant=SLUG") { |v| options.tenant[:tenant] = v }
           parser.on("--schema=NAME") { |v| options.tenant[:schema] = v }
-          parser.on("--out=DIR") { |v| options.out = v }
-          parser.on("--environment=NAME") { |v| options.environment = v }
-          parser.on("--target=ADAPTER") { |v| options.target = v }
+          where_flags(parser, options)
         end
+      end
+
+      # @return [void] the flags that say where to write and which target to write
+      def where_flags(parser, options)
+        parser.on("--out=DIR") { |v| options.out = v }
+        parser.on("--environment=NAME") { |v| options.environment = v }
+        parser.on("--target=ADAPTER") { |v| options.target = v }
       end
 
       # @param domain [String] the domain directory
