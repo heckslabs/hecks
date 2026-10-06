@@ -766,6 +766,12 @@ as a sensitive variable, so no value reaches a file or a command line. The host
 needs a Vercel entry point at `api/host.rs` before the function answers; see
 the ADR's open items.
 
+A world can declare more than one deploy kind, so a small domain can start on
+Vercel and keep an `AwsBox` block beside it. The persistence adapter, not the
+deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
+`hecks deploy project` writes each target under `<out>/<adapter>/`;
+`--target=Vercel` writes only that one into `<out>`.
+
 ### Project-wide defaults
 
 A project that attaches many chapters does not have to repeat that

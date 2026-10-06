@@ -291,7 +291,7 @@ hecks deploy recipe.project "$DOMAIN" --out="$HOME/services/underwriting-deploy"
 
 `hecks deploy recipe.project --help` prints the option list. The full usage
 line is `hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
-[--out=<dir>] [--environment=<name>]`.
+[--out=<dir>] [--environment=<name>] [--target=<adapter>]`.
 
 - `<domain>` is the directory from step 2. The script finds
   `<domain>/bluebook/<basename>.world`, or the single `*.world` file in that
@@ -303,6 +303,10 @@ line is `hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>
 - `--environment=<name>` layers `<domain>/bluebook/environments/<name>.world`
   over the base `.world`. Use it to keep real stack names out of the base
   file. A missing overlay is an error, not a silent no-op.
+- A `.world` may declare more than one `deployed_to` block, such as `Vercel`
+  and `AwsBox`. Each is generated into `<out>/<adapter>/` (for example
+  `<out>/vercel/`); `--target=<adapter>` generates only that one, straight
+  into `<out>`.
 - `--tenant=<slug>` generates a per-tenant stack of the same domain. You do
   not need it for a first service.
 

@@ -94,6 +94,42 @@ RSpec.describe "hecks deploy project — a deployed_to(\"Vercel\") function", :i
     end
   end
 
+  # The paths written under the output directory, for a world generated with the flags.
+  def written(world_body, *flags)
+    Dir.mktmpdir do |dir|
+      out = File.join(dir, "out")
+      ProjectDeployRunner.run(write_domain(dir, world_body), "--out=#{out}", *flags, root: VERCEL_ROOT_DIR)
+      Dir.glob("**/*", File::FNM_DOTMATCH, base: out).select { |path| File.file?(File.join(out, path)) }
+    end
+  end
+
+  context "with Vercel and AwsBox both declared" do
+    let(:world) do
+      <<~WORLD
+        Hecks.world "Scratch" do
+          deployed_to("AwsBox") do
+            region "us-east-1"
+            containers [{ name: "web", port: 8080 }]
+          end
+          deployed_to("Vercel") do
+            region "iad1"
+          end
+        end
+      WORLD
+    end
+
+    it "writes each kind under its own directory, so neither Makefile is lost", :aggregate_failures do
+      paths = written(world)
+
+      expect(paths).to include("vercel/vercel.json", "vercel/Makefile", "awsbox/box.yaml", "awsbox/Makefile")
+      expect(paths).not_to include("Makefile")
+    end
+
+    it "writes only the named kind, straight into the output directory with --target" do
+      expect(written(world, "--target=Vercel")).to match_array(%w[vercel.json .vercelignore deploy-vercel.sh Makefile])
+    end
+  end
+
   {
     'region "us-east-1"' => /region is a Vercel id/,
     "memory 64" => /memory is at least 128 MB/,
