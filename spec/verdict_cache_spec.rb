@@ -161,6 +161,42 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(cache.seed).to eq("k1" => accepted, "k2" => refused)
     end
 
+    # The file the gem would ship: the user's own file moved under a directory of its own.
+    def ship_prebuilt
+      shipped = File.join(scratch, "prebuilt", File.basename(cache.path))
+      FileUtils.mkdir_p(File.dirname(shipped))
+      FileUtils.mv(cache.path, shipped)
+      allow(cache).to receive(:prebuilt_path).and_return(shipped)
+    end
+
+    it "serves the gem's prebuilt file when the user has none" do
+      cache.record("k1", accepted)
+      cache.flush
+      ship_prebuilt
+      cache.reset!
+
+      expect(cache.seed).to eq("k1" => accepted)
+    end
+
+    it "serves nothing from a prebuilt file made for other code" do
+      allow(cache).to receive(:prebuilt_path).and_return(File.join(scratch, "prebuilt", "verdicts-other.json"))
+
+      expect(cache.seed).to eq({})
+    end
+
+    it "keys on the Ruby series, so another patch release shares the file" do
+      before = cache.digest_of(File.join(scratch, "lib"))
+      stub_const("RUBY_VERSION", "3.3.99")
+
+      expect(cache.digest_of(File.join(scratch, "lib"))).to eq(before)
+    end
+
+    it "names the Ruby series by engine and minor version" do
+      stub_const("RUBY_VERSION", "3.3.99")
+
+      expect(cache.ruby_series).to eq("#{RUBY_ENGINE}-3.3")
+    end
+
     it "is private to the user" do
       cache.record("k1", accepted)
       cache.flush
