@@ -11,6 +11,7 @@ require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
 require_relative "publishing"
+require_relative "promotion"
 require_relative "../git"
 
 module Hecks
@@ -47,6 +48,7 @@ module Hecks
       def examine(**held)
         answer = { checkout: { value: tree.checkout? } }
         operation = plain(held[:operation])
+        return answer.merge(promotion_facts(held)) if Codebase::Promotion::OPERATIONS.include?(operation)
         return answer unless Codebase::Publishing::OPERATIONS.include?(operation)
 
         facts = tree.checkout? ? Git.new.survey(**held) : Codebase::Publishing.no_facts(operation)
@@ -180,8 +182,10 @@ module Hecks
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
                   Codebase::Gate, Codebase::Style, Codebase::Codemods, Codebase::TestSuite,
-                  Codebase::CorpusTasks, Codebase::Publishing].freeze
+                  Codebase::CorpusTasks, Codebase::Publishing, Codebase::Promotion].freeze
       private_constant :FAMILIES
+
+      def promotion_facts(held) = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
 
       def tree = Codebase::Tree.new
 

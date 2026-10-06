@@ -96,19 +96,27 @@ RSpec.describe Hecks::Release::Runner, :aggregate_failures do
   end
 
   describe "preflight" do
-    it "refuses off main, naming the fix" do
+    it "refuses off the release lane, naming the fix" do
       commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "feature\n")
 
       expect(release(yes: true)).to eq(1)
-      expect(err.string).to include("on branch feature, not main", "git checkout main")
+      expect(err.string).to include("on branch feature, not stable", "git checkout stable")
       expect(commands.runs).to be_empty
     end
 
-    it "refuses when main is behind origin/main" do
-      commands.answer("git", "rev-parse", "origin/main", stdout: "#{other_sha}\n")
+    it "refuses on main, which takes pushes with no gate" do
+      commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "main\n")
 
       expect(release(yes: true)).to eq(1)
-      expect(err.string).to include("is not origin/main", "git pull --ff-only")
+      expect(err.string).to include("on branch main, not stable")
+      expect(commands.runs).to be_empty
+    end
+
+    it "refuses when the release lane is behind its origin" do
+      commands.answer("git", "rev-parse", "origin/stable", stdout: "#{other_sha}\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("is not origin/stable", "git pull --ff-only")
       expect(commands.runs).to be_empty
     end
 

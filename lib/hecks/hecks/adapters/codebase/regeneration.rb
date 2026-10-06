@@ -16,7 +16,7 @@ module Hecks
       # files reports drift and writes only when it is confirmed.
       module Regeneration
         # Every operation this family carries out.
-        OPERATIONS = %w[regenerate_corpus project_ci_gates project_tools_doc decide_ci_gate].freeze
+        OPERATIONS = %w[regenerate_corpus project_ci_gates project_lanes project_tools_doc decide_ci_gate].freeze
 
         # How many lines of a script's output a refusal keeps.
         KEPT_LINES = 60
@@ -37,6 +37,7 @@ module Hecks
           child = RubyChild.new(tree)
           case operation
           when "project_ci_gates" then project_ci_gates(child, check)
+          when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
           when "project_tools_doc" then project_tools_doc(child, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
           else regenerate(child, check)
@@ -46,8 +47,14 @@ module Hecks
         # @param held [Hash] the record's fields: `check`, `confirm`
         # @return [Boolean] whether the run only compares: asked for, or not confirmed
         def check_only?(held)
-          flag = ->(name) { (held[name].is_a?(Hash) ? held[name][:value] : held[name]) == true }
-          flag.call(:check) || !flag.call(:confirm)
+          set?(held, :check) || !set?(held, :confirm)
+        end
+
+        # @param held [Hash] the record's fields
+        # @param name [Symbol] a switch of the record
+        # @return [Boolean] whether the switch was given as true
+        def set?(held, name)
+          (held[name].is_a?(Hash) ? held[name][:value] : held[name]) == true
         end
 
         # @param child [RubyChild] the checkout's tool runner
@@ -67,6 +74,21 @@ module Hecks
         # @raise [ConsoleCapture::Failure] with the stale workflows, when a check finds drift
         def project_ci_gates(child, check)
           child.answer("project_ci_gates", *("--check" if check))
+        end
+
+        # Projects the `Lane` rows, or with `live` compares GitHub's rulesets with them. Only a live
+        # run that is confirmed changes GitHub, so without `confirm` a live run is a comparison.
+        #
+        # @param child [RubyChild] the checkout's tool runner
+        # @param check [Boolean] whether to only compare the files
+        # @param live [Boolean] whether to compare, or with `confirm` update, GitHub's rulesets
+        # @param confirm [Boolean] whether a live run may change GitHub
+        # @return [String] what the tool printed
+        # @raise [ConsoleCapture::Failure] with the stale files or differing rulesets
+        def project_lanes(child, check, live, confirm)
+          return child.answer("project_lanes", "--live", *("--confirm" if confirm)) if live
+
+          child.answer("project_lanes", *("--check" if check))
         end
 
         # @param child [RubyChild] the checkout's tool runner

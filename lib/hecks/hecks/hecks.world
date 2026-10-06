@@ -1,7 +1,7 @@
 # Where the Hecks domain keeps its journal: every command's events, one entry per aggregate.
 #
 # **PostgresEra** is the default, for real runs: a client's `hecks` and a maintainer's on main
-# or in the merge queue. The journal then survives the process, and `hecks stores` and
+# or stable. The journal then survives the process, and `hecks stores` and
 # `hecks history` read it back. `default_adapter` binds every aggregate of the chapter (and of
 # the attached Governance chapter, see governance.world) in one line, which is what lets the
 # environments/memory.world overlay swap the whole domain to Memory.
@@ -55,7 +55,8 @@ Hecks.world "Hecks" do
                        streams: %w[Follow],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun
-                                      CodemodRun TestSuiteRun CorpusRun PublishingRun Release SyntaxBootCache],
+                                      CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
+                                      SyntaxBootCache],
                        chapters: %w[Deploy Governance Tenancy Site Tickets QualityControl],
                        maintainer_chapters: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],

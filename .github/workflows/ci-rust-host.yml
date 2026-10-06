@@ -20,8 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    if: github.event_name != 'push'
-
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
 
@@ -50,7 +48,7 @@ jobs:
     timeout-minutes: 20
 
     needs: ci_attestation_rust_host
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
     env:
       PGHOST: localhost
@@ -107,7 +105,7 @@ jobs:
     timeout-minutes: 20
 
     needs: ci_attestation_rust_host
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
     env:
       PGHOST: localhost

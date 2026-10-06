@@ -960,6 +960,7 @@ Hecks.bluebook "Hecks" do
     attribute :operation, Operation, optional: true
     attribute :confirm,   Switch, optional: true
     attribute :check,     Switch, optional: true
+    attribute :live,      Switch, optional: true
     attribute :gate,      GateName, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
@@ -1025,6 +1026,24 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "project_ci_gates"
 
       emits ProjectCiGatesRequested
+    end
+
+    command "ProjectLanes" do
+      role "Maintainer"
+      goal "Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets"
+
+      attribute :check,   Switch, optional: true
+      attribute :live,    Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :live
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_lanes"
+
+      emits ProjectLanesRequested
     end
 
     command "ProjectToolsDoc" do
@@ -1118,6 +1137,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectLanesRequested" do
+    on      "RegenerationRun.ProjectLanesRequested"
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 
@@ -2365,6 +2389,7 @@ Hecks.bluebook "Hecks" do
     attribute :no_wait,        Switch, optional: true
     attribute :checkout,       Switch, optional: true
     attribute :branch,         Word, optional: true
+    attribute :release_lane,   Word, optional: true
     attribute :on_origin,      Switch, optional: true
     attribute :clean,          Switch, optional: true
     attribute :version,        Version, optional: true
@@ -2465,6 +2490,7 @@ Hecks.bluebook "Hecks" do
       reference_to PublishingRun
       attribute :checkout,       Switch
       attribute :branch,         Word
+      attribute :release_lane,   Word
       attribute :on_origin,      Switch
       attribute :clean,          Switch
       attribute :version,        Version
@@ -2476,8 +2502,10 @@ Hecks.bluebook "Hecks" do
       attribute :ships_from,     Checkout
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-      given("a release is cut from main: switch to main first") { branch.value == "main" }
-      given("main is origin/main: merge the release PR, then pull") { on_origin.value }
+      given("a release is cut from the release lane (the Lane row that feeds a tag): switch to it first") do
+        branch.value == release_lane.value
+      end
+      given("the release lane is its origin: wait for the release commit to be promoted, then pull") { on_origin.value }
       given("the working tree is clean: commit or discard changes first") { clean.value }
       given("the client package is at the gem's version: bump the package first") do
         client_version.value == version.value
@@ -2489,6 +2517,7 @@ Hecks.bluebook "Hecks" do
 
       sets :checkout
       sets :branch
+      sets :release_lane
       sets :on_origin
       sets :clean
       sets :version
@@ -2585,8 +2614,9 @@ Hecks.bluebook "Hecks" do
   policy "AcceptTheReleaseWhenExamined" do
     on      "PublishingRun.PublishingExamined"
     where   { operation.value == "publish" }
-    trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, on_origin: :on_origin,
-                                           clean: :clean, version: :version, client_version: :client_version,
+    trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
+                                           on_origin: :on_origin, clean: :clean, version: :version,
+                                           client_version: :client_version,
                                            changelog: :changelog, tag_state: :tag_state, head: :head,
                                            ir_version: :ir_version, ships_from: :ships_from }
   end
@@ -2603,7 +2633,7 @@ Hecks.bluebook "Hecks" do
     on      "PublishingRun.PublishingExamined"
     where do
       operation.value == "publish" &&
-        (!checkout.value || branch.value != "main" || !on_origin.value || !clean.value ||
+        (!checkout.value || branch.value != release_lane.value || !on_origin.value || !clean.value ||
           client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere")
     end
     trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG and tag" }
@@ -2665,5 +2695,179 @@ Hecks.bluebook "Hecks" do
   policy "RecordPublishingFault" do
     on      "PublishingRun.PublishingRefused"
     trigger PublishingRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Promotion: moving a lane forward onto a commit that has passed every `RequiredCheck`. The
+  # adapter reads the facts (does the lane exist, where its head stands, where each check stands
+  # against the commit) and `Accept` holds the rules, so what makes a commit fit for the lane is
+  # decided here and in the Lane and RequiredCheck rows, never by the workflow that runs
+  # `hecks promotion_run.promote`. Without --confirm the run is a rehearsal: it names the move it
+  # would make and makes none. A real run fast-forwards the lane (never forces it) and moves the
+  # tag the lane `feeds`, forward only.
+  aggregate "PromotionRun" do
+    description "One move of a lane onto a commit, or the rehearsal of it: judged by the facts, then carried out."
+
+    attribute :run,        RunKey
+    attribute :operation,  Operation, optional: true
+    attribute :confirm,    Switch, optional: true
+    attribute :lane,       Word
+    attribute :commit,     Word, optional: true
+    attribute :checkout,   Switch, optional: true
+    attribute :lane_known, Switch, optional: true
+    attribute :green,      Switch, optional: true
+    attribute :descends,   Switch, optional: true
+    attribute :head,       Word, optional: true
+    attribute :promoted,   Switch, optional: true
+    attribute :reason,     Report, optional: true
+    attribute :report,     Report, optional: true
+    attribute :refusal,    Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # A branch name, or a commit.
+    value_object "Word" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Promote" do
+      role "Maintainer"
+      goal "Move a lane onto a commit that has passed every required check, or with no --confirm rehearse the move"
+
+      attribute :lane,    Word
+      attribute :commit,  Word, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :lane
+      sets :commit
+      sets :run
+      sets :confirm
+      sets :operation, to: "promote"
+
+      emits PromoteRequested
+    end
+
+    # What the tree and the remote reported, held against the rules of a promotion: the adapter
+    # supplies the facts and the givens decide.
+    command "Accept" do
+      role "System"
+      goal "Let a lane move only in a hecks checkout, onto a commit that is green on every required check and contains the lane's head"
+
+      reference_to PromotionRun
+      attribute :checkout,   Switch
+      attribute :lane_known, Switch
+      attribute :green,      Switch
+      attribute :descends,   Switch
+      attribute :commit,     Word
+      attribute :head,       Word, optional: true
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
+      given("every RequiredCheck is green on the commit: wait for the checks, or fix the red one") { green.value }
+      given("the commit is on the lane it follows and contains the lane's head: a lane only moves forward") { descends.value }
+
+      sets :checkout
+      sets :lane_known
+      sets :green
+      sets :descends
+      sets :commit
+      sets :head
+
+      emits PromotionAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the promotion was carried out or rehearsed, and what it reported"
+
+      reference_to PromotionRun
+      attribute :report,   Report
+      attribute :promoted, Switch
+
+      sets :report
+      sets :promoted
+
+      emits PromotionCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the promotion was refused or could not be carried out, and why"
+
+      reference_to PromotionRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits PromotionFaulted
+    end
+
+    query "PromotionOutcome" do
+      description "How one promotion ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "PromotionFaulted" do
+      description "Every promotion that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenPromoteRequested" do
+    on      "PromotionRun.PromoteRequested"
+    trigger PromotionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptPromotionWhenExamined" do
+    on      "PromotionRun.PromotionExamined"
+    trigger PromotionRun::Accept, with: { checkout: :checkout, lane_known: :lane_known, green: :green,
+                                          descends: :descends, commit: :commit, head: :head }
+  end
+
+  policy "FaultPromotionWhenNotAccepted" do
+    on      "PromotionRun.PromotionExamined"
+    where   { !checkout.value || !lane_known.value || !green.value || !descends.value }
+    trigger PromotionRun::Fault, with: { refusal: :reason }
+  end
+
+  policy "PerformPromotionWhenAccepted" do
+    on      "PromotionRun.PromotionAccepted"
+    trigger PromotionRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordPromotionOutcome" do
+    on      "PromotionRun.PromotionAnswered"
+    trigger PromotionRun::Complete, with: { report: :report, promoted: :promoted }
+  end
+
+  policy "RecordPromotionFault" do
+    on      "PromotionRun.PromotionRefused"
+    trigger PromotionRun::Fault, with: { refusal: :refusal }
   end
 end

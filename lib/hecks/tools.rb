@@ -23,6 +23,7 @@ module Hecks
       "argument_gate_matrix"           => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
       "project_ci_gates"               => ["tools/ci_gates", "CiGates"],
       "decide_ci_gate"                 => ["tools/ci_gate_decision", "CiGateDecision"],
+      "project_lanes"                  => ["tools/lanes", "Lanes"],
       "project_tools_doc"              => ["tools/tools_doc", "ToolsDoc"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
       "project_site"                   => ["tools/site_routes", "SiteRoutes"],

@@ -1,11 +1,11 @@
 name: CI
 
-# Runs the pre-push checks (.githooks/pre-push) on every PR and merge-queue entry, against
-# real Postgres and SQLite, so a push that skipped the hook cannot land red.
-#
-# `push: branches: [main]` runs only `postgres_io_relevant_changed`; every other job skips
-# on it, and cache-warm.yml warms the main-scope caches. spec/ci_summary_jobs_spec.rb pins
-# the `github.event_name` conditions.
+# Runs the pre-push checks (.githooks/pre-push) on every PR and every push to main, against
+# real Postgres and SQLite. `main` takes pushes with no gate, so this run is what reports where
+# each RequiredCheck stands against a commit; promote.yml moves `stable` onto a commit only
+# when every one of them passed (the Lane and RequiredCheck rows of the Vocabulary chapter).
+# cache-warm.yml warms the main-scope caches. spec/ci_summary_jobs_spec.rb pins the shape of the
+# required-check wrappers and that no job skips on a push.
 
 # Jobs that touch rust/src/generated or rust/Cargo.toml need their own checkout, because their
 # specs back up and restore those files. The parser, codegen and host crates are independent
@@ -17,25 +17,28 @@ name: CI
 # `rspec` keeps a Postgres service: specs that boot examples/pizzas wire PostgresEra
 # without being tagged `io: true`.
 
-# Every PR runs the full job set; only the cache-warming `push` skips jobs. A failure that only
-# a merge-queue run catches ejects the whole batch, so it has to surface on the PR first.
+# Every PR and every push to main runs the full job set; no job skips on a push, because a
+# skipped required check reports as passed and promote.yml would carry an untested commit to
+# `stable`. Path gates (the CiGate rows) still skip the work a change cannot affect.
+# `merge_group` stays while the `merge-queue-main` ruleset guards main: the queue builds each entry
+# from the workflows in its own merge commit, so a ci.yml without the trigger starts no run and the
+# entry waits for checks that never report. Remove it, in a change of its own, after the ruleset
+# and branch protection are gone from main.
 on:
   pull_request:
   merge_group:
-  # Cache warming only: every job skips here except the Postgres-io shard matrix. Each
-  # required-check wrapper names `push` as the event its call may skip on.
   push:
     branches: [main]
 
-# Cancels a superseded PR run. Never cancels a `merge_group` run: that would leave the queue
-# unsure about a PR it already started testing.
+# Cancels a superseded PR run. Never cancels a push to main: promotion reads the checks of
+# every main commit, and a cancelled run reports none.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Aggregator that keeps `rspec` the required-status-check name the `merge-queue-main`
-  # ruleset names; the work is in ci-rspec.yml. `if: always()` is required, else a failed
+  # Aggregator that keeps `rspec` a RequiredCheck name (Vocabulary chapter); the work is in
+  # ci-rspec.yml. `if: always()` is required, else a failed
   # `rspec_impl` would skip this job.
   rspec:
     runs-on: ubuntu-latest
@@ -43,10 +46,9 @@ jobs:
 
     needs: rspec_impl
     # Runs only to fail: a job skipped by its own `if:` reports as passing to a required
-    # check, so the wrapper runs (and fails) unless `_impl` succeeded or skipped on an event
-    # its call may skip on (`push`). Fail-closed for any other result; pinned by
-    # spec/ci_summary_jobs_spec.rb.
-    if: always() && !(needs.rspec_impl.result == 'success' || (needs.rspec_impl.result == 'skipped' && (github.event_name == 'push')))
+    # check, so the wrapper runs (and fails) unless `_impl` succeeded. Nothing about a call
+    # legitimately skips, so any other result fails; pinned by spec/ci_summary_jobs_spec.rb.
+    if: always() && needs.rspec_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -58,7 +60,6 @@ jobs:
         with:
           job: rspec_impl
           result: ${{ needs.rspec_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-rspec.yml; secrets are passed explicitly.
   rspec_impl:
@@ -75,7 +76,7 @@ jobs:
 
     needs: checks_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.checks_impl.result == 'success' || (needs.checks_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.checks_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -87,7 +88,6 @@ jobs:
         with:
           job: checks_impl
           result: ${{ needs.checks_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-checks.yml; secrets are passed explicitly.
   checks_impl:
@@ -129,14 +129,12 @@ jobs:
         rspec_postgres_io_impl,
         rspec_postgres_io_parallel_impl,
       ]
-    # `!= 'push'` alone would also fire on merge_group, where re-signing the queue's own
-    # tree helps nothing (nothing re-checks it against itself); `== 'pull_request'` is the
-    # real gate, `!= 'push'` alongside it is spec/ci_summary_jobs_spec.rb's own pinned shape
-    # for "this job takes no runner on a push to main". checks_fuzz/checks_fuzz_postgres/
+    # Only a PR run writes the note: a push to main is checked against its own tree already,
+    # and nothing re-checks it against itself. checks_fuzz/checks_fuzz_postgres/
     # checks_fuzz_sqlite/checks_codegen_drift need no entry of their own here: they're not
     # independently required, so needs.checks_impl.result already covers them.
     if: >-
-      github.event_name != 'push' && github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request' &&
       needs.rspec_impl.result == 'success' && needs.checks_impl.result == 'success' &&
       needs.rspec_rust_io_impl.result == 'success' && needs.rspec_rust_parser_impl.result == 'success' &&
       needs.rspec_rust_codegen_impl.result == 'success' && needs.rspec_rust_host_impl.result == 'success' &&
@@ -163,7 +161,7 @@ jobs:
 
     needs: rspec_postgres_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_postgres_io_impl.result == 'success' || (needs.rspec_postgres_io_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.rspec_postgres_io_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -175,7 +173,6 @@ jobs:
         with:
           job: rspec_postgres_io_impl
           result: ${{ needs.rspec_postgres_io_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-postgres-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_impl:
@@ -228,7 +225,7 @@ jobs:
 
     needs: rspec_rust_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_io_impl.result == 'success' || (needs.rspec_rust_io_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.rspec_rust_io_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -240,7 +237,6 @@ jobs:
         with:
           job: rspec_rust_io_impl
           result: ${{ needs.rspec_rust_io_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-rust-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_io_impl:
@@ -259,9 +255,6 @@ jobs:
   rspec_rust_io_build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
-    # Cache-warming push doesn't need this job.
-    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -295,9 +288,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Cache-warming push doesn't need this job.
-    if: github.event_name != 'push'
-
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -320,7 +310,7 @@ jobs:
 
     needs: rspec_rust_parser_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_parser_impl.result == 'success' || (needs.rspec_rust_parser_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.rspec_rust_parser_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -332,7 +322,6 @@ jobs:
         with:
           job: rspec_rust_parser_impl
           result: ${{ needs.rspec_rust_parser_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-rust-parser.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_parser_impl:
@@ -352,7 +341,7 @@ jobs:
 
     needs: rspec_rust_codegen_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_codegen_impl.result == 'success' || (needs.rspec_rust_codegen_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.rspec_rust_codegen_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -364,7 +353,6 @@ jobs:
         with:
           job: rspec_rust_codegen_impl
           result: ${{ needs.rspec_rust_codegen_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-rust-codegen.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_codegen_impl:
@@ -384,7 +372,7 @@ jobs:
 
     needs: rspec_rust_host_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_host_impl.result == 'success' || (needs.rspec_rust_host_impl.result == 'skipped' && (github.event_name == 'push')))
+    if: always() && needs.rspec_rust_host_impl.result != 'success'
 
     steps:
       # Only the action is needed from the checkout, so only .github/actions is fetched.
@@ -396,7 +384,6 @@ jobs:
         with:
           job: rspec_rust_host_impl
           result: ${{ needs.rspec_rust_host_impl.result }}
-          skip-expected: ${{ github.event_name == 'push' }}
 
   # Calls ci-rust-host.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_host_impl:
@@ -412,8 +399,6 @@ jobs:
   ci_attestation_rspec_fuzzing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
-    if: github.event_name != 'push'
 
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
@@ -431,7 +416,7 @@ jobs:
     timeout-minutes: 20
 
     needs: ci_attestation_rspec_fuzzing
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rspec_fuzzing.result != 'success' || needs.ci_attestation_rspec_fuzzing.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rspec_fuzzing.result != 'success' || needs.ci_attestation_rspec_fuzzing.outputs.attested != 'true')
 
     # Two fuzzing specs are `io: true` and need Postgres (concurrent_dispatch_spec.rb,
     # era_boundary_spec.rb). Every other io job runs `--tag ~fuzzing`, so only this lane runs
@@ -463,8 +448,6 @@ jobs:
   runtime_changed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # A push is a cache-warming run; the jobs that need this one skip through their `needs:`.
-    if: github.event_name != 'push'
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
     steps:

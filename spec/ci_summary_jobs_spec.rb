@@ -117,25 +117,14 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(reading.map { |path, name, _| job_label(path, name) }).to be_empty, message
   end
 
-  def skips_on_push?(job) = job["if"].to_s.include?("github.event_name != 'push'")
+  # `main` takes pushes with no gate, so a push's run is what reports where each RequiredCheck
+  # stands, and promotion reads it. A job skipped on a push reports as passed, which would carry
+  # an untested commit to `stable`: no job may name `push` as an event to skip on.
+  it "skips no job on a push to main" do
+    jobs = workflow_jobs(workflow_files(".github/workflows/ci*.yml"))
+    skipping = jobs.select { |_, _, job| job["if"].to_s.include?("'push'") }
 
-  # A job skips on push by saying so, or by needing one that does.
-  def runner_on_push?(name, job, jobs)
-    return false if job.key?("uses") || name == "postgres_io_relevant_changed" || self.class.wrappers.key?(name)
-
-    upstream = Array(job["needs"]).map { |needed| jobs.fetch(needed) }
-    !(skips_on_push?(job) || upstream.any? { |needed| skips_on_push?(needed) })
-  end
-
-  # The merge queue already tested a push to main, so only the Postgres detector may take
-  # a runner.
-  it "spends no runner on a push to main beyond the Postgres detector" do
-    offenders = workflow_files(".github/workflows/ci*.yml").flat_map do |path|
-      jobs = YAML.load_file(path).fetch("jobs")
-      jobs.select { |name, job| runner_on_push?(name, job, jobs) }.map { |name, _| job_label(path, name) }
-    end
-
-    expect(offenders).to be_empty, "would take a runner on a push to main"
+    expect(skipping.map { |path, name, _| job_label(path, name) }).to be_empty, "skip on a push to main"
   end
 
   # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.

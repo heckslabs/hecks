@@ -2,14 +2,15 @@ require "json"
 require_relative "commands"
 require_relative "git"
 require_relative "clean_tree"
+require_relative "../lane"
 
 module Hecks
   module Release
     class Runner
       # The checks that run before a release does anything: tools installed, a
-      # clean current `main`, matching versions, and a changelog entry.
+      # clean current release lane (`stable`), matching versions, and a changelog entry.
       class Preflight
-        # What the checks learned; `sha` is also `origin/main`, enforced by check_current.
+        # What the checks learned; `sha` is also `origin/<release lane>`, enforced by check_current.
         Facts = Struct.new(:version, :sha, keyword_init: true)
 
         INSTALL_HINTS = {
@@ -63,9 +64,9 @@ module Hecks
 
         def check_branch
           branch = git("rev-parse", "--abbrev-ref", "HEAD").strip
-          return if branch == "main"
+          return if branch == lane
 
-          raise Refusal, "on branch #{branch}, not main; release from main: git checkout main"
+          raise Refusal, "on branch #{branch}, not #{lane}; release from #{lane}: git checkout #{lane}"
         end
 
         def check_current
@@ -73,12 +74,16 @@ module Hecks
           raise Refusal, "git fetch origin failed (#{fetch.stderr.strip}); check the network and the remote" unless fetch.success?
 
           head = git("rev-parse", "HEAD").strip
-          upstream = git("rev-parse", "origin/main").strip
+          upstream = git("rev-parse", "origin/#{lane}").strip
           return if head == upstream
 
-          raise Refusal, "main (#{head[0, 7]}) is not origin/main (#{upstream[0, 7]}); " \
-                         "merge the release PR, then git pull --ff-only"
+          raise Refusal, "#{lane} (#{head[0, 7]}) is not origin/#{lane} (#{upstream[0, 7]}); " \
+                         "wait for the release commit to be promoted, then git pull --ff-only"
         end
+
+        # The lane a release is cut from: the one that feeds a tag, never the one that takes
+        # pushes with no gate.
+        def lane = @lane ||= Lane.release
 
         def check_clean
           unless git("status", "--porcelain").strip.empty?

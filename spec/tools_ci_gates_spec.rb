@@ -49,7 +49,7 @@ RSpec.describe Hecks::Tools::CiGates do
       postgres = YAML.load_file(File.join(root, ".github/workflows/ci-postgres-io-parallel.yml"))
 
       expect(ci.dig("jobs", "stress_concurrency", "needs")).to eq("runtime_changed")
-      expect(ci.dig("jobs", "runtime_changed", "if")).to eq("github.event_name != 'push'")
+      expect(ci.dig("jobs", "runtime_changed")).not_to have_key("if")
       expect(postgres.dig("jobs", "postgres_io_relevant_changed")).not_to have_key("if")
     end
   end
@@ -72,7 +72,9 @@ RSpec.describe Hecks::Tools::CiGates do
 
     def ci_yml = File.join(work, ".github/workflows/ci.yml")
 
-    def hand_edit(text) = text.sub("timeout-minutes: 10\n    # A push", "timeout-minutes: 99\n    # A push")
+    def hand_edit(text)
+      text.sub("timeout-minutes: 10\n    outputs:\n      touched", "timeout-minutes: 99\n    outputs:\n      touched")
+    end
 
     it "names a workflow whose region was edited by hand, and writes nothing under --check", :aggregate_failures do
       edited = hand_edit(File.read(ci_yml))

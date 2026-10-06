@@ -53,8 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    if: github.event_name != 'push'
-
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
 
@@ -73,7 +71,7 @@ jobs:
     timeout-minutes: 10
 
     needs: postgres_io_relevant_changed
-    if: github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true'
+    if: needs.postgres_io_relevant_changed.outputs.touched == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +106,7 @@ jobs:
     # runtime-log cache the committed baseline replaced; cache-warm.yml warms the caches that
     # need main's scope.
     if: >-
-      always() && github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true' &&
+      always() && needs.postgres_io_relevant_changed.outputs.touched == 'true' &&
       (needs.ci_attestation_postgres_io_parallel.result != 'success' || needs.ci_attestation_postgres_io_parallel.outputs.attested != 'true')
 
     strategy:

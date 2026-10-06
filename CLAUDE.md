@@ -65,13 +65,61 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
-## Agents merge their own pull requests
+## RuboCop is strict: it runs at its defaults
 
-Push the branch, open the pull request, and once it is ready and not a
-draft, queue it yourself: `gh pr merge <pr> --auto`. A sandboxed agent
-runs `hecks-merge <pr>` instead, which queues the same merge for any open,
-non-draft, same-repository pull request into `main`. The merge queue runs
-the required checks; never use `--admin` and never push to `main`.
+`.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`
+lists, so every other cop runs at the RuboCop default, new cops included. The pre-push gate and CI
+run it over the whole repository, specs too, and one offense blocks the push. Write code that
+passes the first time:
+
+- **Metrics are on.** A method is at most 10 lines, with ABC size 17, cyclomatic complexity 7 and
+  at most 5 parameters; a class or module is at most 100 lines. Do not write one long method and
+  a `# rubocop:disable`: extract named helpers or a collaborator class, because the extraction is
+  usually the better design. Raising a limit in `.rubocop.yml` needs an ADR 0091 entry; do not do it
+  to land a change.
+- **Specs are held to it as well.** An example is at most 5 lines and holds one expectation, so a
+  multi-step example is tagged `:aggregate_failures` (see `spec/hecks_codebase_adr_rows_spec.rb`)
+  and its setup goes into a helper method; at most 5 `let`s per group (a plain method is not
+  counted); prefer `receive` and `have_received` over a bare expectation on a message
+  (`RSpec/MessageSpies`).
+- **Style is set, not chosen.** Double quotes everywhere, including inside interpolation
+  (`"#{lane["name"]}"`, never `'name'`), table-aligned hashes, and 130 columns for code.
+- **Check before you push:** `bundle exec rubocop <files>` while you work, `bundle exec rubocop`
+  for the whole tree, and `bundle exec rubocop -a <files>` for the offenses it can fix itself (it
+  fixes style, not metrics). Run it in a clean checkout before you call work done: a `.gitignore`
+  entry can hide a file in your tree that a fresh clone will not have.
+
+## Two lanes: `main` takes pushes, `stable` is promoted
+
+The branches are data: the `Lane` rows of the Vocabulary chapter
+(`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
+commit must pass as `RequiredCheck` rows beside them.
+
+- **`main` has no guard.** Push to it directly, or open a pull request and
+  merge it with `gh pr merge <pr> --squash` once it is ready and not a
+  draft (a sandboxed agent runs `hecks-merge <pr>`). No check is required
+  to land, so run the pre-push gate yourself before you push anything that
+  is not trivial: `HECKS_PRE_PUSH_GATE=1 git push` runs it on `main`. Never
+  force-push `main`, and never use `--admin`.
+- **`stable` is only ever promoted.** CI runs the full job set on every push
+  to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
+  fast-forwards `stable` onto it through
+  `exe/hecks promotion_run.promote lane=stable --confirm --wait`. Never push
+  to `stable` yourself. Rehearse a move without `--confirm`: it names the
+  move and makes none, and it says which check is red or still running.
+- **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
+  the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
+  lines, `packages/hecks-client`) to `main`, wait for `stable` to contain
+  it, then publish from a clean `stable`.
+- **A red `main` blocks promotion, not pushes.** Fix forward or revert on
+  `main`; `stable` does not move until a commit is green. Do not
+  cherry-pick onto `stable` unless the user says production is down.
+- **Change a lane or a required check by editing its row**, then run
+  `exe/hecks regeneration_run.project_lanes --wait` to rewrite
+  `.github/rulesets/` and `.github/workflows/promote.yml`. Applying the
+  rulesets to GitHub is a separate, confirmed step
+  (`regeneration_run.project_lanes --live --confirm`); never hand-edit the
+  generated files.
 
 ## Never hand-edit generated output
 

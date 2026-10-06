@@ -36,6 +36,21 @@ module Hecks
         { summary: { value: "#{runs.length} checks, all green (#{sha[0, 7]})" } }
       end
 
+      # Where each named check stands against a commit, for a caller that must tell a check that is
+      # still running from one that failed (`run` raises for both). A name that reported more than
+      # once (a re-run) stands as its most recent report.
+      #
+      # @param commit [Hash, String] a materialized value object (`{value: sha}`) or a bare sha
+      # @param names [Array<String>] the checks to look up
+      # @return [Hash{String => Symbol}] each name to `:passed`, `:failed`, `:pending` (reported but
+      #   not completed) or `:missing` (not reported at all)
+      # @raise [RuntimeError] when the sha is malformed or `gh` is missing or fails
+      def states(commit:, names:)
+        reported = check_runs(valid_sha(commit)).group_by { |run| run["name"] }
+        latest = reported.transform_values { |runs| runs.max_by { |run| run["id"].to_i } }
+        names.to_h { |name| [name, state_of(latest[name])] }
+      end
+
       private
 
       def valid_sha(commit)
@@ -60,6 +75,13 @@ module Hecks
       def failure_message(failing, runs, sha)
         "#{failing.length} of #{runs.length} checks failed against #{sha[0, 7]}: " \
           "#{failing.map { |run| run["name"] }.join(", ")}"
+      end
+
+      def state_of(run)
+        return :missing unless run
+        return :pending unless run["status"] == "completed"
+
+        PASSING.include?(run["conclusion"]) ? :passed : :failed
       end
 
       # Accepts a materialized value hash with symbol or string keys, or a bare string.
