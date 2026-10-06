@@ -14,6 +14,10 @@ module Hecks
       # Check-run conclusions that count as green; `skipped` covers path-filtered workflows.
       PASSING = %w[success neutral skipped].freeze
 
+      # The GitHub Actions app. A promotion counts only the checks it reported: a check of the same
+      # name posted by another app, a token or a person certifies nothing.
+      GITHUB_ACTIONS_APP_ID = 15_368
+
       # A commit sha as GitHub accepts it in an API path.
       SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
 
@@ -38,7 +42,8 @@ module Hecks
 
       # Where each named check stands against a commit, for a caller that must tell a check that is
       # still running from one that failed (`run` raises for both). A name that reported more than
-      # once (a re-run) stands as its most recent report.
+      # once (a re-run) stands as its most recent report. Only reports of the GitHub Actions app
+      # count; a name reported by any other app stands as `:missing`.
       #
       # @param commit [Hash, String] a materialized value object (`{value: sha}`) or a bare sha
       # @param names [Array<String>] the checks to look up
@@ -46,12 +51,14 @@ module Hecks
       #   not completed) or `:missing` (not reported at all)
       # @raise [RuntimeError] when the sha is malformed or `gh` is missing or fails
       def states(commit:, names:)
-        reported = check_runs(valid_sha(commit)).group_by { |run| run["name"] }
+        reported = check_runs(valid_sha(commit)).select { |run| actions?(run) }.group_by { |run| run["name"] }
         latest = reported.transform_values { |runs| runs.max_by { |run| run["id"].to_i } }
         names.to_h { |name| [name, state_of(latest[name])] }
       end
 
       private
+
+      def actions?(run) = run.dig("app", "id") == GITHUB_ACTIONS_APP_ID
 
       def valid_sha(commit)
         sha = sha_of(commit)

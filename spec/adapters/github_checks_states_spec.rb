@@ -14,8 +14,8 @@ RSpec.describe Hecks::Adapters::GithubChecks, "#states" do
     allow(Open3).to receive(:capture3).with("gh", "api", path).and_return([body, "", status])
   end
 
-  def run(name, id: 1, status: "completed", conclusion: "success")
-    { "name" => name, "id" => id, "status" => status, "conclusion" => conclusion }
+  def run(name, id: 1, status: "completed", conclusion: "success", app: described_class::GITHUB_ACTIONS_APP_ID)
+    { "name" => name, "id" => id, "status" => status, "conclusion" => conclusion, "app" => { "id" => app } }
   end
 
   it "tells a passed check from a failed one, a running one and one that never reported" do
@@ -36,6 +36,19 @@ RSpec.describe Hecks::Adapters::GithubChecks, "#states" do
     stub_gh(run("rspec", id: 1, conclusion: "failure"), run("rspec", id: 2, conclusion: "success"))
 
     expect(adapter.states(commit: sha, names: ["rspec"])).to eq("rspec" => :passed)
+  end
+
+  # Any app with checks:write can post a green check of any name against any commit.
+  it "ignores a passing check another app reported under a required name" do
+    stub_gh(run("rspec", app: 99_999))
+
+    expect(adapter.states(commit: sha, names: ["rspec"])).to eq("rspec" => :missing)
+  end
+
+  it "does not let another app's later report hide the Actions app's failure" do
+    stub_gh(run("rspec", id: 1, conclusion: "failure"), run("rspec", id: 2, app: 99_999))
+
+    expect(adapter.states(commit: sha, names: ["rspec"])).to eq("rspec" => :failed)
   end
 
   it "refuses a malformed sha before asking GitHub", :aggregate_failures do

@@ -29,31 +29,40 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "rspec"
+            "context": "rspec",
+            "integration_id": 15368
           },
           {
-            "context": "checks"
+            "context": "checks",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_postgres_io"
+            "context": "rspec_postgres_io",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_postgres_io_parallel"
+            "context": "rspec_postgres_io_parallel",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_rust_io"
+            "context": "rspec_rust_io",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_rust_parser"
+            "context": "rspec_rust_parser",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_rust_codegen"
+            "context": "rspec_rust_codegen",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_rust_host"
+            "context": "rspec_rust_host",
+            "integration_id": 15368
           },
           {
-            "context": "rspec_fuzzing"
+            "context": "rspec_fuzzing",
+            "integration_id": 15368
           }
         ]
       }
