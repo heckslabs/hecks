@@ -1,8 +1,10 @@
 name: Release
 
 # Cuts the release a merged release PR describes, so nobody runs `hecks publishing_run.publish
-# --confirm` from a laptop. It runs when a commit on main changes lib/hecks/version.rb, and does
-# what the local publish does, in the same order:
+# --confirm` from a laptop. It runs after the Promote workflow, on `stable`: the commit it
+# releases is the newest one on `stable` that set Hecks::VERSION, so a version bump on `main`
+# releases nothing until every required check has passed on it and `stable` has reached it. It
+# does what the local publish does, in the same order:
 #
 #   1. check that Hecks::VERSION, packages/hecks-client, rust/host/HECKS_RELEASE and a
 #      `## [X.Y.Z]` heading in CHANGELOG.md all name the same version, and refuse if they do not;
@@ -10,6 +12,9 @@ name: Release
 #   3. push the gem to rubygems.org (the API key first, then trusted publishing, see below);
 #   4. start publish-client.yml for the tag, which publishes @hecks/client to npm (OIDC);
 #   5. create the GitHub Release from the CHANGELOG section and mark it latest.
+#
+# A release commit that is not on `stable` is refused whichever way the run started, a by-hand
+# run included: a release is a statement about certified code.
 #
 # Every step looks at what already exists first and skips it, so a run that stopped halfway, or a
 # release that was already cut by hand, is finished by re-running: the workflow never tags,
@@ -42,11 +47,12 @@ name: Release
 # run checks out that tag, so a missing piece of an older release can be filled in.
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - lib/hecks/version.rb
+  # Promote moves `stable` and finishes; whether the version changed is read from `stable`, and
+  # every step below skips what already exists, so a promotion that releases nothing is a no-op.
+  workflow_run:
+    workflows: [Promote]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -65,7 +71,10 @@ permissions:
 
 jobs:
   release:
-    if: github.repository == 'heckslabs/hecks' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'heckslabs/hecks' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -81,9 +90,20 @@ jobs:
       REQUESTED_TAG: ${{ inputs.tag }}
 
     steps:
+      # A promotion run reads `stable`; a by-hand run starts from main and moves to its tag.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_run' && 'stable' || '' }}
           fetch-depth: 0
+
+      # The commit that set the current version, so a later commit on `stable` that does not touch
+      # it is not mistaken for a new release (the tag stands on the commit that set the version).
+      - name: Stand on the commit that set the version
+        if: github.event_name == 'workflow_run'
+        run: |
+          commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+          [ -n "$commit" ] || { echo "::error::no commit on stable sets Hecks::VERSION"; exit 1; }
+          git checkout --detach "$commit"
 
       # A by-hand run for a tag that already exists works from that tag's tree.
       - name: Check out the requested tag
@@ -96,6 +116,14 @@ jobs:
           git fetch --force --tags origin
           if git rev-parse -q --verify "refs/tags/$REQUESTED_TAG^{commit}" > /dev/null; then
             git checkout --detach "refs/tags/$REQUESTED_TAG"
+          fi
+
+      - name: The release commit is on stable
+        run: |
+          git fetch --quiet origin stable
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::$(git rev-parse --short HEAD) is not on stable. A release comes from stable, never main: wait for Promote to move stable onto it, then re-run."
+            exit 1
           fi
 
       - name: The files agree on one version

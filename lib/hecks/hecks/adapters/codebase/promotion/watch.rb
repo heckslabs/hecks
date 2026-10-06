@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "gate"
+require_relative "candidates"
 require_relative "../../git"
 
 module Hecks
@@ -64,10 +64,17 @@ module Hecks
             "#{name} has stood #{behind}h behind #{source} (its Lane row allows #{limit}h): #{checks_on_source}"
           end
 
+          # Tells a lane that is merely waiting on CI from one whose promotion is stuck: a certified
+          # commit the lane has not reached means the promotion should have run, whatever the
+          # head of the followed lane is doing.
           def checks_on_source
             head = @repo.remote_head("refs/heads/#{source}", chdir: @where)
-            why = Gate.new(head).why
-            why.empty? ? "every required check passed on #{head[0, 7]}, so a promotion should have run" : why
+            candidates = Candidates.new(@repo, @where, head, @repo.remote_head("refs/heads/#{name}", chdir: @where))
+            certified = candidates.newest_certified
+            return "every required check passed on #{certified[0, 7]}, so a promotion should have run" if certified
+
+            why = candidates.gate(head).why
+            why.empty? ? "#{head[0, 7]} passed every required check but is not a fast-forward of #{name}" : why
           end
         end
       end

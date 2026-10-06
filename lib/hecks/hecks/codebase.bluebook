@@ -2703,7 +2703,15 @@ Hecks.bluebook "Hecks" do
   # decided here and in the Lane and RequiredCheck rows, never by the workflow that runs
   # `hecks promotion_run.promote`. Without --confirm the run is a rehearsal: it names the move it
   # would make and makes none. A real run fast-forwards the lane (never forces it) and moves the
-  # tag the lane `feeds`, forward only.
+  # tag the lane `feeds`, forward only; a lane that already holds the commit still has its tag
+  # brought up to the lane's head, so a half-finished run is finished by the next.
+  #
+  # A commit is certified by the checks of that exact commit. With `commit` named, that commit is
+  # the one judged, and no other is ever put in its place. Without it, the commit is the newest
+  # one of the followed lane (first-parent, a bounded way back) that every `RequiredCheck` passed
+  # on and that fast-forwards the lane, so the outcome never depends on which push's CI run
+  # started the promotion; when none qualifies the refusal names what the lane's head is
+  # waiting on.
   aggregate "PromotionRun" do
     description "One move of a lane onto a commit, or the rehearsal of it: judged by the facts, then carried out."
 
