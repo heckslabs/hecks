@@ -302,6 +302,11 @@
       "role": null
     },
     {
+      "scope": "deploy:shared_database_target.declare",
+      "verb": "Deploy::SharedDatabaseTarget.Declare",
+      "role": null
+    },
+    {
       "scope": "deploy:smoke_run.flag",
       "verb": "Deploy::SmokeRun.Flag",
       "role": null

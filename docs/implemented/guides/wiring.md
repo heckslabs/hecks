@@ -551,6 +551,30 @@ differs, or when no container sets one (so a typo cannot skip the check). It nev
 prints a value. `origin_env` without an `origin_secret` and a `task_definition` is
 refused.
 
+### A database several sites share: `AwsSharedDatabase`, and `shared_database`
+
+A platform that hosts more than one site can run one RDS instance for all of them
+([ADR 0092](../../decisions/0092-clients-share-one-database-instance-each-in-its-own-database.md)).
+The platform's own world declares the instance:
+
+```text
+deployed_to("AwsSharedDatabase") do
+  region "us-east-1"
+  stack_name "hecks-platform-rds"        # required: every site names this string
+  database_class "db.t4g.small"          # defaults: db.t4g.small, 30 GB, Postgres 16, 7-day backups
+end
+```
+
+`hecks deploy project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
+stack makes no database of its own; each site's rule on its security group is that site's box stack's, and the bastion's
+is its own resource so an update cannot revoke a site's rule.
+
+A site's `deployed_to("AwsBox")` block then says `shared_database "hecks-platform-rds"`. It generates no `rds.yaml`;
+`deploy-box.sh` and the `Makefile` read the endpoint and security group from the shared stack and the login from the
+site's own secret `<site>/database`, and `provision-database.sh` (`make provision BASTION=i-...`) creates that site's
+role (not a superuser), the database it owns, and the secret. `database_class`, `storage_gb`, `engine_version` and
+`backup_days` are refused beside it, since they are the instance's.
+
 ### Hosting scripts for `AwsBox`
 
 A `deployed_to("AwsBox")` block that sets `hosting_scripts true` also gets the

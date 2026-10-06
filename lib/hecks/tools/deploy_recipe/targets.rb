@@ -12,7 +12,7 @@ module Hecks
         # The refusal for a world with no deploy target, where `__WORLD_FILE__` and `__DOMAIN__`
         # stand for the world file and the domain directory.
         NO_TARGET = <<~MSG
-          __WORLD_FILE__ declares no deployed_to("AwsLambda"), deployed_to("AwsFargate"), deployed_to("AwsBox") or deployed_to("Vercel") block. Add one, e.g.:
+          __WORLD_FILE__ declares no deployed_to("AwsLambda"), deployed_to("AwsFargate"), deployed_to("AwsBox"), deployed_to("AwsSharedDatabase") or deployed_to("Vercel") block. Add one, e.g.:
 
               deployed_to("AwsLambda") do
                 region "us-east-1"
@@ -34,6 +34,13 @@ module Hecks
               deployed_to("AwsBox") do
                 region "us-east-1"
                 containers [{ name: "web", port: 8080 }]
+              end
+
+          or, for the RDS instance several sites share:
+
+              deployed_to("AwsSharedDatabase") do
+                region "us-east-1"
+                stack_name "hecks-platform-rds"
               end
 
           or:
@@ -89,13 +96,14 @@ module Hecks
         # @param deploy_settings [Hash] the world's `deployed_to` settings
         # @param world_file [String] the `.world` file, named in the refusal
         # @param domain [String] the domain directory, named in the refusal
-        # @return [Symbol] `:aws_lambda`, `:aws_fargate`, `:aws_box` or `:vercel`
+        # @return [Symbol] the key of the registered projection, such as `:aws_box` or `:vercel`
         # @raise [SystemExit] with an example block when the world declares none of them
         def target_key(deploy_settings, world_file, domain)
           case deploy_settings[:adapter]
           when "AwsLambda" then :aws_lambda
           when "AwsFargate" then :aws_fargate
           when "AwsBox" then :aws_box
+          when "AwsSharedDatabase" then :aws_shared_database
           when "Vercel" then :vercel
           else
             abort NO_TARGET.gsub("__WORLD_FILE__") { world_file }.gsub("__DOMAIN__") { domain }

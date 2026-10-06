@@ -649,9 +649,15 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     end
 
     it "copies each declared schema from the source database into the RDS one", :aggregate_failures do
-      expect(files["restore-to-rds.sh"]).to include('SCHEMAS="widgets widgets_cms"', "SRC_DB=${SRC_DB:-legacy}",
+      expect(files["restore-to-rds.sh"]).to include('SCHEMAS=${SCHEMAS:-"widgets widgets_cms"}', "SRC_DB=${SRC_DB:-legacy}",
                                                     "DST_DB=${DST_DB:-widgetdb}", "hecks_tr_extract")
-      expect(files["verify-copy.sh"]).to include('SCHEMAS="widgets,widgets_cms"', "A_DB=${A_DB:-widgetdb}")
+      expect(files["verify-copy.sh"]).to include('SCHEMAS=${COMPARE_SCHEMAS:-"widgets,widgets_cms"}', "A_DB=${A_DB:-widgetdb}")
+    end
+
+    it "lets another database's schemas be copied and compared with the same two scripts", :aggregate_failures do
+      expect(files["restore-to-rds.sh"]).to include("#   SCHEMAS   the schemas to copy",
+                                                    "COMPARE_SCHEMAS=$(echo \"$SCHEMAS\" | tr ' ' ',')")
+      expect(files["verify-copy.sh"]).to include("#   COMPARE_SCHEMAS   the schemas to compare")
     end
 
     it "names the stacks and the schemas in the runbook, in the order the steps are run", :aggregate_failures do

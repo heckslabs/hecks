@@ -40,7 +40,7 @@ and no `rds.yaml`. `make stacks` deploys only the box; `deploy-box.sh` finds the
 ## Phases
 
 1. **Client side (this ADR's build):** `shared_database`, `provision-database.sh`, the host and boot-script `username`, specs and docs.
-2. **The shared instance's generator:** a target that writes the platform's `rds.yaml` and Makefile, in `embryonaut_platform`.
+2. **The shared instance's generator (built):** `deployed_to("AwsSharedDatabase")` writes the instance's `rds.yaml`, a Makefile and a README; the platform repo declares the world.
 3. **Lifeadelics moves:** rehearse the copy into the shared instance, verify, then cut over. Production; ask first.
 4. **Emaho onboards on it** instead of a dedicated instance.
 

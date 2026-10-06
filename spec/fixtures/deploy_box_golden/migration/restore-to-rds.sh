@@ -7,6 +7,8 @@
 #
 #   FORCE=1   drop the target schemas first: a re-load before cutover, or a rollback copy in the other
 #             direction (swap the hosts and secrets, and SRC_DB and DST_DB)
+#   SCHEMAS   the schemas to copy, space separated (default widgets widgets_cms); another database's schemas, such as
+#             an analytics database's `public`, are copied by naming them here with SRC_DB and DST_DB
 #   SRC_DB    the source database (default legacy)
 #   DST_DB    the target database (default widgetdb)
 #   VERIFY_BY_COMMAND=1   end after the copy and leave the comparison to `hecks deploy data_copy.restore`
@@ -28,7 +30,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 
 BASTION=${1:?bastion instance id}; SRC_HOST=${2:?source host}; SRC_SECRET=${3:?source secret arn}
 DST_HOST=${4:?target host}; DST_SECRET=${5:?target secret arn}
-SCHEMAS="widgets widgets_cms"
+SCHEMAS=${SCHEMAS:-"widgets widgets_cms"}
 SRC_DB=${SRC_DB:-legacy}; DST_DB=${DST_DB:-widgetdb}
 SRC_PORT=15432; DST_PORT=15433
 
@@ -93,4 +95,4 @@ done
 
 # Same structure, same exact row counts in every table, nothing unpopulated.
 [ -z "${VERIFY_BY_COMMAND:-}" ] || exit 0
-A_DB=$SRC_DB B_DB=$DST_DB bash "$HERE/verify-copy.sh" "$BASTION" "$SRC_HOST" "$SRC_SECRET" "$DST_HOST" "$DST_SECRET"
+A_DB=$SRC_DB B_DB=$DST_DB COMPARE_SCHEMAS=$(echo "$SCHEMAS" | tr ' ' ',') bash "$HERE/verify-copy.sh" "$BASTION" "$SRC_HOST" "$SRC_SECRET" "$DST_HOST" "$DST_SECRET"

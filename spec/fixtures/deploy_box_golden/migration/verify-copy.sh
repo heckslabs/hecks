@@ -6,13 +6,14 @@
 #   verify-copy.sh <bastion-instance-id> <host-a> <secret-arn-a> <host-b> <secret-arn-b>
 #
 #   A_DB, B_DB   the database on each side (default widgetdb)
+#   COMPARE_SCHEMAS   the schemas to compare, comma separated (default widgets,widgets_cms)
 #
 # Schemas compared: widgets widgets_cms
 # Exit 0 only if both are identical and no materialized view is unpopulated in either; 50 when they differ.
 set -euo pipefail
 
 BASTION=${1:?bastion instance id}; A_HOST=${2:?}; A_SECRET=${3:?}; B_HOST=${4:?}; B_SECRET=${5:?}
-SCHEMAS="widgets,widgets_cms"
+SCHEMAS=${COMPARE_SCHEMAS:-"widgets,widgets_cms"}
 A_DB=${A_DB:-widgetdb}; B_DB=${B_DB:-widgetdb}
 A_PORT=15434; B_PORT=15435
 
