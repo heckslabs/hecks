@@ -7,6 +7,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-06
+
+**Changed: the files that hold `Hecksagon` and `World` are named `hecksagon.rb`.** `lib/hecks/bluebook/hexagon.rb` and `behaviour/hexagon.rb` read as a typo for the classes inside them. The files, the `require_relative` lines and the locals that meant a `Hecksagon` carry the right name; hexagonal-architecture wording in the docs is unchanged.
+
+**Changed: an edit under a consumer tree no longer cools the verdict cache.** The verdict file, and with it the syntax-boot cache, is keyed on the trees the judge runs (not all of `lib/`), so a change under projections, doors, cli, deploy, codemod, bench, fuzzing, quality_control, release or doc leaves the next run warm instead of a cold re-judge.
+
+**Changed: RuboCop also runs `rubocop-performance` and `rubocop-thread_safety`.** The safe Performance corrections are applied across the codebase and ThreadSafety is scoped to `lib/hecks/runtime`; the run is clean.
+
+**Added: agents get RuboCop feedback as they edit.** A PostToolUse hook runs RuboCop on each `.rb` file an agent edits and returns the offense in the same turn. A push of only unguarded lanes still skips the suite and now runs an `unguarded_push` stage (RuboCop, comment style, comment blocks) built from the pre-push checks.
+
 **Added: a box roll saves each container's log before it replaces the container.** Docker deletes a container's `json-file` log with the container, so the `would_refuse_role` lines a role-enforcement shadow run produced were lost at every roll. The generated `deploy-box.sh` now sends the box a read-only step first, over the same SSM path, that writes `docker logs` of every running container to `/var/log/hecks-captures/<container>-<UTC timestamp>.log` (directory mode 750, files 640), keeps the newest 14 per container, skips with a warning under 2 GiB free on `/var/log`, and prints each file's path and size, never its contents. A capture that fails is a warning: the roll goes on and its exit codes are unchanged. `deploy-service.sh` captures only the service it rolls; `SKIP_LOG_CAPTURE=1` skips it. The stack template, user data and logging options are unchanged, so a project picks this up by regenerating and rolling. ADR 0085 decision 14.
 
 **Changed: a late `stable` retries its own promotion, and a promotion that releases nothing calls no registry.** `promote.yml` can now be started by hand or by `gh workflow run`, and a failed `lane-watch` run dispatches it, so a promotion that was dropped is picked up within the hour. `release.yml` gains a `detect` job that reads only GitHub (is the release of the version `stable` carries already published?); the `release` job runs only when it is not, so most promotions make no call to rubygems or npm.
