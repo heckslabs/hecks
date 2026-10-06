@@ -11,6 +11,41 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **`hecks deploy smoke_run.run` runs a project's generated post-deploy smoke as a command, and `make deploy` calls it.** Give it the project (`smoke_run.run <project>`) and it finds the `smoke-after-deploy.sh` the `AwsBox` projection wrote, beside the Makefile or the only one beneath the project (`script=<path>` overrides; `taskdef=`, `skip=true`, `async=true` and `dry_run=true` map to the script's variables). It records a `SmokeRun` in the Deploy chapter as `passed` with what the script printed, or `flagged` with the script's status (20 the roll did not settle, 21 `gh` unavailable, 22 the smoke failed, 23 result unknown), exiting 1 when flagged. The generated Makefile (and `hosting.mk`'s `smoke-after-deploy` target) now run `$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait` instead of the script, so each deploy leaves a durable `SmokeRun` in the Hecks database (`HECKS_DATABASE`, default `postgres://hecks@localhost/hecks`; the deploying machine needs it, `createdb hecks` once). A failed smoke is exit 1 rather than 20 to 23. When the database cannot be opened the target prints that error and the setup step, still runs the script so the smoke's result is printed, and exits non-zero (the smoke's own status, or 24 when it passed); regenerate a project's recipe to pick this up. The script itself is unchanged and `deploy-service.sh` still calls it directly. [ADR 0090](docs/decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md) lays out the rest of the deploy scripts.
 
+### Fixed
+
+**A Memory-backed aggregate with one large nested value object no longer pays for its whole size on every save.** The 3.4.1 fix shared the elements of a top-level `list_of`; a single value-object attribute that holds a list (directly, or through a nested value object) was still copied whole into the journal and hydrated whole into the record on every save, so a `Step` that changed one counter cost O(size of the value object). A hydrated value object is frozen, so Memory now copies it once, freezes the copy, and shares it between every journal entry and record that holds it; a new version of the value object reuses the copies of the list elements it still holds (`Memory::SharedElements`, plus `Runtime::Value#raw_fields`, a reader for the stored fields). A journalled value object now refuses an in-place change (`FrozenError`), the same tightening 3.4.1 made for list elements; an entry still has exactly the shape `StateCodec.copy` gives a durable adapter, and a returned instance still shares nothing mutable with the journal. A value object that is not frozen, or an attribute with no list in it, takes the whole-copy path as before. One game whose `Log` value object holds N cells (Memory), one `Step` that touches only a counter:
+
+| Cells in the value object | Before: time per step, allocations | After |
+|---|---|---|
+| 20 | 4.3 ms, 1,338 | 0.15 ms, 513 |
+| 200 | 20.7 ms, 8,718 | 0.25 ms, 513 |
+| 2,000 | 200 ms, 82,518 | 0.43 ms, 513 |
+| 20,000 | 1,971 ms, 820,520 | 0.15 ms, 513 |
+
+A value object that gains a cell on every save (save only):
+
+| Cells | Before: time, allocations | After |
+|---|---|---|
+| 20 | 0.21 ms, 1,126 | 0.17 ms, 311 |
+| 200 | 3.2 ms, 8,506 | 0.28 ms, 311 |
+| 2,000 | 215 ms, 82,306 | 1.1 to 2.5 ms, 311 |
+
+Allocations per save no longer follow the size. A value object whose list is rebuilt still costs one cheap pointer lookup per existing element in time (about 1 ms per 2,000 cells), not a copy of each.
+
+## [3.4.1] - 2026-10-05
+
+A patch on 3.4.0 with one user-visible fix: a Memory-backed aggregate with a growing `list_of` no longer pays a quadratic cost over a run (present since 1.4.0). It carries one tightening to know before bumping: a list element inside a Memory journal entry is now frozen, so editing a journalled element in place raises `FrozenError`. That edit used to succeed and silently corrupt the journal, so the change turns a silent corruption into a loud error and no working code depends on it; it is a patch for that reason, not a `Behavior change`. Nothing in the DSL or runtime API is removed.
+
+**Fixed: a Memory-backed aggregate with a growing `list_of` no longer slows down with every save.** Since 1.4.0 the Memory adapter journals a codec copy of the state, and builds each record from another copy plus a full hydration, so a save cost O(everything the list holds) in time, and the journal kept a full copy per save: quadratic time and memory over a run. A hydrated element of a composite `list_of` is frozen, so Memory now copies and hydrates each element once, freezes the copy, and shares it between every journal entry and record that holds it (a weak, identity-keyed table; `Memory::SharedElements`). A save costs one pointer lookup per existing element plus the full copy of the new ones. A returned instance still shares nothing mutable with the journal, a journalled element now refuses an in-place change (`FrozenError`), and an entry has exactly the shape `StateCodec.copy` gives a durable adapter. One aggregate, 32 pieces per snapshot, one snapshot per step (Memory, `list_of` of value objects):
+
+| Steps | Before: time, last-10 per step, peak RSS | After |
+|---|---|---|
+| 50 | 1.9 s, 73 ms, 172 MB | 0.07 s, 1.1 ms, 88 MB |
+| 100 | 7.1 s, 127 ms, 244 MB | 0.21 s, 1.5 ms, 95 MB |
+| 200 | 29.5 s, 264 ms, 534 MB | 0.3 s, 1.2 to 1.8 ms, 98 to 104 MB |
+
+A list element that is not frozen, a list of scalars, and every other field still take the whole-copy path. `Runtime::Instance.new` takes an optional `hydrate_with:` callable, used by Memory to hydrate through the shared elements.
+
 ## [3.4.0] - 2026-10-05
 
 A minor that removes the five spellings 3.3.0 warned about (`uses_framework`, `uses_embryonaut_bluebook`, `Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:`), the removal that 3.3.0's warnings named. Using one now fails with a message naming its replacement, so a project must migrate before it moves its pin past 3.3.x: the table is in [`docs/migrating-2-to-3.md`](docs/migrating-2-to-3.md), and the `Removed (3.4.0)` entry below says what each one becomes. Deploys pin exactly (`docs/1.0-readiness.md`, "What a release number promises"), so a running system stays on 3.3.x until it is migrated.

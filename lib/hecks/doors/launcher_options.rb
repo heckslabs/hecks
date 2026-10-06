@@ -12,8 +12,9 @@ module Hecks
     #
     # - **run_keys** mints the `run` key of a creating command that was given none.
     # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
-    # - **settled** lists the commands (`aggregate.command`) that always behave as if `--wait` was
-    #   given, so a script gets their outcome in its exit status.
+    # - **settled** lists the commands (`aggregate.command`) that always behave as if `--wait`
+    #   was given, so a script gets their outcome in its exit status.
+    # - **report** lists the settled commands whose answer is the report they recorded, as text.
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
     # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
     module LauncherOptions
@@ -95,6 +96,17 @@ module Hecks
         return false unless launcher && spec[:kind] == :command
 
         Array(launcher[:settled]).map(&:to_s).include?(spec[:short].to_s)
+      end
+
+      # Whether a command prints the report it recorded instead of its whole record.
+      #
+      # @param launcher [Hash, nil] the chapter's `launcher` setting
+      # @param spec [Hash] the command's projected spec
+      # @return [Boolean] true for a command the setting lists under `report`
+      def report?(launcher, spec)
+        return false unless launcher && spec[:kind] == :command
+
+        Array(launcher[:report]).map(&:to_s).include?(spec[:short].to_s)
       end
 
       # Whether a question may be tailed with `--stream`: the chapter's `launcher` setting lists it

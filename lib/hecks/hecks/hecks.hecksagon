@@ -105,6 +105,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Check"
+    answers_query "Digest"
   end
 
   Hecks::Door.port "Workspace" do

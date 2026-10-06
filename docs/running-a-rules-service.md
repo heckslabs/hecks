@@ -746,6 +746,18 @@ not usable from this repository alone, for three reasons.
    with exit status 1 and the holder named, once anyone holds `Admin` or
    `Owner`. Run it with the database the service uses (`DATABASE_URL`).
 
+   It works only on a domain whose chapter declares which of its verbs answer
+   membership, as the chapter that keeps who may sign in does:
+
+   ```ruby
+   provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"
+   ```
+
+   `admit` and `grant` name the commands that admit a person and give them a role (the
+   grant command is `role`-gated, to `Admin` for instance), and `people` the query
+   that lists everyone. Without that line the verb is refused with
+   `this domain attaches no chapter that provides "membership"` followed by the line to add.
+
 Both routes carry the person's Governance identity id as `identity_id`, the
 value an `actor_id` binds when a caller dispatches on that person's behalf.
 `GET /accounts/me` answers `{"email": ..., "identity_id": ...}`, and each row
@@ -969,7 +981,10 @@ an outside team would meet it.
 
 1. **The path starts from a clone.** ADR 0066 decides that the gem ships a
    `hecks` executable and that dev tooling stays in the repository; until
-   that is built, `hecks deploy recipe.project` and `hecks build.build_wasm` need a checkout.
+   that is built, `hecks build.build_wasm` needs a checkout. `hecks deploy recipe.project <domain>`
+   does not: it reads the project it is given, a path absolute or relative to where you run it, and
+   writes `deploy/<stack>/` there (or `out=<dir>`), from the installed gem. The generated Makefiles
+   name that directory as their root.
    A clone also brings the whole Rust tree and its build time.
 2. **The self-contained Lambda function may not be able to read its
    database password.** `main.rs` fetches the password from Secrets Manager
