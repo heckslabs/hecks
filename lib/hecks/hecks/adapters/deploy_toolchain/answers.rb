@@ -88,10 +88,11 @@ module Hecks
             "VERIFY_BY_COMMAND" => "1" }.compact
         end
 
-        # What the script would overwrite, read from the script itself (its schemas and databases).
+        # What the script would overwrite, read from the script itself (its schemas and databases). The
+        # schemas are the default of its `SCHEMAS=${SCHEMAS:-"..."}` line, which an operator may override.
         def copy_plan(script, held)
           text = File.read(script)
-          schemas = text[/^SCHEMAS="([^"]*)"/, 1].to_s.split.join(", ")
+          schemas = text[/^SCHEMAS=(?:\$\{SCHEMAS:-)?"([^"]*)"/, 1].to_s.split.join(", ")
           source_db, target_db = copy_databases(text, held)
           drop = plain(held[:force]) == true ? "; force=true drops each target schema first" : ""
           "copy schemas #{schemas} from database #{source_db} on #{plain(held[:source])} into database " \
