@@ -23,6 +23,9 @@ module Hecks
       # checkout; an installed gem has none.
       CHECKOUT_MARKER = "hecks.gemspec"
 
+      # The line `hecks model_check` prints before each domain it examines.
+      REPORT_HEADER = /^── /
+
       # Longest a `Follow` query may wait for new entries, so one call cannot hold a launcher open.
       MAX_FOLLOW_WAIT = 60
 
@@ -30,7 +33,8 @@ module Hecks
       #
       # @param held [Hash] the `ModelCheckRun` record: `domains` (comma separated paths), `strict`
       #   and `profile`
-      # @return [Hash{Symbol => Hash}] `report:` the analysis as printed
+      # @return [Hash{Symbol => Hash}] `report:` the analysis as printed, `checked:` how many
+      #   domains it headed
       # @raise [ConsoleCapture::Failure] when a finding was left, or the analysis could not run
       def check(**held)
         argv = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
@@ -43,7 +47,7 @@ module Hecks
         text = ConsoleCapture.answer do
           CLI::ModelCheck.call(argv, program: "hecks model_check", root: checkout_root)
         end
-        { report: { value: text } }
+        { report: { value: text }, checked: { value: text.scan(REPORT_HEADER).size } }
       end
 
       # Dispatches one verb, or executes a step list, against a domain.

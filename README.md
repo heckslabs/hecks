@@ -20,7 +20,7 @@ directly from the declaration. A domain is data, so it can be read,
 diffed, statically checked, run against generated fuzz sequences, and
 compiled into another language, the same way any other data can.
 
-**Status:** Current release: `3.4.1`. See [Project status](#project-status)
+**Status:** Current release: `3.4.2`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
 
@@ -480,7 +480,7 @@ through.
 
 ## Project status
 
-Current release: `3.4.1`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
+Current release: `3.4.2`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
 states plainly what the stability promise made at `1.0.0` covers — the DSL
 and runtime API in [the DSL reference](docs/implemented/reference/index.md)
 won't change in a breaking way without a major-version bump — and what it
