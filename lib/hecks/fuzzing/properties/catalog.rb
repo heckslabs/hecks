@@ -23,7 +23,8 @@ module Hecks
         :outbox_rows_match_reactions,
         :policy_reactions_follow_declared_wiring,
         :declared_undelivered_policies_stay_undelivered,
-        :references_resolve_to_earlier_records
+        :references_resolve_to_earlier_records,
+        :role_checks_agree_with_grants
       ].freeze
 
       # Which language feature each property is answerable for — exhaustive of
@@ -69,6 +70,8 @@ module Hecks
         declared_undelivered_policies_stay_undelivered:   %w[Policy#expect_undelivered],
         # An accepted referencing command addressed a record an earlier event created.
         references_resolve_to_earlier_records:            %w[Command#references],
+        # The grants read back through the verb the authorization provider declares in `provides`.
+        role_checks_agree_with_grants:                    %w[Bluebook#provides],
         # No feature string exists for what this reads: an argument's own
         # `relationship` (Argument is a value object, outside the meta-domain
         # walk). Its declaration side, `Query#options`, is already claimed by

@@ -18,7 +18,7 @@ module Hecks
         # `outbox_ids` is a set of delivery_ids, not a size, because `runtime.outbox.rows`
         # concatenates several stores' own arrays, so a plain "grew from N to M" tail slice
         # could miss or misattribute rows once more than one repository has an outbox.
-        Marks = Struct.new(:reaction, :saga, :outbox_ids, :fan_out_snapshot, :guard_check, :mutation_trace)
+        Marks = Struct.new(:reaction, :saga, :outbox_ids, :fan_out_snapshot, :guard_check, :mutation_trace, :role_check)
 
         # @param runtime [Hecks::Runtime] a freshly booted runtime
         def initialize(runtime)
@@ -28,7 +28,7 @@ module Hecks
           @dry_runs        = []
           @dry_run_traces  = []
           @fan_outs        = []
-          @guard_checks    = []
+          start_checks
           @mutation_traces = []
           @outbox_traces   = []
           @fan_out_targets = fan_out_targets
@@ -61,6 +61,12 @@ module Hecks
 
         private
 
+        # The two checks recorded before a dispatch and compared with its outcome afterwards.
+        def start_checks
+          @guard_checks = []
+          @role_checks  = []
+        end
+
         def play_step(step)
           step = step.transform_keys(&:to_s)
           args = (step["args"] || {}).transform_keys(&:to_sym)
@@ -84,7 +90,7 @@ module Hecks
           result = Replay.as_step_caller(step) { @runtime.dispatch_flat(step["verb"], args) }
           record_effects(step, result, marks)
         rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-          record_refusal(step, e, marks&.guard_check)
+          record_refusal(step, e, marks&.guard_check, marks&.role_check)
         end
 
         # Taken before dispatch, so this step's own reactions, sagas and outbox rows can be
@@ -98,15 +104,21 @@ module Hecks
         def take_marks(step, args)
           Marks.new(@runtime.reactions.size, @runtime.sagas.size, @runtime.outbox.rows.map(&:delivery_id),
                     fan_out_snapshot, GuardCheck.build(@runtime, step["verb"], args),
-                    MutationTrace.build(@runtime, step["verb"], args))
+                    MutationTrace.build(@runtime, step["verb"], args), RoleCheck.build(@runtime, step))
         end
 
         def record_effects(step, result, marks)
           @fan_outs.concat(Replay.fan_out_findings(@runtime, marks.fan_out_snapshot, result.events,
                                                    @runtime.reactions[marks.reaction..]))
           record_outbox(step, marks)
-          @guard_checks << marks.guard_check.merge(actual_refused: false, actual_kind: nil) if marks.guard_check
+          record_accepted_checks(marks)
           record_mutation(marks.mutation_trace) if marks.mutation_trace
+        end
+
+        # An accepted dispatch: the guard let it through and the role gate did not refuse it.
+        def record_accepted_checks(marks)
+          @guard_checks << marks.guard_check.merge(actual_refused: false, actual_kind: nil) if marks.guard_check
+          @role_checks << marks.role_check.merge(outcome: nil) if marks.role_check
         end
 
         # Every outbox row this step's own dispatch newly wrote, across every
@@ -139,8 +151,12 @@ module Hecks
         # Only a refusal raised by the guard itself counts for the guard check. A refusal from a
         # stage before or after enforce_givens can share TypeMismatch's class, so
         # anything outside the two guard classes is left out — inconclusive, not a pass.
-        def record_refusal(step, error, guard_check)
+        #
+        # A role check records the refusal's class whatever it is, since the property decides which
+        # outcomes are conclusive: a refusal before the role gate says nothing about the grant.
+        def record_refusal(step, error, guard_check, role_check)
           @refusals << { verb: step["verb"], error: error.message, kind: Replay.refusal_kind(error) }
+          @role_checks << role_check.merge(outcome: Replay.refusal_kind(error)) if role_check
           return unless guard_check && GUARD_REFUSAL_CLASSES.include?(error.class)
 
           @guard_checks << guard_check.merge(actual_refused: true, actual_kind: error.class.name)

@@ -13,6 +13,7 @@ require_relative "properties/corrections"
 require_relative "properties/outbox"
 require_relative "properties/policy_wiring"
 require_relative "properties/references"
+require_relative "properties/role_checks"
 require_relative "properties/catalog"
 
 module Hecks
@@ -32,6 +33,7 @@ module Hecks
       extend Outbox
       extend PolicyWiring
       extend References
+      extend RoleChecks
 
       module_function
 
