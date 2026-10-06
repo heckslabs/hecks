@@ -80,10 +80,10 @@ module Hecks
         # @return [String] `vercel.json`
         def vercel_json(plan)
           config = {
-            "$schema" => "https://openapi.vercel.sh/vercel.json",
+            "$schema"   => "https://openapi.vercel.sh/vercel.json",
             "functions" => { "#{FUNCTION}.rs" => { "memory" => plan.memory, "maxDuration" => plan.max_duration } },
-            "regions" => [plan.region],
-            "rewrites" => [{ "source" => "/(.*)", "destination" => "/#{FUNCTION}" }]
+            "regions"   => [plan.region],
+            "rewrites"  => [{ "source" => "/(.*)", "destination" => "/#{FUNCTION}" }]
           }
           config["crons"] = plan.crons.map { |cron| cron.transform_keys(&:to_s) } if plan.crons.any?
           "#{JSON.pretty_generate(config)}\n"
@@ -96,10 +96,7 @@ module Hecks
         # @return [String] `deploy-vercel.sh`
         def deploy_script(plan)
           scope = plan.scope ? " --scope #{plan.scope}" : ""
-          sets = plan.env.map do |name|
-            "printf '%s' \"${#{name}:?#{name} must be set in the environment}\" | " \
-              "vercel env add #{name} production --sensitive --force --yes#{scope}"
-          end
+          sets = plan.env.map { |name| env_command(name, scope) }
           <<~SH
             #!/bin/bash
             # Deploys #{plan.project} to Vercel production. Needs VERCEL_TOKEN and each variable below in the
@@ -110,6 +107,14 @@ module Hecks
             #{sets.join("\n")}
             vercel deploy --prod --yes#{scope}
           SH
+        end
+
+        # @param name [String] a checked variable name
+        # @param scope [String] the ` --scope team` flag, or empty
+        # @return [String] the line that reads the variable and sets it on the project
+        def env_command(name, scope)
+          "printf '%s' \"${#{name}:?#{name} must be set in the environment}\" | " \
+            "vercel env add #{name} production --sensitive --force --yes#{scope}"
         end
 
         # @param plan [Settings::Plan] the resolved settings

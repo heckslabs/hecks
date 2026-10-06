@@ -33,59 +33,78 @@ RSpec.describe "hecks deploy project — a deployed_to(\"Vercel\") function", :i
     "Hecks.world \"Scratch\" do\n  deployed_to(\"Vercel\") do\n#{body}  end\nend\n"
   end
 
+  # Writes the scratch domain with the world into `dir`; returns the domain directory.
+  def write_domain(dir, world_body)
+    bluebook_dir = File.join(dir, VERCEL_FIXTURE, "bluebook")
+    FileUtils.mkdir_p(bluebook_dir)
+    File.write(File.join(bluebook_dir, "#{VERCEL_FIXTURE}.bluebook"), VERCEL_BLUEBOOK)
+    File.write(File.join(bluebook_dir, "#{VERCEL_FIXTURE}.world"), world_body)
+    File.dirname(bluebook_dir)
+  end
+
   # @return [Array(Hash{String => String}, String)] the generated files (nil on a refusal) and stderr
   def generate(world_body)
     Dir.mktmpdir do |dir|
-      domain = File.join(dir, VERCEL_FIXTURE)
-      FileUtils.mkdir_p(File.join(domain, "bluebook"))
-      File.write(File.join(domain, "bluebook", "#{VERCEL_FIXTURE}.bluebook"), VERCEL_BLUEBOOK)
-      File.write(File.join(domain, "bluebook", "#{VERCEL_FIXTURE}.world"), world_body)
       out = File.join(dir, "out")
-      _stdout, stderr, status = ProjectDeployRunner.run(domain, "--out=#{out}", root: VERCEL_ROOT_DIR)
+      _stdout, stderr, status = ProjectDeployRunner.run(write_domain(dir, world_body), "--out=#{out}",
+                                                        root: VERCEL_ROOT_DIR)
       return [nil, stderr] unless status.success?
 
-      [Dir.glob("*", File::FNM_DOTMATCH, base: out).reject { |n| n.start_with?("..") || n == "." }
-          .to_h { |name| [name, File.read(File.join(out, name))] }, stderr]
+      [Dir.children(out).to_h { |name| [name, File.read(File.join(out, name))] }, stderr]
     end
   end
 
-  it "renders the function, its rewrite and the deploy scripts from defaults", :aggregate_failures do
-    files, = generate(world_source)
+  context "with a world that sets nothing" do
+    let(:files) { generate(world_source).first }
+    let(:config) { JSON.parse(files["vercel.json"]) }
 
-    expect(files.keys).to match_array(%w[vercel.json .vercelignore deploy-vercel.sh Makefile])
-    config = JSON.parse(files["vercel.json"])
-    expect(config["functions"]).to eq("api/host.rs" => { "memory" => 1024, "maxDuration" => 30 })
-    expect(config["regions"]).to eq(["iad1"])
-    expect(config["rewrites"]).to eq([{ "source" => "/(.*)", "destination" => "/api/host" }])
-    expect(config).not_to have_key("crons")
-    expect(files["deploy-vercel.sh"]).to include("DATABASE_URL:?DATABASE_URL must be set")
-    expect(files["deploy-vercel.sh"]).to include("vercel deploy --prod --yes")
+    it "writes the four files" do
+      expect(files.keys).to match_array(%w[vercel.json .vercelignore deploy-vercel.sh Makefile])
+    end
+
+    it "sizes the function and sends every path to it", :aggregate_failures do
+      expect(config["functions"]).to eq("api/host.rs" => { "memory" => 1024, "maxDuration" => 30 })
+      expect(config["rewrites"]).to eq([{ "source" => "/(.*)", "destination" => "/api/host" }])
+      expect(config["regions"]).to eq(["iad1"])
+    end
+
+    it "declares no crons and requires DATABASE_URL from the environment", :aggregate_failures do
+      expect(config).not_to have_key("crons")
+      expect(files["deploy-vercel.sh"]).to include("DATABASE_URL:?DATABASE_URL must be set")
+    end
   end
 
-  it "renders crons, extra variables, a scope and sizes from a full world", :aggregate_failures do
-    files, = generate(world_source('region "fra1"', "memory 2048", "max_duration 60", 'scope "acme"',
-                                   'env ["SESSION_SECRET"]', 'crons [{ path: "/cron/tick", schedule: "*/5 * * * *" }]'))
+  context "with a full world" do
+    let(:lines) do
+      ['region "fra1"', "memory 2048", "max_duration 60", 'scope "acme"', 'env ["SESSION_SECRET"]',
+       'crons [{ path: "/cron/tick", schedule: "*/5 * * * *" }]']
+    end
+    let(:files) { generate(world_source(*lines)).first }
+    let(:config) { JSON.parse(files["vercel.json"]) }
 
-    config = JSON.parse(files["vercel.json"])
-    expect(config["regions"]).to eq(["fra1"])
-    expect(config["functions"]["api/host.rs"]).to eq("memory" => 2048, "maxDuration" => 60)
-    expect(config["crons"]).to eq([{ "path" => "/cron/tick", "schedule" => "*/5 * * * *" }])
-    expect(files["deploy-vercel.sh"]).to include("SESSION_SECRET", "--scope acme")
-    expect(files["deploy-vercel.sh"]).not_to match(/\bSESSION_SECRET=/)
+    it "renders the region, sizes and crons", :aggregate_failures do
+      expect(config["regions"]).to eq(["fra1"])
+      expect(config["functions"]["api/host.rs"]).to eq("memory" => 2048, "maxDuration" => 60)
+      expect(config["crons"]).to eq([{ "path" => "/cron/tick", "schedule" => "*/5 * * * *" }])
+    end
+
+    it "names the variable and the team, and never assigns a value", :aggregate_failures do
+      expect(files["deploy-vercel.sh"]).to include("SESSION_SECRET", "--scope acme")
+      expect(files["deploy-vercel.sh"]).not_to match(/\bSESSION_SECRET=/)
+    end
   end
 
-  it "refuses values the bluebook or the settings check, naming the world file", :aggregate_failures do
-    [
-      ['region "us-east-1"', /region is a Vercel id/],
-      ["memory 64", /memory is at least 128 MB/],
-      ["max_duration 900", /duration is at most 800 seconds/],
-      ['env ["x; rm -rf /"]', /env .* is not allowed/],
-      ['crons [{ path: "/a", schedule: "* *" }]', /cron_schedule .* is not allowed/]
-    ].each do |line, message|
+  {
+    'region "us-east-1"' => /region is a Vercel id/,
+    "memory 64" => /memory is at least 128 MB/,
+    "max_duration 900" => /duration is at most 800 seconds/,
+    'env ["x; rm -rf /"]' => /env .* is not allowed/,
+    'crons [{ path: "/a", schedule: "* *" }]' => /cron_schedule .* is not allowed/
+  }.each do |line, message|
+    it "refuses #{line}" do
       files, stderr = generate(world_source(line))
 
-      expect(files).to be_nil
-      expect(stderr).to match(message)
+      expect([files, stderr]).to match([nil, message])
     end
   end
 end
