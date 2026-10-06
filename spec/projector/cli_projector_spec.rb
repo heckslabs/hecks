@@ -267,6 +267,38 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("a command is called with its aggregate — customer.register!")
     end
 
+    # The audience decides what the help lists; every command still runs and answers `--help`.
+    describe "for an audience" do
+      let(:hidden) do
+        described_class.call(bluebook: registry.bluebook("Banking"), options: { hide: %w[Account], program: "hecks" })
+      end
+
+      it "leaves the hidden aggregates out of the lists and says how many, and how to list them" do
+        expect(hidden[:usage]).not_to match(/^  account:$/)
+        expect(hidden[:usage]).to match(/^  customer:$/)
+        expect(hidden[:usage]).to match(/hecks --maintainer\s+also list the \d+ commands and queries for working on hecks itself/)
+      end
+
+      it "keeps the hidden commands in the surface the runner dispatches from" do
+        expect(hidden[:commands].keys).to eq(banking[:commands].keys)
+      end
+
+      it "makes no mention of a maintainer when nothing was hidden" do
+        expect(banking[:usage]).not_to include("--maintainer")
+      end
+
+      it "points at the chapters it is given, one line each, cut to a line" do
+        long = "word " * 40
+        chapters = [["deploy", "Ship it."], ["tenancy", long]]
+        usage = described_class.call(bluebook: registry.bluebook("Banking"),
+                                     options:  { program: "hecks", chapters: chapters })[:usage]
+
+        expect(usage).to include("chapters (`hecks <chapter>` lists a chapter's own commands and queries):")
+        expect(usage).to match(/^  deploy   Ship it\.$/)
+        expect(usage).to match(/^  tenancy  word word.*word…$/)
+      end
+    end
+
     it "shows one command's arguments and every way it refuses" do
       help = described_class.call(bluebook: registry.bluebook("Banking"),
                                   options:  { command: "account.freeze_account" })[:usage]

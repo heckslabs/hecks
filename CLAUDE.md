@@ -11,6 +11,29 @@ Push with `git push`, not `jj git push` — jj bypasses git hooks, so
 attestation) wouldn't run. Colocation keeps bookmarks synced to git
 branches, so plain `git push` still works.
 
+## Running specs
+
+Run a spec file through the launcher, which is the sanctioned path (see "Use the
+hecks binary" below):
+
+```sh
+HECKS_ENVIRONMENT=memory exe/hecks test_suite_run.run_spec_example! \
+  file.value=spec/doc_banners_spec.rb "example.value= " --wait
+```
+
+`example.value` filters on the full example description; a single space matches
+every example. The report ends with the example and failure counts. Without
+`HECKS_ENVIRONMENT=memory` it needs a local Postgres `hecks` database. The memory
+environment changes some behavior: two guide examples that retry a payment
+(`commands.md`, `policies-and-process-managers.md`) fail under it.
+
+A session isolated in a git worktree has had `bundle exec` with the spec runner
+refused with "too complex to verify that it stays inside the worktree", while
+`cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
+script body that merely named the runner or git were refused too, so the guard
+may be matching on the command text. Use the launcher form above, not a wrapper
+script around the refused command.
+
 Comments you write in this repository's Ruby (`lib/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
 
