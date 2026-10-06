@@ -20,6 +20,10 @@ directly from the declaration. A domain is data, so it can be read,
 diffed, statically checked, run against generated fuzz sequences, and
 compiled into another language, the same way any other data can.
 
+The project uses its own words (bluebook, hecksagon, world, chapter, era and
+others). You can skip them at first; the [Glossary](#glossary) defines each
+one.
+
 **Status:** Current release: `3.4.2`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
@@ -136,6 +140,12 @@ role, enforce every `given`, apply the mutation, enforce every
 `ensures`, persist, emit), for every command, in every domain. A rule
 that is checked once, in the one place a violation can occur, cannot
 quietly stop being checked somewhere.
+
+What this does not give you is a check that the rule is the right one. If the
+business meant 12 toppings and the bluebook says 10, hecks enforces 10
+identically in every runtime. Verification here shows the specification agrees
+with itself and that the runtimes agree with each other; whether the
+specification says what the business wants is still a human judgment.
 
 Generalize that from one rule to a whole domain and the shape of the
 bet becomes: **the business specification should be the durable
@@ -498,9 +508,11 @@ exercised in CI on every push, and what is experimental or partial.
   [Project status](docs/implemented/guides/project-status.md#experimental-or-partial)).
 - Mutation testing and coverage-guided fuzzing.
 
-[`docs/future-features.md`](docs/future-features.md) is the project's
-own running list of gaps, ranked by how much depends on them — read it
-before assuming a capability exists that isn't demonstrated above.
+[Project status](docs/implemented/guides/project-status.md) is the current
+list of what is experimental or partial.
+[`docs/future-features.md`](docs/future-features.md) is a snapshot of what was
+unbuilt on 2026-08-18; items may have shipped since, so check a capability
+against the code before assuming it is missing or present.
 
 ## Documentation
 
