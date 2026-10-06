@@ -1654,11 +1654,12 @@ pub struct Lane {
     pub pushers: &'static str,
     pub feeds: &'static str,
     pub follows: &'static str,
+    pub alert_after: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
-    Lane { name: "main", guarded: "no", pushers: "anyone", feeds: "", follows: "" },
-    Lane { name: "stable", guarded: "yes", pushers: "green", feeds: "edge", follows: "main" },
+    Lane { name: "main", guarded: "no", pushers: "anyone", feeds: "", follows: "", alert_after: "" },
+    Lane { name: "stable", guarded: "yes", pushers: "green", feeds: "edge", follows: "main", alert_after: "4" },
 ];
 
 impl Lane {
@@ -1669,12 +1670,13 @@ impl Lane {
         ("pushers".to_string(), crate::kernel::Json::Str(self.pushers.to_string())),
         ("feeds".to_string(), crate::kernel::Json::Str(self.feeds.to_string())),
         ("follows".to_string(), crate::kernel::Json::Str(self.follows.to_string())),
+        ("alert_after".to_string(), crate::kernel::Json::Str(self.alert_after.to_string())),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         for row in LANE {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded) && v.get("pushers").and_then(crate::kernel::Json::as_str) == Some(row.pushers) && v.get("feeds").and_then(crate::kernel::Json::as_str) == Some(row.feeds) && v.get("follows").and_then(crate::kernel::Json::as_str) == Some(row.follows) {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded) && v.get("pushers").and_then(crate::kernel::Json::as_str) == Some(row.pushers) && v.get("feeds").and_then(crate::kernel::Json::as_str) == Some(row.feeds) && v.get("follows").and_then(crate::kernel::Json::as_str) == Some(row.follows) && v.get("alert_after").and_then(crate::kernel::Json::as_str) == Some(row.alert_after) {
                 return Ok(row.clone());
             }
         }

@@ -19,6 +19,7 @@ module Hecks
       # Where the projected rulesets and workflows live, relative to the checkout.
       RULESETS = ".github/rulesets"
       WORKFLOW = ".github/workflows/promote.yml"
+      WATCH_WORKFLOW = ".github/workflows/lane-watch.yml"
 
       # What `pushers` may say: a lane that takes any commit, or one that takes only a commit every
       # `RequiredCheck` has passed.
@@ -65,5 +66,6 @@ end
 require_relative "lanes/rows"
 require_relative "lanes/ruleset"
 require_relative "lanes/workflow"
+require_relative "lanes/watch_workflow"
 require_relative "lanes/files"
 require_relative "lanes/live"

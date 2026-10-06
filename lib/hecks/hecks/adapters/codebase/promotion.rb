@@ -4,6 +4,7 @@ require "hecks/vocabulary"
 require_relative "tree"
 require_relative "promotion/standing"
 require_relative "promotion/move"
+require_relative "promotion/watch"
 
 module Hecks
   module Adapters
@@ -18,7 +19,7 @@ module Hecks
       # names the move and makes none.
       module Promotion
         # Every operation this family carries out.
-        OPERATIONS = %w[promote].freeze
+        OPERATIONS = %w[promote watch].freeze
 
         class << self
           # @return [Git, nil] reads and moves refs; a `Git` when nil. A spec replaces it.
@@ -27,17 +28,27 @@ module Hecks
           # @return [#states, nil] reports where each check stands against a commit; `GithubChecks`
           #   when nil. A spec replaces it, so nothing asks GitHub.
           attr_accessor :checks
+
+          # @return [#call, nil] answers the time now; the system clock when nil. A spec sets it.
+          attr_accessor :clock
+
+          # @return [Time] the time now
+          def now = (clock || -> { Time.now }).call
         end
 
         module_function
 
-        # The facts of a promotion, answered without judging them.
+        # The facts of a promotion or of a watch, answered without judging them.
         #
-        # @param held [Hash] the `PromotionRun` record: `lane`, and `commit` when one was named
+        # @param held [Hash] the `PromotionRun` record: `operation`, `lane`, and `commit` when named
         # @param tree [Tree] the checkout, already known to be one
-        # @return [Hash{Symbol => Hash}] `lane_known`, `green`, `descends`, `commit`, `head` and the
-        #   `reason` they were not all true, as value objects
-        def facts(held, tree) = Standing.new(held, tree).facts
+        # @return [Hash{Symbol => Hash}] for a promotion: `lane_known`, `green`, `descends`,
+        #   `commit`, `head` and the `reason` they were not all true; for a watch: `lane_known`,
+        #   `behind_hours`, `limit_hours` and the `reason`; all as value objects
+        def facts(held, tree)
+          watching = plain(held[:operation]) == "watch"
+          (watching ? Watch : Standing).new(held, tree).facts
+        end
 
         # The facts of a tree that is not a checkout: placeholders that satisfy the value objects,
         # so the checkout rule is the one that refuses.
@@ -75,12 +86,22 @@ module Hecks
             reason: { value: reasons.reject { |why| why.to_s.empty? }.join("; ") } }
         end
 
+        # @param behind [Integer] whole hours the lane has stood behind the lane it follows
+        # @param limit [Integer] whole hours its `Lane` row allows
+        # @param reason [String] what the watch found
+        # @return [Hash{Symbol => Hash}] the facts of a watch, as value objects
+        def watched(behind, limit, reason)
+          { lane_known: { value: true }, behind_hours: { value: behind }, limit_hours: { value: limit },
+            promoted: { value: false }, reason: { value: reason } }
+        end
+
         # @param lane [String] the lane that was asked for
         # @param why [String, nil] what to say instead of the default
         # @return [Hash{Symbol => Hash}] facts none of which is true
         def unknown(lane, why = nil)
           { lane_known: { value: false }, green: { value: false }, descends: { value: false },
-            commit: { value: "none" }, head: { value: "none" },
+            commit: { value: "none" }, head: { value: "none" }, behind_hours: { value: 0 },
+            limit_hours: { value: 0 }, promoted: { value: false },
             reason: { value: why || "#{lane.inspect} is not a Lane row that follows another lane" } }
         end
 
