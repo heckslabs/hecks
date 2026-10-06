@@ -5,6 +5,7 @@ require_relative "self_consistency"
 require_relative "replay/filters"
 require_relative "replay/fan_out"
 require_relative "replay/guard_check"
+require_relative "replay/role_check"
 require_relative "replay/mutation_trace"
 require_relative "replay/session"
 

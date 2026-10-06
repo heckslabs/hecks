@@ -45,10 +45,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # Features that deserve an invariant, are not guaranteed by construction, and have no
   # property yet. Each entry names the candidate property to write.
   META_DOMAIN_KNOWN_GAPS = {
-    # Read by the role check, the ungoverned-role boot refusal and the fuzzer's grant steering.
-    "Bluebook#provides"                 => "the declared authorization verbs drive every identified-caller role check a " \
-                                           "sequence makes, but no property asks whether holds_role? through the " \
-                                           "declared assignments verb agrees with the grants the sequence itself made",
     "ReadModel#query_name"              => "the derived snake_case name is exercised by every read model ask; no property " \
                                            "names a drift between it and the declared name",
     "ReadModel#reference_name"          => "covered incidentally by aggregation_matches_recompute's own FK-join; not " \
