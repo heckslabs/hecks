@@ -14,7 +14,7 @@ module Hecks
     # scripts and Makefile) under `deploy/<stack>/` of the checkout.
     #
     #   hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
-    #       [--out=<dir>] [--environment=<name>]
+    #       [--out=<dir>] [--environment=<name>] [--target=<adapter>]
     #
     # `--environment` layers an overlay `.world` file over the base one; a missing overlay is an
     # error. `--out` writes the recipe elsewhere, for a domain in a client's repo. `--tenant` and
@@ -22,13 +22,13 @@ module Hecks
     # re-running with the same `--tenant` regenerates the same stack.
     module DeployRecipe
       USAGE = "usage: hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>] " \
-              "[--out=<dir>] [--environment=<name>]"
+              "[--out=<dir>] [--environment=<name>] [--target=<adapter>]"
 
       # The directory `ports/` and `adapters/` live under, loaded into every domain's registry.
       LIB_HECKS = File.expand_path("..", __dir__)
 
       # What the flags asked for.
-      Options = Struct.new(:tenant, :out, :environment)
+      Options = Struct.new(:tenant, :out, :environment, :target)
 
       # What the generator resolved about a domain: its directory, the flags, the `.world` file and
       # its declaration, the `deployed_to` settings, the stack's name, the registry and the chapter.
@@ -54,16 +54,52 @@ module Hecks
 
         deployment = resolve(domain, options)
         out_dir = options.out ? File.expand_path(options.out) : File.join(root, "deploy", deployment.infra_name)
-        target = target_key(deployment.settings, deployment.world_file, domain)
-        write(project(target, deployment, root), out_dir)
+        blocks = chosen_targets(declared_targets(deployment.world), options.target)
+        # No block at all falls through to the refusal that shows an example.
+        return generate_each(deployment, root, out_dir, blocks) if blocks.size > 1
+
+        generate_one(deployment, root, out_dir, blocks.first)
+      end
+
+      # One declared target, written straight into `out_dir` as it always was.
+      #
+      # @param block [Hash, nil] the target's settings; nil takes the world's plain `deployed_to`
+      # @return [Integer] 0
+      def generate_one(deployment, root, out_dir, block = nil)
+        view = block ? for_target(deployment, block) : deployment
+        write(project(target_key(view.settings, view.world_file, view.domain), view, root), out_dir)
         0
+      end
+
+      # Several declared targets, each under its own `out_dir/<adapter>` so their `Makefile`s and
+      # scripts do not collide: a client keeps every deploy kind it declared.
+      #
+      # @return [Integer] 0
+      def generate_each(deployment, root, out_dir, blocks)
+        blocks.each do |block|
+          view = for_target(deployment, block)
+          write(project(target_key(view.settings, view.world_file, view.domain), view, root),
+                File.join(out_dir, block[:adapter].downcase))
+        end
+        0
+      end
+
+      # @param block [Hash] one declared `deployed_to` block
+      # @return [Deployment] the deployment as that target sees it: its settings, name and world
+      def for_target(deployment, block)
+        settings = tenant_settings(block, deployment.options, File.basename(deployment.domain))
+        deployment.dup.tap do |view|
+          view.world = TargetWorld.new(deployment.world, block)
+          view.settings = settings
+          view.infra_name = settings[:stack_name] || File.basename(deployment.domain)
+        end
       end
 
       # @param argv [Array<String>] the arguments; the flags are removed from it
       # @return [Options] the flags, with `tenant` a hash of `tenant` and `schema`
       # @raise [SystemExit] when `--schema` has no `--tenant`
       def parse(argv)
-        options = Options.new({}, nil, nil)
+        options = Options.new({}, nil, nil, nil)
         option_parser(options).parse!(argv)
 
         if options.tenant[:schema] && !options.tenant[:tenant]
@@ -79,6 +115,7 @@ module Hecks
           parser.on("--schema=NAME") { |v| options.tenant[:schema] = v }
           parser.on("--out=DIR") { |v| options.out = v }
           parser.on("--environment=NAME") { |v| options.environment = v }
+          parser.on("--target=ADAPTER") { |v| options.target = v }
         end
       end
 
