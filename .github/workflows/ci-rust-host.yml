@@ -43,9 +43,50 @@ jobs:
   # Only the cargo job needs the wasm build and the superuser role: `cargo test`
   # connects with tokio_postgres, which ignores PG* env vars, while the spec
   # connects through the `pg` gem, which honors them.
+  # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm, read at run time only
+  # (rust/dist is gitignored). They are built here, beside the cargo job's cache restore and test
+  # compile, and handed over as an artifact the cargo job polls for. The dev profile: the tests
+  # only run the modules, and it compiles in half the time. rust/host runs them through the
+  # wasmtime crate, so the wasmtime CLI is not installed.
+  build_host_wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    needs: ci_attestation_rust_host
+    if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      - uses: ./.github/actions/wasm-toolchain
+        with:
+          install-wasmtime: "false"
+
+      - name: Build banking + checkout_fixture wasm
+        env:
+          HECKS_WASM_PROFILE: dev
+        run: |
+          bundle exec exe/hecks build.build_wasm domain=examples/banking --wait
+          bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-wasm-dist
+          path: rust/dist
+          retention-days: 1
+          if-no-files-found: error
+
   rspec_rust_host_cargo:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    permissions:
+      contents: read
+      actions: read
 
     needs: ci_attestation_rust_host
     if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
@@ -70,38 +111,35 @@ jobs:
           name: host
           crate-root: rust/host
 
-      # rust/host runs the module through the wasmtime crate, so the CLI is not installed.
-      - uses: ./.github/actions/wasm-toolchain
-        with:
-          install-wasmtime: "false"
-
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
       # role; the postgres action already trusts loopback TCP.
       - name: Create a superuser role for the runner user
         run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
 
-      # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm, read at run
-      # time only (rust/dist is gitignored). So build both in the background while the
-      # test binaries compile, then run the tests once both are done.
-      # The dev profile: the tests only run the module, and it compiles in half the time.
-      - name: "Build wasm in the background, compile tests"
+      # The tests read the wasm modules at run time only, so compile them first, while
+      # build_host_wasm builds the modules. `bundle exec` lets the Ruby mint fixtures (spawned as
+      # plain `ruby`) load `pg`.
+      - name: "Compile the tests"
+        run: cd rust/host && bundle exec cargo test --no-run
+
+      # Polls for the artifact, since the job that builds it runs beside this one.
+      - name: Wait for the wasm modules
         env:
-          HECKS_WASM_PROFILE: dev
+          GH_TOKEN: ${{ github.token }}
         run: |
-          (
-            bundle exec exe/hecks build.build_wasm domain=examples/banking --wait &&
-            bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
-          ) > "$RUNNER_TEMP/wasm.log" 2>&1 &
-          wasm_pid=$!
-          # `bundle exec` lets the Ruby mint fixtures (spawned as plain `ruby`) load `pg`.
-          (cd rust/host && bundle exec cargo test --no-run)
-          if ! wait "$wasm_pid"; then cat "$RUNNER_TEMP/wasm.log"; exit 1; fi
-          cat "$RUNNER_TEMP/wasm.log"
-          # hecks build_wasm regenerates tracked rust/src/generated +
-          # rust/Cargo.toml as a side effect; put them back. Tests read
-          # rust/src/generated/*/ir.json, so this must finish before they run.
-          git checkout -- rust/src/generated rust/Cargo.toml
-          git clean -fdq rust/src/generated
+          for _ in $(seq 1 90); do
+            found=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+                    --jq '[.artifacts[] | select(.name == "host-wasm-dist")] | length')
+            [ "$found" = "1" ] && exit 0
+            sleep 2
+          done
+          echo "host-wasm-dist was not uploaded within 180s" >&2
+          exit 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: host-wasm-dist
+          path: rust/dist
 
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test
