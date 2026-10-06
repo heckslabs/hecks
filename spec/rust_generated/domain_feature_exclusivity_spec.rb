@@ -70,17 +70,24 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
 
   # Root mod.rs gates each domain module behind its own Cargo feature, so a domain whose generated
   # code does not compile cannot break another feature's build. Breaks one domain's file and
-  # builds both features; `ensure` restores it.
+  # builds both features; `ensure` restores it, content and modification time, so the binaries
+  # built from the unbroken file stay newer than every source for the specs that run after this.
   #
   # @return [Array<Array(Boolean, String)>] the build results for `domain_a`, then `domain_b`
   def build_with_module_broken(domain_a, domain_b)
     broken_file = aggregate_file_of(domain_a)
     original = File.read(broken_file)
+    times = File.stat(broken_file).then { |stat| [stat.atime, stat.mtime] }
     marker = "compile_error!(\"BUG#25 regression spec — deliberately broken, should never reach feature #{domain_b}\");\n"
     File.write(broken_file, "#{original}\n#{marker}")
     [cargo_build("--features", domain_a), cargo_build("--features", domain_b)]
   ensure
-    File.write(broken_file, original) if original
+    restore_file(broken_file, original, times) if original
+  end
+
+  def restore_file(path, content, times)
+    File.write(path, content)
+    File.utime(*times, path)
   end
 
   def sibling_build_failure(domain_a, domain_b, output)
@@ -94,5 +101,16 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
 
     expect(ok_a).to be(false), "expected --features #{domain_a} to fail against its own deliberately-broken module"
     expect(ok_b).to be(true), sibling_build_failure(domain_a, domain_b, output_b)
+  end
+
+  def without_cargo = allow(self).to receive(:cargo_build).and_return([true, ""])
+
+  it "restores the broken file's modification time along with its content" do
+    domain_a, domain_b = two_non_default_domains
+    file, mtime = aggregate_file_of(domain_a).then { |path| [path, File.mtime(path)] }
+    without_cargo
+    build_with_module_broken(domain_a, domain_b)
+
+    expect(File.mtime(file)).to eq(mtime)
   end
 end
