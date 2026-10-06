@@ -1,4 +1,4 @@
-require_relative "../../bluebook/hexagon"
+require_relative "../../bluebook/hecksagon"
 require_relative "../../runtime/registry"
 
 module Hecks
@@ -20,11 +20,11 @@ module Hecks
         # @raise [Runtime::WiringError] if the hecksagon has no `persisted_by` bind for the
         #   aggregate, more or fewer than one bind without a role, or any bind with a role
         def resolve(registry, domain, aggregate)
-          hexagon  = registry.hecksagon(domain)
+          hecksagon  = registry.hecksagon(domain)
           declared = registry.default_adapter_for(domain)
-          return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hexagon
+          return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hecksagon
 
-          bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
+          bindings = hecksagon.binds_for(aggregate.hecks_name, VERB)
           bindings = [default_binding(aggregate, declared)] if bindings.empty? && declared
           raise missing_binding(domain, aggregate) if bindings.empty?
 

@@ -274,7 +274,7 @@ module Hecks
 
         # Falls back to any loaded chapter: a consuming domain often wires Identity as
         # Hecks.hecksagon "Identity" rather than via `attaches`, so it's loaded but
-        # not listed on the consumer's own hexagon.
+        # not listed on the consumer's own hecksagon.
         @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
       end
 
@@ -353,15 +353,15 @@ module Hecks
       #
       # Falls back to any loaded chapter, since a consuming domain often wires a
       # vendored chapter as its own `Hecks.hecksagon "Name"` rather than via
-      # `attaches ... from: :vendor`, so it's loaded but not listed on the consumer's hexagon.
+      # `attaches ... from: :vendor`, so it's loaded but not listed on the consumer's hecksagon.
       #
       # @param domain [String, Symbol] the domain the provider is resolved for
       # @param capability [String] the capability's name, such as
       #   `Bluebook::Capabilities::MEMBERSHIP`
       # @return [Bluebook::Chapter, nil] the providing chapter, or nil if none loaded does
       def vendored_provider_for(domain, capability)
-        hexagon = hecksagon(domain)
-        names = [domain.to_s, *Array(hexagon&.member_chapters)]
+        hecksagon = hecksagon(domain)
+        names = [domain.to_s, *Array(hecksagon&.member_chapters)]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(capability) }
         return attached if attached

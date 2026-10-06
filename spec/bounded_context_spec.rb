@@ -193,10 +193,10 @@ RSpec.describe "bounded contexts" do
 
     [first, second].each do |registry|
       expect { registry.verify! }.not_to raise_error
-      hexagon = registry.hecksagon("BoundedEcho")
-      expect(hexagon.bounded?).to be true
-      expect(hexagon.member_chapters).to eq(["Governance"])
-      expect(hexagon.translates).to eq(["EchoOnThingFired"])
+      hecksagon = registry.hecksagon("BoundedEcho")
+      expect(hecksagon.bounded?).to be true
+      expect(hecksagon.member_chapters).to eq(["Governance"])
+      expect(hecksagon.translates).to eq(["EchoOnThingFired"])
     end
   end
 end

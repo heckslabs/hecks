@@ -1,4 +1,4 @@
-require_relative "../../bluebook/hexagon"
+require_relative "../../bluebook/hecksagon"
 
 module Hecks
   module Runtime
@@ -6,7 +6,7 @@ module Hecks
       # The wiring gate: every bind names a declared aggregate, every adapter satisfies its
       # port's verb, and every world default is usable. `verify!` runs it all at boot.
       module Verification
-        # Runs every wiring check against this registry's loaded bluebooks, hexagons, ports
+        # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
         # and adapters.
         def verify!
           verify_default_adapter!
@@ -18,12 +18,12 @@ module Hecks
           refuse_unresolved_port_operations!
           refuse_unanswerable_queries!
 
-          @hecksagons.each_value do |hexagon|
-            refuse_ungoverned_roles!(hexagon)
-            refuse_unwired_attachments!(hexagon)
-            refuse_bounded_without_acl!(hexagon)
+          @hecksagons.each_value do |hecksagon|
+            refuse_ungoverned_roles!(hecksagon)
+            refuse_unwired_attachments!(hecksagon)
+            refuse_bounded_without_acl!(hecksagon)
 
-            hexagon.binds.each do |bind|
+            hecksagon.binds.each do |bind|
               # A domain-level default (§0) names no aggregate of its own; still validate its
               # adapter/verb shape. Real aggregates resolving through it are covered by their
               # own dispatch-time `BindingPolicy.resolve`, not required to be exhaustive here.
@@ -32,16 +32,16 @@ module Hecks
                 next
               end
 
-              aggregate = bluebook(hexagon.domain)&.aggregate(bind.aggregate_name)
+              aggregate = bluebook(hecksagon.domain)&.aggregate(bind.aggregate_name)
               raise WiringError, "#{bind.aggregate} is bound but not declared in the bluebook" unless aggregate
 
               check_verb(bind)
 
-              repository(hexagon.domain, aggregate)
+              repository(hecksagon.domain, aggregate)
             end
 
-            warn_undurable_sagas!(hexagon)
-            warn_undurable_outbox!(hexagon)
+            warn_undurable_sagas!(hecksagon)
+            warn_undurable_outbox!(hecksagon)
           end
           self
         end
@@ -155,10 +155,10 @@ module Hecks
         # hecksagon files sees every `attaches` declaration first. A role is real
         # access control only once an authorization provider exists to check it against
         # (ADR 0025); a provider is recognized by declaring authorization, not by name.
-        def refuse_ungoverned_roles!(hexagon)
-          return if authorization_provider_for(hexagon.domain)
+        def refuse_ungoverned_roles!(hecksagon)
+          return if authorization_provider_for(hecksagon.domain)
 
-          bluebook_ir = bluebook(hexagon.domain)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir
 
           offender = commands_in(bluebook_ir).find { |command| !command.role.to_s.empty? }
@@ -166,7 +166,7 @@ module Hecks
 
           raise WiringError,
                 "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
-                "#{hexagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
+                "#{hecksagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
                 "real access control once an authorization provider is attached to check it against; " \
                 "without that it is silent decoration, the exact defect this refusal exists to catch"
         end
@@ -175,14 +175,14 @@ module Hecks
         # that is its ACL (Governance/Identity/Privacy already do). A vendored package only
         # loads its `.bluebook` files, so persistence, Governance and the `translates` ACL live
         # on that sibling too, or cross-context field mapping has nowhere to be written.
-        def refuse_unwired_attachments!(hexagon)
-          hexagon.attachments.each do |attachment|
+        def refuse_unwired_attachments!(hecksagon)
+          hecksagon.attachments.each do |attachment|
             chapter_name = attachment.chapter_name
             next if hecksagon(chapter_name)
 
             what = attachment.vendor? ? "vendored bluebook #{attachment.name.inspect}" : chapter_name.inspect
             raise WiringError,
-                  "#{hexagon.domain} attaches #{what} " \
+                  "#{hecksagon.domain} attaches #{what} " \
                   "(bounded context #{chapter_name}) but never declared " \
                   "Hecks.hecksagon #{chapter_name.inspect} — put that sibling " \
                   "(and any `translates` ACL) in context_map.hecksagon; " \
@@ -354,12 +354,12 @@ module Hecks
           ports.any? { |port| port.name == port_name && port.operations.any? { |op| op.hecks_name == operation_name } }
         end
 
-        def refuse_bounded_without_acl!(hexagon)
-          return unless hexagon.bounded?
-          return if hexagon.translates.any?
+        def refuse_bounded_without_acl!(hecksagon)
+          return unless hecksagon.bounded?
+          return if hecksagon.translates.any?
 
           raise WiringError,
-                "#{hexagon.domain} is marked bounded but never declared a " \
+                "#{hecksagon.domain} is marked bounded but never declared a " \
                 "translates ACL — a bounded chapter wraps in its own module and " \
                 "cross-context field mapping lives on the hecksagon, not in " \
                 "rust/host and not as a field list on the bluebook. " \
@@ -449,17 +449,17 @@ module Hecks
         # (`AppendOnly#outbox?`) runs reactions inline — lost on a crash between a
         # commit and its reaction. A warning, not a refusal: Memory has an in-process
         # outbox, so dev/test stays quiet, but file/remote adapters need this to be loud.
-        def warn_undurable_outbox!(hexagon)
-          bluebook_ir = bluebook(hexagon.domain)
+        def warn_undurable_outbox!(hecksagon)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir
           return if bluebook_ir.process_managers.empty? && !any_policy_listens_to?(bluebook_ir)
 
           anchor = bluebook_ir.aggregates.first or return
-          bind = Ports::Persistence::BindingPolicy.resolve(self, hexagon.domain, anchor)
+          bind = Ports::Persistence::BindingPolicy.resolve(self, hecksagon.domain, anchor)
           return if adapter_class(bind.adapter) <= Ports::Persistence::RemoteRuntime
-          return if repository(hexagon.domain, anchor).outbox?
+          return if repository(hecksagon.domain, anchor).outbox?
 
-          warn "[hecks] #{hexagon.domain} declares policies/process_managers but its persistence adapter " \
+          warn "[hecks] #{hecksagon.domain} declares policies/process_managers but its persistence adapter " \
                "(#{bind.adapter}) has no outbox — reactions run inline and a crash between a command's commit " \
                "and its reactions loses them silently. Bind SqlitePersistence or Postgres for a durable outbox " \
                "(see Runtime::Outbox), or accept in-process-only reactions on purpose."
@@ -477,14 +477,14 @@ module Hecks
 
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
-        def warn_undurable_sagas!(hexagon)
-          bluebook_ir = bluebook(hexagon.domain)
+        def warn_undurable_sagas!(hecksagon)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir
           return if bluebook_ir.process_managers.empty?
-          return unless saga_persistence(hexagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
+          return unless saga_persistence(hecksagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
 
           names = bluebook_ir.process_managers.map(&:name).join(", ")
-          warn "[hecks] #{hexagon.domain} declares process_manager(s) #{names} but its resolved " \
+          warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
                "Bind this domain to an adapter that implements save_saga if this process_manager " \

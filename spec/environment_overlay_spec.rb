@@ -60,10 +60,10 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         HECKSAGON
 
         dispatcher = Hecks.boot(dir, environment: "production", install_doors: false)
-        hexagon = dispatcher.registry.hecksagon("Overlaid")
+        hecksagon = dispatcher.registry.hecksagon("Overlaid")
 
-        expect(hexagon.subscriptions).to eq(["SomeOutsideEvent"])
-        expect(hexagon.bind_for("Thing", "persisted_by").adapter).to eq("Memory")
+        expect(hecksagon.subscriptions).to eq(["SomeOutsideEvent"])
+        expect(hecksagon.bind_for("Thing", "persisted_by").adapter).to eq("Memory")
       end
     end
 

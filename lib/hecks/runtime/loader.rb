@@ -197,8 +197,8 @@ module Hecks
       # the app requiring them itself. A bind with no implementation is left
       # for `verify!` to refuse.
       def self.load_bound_adapters!(registry)
-        registry.hecksagons.each_value do |hexagon|
-          hexagon.binds.each do |bind|
+        registry.hecksagons.each_value do |hecksagon|
+          hecksagon.binds.each do |bind|
             registry.adapter_class(bind.adapter)
           rescue WiringError
             next

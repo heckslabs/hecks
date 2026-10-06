@@ -1,4 +1,4 @@
-require_relative "behaviour/hexagon"
+require_relative "behaviour/hecksagon"
 require_relative "../ir"
 
 module Hecks

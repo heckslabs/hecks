@@ -91,16 +91,16 @@ RSpec.describe "the DSL surface" do
           Hexed::Thing.posted_by("SpecialCarrier")
         end
       end
-      hexagon = registry.hecksagon("Hexed")
+      hecksagon = registry.hecksagon("Hexed")
 
-      default_bind = hexagon.binds.find { |b| b.aggregate.nil? }
+      default_bind = hecksagon.binds.find { |b| b.aggregate.nil? }
       expect([default_bind.aggregate, default_bind.verb, default_bind.adapter])
         .to eq([nil, "posted_by", "Carrier"])
 
       # An aggregate-specific bind still wins over the domain default.
-      expect(hexagon.bind_for("Thing", "posted_by").adapter).to eq("SpecialCarrier")
+      expect(hecksagon.bind_for("Thing", "posted_by").adapter).to eq("SpecialCarrier")
       # An aggregate with no bind of its own falls back to the default.
-      expect(hexagon.bind_for("OtherThing", "posted_by").adapter).to eq("Carrier")
+      expect(hecksagon.bind_for("OtherThing", "posted_by").adapter).to eq("Carrier")
     end
 
     it ".hecksagon registers subscriptions, taken from outside the domain's own bluebook" do
@@ -3149,10 +3149,10 @@ RSpec.describe "the DSL surface" do
 
     it "bind_for finds the wiring for an aggregate and verb" do
       registry = in_registry { Hecks.hecksagon("Findable") { Findable::Thing.posted_by("Carrier") } }
-      hexagon = registry.hecksagon("Findable")
+      hecksagon = registry.hecksagon("Findable")
 
-      expect(hexagon.bind_for("Thing", "posted_by").adapter).to eq("Carrier")
-      expect(hexagon.bind_for("Thing", "charged_by")).to be_nil
+      expect(hecksagon.bind_for("Thing", "posted_by").adapter).to eq("Carrier")
+      expect(hecksagon.bind_for("Thing", "charged_by")).to be_nil
     end
   end
 
