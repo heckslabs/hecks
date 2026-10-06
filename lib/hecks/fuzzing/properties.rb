@@ -12,6 +12,7 @@ require_relative "properties/invariants_and_aggregation"
 require_relative "properties/corrections"
 require_relative "properties/outbox"
 require_relative "properties/policy_wiring"
+require_relative "properties/references"
 require_relative "properties/catalog"
 
 module Hecks
@@ -30,6 +31,7 @@ module Hecks
       extend Corrections
       extend Outbox
       extend PolicyWiring
+      extend References
 
       module_function
 
