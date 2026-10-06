@@ -403,11 +403,15 @@ module Hecks
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
-        out.concat(tables(commands, questions, all: options[:all], notes: aggregate_notes(bluebook)))
+        shown = [CliAudience.without_hidden(commands, options[:hide]),
+                 CliAudience.without_hidden(questions, options[:hide])]
+        out.concat(tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)))
+        out.concat(CliAudience.chapter_lines(program, options[:chapters]))
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
-        out.concat(all_hint(program, commands, questions)) unless options[:all]
-        out << "  a command is called with its aggregate — #{example_qualified(commands)}"
+        out.concat(all_hint(program, *shown)) unless options[:all]
+        out.concat(CliAudience.maintainer_hint(program, commands.size + questions.size - shown.sum(&:size)))
+        out << "  a command is called with its aggregate — #{example_qualified(shown.first)}"
         out.join("\n")
       end
 

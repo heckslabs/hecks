@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: `hecks` lists the maintainer's commands only inside a hecks checkout, and points at the attached chapters.** Typed in any other project, `hecks` printed the commands for working on hecks itself (`language_run`, `style_run`, `publishing_run` and the rest). It now lists what a project runs against its own domain, then a `chapters` section with one line each for `hecks deploy`, `governance`, `tenancy`, `site`, `tickets` and `quality_control`. A directory with `hecks.gemspec` beside `lib/`, or any directory below one, gets the maintainer's view as before, with the language's own chapters added. `hecks --maintainer` lists everything anywhere, `HECKS_MAINTAINER=1` or `0` forces the view either way, and nothing is removed: every command still runs and answers `--help`. A world's `launcher` setting names the split with `maintainer:`, `chapters:` and `maintainer_chapters:`; a chapter that names none keeps its help whole.
+
+**Behavior change: the host's `session` cookie now expires.** The host refuses a `session` cookie with no `exp` field or
+one in the past, the same as a forged one. Before, a validly signed cookie stayed good until `SESSION_SECRET` changed, so a
+stolen cookie never lapsed. The host never issues this cookie (an operator mints it with the secret), so nothing logs out
+by itself, but every cookie already minted stops working and must be minted again with an `exp` (Unix seconds); the recipe
+in `docs/running-a-rules-service.md` section 7.2 now includes it. The lifetime `session_cookie` stamps is
+`auth::SESSION_TTL_SECS` (14 days), the same constant the account cookie uses.
+
 ## [3.5.0] - 2026-10-06
 
 A minor release: a project's scaffolding is generated from rows beside its route table. `project_site` writes the admin sign-in for both halves (`admin.ts` for the site, and with `--cms=<dir>` the content system's endpoint, membership check, session strategy and users collection), and with `--root=<dir>` the files at the project's root: `.env.tpl`, the check workflow, the content system's image and boot script, and the files that let the content system drive the domain, read from the domain itself. The deploy scripts keep becoming Deploy-chapter commands (`service_roll.run`, `box_roll.run`, `data_copy.restore` and `verify`, `bluebook_diff.run`, `preview_run.<verb>`, `companion_roll.run`), and a missing-database refusal names the role it needs.

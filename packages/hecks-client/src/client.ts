@@ -18,8 +18,11 @@
 // caller writes, not a proof. The host honors `actor_id` only on its
 // internal protocol, from its own peers.
 //
-// The protocol carries no authentication. It is meant for server-to-server
-// calls on a private network, never for a browser.
+// The protocol carries no authentication of its own, and since hecks 2.8.0 the
+// host accepts it only from a peer on the same machine; any other address gets
+// the web layer's answer. This client works from the host's own machine, never
+// across a network and never from a browser. It sends no session cookie or
+// token.
 
 import { refusalOf, DomainUnavailable } from "./errors.js";
 import type { Answer } from "./answer.js";

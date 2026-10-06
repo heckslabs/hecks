@@ -16,7 +16,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 1. **A universal dispatch MCP door** — `dispatch / query / state / catalog / describe / validate`, every call carrying a required `summary`. `hecks run` and the `Facade` already exist to project it from.
 2. **`follow` + `SourceTag`** — persist the dispatch stream already emitted (event log plus caller kind: process-manager / operator / hook / sidequest-agent / cascade / daemon), add a JSONL tail and a `hecks follow`.
-3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. The sibling `hecks` project is explicitly blocked on hecks for exactly this.
+3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. An older, separate project that is also called hecks (see the editor's note in the survey linked below) was blocked on this.
 
 ### Highest-signal items from the rest of the corpus
 
@@ -31,7 +31,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ## Wishlist survey
 
-`docs/archive/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
+`docs/archive/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of an older, separate project that is also called hecks, asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
 
 ### Storehouse, ranked
 
