@@ -317,15 +317,25 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     end
   end
 
+  describe "the default world, without hosting scripts" do
+    it "deploys through box_roll.run too, so every deploy leaves a record" do
+      makefile = cached("default", BOX_WORLDS.fetch("default")).first.fetch("Makefile")
+
+      expect(makefile).to include("HECKS ?= hecks", "$(HECKS) deploy box_roll.run project=\"$(CURDIR)\"",
+                                  "bash ./deploy-box.sh $(TAGS); rc=$$?")
+      expect(makefile).not_to include("smoke-after-deploy")
+    end
+  end
+
   describe "a world with hosting scripts and a task definition" do
     let(:files) { cached("hosting_taskdef", BOX_WORLDS.fetch("hosting_taskdef")).first }
     let(:deploy) { files["deploy-service.sh"] }
     let(:smoke) { files["smoke-after-deploy.sh"] }
 
-    it "adds the four hosting files and ends `make deploy` with the smoke" do
+    it "adds the four hosting files and makes `make deploy` the box_roll.run command" do
       expect(files.keys).to include("deploy-service.sh", "smoke-after-deploy.sh", "expected-era", "hosting.mk")
-      expect(files["Makefile"])
-        .to include("bash ./deploy-box.sh $(TASKDEF)\n\t$(MAKE) smoke-after-deploy\n")
+      expect(files["Makefile"]).to include("$(HECKS) deploy box_roll.run project=\"$(CURDIR)\"")
+      expect(files["hosting.mk"]).to include("deploy service_roll.run project=\"$(CURDIR)\"")
       expect(files["Makefile"]).to end_with("include hosting.mk\n")
       expect(files["hosting.mk"]).to include("URL     ?= https://widgets.example.com", "SERVICE ?= website")
       expect(files["expected-era"]).to end_with("\na1b2c3\n")

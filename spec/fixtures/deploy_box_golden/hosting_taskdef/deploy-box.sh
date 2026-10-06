@@ -2,6 +2,13 @@
 # Roll widget-shop's app box: render the compose files, push them over SSM, start the containers and check
 # them. Exits non-zero if the roll fails or the box does not answer as expected.
 #
+# Exit codes (the ones `hecks deploy box_roll.run` names; a step that fails under `set -e` ends with its
+# own status, 1 from bash and 254/255 from the aws CLI):
+#   0   the roll succeeded and the box answered healthy
+#   40  the box stack has no instance
+#   41  the roll did not succeed on the box
+#   42  the roll succeeded but the box is not healthy after it
+#
 #   deploy-box.sh [task-definition]
 #
 # The task definition (a family or family:revision) defaults to the latest active revision of
@@ -18,7 +25,7 @@ out() { aws cloudformation describe-stacks --stack-name "$1" --query "Stacks[0].
 BOX=$(out "$BOX_STACK" InstanceId)
 DB_HOST=$(out "$RDS_STACK" DbEndpoint)
 DB_SECRET=$(out "$RDS_STACK" DbSecretArn)
-[ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 1; }
+[ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
@@ -72,7 +79,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
    executionTimeout: ["900"]}')
 
 echo "==> rolling $BOX_STACK ($BOX) at $(date -u +%H:%M:%SZ)"
-run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 1; }
+run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 41; }
 
 echo "==> checking the box"
 CHECK=$(cat <<'CHECK_EOF'
@@ -89,5 +96,5 @@ if [ -z "$DOWN" ]; then echo "ok   every container is up"; else echo "FAIL conta
 CHECK_EOF
 )
 CHECK_JSON=$(jq -n --arg c "$(printf '%s' "$CHECK" | base64 | tr -d '\n')" '{commands: ["echo \($c) | base64 -d | bash"]}')
-run_on_box "$CHECK_JSON" || { echo "==> the box is NOT healthy after the roll" >&2; exit 1; }
+run_on_box "$CHECK_JSON" || { echo "==> the box is NOT healthy after the roll" >&2; exit 42; }
 echo "==> box roll done ($(date -u +%H:%M:%SZ))"

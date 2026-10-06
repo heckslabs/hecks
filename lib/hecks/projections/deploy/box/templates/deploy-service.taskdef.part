@@ -6,7 +6,7 @@ active_image() {
 }
 CURRENT_IMAGE="$(active_image)"
 case "$CURRENT_IMAGE" in
-  None|"") echo "task definition family ${FAMILY} has no container named ${SERVICE_NAME}" >&2; exit 1 ;;
+  None|"") echo "task definition family ${FAMILY} has no container named ${SERVICE_NAME}" >&2; exit 38 ;;
 esac
 ECR_REPOSITORY="${CURRENT_IMAGE#*/}"
 ECR_REPOSITORY="${ECR_REPOSITORY%%[:@]*}"

@@ -17,7 +17,7 @@ for key in $ALL_PARAM_KEYS; do
 done
 if [ "$found" != "1" ]; then
   echo "stack ${IMAGE_STACK} has no parameter named ${CFN_PARAM_KEY}; the image was pushed but nothing was rolled" >&2
-  exit 1
+  exit 34
 fi
 
 if UPDATE_OUT="$(aws cloudformation update-stack --stack-name "$IMAGE_STACK" --region "$REGION" \
@@ -32,11 +32,11 @@ if UPDATE_OUT="$(aws cloudformation update-stack --stack-name "$IMAGE_STACK" --r
       UPDATE_COMPLETE) echo "    -> ${stack_status}"; break ;;
       *ROLLBACK*|*FAILED*)
         echo "    -> ${stack_status}: the stack update failed, investigate before rolling anything" >&2
-        exit 1 ;;
+        exit 35 ;;
     esac
     if timed_out "$started"; then
       echo "==> the stack update did not settle within ${SETTLE_TIMEOUT_SECS}s (last: ${stack_status})" >&2
-      exit 1
+      exit 35
     fi
     sleep 10
   done
@@ -44,7 +44,7 @@ elif echo "$UPDATE_OUT" | grep -q "No updates are to be performed"; then
   echo "    -> the stack already has ${TAG}; nothing to update"
 else
   echo "$UPDATE_OUT" >&2
-  exit 1
+  exit 35
 fi
 
 echo "==> checking that only ${CFN_PARAM_KEY} changed"
@@ -56,7 +56,7 @@ CHANGED="$(jq -rn --slurpfile before "${SCRATCH_DIR}/params-before.json" --slurp
 NOW="$(jq -r --arg k "$CFN_PARAM_KEY" '.[] | select(.k == $k) | .v' "${SCRATCH_DIR}/params-after.json")"
 if [ "$NOW" != "$TAG" ] || { [ -n "$CHANGED" ] && [ "$CHANGED" != "$CFN_PARAM_KEY" ]; }; then
   echo "expected only ${CFN_PARAM_KEY} to change to ${TAG}; it is ${NOW} and changed: ${CHANGED:-nothing}" >&2
-  exit 1
+  exit 36
 fi
 echo "    -> ${CFN_PARAM_KEY} is ${TAG}; no other parameter changed"
 
@@ -69,7 +69,7 @@ RUNNING_IMAGE="$(aws ecs describe-task-definition --task-definition "$TD" --regi
   --query "taskDefinition.containerDefinitions[?name=='${SERVICE_NAME}'].image | [0]" --output text)"
 if [ "$RUNNING_IMAGE" != "$IMAGE_URI" ]; then
   echo "task definition ${TD} has ${RUNNING_IMAGE}, not ${IMAGE_URI}; refusing to roll" >&2
-  exit 1
+  exit 37
 fi
 echo "==> task definition ${TD} carries ${SERVICE_NAME}=${TAG}"
 

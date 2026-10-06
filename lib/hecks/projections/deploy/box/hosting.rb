@@ -33,9 +33,10 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the Makefile fragment the box `Makefile` includes
           def hosting_mk(plan)
-            Box.template("hosting.mk.tmpl", "SERVICE"      => plan.containers.first.name,
-                                            "URL"          => plan.hosting.public_url.to_s,
-                                            "SMOKE_RECIPE" => Box::SMOKE_RECIPE)
+            Box.template("hosting.mk.tmpl", "SERVICE"        => plan.containers.first.name,
+                                            "URL"            => plan.hosting.public_url.to_s,
+                                            "SMOKE_RECIPE"   => Box::SMOKE_RECIPE,
+                                            "SERVICE_RECIPE" => service_recipe)
           end
 
           # @param plan [Settings::Plan] the resolved settings
@@ -48,6 +49,14 @@ module Hecks
                          "SETTINGS" => deploy_constants(plan, region), "SERVICES" => services_block(plan),
                          "REPOSITORY_STEP" => repository_step(plan),
                          "ROLL_STEPS" => part(roll))
+          end
+
+          # @return [String] the `deploy-service` recipe: the `service_roll.run` command
+          def service_recipe
+            args = "service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) " \
+                   "$(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE))"
+            direct = "bash ./deploy-service.sh $(SERVICE)"
+            Box::RollRecipe.call(command: "service_roll.run", args: args, direct: direct)
           end
 
           # @param plan [Settings::Plan] the resolved settings
@@ -148,7 +157,7 @@ module Hecks
               resolve_service() {
                 case "$1" in
               #{arms.join("\n")}
-                  *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 1 ;;
+                  *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 2 ;;
                 esac
               }
             BASH

@@ -15,13 +15,24 @@
 # tag the box runs now for every other one.
 #
 # It ends with smoke-after-deploy.sh, whose own exit codes (20-23) are distinct from a failed deploy
-# step's. SKIP_POST_DEPLOY_SMOKE=1 skips it.
+# step's. SKIP_POST_DEPLOY_SMOKE=1 skips it. `hecks deploy service_roll.run` runs this script with
+# SMOKE_BY_COMMAND=1, which ends after the roll and leaves the smoke to the smoke_run.run its policy requests.
+#
+# Exit codes (the ones `service_roll.run` names; a step that fails under `set -e` ends with its own
+# status, 1 from bash and 254/255 from the aws CLI):
+#   2   unknown service
+#   30  EXISTING_TAG is not in ECR              31  the fresh tag is already in ECR
+#   32  the box's Compose file is unreadable    33  the box stack has no instance
+#   34  the stack has no parameter for the container   35  the stack update failed or did not settle
+#   36  a parameter other than the container's changed  37  the task definition lacks the pushed image
+#   38  the task definition has no such container      40-42  deploy-box.sh's own
 #
 # Environment:
 #   LOCAL_IMAGE               local image to push, default <ecr repository>:latest
 #   EXISTING_TAG              redeploy this tag from ECR instead of building and pushing
 #   SETTLE_TIMEOUT_SECS       default 1200, how long to wait for a stack update
 #   SKIP_POST_DEPLOY_SMOKE=1  passed through to smoke-after-deploy.sh
+#   SMOKE_BY_COMMAND=1        end after the roll and print `rolled taskdef=<td> tag=<tag>`; the caller smokes
 set -euo pipefail
 
 REGION=us-east-1
@@ -35,7 +46,7 @@ resolve_service() {
   case "$1" in
     website) ECR_REPOSITORY=widget-shop-website ;;
     cms) ECR_REPOSITORY=acme-cms ;;
-    *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 1 ;;
+    *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 2 ;;
   esac
 }
 
@@ -60,12 +71,12 @@ if [ -n "${EXISTING_TAG:-}" ]; then
   echo "==> reusing ${IMAGE_URI} (no push)"
   aws ecr describe-images --repository-name "$ECR_REPOSITORY" --region "$REGION" \
     --image-ids "imageTag=${TAG}" --query 'imageDetails[0].imageTags' --output text > /dev/null \
-    || { echo "tag ${TAG} is not in ECR" >&2; exit 1; }
+    || { echo "tag ${TAG} is not in ECR" >&2; exit 30; }
 else
   if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --region "$REGION" \
       --image-ids "imageTag=${TAG}" > /dev/null 2>&1; then
     echo "tag ${TAG} is already in ECR; a tag is never reused. Run again." >&2
-    exit 1
+    exit 31
   fi
   echo "==> tagging ${LOCAL_IMAGE} as ${IMAGE_URI}"
   docker tag "$LOCAL_IMAGE" "$IMAGE_URI"
@@ -87,7 +98,7 @@ fi
 # container runs now, read from the box's own Compose file, so rolling one service leaves the rest alone.
 BOX_ID="$(aws cloudformation describe-stacks --stack-name "$BOX_STACK" --region "$REGION" \
   --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text)"
-[ -n "$BOX_ID" ] && [ "$BOX_ID" != None ] || { echo "no instance in stack ${BOX_STACK}" >&2; exit 1; }
+[ -n "$BOX_ID" ] && [ "$BOX_ID" != None ] || { echo "no instance in stack ${BOX_STACK}" >&2; exit 33; }
 
 echo "==> reading the tags the box runs now"
 READ_JSON="$(jq -n --arg c "cat ${BOX_DIR}/compose.json 2>/dev/null || echo '{}'" '{commands: [$c]}')"
@@ -99,7 +110,7 @@ for _ in $(seq 1 30); do
     --query Status --output text 2>/dev/null || echo Pending)"
   [ "$state" != InProgress ] && [ "$state" != Pending ] && break
 done
-[ "$state" = Success ] || { echo "could not read the box's Compose file (${state}); nothing was rolled" >&2; exit 1; }
+[ "$state" = Success ] || { echo "could not read the box's Compose file (${state}); nothing was rolled" >&2; exit 32; }
 aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$BOX_ID" --region "$REGION" \
   --query StandardOutputContent --output text > "${SCRATCH_DIR}/compose.json"
 
@@ -117,6 +128,7 @@ echo "==> rolling ${TAGS[*]}"
 
 bash ./deploy-box.sh "${TAGS[@]}"
 
-# The deploy itself is done. End with the smoke, which reports separately.
+# The deploy itself is done. End with the smoke, which reports separately, unless the caller runs it.
 echo "==> deploy succeeded"
+[ -z "${SMOKE_BY_COMMAND:-}" ] || { echo "==> rolled taskdef=${TASKDEF:-} tag=${TAG}"; exit 0; }
 bash ./smoke-after-deploy.sh
