@@ -72,6 +72,16 @@ pre_push:
       run: [bundle, exec, exe/hecks, style_run.check_comments, "paths=lib,spec,examples", only=long_block, --wait]
       blocked: a comment block ran past the cap; shorten it.
 
+# The checks a push of only unguarded lanes (`main`) runs in place of pre_push. The slow suite is
+# skipped there; the style checks are not, since an offense that lands on `main` is a red CI run.
+unguarded_push:
+  env:
+    HECKS_ENVIRONMENT: memory
+  checks:
+    - *check_rubocop
+    - *check_comment_style
+    - *check_comment_blocks
+
 # The checks `.githooks/post-commit` runs after each commit. A red one is reported and never
 # blocks the commit; pre_push runs it again as the backstop.
 post_commit:

@@ -66,8 +66,8 @@ spec, the engine-agreement check, `hecks model_check`, `hecks conformance_run.me
 and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
-`main` takes pushes with no gate, so a push of only `main` skips the hook unless you ask for it:
-`HECKS_PRE_PUSH_GATE=1 git push`. Any other push (a branch for a pull request) runs it as before. Which
+`main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `unguarded_push` stage (rubocop and the
+comment-style checks); `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite for it. Any other push (a branch for a pull request) runs it as before. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
 
 ### Fast local iteration

@@ -99,7 +99,8 @@ commit must pass as `RequiredCheck` rows beside them.
   merge it with `gh pr merge <pr> --squash` once it is ready and not a
   draft (a sandboxed agent runs `hecks-merge <pr>`). No check is required
   to land, so run the pre-push gate yourself before you push anything that
-  is not trivial: `HECKS_PRE_PUSH_GATE=1 git push` runs it on `main`. Never
+  is not trivial: a push to `main` runs only rubocop and the comment-style checks, and
+  `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite on it. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
