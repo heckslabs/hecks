@@ -59,6 +59,16 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
+    "shared"           => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          containers [{ name: "web", port: 8080 }]
+          shared_database "hecks-platform-rds"
+          database_name "scratch"
+        end
+      end
+    WORLD
     "tunnel"           => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -245,7 +255,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       it "renders two templates that load as CloudFormation and scripts that parse", :aggregate_failures do
         expect(files).not_to be_nil, generated.last
 
-        expect { template_of(files["rds.yaml"]) }.not_to raise_error
+        expect { template_of(files["rds.yaml"]) }.not_to raise_error unless name == "shared"
         expect { template_of(files["box.yaml"]) }.not_to raise_error
         expect(files.keys.grep(/\.sh\z/).reject { |script| syntax_ok?(files[script]).first }).to eq([]), "scripts must parse"
       end
@@ -663,6 +673,75 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       files, = generate(world_source('task_definition "widget-platform"', 'containers [{ name: "web", port: 8080 }]',
                                      'migration({ schemas: ["widgets"] })'))
       expect(files["MIGRATION.md"]).to include("make deploy TASKDEF=widget-platform:<revision>")
+    end
+  end
+
+  describe "the shared world" do
+    let(:files) { cached("shared", BOX_WORLDS.fetch("shared")).first }
+
+    it "writes no database stack of its own, and a script that provisions its database", :aggregate_failures do
+      expect(files).not_to have_key("rds.yaml")
+      expect(files).to have_key("provision-database.sh")
+      expect(files["Makefile"]).not_to include("--template-file rds.yaml")
+    end
+
+    it "reads the endpoint and security group from the shared stack", :aggregate_failures do
+      expect(files["deploy-box.sh"]).to include("RDS_STACK=hecks-platform-rds", 'DB_HOST=$(out "$RDS_STACK" DbEndpoint)')
+      expect(files["Makefile"]).to include("--stack-name $(RDS_STACK) --query")
+    end
+
+    it "reads the login from the site's own secret, not the instance's", :aggregate_failures do
+      expect(files["deploy-box.sh"]).to include("describe-secret --secret-id scratch-fixture/database")
+      expect(files["deploy-box.sh"]).not_to include("DbSecretArn)")
+      expect(files["Makefile"]).to include("DbSecretArn=$$(aws secretsmanager describe-secret",
+                                           "--secret-id scratch-fixture/database")
+    end
+
+    it "never lets the box read the instance's master secret" do
+      expect(files["box.yaml"]).not_to include("MasterUserSecret")
+    end
+
+    it "gives a make target to provision" do
+      expect(files["Makefile"]).to include(".PHONY: stacks deploy provision",
+                                           "provision:\n\tbash ./provision-database.sh $(BASTION) $(ROTATE)")
+    end
+
+    it "provisions a role that owns only its database and is not a superuser", :aggregate_failures do
+      script = files["provision-database.sh"]
+
+      expect(script).to include('create role "$ROLE" login password :\'pw\' nosuperuser nocreatedb nocreaterole')
+      expect(script).to include('create database \"$DB\" owner \"$ROLE\"', 'revoke all on database \"$DB\" from public')
+      expect(script).to include("SECRET=scratch-fixture/database", "DB=scratch")
+    end
+
+    it "keeps the password to letters and digits and out of any command line", :aggregate_failures do
+      expect(files["provision-database.sh"]).to include("openssl rand -hex 16", "-v pw=\"$PW\"")
+      expect(files["provision-database.sh"]).not_to include("password '$")
+    end
+
+    it "writes the provisioning script executable", :aggregate_failures do
+      ok, stderr, scripts, unexecutable = generated_scripts(BOX_WORLDS.fetch("shared"))
+
+      expect(ok).to be(true), stderr
+      expect(scripts).to include("provision-database.sh")
+      expect(unexecutable).to eq([])
+    end
+  end
+
+  describe "a shared world that is wrong" do
+    it "refuses settings that size the instance, which the shared stack owns", :aggregate_failures do
+      files, stderr = generate(world_source('containers [{ name: "web", port: 8080 }]', 'shared_database "hecks-platform-rds"',
+                                            'database_class "db.t4g.large"', "backup_days 14"))
+
+      expect(files).to be_nil
+      expect(stderr).to include("shared_database", "database_class", "backup_days", "hecks-platform-rds")
+    end
+
+    it "refuses a stack name that could carry shell syntax", :aggregate_failures do
+      files, stderr = generate(world_source('containers [{ name: "web", port: 8080 }]', 'shared_database "x; rm -rf /"'))
+
+      expect(files).to be_nil
+      expect(stderr).to include("shared_database")
     end
   end
 

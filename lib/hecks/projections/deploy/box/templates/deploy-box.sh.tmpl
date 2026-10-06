@@ -26,7 +26,7 @@ out() { aws cloudformation describe-stacks --stack-name "$1" --query "Stacks[0].
 
 BOX=$(out "$BOX_STACK" InstanceId)
 DB_HOST=$(out "$RDS_STACK" DbEndpoint)
-DB_SECRET=$(out "$RDS_STACK" DbSecretArn)
+@@DB_SECRET_LINE@@
 [ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 

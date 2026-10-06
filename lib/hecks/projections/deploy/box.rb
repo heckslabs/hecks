@@ -7,6 +7,7 @@ require_relative "box/caddy"
 require_relative "box/access"
 require_relative "box/stack_yaml"
 require_relative "box/compose"
+require_relative "box/shared_database"
 require_relative "box/roll_scripts"
 
 module Hecks
@@ -22,6 +23,7 @@ module Hecks
         extend Access
         extend StackYaml
         extend Compose
+        extend SharedDatabase
         extend RollScripts
 
         projects_as :aws_box, needs_world: true, emits: :files
@@ -129,13 +131,23 @@ module Hecks
         # @return [Hash{String => String}] every generated file
         def render_all(plan, region)
           {
-            "rds.yaml" => rds_yaml(plan), "box.yaml" => box_yaml(plan, region),
+            "box.yaml" => box_yaml(plan, region),
             "Caddyfile" => caddyfile(plan), "services.json" => services_json(plan),
             "render-compose.sh" => render_compose_sh(plan, region),
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
             "Makefile" => makefile(plan)
-          }.merge(migration_files(plan)).then { |files| Hosting.extend_files(files, plan: plan, region: region) }
+          }.merge(database_files(plan)).merge(migration_files(plan))
+            .then { |files| Hosting.extend_files(files, plan: plan, region: region) }
+        end
+
+        # @param plan [Settings::Plan] the resolved settings
+        # @return [Hash{String => String}] the database stack, or for a database on a shared
+        #   instance the script that provisions it; the shared stack is not this site's to generate
+        def database_files(plan)
+          return { "rds.yaml" => rds_yaml(plan) } unless plan.shared?
+
+          { "provision-database.sh" => provision_database_sh(plan) }
         end
 
         # Fills `@@NAME@@` markers. A marker alone on its line is replaced together with the line,

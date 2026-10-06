@@ -22,6 +22,21 @@ Three facts about the code today decide the shape:
 6. **The host and the CMS boot script read `username` from the secret**, defaulting to `postgres` so a dedicated instance behaves as before.
 7. **Moving a client onto the shared instance is a data copy, not a deploy.** `restore-to-rds.sh` copies the client's schemas into its new database as its own role; `verify-copy.sh` compares them; the cutover is a roll with the new `DB_HOST` and secret. Each step is run by a person, and the cutover is ask-first.
 
+## What a client's world says
+
+```ruby
+deployed_to("AwsBox") do
+  region "us-east-1"
+  containers [{ name: "web", port: 8080 }, { name: "domain", port: 8082 }]
+  shared_database "hecks-platform-rds"   # the platform's instance, by stack name
+  database_name "acme"                   # this client's database, and the role that owns it
+end
+```
+
+The generator then writes `provision-database.sh` and a `make provision BASTION=i-... [ROTATE=--rotate]` target,
+and no `rds.yaml`. `make stacks` deploys only the box; `deploy-box.sh` finds the secret `acme/database` by name.
+`database_class`, `storage_gb`, `engine_version` and `backup_days` with `shared_database` are refused.
+
 ## Phases
 
 1. **Client side (this ADR's build):** `shared_database`, `provision-database.sh`, the host and boot-script `username`, specs and docs.
