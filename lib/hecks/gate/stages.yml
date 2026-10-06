@@ -114,7 +114,7 @@ ci:
       run: [bundle, exec, exe/hecks, fuzz_run.fuzz, adapter=sqlite, seeds=6, --wait]
       blocked: the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.
     - id: fuzz_postgres
-      title: fuzz on real Postgres, one worker (every ephemeral boot recreates the same scratch schema)
+      title: fuzz on real Postgres, up to four workers (each in its own scratch schema)
       run: [bundle, exec, exe/hecks, fuzz_run.fuzz, adapter=postgres, seeds=3, steps=20, --wait]
       blocked: the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.
     - id: vocabulary_drift
