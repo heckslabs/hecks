@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Added: `deployed_to("AwsSharedDatabase")` generates the RDS instance that several sites share (ADR 0092).** The platform's world names the stack (`stack_name`, required, used exactly as given because every site's `shared_database` refers to it) and optionally the class, storage, engine and backup days; `hecks deploy project` writes `rds.yaml`, a `Makefile` and a README. The stack creates no database of its own, leaves the security group's rules to each site's box stack, and gives the bastion's rule its own resource so a stack update cannot revoke a site's. `restore-to-rds.sh` takes a `SCHEMAS=` override and passes it to `verify-copy.sh` (`COMPARE_SCHEMAS`), so the same two scripts copy and compare another database's schemas (an analytics database's `public`, say) as well as the world's.
+
 **Changed: the `edge` tag has a ruleset of its own.** `project_lanes` now projects a tag ruleset (`.github/rulesets/tag-edge.json`) for the tag a guarded lane feeds: it cannot be deleted or pointed at an older commit, no actor bypasses it, and moving it forward (what a promotion does) stays allowed. Before, only `move_tag`'s own check kept `edge` from rewinding. `project_lanes --live` compares and applies it with the lane rulesets.
 
 **Added: `deployed_to("Vercel")` generates a Vercel function's configuration.** `hecks deploy project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh` and a `Makefile` for a domain's host as one function; region, memory and duration go through the new `Deploy::VercelTarget.Declare`, and secrets are named and piped on stdin, never written. The host's own Vercel entry point is still to do (ADR 0093).

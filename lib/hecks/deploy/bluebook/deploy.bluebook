@@ -330,6 +330,59 @@ Hecks.bluebook "Deploy" do
     end
   end
 
+  aggregate "SharedDatabaseTarget" do
+    description "One platform's validated shared database instance — what deployed_to(\"AwsSharedDatabase\") must resolve to before hecks deploy project generates the RDS stack that several client sites each keep a database on."
+
+    identified_by :domain
+
+    attribute :domain,         DomainName
+    attribute :region,         Region
+    attribute :database_class, DatabaseClass
+    attribute :storage_gb,     StorageGb
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # An RDS instance class such as db.t4g.small.
+    value_object "DatabaseClass" do
+      attribute :value, String
+      invariant("a database class is db.family.size, such as db.t4g.small") { value.to_s.match?(/\Adb\.[a-z][a-z0-9-]*\.[a-z0-9]+\z/) }
+    end
+
+    # Every client's database lives on this disk, so it is sized for all of them; 20 GB is
+    # RDS's gp3 floor.
+    value_object "StorageGb" do
+      attribute :value, Integer
+      invariant("storage is at least 20 GB") { value >= 20 }
+      invariant("storage is at most 65536 GB") { value <= 65536 }
+    end
+
+    # All four required for the same reason as `BoxTarget.Declare`; this validates a target
+    # already resolved by `hecks deploy project`'s defaults.
+    command "Declare" do
+      goal "Validate one platform's shared database target before anything is generated from it"
+
+      attribute :domain,         DomainName
+      attribute :region,         Region
+      attribute :database_class, DatabaseClass
+      attribute :storage_gb,     StorageGb
+
+      sets :domain
+      sets :region
+      sets :database_class
+      sets :storage_gb
+
+      emits "SharedDatabaseTargetDeclared"
+    end
+  end
+
   # The validated shape of `hecks deploy tenant.provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do

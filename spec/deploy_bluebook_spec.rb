@@ -199,6 +199,37 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     dispatcher.dispatch_flat("Deploy::BoxTarget.Declare", **args)
   end
 
+  def declare_shared_database(**overrides)
+    args = { domain: { value: "Platform" }, region: { value: "us-east-1" }, database_class: { value: "db.t4g.small" },
+             storage_gb: { value: 30 } }.merge(overrides)
+    dispatcher.dispatch_flat("Deploy::SharedDatabaseTarget.Declare", **args)
+  end
+
+  describe "SharedDatabaseTarget.Declare" do
+    it "accepts a fully-specified AwsSharedDatabase target" do
+      values = values_of(declare_shared_database, :domain, :database_class, :storage_gb)
+
+      expect(values).to eq(domain: "Platform", database_class: "db.t4g.small", storage_gb: 30)
+    end
+
+    it "refuses an empty region" do
+      expect { declare_shared_database(region: { value: "" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a region is named/)
+    end
+
+    it "refuses a database class that is not db.family.size" do
+      expect { declare_shared_database(database_class: { value: "t4g.small" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /a database class is db.family.size/)
+    end
+
+    it "refuses storage below 20 GB and above 65536 GB", :aggregate_failures do
+      expect { declare_shared_database(storage_gb: { value: 10 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /storage is at least 20 GB/)
+      expect { declare_shared_database(storage_gb: { value: 70_000 }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /storage is at most 65536 GB/)
+    end
+  end
+
   describe "BoxTarget.Declare" do
     it "accepts a fully-specified AwsBox target" do
       values = values_of(declare_box, :domain, :instance_type, :volume_gb, :database_class, :storage_gb)

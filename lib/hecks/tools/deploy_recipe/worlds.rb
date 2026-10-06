@@ -21,7 +21,8 @@ module Hecks
 
           File.exist?(world_file) or
             abort "#{world_file} does not exist — a domain needs a .world file to declare " \
-                  "deployed_to(\"AwsLambda\"), deployed_to(\"AwsFargate\"), deployed_to(\"AwsBox\") or deployed_to(\"Vercel\")"
+                  "deployed_to(\"AwsLambda\"), deployed_to(\"AwsFargate\"), deployed_to(\"AwsBox\"), " \
+                  "deployed_to(\"AwsSharedDatabase\") or deployed_to(\"Vercel\")"
           world_file
         end
 
