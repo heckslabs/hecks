@@ -293,7 +293,7 @@ Hecks.bluebook "Deploy" do
     # unknown id at deploy; this checks the shape only.
     value_object "Region" do
       attribute :value, String
-      invariant("a region is a Vercel id such as iad1") { value.to_s.match?(/\A[a-z]{3}\d\z/) }
+      invariant("a region is a Vercel id such as iad1") { value.to_s.match?(/\A[a-z]{3}[0-9]\z/) }
     end
 
     # Function memory in MB. Vercel sells 128 MB up to a plan's ceiling; the ceiling is the
