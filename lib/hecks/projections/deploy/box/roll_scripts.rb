@@ -44,7 +44,8 @@ module Hecks
             template("deploy-box.sh.tmpl", "STACK" => plan.infra_name, "BOX_STACK" => plan.box_stack,
                                            "RDS_STACK" => plan.rds_stack, "REGION" => region,
                                            "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan),
-                                           "SMOKE_HEADER" => smoke_header(plan), "USAGE" => deploy_usage(plan))
+                                           "SMOKE_HEADER" => smoke_header(plan), "USAGE" => deploy_usage(plan),
+                                           "DB_SECRET_LINE" => database_secret_line(plan))
           end
 
           # @param plan [Settings::Plan] the resolved settings
@@ -96,9 +97,10 @@ module Hecks
           # @return [String] a Makefile whose targets create the two stacks and roll the box
           def makefile(plan)
             hint = plan.task_definition ? "[TASKDEF=family:revision]" : '[TAGS="web=20260101 worker=20260101"]'
-            base = template("Makefile.tmpl", "STACK" => plan.infra_name, "DEPLOY_HINT" => hint,
-                                             "RDS_STACK" => plan.rds_stack, "BOX_STACK" => plan.box_stack,
-                                             "DEPLOY_RECIPE" => RollRecipe.deploy(plan))
+            base = template("Makefile.tmpl", { "STACK" => plan.infra_name, "DEPLOY_HINT" => hint,
+                                               "RDS_STACK" => plan.rds_stack, "BOX_STACK" => plan.box_stack,
+                                               "DEPLOY_RECIPE" => RollRecipe.deploy(plan) }
+                                               .merge(database_makefile_values(plan)))
             plan.hosting ? "#{base}\ninclude hosting.mk\n" : base
           end
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Roll @@STACK@@'s app box: render the compose files, push them over SSM, start the containers and check
+# Roll scratch-fixture's app box: render the compose files, push them over SSM, start the containers and check
 # them. Exits non-zero if the roll fails or the box does not answer as expected.
 #
 # Exit codes (the ones `hecks deploy box_roll.run` names; a step that fails under `set -e` ends with its
@@ -15,18 +15,21 @@
 # cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
 # those services (deploy-service.sh sets the one it rolls).
 #
-@@USAGE@@
+#   deploy-box.sh [name=tag ...]
+#
+# A container named without a tag runs its "latest" image. Secret values are resolved on the box by
+# fetch-secrets.sh and never pass through the SSM command.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-BOX_STACK=@@BOX_STACK@@
-RDS_STACK=@@RDS_STACK@@
-REGION=@@REGION@@
-DIR=/opt/@@STACK@@
+BOX_STACK=hecks-scratch-fixture-box
+RDS_STACK=hecks-platform-rds
+REGION=us-east-1
+DIR=/opt/scratch-fixture
 out() { aws cloudformation describe-stacks --stack-name "$1" --query "Stacks[0].Outputs[?OutputKey==\`$2\`].OutputValue" --output text; }
 
 BOX=$(out "$BOX_STACK" InstanceId)
 DB_HOST=$(out "$RDS_STACK" DbEndpoint)
-@@DB_SECRET_LINE@@
+DB_SECRET=$(aws secretsmanager describe-secret --secret-id scratch-fixture/database --query ARN --output text)
 [ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
@@ -40,7 +43,6 @@ cat > "$WORK/smoke.caddy" <<'SMOKE_EOF'
 https://127.0.0.1:8443 {
 	tls internal
 	reverse_proxy 127.0.0.1:80 {
-@@SMOKE_HEADER@@
 	}
 }
 SMOKE_EOF
@@ -84,7 +86,7 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
 # files under /var/log/hecks-captures, skips on low disk, never prints a log's contents, and ends 0.
 CAPTURE=$(cat <<'CAPTURE_EOF'
 umask 027
-cd "${CAPTURE_HOME:-@@DIR@@}" 2>/dev/null && [ -f compose.json ] || { echo "log capture: no running roll to capture"; exit 0; }
+cd "${CAPTURE_HOME:-/opt/scratch-fixture}" 2>/dev/null && [ -f compose.json ] || { echo "log capture: no running roll to capture"; exit 0; }
 LOGDIR=${CAPTURE_DIR:-/var/log/hecks-captures}; KEEP=14
 FREE_KB=$(df -Pk "${CAPTURE_DF_PATH:-/var/log}" 2>/dev/null | awk 'NR==2 {print $4}')
 if [ "${FREE_KB:-0}" -lt "${CAPTURE_MIN_FREE_KB:-2097152}" ]; then
@@ -119,9 +121,10 @@ run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 41; }
 
 echo "==> checking the box"
 CHECK=$(cat <<'CHECK_EOF'
-cd @@DIR@@
+cd /opt/scratch-fixture
 BAD=0
-@@HEALTH_CHECKS@@
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 localhost/)
+[ "${code#5}" = "$code" ] && echo "ok   the proxy serves / -> $code" || { echo "FAIL the proxy serves / -> $code"; BAD=1; }
 DOWN=$(docker compose -f compose.json ps --format "{{.Service}} {{.Status}}" | grep -vE " Up " || true)
 if [ -z "$DOWN" ]; then echo "ok   every container is up"; else echo "FAIL containers not up: $DOWN"; BAD=1; fi
 [ "$BAD" = 0 ]
