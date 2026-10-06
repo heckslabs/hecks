@@ -212,7 +212,16 @@ A package with no release tag yet is a `note`, not a failure. A passing check en
 
 `hecks package.release <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
 
-Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them.
+`hecks package.digest <package> [root=<dir>]` prints the content digest a consumer records in its lock file, and the package's shape label, without a Ruby one-liner:
+
+```
+digest: <sha256>
+shape: Payments d33c23
+```
+
+The digest is `Lock.digest_of` over the package's `bluebook/*.bluebook` files only, sorted by name: `bluebook.yml`, `CHANGELOG.md` and any other file in the package do not count, so a changelog edit leaves it unchanged. `root` is the registry, read at `<root>/<package>/bluebook`, or a project that vendors the package, read at `<root>/vendor/embryonaut_bluebooks/<package>/bluebook`; it defaults to the current directory. It is a read of the files and keeps no record. It refuses, with exit status 1, naming both places it looked, when the package is in neither.
+
+Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
 
 ## port
 

@@ -290,15 +290,45 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       expect(shell.command.drop(1)).to eq(%w[examples/banking])
     end
 
-    it "refuses outside a hecks checkout, where the generators are not" do
+    it "refuses the lint outside a hecks checkout, where the generators are not" do
       Dir.mktmpdir("not_a_checkout") do |dir|
         Dir.mkdir(File.join(dir, "lib"))
         Hecks::Adapters::Codebase::Tree.root = dir
 
-        json, status = answer(["recipe.project", "examples/pizzas", "--wait"])
+        json, status = answer(["makefile_check.lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
         expect(status).to eq(1)
         expect(json.dig("state", "refusal", "value")).to include("needs a hecks checkout")
+      end
+    end
+
+    it "generates a recipe for a project beside the cwd, from an installed gem with no checkout" do
+      Dir.mktmpdir("installed_gem") do |scratch|
+        gem_dir = File.join(scratch, "gem")
+        project = File.join(scratch, "client_#{rand(1_000_000)}")
+        FileUtils.mkdir_p(File.join(gem_dir, "lib"))
+        FileUtils.cp_r(File.join(InMemoryDomain::ROOT, "examples/pizzas"), project)
+        File.write(File.join(project, "bluebook/pizzas.world"), <<~RUBY)
+          Hecks.world "Pizzas" do
+            realm "Examples"
+            deployed_to("AwsLambda") do
+              region "us-east-1"
+              memory 512
+              timeout 10
+            end
+          end
+        RUBY
+        Hecks::Adapters::Codebase::Tree.root = gem_dir
+
+        Dir.chdir(scratch) do
+          json, status = answer(["recipe.project", File.basename(project), "out=generated_recipe", "--wait"])
+
+          expect(json.dig("state", "refusal", "value")).to be_nil
+          expect(status).to eq(0)
+          expect(json.dig("state", "status")).to eq("projected")
+        end
+        expect(File.file?(File.join(scratch, "generated_recipe/template.yaml"))).to be(true)
+        expect(File.read(File.join(scratch, "generated_recipe/Makefile"))).to include("ROOT      := #{File.realpath(scratch)}")
       end
     end
   end

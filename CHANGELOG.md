@@ -7,9 +7,38 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: `hecks site site_projection.check_live` takes `template=<file>` and prints just the report.** A project whose `Edge` row leaves `template:` out was refused by `check_live` although `project_site` accepted `template=<file>` for it, so a client had to add a placeholder row. `check_live` now takes the same `template=<file>` (it reads no template, so the file need not exist). It also prints the report alone, the differences or the line saying the distribution matches, and exits 1 when any differ, instead of the whole JSON record with the report as a reason on standard error. A world's `launcher` setting names such commands under the new `report:` key.
+
+**Added: `hecks package.digest <package> [root=<dir>]` prints a package's content digest and shape label.** The digest a consumer records in its `bluebook.lock` was reachable only from Ruby (`Lock.digest_of`, in a `ruby -rhecks -e` one-liner). The new query prints it, `digest: <sha256>`, then one `shape: <label>` line per bluebook, over the package's `bluebook/*.bluebook` files alone, from a registry (`<root>/<package>/bluebook`) or a project that vendors it (`<root>/vendor/embryonaut_bluebooks/<package>/bluebook`). It is also spelled `registry.digest`.
+
+**Changed: `hecks operation.bootstrap_admin` says what to add when the domain has no membership chapter.** The refusal named only the missing capability. It now shows the line to add, `provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"`, and says what each verb names; `docs/running-a-rules-service.md` documents the requirement.
+
+**Fixed: `hecks deploy recipe.project` runs from an installed gem.** It refused with "needs a hecks checkout" outside a checkout of this repository, and it read a relative `<domain>` from the gem's own directory rather than from where the command ran. It now reads the project it is given, a path absolute or relative to the current directory, and writes the recipe under `deploy/<stack>/` of that directory (or `out=`). In a checkout the generated recipe is unchanged; outside one the Makefiles name the directory the command ran in as their root. `makefile_check.lint` and `oidc_manifest.project_oidc` still need a checkout.
+
 **`hecks deploy smoke_run.run` runs a project's generated post-deploy smoke as a command, and `make deploy` calls it.** Give it the project (`smoke_run.run <project>`) and it finds the `smoke-after-deploy.sh` the `AwsBox` projection wrote, beside the Makefile or the only one beneath the project (`script=<path>` overrides; `taskdef=`, `skip=true`, `async=true` and `dry_run=true` map to the script's variables). It records a `SmokeRun` in the Deploy chapter as `passed` with what the script printed, or `flagged` with the script's status (20 the roll did not settle, 21 `gh` unavailable, 22 the smoke failed, 23 result unknown), exiting 1 when flagged. The generated Makefile (and `hosting.mk`'s `smoke-after-deploy` target) now run `$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait` instead of the script, so each deploy leaves a durable `SmokeRun` in the Hecks database (`HECKS_DATABASE`, default `postgres://hecks@localhost/hecks`; the deploying machine needs it, `createdb hecks` once). A failed smoke is exit 1 rather than 20 to 23. When the database cannot be opened the target prints that error and the setup step, still runs the script so the smoke's result is printed, and exits non-zero (the smoke's own status, or 24 when it passed); regenerate a project's recipe to pick this up. The script itself is unchanged and `deploy-service.sh` still calls it directly. [ADR 0090](docs/decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md) lays out the rest of the deploy scripts.
 
 **A clean `model_check` run now records how many domains it examined.** `ModelCheckRun` keeps a `checked` count beside the `report`, counted by the adapter from the report's domain headers, so an agent behind the MCP door reads a number instead of counting lines of a long report (three runs of the same check once gave 80, 58 and 69).
+
+### Fixed
+
+**A Memory-backed aggregate with one large nested value object no longer pays for its whole size on every save.** The 3.4.1 fix shared the elements of a top-level `list_of`; a single value-object attribute that holds a list (directly, or through a nested value object) was still copied whole into the journal and hydrated whole into the record on every save, so a `Step` that changed one counter cost O(size of the value object). A hydrated value object is frozen, so Memory now copies it once, freezes the copy, and shares it between every journal entry and record that holds it; a new version of the value object reuses the copies of the list elements it still holds (`Memory::SharedElements`, plus `Runtime::Value#raw_fields`, a reader for the stored fields). A journalled value object now refuses an in-place change (`FrozenError`), the same tightening 3.4.1 made for list elements; an entry still has exactly the shape `StateCodec.copy` gives a durable adapter, and a returned instance still shares nothing mutable with the journal. A value object that is not frozen, or an attribute with no list in it, takes the whole-copy path as before. One game whose `Log` value object holds N cells (Memory), one `Step` that touches only a counter:
+
+| Cells in the value object | Before: time per step, allocations | After |
+|---|---|---|
+| 20 | 4.3 ms, 1,338 | 0.15 ms, 513 |
+| 200 | 20.7 ms, 8,718 | 0.25 ms, 513 |
+| 2,000 | 200 ms, 82,518 | 0.43 ms, 513 |
+| 20,000 | 1,971 ms, 820,520 | 0.15 ms, 513 |
+
+A value object that gains a cell on every save (save only):
+
+| Cells | Before: time, allocations | After |
+|---|---|---|
+| 20 | 0.21 ms, 1,126 | 0.17 ms, 311 |
+| 200 | 3.2 ms, 8,506 | 0.28 ms, 311 |
+| 2,000 | 215 ms, 82,306 | 1.1 to 2.5 ms, 311 |
+
+Allocations per save no longer follow the size. A value object whose list is rebuilt still costs one cheap pointer lookup per existing element in time (about 1 ms per 2,000 cells), not a copy of each.
 
 ## [3.4.1] - 2026-10-05
 
