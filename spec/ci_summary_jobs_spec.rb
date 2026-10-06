@@ -127,6 +127,21 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(skipping.map { |path, name, _| job_label(path, name) }).to be_empty, "skip on a push to main"
   end
 
+  # A workflow's triggers: YAML reads the key `on` as `true`.
+  def triggers_of(path)
+    doc = YAML.load_file(path)
+    on = doc.fetch(true, doc["on"])
+    on.is_a?(Hash) ? on : {}
+  end
+
+  # `main` takes pushes directly and `stable` is moved by promote.yml, so no workflow waits on a
+  # merge queue: a `merge_group` trigger would start runs for entries that no longer exist.
+  it "has no merge_group trigger" do
+    queued = workflow_files(".github/workflows/*.yml").select { |path| triggers_of(path).key?("merge_group") }
+
+    expect(queued.map { |path| File.basename(path) }).to be_empty, "still trigger on merge_group"
+  end
+
   # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.
   it "gives every job that takes a runner a timeout" do
     running = workflow_jobs(workflow_files(".github/workflows/*.yml")).reject { |_, _, job| job.key?("uses") }

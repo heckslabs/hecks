@@ -20,13 +20,8 @@ name: CI
 # Every PR and every push to main runs the full job set; no job skips on a push, because a
 # skipped required check reports as passed and promote.yml would carry an untested commit to
 # `stable`. Path gates (the CiGate rows) still skip the work a change cannot affect.
-# `merge_group` stays while the `merge-queue-main` ruleset guards main: the queue builds each entry
-# from the workflows in its own merge commit, so a ci.yml without the trigger starts no run and the
-# entry waits for checks that never report. Remove it, in a change of its own, after the ruleset
-# and branch protection are gone from main.
 on:
   pull_request:
-  merge_group:
   push:
     branches: [main]
 
@@ -98,8 +93,8 @@ jobs:
 
   # Writes the same kind of attestation note .githooks/pre-push writes locally (Phase 7),
   # but for THIS run's own checked-out tree, right after a green pull_request run. When the
-  # merge queue's merge onto main turns out to be a no-op (main hasn't moved since this run),
-  # that tree is byte-identical to what merge_group checks out, so each lineage's own
+  # merge onto main turns out to be a no-op (main hasn't moved since this run), that tree is
+  # byte-identical to what the push to main checks out, so each lineage's own
   # ci_attestation_* detector finds this note and skips re-running its heavy job — see
   # .github/actions/check-attestation's own header for why a tree-hash note survives into a
   # commit that didn't exist yet when it was written. Without this job, only a developer's own
