@@ -27,18 +27,27 @@ module Hecks
           def disk_cache_enabled? = ENV["HECKS_SYNTAX_BOOT_CACHE"] != "off"
 
           # Fails toward a real boot, never toward a wrong table: a missing
-          # file, a corrupt blob, or a permission error just misses the cache.
+          # file, a corrupt blob, or a permission error just misses the cache. A table
+          # the user has not cached is looked for among the ones the gem ships.
           def read_disk_cache(chapters)
             return nil unless disk_cache_enabled?
 
             path = disk_cache_path(chapters)
-            return nil unless File.exist?(path)
+            return load_table(path, touch: true) if File.exist?(path)
 
-            table = Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own process-local cache, never external input
-            FileUtils.touch(path)
-            table
+            shipped = Hecks::CacheDir.prebuilt(File.basename(path))
+            File.exist?(shipped) ? load_table(shipped) : nil
           rescue StandardError
             nil
+          end
+
+          # @param path [String] a table file
+          # @param touch [Boolean] whether to mark it as used (a shipped file is read-only)
+          # @return [Hash, nil] the table
+          def load_table(path, touch: false)
+            table = Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own cache or the gem's own file, never external input
+            FileUtils.touch(path) if touch
+            table
           end
 
           # Writes to a PID-suffixed temp file and renames it into place, so a

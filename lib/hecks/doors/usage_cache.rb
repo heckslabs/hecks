@@ -72,13 +72,18 @@ module Hecks
       # @return [String, nil] nil when the digest cannot be taken
       def entry_path(domain, argv, program, audience = "")
         digest = Digest::SHA256.new
-        [Hecks::VERSION, RUBY_VERSION, ENV["HECKS_ENVIRONMENT"].to_s, program, audience, argv.join("\0")].each do |part|
-          digest << part.to_s << "\0"
-        end
+        key_parts(program, audience, argv).each { |part| digest << part.to_s << "\0" }
         fingerprint_code(domain, digest)
         File.join(directory, "usage-#{digest.hexdigest}.json")
       rescue SystemCallError
         nil
+      end
+
+      # @return [Array<String>] what the answer depends on besides the files: the gem and Ruby
+      #   series, the environment overlay, the program and audience and the command line
+      def key_parts(program, audience, argv)
+        [Hecks::VERSION, Hecks::Bluebook::MetaValidator::VerdictCache.ruby_series,
+         ENV["HECKS_ENVIRONMENT"].to_s, program, audience, argv.join("\0")]
       end
 
       # Feeds the digest every declaration file under `root`: its path below `root` and its bytes,
