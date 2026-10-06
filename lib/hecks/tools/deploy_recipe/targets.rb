@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "delegate"
 require_relative "../../tools"
 
 module Hecks
@@ -49,7 +50,7 @@ module Hecks
         # reads `world.for_verb("deployed_to")` sees that target's block and no other.
         class TargetWorld < SimpleDelegator
           # @param world [Object] the world the blocks were declared in
-          # @param settings [Hash{Symbol => Object}] the one `deployed_to` block this view answers with
+          # @param settings [Hash{Symbol => Object}] the one `deployed_to` block this view uses
           def initialize(world, settings)
             super(world)
             @settings = settings
@@ -63,7 +64,7 @@ module Hecks
         # each one as `deployed_to:<adapter>`; the plain `deployed_to` entry is only the last.
         #
         # @param world [Object] the loaded world
-        # @return [Array<Hash{Symbol => Object}>] one settings hash per target, each with its `:adapter`
+        # @return [Array<Hash{Symbol => Object}>] one settings hash per target, with its `:adapter`
         def declared_targets(world)
           world.settings.filter_map { |key, block| block if key.to_s.start_with?("deployed_to:") }
         end
@@ -75,10 +76,11 @@ module Hecks
         def chosen_targets(blocks, wanted)
           return blocks unless wanted
 
-          blocks.select { |block| block[:adapter].casecmp?(wanted) }.tap do |found|
-            abort "no deployed_to(#{wanted.inspect}) is declared; declared: " \
-                  "#{blocks.map { |b| b[:adapter] }.join(', ')}" if found.empty?
-          end
+          found = blocks.select { |block| block[:adapter].casecmp?(wanted) }
+          return found unless found.empty?
+
+          declared = blocks.map { |block| block[:adapter] }.join(", ")
+          abort "no deployed_to(#{wanted.inspect}) is declared; declared: #{declared}"
         end
 
         # Each adapter maps to a registered `Projector` export (`needs_world: true`); this only

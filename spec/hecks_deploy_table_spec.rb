@@ -102,9 +102,10 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     expect(DEPLOY_ROWS.map(&:aggregate).uniq).to match_array(%w[Recipe MakefileCheck TemplateComparison OidcManifest Tenant])
   end
 
+  def command_names(aggregate) = @bluebook.aggregate(aggregate).commands.map(&:hecks_name)
+
   it "keeps the deployed_to targets beside the new commands, and Provision the only Tenant creator", :aggregate_failures do
-    targets = %w[LambdaTarget FargateTarget BoxTarget VercelTarget]
-    declared = targets.map { |t| @bluebook.aggregate(t).commands.map(&:hecks_name) }
+    declared = %w[LambdaTarget FargateTarget BoxTarget VercelTarget].map { |t| command_names(t) }
     tenant = @bluebook.aggregate("Tenant").commands
 
     expect(declared).to all(eq(["Declare"]))
