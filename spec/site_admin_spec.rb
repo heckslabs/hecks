@@ -210,11 +210,20 @@ RSpec.describe "the admin sign-in module" do
   end
 
   describe "the files at the project's root" do
-    def root_files(project = members) = tool.projection(project, out: "/work/out", root_dir: "/work/root")
+    def root_for_domain = members
 
-    let(:names) { %w[.env.tpl .github/workflows/site-routes.yml cms/Dockerfile cms/deploy-aws/boot.mjs] }
+    def root_files(project = members)
+      tool.projection(project, out: "/work/out", root_dir: root_for_domain).transform_keys do |path|
+        path.sub(root_for_domain, "/work/root")
+      end
+    end
 
-    it "is the settings template, the workflow and the content system's image, under the directory --root names" do
+    let(:names) do
+      %w[.env.tpl .github/workflows/site-routes.yml cms/Dockerfile cms/deploy-aws/boot.mjs
+         cms/src/generated/driver/lifecycle.ts cms/src/generated/driver/specs.ts cms/src/generated/collections/fields.ts]
+    end
+
+    it "is every file the rows declare, under the directory --root names" do
       expect(root_files.keys.grep(%r{\A/work/root/})).to match_array(names.map { |name| "/work/root/#{name}" })
     end
 
@@ -265,6 +274,19 @@ RSpec.describe "the admin sign-in module" do
       expect(image).not_to match(/%<|__[A-Z]+__/)
     end
 
+    it "writes the driver and the field definitions as TypeScript Node can read" do
+      next skip "node is not installed" unless system("node", "--version", out: File::NULL, err: File::NULL)
+
+      Dir.mktmpdir("payload_driver") do |dir|
+        names.grep(%r{cms/src/generated}).each do |name|
+          file = File.join(dir, File.basename(name))
+          File.write(file, root_files.fetch("/work/root/#{name}"))
+          _out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", "--experimental-strip-types", "--check", file)
+          expect(status.success?).to be(true), "#{name}: #{err}"
+        end
+      end
+    end
+
     it "writes the script as JavaScript Node can read" do
       next skip "node is not installed" unless system("node", "--version", out: File::NULL, err: File::NULL)
 
@@ -274,6 +296,60 @@ RSpec.describe "the admin sign-in module" do
         _out, err, status = Open3.capture3("node", "--check", file)
         expect(status.success?).to be(true), err
       end
+    end
+
+    it "drives the aggregates that have a lifecycle, and leaves the others alone" do
+      specs = root_files.fetch("/work/root/cms/src/generated/driver/specs.ts")
+
+      expect(specs).to include("export const meetingSpec", "export const noticeSpec", 'aggregate: "Club::Meeting"')
+      expect(specs).not_to include("Settings")
+    end
+
+    it "takes the creating command, the first status and the edges from the bluebook" do
+      specs = root_files.fetch("/work/root/cms/src/generated/driver/specs.ts")
+
+      expect(specs).to include('create: { verb: "Draft", status: "draft" }', 'create: { verb: "Post", status: "posted" }',
+                               'draft: { Publish: "published" }', 'published: { Withdraw: "withdrawn", Cancel: "cancelled" }')
+    end
+
+    it "acts as the role the commands declare" do
+      expect(root_files.fetch("/work/root/cms/src/generated/driver/lifecycle.ts")).to include('const ROLE = "Editor"')
+    end
+
+    it "carries an integer as a number and a composite as a list of its parts" do
+      specs = root_files.fetch("/work/root/cms/src/generated/driver/specs.ts")
+
+      expect(specs).to include("postedOn: number;", "agenda: AgendaItem[];", 'whole(s.posted_on, "value")',
+                               "join_link: { url: input.joinLink }")
+    end
+
+    it "reads an editor's save back with the kinds the rows name" do
+      fields = root_files.fetch("/work/root/cms/src/generated/collections/fields.ts")
+
+      day = 'postedDate: { name: "postedDate", type: "date", required: true, admin: { date: { pickerAppearance: "dayOnly" } } }'
+      expect(fields).to include(day,
+                                'related(req, "media", doc.cover, "url")', "Math.floor((doc.postedDate")
+    end
+
+    it "is refused when a field row names an aggregate that is not driven" do
+      dir = edited_members do |text|
+        text.sub('member aggregate: "Notice", attribute: "summary"', 'member aggregate: "Settings", attribute: "key"')
+      end
+
+      expect(refusal(dir,
+                     root_dir: root_for_domain)).to include("PayloadField names Settings, which it does not drive")
+    end
+
+    it "is refused when an upload names no collection" do
+      dir = edited_members { |text| text.sub('kind: "upload", relation: "media"', 'kind: "upload"') }
+
+      expect(refusal(dir, root_dir: root_for_domain)).to include("is upload and needs a relation")
+    end
+
+    it "is refused when the domain has no such chapter" do
+      dir = edited_members { |text| text.sub('chapter: "Club"', 'chapter: "Elsewhere"') }
+
+      expect(refusal(dir, root_dir: root_for_domain)).to include("declares no chapter Elsewhere")
     end
 
     it "is refused when a secret has no Secrets row to name its vault" do

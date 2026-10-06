@@ -13,8 +13,7 @@ module Hecks
       # them at once.
       class RootRows
         # @param object [String] the value object the rows are declared in
-        # @param fields [Hash{Symbol => Class}] the fields a row may carry, with the class each
-        #   takes
+        # @param fields [Hash{Symbol => Class, Array<Class>}] the fields a row may carry, by class
         # @param required [Array<Symbol>] the fields a row must carry
         # @param defaults [Hash{Symbol => Object}] what a field takes when the row omits it
         # @param many [Boolean] whether the project may declare more than one row
@@ -48,8 +47,9 @@ module Hecks
           problems << "#{label} has no field #{unknown.join(', ')}; fields are #{@fields.keys.join(', ')}" if unknown.any?
           (@required - member.keys).each { |field| problems << "#{label} needs #{field}" }
           typed = member.slice(*@fields.keys).select do |field, value|
-            kind = @fields.fetch(field)
-            value.is_a?(kind) || (problems << "#{label} has #{field} #{value.inspect}; it is a #{kind}")
+            kinds = Array(@fields.fetch(field))
+            kinds.any? { |kind| value.is_a?(kind) } ||
+              (problems << "#{label} has #{field} #{value.inspect}; it is a #{kinds.join(' or ')}")
           end
           @defaults.merge(typed)
         end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Club" do
+  persisted_by "Memory"
+end

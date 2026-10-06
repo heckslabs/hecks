@@ -167,10 +167,32 @@ declared beside the route table. They are wiring, not domain: the rows say where
 | `Ci` (`gem_dir`; `name`, `ruby`, `node`, `script`, `test`, `paths`) | `.github/workflows/site-routes.yml`: runs `<script> --check` and the project's test, on the paths named plus the script, the lockfile and the workflow |
 | `Cms` (`dir`, `node`, `port`, `heap_mb`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
 
+| `Payload` (`domain`, `chapter`; `out`, `hecks`, `helpers`, `skip`), and `PayloadField` rows | `<out>/driver/lifecycle.ts`, `<out>/driver/specs.ts` and `<out>/collections/fields.ts`: the content system's way of driving the domain's aggregates, read from the domain itself |
+
 A `BootSecret` fills the variable `env` from the secret whose id the variable `from` holds. With `field` the secret is JSON
 and that field is the value; without it the whole secret is the value and failing to read it only warns. The database
 password and the signing secret are always resolved. A row is refused when it has a field this list does not, when a
 required field is missing, or when an `Env` row is a secret and there is no `Secrets` row to name its vault.
+
+### Driving the domain from the content system
+
+The `Payload` row names a domain (a directory under `--root` holding `bluebook/`) and the chapter to read. Every aggregate of
+that chapter that has a lifecycle and a creating command is driven; `skip` lists any to leave out. Nothing is declared in
+the domain: the generator reads it, and the editor-facing detail sits in `PayloadField` rows beside the route table, so the
+domain never names the content system.
+
+- `driver/lifecycle.ts` is the module that turns a saved document and a spec into the commands between the host's state and
+  the wanted one, acting as the role the commands declare.
+- `driver/specs.ts` holds, for each aggregate, its input type, how an input goes over the wire (a one-attribute value object
+  as `{ value }`, `{ url }` or `{ address }`, an integer as `{ value: n }`, a list as a list, a composite as its parts), how the
+  host's state reads back, the creating command with the status it leaves, and the lifecycle edges.
+- `collections/fields.ts` holds, for each aggregate, a catalogue of Payload fields keyed by attribute and a reader that turns a
+  saved document into the input. A collection picks and orders the fields and adds what the domain does not hold.
+
+A `PayloadField` row says what an attribute's shape cannot: `kind` (`text`, `textarea`, `select`, `date`, `day`, `number`,
+`upload`, `relationship`), `options` (`value=Label` pairs), `relation` and `via` for an upload or relationship, `field` when
+the editor's name differs, `label` (`Singular|Plural`) for a list, `description`, `required`, `default`. A part of a composite is
+`attribute.part`. An aggregate whose attribute is not a value object, or whose commands declare more than one role, is refused.
 
 ## Projecting it
 

@@ -97,5 +97,37 @@ Hecks.bluebook "MembersSite" do
 
       member gem_dir: "club", paths: "site-routes/**,src/**", test: "npm run check"
     end
+
+    value_object "Payload" do
+      attribute :domain,  String
+      attribute :chapter, String
+      attribute :skip,    String
+
+      member domain: "domain", chapter: "Club"
+    end
+
+    value_object "PayloadField" do
+      attribute :aggregate,   String
+      attribute :attribute,   String
+      attribute :field,       String
+      attribute :kind,        String
+      attribute :options,     String
+      attribute :relation,    String
+      attribute :label,       String
+      attribute :description, String
+      attribute :required,    Boolean
+
+      member aggregate: "Meeting", attribute: "slug", description: "The meeting's address."
+      member aggregate: "Meeting", attribute: "kind", kind: "select", options: "talk=Talk,social=Social"
+      member aggregate: "Meeting", attribute: "starts_on", kind: "date", description: "When it starts."
+      member aggregate: "Meeting", attribute: "join_link", description: "Full https:// address."
+      member aggregate: "Meeting", attribute: "cover", kind: "upload", relation: "media"
+      member aggregate: "Meeting", attribute: "agenda", label: "Item|Items"
+      member aggregate: "Meeting", attribute: "agenda.starts", kind: "date"
+      member aggregate: "Meeting", attribute: "agenda.details", kind: "textarea", required: false
+      member aggregate: "Meeting", attribute: "tags", label: "Tag|Tags"
+      member aggregate: "Notice", attribute: "posted_on", field: "postedDate", kind: "day"
+      member aggregate: "Notice", attribute: "summary", kind: "textarea"
+    end
   end
 end
