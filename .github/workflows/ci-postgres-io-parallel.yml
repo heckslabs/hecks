@@ -147,7 +147,7 @@ jobs:
           bundle exec parallel_rspec "${IO_FILES[@]}" \
             -n 12 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
             --runtime-log .github/postgres_io_runtime_baseline.log \
-            -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
+            -o "--tag io --tag ~fuzzing --tag ~rust_host --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
       # Uploaded, never restored: hecks refresh_runtime_baseline from_run= needs all twelve
       # legs' logs from one run. Grouping never reads it.
