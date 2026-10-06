@@ -45,17 +45,9 @@ jobs:
   # Only the cargo job needs the wasm build and the superuser role: `cargo test`
   # connects with tokio_postgres, which ignores PG* env vars, while the spec
   # connects through the `pg` gem, which honors them.
-  #
-  # `cargo test` itself is ~110s of the job, so it runs as two nextest partitions in parallel
-  # (each leg pays the wasm build + compile, then runs half the tests).
   rspec_rust_host_cargo:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        partition: [1, 2]
 
     needs: ci_attestation_rust_host
     if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
@@ -82,11 +74,6 @@ jobs:
 
       - uses: ./.github/actions/wasm-toolchain
 
-      - name: Install cargo-nextest
-        run: |
-          curl -LsSf https://get.nexte.st/0.9.146/linux | tar zxf - -C "${CARGO_HOME:-$HOME/.cargo}/bin"
-          cargo nextest --version
-
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
       # role; the postgres action already trusts loopback TCP.
       - name: Create a superuser role for the runner user
@@ -112,9 +99,8 @@ jobs:
           git checkout -- rust/src/generated rust/Cargo.toml
           git clean -fdq rust/src/generated
 
-      # Postgres tests each create their own scratch database, so the partitions can't collide.
-      - name: "cargo nextest (rust/host, partition ${{ matrix.partition }}/2)"
-        run: cd rust/host && bundle exec cargo nextest run --partition count:${{ matrix.partition }}/2
+      - name: "cargo test (rust/host)"
+        run: cd rust/host && bundle exec cargo test
 
   rspec_rust_host_lineage:
     runs-on: ubuntu-latest
