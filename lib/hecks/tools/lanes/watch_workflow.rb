@@ -52,8 +52,9 @@ module Hecks
            *setup_steps, *watch_step(name), *retry_step(name)]
         end
 
-        # A watch that fails found the lane late: the promotion that should have moved it may have
-        # been dropped, so Promote is asked again. It judges the commits itself; this decides nothing.
+        # A watch that fails found the lane late: the promotion that should have moved it may
+        # have been dropped, so Promote is asked again. It judges the commits itself; this
+        # decides nothing.
         def retry_step(name)
           ["      - name: Ask Promote to try #{name} again", "        if: failure()", "        env:",
            "          GH_TOKEN: ${{ github.token }}", "        run: gh workflow run promote.yml"]
