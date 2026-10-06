@@ -20,7 +20,7 @@ module Hecks
       # @param steps [Array<Hash>] the shrunk steps that reproduce it
       # @return [String] a stable twelve-character identity
       def signature(property, message, steps)
-        shape = steps.map { |step| step["verb"] || step[:verb] }
+        shape = steps.map { |step| step.key?("verb") ? step["verb"] : step[:verb] }
         Digest::SHA256.hexdigest([property, normalize(message), shape].to_json)[0, 12]
       end
 

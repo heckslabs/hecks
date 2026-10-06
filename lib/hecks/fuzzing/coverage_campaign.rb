@@ -53,16 +53,10 @@ module Hecks
       #   runtime feedback is off, which leaves admission to tuples alone
       # @return [void]
       def record(seed, plan, trace, runtime: nil)
-        @seeds   += 1
-        @spliced += 1 if plan.spliced?
-        @declared_verbs.merge(trace.verbs)
-
-        new_at = trace.coverage.filter_map do |index, tuple|
-          @verb_hits[tuple.split(" | ").first] += 1
-          index if @seen.add?(tuple)
-        end
-        new_runtime = runtime ? runtime.count { |key| @runtime_seen.add?(key) } : 0
-        return if new_at.empty? && new_runtime.zero?
+        tally(plan, trace)
+        new_at = new_tuple_steps(trace)
+        fresh_runtime = new_runtime?(runtime)
+        return if new_at.empty? && !fresh_runtime
 
         @seeds_with_new += 1
         # A tuple cuts the entry at the step that reached it; a runtime key is not tied to a step,
@@ -90,7 +84,8 @@ module Hecks
       # favor count, corpus and prefix-depth bounds — are configuration a caller supplies fresh each
       # time, not state, so they are not part of this.
       #
-      # @return [Hash] with string keys "corpus", "seen", "runtime_seen", "verb_hits", "declared_verbs"
+      # @return [Hash] with string keys "corpus", "seen", "runtime_seen", "verb_hits" and
+      #   "declared_verbs"
       def to_h
         { "corpus"         => @corpus.map { |entry| { "spec" => entry[:spec], "attempts" => entry[:attempts] } },
           "seen"           => @seen.to_a,
@@ -107,10 +102,8 @@ module Hecks
       def restore!(state)
         state = state.transform_keys(&:to_s)
         @corpus = Array(state["corpus"]).map { |entry| { spec: entry["spec"], attempts: entry["attempts"] } }
-        @seen = Set.new(Array(state["seen"]))
-        @runtime_seen = Set.new(Array(state["runtime_seen"]))
+        @seen, @runtime_seen, @declared_verbs = %w[seen runtime_seen declared_verbs].map { |key| Set.new(Array(state[key])) }
         @verb_hits = Hash.new(0).merge(state["verb_hits"] || {})
-        @declared_verbs = Set.new(Array(state["declared_verbs"]))
       end
 
       # Builds a campaign that already knows what a prior campaign's `#to_h` reached, configured
@@ -129,6 +122,24 @@ module Hecks
       end
 
       private
+
+      def tally(plan, trace)
+        @seeds   += 1
+        @spliced += 1 if plan.spliced?
+        @declared_verbs.merge(trace.verbs)
+      end
+
+      # The step indexes whose tuples nothing had reached before; each tuple's verb counts as a hit.
+      def new_tuple_steps(trace)
+        trace.coverage.filter_map do |index, tuple|
+          @verb_hits[tuple.split(" | ").first] += 1
+          index if @seen.add?(tuple)
+        end
+      end
+
+      def new_runtime?(runtime)
+        runtime.to_a.map { |key| @runtime_seen.add?(key) }.any?
+      end
 
       def splice_prefix(random)
         entry = @corpus[random.rand(@corpus.size)]

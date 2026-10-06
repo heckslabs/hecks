@@ -76,8 +76,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `report:` what the run printed
       # @raise [ConsoleCapture::Failure] when the run could not start
       def probe(**held)
-        words = [plain(held[:domain])]
-        MUTATE_FLAGS.each { |flag, key| words.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil? }
+        words = [plain(held[:domain]), *flag_words(held, MUTATE_FLAGS)]
 
         answer(run([RbConfig.ruby, "-I", LIB, "-e", MUTATE_ENTRY, "--", *words]))
       end
@@ -113,12 +112,15 @@ module Hecks
 
       # The words after `--`: the domain when named, then each flag the record names.
       def sweep_words(held)
-        words = []
-        words << plain(held[:domain]) if plain(held[:domain])
-        SWEEP_FLAGS.each { |flag, key| words.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil? }
-        words << "--persist-regressions" if plain(held[:persist_regressions]) == true
-        words
+        [*plain(held[:domain]), *flag_words(held, SWEEP_FLAGS), *persist_words(held)]
       end
+
+      # Each flag whose field the record holds, followed by that field's value.
+      def flag_words(held, flags)
+        flags.flat_map { |flag, key| plain(held[key]).nil? ? [] : [flag, plain(held[key]).to_s] }
+      end
+
+      def persist_words(held) = plain(held[:persist_regressions]) == true ? ["--persist-regressions"] : []
 
       # The options a child is spawned with: its own process group, its output in `output`.
       def spawn_options(output, chdir)

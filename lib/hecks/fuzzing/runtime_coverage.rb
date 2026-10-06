@@ -1,5 +1,3 @@
-require "set"
-
 module Hecks
   module Fuzzing
     # Measures which lines (and, when stdlib Coverage is running, branches) of the Ruby runtime a
@@ -35,29 +33,30 @@ module Hecks
         value = nil
         tracer = TracePoint.new(:line) do |point|
           path = point.path
-          reached << "#{path}:#{point.lineno}" if prefixes.any? { |prefix| path.start_with?(prefix) }
+          reached << "#{path}:#{point.lineno}" if in_roots?(path, prefixes)
         end
         tracer.enable { value = yield }
         value
       end
 
-      # @return [Hash, nil] Coverage's branch table so far, or nil when Coverage is not running
+      # @return [Hash, nil] Coverage's branch table so far (files that report branches), or nil
+      #   when Coverage is not running
       def branch_snapshot
         return unless defined?(::Coverage) && ::Coverage.respond_to?(:running?) && ::Coverage.running?
 
-        ::Coverage.peek_result.transform_values { |entry| entry.is_a?(Hash) ? entry[:branches] : nil }
+        ::Coverage.peek_result.filter_map { |path, entry| [path, entry[:branches]] if entry.is_a?(Hash) && entry[:branches] }.to_h
       end
 
       # Branch targets whose hit count grew between two snapshots.
       def branch_keys(before, after, prefixes)
         return [] unless before && after
 
-        after.flat_map do |path, branches|
-          next [] unless branches && prefixes.any? { |prefix| path.start_with?(prefix) }
-
+        after.select { |path, _branches| in_roots?(path, prefixes) }.flat_map do |path, branches|
           grown(before[path] || {}, branches).map { |key| "#{path}:#{key}" }
         end
       end
+
+      def in_roots?(path, prefixes) = prefixes.any? { |prefix| path.start_with?(prefix) }
 
       def grown(old, new)
         new.flat_map do |origin, targets|

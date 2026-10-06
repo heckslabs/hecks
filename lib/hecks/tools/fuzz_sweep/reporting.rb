@@ -51,12 +51,19 @@ module Hecks
         def report_findings(result)
           grouped = result.failures.group_by { |failure| failure[:signature] }
           puts "   #{grouped.size} distinct finding(s):"
+          shrunk = shrink_groups(result, grouped.values)
+          persist_regressions(result, shrunk) if result.persist
+        end
+
+        # Prints each finding and saves its shrunk repro.
+        #
+        # @return [Array<Hash>] the findings, with their shrunk `:steps`
+        def shrink_groups(result, groups)
           save_dir = save_directory(result)
-          shrunk = grouped.each_value.with_index(1).map do |group, number|
-            print_finding(group, number, result.seeds)
+          groups.each_with_index.map do |group, index|
+            print_finding(group, index + 1, result.seeds)
             save_finding(result, group.min_by { |failure| failure[:steps].length }, save_dir)
           end
-          persist_regressions(result, shrunk) if result.persist
         end
 
         # @return [String] where the repro scripts go, created when missing
@@ -74,9 +81,11 @@ module Hecks
         # Shrinks the smallest failing sequence of a finding and saves it as a repro script.
         #
         # @return [Hash] the finding, with its shrunk `:steps`
+        def repro_path(result, finding, save_dir) = File.join(save_dir, "#{result.name}-seed#{finding[:seed]}.json")
+
         def save_finding(result, smallest, save_dir)
           shrunk = shrink(result.domain, smallest[:steps], smallest[:signature], result.adapter)
-          save_path = File.join(save_dir, "#{result.name}-seed#{smallest[:seed]}.json")
+          save_path = repro_path(result, smallest, save_dir)
           write_script(shrunk, save_path, smallest[:seed], result.name)
           print_saved(smallest[:steps].length, shrunk.length, "hecks run #{result.domain} #{save_path}")
           smallest.merge(steps: shrunk)

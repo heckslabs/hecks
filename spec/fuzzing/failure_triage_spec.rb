@@ -21,24 +21,30 @@ RSpec.describe Hecks::Fuzzing::FailureTriage, :aggregate_failures do
   end
 
   describe ".signature" do
-    it "is stable across ids and differs by property or by shape" do
-      same_a = described_class.signature("lifecycle", "bad 1", [step("A.Open"), step("A.Close")])
-      same_b = described_class.signature("lifecycle", "bad 2", [step("A.Open"), step("A.Close")])
+    def sign(property, message, *verbs) = described_class.signature(property, message, verbs.map { |verb| step(verb) })
 
-      expect(same_a).to eq(same_b)
-      expect(same_a).not_to eq(described_class.signature("saga", "bad 1", [step("A.Open"), step("A.Close")]))
-      expect(same_a).not_to eq(described_class.signature("lifecycle", "bad 1", [step("A.Open")]))
-      expect(same_a).to match(/\A\h{12}\z/)
+    let(:base) { sign("lifecycle", "bad 1", "A.Open", "A.Close") }
+
+    it "is stable across ids" do
+      expect(base).to eq(sign("lifecycle", "bad 2", "A.Open", "A.Close"))
+      expect(base).to match(/\A\h{12}\z/)
+    end
+
+    it "differs by property or by shape" do
+      expect(base).not_to eq(sign("saga", "bad 1", "A.Open", "A.Close"))
+      expect(base).not_to eq(sign("lifecycle", "bad 1", "A.Open"))
     end
   end
 
   describe ".dedupe" do
-    it "keeps the smallest sequence of each distinct finding and counts the duplicates" do
-      long  = finding("bad 1", [step("A.Open"), step("A.Close")], seed: 1)
-      other = finding("bad 2", [step("A.Open"), step("A.Close")], seed: 2)
-      different = finding("worse", [step("B.Make")], seed: 3, signature: "crash: KeyError")
+    let(:findings) do
+      [finding("bad 1", [step("A.Open"), step("A.Close")], seed: 1),
+       finding("bad 2", [step("A.Open"), step("A.Close")], seed: 2),
+       finding("worse", [step("B.Make")], seed: 3, signature: "crash: KeyError")]
+    end
 
-      deduped = described_class.dedupe([long, other, different])
+    it "keeps the smallest sequence of each distinct finding and counts the duplicates" do
+      deduped = described_class.dedupe(findings)
 
       expect(deduped.map { |f| f[:seed] }).to eq([1, 3])
       expect(deduped.first[:duplicates]).to eq(2)
@@ -49,11 +55,10 @@ RSpec.describe Hecks::Fuzzing::FailureTriage, :aggregate_failures do
   describe ".persist" do
     around { |example| Dir.mktmpdir { |dir| (@root = dir) && example.run } }
 
+    let(:found) { described_class.dedupe([finding("bad 1", [step("A.Open")], seed: 4)]).first }
+    let(:path)  { described_class.persist(@root, "pizzas", found) }
+
     it "writes a replayable script under the regressions directory" do
-      found = described_class.dedupe([finding("bad 1", [step("A.Open")], seed: 4)]).first
-
-      path = described_class.persist(@root, "pizzas", found)
-
       expect(path).to eq(File.join(@root, "spec/corpus/regressions/pizzas", "#{found[:triage]}.json"))
       script = JSON.parse(File.read(path))
       expect(script.keys).to eq(%w[name note steps])
@@ -62,8 +67,6 @@ RSpec.describe Hecks::Fuzzing::FailureTriage, :aggregate_failures do
     end
 
     it "never overwrites a finding it already kept" do
-      found = described_class.dedupe([finding("bad 1", [step("A.Open")])]).first
-      path = described_class.persist(@root, "pizzas", found)
       File.write(path, "kept by hand")
 
       expect(described_class.persist(@root, "pizzas", found)).to be_nil
