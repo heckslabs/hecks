@@ -11,6 +11,9 @@ module Hecks
         # The options that take a whole number, and the key each fills.
         INTEGER_OPTIONS = { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers }.freeze
 
+        # The most children a Postgres sweep runs at once unless `--workers` says otherwise.
+        POSTGRES_WORKERS = 4
+
         # @param args [Array<String>] the command line, consumed
         # @return [Hash, nil] `seeds`, `steps`, `workers`, `adapter`, `persist` and `domain`; nil
         #   after a refusal
@@ -45,11 +48,18 @@ module Hecks
           options[:adapter] != :postgres || postgres_reachable?
         end
 
-        # One child per core; a real Postgres runs one at a time.
+        # One child per core. A real Postgres is capped, because each child holds its own
+        # connections and its own scratch schema, and runs one at a time on macOS, where libpq
+        # segfaults when a forked child connects.
         #
         # @return [Integer] how many children may run at once
         def worker_count(options)
-          options[:workers] || (options[:adapter] == :postgres ? 1 : Etc.nprocessors)
+          options[:workers] || (options[:adapter] == :postgres ? postgres_workers : Etc.nprocessors)
+        end
+
+        # @return [Integer] the children a Postgres sweep runs at once by default
+        def postgres_workers
+          RUBY_PLATFORM.include?("darwin") ? 1 : [Etc.nprocessors, POSTGRES_WORKERS].min
         end
 
         # `postgres` needs a reachable local server and is slower per dispatch, so pass smaller

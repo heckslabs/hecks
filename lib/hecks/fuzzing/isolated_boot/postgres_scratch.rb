@@ -3,12 +3,12 @@ module Hecks
     module IsolatedBoot
       # Rebinds a copied domain to a scratch Postgres schema and prepares that schema.
       module PostgresScratch
-        # Rewrites every `.hecksagon` in the copy to bind through Postgres, against the
-        # shared scratch schema unless the caller names its own via `scratch:`.
+        # Rewrites every `.hecksagon` in the copy to bind through Postgres, against this process's
+        # scratch schema unless the caller names its own via `scratch:`.
         def rebind_to_postgres!(copy, database: nil, schema: nil)
           require "pg"
           database ||= FUZZ_POSTGRES_DATABASE
-          schema   ||= FUZZ_POSTGRES_SCHEMA
+          schema   ||= scratch_schema(database)
           rewrite_bindings!(copy, "Postgres")
           strip_translations!(copy)
           ensure_fuzz_schema!(database, schema)
@@ -107,13 +107,28 @@ module Hecks
           reset_schema!(database, schema, create: false)
         end
 
+        # Several pool children may reach this at once: one wins the CREATE, and the rest see the
+        # database exist, or wait out the moment the template database is busy and look again.
         def create_database_if_missing(database)
           admin = PG.connect(dbname: "postgres")
-          exists = admin.exec_params(
-            "SELECT 1 FROM pg_database WHERE datname = $1", [database]
-          ).ntuples.positive?
-          admin.exec(%(CREATE DATABASE "#{database}")) unless exists
+          3.times do
+            break if database_exists?(admin, database)
+
+            create_database(admin, database)
+          end
           admin.close
+        end
+
+        def database_exists?(admin, database)
+          admin.exec_params("SELECT 1 FROM pg_database WHERE datname = $1", [database]).ntuples.positive?
+        end
+
+        def create_database(admin, database)
+          admin.exec(%(CREATE DATABASE "#{database}"))
+        rescue PG::DuplicateDatabase
+          nil
+        rescue PG::ObjectInUse
+          sleep(0.2)
         end
 
         # Drops `schema` from `database`, and creates it again when `create` is true.
