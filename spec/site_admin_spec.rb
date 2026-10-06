@@ -197,6 +197,24 @@ RSpec.describe "the admin sign-in module" do
       expect(result["asked"]).to eq([])
     end
 
+    it "reads a literal page as more specific than a generic one, and lets an equal tie go to admin" do
+      result = answers(<<~JS)
+        admin.configureAdmin({ host: "#{host_url}", fetch: host({}).fetch });
+        const gate = (path) => admin.adminGate(path, undefined);
+        console.log(JSON.stringify({
+          literalAdminPage: await gate("/admin-orders.html"),
+          tiedWithGenericPage: await gate("/admin-x.html"),
+          genericPage: await gate("/anything.html"),
+        }));
+      JS
+
+      expect(result).to eq(
+        "literalAdminPage"    => { "allow" => false, "redirect" => "/admin-login" },
+        "tiedWithGenericPage" => { "allow" => false, "redirect" => "/admin-login" },
+        "genericPage"         => { "allow" => true }
+      )
+    end
+
     it "lets an active admin through and turns away a member, a disabled admin and a refused cookie" do
       result = answers(<<~JS)
         const verdict = async (handlers) => {

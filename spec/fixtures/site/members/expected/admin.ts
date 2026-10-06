@@ -163,17 +163,28 @@ export async function ssoRedirect(cookieValue: string | undefined, to?: string |
   return `${ADMIN.ssoTarget}?${params}`;
 }
 
-/** How specific a route pattern is: the characters outside its wildcards, so `/admin-login` outranks `/admin*`. */
+/**
+ * How specific a route pattern is: the characters that are not a wildcard or a `:name` parameter,
+ * so `/admin-login` outranks `/admin*` and `/admin.html` outranks `/:slug.html`.
+ */
 function specificity(pattern: string): number {
-  return pattern.replace(/\*/g, "").length;
+  return pattern.replace(/:[A-Za-z_]\w*/g, "").replace(/\*/g, "").length;
 }
 
-/** The route that describes a path: the most specific match, and the first listed of equals. */
+/**
+ * The route that describes a path: the most specific match. Between routes equally specific the
+ * `admin` one wins, so a tie never lets a visitor through; after that, the first listed.
+ */
 function routeFor(pathname: string): (typeof ROUTES)[number] | undefined {
   let best: (typeof ROUTES)[number] | undefined;
   for (const candidate of ROUTES) {
     if (!matchesPath(candidate.path, pathname)) continue;
-    if (best === undefined || specificity(candidate.path) > specificity(best.path)) best = candidate;
+    if (best === undefined) {
+      best = candidate;
+      continue;
+    }
+    const more = specificity(candidate.path) - specificity(best.path);
+    if (more > 0 || (more === 0 && candidate.auth === "admin" && best.auth !== "admin")) best = candidate;
   }
   return best;
 }
@@ -181,7 +192,7 @@ function routeFor(pathname: string): (typeof ROUTES)[number] | undefined {
 export type AdminGate = { allow: true } | { allow: false; status: 401 } | { allow: false; redirect: string };
 
 /**
- * Whether a request may go on. The most specific route that matches the path decides: an `admin`
+ * Whether a request may go on. The most specific route that matches the path decides (see `routeFor`): an `admin`
  * route, or any path under the draft-preview prefix, needs an admin session. A preview without
  * one is refused with 401 and nothing else; any other admin path is sent to the login page.
  */

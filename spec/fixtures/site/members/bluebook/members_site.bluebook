@@ -33,7 +33,9 @@ Hecks.bluebook "MembersSite" do
       member path: "/",              label: "Home", cache: "home", source: "global:home", seo: "home", nav_order: 1
       member path: "/events",        label: "Events", source: "global:events", seo: "events", nav_order: 2
       member path: "/cms/*",         kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST,PUT,PATCH,DELETE"
+      member path: "/:slug.html",    render: "ssr", methods: "GET"
       member path: "/admin*",        kind: "proxy", auth: "admin", methods: "GET,POST"
+      member path: "/admin-orders.html", render: "ssr", auth: "admin", methods: "GET"
       member path: "/admin-login",   render: "ssr", cache: "no_store", methods: "GET", indexable: false
       member path: "/api/cms-sso",   kind: "endpoint", auth: "admin", methods: "GET"
       member path: "/admin-preview/*", kind: "proxy", auth: "admin", methods: "GET"
