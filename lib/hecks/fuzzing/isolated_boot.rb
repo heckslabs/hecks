@@ -6,6 +6,7 @@ require_relative "../runtime/adapter_lookup"
 require_relative "isolated_boot/copying"
 require_relative "isolated_boot/worlds"
 require_relative "isolated_boot/postgres_scratch"
+require_relative "isolated_boot/scratch_schema"
 
 module Hecks
   module Fuzzing
@@ -14,14 +15,17 @@ module Hecks
     module IsolatedBoot
       # Postgres has no zero-config default (Postgres.connect_for refuses without a
       # `database` setting), so every domain name gets a fresh `.world` written for it.
-      # One shared schema, dropped and recreated per boot, not a fresh name per call —
-      # safe only because callers run one ephemeral boot at a time.
+      # One schema per process, dropped and recreated per boot, not a fresh name per call —
+      # a process runs one ephemeral boot at a time. The default is shared by every process that
+      # does not name its own schema in `FUZZ_SCHEMA_ENV`, as a sweep's pool children do.
       FUZZ_POSTGRES_DATABASE = "hecks_fuzz".freeze
       FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
+      FUZZ_SCHEMA_ENV        = "HECKS_FUZZ_SCHEMA".freeze
 
       extend Copying
       extend Worlds
       extend PostgresScratch
+      extend ScratchSchema
 
       module_function
 

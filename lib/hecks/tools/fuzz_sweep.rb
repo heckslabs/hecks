@@ -84,7 +84,16 @@ module Hecks
         require "hecks/bluebook/meta_validator"
         Hecks::Bluebook::MetaValidator.grammar_registry
         $stdout.flush
-        fuzz_in_pool(domains, workers) { |domain| fuzz_with(options, domain, root) }
+        fuzz_in_pool(domains, workers) { |domain| fuzz_in_child(options, domain, root) }
+      end
+
+      # Runs in a forked child. A Postgres child gets its own scratch schema, so children can fuzz
+      # one database at once.
+      #
+      # @return [Boolean] whether the domain was clean
+      def fuzz_in_child(options, domain, root)
+        ENV[Hecks::Fuzzing::IsolatedBoot::FUZZ_SCHEMA_ENV] = "hecks_fuzz_#{Process.pid}" if options[:adapter] == :postgres
+        fuzz_with(options, domain, root)
       end
 
       # @return [Boolean] whether every domain was clean
