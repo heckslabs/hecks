@@ -433,6 +433,38 @@ bastion, hosts and secrets are arguments to the scripts, so the same files serve
 a rehearsal, the cutover and a copy back. To let that bastion reach the new
 database, pass its security group as `BastionSecurityGroupId` to the RDS stack.
 
+The two scripts also run as commands, which record each copy in the Hecks database:
+
+```
+hecks deploy data_copy.restore <project> bastion=i-0abc source=<old-host> source_secret=<arn> \
+  target=<rds-host> target_secret=<arn> [source_db=] [target_db=] [force=true] [skip_verify=true]
+hecks deploy data_copy.verify  <project> bastion=i-0abc source=<host> source_secret=<arn> \
+  target=<host> target_secret=<arn> [source_db=] [target_db=]
+```
+
+`data_copy.restore` overwrites the target database's schemas, so it **refuses unless `confirm=true`
+is given**; the refusal names the schemas, database and host it would overwrite and writes
+nothing. `dry_run=true` prints that plan and runs nothing, with or without `confirm`. `force=true`
+drops schemas the target already has first (the script otherwise stops with 61). A restore that
+ran is `restored`, and a policy then requests the comparison under the same run key (`skip_verify=true`
+leaves it out), so the one `DataCopy` ends `verified` (both sides identical), `drifted` (they
+differ; the differences are in `refusal`) or `flagged` (the copy or the comparison could not be
+made). `data_copy.verify` runs the comparison alone, read-only on both databases, and records the
+same outcomes on a `DataCopy`. A `drifted` or `flagged` copy is exit 1 (both commands wait for
+their reactions). `script=<path>` names the script when a project holds more than one. The
+scripts end with these statuses, which the reason names:
+
+| Status | Meaning |
+| --- | --- |
+| 50 | `verify-copy.sh`: the databases differ (structure, row counts or an unpopulated materialized view): `drifted` |
+| 60 | `restore-to-rds.sh`: `pg_dump`, `pg_restore` or `psql` older than 16 |
+| 61 | `restore-to-rds.sh`: the target already has a schema (use `force=true`) |
+| 62 | `restore-to-rds.sh`: restore errors other than the known `hecks_tr_extract` ones |
+
+Any other status is a step that failed under `set -e` (1, or 254 or 255 from the `aws` CLI): `flagged`.
+By hand, `restore-to-rds.sh` still verifies at its end (exit 50 on a difference); the command sets
+`VERIFY_BY_COMMAND=1` so the policy's comparison is the only one.
+
 A box whose containers use S3 declares it with
 `s3_access [{ bucket: "acme-media", write: true }]`: the role reads every listed
 bucket, and writes only on a production box (`Rehearsal=false`), so a rehearsal

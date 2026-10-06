@@ -8,7 +8,7 @@
 #   A_DB, B_DB   the database on each side (default @@DATABASE@@)
 #
 # Schemas compared: @@SCHEMAS@@
-# Exit 0 only if both are identical and no materialized view is unpopulated in either.
+# Exit 0 only if both are identical and no materialized view is unpopulated in either; 50 when they differ.
 set -euo pipefail
 
 BASTION=${1:?bastion instance id}; A_HOST=${2:?}; A_SECRET=${3:?}; B_HOST=${4:?}; B_SECRET=${5:?}
@@ -54,5 +54,5 @@ A "$COUNTS" >"$WORK/counts_a"; B "$COUNTS" >"$WORK/counts_b"
 [ "$(A "$UNPOP")" = 0 ] && [ "$(B "$UNPOP")" = 0 ] || { echo "FAIL: unpopulated materialized views" >&2; BAD=1; }
 diff "$WORK/shape_a" "$WORK/shape_b" >/dev/null || { echo "FAIL: structure differs" >&2; diff "$WORK/shape_a" "$WORK/shape_b" >&2 || true; BAD=1; }
 diff "$WORK/counts_a" "$WORK/counts_b" >/dev/null || { echo "FAIL: row counts differ" >&2; diff "$WORK/counts_a" "$WORK/counts_b" >&2 || true; BAD=1; }
-[ "$BAD" = 0 ] || exit 1
+[ "$BAD" = 0 ] || exit 50
 echo "OK: $(wc -l <"$WORK/counts_a" | tr -d ' ') tables, identical row counts and structure"
