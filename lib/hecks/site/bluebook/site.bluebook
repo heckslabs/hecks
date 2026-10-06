@@ -99,6 +99,8 @@ Hecks.bluebook "Site" do
     attribute :run,       RunKey
     attribute :out,       Location,  optional: true
     attribute :template,  Location,  optional: true
+    attribute :cms,       Location,  optional: true
+    attribute :root,      Location,  optional: true
     attribute :extension, Extension, optional: true
     attribute :check,     Switch,    optional: true
     attribute :live,      Location,  optional: true
@@ -162,7 +164,7 @@ Hecks.bluebook "Site" do
       transition "Fault"    => "faulted",   from: "requested"
     end
 
-    # `hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [extension=ts|mts] [--check]`.
+    # `hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [cms=<dir>] [root=<dir>] [extension=ts|mts] [--check]`.
     # With `check` nothing is written: a routes.ts that differs from the table is faulted, naming the
     # file, so a CI job fails on drift.
     command "ProjectSite" do
@@ -172,6 +174,8 @@ Hecks.bluebook "Site" do
       attribute :run,       RunKey
       attribute :out,       Location,  optional: true
       attribute :template,  Location,  optional: true
+      attribute :cms,       Location,  optional: true
+      attribute :root,      Location,  optional: true
       attribute :extension, Extension, optional: true
       attribute :check,     Switch,    optional: true
 
@@ -179,6 +183,8 @@ Hecks.bluebook "Site" do
       sets :run
       sets :out
       sets :template
+      sets :cms
+      sets :root
       sets :extension
       sets :check
 
