@@ -120,7 +120,9 @@ commit must pass as `RequiredCheck` rows beside them.
   promotion is not tied to the push that started it, so a dropped, late, or
   out-of-order run changes nothing, and a certified commit is never stranded
   behind a red or still-running one. `edge` is brought up to `stable`'s head on
-  every confirmed run, even one that finds `stable` already there.
+  every confirmed run, even one that finds `stable` already there, and its own
+  ruleset (`.github/rulesets/tag-edge.json`) refuses deleting it or pointing it
+  at an older commit; moving it forward is allowed.
 - **A late `stable` files a finding.** `lane-watch.yml` runs every hour and asks
   `exe/hecks promotion_run.watch lane=stable`; when `stable` has stood behind
   `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails

@@ -41,7 +41,7 @@ module Hecks
         private
 
         def rulesets
-          Lanes.lanes.select { |lane| lane["guarded"] == "yes" }.to_h { |lane| [ruleset_path(lane), ruleset(lane)] }
+          Lanes.rulesets.to_h { |name, ruleset| [ruleset_path(name), "#{JSON.pretty_generate(ruleset)}\n"] }
         end
 
         # The workflow at `path` for the lanes whose `column` is set, or no file if none is.
@@ -50,9 +50,7 @@ module Hecks
           lanes.empty? ? {} : { File.join(@root, path) => yield(lanes) }
         end
 
-        def ruleset_path(lane) = File.join(@root, Lanes::RULESETS, "#{lane["name"]}.json")
-
-        def ruleset(lane) = "#{JSON.pretty_generate(Lanes.ruleset(lane))}\n"
+        def ruleset_path(name) = File.join(@root, Lanes::RULESETS, "#{name}.json")
 
         def write(files, stale, extra)
           stale.each do |path|

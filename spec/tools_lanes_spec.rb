@@ -52,6 +52,20 @@ RSpec.describe Hecks::Tools::Lanes do
       expect(apps.uniq).to eq([Hecks::Adapters::GithubChecks::GITHUB_ACTIONS_APP_ID])
     end
 
+    # The tag a guarded lane feeds must follow it forward only: GitHub allows a forward move under
+    # `non_fast_forward` (probed on a throwaway tag) and refuses a rewind and a delete.
+    it "lock the tag a guarded lane feeds against deleting and rewinding, naming no bypass", :aggregate_failures do
+      edge = JSON.parse(File.read(File.join(root, ".github/rulesets/tag-edge.json")))
+
+      expect(edge).to include("name" => "tag-edge", "target" => "tag", "bypass_actors" => [])
+      expect(edge.dig("conditions", "ref_name", "include")).to eq(["refs/tags/edge"])
+      expect(edge["rules"].map { |rule| rule["type"] }).to contain_exactly("deletion", "non_fast_forward")
+    end
+
+    it "write a ruleset for each guarded lane and for the tag it feeds, and for nothing else" do
+      expect(described_class.rulesets.keys).to eq(%w[stable tag-edge])
+    end
+
     it "write no ruleset for a lane that takes pushes from anyone" do
       expect(File.exist?(File.join(root, ".github/rulesets/main.json"))).to be(false)
     end
@@ -197,9 +211,18 @@ RSpec.describe Hecks::Tools::Lanes do
 
     it "makes GitHub match, and answers 0, with --confirm", :aggregate_failures do
       allow(github).to receive_messages(named: nil, differences: missing)
-      allow(github).to receive(:apply).with(projected).and_return(:created)
+      allow(github).to receive(:apply).and_return(:created)
 
       expect { expect(live("--confirm")).to eq(0) }.to output(/lane-stable: created/).to_stdout
+      expect(github).to have_received(:apply).with(projected)
+    end
+
+    it "makes the tag a guarded lane feeds match as well", :aggregate_failures do
+      allow(github).to receive_messages(named: nil, differences: missing)
+      allow(github).to receive(:apply).and_return(:created)
+
+      expect { live("--confirm") }.to output(/tag-edge: created/).to_stdout
+      expect(github).to have_received(:apply).with(hash_including("name" => "tag-edge", "target" => "tag"))
     end
   end
 

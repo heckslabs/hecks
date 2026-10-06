@@ -14,7 +14,7 @@ module Hecks
         # @param confirm [Boolean] whether to create or update the rulesets
         # @return [Integer] 0 when GitHub agrees (or was made to), else 1
         def run(confirm)
-          found = Lanes.lanes.select { |lane| lane["guarded"] == "yes" }.flat_map { |lane| sync(lane, confirm) }
+          found = Lanes.rulesets.values.flat_map { |projected| sync(projected, confirm) }
           puts "lanes: GitHub holds every guarded lane's ruleset as projected" if found.empty? && !confirm
           return 0 if found.empty?
 
@@ -24,9 +24,8 @@ module Hecks
 
         private
 
-        # @return [Array<String>] the differences left after the lane was looked at
-        def sync(lane, confirm)
-          projected = Lanes.ruleset(lane)
+        # @return [Array<String>] the differences left after the ruleset was looked at
+        def sync(projected, confirm)
           differences = @github.differences(projected, @github.named(projected["name"]))
           differences.each { |line| puts line }
           return [] if differences.empty?

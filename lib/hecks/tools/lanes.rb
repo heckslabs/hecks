@@ -7,7 +7,8 @@ require_relative "../hecks/adapters/github_rulesets"
 module Hecks
   module Tools
     # Projects the `Lane` rows of the Vocabulary chapter into what GitHub is told about them: a
-    # ruleset for each guarded lane (`.github/rulesets/<lane>.json`) and the workflow that promotes
+    # ruleset for each guarded lane (`.github/rulesets/<lane>.json`), one for the tag such a lane
+    # feeds (`.github/rulesets/tag-<tag>.json`), and the workflow that promotes
     # each lane that follows another (`.github/workflows/promote.yml`). The workflow only runs
     # `hecks promotion_run.promote`; the rule that decides a promotion is `PromotionRun.Accept`.
     #
@@ -55,6 +56,16 @@ module Hecks
       # @param lane [Hash{String => String}] a guarded `Lane` row
       # @return [Hash] the ruleset GitHub is given for it
       def ruleset(lane) = Ruleset.build(lane)
+
+      # @return [Hash{String => Hash}] every ruleset the rows project, by the name of its file
+      #   under `.github/rulesets`: for each guarded lane its own, and one for the tag it feeds
+      def rulesets
+        lanes.select { |lane| lane["guarded"] == "yes" }.each_with_object({}) do |lane, found|
+          found[lane["name"]] = Ruleset.build(lane)
+          tag = Ruleset.tag(lane)
+          found[tag["name"]] = tag if tag
+        end
+      end
 
       # @param promoted [Array<Hash{String => String}>] the lanes that follow another
       # @return [String] the promotion workflow

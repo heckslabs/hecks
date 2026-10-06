@@ -30,6 +30,21 @@ module Hecks
             "bypass_actors" => [], "rules" => rules(lane) }
         end
 
+        # The ruleset for the tag a guarded lane feeds. The tag follows the lane, so it may move
+        # forward, which GitHub allows under `non_fast_forward` (a descendant is not a force-push);
+        # it cannot be deleted or pointed at an older commit, and no actor is let past it.
+        #
+        # @param lane [Hash{String => String}] a guarded `Lane` row
+        # @return [Hash, nil] the ruleset GitHub is given for the tag, nil when the lane feeds none
+        def tag(lane)
+          feed = lane["feeds"].to_s
+          return if feed.empty?
+
+          { "name" => "tag-#{feed}", "target" => "tag", "enforcement" => "active",
+            "conditions" => { "ref_name" => { "include" => ["refs/tags/#{feed}"], "exclude" => [] } },
+            "bypass_actors" => [], "rules" => FIXED }
+        end
+
         # @param lane [Hash{String => String}] a `Lane` row
         # @return [Array<Hash>] the rules: the fixed ones, and the required checks of a `green` lane
         def rules(lane)
