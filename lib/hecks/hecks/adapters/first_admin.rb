@@ -17,6 +17,13 @@ module Hecks
       # The roles that count as an administrator besides the one the grant command is gated to.
       OWNER_ROLES = %w[Owner].freeze
 
+      # What the refusal says when no chapter provides membership: the line to add to one.
+      NO_MEMBERSHIP = "this domain attaches no chapter that provides \"membership\". Add a line like " \
+                      "`provides \"membership\", admit: \"Person.Admit\", grant: \"Person.GrantAccess\", " \
+                      "people: \"Person.All\"` to the chapter that keeps who may sign in: admit and grant " \
+                      "name its commands (the grant command is gated to the administrator role), people " \
+                      "names the query that lists everyone (docs/running-a-rules-service.md)"
+
       # What a bootstrap did.
       #
       # @!attribute [r] email
@@ -64,7 +71,7 @@ module Hecks
       def membership_provider
         domain = @registry.bluebooks.values.first&.name
         @registry.membership_provider_for(domain) or
-          raise Runtime::NotFound, "this domain attaches no chapter that provides \"membership\""
+          raise Runtime::NotFound, NO_MEMBERSHIP
       end
 
       def verbs_of(provider)

@@ -38,15 +38,15 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "no deployed_to block")
     end
 
-    it "refuses outside a hecks checkout without starting anything" do
-      shell = shell_answering
+    it "runs outside a hecks checkout, reading the project from where the command runs" do
+      shell = shell_answering("wrote deploy/shop/template.yaml\n")
       Dir.mktmpdir("not_a_checkout") do |dir|
         Hecks::Adapters::Codebase::Tree.root = dir
 
-        expect { adapter.generate(domain: { value: "shop" }) }
-          .to raise_error(Hecks::Adapters::Codebase::Tree::NeedsCheckout, /needs a hecks checkout/)
+        adapter.generate(domain: { value: "/elsewhere/shop" }, out: { value: "recipe" })
+
+        expect(shell.command).to eq(["project_deploy", "--out=#{File.join(Dir.pwd, 'recipe')}", "/elsewhere/shop"])
       end
-      expect(shell.asked).to be_empty
     end
   end
 

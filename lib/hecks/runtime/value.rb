@@ -47,6 +47,13 @@ module Hecks
       # @param field [String, Symbol] the field name; `:value` resolves the same way `[]` does
       # @return [Boolean] true when the field is held
       def key?(field) = @fields.key?(resolve_field(field))
+
+      # Reads the held fields as they are stored, without materializing nested values.
+      #
+      # @return [Hash{Symbol => Object}] the frozen, Symbol-keyed field Hash, in storage order;
+      #   a nested `Runtime::Value` stays a `Runtime::Value`
+      def raw_fields = @fields
+
       def to_h = @fields.transform_values { |value| self.class.materialize(value) }
 
       # Renders this value object as JSON, through the same shape `to_h` builds.

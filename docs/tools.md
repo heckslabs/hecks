@@ -90,6 +90,11 @@ unless the Edge row says `alb: false`, the load balancer's listener rules. It ru
 gem, no checkout: `<project>` holds `bluebook/`, `out=` is any directory for `routes.ts` (default `<project>/generated`) and
 `template=` is any file to rewrite in place (default the Edge row's `template:`).
 
+`deploy recipe.project` runs the same way. Its `<domain>` is a project path, absolute or relative to where the command
+runs, and `out=` any directory; outside a checkout the generated Makefiles name the directory the command ran in as their
+root (inside one, the checkout). The other Deploy verbs that write (`makefile_check.lint`, `oidc_manifest.project_oidc`)
+still need a checkout.
+
 ## Codebase, for maintaining Hecks
 
 <!-- generated:begin tools section=Codebase -->

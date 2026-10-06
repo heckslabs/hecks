@@ -251,11 +251,20 @@ module Hecks
         events    = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
         answer    = { id: handle.id, state: JsonDoor.materialize(state),
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
-        if LauncherOptions.failed?(aggregate, state, launcher)
-          field = aggregate.lifecycle.field
-          why  += [failure_sentence(aggregate, state, field)]
-        end
+        failed = LauncherOptions.failed?(aggregate, state, launcher)
+        why += [failure_sentence(aggregate, state, aggregate.lifecycle.field)] if failed
+        return report_of(answer[:state], why) if LauncherOptions.report?(launcher, spec)
+
         finish(JSON.pretty_generate(answer), why)
+      end
+
+      # The answer of a command the launcher prints as its report: the text it recorded, with
+      # the status 1 when the run failed, and nothing else.
+      def report_of(state, why)
+        text = state[why.empty? ? :output : :refusal]
+        text = text[:value] if text.is_a?(Hash)
+        text = why.join("\n") if text.to_s.strip.empty?
+        [text.to_s, why.empty? ? 0 : 1]
       end
 
       # The sentence for a record that ended in a failure state: the state, then the record's own

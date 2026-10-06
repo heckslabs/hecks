@@ -79,6 +79,28 @@ module Hecks
         raise Runtime::NotFound, e.message
       end
 
+      # Prints the content digest and shape labels of one package, as its `bluebook.lock` records
+      # them: `Lock.digest_of` over the package's `bluebook/*.bluebook` files alone, and the labels
+      # `Shape.labels` gives the same files. The package is read from `<root>/<package>/bluebook`
+      # (a registry), else from `<root>/vendor/embryonaut_bluebooks/<package>/bluebook` (a project
+      # that vendors it).
+      #
+      # @param held [Hash] the `Registry` query's arguments: `package`, and `root` (the current
+      #   directory when absent)
+      # @return [Hash{Symbol => String}] `text:` a `digest:` line, then a `shape:` line each
+      # @raise [Runtime::NotFound] when the package has no `bluebook/` with `*.bluebook` files, or
+      #   they do not load
+      def digest(**held)
+        name = plain(held[:package])
+        dir = package_bluebook_dir(File.expand_path(plain(held[:root]) || Dir.pwd), name)
+        digest = EmbryonautBluebook::Lock.digest_of(dir) or
+          raise Runtime::NotFound, "#{dir} holds no *.bluebook files"
+        lines = ["digest: #{digest}", *EmbryonautBluebook::Shape.labels(dir).map { |label| "shape: #{label}" }]
+        { text: "#{lines.join("\n")}\n" }
+      rescue Vendoring::Error => e
+        raise Runtime::NotFound, e.message
+      end
+
       # Judges every package of a bluebook registry against its latest release, through
       # `Hecks::EmbryonautBluebook::Registry#check`.
       #
@@ -135,6 +157,13 @@ module Hecks
       end
 
       private
+
+      def package_bluebook_dir(root, name)
+        places = [File.join(name, "bluebook"), File.join("vendor", "embryonaut_bluebooks", name, "bluebook")]
+        found = places.map { |place| File.join(root, place) }.find { |dir| File.directory?(dir) }
+        found or raise Runtime::NotFound,
+                       "#{name} has no bluebook/ directory in #{root} (looked in #{places.join(' and ')})"
+      end
 
       def registry(held)
         EmbryonautBluebook::Registry.new(File.expand_path(plain(held[:root]) || Dir.pwd))

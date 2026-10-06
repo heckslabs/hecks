@@ -55,13 +55,13 @@ module Hecks
       # changed on either side.
       #
       # @param held [Hash] the `SiteProjection` record: `domain`, and `live` or `distribution`,
-      #   with `expect_new` (path patterns, comma separated) and `refs` (`!Ref Name=id` words,
-      #   comma separated) when set
+      #   with `template` (stands in for the Edge row's own; never read), `expect_new` (path
+      #   patterns, comma separated) and `refs` (`!Ref Name=id` words, comma separated) when set
       # @return [Hash{Symbol => Hash}] `output:` the report of a distribution that matches
       # @raise [ConsoleCapture::Failure] when the project has no edge, the live configuration
       #   cannot be read, or the two differ; the message is the report
       def compare(**held)
-        edge = edge_of(located(:domain, held[:domain]))
+        edge = edge_of(located(:domain, held[:domain]), located(:template, held[:template]))
         live = live_configuration(held)
         live_edge = Projections::Site::LiveEdge
         comparison = live_edge.new(edge, live, expect_new: words(held[:expect_new]),
@@ -74,7 +74,7 @@ module Hecks
       private
 
       # The project's checked edge, read the way `project_site` reads it.
-      def edge_of(root)
+      def edge_of(root, template = nil)
         registry = nil
         outcome = ConsoleCapture.capture { registry = Tools::SiteRoutes.registry_for(root) }
         raise ConsoleCapture::Failure, outcome.output.strip unless outcome.ok?
@@ -82,7 +82,7 @@ module Hecks
         site = Projections::Site
         chapter = site::Table.chapter(registry)
         table = site::Table.read(chapter, registry: registry)
-        site::Edge.read(chapter, table: table, vocabulary: site::Table.vocabulary(registry)) ||
+        site::Edge.read(chapter, table: table, template: template, vocabulary: site::Table.vocabulary(registry)) ||
           raise(ConsoleCapture::Failure, "#{root} declares no Edge rows")
       rescue Projections::Site::Table::Invalid => e
         raise ConsoleCapture::Failure, e.message

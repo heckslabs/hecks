@@ -186,14 +186,18 @@ Hecks.bluebook "Site" do
     end
 
     # `hecks site site_projection.check_live <project> live=<saved-config.json> | distribution=<id>
-    # [expect_new=<paths>] [refs=<!Ref Name=id,...>]`. Compares the project's generated CloudFront
+    # [template=<file>] [expect_new=<paths>] [refs=<!Ref Name=id,...>]`. Compares the project's generated CloudFront
     # behaviours with a live distribution's, changing neither. `live` is a saved answer of
     # `aws cloudfront get-distribution-config`; `distribution` fetches it with that one read-only call.
+    # `template` stands in for the `Edge` row's `template:` as it does for `project_site`; the check
+    # reads no template, so the file need not exist. It prints the report alone and exits 1 on a
+    # difference.
     command "CheckLive" do
       goal "Compare a project's generated CloudFront behaviours with a live distribution's"
 
       attribute :domain,       DomainPath
       attribute :run,          RunKey
+      attribute :template,     Location,       optional: true
       attribute :live,         Location,       optional: true
       attribute :distribution, DistributionId, optional: true
       attribute :expect_new,   PathList,       optional: true
@@ -205,6 +209,7 @@ Hecks.bluebook "Site" do
 
       sets :domain
       sets :run
+      sets :template
       sets :live
       sets :distribution
       sets :expect_new

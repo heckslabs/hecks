@@ -28,7 +28,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.backfill_projections era.compact era.compact_heki era.approve_translation
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
-    package.pinning package.unpinned package.verify package.check package.release
+    package.pinning package.unpinned package.verify package.digest package.check package.release
     operation.bootstrap_admin door.project_cli door.serve_mcp
     door.ended door.stopped build.project_rust build.build_wasm
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
@@ -692,6 +692,52 @@ RSpec.describe "the Hecks command table through the launcher" do
         run_verb("package.release", "widgets", "root=#{registry.path}", "run=refused-#{rand(1_000_000)}")
 
         expect(JSON.parse(run_verb("registry.refused").first)).not_to be_empty
+      end
+    end
+
+    describe "package.digest", :io do
+      require_relative "support/registry_repo"
+
+      let(:scratch)  { Dir.mktmpdir("digest-verb") }
+      let(:registry) { RegistryRepo.new(File.join(scratch, "registry")) }
+      let(:project)  { File.join(scratch, "project") }
+      let(:lock)     { Hecks::EmbryonautBluebook::Lock.read(File.join(project, "vendor/embryonaut_bluebooks/widgets/bluebook.lock")) }
+
+      before do
+        registry.write("widgets/bluebook.yml"              => "name: widgets\nversion: 1.0.0\nsummary: Widgets.\n",
+                       "widgets/CHANGELOG.md"              => "## 1.0.0\n\nFirst.\n",
+                       "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook)
+        registry.commit("widgets 1.0.0")
+        registry.tag("widgets-v1.0.0")
+        Hecks::EmbryonautBluebook.vendor!("widgets", from: registry.path, root: project)
+      end
+
+      after { FileUtils.rm_rf(scratch) }
+
+      it "prints the digest and shape label the package's lock records, from a registry or a project" do
+        [registry.path, project].each do |root|
+          out, status = run_verb("package.digest", "widgets", "root=#{root}")
+
+          expect(status).to eq(0)
+          expect(out).to eq("digest: #{lock.digest}\n#{lock.shape.map { |label| "shape: #{label}\n" }.join}")
+        end
+      end
+
+      it "digests the bluebook files alone, not the other files of the package" do
+        before_text, = run_verb("package.digest", "widgets", "root=#{registry.path}")
+        File.write(File.join(registry.path, "widgets/bluebook/notes.md"), "not part of the digest\n")
+        File.write(File.join(registry.path, "widgets/CHANGELOG.md"), "## 1.0.0\n\nEdited.\n")
+
+        after_text, = run_verb("package.digest", "widgets", "root=#{registry.path}")
+
+        expect(after_text).to eq(before_text)
+      end
+
+      it "exits 1 naming where it looked when the package is not there" do
+        out, status = run_verb("package.digest", "gadgets", "root=#{registry.path}")
+
+        expect(status).to eq(1)
+        expect(out).to include("gadgets has no bluebook/ directory")
       end
     end
 

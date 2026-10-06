@@ -78,6 +78,6 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
     bare = described_class.new(Hecks.boot(dir, install_doors: false))
 
     expect { bare.call(email: "ada@example.com") }
-      .to raise_error(Hecks::Runtime::NotFound, /provides "membership"/)
+      .to raise_error(Hecks::Runtime::NotFound, /provides "membership", admit: "Person.Admit", grant: .*people: /)
   end
 end

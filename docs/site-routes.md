@@ -220,7 +220,7 @@ left alone.
 
 ### Checking the live distribution
 
-`hecks site site_projection.check_live <project> live=<file> | distribution=<id>` compares the behaviours the project's edge
+`hecks site site_projection.check_live <project> live=<file> | distribution=<id> [template=<file>]` compares the behaviours the project's edge
 generates with those of a live CloudFront distribution, and changes neither. `live=` is a saved answer of
 `aws cloudfront get-distribution-config`; `distribution=` fetches it with that one read-only call, so the command needs
 `aws` and permission to read the configuration, and nothing else. Name exactly one.
@@ -236,5 +236,8 @@ cannot be compared, is listed as unchecked, and fails the check. `expect_new=/pa
 deploy adds: they are reported as expected additions and do not fail the check. A behaviour only the distribution has is
 never expected.
 
-Because the check is `settled`, no `--wait` is needed: a distribution that matches ends `projected` with exit status 0, one
-that does not ends `faulted` with the report as the reason on standard error.
+`template=<file>` stands in for the `Edge` row's `template:` exactly as it does for `project_site`, so a project that leaves
+the row's `template:` out can still be checked. The check reads no template, so the file need not exist.
+
+Because the check is `settled`, no `--wait` is needed. It prints the report alone, not the whole record: a distribution that
+matches prints the line saying so and exits 0, one that does not prints a line for each difference and exits 1.
