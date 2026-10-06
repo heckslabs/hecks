@@ -10,7 +10,7 @@ require_relative "support/postgres_probe"
 # Rehearses the committed approval end to end on a scratch Postgres: an edge with a compute rule
 # boots when `translations/<edge>.approval` carries its digest and a passed rehearsal, and refuses
 # when the digest does not match. Ruby's mint runs in process; Rust's runs through mint_harness
-# when cargo is installed.
+# when cargo is installed; CI runs that half in the rust/host job, where the harness is built.
 RSpec.describe "Committed approval rehearsal", :io do
   DOMAIN_NAME = "LedgerCompute".freeze
   SCRATCH_PASSWORD = "scratch-only".freeze
@@ -227,7 +227,7 @@ RSpec.describe "Committed approval rehearsal", :io do
     end
   end
 
-  describe "Rust (mint_harness)" do
+  describe "Rust (mint_harness)", :rust_host do
     def cargo? = system("cargo", "--version", out: File::NULL, err: File::NULL)
 
     def harness

@@ -36,6 +36,7 @@ spec/hecks_deploy_bluebook_diff_spec.rb
 spec/hecks_deploy_companion_roll_spec.rb
 spec/hecks_deploy_data_copy_spec.rb
 spec/hecks_deploy_preview_run_spec.rb
+spec/hecks_deploy_roll_scripts_spec.rb
 spec/hecks_deploy_roll_spec.rb
 spec/hecks_deploy_smoke_run_spec.rb
 spec/hecks_journal_survives_spec.rb

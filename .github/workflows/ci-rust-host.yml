@@ -138,3 +138,8 @@ jobs:
 
       - name: "rspec: Rust host query step (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_query_step_spec.rb
+
+      # The Rust half of the committed approval rehearsal builds `mint_harness`, cold in a postgres
+      # shard (about two minutes) but warm here, from the cache the host job restores.
+      - name: "rspec: committed approval rehearsal, the Rust half (rust/host)"
+        run: bundle exec rspec --tag io --example "Rust (mint_harness)" spec/committed_approval_rehearsal_spec.rb

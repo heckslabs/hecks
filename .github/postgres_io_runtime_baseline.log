@@ -23,7 +23,7 @@ spec/bench_spec.rb:5.96
 spec/check_era_spec.rb:0.01
 spec/cli_launcher_forms_spec.rb:7.26
 spec/cli_spec.rb:9.46
-spec/committed_approval_rehearsal_spec.rb:126.63
+spec/committed_approval_rehearsal_spec.rb:12.0
 spec/deploy_bluebook_spec.rb:1.09
 spec/deploy_lint_spec.rb:3.41
 spec/deploy_provision_spec.rb:9.74
@@ -36,7 +36,8 @@ spec/hecks_deploy_bluebook_diff_spec.rb:1.13
 spec/hecks_deploy_companion_roll_spec.rb:1.10
 spec/hecks_deploy_data_copy_spec.rb:12.48
 spec/hecks_deploy_preview_run_spec.rb:1.05
-spec/hecks_deploy_roll_spec.rb:132.59
+spec/hecks_deploy_roll_scripts_spec.rb:72.32
+spec/hecks_deploy_roll_spec.rb:60.27
 spec/hecks_deploy_smoke_run_spec.rb:11.41
 spec/hecks_journal_survives_spec.rb:20.71
 spec/installed_gem_smoke_spec.rb:13.52
