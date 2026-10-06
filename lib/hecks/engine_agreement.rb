@@ -71,7 +71,7 @@ module Hecks
       ENGINE_FILES.flat_map do |label, relative|
         source = File.read(File.join(root, relative))
         found = []
-        unless source =~ /Comparison\.holds\?/
+        unless /Comparison\.holds\?/.match?(source)
           found << "#{relative} (#{label}) no longer calls Comparison.holds? at all — " \
                    "has it grown its own comparator dispatch again?"
         end
@@ -127,13 +127,13 @@ module Hecks
     def mentions_operator?(text, comparator)
       # Explicit form: the comparator as a bare hash key, bounded so `in:` cannot match
       # mid-identifier.
-      return true if text =~ /(?<![A-Za-z0-9_])#{Regexp.escape(comparator)}(?![A-Za-z0-9_])\s*:/
+      return true if /(?<![A-Za-z0-9_])#{Regexp.escape(comparator)}(?![A-Za-z0-9_])\s*:/.match?(text)
 
       # `eq` is normally implicit (`where(status: "open")`), so an example description naming it
       # counts; no other comparator gets that leniency.
       return false unless comparator == "eq"
 
-      text =~ /\b(?:it|describe)\s+"[^"]*\beq\b[^"]*"/i ? true : false
+      /\b(?:it|describe)\s+"[^"]*\beq\b[^"]*"/i.match?(text)
     end
 
     # @param finding [Finding] what a check found

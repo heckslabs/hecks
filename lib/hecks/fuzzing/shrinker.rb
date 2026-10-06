@@ -29,7 +29,7 @@ module Hecks
         Result.new(steps: current, attempts: meter.used, exhausted: meter.exhausted?)
       end
 
-      def drop_steps(steps, meter, &reproduces)
+      def drop_steps(steps, meter, &)
         current = steps
         chunk = [current.length / 2, 1].max
         loop do
@@ -44,7 +44,7 @@ module Hecks
               next
             end
 
-            if meter.try { reproduces.call(candidate) }
+            if meter.try { yield(candidate) }
               current = candidate
               changed = true
             else
@@ -73,7 +73,7 @@ module Hecks
             trimmed   = args_of(step).reject { |name, _| name == key }
             candidate = steps.map(&:dup)
             candidate[position] = step.merge("args" => trimmed)
-            steps = candidate if meter.try { reproduces.call(candidate) }
+            steps = candidate if meter.try { yield(candidate) }
           end
         end
         steps

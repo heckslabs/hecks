@@ -366,3 +366,233 @@ Style/TrailingCommaInArrayLiteral:
     - 'lib/hecks/projections/deploy/fargate.rb'
     - 'lib/hecks/projections/deploy/lambda.rb'
     - 'lib/hecks/projections/deploy/shared.rb'
+
+# Offense count: 47
+# Configuration parameters: MinSize.
+Performance/CollectionLiteralInLoop:
+  Exclude:
+    - 'lib/hecks/adapters/driven/in_memory_ordering.rb'
+    - 'lib/hecks/bench/suite.rb'
+    - 'lib/hecks/bluebook/assembly/contract.rb'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder/sealing.rb'
+    - 'lib/hecks/bluebook/dsl/entity_builder.rb'
+    - 'lib/hecks/bluebook/dsl/query_builder.rb'
+    - 'lib/hecks/bluebook/expression/evaluator.rb'
+    - 'lib/hecks/bluebook/expression/resolver.rb'
+    - 'lib/hecks/bluebook/expression/resolver/block_predicates.rb'
+    - 'lib/hecks/bluebook/meta_validator/readings.rb'
+    - 'lib/hecks/bluebook/pattern_subset.rb'
+    - 'lib/hecks/cli/behaviors.rb'
+    - 'lib/hecks/cli/stress_concurrency_specs.rb'
+    - 'lib/hecks/doc/reference.rb'
+    - 'lib/hecks/forms/port_argument.rb'
+    - 'lib/hecks/forms/query_form_renderer.rb'
+    - 'lib/hecks/forms/value_object_shape.rb'
+    - 'lib/hecks/fuzzing/bounded_exhaustive_expressions.rb'
+    - 'lib/hecks/fuzzing/domain_generator.rb'
+    - 'lib/hecks/fuzzing/isolated_boot.rb'
+    - 'lib/hecks/grammar/evolve.rb'
+    - 'lib/hecks/persistence_legacy_fixture/regenerate.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/scaffold/differ.rb'
+    - 'lib/hecks/projections/site/edge/checks.rb'
+    - 'lib/hecks/quality_control/cli/qa_generated_domains.rb'
+    - 'lib/hecks/quality_control/cli/qa_mine_combinations.rb'
+    - 'lib/hecks/quality_control/cli/qa_sweep/finding_report.rb'
+    - 'lib/hecks/quality_control/cli/qa_sweep/parsing.rb'
+    - 'lib/hecks/runtime/adapter_lookup.rb'
+    - 'lib/hecks/tools/comment_style.rb'
+    - 'lib/hecks/tools/tail_merge.rb'
+    - 'spec/assembly_spec.rb'
+    - 'spec/hecks_forms_arguments_spec.rb'
+    - 'spec/model_check_spec.rb'
+    - 'spec/rust_conformance_spec.rb'
+    - 'spec/rust_generated/domain_feature_exclusivity_spec.rb'
+    - 'spec/semantics_corpus_spec.rb'
+    - 'spec/syntax_conformance_spec.rb'
+
+# Offense count: 1
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/Count:
+  Exclude:
+    - 'lib/hecks/cli/project_cli.rb'
+
+# Offense count: 6
+# This cop supports unsafe autocorrection (--autocorrect-all).
+# Configuration parameters: SafeMultiline.
+Performance/DeletePrefix:
+  Exclude:
+    - 'lib/hecks/cli/rspec_io_parallel_files.rb'
+    - 'lib/hecks/tools/deploy_recipe_lint.rb'
+    - 'spec/project_deploy_bug_fixes_spec.rb'
+    - 'spec/project_deploy_shared_rust_oauth_spec.rb'
+
+# Offense count: 9
+# This cop supports unsafe autocorrection (--autocorrect-all).
+# Configuration parameters: SafeMultiline.
+Performance/DeleteSuffix:
+  Exclude:
+    - 'lib/hecks/projections/deploy/fargate.rb'
+    - 'lib/hecks/projections/deploy/lambda.rb'
+    - 'lib/hecks/projections/deploy/preview/yaml_text.rb'
+    - 'lib/hecks/projections/glossary/sentences.rb'
+    - 'lib/hecks/query_ir.rb'
+    - 'lib/hecks/runtime/command_rules/references.rb'
+    - 'lib/hecks/tools/comment_style.rb'
+    - 'lib/hecks/tools/deploy_recipe_lint.rb'
+    - 'spec/load_hygiene_spec.rb'
+
+# Offense count: 1
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/InefficientHashSearch:
+  Exclude:
+    - 'spec/fuzzing/adversary_role_spec.rb'
+
+# Offense count: 15
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/MapCompact:
+  Exclude:
+    - 'lib/hecks/bluebook/behaviour/command.rb'
+    - 'lib/hecks/cli/project_cli.rb'
+    - 'lib/hecks/fuzzing/properties/invariants_and_aggregation.rb'
+    - 'lib/hecks/hecks/adapters/finding_github.rb'
+    - 'lib/hecks/projections/oidc.rb'
+    - 'lib/hecks/quality_control/cli/qa_domain_novelty.rb'
+    - 'lib/hecks/runtime/read_model_interpreter.rb'
+    - 'lib/hecks/tools/oidc_manifests.rb'
+    - 'spec/port_shape_coverage_spec.rb'
+    - 'spec/project_deploy_box_spec.rb'
+    - 'spec/site_admin_spec.rb'
+
+# Offense count: 1
+Performance/MapMethodChain:
+  Exclude:
+    - 'lib/hecks/ports/persistence/binding_policy.rb'
+
+# Offense count: 6
+Performance/MethodObjectAsBlock:
+  Exclude:
+    - 'spec/adapters/driven/codebase_codemods_spec.rb'
+    - 'spec/adapters/driven/codebase_conformance_spec.rb'
+    - 'spec/adapters/driven/codebase_regeneration_spec.rb'
+    - 'spec/adapters/driven/codebase_style_spec.rb'
+    - 'spec/adapters/driven/deploy_toolchain_spec.rb'
+    - 'spec/hecks_deploy_table_spec.rb'
+
+# Offense count: 2
+# This cop supports unsafe autocorrection (--autocorrect-all).
+# Configuration parameters: MaxKeyValuePairs.
+Performance/RedundantMerge:
+  Exclude:
+    - 'lib/hecks/projections/site/routes_ts.rb'
+    - 'spec/adapters/sibling_value_object_query_spec.rb'
+
+# Offense count: 3
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/StringInclude:
+  Exclude:
+    - 'lib/hecks/engine_agreement.rb'
+    - 'lib/hecks/projections/deploy/lambda.rb'
+    - 'spec/hecks_site_table_spec.rb'
+
+# Offense count: 1
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/TimesMap:
+  Exclude:
+    - 'spec/load_hygiene_spec.rb'
+
+# Offense count: 1
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/UnfreezeString:
+  Exclude:
+    - 'lib/hecks/hecks/adapters/deploy_plans.rb'
+
+# Offense count: 1
+# This cop supports unsafe autocorrection (--autocorrect-all).
+Performance/ZipWithoutBlock:
+  Exclude:
+    - 'spec/adapters/driven/codebase_corpus_tasks_spec.rb'
+
+# Offense count: 19
+# Configuration parameters: ActiveSupportClassAttributeAllowed.
+ThreadSafety/ClassAndModuleAttributes:
+  Exclude:
+    - 'lib/hecks/behaviors/runner.rb'
+    - 'lib/hecks/bluebook/dsl/const_shim.rb'
+    - 'lib/hecks/hecks/adapters/codebase/corpus_tasks.rb'
+    - 'lib/hecks/hecks/adapters/codebase/publishing.rb'
+    - 'lib/hecks/hecks/adapters/codebase/source_tree.rb'
+    - 'lib/hecks/hecks/adapters/codebase/test_runner.rb'
+    - 'lib/hecks/hecks/adapters/codebase/tree.rb'
+    - 'lib/hecks/hecks/adapters/pg_admin.rb'
+    - 'lib/hecks/hecks/adapters/process_pool.rb'
+    - 'lib/hecks/hecks/adapters/rust_toolchain.rb'
+    - 'lib/hecks/hecks/adapters/terminal.rb'
+    - 'spec/ir_mixin_spec.rb'
+
+# Offense count: 7
+ThreadSafety/ClassInstanceVariable:
+  Exclude:
+    - 'lib/hecks/runtime/adapter_lookup.rb'
+    - 'lib/hecks/runtime/refusal_wording.rb'
+
+# Offense count: 15
+# Configuration parameters: AllowCallWithBlock.
+ThreadSafety/DirChdir:
+  Exclude:
+    - 'lib/hecks/cli/release_gem.rb'
+    - 'lib/hecks/cli/rspec_shard_files.rb'
+    - 'lib/hecks/corpus.rb'
+    - 'lib/hecks/hecks/adapters/codebase/test_runner.rb'
+    - 'lib/hecks/tools.rb'
+    - 'lib/hecks/tools/regeneration_run.rb'
+    - 'spec/adapters/driven/local_files_spec.rb'
+    - 'spec/adapters/git_pr_spec.rb'
+    - 'spec/comment_style_arguments_spec.rb'
+    - 'spec/gemspec_packaging_spec.rb'
+    - 'spec/hecks_command_table_spec.rb'
+    - 'spec/hecks_deploy_table_spec.rb'
+    - 'spec/hecks_site_table_spec.rb'
+    - 'spec/rust_build_host_spec.rb'
+    - 'spec/site_gaps_spec.rb'
+
+# Offense count: 3
+# This cop supports unsafe autocorrection (--autocorrect-all).
+# Configuration parameters: EnforcedStyle.
+# SupportedStyles: literals, strict
+ThreadSafety/MutableClassInstanceVariable:
+  Exclude:
+    - 'lib/hecks/ports/persistence/plugin.rb'
+    - 'lib/hecks/runtime/aggregate_lock.rb'
+    - 'lib/hecks/rust_build/native_build.rb'
+
+# Offense count: 36
+ThreadSafety/NewThread:
+  Exclude:
+    - 'lib/hecks/cli/stress_concurrency_specs.rb'
+    - 'lib/hecks/quality_control/adapters/agent.rb'
+    - 'lib/hecks/tools/gate.rb'
+    - 'spec/adapters/driven/host_http_spec.rb'
+    - 'spec/adapters/driven/in_process_concurrent_dispatch_spec.rb'
+    - 'spec/adapters/driven/in_process_operations_spec.rb'
+    - 'spec/adapters/driven/memory_nested_spec.rb'
+    - 'spec/adapters/driven/postgres_atomic_put_spec.rb'
+    - 'spec/adapters/driven/postgres_concurrent_dispatch_spec.rb'
+    - 'spec/adapters/driven/postgres_era/domain_rename_spec.rb'
+    - 'spec/adapters/driven/postgres_era/field_cache_spec.rb'
+    - 'spec/adapters/driven/postgres_era/lineage_spec.rb'
+    - 'spec/adapters/driven/postgres_era_spec.rb'
+    - 'spec/adapters/driven/prism_cache_spec.rb'
+    - 'spec/adapters/driven/process_pool_spec.rb'
+    - 'spec/check_era_spec.rb'
+    - 'spec/client_launcher_smoke_spec.rb'
+    - 'spec/hecks_command_table_spec.rb'
+    - 'spec/hecksagon_builder_shadow_spec.rb'
+    - 'spec/load_hygiene_spec.rb'
+    - 'spec/runtime/dependency_planning_spec.rb'
+    - 'spec/runtime/dispatcher_spec.rb'
+    - 'spec/runtime/postgres_era_shared_connection_spec.rb'
+    - 'spec/runtime/postgres_shared_connection_spec.rb'
+    - 'spec/runtime/registry_saga_persistence_thread_safety_spec.rb'
+    - 'spec/runtime/saga_durability_spec.rb'
+    - 'spec/rust_build_capture_lock_spec.rb'
+    - 'spec/smoke_http_spec.rb'

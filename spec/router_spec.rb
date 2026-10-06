@@ -222,7 +222,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
 
     expect { EdgeRealm::Catalog::Book.options(region: :us) }
       .to raise_error(ArgumentError, /unknown router options/)
-    expect { EdgeRealm::Catalog::Book.public_send("not-a-route") }
+    expect { EdgeRealm::Catalog::Book.public_send(:"not-a-route") }
       .to raise_error(NoMethodError)
   ensure
     Object.send(:remove_const, :EdgeRealm) if Object.const_defined?(:EdgeRealm, false)

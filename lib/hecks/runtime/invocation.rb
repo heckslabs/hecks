@@ -77,15 +77,15 @@ module Hecks
         def from_call(verb, to:, with:, flat:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
           case receiver
           when :aggregate
-            command = declaring.call
+            command = yield
             facts   = facts_for(command, with: with, flat: flat)
             new(verb: verb, target: route(to), facts: facts)
           when :entity
             target  = route(to, entity_depth: entity_depth)
-            command = declaring.call
+            command = yield
             new(verb: verb, target: target, facts: facts_for(command, with: with, flat: flat))
           when :port
-            port_call(verb, aggregate, declaring.call, to: to, with: with, flat: flat)
+            port_call(verb, aggregate, yield, to: to, with: with, flat: flat)
           else
             raise ArgumentError, "unknown receiver #{receiver.inspect}"
           end

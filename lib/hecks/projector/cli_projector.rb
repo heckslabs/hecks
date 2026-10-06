@@ -445,9 +445,9 @@ module Hecks
       end
 
       # The rows of one table: one line per spec, under a heading per aggregate when grouped.
-      def listed_rows(shown, named, grouped, notes, &description)
+      def listed_rows(shown, named, grouped, notes, &)
         width = named.values.map(&:length).max.to_i
-        row = ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{description.call(spec)}#{alias_note(spec)}" }
+        row = ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
         return shown.map { |spec| row.call(spec, "  ") } unless grouped
 
         shown.group_by { |spec| spec[:group] }.flat_map do |group, members|

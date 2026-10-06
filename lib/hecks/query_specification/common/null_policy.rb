@@ -20,8 +20,8 @@ module Hecks
         # @return [Array<Object>] a new Array in the requested order
         def order(records, direction:, policy: nil, &key)
           descending = direction.to_s.downcase == "desc"
-          null_rows, valued_rows = records.partition { |record| key.call(record).nil? }
-          sorted = valued_rows.each_with_index.sort_by { |record, index| [key.call(record), index] }.map(&:first)
+          null_rows, valued_rows = records.partition { |record| yield(record).nil? }
+          sorted = valued_rows.each_with_index.sort_by { |record, index| [yield(record), index] }.map(&:first)
           if descending
             sorted.reverse!
             null_rows.reverse!

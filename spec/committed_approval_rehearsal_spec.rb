@@ -195,7 +195,7 @@ RSpec.describe "Committed approval rehearsal", :io do
     it "refuses a committed approval rehearsed on another host release, naming both versions" do
       commit_approval(@dir, edge, rehearsal: REHEARSAL_BLOCK.merge("host_version" => "1.0.0"))
 
-      expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /Hecks 1\.0\.0.*Hecks #{Regexp.escape(Hecks::VERSION)}/)
+      expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /Hecks 1\.0\.0.*Hecks #{Regexp.escape(Hecks::VERSION)}/o)
       expect(journal_approvals).to eq(0)
     end
 

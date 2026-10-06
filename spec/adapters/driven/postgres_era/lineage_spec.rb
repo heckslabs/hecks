@@ -659,7 +659,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
                  "VALUES (1, 'unrelated_probe', 'live', 'save', '{}'::jsonb)")
           ok += 1
         rescue PG::Error => e
-          if e.message =~ /lock timeout|canceling statement/i
+          if /lock timeout|canceling statement/i.match?(e.message)
             lock_blocked += 1
           else
             fence_refused += 1

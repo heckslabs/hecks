@@ -258,7 +258,7 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
           expect(makefile).to include("docker build --platform linux/arm64 -t acme-core-image:$(IMAGE_TAG)")
           expect(makefile).to include(".amazonaws.com/acme-core-image:$(IMAGE_TAG)")
           expect(makefile).to include("--parameter-overrides CoreTag=$(IMAGE_TAG)")
-          expect(makefile).not_to match(%r{\bImageTag=|amazonaws\.com/#{HOSTING_FIXTURE_BASENAME}:})
+          expect(makefile).not_to match(%r{\bImageTag=|amazonaws\.com/#{HOSTING_FIXTURE_BASENAME}:}o)
           expect(files["hosting.mk"]).to include("SERVICE         ?= core")
         end
       end

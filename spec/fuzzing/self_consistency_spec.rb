@@ -50,7 +50,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency" do
           entry = entry.dup
           entry.state = entry.state.merge("__self_consistency_spec_leak__" => counter)
         end
-        original.bind(self).call(entry)
+        original.bind_call(self, entry)
       end
 
       findings = self_consistency_findings

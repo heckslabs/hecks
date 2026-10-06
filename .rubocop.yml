@@ -19,6 +19,12 @@ require:
 Hecks/FallbackHashLookup:
   Enabled: true
 
+# Memoized class-level state is the codebase's norm; only the runtime shared across threads
+# is held to it (Hecks/ThreadSharedIvarMutation covers the dispatcher and registry writes).
+ThreadSafety/ClassInstanceVariable:
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+
 # Dispatcher and Registry are shared across threads; a plain ivar mutation is a data race.
 Hecks/ThreadSharedIvarMutation:
   Enabled: true

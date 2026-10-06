@@ -26,12 +26,12 @@ RSpec.describe "a world's project-wide defaults" do
     end
   end
 
-  def build(&declarations)
+  def build(&)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Hecks::Adapters::Folder.new.load_library
       declare_chapters
-      declarations.call
+      yield
     end
     registry
   end
