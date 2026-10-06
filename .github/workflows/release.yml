@@ -70,11 +70,46 @@ permissions:
   actions: write # start publish-client.yml
 
 jobs:
-  release:
+  # Every promotion starts this workflow, and almost none has a release to cut. This job reads
+  # only GitHub: the release of the version `stable` carries is either published or it is not, and
+  # `release` below runs only when it is not, so a promotion that releases nothing makes no call to
+  # a package registry. A by-hand run always goes on.
+  detect:
     if: >-
       github.repository == 'heckslabs/hecks' &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      pending: ${{ steps.check.outputs.pending }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EVENT: ${{ github.event_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'stable' || '' }}
+          fetch-depth: 0
+      - name: Is the release of this version still to cut
+        id: check
+        run: |
+          pending=true
+          if [ "$EVENT" = "workflow_run" ]; then
+            commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+            version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
+            if [ -n "$version" ] && gh release view "v$version" > /dev/null 2>&1; then
+              pending=false
+            fi
+          fi
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.pending == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

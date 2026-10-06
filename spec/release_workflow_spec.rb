@@ -63,9 +63,23 @@ RSpec.describe ".github/workflows/release.yml" do
     end
 
     it "starts a promotion-triggered release only from a successful Promote run" do
-      condition = workflow.fetch("jobs").fetch("release").fetch("if")
+      condition = workflow.fetch("jobs").fetch("detect").fetch("if")
 
       expect(condition).to include("workflow_run.conclusion == 'success'", "workflow_dispatch")
+    end
+
+    # A promotion that releases nothing must not call a package registry.
+    it "cuts a release only when detect finds one still to cut", :aggregate_failures do
+      jobs = workflow.fetch("jobs")
+
+      expect(jobs.fetch("release")).to include("needs" => "detect", "if" => "needs.detect.outputs.pending == 'true'")
+      expect(jobs.fetch("detect").fetch("permissions")).to eq("contents" => "read")
+    end
+
+    it "lets detect read GitHub only, never a registry" do
+      detect = workflow.fetch("jobs").fetch("detect").to_s
+
+      expect(detect).to include("gh release view").and(satisfy { |text| !text.include?("rubygems") && !text.include?("npmjs") })
     end
   end
 

@@ -32,7 +32,7 @@ module Hecks
         # @param sources [Array<String>] the lanes whose CI run starts a promotion
         # @return [Array<String>] the `on:` through `jobs:` lines
         def trigger(sources)
-          ["on:", "  workflow_run:", "    workflows: [CI]", "    types: [completed]",
+          ["on:", "  workflow_dispatch: {}", "  workflow_run:", "    workflows: [CI]", "    types: [completed]",
            "    branches: [#{sources.join(", ")}]", "",
            "# One promotion at a time, in the order the pushes finished; none is cancelled.",
            "concurrency:", "  group: promote", "  cancel-in-progress: false", "",
@@ -44,14 +44,19 @@ module Hecks
         def job(lane)
           name = lane["name"]
           ["  promote_#{name}:", "    runs-on: ubuntu-latest", "    timeout-minutes: 15",
-           "    # A run that did not finish green reports no commit worth promoting. Only a push of this",
+           *condition, "    steps:", *checkout_steps, *promote_step(name)]
+        end
+
+        # Which events may start a promotion.
+        def condition
+          ["    # A run that did not finish green reports no commit worth promoting. Only a push of this",
            "    # repository counts: the run of a fork's pull request from a branch named like the lane",
            "    # also reports that branch name, and its code must never meet the token that moves the lane.",
-           "    if: >-", "      github.event.workflow_run.conclusion == 'success' &&",
+           "    # A by-hand run, or one the watch asked for, starts from no workflow run and needs no check.",
+           "    if: >-", "      github.event_name == 'workflow_dispatch' || (",
+           "      github.event.workflow_run.conclusion == 'success' &&",
            "      github.event.workflow_run.event == 'push' &&",
-           "      github.event.workflow_run.head_repository.full_name == github.repository",
-           "    steps:",
-           *checkout_steps, *promote_step(name)]
+           "      github.event.workflow_run.head_repository.full_name == github.repository)"]
         end
 
         def checkout_steps
@@ -66,7 +71,7 @@ module Hecks
           ["      - name: Promote #{name}", "        env:", "          GH_TOKEN: ${{ github.token }}",
            "        run: >-",
            "          bundle exec exe/hecks promotion_run.promote lane=#{name}",
-           "          run=#{name}-${{ github.event.workflow_run.head_sha }} --confirm --wait"]
+           "          run=#{name}-${{ github.event.workflow_run.head_sha || github.run_id }} --confirm --wait"]
         end
       end
     end

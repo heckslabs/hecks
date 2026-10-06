@@ -125,7 +125,9 @@ commit must pass as `RequiredCheck` rows beside them.
   `exe/hecks promotion_run.watch lane=stable`; when `stable` has stood behind
   `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails
   and files one GitHub issue a day, saying which required check is red or still
-  running. Fix `main` forward or revert on it; the issue is yours to close.
+  running. Fix `main` forward or revert on it; the issue is yours to close. A failed
+  watch also dispatches `promote.yml`, so a dropped promotion is retried within the
+  hour (`gh workflow run promote.yml` does the same by hand).
 - **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
   the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
   lines, `packages/hecks-client`) to `main`, wait for `stable` to contain
