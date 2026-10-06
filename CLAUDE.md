@@ -1,5 +1,42 @@
 # CLAUDE.md
 
+## Bluebook or hecksagon? Ask it first
+
+Every piece of a Hecks system is one of three things. Before you design,
+place, or review anything, say which one it is.
+
+- **Bluebook (`*.bluebook`, `Hecks.bluebook`)** is the domain, declared:
+  aggregates, commands, events, policies, vocabulary. Declarative and
+  pure. It names no database, clock, network, or file.
+- **Hecksagon (`*.hecksagon`, `Hecks.hecksagon`)** is the wiring, also
+  declared: `persisted_by "Memory"`, `attaches "Governance"`, the adapters a
+  domain plugs into. It is declarative too, but it is where the domain meets
+  the impure world. `lib/hecks/framework/bluebook/framework.hecksagon` is a
+  small example.
+- **Adapter code (`lib/hecks/adapters/`)** is the only impure part. An
+  `.adapter` file declares a port and its fields (`port "clock"`); the
+  matching `.rb` does the I/O, such as `SystemClock.now` reading
+  `Time.now`. Time, randomness, storage, and webhooks live here, never in
+  a bluebook.
+
+Rules of thumb:
+
+- If it says what the domain is or does, it is bluebook. If it says what the
+  domain is connected to, it is hecksagon. If it touches the world, it is
+  adapter code behind a port.
+- `Hecks::Framework` members (Governance, Identity, Privacy, Compliance)
+  are bluebooks; persistence for them is a separate hecksagon.
+- Projections turn a bluebook's IR into other outputs (Rust, diagrams,
+  glossary, site routes, help). Add a new output as a projection, not as
+  hand-written code beside the domain.
+- Ruby and Rust both run bluebooks; `check_conformance` compares them.
+- Agents do everything through a command. Every action and read is
+  `exe/hecks <aggregate>.<command>! [name=value ...]` or
+  `exe/hecks query <aggregate>.<query>`. `exe/hecks help` lists them and
+  `exe/hecks <command> --help` says what one wants. If you need to do
+  something and no command does it, that gap is a bluebook change, not a
+  one-off script.
+
 ## Session isolation: jj workspaces, not git worktrees
 
 Root is a colocated jj+git repo. Use `jj workspace add <path>` for a new
