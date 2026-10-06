@@ -401,6 +401,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Deploy::SmokeRun.port "DeployToolchain" do
+    asks "Smoke", to: SmokeRun do
+      attribute :run, RunKey
+      answers "SmokeAnswered"
+      refuses "SmokeRefused"
+    end
+  end
+
   Deploy::TemplateComparison.port "DeployToolchain" do
     asks "Compare", to: TemplateComparison do
       attribute :run, RunKey

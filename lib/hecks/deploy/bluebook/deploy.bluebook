@@ -770,6 +770,129 @@ Hecks.bluebook "Deploy" do
     trigger CostCheck::Flag, with: { refusal: :refusal }
   end
 
+  aggregate "SmokeRun" do
+    description "One post-deploy smoke: the generated smoke-after-deploy script run, and how it ended."
+
+    attribute :project, Location
+    attribute :script,  Location, optional: true
+    attribute :run,     RunKey
+    attribute :taskdef, TaskDefinition, optional: true
+    attribute :skip,    Switch, optional: true
+    attribute :async,   Switch, optional: true
+    attribute :dry_run, Switch, optional: true
+    attribute :report,  Report, optional: true
+    attribute :refusal, Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
+    value_object "TaskDefinition" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "passed", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy smoke_run.run <project> [script=<path>] [taskdef=<family[:rev]>] [skip=true]
+    # [async=true] [dry_run=true]`. Finds the `smoke-after-deploy.sh` the project's AwsBox projection
+    # generated (`script=` names it when the project holds more than one) and runs it once a roll
+    # has settled: the script waits for the box, dispatches the smoke workflow and follows it.
+    # It only reads AWS; the smoke itself runs on GitHub. Exit 1 when it did not pass, with the
+    # script's own status (20 unsettled, 21 not run, 22 failed, 23 unknown) in the reason.
+    command "Run" do
+      goal "Run a project's generated post-deploy smoke and record whether the live site passed"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :taskdef, TaskDefinition, optional: true
+      attribute :skip,    Switch, optional: true
+      attribute :async,   Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :taskdef
+      sets :skip
+      sets :async
+      sets :dry_run
+
+      emits "SmokeRequested"
+    end
+
+    command "Pass" do
+      goal "Record that the smoke passed, was skipped on purpose, or was left running, and what it said"
+
+      reference_to SmokeRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "SmokePassed"
+    end
+
+    command "Flag" do
+      goal "Record that the smoke failed, did not run or could not be read, and what was said"
+
+      reference_to SmokeRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "SmokeFlagged"
+    end
+
+    query "Verdict" do
+      description "What one smoke found: its status, and the report or the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every smoke that failed, did not run or could not be read."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "SmokeWhenRequested" do
+    on      "SmokeRun.SmokeRequested"
+    trigger SmokeRun::DeployToolchain::Smoke, with: { run: :run }
+  end
+
+  policy "RecordThePassedSmoke" do
+    on      "SmokeRun.SmokeAnswered"
+    trigger SmokeRun::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedSmoke" do
+    on      "SmokeRun.SmokeRefused"
+    trigger SmokeRun::Flag, with: { refusal: :refusal }
+  end
+
   aggregate "TemplateComparison" do
     description "One offline comparison of two CloudFormation templates, by logical id."
 

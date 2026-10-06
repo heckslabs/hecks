@@ -40,7 +40,7 @@ Hecks.world "Hecks" do
                        failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
                                           abandoned red needs_fix],
                        settled: %w[package.vendor package.revendor package.release
-                                  operation.bootstrap_admin],
+                                  operation.bootstrap_admin smoke_run.run],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
                                 "interview" => "door.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
