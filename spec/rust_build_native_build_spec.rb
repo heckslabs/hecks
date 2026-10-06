@@ -78,4 +78,45 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
 
     expect(described_class).to have_received(:build_and_pin).once
   end
+
+  describe "a binary pinned ahead of the build" do
+    let(:pinned) { File.join(dir, "target", "debug", "rust-pizzas") }
+
+    def pin_binary(mtime)
+      FileUtils.mkdir_p(File.dirname(pinned))
+      File.write(pinned, "binary")
+      File.chmod(0o755, pinned)
+      File.utime(mtime, mtime, pinned)
+    end
+
+    def stub_cargo_leaving_a_binary
+      allow(described_class).to receive(:cargo) do
+        File.write(File.join(dir, "target", "debug", "rust"), "built")
+        File.chmod(0o755, File.join(dir, "target", "debug", "rust"))
+      end
+    end
+
+    it "is used as it is when every source predates it" do
+      pin_binary(Time.now + 60)
+      allow(described_class).to receive(:cargo)
+
+      expect(described_class.build_rust_for("pizzas", dir)).to eq(pinned)
+    end
+
+    it "is not rebuilt by cargo when every source predates it" do
+      pin_binary(Time.now + 60)
+      allow(described_class).to receive(:cargo)
+      described_class.build_rust_for("pizzas", dir)
+
+      expect(described_class).not_to have_received(:cargo)
+    end
+
+    it "is rebuilt when a source is newer than it" do
+      pin_binary(Time.now - 60)
+      stub_cargo_leaving_a_binary
+      described_class.build_rust_for("pizzas", dir)
+
+      expect(described_class).to have_received(:cargo).once
+    end
+  end
 end
