@@ -41,7 +41,10 @@ spec/hecks_deploy_roll_spec.rb:60.27
 spec/hecks_deploy_smoke_run_spec.rb:11.41
 spec/hecks_journal_survives_spec.rb:20.71
 spec/installed_gem_smoke_spec.rb:13.52
-spec/load_hygiene_spec.rb:116.75
+spec/load_hygiene_lib_1_spec.rb:36.25
+spec/load_hygiene_lib_2_spec.rb:36.25
+spec/load_hygiene_lib_3_spec.rb:36.25
+spec/load_hygiene_spec.rb:8.0
 spec/ports/persistence_contract_spec.rb:2.03
 spec/ports/persistence_legacy_decode_spec.rb:0.40
 spec/ports/postgres_dump_spec.rb:0.82
