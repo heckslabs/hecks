@@ -102,5 +102,14 @@ RSpec.describe "hecks gate" do
       expect(hook).to include('Hecks::Tools.script("gate", ARGV)', "pre_push")
       expect(hook).not_to match(/^run_check /)
     end
+
+    # The note vouches for HEAD's tree, so a suite that ran against a dirty tree must not sign it.
+    it "writes no attestation note for a working tree that differs from HEAD", :aggregate_failures do
+      hook = File.read(File.expand_path("../.githooks/pre-push", __dir__))
+
+      expect(hook).to include("git status --porcelain --untracked-files=normal")
+      expect(hook.index("ATTEST_DIRTY")).to be < hook.index("git notes --ref=ci add")
+      expect(hook).to match(/if \[ -n "\$ATTEST_DIRTY" \]; then.*elif \[ -n "\$ATTEST_KEY" \]; then/m)
+    end
   end
 end

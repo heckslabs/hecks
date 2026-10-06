@@ -80,11 +80,11 @@ module Hecks
         nil
       end
 
-      # Feeds the digest every declaration file under `root`: its path, size and modification time.
+      # Feeds the digest every declaration file under `root`: its path below `root` and its bytes,
+      # so a touch or a checkout elsewhere keeps the entry and an edit does not.
       def fingerprint(root, digest)
         Dir.glob(File.join(root, "**", DECLARATIONS)).each do |file|
-          stat = File.stat(file)
-          digest << file << ":" << stat.size.to_s << ":" << stat.mtime.to_f.to_s << "\0"
+          digest << file.delete_prefix(root) << "\0" << File.binread(file) << "\0"
         end
       end
 

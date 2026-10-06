@@ -63,13 +63,51 @@ RSpec.describe Hecks::Tools::Lanes do
       expect(run).to include("exe/hecks promotion_run.promote lane=stable", "--confirm")
     end
 
+    # A promotion is a question about the whole followed lane, not about the commit whose CI run
+    # happened to start it: a run that was dropped or started by a red commit must not strand a
+    # certified one.
+    it "ask for the newest certified commit, not for the commit that started the run" do
+      run = promote_workflow.dig("jobs", "promote_stable", "steps").last.fetch("run")
+
+      expect(run).not_to include("commit=")
+    end
+
+    # A fork's pull request from a branch named `main` reports that branch name too, and the job
+    # runs the checked-out tree's code with a token that can move the lane.
+    it "start only from a successful push of this repository, never a pull request", :aggregate_failures do
+      condition = promote_workflow.dig("jobs", "promote_stable", "if")
+
+      expect(condition).to include("workflow_run.conclusion == 'success'", "workflow_run.event == 'push'",
+                                   "workflow_run.head_repository.full_name == github.repository")
+    end
+
+    it "queue behind each other and never cancel a promotion" do
+      expect(promote_workflow.fetch("concurrency")).to eq("group" => "promote", "cancel-in-progress" => false)
+    end
+
     it "watch each lane that has an alert threshold, every hour, by running the watch command",
        :aggregate_failures do
       watch = YAML.load_file(File.join(root, ".github/workflows/lane-watch.yml"))
-      run = watch.dig("jobs", "watch_stable", "steps").last.fetch("run")
+      run = watch.dig("jobs", "watch_stable", "steps").find { |step| step["name"] == "Watch stable" }.fetch("run")
 
       expect(watch.fetch(true, watch["on"]).dig("schedule", 0, "cron")).to match(/\A\d+ \* \* \* \*\z/)
       expect(run).to include("exe/hecks promotion_run.watch lane=stable", "alert_key=stable-lag-$(date -u")
+    end
+
+    # A dropped promotion is picked up within the hour; the watch decides nothing about the commit.
+    it "ask Promote to try again when a watch fails, and only then", :aggregate_failures do
+      watch = YAML.load_file(File.join(root, ".github/workflows/lane-watch.yml"))
+      again = watch.dig("jobs", "watch_stable", "steps").last
+
+      expect(again).to include("if" => "failure()", "run" => "gh workflow run promote.yml")
+      expect(watch.fetch("permissions")).to include("actions" => "write")
+    end
+
+    it "let Promote be started by hand or by the watch, with no workflow run behind it", :aggregate_failures do
+      workflow = promote_workflow
+
+      expect(workflow.fetch(true, workflow["on"])).to have_key("workflow_dispatch")
+      expect(workflow.dig("jobs", "promote_stable", "if")).to include("workflow_dispatch")
     end
 
     it "let a watch keep its journal in Postgres, so the next hour sees the finding the last one filed" do

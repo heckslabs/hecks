@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "gate"
+require_relative "candidates"
 require_relative "../../git"
 
 module Hecks
@@ -10,7 +10,9 @@ module Hecks
         # Where a lane, the lane it follows and a commit stand: the facts a promotion is judged by.
         #
         # It reads the remote and the checks and answers them as value objects. It does not judge
-        # them; `PromotionRun.Accept` holds the rules.
+        # them; `PromotionRun.Accept` holds the rules. Without a named commit it offers the newest
+        # commit of the followed lane that passed every check, so the answer does not depend
+        # on which commit's CI run happened to start the promotion.
         class Standing
           # @param held [Hash] the `PromotionRun` record: `lane`, and `commit` when one was named
           # @param tree [Tree] the checkout, already known to be one
@@ -26,7 +28,7 @@ module Hecks
           #   the `reason` they were not all true
           def facts
             return Promotion.unknown(@lane_name) unless follower?
-            return Promotion.unknown(@lane["name"], "#{source} has no head on origin") unless commit
+            return Promotion.unknown(@lane["name"], "#{source} has no head on origin") unless source_head
 
             fetch
             answer
@@ -38,7 +40,11 @@ module Hecks
 
           def source = @lane["follows"]
 
-          def commit = @named || source_head
+          # The commit named, else the newest one of the followed lane that every required check
+          # passed on, else its head, so that a refusal says what the head is waiting on.
+          def commit = @commit ||= @named || candidates.newest_certified || source_head
+
+          def candidates = @candidates ||= Candidates.new(@repo, @where, source_head, head)
 
           def head = remember(:@head) { remote("refs/heads/#{@lane["name"]}") }
 
@@ -69,7 +75,7 @@ module Hecks
           def forward_or_held? = head.nil? || ancestor?(head, commit) || ancestor?(commit, head)
 
           def answer
-            gate = Gate.new(commit)
+            gate = candidates.gate(commit)
             descends = on_source? && forward_or_held?
             Promotion.answer(commit, head, gate.green?, descends, [gate.why, descends ? nil : not_forward].compact)
           end

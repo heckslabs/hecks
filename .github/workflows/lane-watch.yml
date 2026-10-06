@@ -4,7 +4,9 @@ name: Watch lanes
 #
 # Every hour, asks `PromotionRun` whether a lane has stood behind the lane it follows for
 # longer than its Lane row allows (`alert_after`, in hours). The rule is decided there, not
-# here. A late lane fails the run and files a finding, one a day.
+# here. A late lane fails the run, files a finding (one a day) and asks Promote to try
+# again: a promotion that was dropped is picked up within the hour, and one that still
+# cannot go says why in its own run.
 on:
   schedule:
     - cron: "17 * * * *"
@@ -19,6 +21,7 @@ permissions:
   contents: read
   checks: read
   issues: write
+  actions: write
 
 jobs:
   watch_stable:
@@ -41,3 +44,8 @@ jobs:
           bundle exec exe/hecks promotion_run.watch lane=stable
           run=watch-stable-${{ github.run_id }}-${{ github.run_attempt }}
           alert_key=stable-lag-$(date -u +%Y-%m-%d) --wait
+      - name: Ask Promote to try stable again
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run promote.yml
