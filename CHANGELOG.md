@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: `hecks` lists the maintainer's commands only inside a hecks checkout, and points at the attached chapters.** Typed in any other project, `hecks` printed the commands for working on hecks itself (`language_run`, `style_run`, `publishing_run` and the rest). It now lists what a project runs against its own domain, then a `chapters` section with one line each for `hecks deploy`, `governance`, `tenancy`, `site`, `tickets` and `quality_control`. A directory with `hecks.gemspec` beside `lib/`, or any directory below one, gets the maintainer's view as before, with the language's own chapters added. `hecks --maintainer` lists everything anywhere, `HECKS_MAINTAINER=1` or `0` forces the view either way, and nothing is removed: every command still runs and answers `--help`. A world's `launcher` setting names the split with `maintainer:`, `chapters:` and `maintainer_chapters:`; a chapter that names none keeps its help whole.
+
 **Behavior change: the host's `session` cookie now expires.** The host refuses a `session` cookie with no `exp` field or
 one in the past, the same as a forged one. Before, a validly signed cookie stayed good until `SESSION_SECRET` changed, so a
 stolen cookie never lapsed. The host never issues this cookie (an operator mints it with the secret), so nothing logs out
