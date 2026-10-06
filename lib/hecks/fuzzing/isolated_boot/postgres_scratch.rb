@@ -125,7 +125,7 @@ module Hecks
 
         def create_database(admin, database)
           admin.exec(%(CREATE DATABASE "#{database}"))
-        rescue PG::DuplicateDatabase
+        rescue PG::DuplicateDatabase, PG::UniqueViolation
           nil
         rescue PG::ObjectInUse
           sleep(0.2)
