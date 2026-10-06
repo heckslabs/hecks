@@ -79,8 +79,54 @@ RSpec.describe Hecks::Adapters::Git do
       expect(oldest(first, first)).to be_nil
     end
 
+    # A branch written on 1 October, merged on the 6th after main moved on the 5th.
+    def merged_late_branch!
+      base = commit!("base")
+      sh(@work, "git", "checkout", "-b", "old")
+      sh(@work, "env", "GIT_COMMITTER_DATE=2026-10-01T09:00:00Z", "git", "commit", "--allow-empty", "-m", "written days ago")
+      sh(@work, "git", "checkout", "main")
+      dated!("main moves on", "2026-10-05T10:00:00Z")
+      sh(@work, "env", "GIT_COMMITTER_DATE=2026-10-06T11:00:00Z", "git", "merge", "--no-ff", "old", "-m", "merge old")
+      base
+    end
+
+    it "dates a branch merged late by what main took in, not by the branch's oldest commit" do
+      expect(oldest(merged_late_branch!, "HEAD")).to eq(Time.utc(2026, 10, 5, 10).to_i)
+    end
+
     it "refuses a name that is a flag" do
       expect { oldest("--all", "HEAD") }.to raise_error(failure, /not a ref name/)
+    end
+  end
+
+  describe "#recent_commits" do
+    def recent(newer, **options) = git.recent_commits(newer, chdir: @work, **options)
+
+    it "lists the first-parent chain above the older commit, newest first", :aggregate_failures do
+      first = commit!("one")
+      second = commit!("two")
+      third = commit!("three")
+
+      expect(recent("HEAD", older: first)).to eq([third, second])
+      expect(recent("HEAD")).to eq([third, second, first])
+    end
+
+    it "stops at the limit, keeping the newest" do
+      commit!("one")
+      second = commit!("two")
+      third = commit!("three")
+
+      expect(recent("HEAD", limit: 2)).to eq([third, second])
+    end
+
+    it "names nothing when there is nothing above the older commit" do
+      first = commit!("one")
+
+      expect(recent("HEAD", older: first)).to eq([])
+    end
+
+    it "refuses a name that is a flag" do
+      expect { recent("--all") }.to raise_error(failure, /not a ref name/)
     end
   end
 
