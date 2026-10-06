@@ -612,6 +612,40 @@ failed, or `Error 24` when it all passed. A project that does not set `hosting_s
 deploys through `box_roll.run` as well; it has no smoke script, so its roll stays `rolled` with
 `smoke skipped: no smoke script`.
 
+### The last three scripts: the bluebook report, previews and a companion roll
+
+Three scripts a project keeps by hand also run as commands, each found by name beneath the
+project (`script=<path>` names one when there are several) and each recorded in the Hecks database:
+
+```
+hecks deploy bluebook_diff.run <project> [old=<json> new=<json>]
+hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch=<name>] [confirm=true] [dry_run=true]
+hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami] [confirm=true] [dry_run=true]
+```
+
+`bluebook_diff.run` reports which bluebook releases a deploy changes. Given `old` and `new` (two
+`hecks package.verify` outputs) it compares them itself, offline; given neither, it runs the project's
+`bluebooks-diff.sh`, which reads the running image's bluebooks from the registry, read-only. It never
+fails: the report is `unchanged`, `changed` or `unavailable` (a lookup failed, the script is missing or
+ended non-zero), and each is exit 0. Only giving one of `old` and `new` is `flagged`, exit 1.
+
+`preview_run` runs the project's `preview.sh` with the verb named. `name`, `url` and `list` read.
+`deploy`, `destroy` and `login` write to AWS or read its secrets, so they **refuse unless
+`confirm=true` is given**, naming the plan and running nothing; `dry_run=true` prints the plan and
+runs nothing. `main` and `master` are refused before anything runs. The record ends `named`,
+`located`, `listed`, `deployed`, `destroyed`, `signed_in`, `planned` or `flagged`.
+
+`companion_roll.run` rolls a second Compose project onto the box beside the app's, with the
+project's `deploy-<companion>.sh`. It refuses unless `confirm=true`, prints its plan for
+`dry_run=true`, and ends `rolled` (the check on the box passed), `planned` or `flagged`.
+
+| Command | Exit | Meaning |
+| --- | --- | --- |
+| `bluebook_diff.run` | 0 | `unchanged`, `changed` or `unavailable` |
+| `bluebook_diff.run` | 1 | only one of `old` and `new` was given |
+| `preview_run.*`, `companion_roll.run` | 0 | the script ended 0, or the run was a dry run |
+| `preview_run.*`, `companion_roll.run` | 1 | the write was not confirmed, the branch was `main` or `master`, no script was found, or the script ended non-zero: 1 for every refusal and failure it reports, 2 for a bad verb, with its output in the reason |
+
 ### Per-branch previews for `AwsFargate`
 
 A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files

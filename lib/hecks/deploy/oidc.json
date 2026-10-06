@@ -2,6 +2,31 @@
   "audience": "Deploy",
   "scopes": [
     {
+      "scope": "deploy:bluebook_diff.differ",
+      "verb": "Deploy::BluebookDiff.Differ",
+      "role": null
+    },
+    {
+      "scope": "deploy:bluebook_diff.flag",
+      "verb": "Deploy::BluebookDiff.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:bluebook_diff.match",
+      "verb": "Deploy::BluebookDiff.Match",
+      "role": null
+    },
+    {
+      "scope": "deploy:bluebook_diff.run",
+      "verb": "Deploy::BluebookDiff.Run",
+      "role": null
+    },
+    {
+      "scope": "deploy:bluebook_diff.withhold",
+      "verb": "Deploy::BluebookDiff.Withhold",
+      "role": null
+    },
+    {
       "scope": "deploy:box_roll.complete",
       "verb": "Deploy::BoxRoll.Complete",
       "role": null
@@ -29,6 +54,26 @@
     {
       "scope": "deploy:box_target.declare",
       "verb": "Deploy::BoxTarget.Declare",
+      "role": null
+    },
+    {
+      "scope": "deploy:companion_roll.complete",
+      "verb": "Deploy::CompanionRoll.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:companion_roll.flag",
+      "verb": "Deploy::CompanionRoll.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:companion_roll.plan",
+      "verb": "Deploy::CompanionRoll.Plan",
+      "role": null
+    },
+    {
+      "scope": "deploy:companion_roll.run",
+      "verb": "Deploy::CompanionRoll.Run",
       "role": null
     },
     {
@@ -144,6 +189,76 @@
     {
       "scope": "deploy:oidc_manifest.project_oidc",
       "verb": "Deploy::OidcManifest.ProjectOidc",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.deploy",
+      "verb": "Deploy::PreviewRun.Deploy",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.destroy",
+      "verb": "Deploy::PreviewRun.Destroy",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.flag",
+      "verb": "Deploy::PreviewRun.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.list",
+      "verb": "Deploy::PreviewRun.List",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.login",
+      "verb": "Deploy::PreviewRun.Login",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.name",
+      "verb": "Deploy::PreviewRun.Name",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.plan",
+      "verb": "Deploy::PreviewRun.Plan",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_deploy",
+      "verb": "Deploy::PreviewRun.RecordDeploy",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_destroy",
+      "verb": "Deploy::PreviewRun.RecordDestroy",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_list",
+      "verb": "Deploy::PreviewRun.RecordList",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_login",
+      "verb": "Deploy::PreviewRun.RecordLogin",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_name",
+      "verb": "Deploy::PreviewRun.RecordName",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.record_url",
+      "verb": "Deploy::PreviewRun.RecordUrl",
+      "role": null
+    },
+    {
+      "scope": "deploy:preview_run.url",
+      "verb": "Deploy::PreviewRun.Url",
       "role": null
     },
     {
