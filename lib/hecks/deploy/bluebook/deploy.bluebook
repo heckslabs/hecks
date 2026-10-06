@@ -301,7 +301,7 @@ Hecks.bluebook "Deploy" do
     value_object "Memory" do
       attribute :value, Integer
       invariant("memory is at least 128 MB") { value >= 128 }
-      invariant("memory is at most 10240 MB") { value <= 10_240 }
+      invariant("memory is at most 10240 MB") { value <= 10240 }
     end
 
     # Seconds a single invocation may run. 800 is the longest any plan allows.
