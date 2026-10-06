@@ -654,9 +654,10 @@ Hecks.bluebook "Bluebook" do
     # hecks project_lanes writes each row's ruleset into .github/rulesets/<name>.json, and
     # `hecks promote` reads `follows` to know which lane a promotion fast-forwards.
     #
-    # `guarded` says whether a ruleset restricts who may push the branch. `pushers` is who that
-    # is: `anyone` or `promotion` (the promotion app alone). `feeds` is the tag that moves with the
-    # lane, or empty when none does; `follows` is the lane a promotion draws from, or empty.
+    # `guarded` says whether a ruleset restricts the branch. `pushers` says what it takes: `anyone`
+    # (any commit), or `green` (only a commit on which every `RequiredCheck` has already passed,
+    # which is how a promotion moves the lane). `feeds` is the tag that moves with the lane, or
+    # empty when none does; `follows` is the lane a promotion draws from, or empty.
     value_object "Lane" do
       attribute :name,    String
       attribute :guarded, String
@@ -664,8 +665,8 @@ Hecks.bluebook "Bluebook" do
       attribute :feeds,   String
       attribute :follows, String
 
-      member name: "main",   guarded: "no",  pushers: "anyone",    feeds: "",     follows: ""
-      member name: "stable", guarded: "yes", pushers: "promotion", feeds: "edge", follows: "main"
+      member name: "main",   guarded: "no",  pushers: "anyone", feeds: "",     follows: ""
+      member name: "stable", guarded: "yes", pushers: "green",  feeds: "edge", follows: "main"
     end
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it

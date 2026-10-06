@@ -17,8 +17,10 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
   let(:projected) do
     { "name" => "lane-stable", "target" => "branch", "enforcement" => "active",
       "conditions" => { "ref_name" => { "include" => ["refs/heads/stable"], "exclude" => [] } },
-      "bypass_actors" => [{ "actor_id" => 15_368, "actor_type" => "Integration", "bypass_mode" => "always" }],
-      "rules" => [{ "type" => "deletion" }, { "type" => "non_fast_forward" }, { "type" => "update" }] }
+      "bypass_actors" => [],
+      "rules" => [{ "type" => "deletion" }, { "type" => "non_fast_forward" },
+                  { "type"       => "required_status_checks",
+                    "parameters" => { "required_status_checks" => [{ "context" => "rspec" }, { "context" => "checks" }] } }] }
   end
 
   def list = ["api", "repos/{owner}/{repo}/rulesets?per_page=100"]
@@ -65,7 +67,8 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
 
   describe "#differences" do
     def differing
-      projected.merge("enforcement" => "disabled", "bypass_actors" => [], "rules" => [{ "type" => "deletion" }],
+      projected.merge("enforcement" => "disabled", "rules" => [{ "type" => "deletion" }],
+                      "bypass_actors" => [{ "actor_id" => 5, "actor_type" => "RepositoryRole", "bypass_mode" => "always" }],
                       "conditions" => { "ref_name" => { "include" => ["refs/heads/main"] } })
     end
 
@@ -81,7 +84,8 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
 
     def each_difference
       [/enforcement is "disabled" on GitHub, "active" in the model/, %r{it guards \["refs/heads/main"\] on GitHub},
-       /bypass actors are \[\] on GitHub/, /rules are \["deletion"\] on GitHub/].map { |text| a_string_matching(text) }
+       /bypass actors are \[\[5, "RepositoryRole", "always"\]\] on GitHub, \[\] in the model/,
+       /rules are \["deletion"\] on GitHub/, /required checks are \[\] on GitHub/].map { |text| a_string_matching(text) }
     end
 
     it "names each part that differs" do

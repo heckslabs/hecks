@@ -108,7 +108,7 @@ module Hecks
       ].freeze,
       "Lane" => [
         {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>""}.freeze,
-        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"promotion", "feeds"=>"edge", "follows"=>"main"}.freeze
+        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main"}.freeze
       ].freeze,
       "LoadOrder" => [
         {"glob"=>"*.port"}.freeze,

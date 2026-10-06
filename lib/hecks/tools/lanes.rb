@@ -20,12 +20,9 @@ module Hecks
       RULESETS = ".github/rulesets"
       WORKFLOW = ".github/workflows/promote.yml"
 
-      # The GitHub Actions app, which pushes with a workflow's `GITHUB_TOKEN`: the one actor a
-      # `promotion` lane lets past its ruleset.
-      PROMOTION_APP_ID = 15_368
-
-      # What `pushers` may say: a lane anyone may push, or one only the promotion app may.
-      PUSHERS = %w[anyone promotion].freeze
+      # What `pushers` may say: a lane that takes any commit, or one that takes only a commit every
+      # `RequiredCheck` has passed.
+      PUSHERS = %w[anyone green].freeze
 
       module_function
 
