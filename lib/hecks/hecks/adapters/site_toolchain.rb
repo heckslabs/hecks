@@ -22,7 +22,7 @@ module Hecks
       SCRIPTS = { project: "project_site" }.freeze
 
       # The tool's flag for each `SiteProjection` field that takes a value.
-      FLAGS = { "out" => :out, "template" => :template, "extension" => :extension }.freeze
+      FLAGS = { "out" => :out, "template" => :template, "cms" => :cms, "extension" => :extension }.freeze
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -33,8 +33,8 @@ module Hecks
 
       # Writes a project's `routes.ts` from its declared route table, or with `check` only compares.
       #
-      # @param held [Hash] the `SiteProjection` record: `domain`, and `out`, `template`, `extension`
-      #   and `check` when set
+      # @param held [Hash] the `SiteProjection` record: `domain`, and `out`, `template`, `cms`,
+      #   `extension` and `check` when set
       # @return [Hash{Symbol => Hash}] `output:` one line per file written or found current
       # @raise [ConsoleCapture::Failure] when the route table is refused (an unknown cache class,
       #   a duplicate path), a path or the extension is refused, or under `check` a file is out

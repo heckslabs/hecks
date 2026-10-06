@@ -126,6 +126,7 @@ holds its route table, and the tool writes `admin.ts` (or `admin.mts`, as `exten
 | `account_path`, `members_path`, `sso_token_path` | the host's routes for who is signed in, the membership list, and a hand-off token | `/accounts/me`, `/members`, `/accounts/sso-token` |
 | `sso_target` | the content system's own sign-in endpoint | `/cms/api/sso` |
 | `verdict_ttl_ms`, `timeout_ms` | how long a verdict on one session is reused, and how long to wait for the host | `10000`, `5000` |
+| `cms_base` | the path the content system is served under; `sso_target` must be under `<cms_base>/api/` | `/cms` |
 
 The module exports `ADMIN` (the settings), `adminGate(pathname, cookie)`, `currentAdminSession`, `currentAdminEmail`,
 `currentAccountEmail`, `ssoRedirect(cookie, to)`, `isActiveAdmin`, `forgetAdminSessions` and `configureAdmin({ host, fetch })`. It
@@ -137,8 +138,23 @@ with one of the roles and not disabled. A request without one is sent to `login`
 refused with `{ allow: false, status: 401 }` instead. A verdict on one cookie is remembered for `verdict_ttl_ms`, and
 `forgetAdminSessions()` drops them, for after a member is added, disabled or removed.
 
+### The content system's half
+
+For a Payload project, `--cms=<dir>` (`cms=<dir>` on the verb) also writes the other half of the sign-in under `<dir>`, from the
+same row, so the two halves cannot disagree:
+
+| file | what it does |
+|---|---|
+| `endpoints/sso.ts` | the endpoint at `sso_target`: verifies the hand-off token, asks the host whether the person is still admitted, and mints an ordinary session; its `to` is held to a path under `cms_base` |
+| `auth/membership.ts` | the host's membership question, remembered for a minute per email; fails closed, and uses the host's development secret when none is set outside production |
+| `auth/sessionStrategy.ts` | verifies the session cookie on every request and asks the membership check again, so removing someone locks them out at once |
+| `collections/Users.ts` | the users collection: no passwords, hidden, and not creatable over its API |
+
+The files import `@hecks/client`, `jose` and `payload`, so they belong in the content system's project; without `--cms` nothing is
+written there, and `--cms` on a project with no `Admin` row is refused. `--check` covers them like the other files.
+
 The table is refused when `login` is not a public route, when `sso` is not an `admin` endpoint, when a path does not start with a
-slash, when `roles` names none, or when the row has a field this list does not.
+slash, when `roles` names none, or when `sso_target` is not under `<cms_base>/api/`, or when the row has a field this list does not.
 
 ## Projecting it
 

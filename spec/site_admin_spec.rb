@@ -125,6 +125,90 @@ RSpec.describe "the admin sign-in module" do
     end
   end
 
+  describe "the content system's half" do
+    def cms_files(project = members) = tool.projection(project, out: "/work/out", cms: "/work/cms")
+
+    def cms_text(path) = cms_files.fetch("/work/cms/#{path}")
+
+    let(:paths) { %w[auth/membership.ts auth/sessionStrategy.ts endpoints/sso.ts collections/Users.ts] }
+
+    it "is four files under the directory --cms names, beside the site's own output" do
+      files = cms_files
+
+      expect(files.keys).to include("/work/out/routes.ts", "/work/out/admin.ts")
+      expect(files.keys.grep(%r{\A/work/cms/})).to match_array(paths.map { |path| "/work/cms/#{path}" })
+    end
+
+    it "is not written unless --cms is named" do
+      expect(projected.keys.grep(%r{/cms/})).to be_empty
+    end
+
+    it "equals the committed goldens, byte for byte" do
+      paths.each do |path|
+        golden = File.join(expected, "cms", path)
+        if ENV["GOLDEN"] == "rewrite"
+          FileUtils.mkdir_p(File.dirname(golden))
+          File.write(golden, cms_text(path))
+        end
+
+        expect(cms_text(path)).to eq(File.read(golden)), path
+      end
+    end
+
+    it "leaves no placeholder behind" do
+      paths.each do |path|
+        expect(cms_text(path)).not_to match(/__[A-Z_]+__/), path
+      end
+    end
+
+    it "carries the settings of the row the site half reads" do
+      membership = cms_text("auth/membership.ts")
+
+      expect(membership).to include('DEFAULT_COOKIE = "club_session"', 'process.env["CLUB_DOMAIN_SERVICE_URL"]',
+                                    'DEFAULT_URL = "http://127.0.0.1:4500"', 'ADMIN_ROLES = ["Admin", "Owner"]',
+                                    '"/accounts/me"', '"/members"')
+      expect(cms_text("endpoints/sso.ts")).to include('path: "/sso"', 'startsWith("/cms/")', '"/cms/admin"')
+    end
+
+    it "follows a different base path for the content system" do
+      dir = edited_members do |text|
+        text.sub('host_default: "http://127.0.0.1:4500",',
+                 'host_default: "http://127.0.0.1:4500", cms_base: "/studio", sso_target: "/studio/api/login",')
+      end
+
+      sso = tool.projection(dir, out: "/work/out", cms: "/work/cms").fetch("/work/cms/endpoints/sso.ts")
+      expect(sso).to include('path: "/login"', 'startsWith("/studio/")', '"/studio/admin"')
+    end
+
+    it "is refused when the hand-off target is outside the content system's API" do
+      dir = edited_members { |text| text.sub('host_default: "http://127.0.0.1:4500",', 'host_default: "http://127.0.0.1:4500", sso_target: "/api/sso",') }
+
+      expect(refusal(dir)).to include("Admin sso_target /api/sso must be under /cms/api/")
+    end
+
+    it "is refused when --cms is named by a project with no admin row" do
+      message = nil
+      expect { tool.projection(studio, cms: "/work/cms") }.to raise_error(SystemExit) { |error| message = error.message }
+        .and output.to_stderr
+
+      expect(message).to include("--cms names /work/cms, but the project declares no Admin row")
+    end
+
+    it "is written as TypeScript Node can read" do
+      next skip "node is not installed" unless system("node", "--version", out: File::NULL, err: File::NULL)
+
+      Dir.mktmpdir("admin_cms") do |dir|
+        paths.each do |path|
+          file = File.join(dir, path)
+          FileUtils.mkdir_p(File.dirname(file))
+          File.write(file, cms_text(path))
+          _out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", "--experimental-strip-types", "--check", file)
+          expect(status.success?).to be(true), "#{path}: #{err}"
+        end
+      end
+    end
+  end
+
   describe "the generated module, run by node" do
     def node? = system("node", "--version", out: File::NULL, err: File::NULL)
 

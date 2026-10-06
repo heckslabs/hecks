@@ -9,6 +9,7 @@ require_relative "../projections/site/site_cdn"
 require_relative "../projections/site/regions"
 require_relative "../projections/site/admin"
 require_relative "../projections/site/site_admin"
+require_relative "../projections/site/admin_cms"
 
 module Hecks
   module Tools
@@ -17,7 +18,7 @@ module Hecks
     # `Admin` row into `admin.ts` (`Projections::Site::SiteAdmin`), each when it declares one.
     #
     #   hecks site site_projection.project_site [<project>] [--out=<dir>] [--template=<file>]
-    #                                           [--extension=ts|mts] [--check]
+    #                                           [--cms=<dir>] [--extension=ts|mts] [--check]
     #
     # `<project>` (default: the working directory) holds `bluebook/` and the `vendor/` it attaches
     # from. `routes.ts` goes to `<project>/generated` or to `--out`, anywhere. The template is the
@@ -32,7 +33,7 @@ module Hecks
       EXTENSIONS = %w[ts mts].freeze
 
       USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] " \
-              "[--template=<file>] [--extension=#{EXTENSIONS.join('|')}] [--check]".freeze
+              "[--template=<file>] [--cms=<dir>] [--extension=#{EXTENSIONS.join('|')}] [--check]".freeze
 
       module_function
 
@@ -45,18 +46,19 @@ module Hecks
       #   table is refused, or a flag is refused
       def main(argv, root: Dir.pwd)
         argv = argv.dup
-        out = template = extension = nil
+        out = template = extension = cms = nil
         check = false
         OptionParser.new do |parser|
           parser.on("--out=DIR") { |value| out = value }
           parser.on("--template=FILE") { |value| template = value }
+          parser.on("--cms=DIR") { |value| cms = value }
           parser.on("--extension=EXT") { |value| extension = value }
           parser.on("--check") { check = true }
         end.parse!(argv)
         project = argv.empty? ? root : File.expand_path(argv.shift)
         abort USAGE unless argv.empty?
 
-        files = projection(project, out: out, template: template, extension: extension)
+        files = projection(project, out: out, template: template, extension: extension, cms: cms)
         stale = files.reject { |path, text| File.file?(path) && File.read(path) == text }.keys
         return report(stale, project, check) if check
 
@@ -77,7 +79,7 @@ module Hecks
       # @return [Hash{String => String}] each file's absolute path to the text it should hold
       # @raise [SystemExit] when the project declares no route table, the table is refused, or a
       #   path or the extension is refused
-      def projection(root, out: nil, template: nil, extension: nil)
+      def projection(root, out: nil, template: nil, extension: nil, cms: nil)
         extension ||= EXTENSIONS.first
         unless EXTENSIONS.include?(extension)
           abort "project_site: --extension is one of #{EXTENSIONS.join(', ')}, not #{extension.inspect}"
@@ -90,7 +92,9 @@ module Hecks
         table = Projections::Site::Table.read(chapter, registry: registry)
         files = Projector.call(:site_routes_ts, bluebook: chapter, options: { table: table })
         written = files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
-        written.merge!(admin_files(dir, chapter, table, extension))
+        admin = Projections::Site::Admin.read(chapter, table: table)
+        written.merge!(admin_files(dir, chapter, admin, extension))
+        written.merge!(cms_files(cms, chapter, admin)) if cms
         written.merge(template_files(root, out, chapter, table, registry, template: template))
       rescue Projections::Site::Table::Invalid => e
         abort "project_site: #{e.message}"
@@ -100,14 +104,26 @@ module Hecks
       #
       # @param dir [String] the directory the route table module is written to
       # @param chapter [Bluebook::Chapter] the chapter that declares the route table
-      # @param table [Projections::Site::Table] the checked table
+      # @param admin [Projections::Site::Admin, nil] the checked admin row
       # @param extension [String] the extension the modules are written with
       # @return [Hash{String => String}] the module's path to its text; empty with no admin row
-      # @raise [Projections::Site::Table::Invalid] when the admin row is refused
-      def admin_files(dir, chapter, table, extension)
-        admin = Projections::Site::Admin.read(chapter, table: table)
+      def admin_files(dir, chapter, admin, extension)
         files = Projector.call(:site_admin, bluebook: chapter, options: { admin: admin, extension: extension })
         files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
+      end
+
+      # The content system's half of the admin sign-in: four files under the `--cms` directory.
+      #
+      # @param cms [String] the directory the files are written under
+      # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+      # @param admin [Projections::Site::Admin, nil] the checked admin row
+      # @return [Hash{String => String}] each file's absolute path to its text
+      # @raise [SystemExit] when `--cms` is named and the project declares no `Admin` row
+      def cms_files(cms, chapter, admin)
+        abort "project_site: --cms names #{cms}, but the project declares no Admin row" if admin.nil?
+
+        files = Projector.call(:site_admin_cms, bluebook: chapter, options: { admin: admin })
+        files.to_h { |name, text| [File.join(File.expand_path(cms), name), text] }
       end
 
       # The template with the edge's regions rewritten, when the project declares an edge.
