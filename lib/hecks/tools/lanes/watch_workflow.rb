@@ -15,7 +15,9 @@ module Hecks
           #
           # Every hour, asks `PromotionRun` whether a lane has stood behind the lane it follows for
           # longer than its Lane row allows (`alert_after`, in hours). The rule is decided there, not
-          # here. A late lane fails the run and files a finding, one a day.
+          # here. A late lane fails the run, files a finding (one a day) and asks Promote to try
+          # again: a promotion that was dropped is picked up within the hour, and one that still
+          # cannot go says why in its own run.
           on:
             schedule:
               - cron: "17 * * * *"
@@ -30,6 +32,7 @@ module Hecks
             contents: read
             checks: read
             issues: write
+            actions: write
 
           jobs:
         YAML
@@ -46,7 +49,15 @@ module Hecks
         # @return [Array<String>] the job that watches it
         def job(name)
           ["  watch_#{name}:", "    runs-on: ubuntu-latest", "    timeout-minutes: 10", "    steps:",
-           *setup_steps, *watch_step(name)]
+           *setup_steps, *watch_step(name), *retry_step(name)]
+        end
+
+        # A watch that fails found the lane late: the promotion that should have moved it may
+        # have been dropped, so Promote is asked again. It judges the commits itself; this
+        # decides nothing.
+        def retry_step(name)
+          ["      - name: Ask Promote to try #{name} again", "        if: failure()", "        env:",
+           "          GH_TOKEN: ${{ github.token }}", "        run: gh workflow run promote.yml"]
         end
 
         def setup_steps

@@ -48,6 +48,10 @@ module Hecks
 
       # When the oldest commit of a range was made: the commits `newer` has that `older` lacks.
       #
+      # Only the first-parent chain counts, so a branch merged long after it was written is dated by
+      # the merge that brought it in, not by its oldest commit: the age asked about is how long the
+      # lane has been waiting for something to land, not how long ago anyone typed it.
+      #
       # @param older [String, nil] a commit, branch or ref, or nil for every commit of `newer`
       # @param newer [String] a commit, branch or ref
       # @param chdir [String, nil] a directory inside the repository
@@ -56,10 +60,27 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when git cannot read the range
       def oldest_commit_time(older, newer, chdir: nil)
         range = older ? "#{checked_ref(older)}..#{checked_ref(newer)}" : checked_ref(newer)
-        listed = capture("log", "--reverse", "--format=%ct", range, chdir: chdir)
+        listed = capture("log", "--first-parent", "--reverse", "--format=%ct", range, chdir: chdir)
         refuse("git log #{range} failed", listed) unless listed.ok?
 
         listed.out.lines.first&.to_i
+      end
+
+      # The commits a lane may be moved onto, newest first: the first-parent chain of `newer` that
+      # `older` does not already contain.
+      #
+      # @param newer [String] the commit or ref the chain starts from
+      # @param older [String, nil] the commit the lane stands on, nil when it does not exist yet
+      # @param limit [Integer] how many commits to name at most
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [Array<String>] full commit ids, newest first
+      # @raise [ConsoleCapture::Failure] when git cannot read the range
+      def recent_commits(newer, older: nil, limit: 25, chdir: nil)
+        range = older ? "#{checked_ref(older)}..#{checked_ref(newer)}" : checked_ref(newer)
+        listed = capture("rev-list", "--first-parent", "-n", Integer(limit).to_s, range, chdir: chdir)
+        refuse("git rev-list #{range} failed", listed) unless listed.ok?
+
+        listed.out.split
       end
 
       # Moves a remote branch to a commit, and only forward: the push is refused by the remote when

@@ -14,17 +14,26 @@ RSpec.describe "watching a lane" do
   # was made, `behind` hours before now (nil when there is none).
   let(:repo) do
     Class.new do
-      def initialize(oldest) = @oldest = oldest
+      def initialize(oldest, chain) = (@oldest = oldest) && (@chain = chain)
       def remote_head(ref, chdir: nil) = ref.delete_prefix("refs/heads/") == "main" ? "a" * 40 : "b" * 40
       def capture(*, chdir: nil) = nil
       def oldest_commit_time(_older, _newer, chdir: nil) = @oldest
+      def recent_commits(_newer, older: nil, limit: 25, chdir: nil) = @chain
+      def ancestor?(_older, _newer, chdir: nil) = true
     end
   end
 
   let(:checks) do
     Class.new do
-      def initialize(states) = @states = states
-      def states(commit:, names:) = names.to_h { |name| [name, @states.fetch(name, :passed)] }
+      def initialize(states, by_commit)
+        @states = states
+        @by_commit = by_commit
+      end
+
+      def states(commit:, names:)
+        standing = @states.merge(@by_commit.fetch(commit, {}))
+        names.to_h { |name| [name, standing.fetch(name, :passed)] }
+      end
     end
   end
 
@@ -47,12 +56,17 @@ RSpec.describe "watching a lane" do
   end
 
   # Watches `stable` while its oldest unpromoted commit is `hours` old; nil hours is nothing to promote.
-  def watch(run, hours:, key: "stable-lag-2026-10-06", lane: "stable", states: {})
-    oldest = hours && (now - (hours * 3600)).to_i
-    Hecks::Adapters::Codebase::Promotion.git = repo.new(oldest)
-    Hecks::Adapters::Codebase::Promotion.checks = checks.new(states)
+  # `world` is `states:` for every commit, `chain:` for main's commits above stable (newest first) and
+  # `by_commit:` for the checks of one commit.
+  def watch(run, hours:, key: "stable-lag-2026-10-06", lane: "stable", **world)
+    stand_in(hours && (now - (hours * 3600)).to_i, world)
     launch("promotion_run.watch", "run=#{run}", "lane=#{lane}", "alert_key=#{key}")
     launch("promotion_run.promotion_outcome", "run=#{run}").first
+  end
+
+  def stand_in(oldest, world)
+    Hecks::Adapters::Codebase::Promotion.git = repo.new(oldest, world.fetch(:chain, ["a" * 40]))
+    Hecks::Adapters::Codebase::Promotion.checks = checks.new(world.fetch(:states, {}), world.fetch(:by_commit, {}))
   end
 
   def open_findings = JSON.parse(launch("tickets", "finding.open").first).map { |row| row.dig("finding", "value") }
@@ -77,6 +91,28 @@ RSpec.describe "watching a lane" do
 
   it "says a promotion should have run when main is green and the lane is still late" do
     expect(watch("green-late", hours: 5)).to include("every required check passed on aaaaaaa")
+  end
+
+  # The age is the wait for something to land, and the reason tells a pipeline that is working from
+  # one that is stuck: only a certified commit the lane has not reached means promotion is broken.
+  it "calls a late lane stuck when an older commit is certified though the head is red", :aggregate_failures do
+    older = "9" * 40
+    out = watch("stuck", hours: 6, chain: ["a" * 40, older], by_commit: { "a" * 40 => { "rspec" => :failed } })
+
+    expect(out).to include('"status": "faulted"', "every required check passed on 9999999, so a promotion should have run")
+  end
+
+  it "calls a late lane red, not stuck, when no recent commit is certified", :aggregate_failures do
+    out = watch("red", hours: 6, chain: ["a" * 40, "9" * 40], states: { "rspec" => :failed })
+
+    expect(out).to include("failed: rspec")
+    expect(out).not_to include("a promotion should have run")
+  end
+
+  it "says the lane is waiting, not stuck, while the head's checks are still running" do
+    out = watch("running", hours: 6, states: { "rspec" => :pending })
+
+    expect(out).to include("waiting on: rspec")
   end
 
   it "files a finding for a late lane, under its alert key" do

@@ -16,14 +16,16 @@ RSpec.describe "promoting a lane" do
     Class.new do
       attr_reader :moved, :tags
 
-      def initialize(refs, ancestry)
+      def initialize(refs, ancestry, chain)
         @refs = refs
         @ancestry = ancestry
+        @chain = chain
         @moved = []
         @tags = []
       end
 
       def remote_head(ref, chdir: nil) = @refs[ref.delete_prefix("refs/heads/")]
+      def recent_commits(_newer, older: nil, limit: 25, chdir: nil) = @chain.first(limit)
       def ancestor?(older, newer, chdir: nil) = older == newer || @ancestry.include?([older, newer])
       def capture(*, chdir: nil) = nil
 
@@ -41,15 +43,24 @@ RSpec.describe "promoting a lane" do
   # Where each check stands, by name.
   let(:checks) do
     Class.new do
-      def initialize(states) = @states = states
-      def states(commit:, names:) = names.to_h { |name| [name, @states.fetch(name, :passed)] }
+      def initialize(states, by_commit)
+        @states = states
+        @by_commit = by_commit
+      end
+
+      def states(commit:, names:)
+        standing = @states.merge(@by_commit.fetch(commit, {}))
+        names.to_h { |name| [name, standing.fetch(name, :passed)] }
+      end
     end
   end
 
-  def promote_with(refs:, ancestry: [], states: {})
-    fake = repo.new(refs, ancestry)
+  # `chain` is main's first-parent history above the lane, newest first; `by_commit` says where
+  # checks stand against one particular commit, on top of `states` for every commit.
+  def promote_with(refs:, ancestry: [], states: {}, chain: nil, by_commit: {})
+    fake = repo.new(refs, ancestry, chain || [refs["main"]].compact)
     Hecks::Adapters::Codebase::Promotion.git = fake
-    Hecks::Adapters::Codebase::Promotion.checks = checks.new(states)
+    Hecks::Adapters::Codebase::Promotion.checks = checks.new(states, by_commit)
     fake
   end
 
@@ -106,7 +117,80 @@ RSpec.describe "promoting a lane" do
     fake = ready(ancestry: [[older, main_head], [older, stable_head]])
 
     expect(promote("held", "commit=#{older}")).to include(completed, "stable already holds ddddddd")
-    expect([fake.moved, fake.tags]).to eq([[], []])
+    expect(fake.moved).to be_empty
+  end
+
+  it "brings the tag up to the lane when it already holds the commit: a half-done promotion is repaired", :aggregate_failures do
+    older = "d" * 40
+    fake = ready(ancestry: [[older, main_head], [older, stable_head]])
+
+    expect(promote("repair", "commit=#{older}")).to include(completed, "stable already holds ddddddd, edge moved")
+    expect([fake.moved, fake.tags]).to eq([[], [["edge", stable_head]]])
+  end
+
+  it "leaves the tag alone in a rehearsal, even when the lane holds the commit" do
+    older = "d" * 40
+    fake = ready(ancestry: [[older, main_head], [older, stable_head]])
+
+    promote("held-dry", "commit=#{older}", confirm: false)
+    expect(fake.tags).to be_empty
+  end
+
+  # Commits arrive faster than CI certifies them: stable < oldest < middle < newest, all on main.
+  describe "when commits arrive faster than CI certifies them" do
+    def newest = "e" * 40
+
+    def middle = "d" * 40
+
+    def oldest = "c" * 40
+
+    def stacked(lane: stable_head, **more)
+      order = [stable_head, oldest, middle, newest]
+      promote_with(refs: { "main" => newest, "stable" => lane }, ancestry: order.combination(2).to_a,
+                   chain: [newest, middle, oldest], **more)
+    end
+
+    it "moves the lane onto the newest certified commit when the head is still running", :aggregate_failures do
+      fake = stacked(by_commit: { newest => { "rspec" => :pending }, middle => { "rspec_rust_io" => :pending } })
+
+      expect(promote("stack")).to include(completed, "fast-forwarded stable bbbbbbb..ccccccc")
+      expect(fake.moved).to eq([["stable", oldest]])
+    end
+
+    it "does not strand a certified commit behind a red one", :aggregate_failures do
+      fake = stacked(by_commit: { newest => { "rspec" => :failed } })
+
+      expect(promote("red-head")).to include(completed, "fast-forwarded stable bbbbbbb..ddddddd")
+      expect(fake.moved).to eq([["stable", middle]])
+    end
+
+    it "takes the newest of several certified commits, so a superseded one is never promoted", :aggregate_failures do
+      fake = stacked
+
+      expect(promote("newest")).to include(completed, "bbbbbbb..eeeeeee")
+      expect(fake.moved).to eq([["stable", newest]])
+    end
+
+    it "names the head's red check when no commit is certified, and moves nothing", :aggregate_failures do
+      fake = stacked(states: { "rspec" => :failed })
+
+      expect(promote("none")).to include(faulted, "failed: rspec")
+      expect(fake.moved).to be_empty
+    end
+
+    it "promotes only the exact commit it is told to: a named red commit is never swapped for another", :aggregate_failures do
+      fake = stacked(by_commit: { middle => { "rspec" => :failed } })
+
+      expect(promote("exact", "commit=#{middle}")).to include(faulted, "failed: rspec")
+      expect(fake.moved).to be_empty
+    end
+
+    it "is a no-op, not a fault, when the lane is already past the commit that started the run", :aggregate_failures do
+      fake = stacked(lane: newest)
+
+      expect(promote("late", "commit=#{oldest}")).to include(completed, "stable already holds ccccccc")
+      expect(fake.moved).to be_empty
+    end
   end
 
   it "makes the lane when it does not yet exist", :aggregate_failures do

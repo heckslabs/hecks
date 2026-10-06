@@ -9,8 +9,9 @@ module Hecks
         # One accepted promotion carried out: a fast-forward of the lane onto the commit and, when
         # the `Lane` row says the lane `feeds` a tag, a forward-only move of that tag.
         #
-        # Unconfirmed it names the move and makes none, and a lane that already holds the commit is
-        # left alone.
+        # Unconfirmed it names the move and makes none. A lane that already holds the commit is not
+        # moved, but a confirmed run still brings the tag it feeds up to the lane's head, so a tag
+        # left behind by a half-finished promotion is repaired by the next one.
         class Move
           # @param held [Hash] the `PromotionRun` record: `lane`, `commit`, `head`, `confirm`
           # @param tree [Tree] the checkout, already known to be one
@@ -26,14 +27,29 @@ module Hecks
           #   whether the remote was changed
           # @raise [ConsoleCapture::Failure] when the remote refuses the move
           def carry_out
-            return Promotion.outcome("#{name} already holds #{short(@commit)}", false) if held?
+            return already_held if held?
             return Promotion.outcome("rehearsal: would fast-forward #{span} (add --confirm to move it)", false) unless confirmed?
 
             @repo.fast_forward(@commit, name, chdir: @root)
-            Promotion.outcome("fast-forwarded #{span}#{feed_note}", true)
+            Promotion.outcome("fast-forwarded #{span}#{feed_note(@commit)}", true)
           end
 
           private
+
+          # A lane that holds the commit is not moved, but the tag it feeds is still brought up
+          # to the lane: a promotion that moved the lane and then failed on the tag is finished
+          # by the next run, whichever commit that run is about, not left behind for good.
+          def already_held
+            said = "#{name} already holds #{short(@commit)}"
+            return Promotion.outcome(said, false) unless confirmed? && feeds?
+
+            moved = @repo.move_tag(feed, @args[:head], chdir: @root)
+            Promotion.outcome("#{said}, #{feed} #{moved}", moved != :current)
+          end
+
+          def feed = @lane["feeds"].to_s
+
+          def feeds? = !feed.empty?
 
           def name = @lane["name"]
 
@@ -45,10 +61,8 @@ module Hecks
 
           def held? = @args[:head] != "none" && @repo.ancestor?(@commit, @args[:head], chdir: @root)
 
-          def feed_note
-            feed = @lane["feeds"].to_s
-            feed.empty? ? "" : ", #{feed} #{@repo.move_tag(feed, @commit, chdir: @root)}"
-          end
+          # @param onto [String] the commit the fed tag should name
+          def feed_note(onto) = feeds? ? ", #{feed} #{@repo.move_tag(feed, onto, chdir: @root)}" : ""
         end
       end
     end
