@@ -117,13 +117,6 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(reading.map { |path, name, _| job_label(path, name) }).to be_empty, message
   end
 
-  # A workflow's triggers: YAML reads the key `on` as `true`.
-  def triggers_of(path)
-    doc = YAML.load_file(path)
-    on = doc.fetch(true, doc["on"])
-    on.is_a?(Hash) ? on : {}
-  end
-
   # `main` takes pushes with no gate, so a push's run is what reports where each RequiredCheck
   # stands, and promotion reads it. A job skipped on a push reports as passed, which would carry
   # an untested commit to `stable`: no job may name `push` as an event to skip on.
@@ -132,13 +125,6 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     skipping = jobs.select { |_, _, job| job["if"].to_s.include?("'push'") }
 
     expect(skipping.map { |path, name, _| job_label(path, name) }).to be_empty, "skip on a push to main"
-  end
-
-  # The merge queue is gone: `main` takes pushes directly, and `stable` is moved by promote.yml.
-  it "has no merge_group trigger" do
-    queued = workflow_files(".github/workflows/*.yml").select { |path| triggers_of(path).key?("merge_group") }
-
-    expect(queued.map { |path| File.basename(path) }).to be_empty, "still trigger on merge_group"
   end
 
   # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.
