@@ -53,10 +53,17 @@ RSpec.describe Hecks::Doors::UsageCache do
 
   it "treats an edit to a declaration file as a different entry" do
     fetch { worked_out("old help") }
-    sleep 0.01
     File.write(File.join(domain, "shop.bluebook"), "Hecks.bluebook \"Shop\" do\n  # edited\nend\n")
 
     expect(fetch { worked_out("new help") }).to eq(["new help", 0])
+  end
+
+  it "keeps the entry when a declaration file is touched but not changed" do
+    fetch { worked_out("old help") }
+    later = Time.now + 60
+    File.utime(later, later, File.join(domain, "shop.bluebook"))
+
+    expect(fetch { worked_out("new help") }).to eq(["old help", 0])
   end
 
   it "keeps a separate entry for each audience, since the same line reads differently to each", :aggregate_failures do
