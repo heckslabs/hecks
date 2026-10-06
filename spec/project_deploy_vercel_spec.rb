@@ -130,13 +130,13 @@ RSpec.describe "hecks deploy project — a deployed_to(\"Vercel\") function", :i
     end
   end
 
-  {
-    'region "us-east-1"'                     => /region is a Vercel id/,
-    "memory 64"                              => /memory is at least 128 MB/,
-    "max_duration 900"                       => /duration is at most 800 seconds/,
-    'env ["x; rm -rf /"]'                    => /env .* is not allowed/,
-    'crons [{ path: "/a", schedule: "* *" }]' => /cron_schedule .* is not allowed/
-  }.each do |line, message|
+  [
+    ['region "us-east-1"', /region is a Vercel id/],
+    ["memory 64", /memory is at least 128 MB/],
+    ["max_duration 900", /duration is at most 800 seconds/],
+    ['env ["x; rm -rf /"]', /env .* is not allowed/],
+    ['crons [{ path: "/a", schedule: "* *" }]', /cron_schedule .* is not allowed/]
+  ].each do |line, message|
     it "refuses #{line}" do
       files, stderr = generate(world_source(line))
 
