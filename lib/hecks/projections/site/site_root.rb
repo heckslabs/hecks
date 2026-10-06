@@ -20,8 +20,8 @@ module Hecks
         projects_as :site_root, emits: :files
 
         # The `Secrets` row: where the secrets live and what starts the stack.
-        SECRETS = RootRows.new("Secrets", fields: { vault: String, item: String, section: String, launcher: String },
-                                          required: %i[vault item], defaults: { launcher: "bin/dev" })
+        SECRETS = RootRows.new("Secrets", fields:   { vault: String, item: String, section: String, launcher: String },
+                                          required: %i[vault item])
 
         # An `Env` row: a plain setting when it carries `value`, a secret reference when it does
         # not. `group` heads the rows from it on with a comment; `off` writes the line commented out.
@@ -74,9 +74,10 @@ module Hecks
 
           where = ["vault \"#{secrets[:vault]}\"", "item \"#{secrets[:item]}\"",
                    *(secrets[:section] ? ["section \"#{secrets[:section]}\""] : [])].join(", ")
+          starter = secrets[:launcher] ? " (#{secrets[:launcher]} does this)" : ""
           ["# Local-stack settings. Secrets are op:// references into 1Password (#{where}),",
-           "# resolved at start-up by `op run --env-file=.env.tpl -- <command>` (#{secrets[:launcher]}",
-           "# does this); no secret is ever written to disk. The plain lines are not secret."]
+           "# resolved at start-up by `op run --env-file=.env.tpl -- <command>`#{starter};",
+           "# no secret is ever written to disk. The plain lines are not secret."]
         end
 
         def body(vars, secrets)

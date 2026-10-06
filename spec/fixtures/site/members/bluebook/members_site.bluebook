@@ -61,8 +61,9 @@ Hecks.bluebook "MembersSite" do
       attribute :vault,   String
       attribute :item,    String
       attribute :section, String
+      attribute :launcher, String
 
-      member vault: "Club", item: "club-site", section: "local"
+      member vault: "Club", item: "club-site", section: "local", launcher: "bin/dev"
     end
 
     value_object "Env" do
