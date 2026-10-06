@@ -27,7 +27,7 @@ module Hecks
       # names a host or a URL, a binary to run, a place to write, a port to open, a store to
       # switch to, or flips a command from a preview to a change of state.
       DENIED_ARGUMENTS = %w[
-        adapter artifact confirm expected from gem_only header health_path host no_wait npm_local
+        adapter artifact confirm expected from gem_only header health_path host live no_wait npm_local
         npm_only output path payload payload_file port rust_binary scheme stage_dir state_path stdio url
         write
       ].freeze
@@ -39,7 +39,7 @@ module Hecks
 
       # Argument names whose values are git refs: plain names only, so a value cannot read as an
       # option to git.
-      REF_ARGUMENTS = %w[ref].freeze
+      REF_ARGUMENTS = %w[commit ref].freeze
 
       # What a plain git ref looks like: no leading dash, no `..`, no spaces.
       PLAIN_REF = %r{\A[A-Za-z0-9][A-Za-z0-9._/~^@-]*\z}

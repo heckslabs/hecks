@@ -27,7 +27,8 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
   after { FileUtils.remove_entry(root) }
 
   it "reads every fact of a release, each as the run holds it" do
-    expect(found).to include(operation: { value: "publish" }, branch: { value: "main" }, head: { value: sha },
+    expect(found).to include(operation: { value: "publish" }, branch: { value: "stable" }, head: { value: sha },
+                             release_lane: { value: "stable" },
                              on_origin: { value: true }, clean: { value: true }, changelog: { value: true },
                              version: { value: version }, client_version: { value: version },
                              tag_state: { value: "none" }, ships_from: { path: root })
@@ -51,10 +52,10 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
     expect(facts.gather("publish")[:tag_state]).to eq(value: "elsewhere")
   end
 
-  it "reports a tree that is not clean, not on main, or behind origin as facts, not as refusals" do
+  it "reports a tree that is not clean, not on the release lane, or behind origin as facts, not as refusals" do
     commands.answer("git", "status", "--porcelain", stdout: " M a\n")
     commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "topic\n")
-    commands.answer("git", "rev-parse", "origin/main", stdout: "#{"b" * 40}\n")
+    commands.answer("git", "rev-parse", "origin/stable", stdout: "#{"b" * 40}\n")
 
     expect(found).to include(clean: { value: false }, branch: { value: "topic" }, on_origin: { value: false })
   end

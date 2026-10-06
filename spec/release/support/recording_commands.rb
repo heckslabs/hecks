@@ -4,7 +4,7 @@ require "hecks/release/runner"
 # Test doubles for the release specs.
 module ReleaseSpecSupport
   # Records every command and answers from a script; the default script is a
-  # release ready to go: clean main equal to origin/main, no tag, nothing published.
+  # release ready to go: clean stable equal to origin/stable, no tag, nothing published.
   class RecordingCommands
     Call = Struct.new(:kind, :argv, :env, :chdir, keyword_init: true)
 
@@ -70,9 +70,9 @@ module ReleaseSpecSupport
     private
 
     def script_defaults(sha, version)
-      answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "main\n")
+      answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "stable\n")
       answer("git", "rev-parse", "HEAD", stdout: "#{sha}\n")
-      answer("git", "rev-parse", "origin/main", stdout: "#{sha}\n")
+      answer("git", "rev-parse", "origin/stable", stdout: "#{sha}\n")
       answer("git", "status", "--porcelain", stdout: "")
       answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", success: false)
       answer("git", "ls-remote", stdout: "")

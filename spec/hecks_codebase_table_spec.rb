@@ -58,6 +58,12 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
      { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
                 "verb only compares" }],
+    ["project_lanes", "RegenerationRun", "ProjectLanes", "project_lanes",
+     { renamed: "no bin script: the branch rulesets and the promotion workflow were hand-written; without " \
+                "--confirm the verb only compares, and only --live --confirm changes GitHub" }],
+    ["promote", "PromotionRun", "Promote", "promote",
+     { args:    %w[lane=stable],
+       renamed: "no bin script: moving a branch was a person pushing; without --confirm the verb only rehearses" }],
     ["project_tools_doc", "RegenerationRun", "ProjectToolsDoc", "project_tools_doc",
      { renamed: "no bin script: the launcher forms of docs/tools.md were hand-copied; without --confirm the " \
                 "verb only compares" }],
@@ -114,7 +120,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
   CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun CodemodRun
-                           TestSuiteRun CorpusRun PublishingRun].freeze
+                           TestSuiteRun CorpusRun PublishingRun PromotionRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)

@@ -3,6 +3,7 @@
 require "stringio"
 require_relative "shell"
 require_relative "console_capture"
+require_relative "git_refs"
 require_relative "codebase/publishing"
 require "hecks/vendoring/git_environment"
 require "hecks/embryonaut_bluebook/vendor_cli"
@@ -15,6 +16,8 @@ module Hecks
     # or a parent process cannot redirect it to another repository. Subprocesses start through the
     # `Shell` adapter.
     class Git
+      include GitRefs
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused

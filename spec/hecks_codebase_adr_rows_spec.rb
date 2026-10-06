@@ -65,6 +65,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "project_ci_gates", verbs: %w[project_ci_gates],
                note: "no bin script: it replaces the path-gate shell that sat inline in ci.yml and " \
                      "ci-postgres-io-parallel.yml, and like regenerate_corpus it only compares without --confirm"),
+    AdrRow.new(script: "project_lanes", verbs: %w[project_lanes],
+               note: "no bin script: it writes the branch rulesets and the promotion workflow from the Lane rows; " \
+                     "without --confirm it only compares, and only --live --confirm changes GitHub"),
+    AdrRow.new(script: "promote", verbs: %w[promote],
+               note: "no bin script: it moves a lane onto a commit that passed every RequiredCheck; without " \
+                     "--confirm it only rehearses the move"),
     AdrRow.new(script: "project_tools_doc", verbs: %w[project_tools_doc],
                note: "no bin script: it writes the launcher forms of docs/tools.md from the RetiredScript rows, " \
                      "and like regenerate_corpus it only compares without --confirm")
@@ -72,7 +78,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
 
   # The aggregates of codebase.bluebook: each holds commands a maintainer runs in a checkout.
   CODEBASE_RECORDS = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun TestSuiteRun
-                        CorpusRun PublishingRun].freeze
+                        CorpusRun PublishingRun PromotionRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
@@ -94,9 +100,11 @@ RSpec.describe "the Codebase rows of the ADR table" do
 
   # The record queries every Codebase aggregate shares, which no row of the table names.
   ADR_OUTCOME_VERBS = %w[language_outcome kernel_outcome conformance_outcome regeneration_outcome style_outcome
-                         codemod_outcome test_suite_outcome corpus_outcome publishing_outcome].freeze
+                         codemod_outcome test_suite_outcome corpus_outcome publishing_outcome
+                         promotion_outcome].freeze
   ADR_FAULTED_VERBS = %w[language_faulted kernel_faulted conformance_faulted regeneration_faulted style_faulted
-                         codemod_faulted test_suite_faulted corpus_faulted publishing_faulted].freeze
+                         codemod_faulted test_suite_faulted corpus_faulted publishing_faulted
+                         promotion_faulted].freeze
 
   # The launcher's name for each verb: its aggregate, snake-cased, then the verb (`style_run.fix_comments`).
   def qualified_names

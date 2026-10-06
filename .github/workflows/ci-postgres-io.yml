@@ -16,8 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    if: github.event_name != 'push'
-
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
 
@@ -35,7 +33,7 @@ jobs:
 
     needs: ci_attestation_postgres_io
     # Push runs only warm caches; this job keeps none.
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_postgres_io.result != 'success' || needs.ci_attestation_postgres_io.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_postgres_io.result != 'success' || needs.ci_attestation_postgres_io.outputs.attested != 'true')
 
     env:
       PGHOST: localhost

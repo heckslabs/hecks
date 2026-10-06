@@ -18,8 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    if: github.event_name != 'push'
-
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
 
@@ -41,7 +39,7 @@ jobs:
     needs: ci_attestation_rust_parser
     # Runs only when not already attested — see ci-rspec.yml's rspec_shard's own
     # comment for why both `always()` and `.result != 'success'` are load-bearing.
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_parser.result != 'success' || needs.ci_attestation_rust_parser.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rust_parser.result != 'success' || needs.ci_attestation_rust_parser.outputs.attested != 'true')
 
     # `packages: write` lets this job push to GHCR; `contents: read` keeps checkout
     # working. The calling job in ci.yml must grant the same, since a reusable

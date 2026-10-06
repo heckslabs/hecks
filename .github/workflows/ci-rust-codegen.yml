@@ -15,8 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    if: github.event_name != 'push'
-
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
 
@@ -35,7 +33,7 @@ jobs:
     timeout-minutes: 20
 
     needs: ci_attestation_rust_codegen
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_codegen.result != 'success' || needs.ci_attestation_rust_codegen.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rust_codegen.result != 'success' || needs.ci_attestation_rust_codegen.outputs.attested != 'true')
 
     # GHCR binary cache; see ci-rust-parser.yml's comment on the identical block.
     permissions:

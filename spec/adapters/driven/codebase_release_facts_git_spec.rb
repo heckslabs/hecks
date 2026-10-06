@@ -26,8 +26,9 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts, :io do
   end
 
   before do
-    git("init", "-q", "--bare", "-b", "main", origin, dir: scratch)
+    git("init", "-q", "--bare", "-b", "stable", origin, dir: scratch)
     git("clone", "-q", origin, work, dir: scratch)
+    git("checkout", "-q", "-b", "stable")
     FileUtils.mkdir_p(File.join(work, "lib/hecks"))
     FileUtils.mkdir_p(File.join(work, "packages/hecks-client"))
     File.write(File.join(work, "lib/hecks/version.rb"), %(module Hecks\n  VERSION = "9.9.9".freeze\nend\n))
@@ -35,15 +36,15 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts, :io do
     File.write(File.join(work, "CHANGELOG.md"), "## [9.9.9] - 2026-01-01\n")
     git("add", ".")
     git("commit", "-q", "-m", "release")
-    git("push", "-q", "origin", "main")
+    git("push", "-q", "origin", "stable")
   end
 
   after { FileUtils.remove_entry(scratch) }
 
-  it "finds a clean main equal to origin/main with no tag" do
+  it "finds a clean release lane equal to its origin with no tag" do
     found = facts.gather("publish")
 
-    expect(found).to include(branch: { value: "main" }, on_origin: { value: true }, clean: { value: true },
+    expect(found).to include(branch: { value: "stable" }, on_origin: { value: true }, clean: { value: true },
                              tag_state: { value: "none" }, head: { value: git("rev-parse", "HEAD") })
   end
 

@@ -9,10 +9,9 @@ name: Refresh rspec runtime baselines (scheduled)
 # exactly what happened after #898 sped up hecks quality_control sweep.tick — the packer kept budgeting the old,
 # slower time for those specs until #900 manually refreshed the baseline).
 #
-# SCHEDULED, NOT PER-MERGE — the postgres-io legs only run on `pull_request`/`merge_group`
-# (never on `push`, see ci-postgres-io-parallel.yml's own `if:`), so a refresh triggered by
-# "every merge" would have its own commit go through the merge queue too, producing its own
-# (slightly different, real CI variance) timings — a steady trickle of near-identical
+# SCHEDULED, NOT PER-PUSH — the postgres-io legs run on every `pull_request` and push to main,
+# so a refresh triggered by "every push" would have its own commit start a run too, producing
+# its own (slightly different, real CI variance) timings — a steady trickle of near-identical
 # refresh PRs from pure noise, not real signal. Weekly is a deliberate choice to keep this
 # bounded.
 #
@@ -52,20 +51,20 @@ jobs:
 
       # `hecks refresh_runtime_baseline from_run=` refuses (aborts) a non-`success` run,
       # and separately skips (warns, does not abort) a family whose artifact set is
-      # incomplete — the rspec-runtime-group family runs on every merge_group/pull_request,
+      # incomplete — the rspec-runtime-group family runs on every push to main/pull_request,
       # but the postgres-io family is itself gated by `postgres_io_relevant_changed` and can
-      # be entirely absent from a given run. Walking recent merge_group runs here, checking
+      # be entirely absent from a given run. Walking recent push-to-main runs here, checking
       # each one's own job list, finds the newest run that actually has both families —
       # passing the newest run unconditionally would frequently hand the script one that
       # only refreshes the rspec-runtime-group side and silently never touches the
       # postgres-io side for weeks.
-      - name: Find the most recent merge-queue run with real postgres-io shard data
+      - name: Find the most recent main run with real postgres-io shard data
         id: find_run
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --event merge_group \
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --event push --branch main \
             --status success --limit 20 --json databaseId --jq '.[].databaseId')
 
           run_id=""
@@ -79,7 +78,7 @@ jobs:
           done
 
           if [ -z "$run_id" ]; then
-            echo "no recent merge-queue run exercised the postgres-io shards — nothing to refresh from this week" >&2
+            echo "no recent main run exercised the postgres-io shards — nothing to refresh from this week" >&2
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
@@ -87,7 +86,7 @@ jobs:
         if: steps.find_run.outputs.run_id != ''
         run: bundle exec exe/hecks test_suite_run.refresh_runtime_baseline from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
 
-      # Auto-merge, not a human-reviewed PR — this is a scoped, mechanical, data-only change
+      # Merged at once (main takes pushes with no gate), not a human-reviewed PR — this is a scoped, mechanical, data-only change
       # (two generated log files, no code or spec content), the same class of change a
       # person would rubber-stamp without reading every line anyway. `hecks refresh_runtime_
       # baseline`'s own safety checks (above) are what actually gate correctness.
@@ -111,5 +110,5 @@ jobs:
 
           pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" \
             --title "Scheduled refresh of rspec runtime baselines" \
-            --body "Automated weekly refresh of .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log from merge-queue run $RUN_ID. Data-only: no code or spec content changed. See hecks refresh_runtime_baseline's own header for what these files drive.")
-          gh pr merge "$pr_url" --auto --squash
+            --body "Automated weekly refresh of .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log from main run $RUN_ID. Data-only: no code or spec content changed. See hecks refresh_runtime_baseline's own header for what these files drive.")
+          gh pr merge "$pr_url" --squash

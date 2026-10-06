@@ -23,7 +23,7 @@ runs:
         EVENT_NAME: ${{ github.event_name }}
         REF: ${{ github.ref }}
       run: |
-        if { [ "$EVENT_NAME" = "merge_group" ] || [ "$REF" = "refs/heads/main" ]; } && [ -n "$DATABASE" ]; then
+        if [ "$REF" = "refs/heads/main" ] && [ -n "$DATABASE" ]; then
           echo "::add-mask::$DATABASE"
           echo "HECKS_DATABASE=$DATABASE" >> "$GITHUB_ENV"
           echo "hecks journals to PostgresEra ($EVENT_NAME on $REF)"

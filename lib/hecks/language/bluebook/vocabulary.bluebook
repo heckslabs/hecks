@@ -622,12 +622,50 @@ Hecks.bluebook "Bluebook" do
       attribute :label,    String
 
       member name: "runtime_changed", workflow: "ci.yml", mode: "touches",
-             pattern: '^lib/hecks/runtime/', push: "skip",
+             pattern: '^lib/hecks/runtime/', push: "before_sha",
              label: "does this change touch lib/hecks/runtime/**?"
       member name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless",
              pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
              push: "before_sha",
              label: "does this change touch anything rspec_postgres_io_parallel covers?"
+    end
+
+    # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
+    # is the name of a job in .github/workflows that reports to a commit as a check run; a check
+    # that a path gate skipped reports `skipped`, which counts as passed. `hecks promote` reads
+    # these rows, and hecks project_lanes writes them into the ruleset of any lane that requires
+    # them, so the list lives here and nowhere else.
+    value_object "RequiredCheck" do
+      attribute :name, String
+
+      member name: "rspec"
+      member name: "checks"
+      member name: "rspec_postgres_io"
+      member name: "rspec_postgres_io_parallel"
+      member name: "rspec_rust_io"
+      member name: "rspec_rust_parser"
+      member name: "rspec_rust_codegen"
+      member name: "rspec_rust_host"
+      member name: "rspec_fuzzing"
+    end
+
+    # The branches a change travels along. `main` takes pushes with no gate; `stable` takes only
+    # what a `Promotion` moves onto it once every `CiGate` check is green on that commit.
+    # hecks project_lanes writes each row's ruleset into .github/rulesets/<name>.json, and
+    # `hecks promote` reads `follows` to know which lane a promotion fast-forwards.
+    #
+    # `guarded` says whether a ruleset restricts who may push the branch. `pushers` is who that
+    # is: `anyone` or `promotion` (the promotion app alone). `feeds` is the tag that moves with the
+    # lane, or empty when none does; `follows` is the lane a promotion draws from, or empty.
+    value_object "Lane" do
+      attribute :name,    String
+      attribute :guarded, String
+      attribute :pushers, String
+      attribute :feeds,   String
+      attribute :follows, String
+
+      member name: "main",   guarded: "no",  pushers: "anyone",    feeds: "",     follows: ""
+      member name: "stable", guarded: "yes", pushers: "promotion", feeds: "edge", follows: "main"
     end
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it

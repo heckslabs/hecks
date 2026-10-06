@@ -50,7 +50,7 @@ module Hecks
         {"name"=>"workspace"}.freeze
       ].freeze,
       "CiGate" => [
-        {"name"=>"runtime_changed", "workflow"=>"ci.yml", "mode"=>"touches", "pattern"=>"^lib/hecks/runtime/", "push"=>"skip", "label"=>"does this change touch lib/hecks/runtime/**?"}.freeze,
+        {"name"=>"runtime_changed", "workflow"=>"ci.yml", "mode"=>"touches", "pattern"=>"^lib/hecks/runtime/", "push"=>"before_sha", "label"=>"does this change touch lib/hecks/runtime/**?"}.freeze,
         {"name"=>"postgres_io_relevant_changed", "workflow"=>"ci-postgres-io-parallel.yml", "mode"=>"skips_unless", "pattern"=>"^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", "push"=>"before_sha", "label"=>"does this change touch anything rspec_postgres_io_parallel covers?"}.freeze
       ].freeze,
       "Comparison" => [
@@ -105,6 +105,10 @@ module Hecks
       "IncludeHaystack" => [
         {"type"=>"Array", "strategy"=>"membership"}.freeze,
         {"type"=>"String", "strategy"=>"substring"}.freeze
+      ].freeze,
+      "Lane" => [
+        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>""}.freeze,
+        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"promotion", "feeds"=>"edge", "follows"=>"main"}.freeze
       ].freeze,
       "LoadOrder" => [
         {"glob"=>"*.port"}.freeze,
@@ -357,6 +361,17 @@ module Hecks
         {"refusal"=>"Unauthorized", "site"=>"cross_tenant_reference", "template"=>"{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference"}.freeze,
         {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze,
         {"refusal"=>"ProjectionAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"}.freeze
+      ].freeze,
+      "RequiredCheck" => [
+        {"name"=>"rspec"}.freeze,
+        {"name"=>"checks"}.freeze,
+        {"name"=>"rspec_postgres_io"}.freeze,
+        {"name"=>"rspec_postgres_io_parallel"}.freeze,
+        {"name"=>"rspec_rust_io"}.freeze,
+        {"name"=>"rspec_rust_parser"}.freeze,
+        {"name"=>"rspec_rust_codegen"}.freeze,
+        {"name"=>"rspec_rust_host"}.freeze,
+        {"name"=>"rspec_fuzzing"}.freeze
       ].freeze,
       "RetiredScript" => [
         {"script"=>"ir", "section"=>"Custodian", "aggregate"=>"Introspection", "verb"=>"ir"}.freeze,

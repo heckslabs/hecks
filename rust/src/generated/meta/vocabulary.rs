@@ -1517,7 +1517,7 @@ pub struct CiGate {
 }
 
 pub const CI_GATE: &[CiGate] = &[
-    CiGate { name: "runtime_changed", workflow: "ci.yml", mode: "touches", pattern: "^lib/hecks/runtime/", push: "skip", label: "does this change touch lib/hecks/runtime/**?" },
+    CiGate { name: "runtime_changed", workflow: "ci.yml", mode: "touches", pattern: "^lib/hecks/runtime/", push: "before_sha", label: "does this change touch lib/hecks/runtime/**?" },
     CiGate { name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless", pattern: "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", push: "before_sha", label: "does this change touch anything rspec_postgres_io_parallel covers?" },
 ];
 
@@ -1540,6 +1540,145 @@ impl CiGate {
             }
         }
         Err(crate::kernel::Refusal::TypeMismatch(format!("CiGate: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequiredCheck {
+    Rspec,
+    Checks,
+    RspecPostgresIo,
+    RspecPostgresIoParallel,
+    RspecRustIo,
+    RspecRustParser,
+    RspecRustCodegen,
+    RspecRustHost,
+    RspecFuzzing,
+}
+
+impl crate::kernel::Fielded for RequiredCheck {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { RequiredCheck::Rspec => "rspec".to_string(), RequiredCheck::Checks => "checks".to_string(), RequiredCheck::RspecPostgresIo => "rspec_postgres_io".to_string(), RequiredCheck::RspecPostgresIoParallel => "rspec_postgres_io_parallel".to_string(), RequiredCheck::RspecRustIo => "rspec_rust_io".to_string(), RequiredCheck::RspecRustParser => "rspec_rust_parser".to_string(), RequiredCheck::RspecRustCodegen => "rspec_rust_codegen".to_string(), RequiredCheck::RspecRustHost => "rspec_rust_host".to_string(), RequiredCheck::RspecFuzzing => "rspec_fuzzing".to_string(), }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+impl RequiredCheck {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            RequiredCheck::Rspec => "rspec",
+            RequiredCheck::Checks => "checks",
+            RequiredCheck::RspecPostgresIo => "rspec_postgres_io",
+            RequiredCheck::RspecPostgresIoParallel => "rspec_postgres_io_parallel",
+            RequiredCheck::RspecRustIo => "rspec_rust_io",
+            RequiredCheck::RspecRustParser => "rspec_rust_parser",
+            RequiredCheck::RspecRustCodegen => "rspec_rust_codegen",
+            RequiredCheck::RspecRustHost => "rspec_rust_host",
+            RequiredCheck::RspecFuzzing => "rspec_fuzzing",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A `one_of` closed set is admission-checked on the raw offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"name": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only then is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs before
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a required command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an empty object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: both are that field's own absence, not a member
+        // mismatch.
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
+        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch("RequiredCheck.name expects String, got nil".to_string()));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "rspec" => Ok(RequiredCheck::Rspec),
+            "checks" => Ok(RequiredCheck::Checks),
+            "rspec_postgres_io" => Ok(RequiredCheck::RspecPostgresIo),
+            "rspec_postgres_io_parallel" => Ok(RequiredCheck::RspecPostgresIoParallel),
+            "rspec_rust_io" => Ok(RequiredCheck::RspecRustIo),
+            "rspec_rust_parser" => Ok(RequiredCheck::RspecRustParser),
+            "rspec_rust_codegen" => Ok(RequiredCheck::RspecRustCodegen),
+            "rspec_rust_host" => Ok(RequiredCheck::RspecRustHost),
+            "rspec_fuzzing" => Ok(RequiredCheck::RspecFuzzing),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "RequiredCheck",
+                    admitted: &["rspec", "checks", "rspec_postgres_io", "rspec_postgres_io_parallel", "rspec_rust_io", "rspec_rust_parser", "rspec_rust_codegen", "rspec_rust_host", "rspec_fuzzing"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lane {
+    pub name: &'static str,
+    pub guarded: &'static str,
+    pub pushers: &'static str,
+    pub feeds: &'static str,
+    pub follows: &'static str,
+}
+
+pub const LANE: &[Lane] = &[
+    Lane { name: "main", guarded: "no", pushers: "anyone", feeds: "", follows: "" },
+    Lane { name: "stable", guarded: "yes", pushers: "promotion", feeds: "edge", follows: "main" },
+];
+
+impl Lane {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.to_string())),
+        ("guarded".to_string(), crate::kernel::Json::Str(self.guarded.to_string())),
+        ("pushers".to_string(), crate::kernel::Json::Str(self.pushers.to_string())),
+        ("feeds".to_string(), crate::kernel::Json::Str(self.feeds.to_string())),
+        ("follows".to_string(), crate::kernel::Json::Str(self.follows.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in LANE {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded) && v.get("pushers").and_then(crate::kernel::Json::as_str) == Some(row.pushers) && v.get("feeds").and_then(crate::kernel::Json::as_str) == Some(row.feeds) && v.get("follows").and_then(crate::kernel::Json::as_str) == Some(row.follows) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("Lane: no member matches {:?}", v)))
     }
 }
 

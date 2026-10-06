@@ -66,6 +66,10 @@ spec, the engine-agreement check, `hecks model_check`, `hecks conformance_run.me
 and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
+`main` takes pushes with no gate, so a push of only `main` skips the hook unless you ask for it:
+`HECKS_PRE_PUSH_GATE=1 git push`. Any other push (a branch for a pull request) runs it as before. Which
+lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
+
 ### Fast local iteration
 
 The pre-push hook above is the local bar a change has to clear before it
@@ -170,9 +174,9 @@ you the prose lied.
 canonical IR and checked against Ruby continuously
 (`hecks regenerate_corpus --check`, `spec/rust_conformance_spec.rb`). You
 don't need a Rust toolchain to contribute Ruby-only changes — your pull
-request's own CI builds and runs the conformance suite, and the merge
-queue runs it again against main's current tip before anything lands. If
-you do touch anything
+request's own CI builds and runs the conformance suite, and CI runs it again
+on every push to `main`; `stable` moves onto a commit only after that run is
+green. If you do touch anything
 that changes what gets generated (`rust/codegen/src/*.rs`,
 `hecks build.project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
@@ -196,12 +200,17 @@ move with every commit.
   425 commits in the last 30 days do, about 14 a day. Check it by counting
   `git log --format=%h`, then again with `--grep='Co-Authored-By:' -i`,
   and add `--since='30 days ago'` to either for the recent window.
-- **Every change lands through a pull request and the merge queue.** The
-  ruleset `merge-queue-main` is active on `main`, has no bypass actors, and
-  has a merge-queue rule and a required-status-checks rule with nine
-  checks. Branch protection on `main` lists the same nine. The queue
-  re-runs the checks against the pull request merged onto `main`'s current
-  tip (`.github/workflows/ci.yml`, header comment).
+- **`main` takes pushes with no gate; `stable` is the guarded line.** The
+  branches are the `Lane` rows of the Vocabulary chapter, and the checks a
+  commit must pass are its `RequiredCheck` rows. CI runs the full job set
+  on every push to `main` (`.github/workflows/ci.yml`, header comment).
+  `.github/workflows/promote.yml` then fast-forwards `stable` onto a commit
+  only when every required check passed on it, through
+  `hecks promotion_run.promote`; the ruleset on `stable` lets nothing else
+  push to it (`.github/rulesets/stable.json`). Releases and the `edge` tag
+  come from `stable`. `hecks regeneration_run.project_lanes` writes these
+  files from the rows, and with `--live` compares the rulesets GitHub holds
+  with them.
 - **GitHub does not require an approving review.** Branch protection and
   the ruleset's pull-request rule both require zero approving reviews, and
   branch protection requires no code-owner review. There is no CODEOWNERS
@@ -219,15 +228,16 @@ or on GitHub enforces or records them, and they stay true only while the
 maintainer keeps doing them.
 
 1. The maintainer's own pull requests and outside authors' pull requests are
-   read before they are merged. A pull request an agent opened and queued
-   itself (`hecks-merge`, or `gh pr merge --auto`) is merged on the merge
-   queue's checks alone, without the maintainer's reading beforehand.
+   read before they are merged. A pull request an agent opened and merged
+   itself (`hecks-merge`, or `gh pr merge`) lands on `main` without the
+   maintainer's reading beforehand; `stable` follows only once CI is green
+   on that commit.
 2. Reviews run by an AI assistant (a code-review skill, subagents) are not
    claimed as a review step, because nothing records them.
 3. Zero required approvals is intentional for a repository with one
    maintainer.
 4. A pull request from an outside author gets the maintainer's personal
-   review before it is queued.
+   review before it is merged.
 
 ### What CI proves mechanically
 
@@ -248,7 +258,8 @@ above:
 
 ### What the pre-push hook is and is not
 
-`.githooks/pre-push` can be bypassed with `git push --no-verify`. When it
+`.githooks/pre-push` can be bypassed with `git push --no-verify`, and a push of
+only `main` skips it unless `HECKS_PRE_PUSH_GATE=1` is set. When it
 runs and a signing key is present in the keychain, it writes an HMAC
 attestation note keyed by the tree hash, and CI uses that note to skip the
 checks the note names. The note is evidence that someone holding the key
@@ -309,10 +320,13 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    ([What a release number promises](docs/1.0-readiness.md#what-a-release-number-promises)):
    a major carries a `Breaking:` entry, and a minor that changes how a
    running system behaves carries a `Behavior change` entry.
-2. Once that PR merges to `main`, check out `main`, pull, and run
+2. Once that PR merges to `main`, wait for `stable` to contain it (the
+   `Promote` workflow moves it after CI is green on the merge commit; rehearse
+   with `hecks promotion_run.promote lane=stable` to see what is still red or
+   running). Then check out `stable`, pull, and run
    `hecks publishing_run.publish` (no `--confirm`) to see every check and build pass with
    nothing tagged or published. Then run `hecks publishing_run.publish --confirm`. It refuses unless the
-   checkout is a clean `main` equal to `origin/main`, the gem and
+   checkout is a clean `stable` (the release lane: the `Lane` row that feeds a tag) equal to `origin/stable`, the gem and
    `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
    heading for it. It asks RubyGems and npm what is already published and
    skips that, so if a run stops partway, run it again. In order, it:
