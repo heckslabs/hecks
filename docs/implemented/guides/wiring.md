@@ -599,11 +599,21 @@ covers the whole deploy, so the target reads nothing after it.
 when the smoke is run alone. A failed roll or smoke is exit 1; the script's own status
 (the table above, or 20 to 23 for the smoke) is in the message.
 
-The record needs a database on the machine that runs `make deploy`. The Hecks
-domain reads `HECKS_DATABASE` and defaults to `postgres://hecks@localhost/hecks`,
-so a deploying machine needs, once, a local Postgres with that database (`createdb
-hecks`), or `HECKS_DATABASE` pointing at one it can reach; the first run creates the
-tables. A CI job that runs `make deploy` needs the same: a Postgres service and
+The record needs a database, and a non-superuser role that owns it, on the machine
+that runs `make deploy`. The Hecks domain reads `HECKS_DATABASE` and defaults to
+`postgres://hecks@localhost/hecks`; `createdb hecks` alone is not enough, because the
+era write-fence is row-level security and Postgres exempts a superuser from it, so the
+boot refuses (`cannot open Hecks: ... this connection's role "hecks" is a superuser`).
+A developer machine whose default `hecks` role is a superuser must use a separate
+non-superuser role for deploy records, once:
+
+```sql
+CREATE ROLE hecks_deploy NOSUPERUSER LOGIN;
+CREATE DATABASE hecks_deploy OWNER hecks_deploy;
+```
+
+and `HECKS_DATABASE=postgres://hecks_deploy@localhost/hecks_deploy`; the first run
+creates the tables. A CI job that runs `make deploy` needs the same: a Postgres service and
 `HECKS_DATABASE` set. Without the database the command cannot start, so the
 generated `deploy`, `deploy-service` and `smoke-after-deploy` targets say so, run the
 script anyway (and the smoke after a roll) so the result is printed, and fail with the
