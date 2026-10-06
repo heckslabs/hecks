@@ -6,6 +6,8 @@ inherit_mode:
 
 plugins:
   - rubocop-rspec
+  - rubocop-performance
+  - rubocop-thread_safety
 
 # Local cops are loaded with `require:` (not `plugins:`) because they are not a gem.
 require:
