@@ -11,10 +11,10 @@ module Hecks
         # hecksagon files sees every `attaches` declaration first. A role is real
         # access control only once an authorization provider exists to check it against
         # (ADR 0025); a provider is recognized by declaring authorization, not by name.
-        def refuse_ungoverned_roles!(hexagon)
-          return if authorization_provider_for(hexagon.domain)
+        def refuse_ungoverned_roles!(hecksagon)
+          return if authorization_provider_for(hecksagon.domain)
 
-          bluebook_ir = bluebook(hexagon.domain)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir
 
           offender = commands_in(bluebook_ir).find { |command| !command.role.to_s.empty? }
@@ -22,7 +22,7 @@ module Hecks
 
           raise WiringError,
                 "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
-                "#{hexagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
+                "#{hecksagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
                 "real access control once an authorization provider is attached to check it against; " \
                 "without that it is silent decoration, the exact defect this refusal exists to catch"
         end
@@ -31,18 +31,18 @@ module Hecks
         # that is its ACL (Governance/Identity/Privacy already do). A vendored package only
         # loads its `.bluebook` files, so persistence, Governance and the `translates` ACL live
         # on that sibling too, or cross-context field mapping has nowhere to be written.
-        def refuse_unwired_attachments!(hexagon)
-          hexagon.attachments.each do |attachment|
+        def refuse_unwired_attachments!(hecksagon)
+          hecksagon.attachments.each do |attachment|
             next if hecksagon(attachment.chapter_name)
 
-            raise WiringError, unwired_attachment_message(hexagon, attachment)
+            raise WiringError, unwired_attachment_message(hecksagon, attachment)
           end
         end
 
-        def unwired_attachment_message(hexagon, attachment)
+        def unwired_attachment_message(hecksagon, attachment)
           chapter_name = attachment.chapter_name
           what = attachment.vendor? ? "vendored bluebook #{attachment.name.inspect}" : chapter_name.inspect
-          "#{hexagon.domain} attaches #{what} " \
+          "#{hecksagon.domain} attaches #{what} " \
             "(bounded context #{chapter_name}) but never declared " \
             "Hecks.hecksagon #{chapter_name.inspect} — put that sibling " \
             "(and any `translates` ACL) in context_map.hecksagon; " \
@@ -91,12 +91,12 @@ module Hecks
           ports.any? { |port| port.name == port_name && port.operations.any? { |op| op.hecks_name == operation_name } }
         end
 
-        def refuse_bounded_without_acl!(hexagon)
-          return unless hexagon.bounded?
-          return if hexagon.translates.any?
+        def refuse_bounded_without_acl!(hecksagon)
+          return unless hecksagon.bounded?
+          return if hecksagon.translates.any?
 
           raise WiringError,
-                "#{hexagon.domain} is marked bounded but never declared a " \
+                "#{hecksagon.domain} is marked bounded but never declared a " \
                 "translates ACL — a bounded chapter wraps in its own module and " \
                 "cross-context field mapping lives on the hecksagon, not in " \
                 "rust/host and not as a field list on the bluebook. " \
