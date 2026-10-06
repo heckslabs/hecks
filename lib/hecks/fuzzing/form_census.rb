@@ -1,5 +1,7 @@
 require "json"
 require_relative "../corpus"
+require_relative "form_census/chapter_forms"
+require_relative "form_census/reference_forms"
 
 module Hecks
   module Fuzzing
@@ -9,9 +11,6 @@ module Hecks
     # they cannot drift. The unit is one aggregate: forms on one head meet at dispatch, forms in one
     # chapter do not.
     module FormCensus
-      # A given path crossing two references has at least this many segments.
-      TWO_HOP_GIVEN_PATH_LENGTH = 3
-
       # Ports and adapters a census boots with, relative to the repository root.
       CENSUS_SUPPORT = [
         "lib/hecks/ports/persistence.port", "lib/hecks/ports/extraction.port",
@@ -19,25 +18,28 @@ module Hecks
       ].freeze
 
       FORMS = {
-        "composite_id"       => ->(a) { (a["identified_by"] || []).size >= 2 },
-        "has_entity"         => ->(a) { entities(a).any? },
-        "two_entities"       => ->(a) { entities(a).size >= 2 },
-        "composite_piece"    => ->(a) { entities(a).any? { |piece| (piece["identified_by"] || []).size >= 2 } },
-        "multi_emit"         => ->(a) { commands(a).any? { |verb| (verb["emits"] || []).size >= 2 } },
-        "lifecycle"          => ->(a) { !a["lifecycle"].nil? },
-        "piece_lifecycle"    => ->(a) { entities(a).any? { |piece| !piece["lifecycle"].nil? } },
-        "has_query"          => ->(a) { queries(a).any? },
-        "list_attr"          => ->(a) { attributes(a).any? { |held| held["list"] } },
-        "reference_attr"     => ->(a) { attributes(a).any? { |held| reference?(held) } },
-        "closed_set"         => ->(a) { (a["value_objects"] || []).any? { |shape| shape["closed_set"] } },
-        "has_default"        => ->(a) { attributes(a).any? { |held| !held["default"].nil? } },
-        "has_optional"       => ->(a) { commands(a).any? { |verb| (verb["attributes"] || []).any? { |held| held["optional"] } } },
+        "composite_id"          => ->(a) { (a["identified_by"] || []).size >= 2 },
+        "has_entity"            => ->(a) { entities(a).any? },
+        "two_entities"          => ->(a) { entities(a).size >= 2 },
+        "composite_piece"       => ->(a) { entities(a).any? { |piece| (piece["identified_by"] || []).size >= 2 } },
+        "multi_emit"            => ->(a) { commands(a).any? { |verb| (verb["emits"] || []).size >= 2 } },
+        "lifecycle"             => ->(a) { !a["lifecycle"].nil? },
+        "piece_lifecycle"       => ->(a) { entities(a).any? { |piece| !piece["lifecycle"].nil? } },
+        "has_query"             => ->(a) { queries(a).any? },
+        "list_attr"             => ->(a) { attributes(a).any? { |held| held["list"] } },
+        "reference_attr"        => ->(a) { attributes(a).any? { |held| reference?(held) } },
+        "closed_set"            => ->(a) { (a["value_objects"] || []).any? { |shape| shape["closed_set"] } },
+        "has_default"           => ->(a) { attributes(a).any? { |held| !held["default"].nil? } },
+        "has_optional"          => ->(a) { optional_command_attribute?(a) },
         # Reference-hop forms, then `corrects` and `role`; entity commands count too.
-        "corrects"           => ->(a) { every_command(a).any? { |verb| corrects?(verb) } },
-        "role_gated"         => ->(a) { every_command(a).any? { |verb| !verb["role"].to_s.empty? } },
-        "two_hop_given"      => ->(a) { two_hop_given?(a) },
-        "multi_hop_where"    => ->(a) { multi_hop_where?(a) },
-        "revalued_reference" => ->(a) { revalued_reference?(a) }
+        "corrects"              => ->(a) { every_command(a).any? { |verb| corrects?(verb) } },
+        "role_gated"            => ->(a) { every_command(a).any? { |verb| !verb["role"].to_s.empty? } },
+        "two_hop_given"         => ->(a) { ReferenceForms.two_hop_given?(a) },
+        "multi_hop_where"       => ->(a) { ReferenceForms.multi_hop_where?(a) },
+        "revalued_reference"    => ->(a) { ReferenceForms.revalued_reference?(a) },
+        # Chapter-level constructs, attributed to the aggregate they name (see `ChapterForms`).
+        "cross_domain_policy"   => ->(a) { (a["across_policies"] || []).any? },
+        "multi_head_read_model" => ->(a) { (a["multi_head_read_models"] || []).any? }
       }.freeze
 
       module_function
@@ -51,41 +53,15 @@ module Hecks
 
       def corrects?(verb) = (verb["mutations"] || []).any? { |change| change["op"].to_s == "corrects" }
 
+      def optional_command_attribute?(aggregate)
+        commands(aggregate).any? { |verb| (verb["attributes"] || []).any? { |held| held["optional"] } }
+      end
+
       def attributes(aggregate) = aggregate["attributes"] || []
 
       def queries(aggregate)    = aggregate["queries"] || []
 
       def reference?(attribute) = attribute["type"].to_s.start_with?("Reference<")
-
-      def two_hop_given?(aggregate)
-        commands(aggregate).any? { |verb| (verb["givens"] || []).any? { |given| deep_lookup?(given["ast"]) } }
-      end
-
-      # A `where` whose field crosses two `/` hops, as in `member/sponsor/standing`.
-      def multi_hop_where?(aggregate)
-        queries(aggregate).any? { |query| (query["wheres"] || []).any? { |where| where["field"].to_s.count("/") >= 2 } }
-      end
-
-      # A command attribute reusing the name of a reference attribute under a non-reference type.
-      def revalued_reference?(aggregate)
-        references = attributes(aggregate).select { |held| reference?(held) }.to_set { |held| held["name"].to_s }
-        commands(aggregate).any? do |verb|
-          (verb["attributes"] || []).any? { |held| references.include?(held["name"].to_s) && !reference?(held) }
-        end
-      end
-
-      def deep_lookup?(node)
-        case node
-        when Hash
-          return true if node["op"] == "lookup" && Array(node["path"]).size >= TWO_HOP_GIVEN_PATH_LENGTH
-
-          node.each_value.any? { |child| deep_lookup?(child) }
-        when Array
-          node.any? { |child| deep_lookup?(child) }
-        else
-          false
-        end
-      end
 
       def properties(aggregate)
         FORMS.transform_values { |form| form.call(aggregate) }
@@ -107,7 +83,7 @@ module Hecks
 
       def aggregates_in(chapter_ir)
         (chapter_ir["aggregates"] || []).map do |aggregate|
-          ["#{chapter_ir["name"]}::#{aggregate["name"]}", properties(aggregate)]
+          ["#{chapter_ir["name"]}::#{aggregate["name"]}", properties(ChapterForms.onto(aggregate, chapter_ir))]
         end
       end
 

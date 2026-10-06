@@ -1,0 +1,167 @@
+# Stress domain: a read model gathering two aggregate heads, on a head that also carries two entities,
+# a two-event command and a defaulted attribute. Findings are written up in NOTES.md.
+Hecks.bluebook "MultiHeadBoard" do
+  vision "A board with lanes and cards, a pin that references it, and a read model gathering a board together with its own pins — a multi-head read model on an aggregate that also carries two entities, a command emitting two events, and a defaulted attribute."
+
+  core
+
+  aggregate "Board" do
+    description "A board holding lanes and cards, opened with a default capacity."
+
+    identified_by :code
+
+    attribute :code,     BoardCode
+    attribute :capacity, BoardCapacity, default: { value: 10 }
+    attribute :lanes,    list_of(Lane)
+    attribute :cards,    list_of(Card)
+
+    value_object "BoardCode" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a board is coded") { !value.to_s.empty? }
+    end
+
+    value_object "BoardCapacity" do
+      attribute :value, Integer, default: 10
+      invariant("a board's capacity is positive") { value.positive? }
+    end
+
+    value_object "LaneSequence" do
+      attribute :value, Integer
+      invariant("a lane sequence is positive") { value.positive? }
+    end
+
+    value_object "CardSequence" do
+      attribute :value, Integer
+      invariant("a card sequence is positive") { value.positive? }
+    end
+
+    value_object "Label" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a label is not blank") { !value.to_s.empty? }
+    end
+
+    # Two events from one dispatch: the board is both opened and announced.
+    command "Open" do
+      role "Clerk"
+      goal "Open a board"
+
+      attribute :code, BoardCode
+
+      sets :code
+
+      emits "BoardOpened"
+      emits "BoardAnnounced"
+    end
+
+    command "AddLane" do
+      role "Clerk"
+      goal "Add a lane to the board"
+
+      reference_to Board
+      attribute :sequence, LaneSequence
+
+      sets :lanes, append: { sequence: :sequence }
+
+      emits "LaneAdded"
+    end
+
+    command "AddCard" do
+      role "Clerk"
+      goal "Add a card to the board"
+
+      reference_to Board
+      attribute :sequence, CardSequence
+
+      sets :cards, append: { sequence: :sequence }
+
+      emits "CardAdded"
+    end
+
+    entity "Lane" do
+      description "One lane of the board."
+
+      identified_by :sequence
+
+      attribute :sequence, LaneSequence
+      attribute :label,    Label, optional: true
+
+      command "Name" do
+        role "Clerk"
+        goal "Name a lane"
+
+        attribute :label, Label
+
+        sets :label
+
+        emits "LaneNamed"
+      end
+    end
+
+    entity "Card" do
+      description "One card on the board."
+
+      identified_by :sequence
+
+      attribute :sequence, CardSequence
+      attribute :label,    Label, optional: true
+
+      command "Title" do
+        role "Clerk"
+        goal "Title a card"
+
+        attribute :label, Label
+
+        sets :label
+
+        emits "CardTitled"
+      end
+    end
+
+    query "Open" do
+      description "Every board, by code."
+      order_by :code
+    end
+  end
+
+  aggregate "Pin" do
+    description "A pin attached to a board."
+
+    identified_by :reference
+
+    attribute :reference, PinReference
+    reference_to Board
+    attribute :note, PinNote
+
+    value_object "PinReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a pin is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "PinNote" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a pin note is not blank") { !value.to_s.empty? }
+    end
+
+    command "Place" do
+      role "Clerk"
+      goal "Pin a note to a board"
+
+      attribute :reference, PinReference
+      reference_to Board
+      attribute :note, PinNote
+
+      sets :reference
+      sets :board
+      sets :note
+
+      emits "PinPlaced"
+    end
+  end
+
+  read_model "BoardView" do
+    description "One board and every pin attached to it — two aggregate heads in one read model."
+    reference_to Board
+    include Board
+    include Pin
+  end
+end

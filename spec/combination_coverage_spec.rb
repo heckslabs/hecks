@@ -14,13 +14,15 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   # Forms paired outside the goldens, each with the stress domain that holds it. Pairs touching
   # them are excused; the staleness check fires once the goldens pair them all.
   HELD_OUTSIDE_THE_GOLDENS = {
-    "two_hop_given"      => "qa/stress_domains/referral_chain (Referral.Issue)",
-    "multi_hop_where"    => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
-    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)",
+    "two_hop_given"         => "qa/stress_domains/referral_chain (Referral.Issue)",
+    "multi_hop_where"       => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
+    "revalued_reference"    => "qa/stress_domains/referral_chain (Referral.Reassign)",
     # banking declares `corrects`, but the goldens do not pair it with the six rare forms;
     # the stress domains do.
-    "corrects"           => "qa/stress_domains/corrections (Ledger.AmendEntry), " \
-                            "qa/stress_domains/case_escalation (Invoice.AmendCharge)"
+    "corrects"              => "qa/stress_domains/corrections (Ledger.AmendEntry), " \
+                               "qa/stress_domains/case_escalation (Invoice.AmendCharge)",
+    # The goldens' one multi-head read model is not headed by an aggregate carrying the rare forms.
+    "multi_head_read_model" => "qa/stress_domains/multi_head_board (Board, BoardView)"
   }.freeze
 
   def aggregates
