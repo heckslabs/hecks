@@ -53,7 +53,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: npm ci
+      - name: Install dependencies
         run: npm ci
 
       - name: Parity between the generated code and the hand-written code

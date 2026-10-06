@@ -30,10 +30,10 @@ module Hecks
 
         # The `Ci` row: the workflow that checks the generated files.
         CI = RootRows.new("Ci", fields:   { name: String, ruby: String, node: String, gem_dir: String, script: String,
-                                          test: String, paths: String },
+                                          test: String, paths: String, install: String },
                                 required: %i[gem_dir],
                                 defaults: { name: "Site routes", ruby: "3.3", node: "22", script: "bin/site_routes",
-                                            test: "npm test", paths: "" })
+                                            test: "npm test", paths: "", install: "npm ci" })
 
         # The workflow's path and the steps' action pins, which a project does not choose.
         WORKFLOW = ".github/workflows/site-routes.yml"
@@ -102,7 +102,17 @@ module Hecks
         def workflow(row)
           paths = path_list(row).map { |path| "      - #{path.to_s.inspect}" }.join("\n")
           format(WORKFLOW_TEXT, banner: BANNER, name: row[:name], paths: paths, ruby: row[:ruby].inspect,
-                                node: row[:node].inspect, gem_dir: row[:gem_dir], script: row[:script], test: row[:test])
+                                node: row[:node].inspect, gem_dir: row[:gem_dir], script: row[:script], test: row[:test],
+                                install_steps: install_steps(row[:install]))
+        end
+
+        # The steps that install the project's dependencies; a project that installs with yarn gets
+        # corepack enabled first, so the version it pins is the one that runs.
+        def install_steps(install)
+          steps = []
+          steps << "- name: Enable corepack\n        run: corepack enable" if install.start_with?("yarn")
+          steps << "- name: Install dependencies\n        run: #{install}"
+          steps.join("\n\n      ")
         end
 
         def path_list(row)
@@ -158,8 +168,7 @@ module Hecks
                   with:
                     node-version: %<node>s
 
-                - name: npm ci
-                  run: npm ci
+                %<install_steps>s
 
                 - name: Parity between the generated code and the hand-written code
                   run: %<test>s

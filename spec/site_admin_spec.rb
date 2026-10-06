@@ -3,6 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 require "json"
+require "yaml"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
@@ -363,6 +364,19 @@ RSpec.describe "the admin sign-in module" do
       dir = edited_members { |text| text.sub('chapter: "Club"', 'chapter: "Elsewhere"') }
 
       expect(refusal(dir, root_dir: root_for_domain)).to include("declares no chapter Elsewhere")
+    end
+
+    it "installs with the command the row names, enabling corepack first for yarn" do
+      dir = edited_members do |text|
+        text.sub('test: "npm run check"', 'test: "npm run check", install: "yarn install --immutable"')
+      end
+      workflow = tool.projection(dir, out: "/work/out", root_dir: root_for_domain)
+                     .fetch(File.join(root_for_domain, ".github/workflows/site-routes.yml"))
+
+      expect(workflow).to include("run: corepack enable", "run: yarn install --immutable")
+      steps = YAML.safe_load(workflow).dig("jobs", "routes-current-and-parity", "steps")
+      expect(steps.map { |step| step["name"] }.compact).to include("Enable corepack", "Install dependencies")
+      expect(workflow.index("corepack enable")).to be < workflow.index("yarn install")
     end
 
     it "is refused when a secret has no Secrets row to name its vault" do

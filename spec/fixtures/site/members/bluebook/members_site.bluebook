@@ -96,6 +96,7 @@ Hecks.bluebook "MembersSite" do
       attribute :gem_dir, String
       attribute :paths,   String
       attribute :test,    String
+      attribute :install, String
 
       member gem_dir: "club", paths: "site-routes/**,src/**", test: "npm run check"
     end
