@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bubble context: Hecks with legacy systems</title>
+<style>
+  @page { size: 8.5in 11in; margin: 0; }
+  :root {
+    --ink: #17202a; --muted: #4f5b66; --deep: #12353f; --leaf: #1f7a6d; --mint: #e3f1ee;
+    --sand: #f3efe6; --amber: #d8892b; --line: #cfd6d2; --white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 8.5in; height: 11in; position: relative; overflow: hidden; page-break-after: always; padding: 0.7in 0.75in; background: var(--sand); }
+  .page:last-child { page-break-after: auto; }
+  .topband { position: absolute; left: 0; top: 0; width: 100%; height: 0.14in; background: var(--deep); }
+  h1 { font-size: 50px; line-height: 1.05; margin: 0 0 14px; letter-spacing: -1px; }
+  h2 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h3 { font-size: 14.5px; margin: 0 0 4px; }
+  p { font-size: 13px; line-height: 1.5; color: var(--muted); margin: 0 0 8px; }
+  .kicker { font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--leaf); font-weight: 700; margin-bottom: 10px; }
+  .cover { background: var(--deep); color: var(--white); padding: 0; }
+  .cover .top { padding: 0.9in 0.75in 0; position: relative; z-index: 2; }
+  .cover h1 { color: var(--white); font-size: 58px; }
+  .cover .top p { color: #cfe3de; font-size: 16px; max-width: 4.6in; }
+  .cover .kicker { color: #8fd1c4; }
+  .cover .panel .kicker { color: var(--leaf); }
+  .cover .panel h2, .cover .panel h3 { color: var(--ink); }
+  .cover svg.hero { position: absolute; right: -0.5in; top: 0.5in; width: 4.4in; opacity: 0.9; }
+  .panel { position: absolute; left: 0; right: 0; bottom: 0; height: 5.2in; background: var(--sand); border-radius: 36px 36px 0 0; padding: 0.55in 0.75in 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+  .card { background: var(--white); border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 12px; }
+  .card p { font-size: 11.5px; margin: 0; line-height: 1.4; }
+  .diagram { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 14px; margin: 14px 0 16px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .bullets { list-style: none; padding: 0; margin: 8px 0 0; }
+  .bullets li { font-size: 12.5px; line-height: 1.45; color: var(--muted); padding-left: 22px; position: relative; margin-bottom: 8px; }
+  .bullets li::before { content: ""; position: absolute; left: 0; top: 4px; width: 12px; height: 12px; background: var(--leaf); clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
+  .bullets b { color: var(--ink); }
+  .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; margin: 12px 0 8px; }
+  .step { background: var(--mint); border-radius: 14px; padding: 11px; }
+  .step .n { width: 24px; height: 24px; border-radius: 50%; background: var(--deep); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .step h3 { font-size: 13px; }
+  .step p { font-size: 11px; margin: 0; color: #24433f; line-height: 1.38; }
+  .note { border-left: 4px solid var(--amber); background: #fbf1e1; border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+  .note p { color: #6b4a14; margin: 0; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--white); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; font-size: 11.5px; line-height: 1.4; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  th { background: var(--deep); color: #fff; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
+  td b { color: var(--ink); }
+  .foot { position: absolute; left: 0.75in; right: 0.75in; bottom: 0.4in; font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+</style>
+</head>
+<body>
+
+<!-- 1. cover -->
+<section class="page cover">
+  <svg class="hero" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#8fd1c4" stroke-width="3">
+      <polygon points="200,30 290,80 290,180 200,230 110,180 110,80"/>
+      <polygon points="290,180 380,230 380,330 290,380 200,330 200,230" opacity="0.6"/>
+      <polygon points="110,180 200,230 200,330 110,380 20,330 20,230" opacity="0.6"/>
+    </g>
+    <polygon points="200,100 245,125 245,175 200,200 155,175 155,125" fill="#8fd1c4"/>
+  </svg>
+  <div class="top">
+    <div class="kicker">Hecks · brownfield</div>
+    <h1>Bubble<br>context</h1>
+    <p>A clean model for one slice of the business, wrapped around the systems a company already runs, and grown until the old ones can go.</p>
+  </div>
+  <div class="panel">
+    <div class="kicker">What this covers</div>
+    <h2>Using Hecks with legacy systems</h2>
+    <div class="grid">
+      <div class="card"><h3>The idea</h3><p>What a bubble is, and why it is a chapter and not a new construct.</p></div>
+      <div class="card"><h3>The parts</h3><p>Bluebook, hecksagon and world, and who supplies each.</p></div>
+      <div class="card"><h3>The path</h3><p>Five steps from watching legacy to retiring it.</p></div>
+      <div class="card"><h3>The plumbing</h3><p>Prewritten adapters that are thin wrappers over shared clients.</p></div>
+      <div class="card"><h3>The help</h3><p>Importer, shadow mode and a drift report, beyond adapters.</p></div>
+      <div class="card"><h3>The decisions</h3><p>What is settled and what still needs an answer.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. the idea -->
+<section class="page">
+  <div class="topband"></div>
+  <div class="kicker">The idea</div>
+  <h2>A bubble is a chapter wrapped around legacy</h2>
+  <p>Evans called it a bubble context: a small, clean bounded context built inside a legacy system, protected by an anti-corruption layer. In Hecks it needs no new keyword. It is a chapter, loaded into a host like any other, whose hecksagon binds to the legacy systems.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+      <rect x="10" y="30" width="170" height="240" rx="14" fill="#f3efe6" stroke="#9aa5a0" stroke-width="2"/>
+      <text x="95" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#17202a">Legacy systems</text>
+      <rect x="28" y="72" width="134" height="34" rx="8" fill="#fff" stroke="#9aa5a0"/><text x="95" y="94" text-anchor="middle" font-size="11.5" fill="#4f5b66">Billing database</text>
+      <rect x="28" y="116" width="134" height="34" rx="8" fill="#fff" stroke="#9aa5a0"/><text x="95" y="138" text-anchor="middle" font-size="11.5" fill="#4f5b66">Ticketing SaaS</text>
+      <rect x="28" y="160" width="134" height="34" rx="8" fill="#fff" stroke="#9aa5a0"/><text x="95" y="182" text-anchor="middle" font-size="11.5" fill="#4f5b66">SFTP drop, cron jobs</text>
+      <rect x="28" y="204" width="134" height="34" rx="8" fill="#fff" stroke="#9aa5a0"/><text x="95" y="226" text-anchor="middle" font-size="11.5" fill="#4f5b66">Vendor API, CLI</text>
+
+      <rect x="230" y="10" width="330" height="280" rx="40" fill="#e3f1ee" stroke="#1f7a6d" stroke-width="3"/>
+      <text x="395" y="38" text-anchor="middle" font-size="13" font-weight="700" fill="#12353f">The bubble (one chapter)</text>
+      <rect x="246" y="60" width="86" height="210" rx="10" fill="#fff" stroke="#1f7a6d"/>
+      <text x="289" y="84" text-anchor="middle" font-size="11.5" font-weight="700" fill="#12353f">Hecksagon</text>
+      <text x="289" y="102" text-anchor="middle" font-size="10" fill="#4f5b66">adapters</text>
+      <text x="289" y="116" text-anchor="middle" font-size="10" fill="#4f5b66">field mappings</text>
+      <text x="289" y="130" text-anchor="middle" font-size="10" fill="#4f5b66">change intake</text>
+      <text x="289" y="166" text-anchor="middle" font-size="9.5" font-style="italic" fill="#1f7a6d">the anti-corruption</text>
+      <text x="289" y="178" text-anchor="middle" font-size="9.5" font-style="italic" fill="#1f7a6d">layer</text>
+      <rect x="348" y="60" width="196" height="210" rx="10" fill="#fff" stroke="#1f7a6d"/>
+      <text x="446" y="84" text-anchor="middle" font-size="11.5" font-weight="700" fill="#12353f">Bluebook</text>
+      <text x="446" y="102" text-anchor="middle" font-size="10" fill="#4f5b66">the clean model</text>
+      <rect x="364" y="116" width="164" height="30" rx="8" fill="#e3f1ee"/><text x="446" y="135" text-anchor="middle" font-size="11" fill="#12353f">Customer · Refund</text>
+      <rect x="364" y="154" width="164" height="30" rx="8" fill="#e3f1ee"/><text x="446" y="173" text-anchor="middle" font-size="11" fill="#12353f">commands · events</text>
+      <rect x="364" y="192" width="164" height="30" rx="8" fill="#e3f1ee"/><text x="446" y="211" text-anchor="middle" font-size="11" fill="#12353f">policies · invariants</text>
+
+      <rect x="610" y="90" width="100" height="120" rx="14" fill="#fff" stroke="#9aa5a0" stroke-width="2"/>
+      <text x="660" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="#17202a">Callers</text>
+      <text x="660" y="144" text-anchor="middle" font-size="10.5" fill="#4f5b66">apps, staff,</text>
+      <text x="660" y="158" text-anchor="middle" font-size="10.5" fill="#4f5b66">agents, the</text>
+      <text x="660" y="172" text-anchor="middle" font-size="10.5" fill="#4f5b66">MCP door</text>
+
+      <g stroke="#1f7a6d" stroke-width="2.5" fill="none" marker-end="url(#a)">
+        <path d="M184 150 H244"/><path d="M244 168 H184" opacity="0.55"/>
+        <path d="M562 150 H606"/>
+      </g>
+      <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#1f7a6d"/></marker></defs>
+    </svg>
+  </div>
+  <ul class="bullets">
+    <li><b>Legacy keeps working.</b> Nothing in it has to change for the first step. The bubble sits beside it.</li>
+    <li><b>The model stays clean.</b> Legacy field names, table shapes and vendor quirks stop at the hecksagon and never reach the bluebook.</li>
+    <li><b>Callers move one at a time.</b> Each legacy entry point is repointed at the bubble's commands when it is ready, which is the strangler pattern.</li>
+    <li><b>Several bubbles, one host.</b> Refunds, Onboarding and Inventory are separate chapters that talk through <b>translates</b>, <b>uses_framework</b> and cross-domain policies.</li>
+  </ul>
+  <div class="foot"><span>Bubble context</span><span>2</span></div>
+</section>
+
+<!-- 3. the parts -->
+<section class="page">
+  <div class="topband"></div>
+  <div class="kicker">The parts</div>
+  <h2>Given a bluebook, supply adapters and settings</h2>
+  <p>Building an integration should mean writing no application code. A company takes a bluebook (written once, shared) and supplies two things of its own.</p>
+  <table>
+    <tr><th style="width:1.2in">Part</th><th>Holds</th><th style="width:1.5in">Who supplies it</th></tr>
+    <tr><td><b>Bluebook</b></td><td>The clean model and its ports: the aggregates, commands, events and the outside services it needs, named as ports. Says nothing about any one company.</td><td>Shared, vendored, versioned</td></tr>
+    <tr><td><b>Hecksagon</b></td><td>Which adapter fulfils each port, and the field mappings from legacy shapes to the bluebook's language. Inbound adapters that watch legacy live here too.</td><td>The company</td></tr>
+    <tr><td><b>World</b></td><td>Per-environment settings: base URLs, tenant ids, credential references (never values), rate limits, and the read-only switch. Dev, staging and prod are different worlds over one hecksagon.</td><td>The company, per environment</td></tr>
+  </table>
+  <div class="note"><p><b>Check before boot.</b> The model check refuses a hecksagon that leaves a port unbound or binds an adapter to a port it does not implement, and refuses a world that lacks a setting an adapter declares as required.</p></div>
+
+  <h3 style="margin-top:18px">The words, and the industry terms they stand for</h3>
+  <table>
+    <tr><th style="width:1.9in">In Hecks</th><th style="width:2.3in">Industry term</th><th>Where it comes from</th></tr>
+    <tr><td><b>A bubble</b> (a chapter with legacy-facing hecksagon)</td><td>Bubble context</td><td>Evans, Domain-Driven Design</td></tr>
+    <tr><td>The hecksagon's legacy-facing adapters and mappings</td><td>Anti-corruption layer</td><td>Evans, Domain-Driven Design</td></tr>
+    <tr><td>Inbound adapters that only watch</td><td>Wire tap, change data capture</td><td>Enterprise Integration Patterns</td></tr>
+    <tr><td>Moving callers across a step at a time</td><td>Strangler fig</td><td>Fowler</td></tr>
+    <tr><td>Port, adapter</td><td>Ports and adapters (hexagonal)</td><td>Cockburn</td></tr>
+  </table>
+  <p style="margin-top:10px">Only <b>bubble</b> is a new word, and it is used in prose. In code and files there is nothing new: it is a bluebook, a hecksagon and a world.</p>
+  <div class="foot"><span>Bubble context</span><span>3</span></div>
+</section>
+
+<!-- 4. the path -->
+<section class="page">
+  <div class="topband"></div>
+  <div class="kicker">The path</div>
+  <h2>Five steps from watching to retiring</h2>
+  <p>A company can stop at any step and still have something useful. Each step adds trust before it adds risk.</p>
+  <div class="flow">
+    <div class="step"><div class="n">1</div><h3>Watch</h3><p>Read-only. The bubble's state is a view built from legacy. Nothing can write.</p></div>
+    <div class="step"><div class="n">2</div><h3>Shadow</h3><p>The bubble computes its own answers on real traffic and compares them with legacy's. None take effect.</p></div>
+    <div class="step"><div class="n">3</div><h3>Write through</h3><p>Commands in the bubble now call legacy through the hecksagon. Rules live in one declared place.</p></div>
+    <div class="step"><div class="n">4</div><h3>Take over</h3><p>One aggregate's source of truth moves into Hecks storage. Legacy becomes the downstream copy.</p></div>
+    <div class="step"><div class="n">5</div><h3>Retire</h3><p>Nothing reads the old system. Its adapter is deleted and the chapter stands alone.</p></div>
+  </div>
+  <div class="two" style="margin-top:14px">
+    <div>
+      <h3>What the company gets along the way</h3>
+      <ul class="bullets">
+        <li><b>One vocabulary</b> over systems that each name things differently.</li>
+        <li><b>One audit trail</b> across systems that had none.</li>
+        <li><b>Swappable vendors.</b> Moving from one payments or CRM provider to another is an adapter change.</li>
+        <li><b>Safe agent access.</b> An agent works through declared commands and never touches the legacy database.</li>
+        <li><b>Rules in one place</b>, in place of stored procedures, spreadsheets and cron scripts.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Where it gets hard</h3>
+      <ul class="bullets">
+        <li><b>Dirty data.</b> Rows that fit no aggregate need a reviewable quarantine with a reason, not an error.</li>
+        <li><b>Two writers.</b> While both systems accept changes, a cutover needs a written procedure. The transactional outbox gives retries an owner.</li>
+        <li><b>Systems that change on their own.</b> A legacy app that writes straight to its database needs polling, change capture or webhooks, or the bubble drifts.</li>
+        <li><b>Modeling discipline.</b> A bluebook that mirrors the legacy schema gains nothing.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><p><b>Read-only is a setting, not a promise.</b> Step 1 depends on the adapter client refusing writes when the world says read-only, and on the model check confirming that a read-only adapter exposes no write operations.</p></div>
+  <div class="foot"><span>Bubble context</span><span>4</span></div>
+</section>
+
+<!-- 5. the plumbing -->
+<section class="page">
+  <div class="topband"></div>
+  <div class="kicker">The plumbing</div>
+  <h2>Prewritten adapters, as thin wrappers</h2>
+  <p>Each adapter calls a shared client and adds only what is particular to its service. The per-service part is data, so it is written once and read by both the Ruby and Rust runtimes.</p>
+  <div class="two">
+    <div>
+      <h3>Shared transport clients</h3>
+      <ul class="bullets">
+        <li><b>Http.</b> Base URL, auth, retries, rate limits, pagination, error mapping.</li>
+        <li><b>Cli.</b> Argv, environment, exit codes, output parsing. Builds on the existing Shell adapter.</li>
+        <li><b>Protocol.</b> SQL, SFTP and files, SMTP, SOAP, queues and webhooks. These are the workhorses of brownfield, since legacy mostly speaks them.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Per service</h3>
+      <ul class="bullets">
+        <li>A declarative mapping from a port ask to a request: method, path, body, response fields, auth scheme.</li>
+        <li>Credentials by reference, resolved at run time and never on disk.</li>
+        <li>A recorded-response fixture checked against the conformance corpus in both runtimes, so drift fails the build.</li>
+        <li>An escape hatch for services that do not fit the table, flagged as a known parity gap until ported.</li>
+      </ul>
+    </div>
+  </div>
+  <table style="margin-top:12px">
+    <tr><th style="width:1.45in">Port</th><th>Services</th></tr>
+    <tr><td><b>Payments</b></td><td>Stripe, PayPal, Square, Adyen, Paddle</td></tr>
+    <tr><td><b>Email, SMS</b></td><td>Resend, SendGrid, Postmark, Mailgun, SES, SMTP/IMAP; Twilio, Vonage, MessageBird</td></tr>
+    <tr><td><b>Chat, alerts</b></td><td>Slack, Discord, Teams, Telegram, PagerDuty</td></tr>
+    <tr><td><b>Source, CI</b></td><td>GitHub, GitLab, Bitbucket, CircleCI, gh and glab</td></tr>
+    <tr><td><b>Tickets, work</b></td><td>Linear, Jira, Asana, Trello, Notion, Shortcut, ServiceNow</td></tr>
+    <tr><td><b>CRM, support</b></td><td>Salesforce, HubSpot, Zendesk, Intercom, Pipedrive, Dynamics</td></tr>
+    <tr><td><b>Accounting, ERP, HR</b></td><td>QuickBooks, Xero, NetSuite, SAP, Oracle, Workday; Shopify, WooCommerce</td></tr>
+    <tr><td><b>Files, workspace</b></td><td>S3, GCS, Azure Blob, Dropbox, Drive, Box, SFTP, CSV; Gmail, Calendar, Sheets, Microsoft Graph</td></tr>
+    <tr><td><b>Identity</b></td><td>Auth0, Okta, Clerk, OAuth and OIDC, LDAP and Active Directory</td></tr>
+    <tr><td><b>Cloud, CLI</b></td><td>aws, gcloud, az, kubectl, terraform, docker, vercel, fly, Cloudflare</td></tr>
+    <tr><td><b>Data</b></td><td>Postgres, MySQL, MongoDB, Redis, Airtable, Supabase, Firebase, generic SQL; Snowflake, BigQuery</td></tr>
+    <tr><td><b>Events</b></td><td>Kafka, RabbitMQ, SQS and SNS, inbound and outbound webhooks</td></tr>
+    <tr><td><b>Observe, search, AI, maps</b></td><td>Datadog, Sentry, Grafana, Umami, PostHog; Algolia, Elastic; Anthropic, OpenAI; Google Maps, Mapbox</td></tr>
+    <tr><td><b>Legacy protocols</b></td><td>SOAP and WSDL, EDI</td></tr>
+  </table>
+  <div class="foot"><span>Bubble context</span><span>5</span></div>
+</section>
+
+<!-- 6. help, build order, decisions -->
+<section class="page">
+  <div class="topband"></div>
+  <div class="kicker">Next</div>
+  <h2>Beyond adapters, and what is open</h2>
+  <div class="two">
+    <div>
+      <h3>More ways to help a company move</h3>
+      <ul class="bullets">
+        <li><b>Importer.</b> Point it at a schema, an OpenAPI spec, a CLI's help or a CSV export and it drafts a chapter and hecksagon for a person to edit. This removes the blank page.</li>
+        <li><b>Shadow mode.</b> Real traffic, compared answers, no effect. A mismatch report is a plain go or no-go signal.</li>
+        <li><b>Drift report.</b> What the bubble holds against what legacy says, on demand.</li>
+        <li><b>Characterization capture.</b> Record real inputs and outputs from legacy and turn them into conformance fixtures.</li>
+        <li><b>Rules extraction.</b> Surface candidate invariants from stored procedures and scripts for a person to approve.</li>
+        <li><b>Reference bubbles.</b> Prebuilt chapters for common domains, so a company writes only its hecksagon and world.</li>
+        <li><b>Cutover playbook.</b> Generated per bubble, with the checks and rollback for each step.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Build order</h3>
+      <ul class="bullets">
+        <li><b>1.</b> Port declarations, adapter-to-port checks and typed world settings in the model check.</li>
+        <li><b>2.</b> Transport clients and the data-driven adapter format, Ruby and Rust.</li>
+        <li><b>3.</b> First slice: Stripe, Slack, gh, generic SQL and webhooks, with fixtures.</li>
+        <li><b>4.</b> The rest of the catalog.</li>
+        <li><b>5.</b> Importer, then shadow mode and the drift report.</li>
+      </ul>
+      <h3 style="margin-top:14px">Settled</h3>
+      <ul class="bullets">
+        <li>A bubble is a chapter plus its hecksagon, not a new construct.</li>
+        <li>The model check guards the generated wiring.</li>
+        <li>Adapters are thin wrappers over shared clients.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><p><b>Open.</b> Whether the field mappings live in the hecksagon (the recommendation, so the hecksagon is literally the translation layer) or in the world. Whether each chapter carries its own hecksagon (recommended) or the host has one. How read-only is enforced and checked. Whether the catalog and transport layer keep these working names.</p></div>
+  <div class="foot"><span>Bubble context</span><span>6</span></div>
+</section>
+
+</body>
+</html>
