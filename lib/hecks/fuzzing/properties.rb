@@ -14,7 +14,10 @@ require_relative "properties/outbox"
 require_relative "properties/policy_wiring"
 require_relative "properties/references"
 require_relative "properties/role_checks"
+require_relative "properties/read_model_names"
+require_relative "properties/read_models"
 require_relative "properties/catalog"
+require_relative "properties/guaranteed_by_construction"
 
 module Hecks
   module Fuzzing
@@ -34,6 +37,8 @@ module Hecks
       extend PolicyWiring
       extend References
       extend RoleChecks
+      extend ReadModelNames
+      extend ReadModels
 
       module_function
 

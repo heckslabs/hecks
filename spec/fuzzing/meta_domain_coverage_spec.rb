@@ -45,14 +45,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # Features that deserve an invariant, are not guaranteed by construction, and have no
   # property yet. Each entry names the candidate property to write.
   META_DOMAIN_KNOWN_GAPS = {
-    "ReadModel#query_name"              => "the derived snake_case name is exercised by every read model ask; no property " \
-                                           "names a drift between it and the declared name",
-    "ReadModel#reference_name"          => "covered incidentally by aggregation_matches_recompute's own FK-join; not " \
-                                           "named on its own",
-    "ReadModel#reference_target"        => "same as ReadModel#reference_name",
-    "ReadModel#aggregate_heads"         => "multi-head `include` composition (beyond the single reduced head " \
-                                           "aggregation_matches_recompute checks) has no property of its own",
-    "ReadModel#options"                 => "same class of gap as Query#options",
     "Query#needs"                       => "a generated query step always carries every argument, so the runtime's fill " \
                                            "of a needed fact (ADR 0081) is never reached by a fuzzed sequence; " \
                                            "spec/query_needs_spec.rb holds the Ruby fill and the " \
