@@ -10,8 +10,12 @@
 # core.hooksPath makes every worktree run this one file. The checks themselves, and why each
 # one blocks, are the `pre_push` stage in lib/hecks/gate/stages.yml; every check is reported
 # even if an earlier one failed. Among them, `codegen_drift` catches a Bluebook `given` changing
-# with nobody rerunning `hecks build.project_rust` (ADR 0057): CI's own `checks_codegen_drift` only
-# runs on `pull_request`/`merge_group`, not a plain push, so this is the one local backstop.
+# with nobody rerunning `hecks build.project_rust` (ADR 0057): CI's own `checks_codegen_drift` runs
+# on `pull_request` and on a push to main, after the push has landed, so this is the one local
+# backstop before it.
+#
+# A push of only unguarded lanes (the `Lane` rows of the Vocabulary chapter: `main`) skips the
+# suite, since `main` takes pushes with no gate. HECKS_PRE_PUSH_GATE=1 runs it for such a push.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -44,6 +48,28 @@ if [ -n "$PUSHED_REFS" ]; then
   if [ ! -e "$TAG_SKIP_INELIGIBLE" ]; then
     printf '[pre-push] every pushed ref is a tag on an already-verified commit — skipping the local suite.\n\n'
     exit 0
+  fi
+fi
+
+# Unguarded lanes take pushes with no gate. The lanes come from the Lane rows, not from this file,
+# and a push that names any other ref (a branch, a note) is checked as before.
+if [ -z "${HECKS_PRE_PUSH_GATE:-}" ] && [ -n "$PUSHED_REFS" ]; then
+  UNGUARDED=$(bundle exec ruby -Ilib -e 'require "hecks/vocabulary"
+    Hecks::Vocabulary.rows("Lane").select { |lane| lane["guarded"] == "no" }
+      .each { |lane| puts "refs/heads/#{lane["name"]}" }' 2>/dev/null)
+  if [ -n "$UNGUARDED" ]; then
+    GUARDED_PUSH="$WORKDIR/guarded_push"
+    printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r _local_ref _local_oid remote_ref _remote_oid; do
+      if ! printf '%s\n' "$UNGUARDED" | grep -qx "$remote_ref"; then
+        : >"$GUARDED_PUSH"
+        break
+      fi
+    done
+
+    if [ ! -e "$GUARDED_PUSH" ]; then
+      printf '[pre-push] every pushed ref is an unguarded lane — skipping the local suite (HECKS_PRE_PUSH_GATE=1 runs it).\n\n'
+      exit 0
+    fi
   fi
 fi
 

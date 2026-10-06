@@ -2,6 +2,7 @@
 
 require "json"
 require "hecks/release/runner"
+require "hecks/release/lane"
 require_relative "tree"
 require_relative "../console_capture"
 
@@ -11,7 +12,8 @@ module Hecks
       # The facts a release is judged by, read from git and the checkout's files and judged by
       # nothing here: the rules are the givens of the `Clear` command of `PublishingRun`.
       #
-      # It reads the branch, whether `HEAD` is `origin/main` (after a fetch), whether the tree is
+      # It reads the branch, the lane a release is cut from (the `Lane` row that feeds a tag),
+      # whether `HEAD` is that lane's `origin/` branch (after a fetch), whether the tree is
       # clean, the gem's version and the client package's, whether the changelog has a heading for
       # the version, and where a tag for the version already points. Nothing is changed but the
       # remote-tracking refs a fetch updates.
@@ -53,8 +55,9 @@ module Hecks
           raise ConsoleCapture::Failure, "git fetch origin failed (#{fetch.stderr.strip})" unless fetch.success?
 
           head = read("rev-parse", "HEAD")
-          { branch: word(read("rev-parse", "--abbrev-ref", "HEAD")), head: word(head),
-            on_origin: flag(head == read("rev-parse", "origin/main")),
+          lane = Release::Lane.release
+          { branch: word(read("rev-parse", "--abbrev-ref", "HEAD")), head: word(head), release_lane: word(lane),
+            on_origin: flag(head == read("rev-parse", "origin/#{lane}")),
             clean: flag(read("status", "--porcelain").empty?), tag_state: word(tag_state("v#{version}", head)) }
         end
 

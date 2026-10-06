@@ -102,19 +102,25 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # The merge queue already tested a push to main, so only the Postgres detector may take
-  # a runner. A job skips on push by saying so, or by needing one that does.
-  it "spends no runner on a push to main beyond the Postgres detector" do
+  # `main` takes pushes with no gate, so a push's run is what reports where each RequiredCheck
+  # stands, and promotion reads it. A job skipped on a push reports as passed, which would carry
+  # an untested commit to `stable`: no job may name `push` as an event to skip on.
+  it "skips no job on a push to main" do
     Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/ci*.yml")].each do |path|
-      jobs = YAML.load_file(path).fetch("jobs")
-      skips_on_push = ->(job) { job["if"].to_s.include?("github.event_name != 'push'") }
-      jobs.each do |name, job|
-        next if job.key?("uses") || name == "postgres_io_relevant_changed" || self.class.wrappers.key?(name)
-
-        upstream = Array(job["needs"]).map { |needed| jobs.fetch(needed) }
-        skipped = skips_on_push.call(job) || upstream.any?(&skips_on_push)
-        expect(skipped).to be(true), "#{File.basename(path)}'s #{name} would take a runner on a push to main"
+      YAML.load_file(path).fetch("jobs").each do |name, job|
+        expect(job["if"].to_s).not_to include("'push'"),
+                                      "#{File.basename(path)}'s #{name} skips on a push to main: #{job['if']}"
       end
+    end
+  end
+
+  # The merge queue is gone: `main` takes pushes directly, and `stable` is moved by promote.yml.
+  it "has no merge_group trigger" do
+    Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/*.yml")].each do |path|
+      triggers = YAML.load_file(path).fetch(true, YAML.load_file(path)["on"]) || {}
+      still = triggers.respond_to?(:key?) && triggers.key?("merge_group")
+
+      expect(still).to be(false), "#{File.basename(path)} still triggers on merge_group"
     end
   end
 

@@ -42,13 +42,37 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
-## Agents merge their own pull requests
+## Two lanes: `main` takes pushes, `stable` is promoted
 
-Push the branch, open the pull request, and once it is ready and not a
-draft, queue it yourself: `gh pr merge <pr> --auto`. A sandboxed agent
-runs `hecks-merge <pr>` instead, which queues the same merge for any open,
-non-draft, same-repository pull request into `main`. The merge queue runs
-the required checks; never use `--admin` and never push to `main`.
+The branches are data: the `Lane` rows of the Vocabulary chapter
+(`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
+commit must pass as `RequiredCheck` rows beside them.
+
+- **`main` has no guard.** Push to it directly, or open a pull request and
+  merge it with `gh pr merge <pr> --squash` once it is ready and not a
+  draft (a sandboxed agent runs `hecks-merge <pr>`). No check is required
+  to land, so run the pre-push gate yourself before you push anything that
+  is not trivial: `HECKS_PRE_PUSH_GATE=1 git push` runs it on `main`. Never
+  force-push `main`, and never use `--admin`.
+- **`stable` is only ever promoted.** CI runs the full job set on every push
+  to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
+  fast-forwards `stable` onto it through
+  `exe/hecks promotion_run.promote lane=stable --confirm --wait`. Never push
+  to `stable` yourself. Rehearse a move without `--confirm`: it names the
+  move and makes none, and it says which check is red or still running.
+- **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
+  the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
+  lines, `packages/hecks-client`) to `main`, wait for `stable` to contain
+  it, then publish from a clean `stable`.
+- **A red `main` blocks promotion, not pushes.** Fix forward or revert on
+  `main`; `stable` does not move until a commit is green. Do not
+  cherry-pick onto `stable` unless the user says production is down.
+- **Change a lane or a required check by editing its row**, then run
+  `exe/hecks regeneration_run.project_lanes --wait` to rewrite
+  `.github/rulesets/` and `.github/workflows/promote.yml`. Applying the
+  rulesets to GitHub is a separate, confirmed step
+  (`regeneration_run.project_lanes --live --confirm`); never hand-edit the
+  generated files.
 
 ## Never hand-edit generated output
 

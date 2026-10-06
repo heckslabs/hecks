@@ -45,7 +45,7 @@ module Hecks
         def no_facts(operation)
           none = { value: "none" }
           { operation: { value: operation }, version: { value: "0.0.0" }, client_version: { value: "0.0.0" },
-            ir_version: { value: "0.0.0" }, ships_from: { path: "none" }, branch: none, head: none,
+            ir_version: { value: "0.0.0" }, ships_from: { path: "none" }, branch: none, head: none, release_lane: none,
             tag_state: none, on_origin: { value: false }, clean: { value: false }, changelog: { value: false } }
         end
 

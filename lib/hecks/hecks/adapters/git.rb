@@ -33,6 +33,83 @@ module Hecks
         @shell.capture("git", *, env: Vendoring::GitEnvironment.clean, chdir: chdir)
       end
 
+      # A branch or tag name, or a commit, as git accepts one in a refspec: no space, no option, no
+      # colon, and no `..`, so a name cannot smuggle a second ref or a flag into a command.
+      REF_PATTERN = %r{\A[0-9A-Za-z_][0-9A-Za-z_./-]*\z}
+
+      # Where a ref points on the remote, after fetching it.
+      #
+      # @param ref [String] a branch name, `refs/heads/<name>` or `refs/tags/<name>`
+      # @param remote [String] the remote to ask
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [String, nil] the commit the ref names, or nil when the remote has no such ref
+      # @raise [ConsoleCapture::Failure] when the ref is malformed or the remote cannot be reached
+      def remote_head(ref, remote: "origin", chdir: nil)
+        name = checked_ref(ref)
+        listed = capture("ls-remote", remote, name, chdir: chdir)
+        raise ConsoleCapture::Failure, "git ls-remote #{remote} #{name} failed: #{listed.err.strip}" unless listed.ok?
+
+        listed.out.lines.map { |line| line.split.first }.first
+      end
+
+      # Whether one commit is an ancestor of another, so that moving a ref from the first to the
+      # second is a fast-forward. A commit is its own ancestor.
+      #
+      # @param ancestor [String] a commit
+      # @param descendant [String] a commit
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [Boolean] whether `descendant` contains `ancestor`
+      # @raise [ConsoleCapture::Failure] when git cannot tell (an unknown commit, a malformed name)
+      def ancestor?(ancestor, descendant, chdir: nil)
+        result = capture("merge-base", "--is-ancestor", checked_ref(ancestor), checked_ref(descendant), chdir: chdir)
+        return true if result.ok?
+        return false if result.status.exitstatus == 1
+
+        raise ConsoleCapture::Failure, "git merge-base failed: #{result.err.strip}"
+      end
+
+      # Moves a remote branch to a commit, and only forward: the push is refused by the remote when
+      # the commit does not contain the branch's head, and is never forced.
+      #
+      # @param commit [String] the commit to push
+      # @param branch [String] the branch to move
+      # @param remote [String] the remote to push to
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [void]
+      # @raise [ConsoleCapture::Failure] when the remote refuses (not a fast-forward, a ruleset)
+      def fast_forward(commit, branch, remote: "origin", chdir: nil)
+        pushed = capture("push", remote, "#{checked_ref(commit)}:refs/heads/#{checked_ref(branch)}", chdir: chdir)
+        return if pushed.ok?
+
+        raise ConsoleCapture::Failure, "git push #{remote} #{branch} was refused: #{pushed.err.strip}"
+      end
+
+      # Moves a tag to a commit on the remote, and only forward: a tag that points at a commit the
+      # new one does not contain is left where it is. A tag that does not yet exist is made.
+      #
+      # @param tag [String] the tag to move
+      # @param commit [String] the commit it should name
+      # @param remote [String] the remote to push to
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [Symbol] `:created`, `:moved` or `:current`
+      # @raise [ConsoleCapture::Failure] when the tag stands on a commit that is not an ancestor of
+      #   `commit`, or the remote refuses
+      def move_tag(tag, commit, remote: "origin", chdir: nil)
+        name = checked_ref(tag)
+        sha = checked_ref(commit)
+        standing = remote_head("refs/tags/#{name}", remote: remote, chdir: chdir)
+        return :current if standing == sha
+
+        if standing && !ancestor?(standing, sha, chdir: chdir)
+          raise ConsoleCapture::Failure, "#{name} stands on #{standing[0, 7]}, which #{sha[0, 7]} does not contain"
+        end
+
+        pushed = capture("push", "--force", remote, "#{sha}:refs/tags/#{name}", chdir: chdir)
+        raise ConsoleCapture::Failure, "git push #{remote} #{name} was refused: #{pushed.err.strip}" unless pushed.ok?
+
+        standing ? :moved : :created
+      end
+
       # Vendors one package of the bluebook registry into a project, pinned to a release or a
       # commit, through `Hecks::EmbryonautBluebook::VendorCli`.
       #
@@ -176,6 +253,13 @@ module Hecks
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      def checked_ref(ref)
+        name = ref.to_s
+        return name if name.match?(REF_PATTERN) && !name.include?("..")
+
+        raise ConsoleCapture::Failure, "#{name.inspect} is not a ref name git can be given safely"
+      end
 
       # A source that is not a repository is worded here; the vendoring's own refusal for it is a
       # bare "no commit" that names neither the directory nor the cause.

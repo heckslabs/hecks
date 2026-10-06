@@ -40,7 +40,7 @@ RSpec.describe Hecks::Tools::CiGates do
       postgres = YAML.load_file(File.join(root, ".github/workflows/ci-postgres-io-parallel.yml"))
 
       expect(ci.dig("jobs", "stress_concurrency", "needs")).to eq("runtime_changed")
-      expect(ci.dig("jobs", "runtime_changed", "if")).to eq("github.event_name != 'push'")
+      expect(ci.dig("jobs", "runtime_changed")).not_to have_key("if")
       expect(postgres.dig("jobs", "postgres_io_relevant_changed")).not_to have_key("if")
     end
   end
@@ -63,7 +63,8 @@ RSpec.describe Hecks::Tools::CiGates do
 
     it "names a workflow whose region was edited by hand, and writes nothing under --check" do
       path = File.join(work, ".github/workflows/ci.yml")
-      edited = File.read(path).sub("timeout-minutes: 10\n    # A push", "timeout-minutes: 99\n    # A push")
+      edited = File.read(path).sub("timeout-minutes: 10\n    outputs:\n      touched",
+                                   "timeout-minutes: 99\n    outputs:\n      touched")
       File.write(path, edited)
 
       expect { expect(described_class.main(["--check"], root: work)).to eq(1) }
@@ -73,7 +74,8 @@ RSpec.describe Hecks::Tools::CiGates do
 
     it "restores the region when it is not a check" do
       path = File.join(work, ".github/workflows/ci.yml")
-      File.write(path, File.read(path).sub("timeout-minutes: 10\n    # A push", "timeout-minutes: 99\n    # A push"))
+      File.write(path, File.read(path).sub("timeout-minutes: 10\n    outputs:\n      touched",
+                                           "timeout-minutes: 99\n    outputs:\n      touched"))
 
       expect { described_class.main([], root: work) }.to output(%r{wrote \.github/workflows/ci\.yml}).to_stdout
       expect(File.read(path)).to eq(described_class.projection(work).fetch(path))

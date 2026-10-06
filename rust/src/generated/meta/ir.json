@@ -31476,7 +31476,7 @@
               ],
               [
                 "push",
-                "skip"
+                "before_sha"
               ],
               [
                 "label",
@@ -31507,6 +31507,186 @@
               [
                 "label",
                 "does this change touch anything rspec_postgres_io_parallel covers?"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "RequiredCheck",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "rspec"
+              ]
+            ],
+            [
+              [
+                "name",
+                "checks"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_postgres_io"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_postgres_io_parallel"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_rust_io"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_rust_parser"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_rust_codegen"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_rust_host"
+              ]
+            ],
+            [
+              [
+                "name",
+                "rspec_fuzzing"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "Lane",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "guarded",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "pushers",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "feeds",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "follows",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "main"
+              ],
+              [
+                "guarded",
+                "no"
+              ],
+              [
+                "pushers",
+                "anyone"
+              ],
+              [
+                "feeds",
+                ""
+              ],
+              [
+                "follows",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "stable"
+              ],
+              [
+                "guarded",
+                "yes"
+              ],
+              [
+                "pushers",
+                "promotion"
+              ],
+              [
+                "feeds",
+                "edge"
+              ],
+              [
+                "follows",
+                "main"
               ]
             ]
           ]

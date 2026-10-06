@@ -67,7 +67,7 @@ module Hecks
                   end
 
               so the domain image is built from a fixed Hecks release, not from a checkout on one machine.
-              `hecks_release "edge"` follows the newest commit on main instead: each build fetches it
+              `hecks_release "edge"` follows the newest commit on stable instead: each build fetches it
               afresh and prints the commit it got, so a build is not reproducible from the name alone.
             MSG
           end

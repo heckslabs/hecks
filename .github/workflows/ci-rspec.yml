@@ -22,7 +22,6 @@ jobs:
     timeout-minutes: 10
 
     # Safe to skip on push: `rspec_shard` never reads this result on that trigger.
-    if: github.event_name != 'push'
 
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
@@ -45,7 +44,7 @@ jobs:
     # `always()` and the `.result` check are both required: a failed detector would otherwise
     # skip this required check instead of running it. Also skipped on push (cache warming
     # needs only the postgres_io_parallel shards) and when the tree is attested.
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')
+    if: always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')
 
     strategy:
       fail-fast: false

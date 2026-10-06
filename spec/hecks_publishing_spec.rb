@@ -101,21 +101,21 @@ RSpec.describe "publishing a release" do
       expect(launch("release.shipped").first).to include(version)
     end
 
-    it "refuses to release from a branch that is not main, and does nothing" do
-      commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "feature\n")
+    it "refuses to release from a branch that is not the release lane, and does nothing" do
+      commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "main\n")
 
-      out, = launch("publishing_run.publish", "run=off-main", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish", "run=off-stable", "--gem-only", "--confirm")
 
-      expect(out).to include("a release is cut from main")
+      expect(out).to include("a release is cut from the release lane")
       expect(commands.runs).to be_empty
     end
 
-    it "refuses when main is not origin/main" do
-      commands.answer("git", "rev-parse", "origin/main", stdout: "#{'b' * 40}\n")
+    it "refuses when the release lane is not its origin" do
+      commands.answer("git", "rev-parse", "origin/stable", stdout: "#{'b' * 40}\n")
 
       out, = launch("publishing_run.publish", "run=behind", "--gem-only", "--confirm")
 
-      expect(out).to include("main is origin/main")
+      expect(out).to include("the release lane is its origin")
       expect(commands.runs).to be_empty
     end
 

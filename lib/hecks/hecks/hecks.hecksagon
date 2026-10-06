@@ -364,6 +364,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Promotion: the SourceTree adapter reads the lane's head and where each required check stands
+  # against the commit, and carries out the move only after Accept.
+  Hecks::PromotionRun.port "SourceTree" do
+    asks "Examine", to: PromotionRun do
+      attribute :run, RunKey
+      answers "PromotionExamined"
+      refuses "PromotionRefused"
+    end
+
+    asks "Perform", to: PromotionRun do
+      attribute :run, RunKey
+      answers "PromotionAnswered"
+      refuses "PromotionRefused"
+    end
+  end
+
   # Deploy, attached above: its bluebook loads without deploy.hecksagon, so the outside its
   # commands reach is named here as well. TenantProvisioning writes a tenant's overlay world;
   # DeployToolchain generates and checks a recipe and projects the OIDC manifests.

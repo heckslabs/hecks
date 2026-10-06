@@ -44,6 +44,6 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
     action = File.read(File.join(CI_VERBS_ROOT, ".github/actions/hecks-environment/action.yml"))
 
     expect(action).to include("HECKS_ENVIRONMENT=memory")
-    expect(action).to match(%r{merge_group.*refs/heads/main}m)
+    expect(action).to include("refs/heads/main")
   end
 end
