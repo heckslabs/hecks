@@ -117,7 +117,7 @@ module Hecks
       # @raise [SystemExit] when the dry run fails, prints no JSON, or matches nothing
       def matching_files(candidates, tag_args, root, err)
         examples = dry_run_examples(candidates, tag_args, root, err)
-        files = examples.map { |e| e.fetch("file_path").sub(%r{\A\./}, "") }.uniq.sort
+        files = examples.map { |e| e.fetch("file_path").delete_prefix("./") }.uniq.sort
         return [files, examples.size] unless files.empty?
 
         abort "hecks list_io_parallel_specs: #{candidates.size} candidate files, but the dry run matched ZERO " \

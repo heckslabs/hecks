@@ -83,7 +83,7 @@ module Hecks
         end
 
         def paragraph_start?(comment, masked, offset)
-          return false if masked[0, offset].sub(/\A#+\s*/, "").match?(/[[:alnum:]#{FILLER}]/)
+          return false if masked[0, offset].sub(/\A#+\s*/, "").match?(/[[:alnum:]#{FILLER}]/o)
 
           above = comment.full_line ? @by_line[comment.line - 1] : nil
           !above&.full_line || above.text.match?(/\A#+\s*\z/)

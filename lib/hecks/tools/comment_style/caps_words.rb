@@ -29,7 +29,7 @@ module Hecks
         # `Finding`'s: the capital follows a code span, so `CAPS_WORD` never sees it.
         def possessives(masked)
           found = []
-          masked.scan(/(?<=#{FILLER})'S\b/) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
+          masked.scan(/(?<=#{FILLER})'S\b/o) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
           found
         end
 
@@ -83,7 +83,7 @@ module Hecks
 
         def sentence_start?(comment, masked, offset)
           before = masked[0, offset].sub(/\A#+\s*/, "")
-          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/)
+          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/o)
           return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
           return false if masked[0, offset].match?(/\A#\s{3,}/)
 

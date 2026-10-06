@@ -123,7 +123,7 @@ module Hecks
       def walk(node, &visit)
         return unless node.is_a?(::Prism::Node)
 
-        visit.call(node)
+        yield(node)
         node.compact_child_nodes.each { |child| walk(child, &visit) }
       end
 

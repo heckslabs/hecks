@@ -97,7 +97,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     def untouched_grants(steps, grant_verbs)
       steps.select do |s|
         grant_verbs.include?(s["verb"]) &&
-          (s["adversarial"] || []).none? { |m| m.values.include?("role_name") }
+          (s["adversarial"] || []).none? { |m| m.value?("role_name") }
       end
     end
 

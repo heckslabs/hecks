@@ -22,7 +22,8 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
   def runner_noting_its_call
     asked = {}
     described_class.runner = lambda do |args, _err, out|
-      asked.merge!(args: args, cwd: Dir.pwd)
+      asked[:args] = args
+      asked[:cwd] = Dir.pwd
       out.puts "1 example, 0 failures"
       0
     end

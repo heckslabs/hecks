@@ -67,8 +67,8 @@ RSpec.describe "hecks deploy project — H13/H14/M28/M29 regressions", :io do
   # Splits a recipe into shell chains: Make runs each run of backslash-continued
   # lines as one shell invocation. Comment lines are dropped.
   def self.shell_chains(lines)
-    body = lines.reject { |l| l.sub(/\A\t/, "").start_with?("#") || l == "\n" }
-    body.map { |line| line.sub(/\A\t/, "").chomp }.slice_after { |line| !line.end_with?("\\") }.to_a
+    body = lines.reject { |l| l.delete_prefix("\t").start_with?("#") || l == "\n" }
+    body.map { |line| line.delete_prefix("\t").chomp }.slice_after { |line| !line.end_with?("\\") }.to_a
   end
 
   BUG_FIXES_MINT_ERA_REFUSAL = "Shared-mode mint-era should never exit 1 after reporting its manual-step message " \

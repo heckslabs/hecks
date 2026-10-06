@@ -36,7 +36,7 @@ module Hecks
         stack = text[/out\s+(\S+)\s+InstanceId/, 1]
         project = text[/compose -p (\w+)/, 1] || companion
         directory = text[%r{mkdir -p (/\S+)}, 1]
-        place = directory ? " in #{directory}" : String.new
+        place = directory ? " in #{directory}" : +""
         "roll #{companion} (Compose project #{project}#{place}) from task definition " \
           "#{taskdef} onto the box of stack #{stack || "<box stack>"} over SSM, beside the app's project, " \
           "then check it on the box"

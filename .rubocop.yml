@@ -1,5 +1,7 @@
 plugins:
   - rubocop-rspec
+  - rubocop-performance
+  - rubocop-thread_safety
 
 # Local cops are loaded with `require:` (not `plugins:`) because they are not a gem.
 require:
@@ -10,6 +12,42 @@ require:
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
   Enabled: true
+
+# Memoized class-level state is the codebase's norm; only the runtime shared across threads
+# is held to it (Hecks/ThreadSharedIvarMutation covers the dispatcher and registry writes).
+ThreadSafety/ClassInstanceVariable:
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+  Exclude:
+    # Idempotent memoized lookups: a racing first call computes the same value twice.
+    - "lib/hecks/runtime/adapter_lookup.rb"
+    - "lib/hecks/runtime/refusal_wording.rb"
+# Registries and caches are mutable by design; freezing them breaks registration at load.
+ThreadSafety/MutableClassInstanceVariable:
+  Enabled: false
+ThreadSafety/ClassAndModuleAttributes:
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+# Specs, CLI tools and gates spawn threads and chdir on purpose, in one process they own.
+ThreadSafety/NewThread:
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+ThreadSafety/DirChdir:
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+
+# Ruby compiles `[:a, :b].include?(x)` on a literal without allocating, and the rest are cold paths.
+Performance/CollectionLiteralInLoop:
+  Enabled: false
+
+# `filter_map` drops `false` as well as `nil`, and these chains carry boolean read-model values.
+Performance/MapCompact:
+  Enabled: false
+
+# `&method(:name)` in a spec reads as the intent; the allocation is irrelevant there.
+Performance/MethodObjectAsBlock:
+  Exclude:
+    - "spec/**/*"
 
 # Dispatcher and Registry are shared across threads; a plain ivar mutation is a data race.
 Hecks/ThreadSharedIvarMutation:

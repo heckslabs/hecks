@@ -41,7 +41,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency", :aggregate_failures do
     lambda do |entry|
       counter += 1
       entry = spec.leak_into(entry, counter) if entry.save?
-      original.bind(self).call(entry)
+      original.bind_call(self, entry)
     end
   end
 

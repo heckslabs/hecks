@@ -153,7 +153,7 @@ RSpec.describe "hecks deploy project — Shared mode + rust_web + real Google OA
 
   it "deploy:'s own generated shell chain is syntactically valid shell" do
     lines = self.class.deploy_recipe_lines(@makefile)
-    script = lines.map { |l| l.sub(/\A\t/, "") }.join.gsub("$$", "$")
+    script = lines.map { |l| l.delete_prefix("\t") }.join.gsub("$$", "$")
     _stdout, stderr, status = Open3.capture3("bash", "-n", stdin_data: script)
     expect(status.success?).to be(true), "deploy:'s own recipe is not valid shell:\n#{stderr}\n---\n#{script}"
   end

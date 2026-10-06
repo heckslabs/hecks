@@ -11,7 +11,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
 
   def self.walk_entities(node, &block)
     node.entities.each do |entity|
-      block.call(entity)
+      yield(entity)
       walk_entities(entity, &block)
     end
   end

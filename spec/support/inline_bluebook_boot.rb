@@ -35,11 +35,11 @@ module InlineBluebookBoot
     validate ? yield : Hecks::Bluebook::MetaValidator.while_disabled(&)
   end
 
-  def load_inline_domain(registry, source, path, &declare)
+  def load_inline_domain(registry, source, path, &)
     Hecks.with_registry(registry) do
       MemoryPorts.load!
       Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
-      declare.call
+      yield
     end
   end
 end

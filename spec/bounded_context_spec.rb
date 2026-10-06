@@ -6,14 +6,14 @@ require "spec_helper"
 # ACL or boot refuses. Attaching a BC without its sibling hecksagon
 # refuses too — that sibling is the anti-corruption layer.
 RSpec.describe "bounded contexts" do
-  def registry_with(&block)
+  def registry_with(&)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      block.call
+      yield
     end
     registry
   end

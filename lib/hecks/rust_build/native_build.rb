@@ -49,7 +49,7 @@ module Hecks
       def build_and_cache(key, domain_feature, rust_dir)
         cache = NativeBuild.cache
         manifest = File.read(File.join(rust_dir, "Cargo.toml"))
-        return cache[key] = nil unless manifest =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
+        return cache[key] = nil unless /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/.match?(manifest)
 
         cache[key] = build_and_pin(domain_feature, rust_dir)
       rescue BuildFailed => e

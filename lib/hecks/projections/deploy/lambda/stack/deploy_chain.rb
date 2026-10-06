@@ -70,7 +70,7 @@ module Hecks
             # lines are built unprefixed and `@` is added once, right before joining.
             def deploy_shell_chain
               chain = owner_lookup_lines + sam_deploy_lines
-              return chain unless chain.first&.match?(/=\$\$\(/)
+              return chain unless chain.first&.include?("=$$(")
 
               ["@#{chain.first}"] + chain.drop(1)
             end

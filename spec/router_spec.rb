@@ -236,7 +236,7 @@ RSpec.describe Hecks::Router do
     described_class.boot(@root)
 
     expect { EdgeRealm::Catalog::Book.options(region: :us) }.to raise_error(ArgumentError, /unknown router options/)
-    expect { EdgeRealm::Catalog::Book.public_send("not-a-route") }.to raise_error(NoMethodError)
+    expect { EdgeRealm::Catalog::Book.public_send(:"not-a-route") }.to raise_error(NoMethodError)
   end
 
   it "installs Aggregate.Command when one latest route owns that short name" do

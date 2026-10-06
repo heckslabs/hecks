@@ -12,7 +12,7 @@ module Hecks
 
       def self.walk(fields, &block)
         fields.each do |field|
-          block.call(field)
+          yield(field)
           walk(field.children, &block) if field.children
         end
       end

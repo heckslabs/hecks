@@ -19,7 +19,7 @@ RSpec.describe "load hygiene", :io do
 
   def standalone_features
     Dir[File.join(LIB, "hecks", "**", "*.rb")]
-      .map { |file| file.sub("#{LIB}/", "").sub(/\.rb\z/, "") }
+      .map { |file| file.sub("#{LIB}/", "").delete_suffix(".rb") }
       .reject { |f| f.start_with?("hecks/bluebook/") && !BLUEBOOK_WRAPPERS.include?(f) }
       .sort
   end
@@ -41,7 +41,7 @@ RSpec.describe "load hygiene", :io do
     failures = Queue.new
     work = Queue.new
     features.each { |feature| work << feature }
-    8.times.map { Thread.new { load_features_from(work, failures) } }.each(&:join)
+    Array.new(8) { Thread.new { load_features_from(work, failures) } }.each(&:join)
     [].tap { |list| list << failures.pop until failures.empty? }
   end
 

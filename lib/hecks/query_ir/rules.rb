@@ -22,7 +22,7 @@ module Hecks
       # @return [String] the owning construct's path, with `" (declared)"` or a trailing
       #   `.CommandName` segment stripped
       def owner_of(location)
-        return location.sub(/ \(declared\)\z/, "") if location.end_with?(" (declared)")
+        return location.delete_suffix(" (declared)") if location.end_with?(" (declared)")
 
         location.rpartition(".").first
       end

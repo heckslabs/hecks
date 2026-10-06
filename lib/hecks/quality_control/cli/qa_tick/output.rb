@@ -11,7 +11,7 @@ module Hecks
         private
 
         def collapse_held_lines(text)
-          text.gsub(/(?:#{HELD_SEED_LINE}\n)+/) do |run|
+          text.gsub(/(?:#{HELD_SEED_LINE}\n)+/o) do |run|
             count = run.lines.size
             "  (#{count} held seed(s) suppressed here — none surprised; full detail in the tick's log file)\n"
           end

@@ -136,7 +136,7 @@ module Hecks
           end
 
           def plan_base
-            { infra_name: infra_name, logical_id: logical_id, db_id: "#{logical_id.sub(/Service\z/, "")}Db",
+            { infra_name: infra_name, logical_id: logical_id, db_id: "#{logical_id.delete_suffix("Service")}Db",
               stack_name: stack_name, port: port, shared: shared }
           end
         end

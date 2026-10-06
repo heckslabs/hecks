@@ -278,7 +278,7 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
         files = files_of(multi_container_settings)
 
         expect(files["Makefile"]).to include(*HOSTING_CORE_PUSH)
-        expect(files["Makefile"]).not_to match(%r{\bImageTag=|amazonaws\.com/#{HOSTING_FIXTURE_BASENAME}:})
+        expect(files["Makefile"]).not_to match(%r{\bImageTag=|amazonaws\.com/#{HOSTING_FIXTURE_BASENAME}:}o)
         expect(files["hosting.mk"]).to include("SERVICE         ?= core")
       end
 

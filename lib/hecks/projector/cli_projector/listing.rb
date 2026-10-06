@@ -32,9 +32,9 @@ module Hecks
         end
 
         # A lambda that renders one spec at an indent: its name padded to the widest, then its text.
-        def row_formatter(named, &description)
+        def row_formatter(named, &)
           width = named.values.map(&:length).max.to_i
-          ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{description.call(spec)}#{alias_note(spec)}" }
+          ->(spec, indent) { "#{indent}#{named[spec].ljust(width)}  #{yield(spec)}#{alias_note(spec)}" }
         end
 
         # The rows under a heading per aggregate.

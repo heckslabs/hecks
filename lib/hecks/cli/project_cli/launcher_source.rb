@@ -104,7 +104,7 @@ module Hecks
             raise ArgumentError, "launcher executable #{executable.inspect} must stay inside the root"
           end
 
-          up = "../" * File.dirname(executable).split("/").reject { |part| part == "." }.length
+          up = "../" * File.dirname(executable).split("/").count { |part| part != "." }
           Site.new(up, %(File.expand_path("#{up}#{path}", __dir__)), GENERATOR, executable, File.basename(executable))
         end
 

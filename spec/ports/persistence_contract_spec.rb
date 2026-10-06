@@ -116,10 +116,10 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
 
         # The save must happen inside the capture: Memory projects (builds
         # its Instance) on save, unlike every other adapter's decode-on-read.
-        def read_after_save(&read)
+        def read_after_save(&)
           decoded_state do
             repository.save(record)
-            read.call
+            yield
           end
         end
 

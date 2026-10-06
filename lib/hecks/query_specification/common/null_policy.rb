@@ -30,9 +30,9 @@ module Hecks
 
         # @return [Array(Array, Array)] the null-keyed rows and the valued rows in key order, each
         #   in the order the direction asks for
-        def null_and_sorted(records, descending, &key)
-          null_rows, valued_rows = records.partition { |record| key.call(record).nil? }
-          sorted = valued_rows.each_with_index.sort_by { |record, index| [key.call(record), index] }.map(&:first)
+        def null_and_sorted(records, descending, &)
+          null_rows, valued_rows = records.partition { |record| yield(record).nil? }
+          sorted = valued_rows.each_with_index.sort_by { |record, index| [yield(record), index] }.map(&:first)
           descending ? [null_rows.reverse, sorted.reverse] : [null_rows, sorted]
         end
 

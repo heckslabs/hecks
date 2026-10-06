@@ -707,7 +707,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       connection.exec(journal_insert(1, "live", aggregate: "unrelated_probe"))
       probe.ok += 1
     rescue PG::Error => e
-      e.message =~ /lock timeout|canceling statement/i ? probe.lock_blocked += 1 : probe.fence_refused += 1
+      /lock timeout|canceling statement/i.match?(e.message) ? probe.lock_blocked += 1 : probe.fence_refused += 1
     end
 
     def probing_writer(probe)
