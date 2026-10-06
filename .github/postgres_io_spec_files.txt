@@ -58,6 +58,7 @@ spec/project_deploy_rename_schema_spec.rb
 spec/project_deploy_shared_rust_oauth_spec.rb
 spec/project_deploy_smoke_spec.rb
 spec/project_deploy_tenant_spec.rb
+spec/project_deploy_vercel_spec.rb
 spec/project_deploy_world_lookup_spec.rb
 spec/qa_log_bug_spec.rb
 spec/qa_open_pr_spec.rb
