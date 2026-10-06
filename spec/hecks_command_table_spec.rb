@@ -15,9 +15,11 @@ RSpec.describe "the Hecks command table through the launcher" do
   COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "door.serve_mcp" => "mcp" }.freeze
 
   # Settled verbs of the attached Deploy chapter; hecks_deploy_smoke_run_spec.rb and
-  # hecks_deploy_roll_spec.rb run them.
+  # hecks_deploy_roll_spec.rb and the data copy, diff, preview and companion specs run them.
   DEPLOY_CHAPTER_VERBS = %w[smoke_run.run service_roll.run box_roll.run data_copy.restore
-                            data_copy.verify].freeze
+                            data_copy.verify bluebook_diff.run preview_run.name preview_run.url
+                            preview_run.list preview_run.deploy preview_run.destroy preview_run.login
+                            companion_roll.run].freeze
 
   CUSTODIAN_VERBS = %w[
     introspection.ir introspection.shape introspection.stores introspection.history
