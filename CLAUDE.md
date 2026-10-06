@@ -2,28 +2,31 @@
 
 ## Bluebook or hecksagon? Ask it first
 
-Every piece of a Hecks system is one of three things. Before you design,
+In the Hecks world there are only two kinds of thing. Before you design,
 place, or review anything, say which one it is.
 
 - **Bluebook (`*.bluebook`, `Hecks.bluebook`)** is the domain, declared:
-  aggregates, commands, events, policies, vocabulary. Declarative and
-  pure. It names no database, clock, network, or file.
-- **Hecksagon (`*.hecksagon`, `Hecks.hecksagon`)** is the wiring, also
-  declared: `persisted_by "Memory"`, `attaches "Governance"`, the adapters a
-  domain plugs into. It is declarative too, but it is where the domain meets
-  the impure world. `lib/hecks/framework/bluebook/framework.hecksagon` is a
-  small example.
-- **Adapter code (`lib/hecks/adapters/`)** is the only impure part. An
-  `.adapter` file declares a port and its fields (`port "clock"`); the
-  matching `.rb` does the I/O, such as `SystemClock.now` reading
-  `Time.now`. Time, randomness, storage, and webhooks live here, never in
-  a bluebook.
+  aggregates, commands, events, policies, vocabulary. It names no
+  database, clock, network, or file.
+- **Hecksagon (`*.hecksagon`, `Hecks.hecksagon`)** is the wiring, declared:
+  `persisted_by "Memory"`, `attaches "Governance"`, the adapters a domain
+  plugs into. `lib/hecks/framework/bluebook/framework.hecksagon` is a small
+  example.
+
+Both are declarative. There is no imperative code in the bluebook world,
+and you do not write any there. Imperative code exists only outside it:
+the implementations behind a hecksagon's ports (`lib/hecks/adapters/`,
+where an `.adapter` file declares `port "clock"` and the matching `.rb`
+reads `Time.now`), and the generators and the Rust kernel that project
+bluebooks into other outputs. Time, randomness, storage, and webhooks live
+there, never in a bluebook.
 
 Rules of thumb:
 
 - If it says what the domain is or does, it is bluebook. If it says what the
-  domain is connected to, it is hecksagon. If it touches the world, it is
-  adapter code behind a port.
+  domain is connected to, it is hecksagon. If it cannot be said in either,
+  it is not Hecks code: it is an adapter behind a port or a generator, and
+  needs a reason.
 - `Hecks::Framework` members (Governance, Identity, Privacy, Compliance)
   are bluebooks; persistence for them is a separate hecksagon.
 - Projections turn a bluebook's IR into other outputs (Rust, diagrams,
