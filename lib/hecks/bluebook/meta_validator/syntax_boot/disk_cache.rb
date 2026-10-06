@@ -4,6 +4,10 @@ module Hecks
       module SyntaxBoot
         # The grammar table's memo keys and its cross-process copy on disk.
         module DiskCache
+          # How long an entry nobody has read stays before the next write sweeps it away. A read
+          # marks an entry as used, so only the tables of code that has since changed age out.
+          UNREAD_KEEP_SECONDS = 24 * 60 * 60
+
           # `equal?`, not `==` — chapter identity, not value equality, is the
           # fact this cache key tracks.
           def same_chapters?(cached, current)
@@ -30,7 +34,9 @@ module Hecks
             path = disk_cache_path(chapters)
             return nil unless File.exist?(path)
 
-            Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own process-local cache, never external input
+            table = Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own process-local cache, never external input
+            FileUtils.touch(path)
+            table
           rescue StandardError
             nil
           end
@@ -46,8 +52,18 @@ module Hecks
             tmp_path = "#{path}.#{Process.pid}.tmp"
             File.binwrite(tmp_path, Marshal.dump(result))
             File.rename(tmp_path, path)
+            prune_disk_cache
           rescue StandardError
             nil
+          end
+
+          # Removes the tables no process has read for `UNREAD_KEEP_SECONDS`.
+          def prune_disk_cache
+            Dir.glob(File.join(cache_dir, "*.marshal")).each do |file|
+              File.delete(file) if Time.now - File.mtime(file) > UNREAD_KEEP_SECONDS
+            rescue SystemCallError
+              next
+            end
           end
 
           def disk_cache_path(chapters)
