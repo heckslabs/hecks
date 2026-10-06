@@ -99,6 +99,16 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       File.write(File.join(lib, "hecks", "b.bluebook"), "grammar\n")
     end
 
+    # The digest of `lib` before and after a rewrite of one file below `lib/hecks`.
+    def digests_around_edit(relative)
+      file = File.join(lib, "hecks", relative)
+      FileUtils.mkdir_p(File.dirname(file))
+      File.write(file, "X = 1\n")
+      before = cache.digest_of(lib)
+      File.write(file, "X = 2\n")
+      [before, cache.digest_of(lib)]
+    end
+
     it "is stable for an untouched tree" do
       first = cache.digest_of(lib)
 
@@ -124,6 +134,16 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       File.write(File.join(lib, "hecks", "d.rb"), "")
 
       expect(cache.digest_of(lib)).not_to eq(before)
+    end
+
+    it "ignores an edit inside a consumer tree" do
+      expect(digests_around_edit("projections/p.rb")).to all(eq(cache.digest_of(lib)))
+    end
+
+    it "still covers the judging trees" do
+      before, after = digests_around_edit("bluebook/j.rb")
+
+      expect(after).not_to eq(before)
     end
 
     it "covers the running library, so an edit under lib/ selects another file" do
