@@ -1,11 +1,10 @@
 name: Hecks journaling environment
 description: >-
-  Chooses where the `hecks` commands a job runs keep their journal. A run on main or in the
-  merge queue journals to the PostgresEra database its `database` input names, so the history of
-  every check is shared. Every other run, pull requests above all, uses Memory
-  (`HECKS_ENVIRONMENT=memory`), so no pull request's code is handed database credentials and
-  nothing is journaled. A main or merge-queue run with no database input falls back to Memory
-  rather than fail on the default local database.
+  Chooses where the `hecks` commands a job runs keep their journal. A run on main journals to
+  the PostgresEra database its `database` input names, so the history of every check is shared.
+  Every other run, pull requests above all, uses Memory (`HECKS_ENVIRONMENT=memory`), so no pull
+  request's code is handed database credentials and nothing is journaled. A main run with no
+  database input falls back to Memory rather than fail on the default local database.
 inputs:
   database:
     description: >-
