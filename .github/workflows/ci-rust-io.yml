@@ -41,6 +41,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Two legs on separate runners, so the specs that rewrite generated files do not race on
+    # rust/. The first leg is the one 56s spec; the second holds the rest, about as long.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: conformance
+            specs: spec/rust_conformance_spec.rb
+          - group: rest
+            specs: >-
+              spec/rust_conformance_fuzz_spec.rb
+              spec/semantics_corpus_spec.rb
+              spec/rust_numeric_coercion_spec.rb
+              spec/rust_generated/domain_feature_exclusivity_spec.rb
+              spec/rust_generated/has_many_spec.rb
+
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
 
@@ -90,11 +106,13 @@ jobs:
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.
       - name: Run the from_json round-trip test
+        if: matrix.group == 'conformance'
         run: cd rust && cargo test --no-default-features --features banking --test from_json_round_trip
 
       # rust/src/exemplar/** is compiled under `cargo test`, so a broken shape fails
       # here before any Ruby runs; no #[test] fn is required.
       - name: Build the exemplar module
+        if: matrix.group == 'conformance'
         run: cd rust && cargo test --lib
 
       # Parser and codegen are also built concurrently by their dedicated jobs, and
@@ -116,16 +134,9 @@ jobs:
 
       # Runs the io specs that touch the shared `rust/` crate, listed explicitly
       # because spec/rust_generated/ also holds fast non-io specs that already run in
-      # parallel. Single process: concurrent cargo builds would race on rust/.
-      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
-        run: |
-          bundle exec rspec --tag io \
-            spec/rust_conformance_spec.rb \
-            spec/rust_conformance_fuzz_spec.rb \
-            spec/semantics_corpus_spec.rb \
-            spec/rust_numeric_coercion_spec.rb \
-            spec/rust_generated/domain_feature_exclusivity_spec.rb \
-            spec/rust_generated/has_many_spec.rb
+      # parallel. Single process per leg: concurrent cargo builds would race on rust/.
+      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (${{ matrix.group }})"
+        run: bundle exec rspec --tag io ${{ matrix.specs }}
 
       # Push only on a miss. `always()` so a spec failure still publishes a
       # freshly built crate for sibling jobs.
