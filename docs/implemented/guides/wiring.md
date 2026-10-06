@@ -741,6 +741,31 @@ database. The harness's header lists the config module's keys. The hosting scrip
 `smoke_repo` and `smoke_workflow` settings above name where
 `smoke-after-deploy.sh` finds this workflow to dispatch it.
 
+### The domain as a Vercel function: `Vercel`
+
+`deployed_to("Vercel")` generates the configuration and deploy script for the
+domain's host as one Vercel function ([ADR 0093](../../decisions/0093-vercel-is-a-deploy-kind-the-host-as-one-function.md)).
+It creates no database: persistence is the hecksagon's, Postgres read from
+`DATABASE_URL`.
+
+```text
+deployed_to("Vercel") do
+  region "iad1"                  # a Vercel region id, the default
+  memory 1024                    # MB
+  max_duration 30                # seconds
+  scope "acme"                   # the team, optional
+  env ["SESSION_SECRET"]         # names only; DATABASE_URL is always set
+  crons [{ path: "/cron/tick", schedule: "*/5 * * * *" }]
+end
+```
+
+`hecks deploy project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
+and a `Makefile`. The script reads each named variable from the environment
+(`op run --env-file=.env.tpl -- make deploy`) and passes it to Vercel on stdin
+as a sensitive variable, so no value reaches a file or a command line. The host
+needs a Vercel entry point at `api/host.rs` before the function answers; see
+the ADR's open items.
+
 ### Project-wide defaults
 
 A project that attaches many chapters does not have to repeat that

@@ -355,6 +355,11 @@
       "scope": "deploy:tenant.reprovision",
       "verb": "Deploy::Tenant.Reprovision",
       "role": null
+    },
+    {
+      "scope": "deploy:vercel_target.declare",
+      "verb": "Deploy::VercelTarget.Declare",
+      "role": null
     }
   ],
   "roles": [

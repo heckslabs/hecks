@@ -103,7 +103,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   it "keeps the deployed_to targets beside the new commands, and Provision the only Tenant creator", :aggregate_failures do
-    declared = ["LambdaTarget", "FargateTarget", "BoxTarget"].map { |t| @bluebook.aggregate(t).commands.map(&:hecks_name) }
+    declared = ["LambdaTarget", "FargateTarget", "BoxTarget", "VercelTarget"].map { |t| @bluebook.aggregate(t).commands.map(&:hecks_name) }
     tenant = @bluebook.aggregate("Tenant").commands
 
     expect(declared).to all(eq(["Declare"]))

@@ -274,6 +274,62 @@ Hecks.bluebook "Deploy" do
     end
   end
 
+  aggregate "VercelTarget" do
+    description "One domain's validated Vercel deploy target — what deployed_to(\"Vercel\") must resolve to before hecks deploy project generates a Vercel function's configuration from it"
+
+    identified_by :domain
+
+    attribute :domain,       DomainName
+    attribute :region,       Region
+    attribute :memory,       Memory
+    attribute :max_duration, MaxDuration
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    # A Vercel region id such as iad1 or fra1: three letters and a digit. Vercel refuses an
+    # unknown id at deploy; this checks the shape only.
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is a Vercel id such as iad1") { value.to_s.match?(/\A[a-z]{3}\d\z/) }
+    end
+
+    # Function memory in MB. Vercel sells 128 MB up to a plan's ceiling; the ceiling is the
+    # plan's to enforce.
+    value_object "Memory" do
+      attribute :value, Integer
+      invariant("memory is at least 128 MB") { value >= 128 }
+      invariant("memory is at most 10240 MB") { value <= 10_240 }
+    end
+
+    # Seconds a single invocation may run. 800 is the longest any plan allows.
+    value_object "MaxDuration" do
+      attribute :value, Integer
+      invariant("a duration is at least 1 second") { value >= 1 }
+      invariant("a duration is at most 800 seconds") { value <= 800 }
+    end
+
+    # All four required for the same reason as `BoxTarget.Declare`; this validates a target
+    # already resolved by `hecks deploy project`'s defaults.
+    command "Declare" do
+      goal "Validate one domain's Vercel deploy target before anything is generated from it"
+
+      attribute :domain,       DomainName
+      attribute :region,       Region
+      attribute :memory,       Memory
+      attribute :max_duration, MaxDuration
+
+      sets :domain
+      sets :region
+      sets :memory
+      sets :max_duration
+
+      emits "VercelTargetDeclared"
+    end
+  end
+
   # The validated shape of `hecks deploy tenant.provision`, which does the generating and provisioning.
   # Not a saga: each of its steps is idempotent and local, so there is nothing to resume.
   aggregate "Tenant" do
