@@ -1420,6 +1420,17 @@ policy "RecordTheEra" do
       returns Document
     end
 
+    # `hecks package.digest <package> [root=path]`: a read of the package's files, so it keeps no
+    # record. The digest is `Lock.digest_of` over `<package>/bluebook/*.bluebook` only (the
+    # `bluebook.lock` digest line), then the package's shape labels; `root` is the registry, or a
+    # project that vendors the package.
+    query "Digest" do
+      description "Print a package's content digest and shape labels, as its bluebook.lock records them."
+      attribute :package, PackageName
+      attribute :root, Location, optional: true
+      returns Document
+    end
+
     query "Releasing" do
       description "What releasing one run did: its status, and the report or the refusal."
       attribute :run, RegistryKey
