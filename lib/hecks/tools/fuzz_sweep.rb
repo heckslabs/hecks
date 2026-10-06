@@ -15,6 +15,7 @@ module Hecks
     # properties, then shrinks each distinct finding and saves it under `tmp/fuzz-failures/`.
     #
     #   hecks fuzz [domain] [--seeds N] [--steps N] [--workers N] [--adapter memory|sqlite|postgres]
+    #               [--persist-regressions]
     #
     # The sweep is single-runtime on purpose; the cross-runtime differential is
     # `spec/rust_conformance_fuzz_spec.rb`. Without a domain it sweeps every domain
@@ -40,7 +41,7 @@ module Hecks
       Draw = Struct.new(:clean, :failures, :drawn, :skipped)
 
       # What the sweep of one domain drew and found, for the final report.
-      Result = Struct.new(:domain, :name, :seeds, :drawn, :clean, :failures, :adapter, :root)
+      Result = Struct.new(:domain, :name, :seeds, :drawn, :clean, :failures, :adapter, :root, :persist)
 
       extend Options
       extend Findings
@@ -92,7 +93,7 @@ module Hecks
       end
 
       def fuzz_with(options, domain, root)
-        fuzz_domain(domain, options[:seeds], options[:steps], options[:adapter], root)
+        fuzz_domain(domain, options[:seeds], options[:steps], options[:adapter], root, options[:persist])
       end
 
       # Draws seeds until `seeds` results execute or the draw cap is hit.
@@ -102,8 +103,10 @@ module Hecks
       # @param steps [Integer] how many steps each sequence asks for
       # @param adapter [Symbol] the persistence to boot on
       # @param root [String] the checkout
+      # @param persist [Boolean] whether each distinct finding's minimized repro is also kept under
+      #   `spec/corpus/regressions/`
       # @return [Boolean] true if clean or skipped
-      def fuzz_domain(domain, seeds, steps, adapter = :memory, root = Tools::ROOT)
+      def fuzz_domain(domain, seeds, steps, adapter = :memory, root = Tools::ROOT, persist = false)
         domain = domain.chomp("/")
         name = File.basename(domain)
         puts "── #{name}#{" (#{adapter})" unless adapter == :memory}"
@@ -114,7 +117,8 @@ module Hecks
           return true
         end
 
-        report(settle_known(Result.new(domain, name, seeds, draw.drawn, draw.clean, draw.failures, adapter, root)))
+        result = Result.new(domain, name, seeds, draw.drawn, draw.clean, draw.failures, adapter, root, persist)
+        report(settle_known(result))
       end
 
       # Known findings print but count as clean, so the sweep does not read as short.

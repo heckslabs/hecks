@@ -57,8 +57,8 @@ module Hecks
         # @return [Hash, nil] the seed's result with its surprised checks, or nil when every
         #   check held
         def run_seed(seed)
-          result = run_one_seed(@mode, seed)
-          @campaign.record(seed, result[:plan], result[:trace]) if @campaign && result[:trace]
+          result, runtime = measured_seed(seed)
+          @campaign.record(seed, result[:plan], result[:trace], runtime: runtime) if @campaign && result[:trace]
 
           surprised = log_seed_checks(result)
           if surprised.empty?
@@ -68,6 +68,14 @@ module Hecks
 
           puts "  seed #{seed}: SURPRISED (#{check_modes(surprised)})"
           result.merge(seed: seed, checks: surprised)
+        end
+
+        # The seed's result, and the runtime lines and branches it reached when the dial asks for
+        # that feedback; nil otherwise, so a campaign falls back to tuples alone.
+        def measured_seed(seed)
+          return [run_one_seed(@mode, seed), nil] unless @campaign && @runtime_coverage_feedback
+
+          Hecks::Fuzzing::RuntimeCoverage.measure { run_one_seed(@mode, seed) }
         end
 
         def check_modes(checks)

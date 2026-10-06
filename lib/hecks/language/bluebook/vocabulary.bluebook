@@ -706,6 +706,8 @@ Hecks.bluebook "Bluebook" do
              meaning: "Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage. Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost."
       member name: "favor_rare_verbs", type: "Integer",
              meaning: "How many of the least-hit verbs the next seed weights up; 0 turns the lever off."
+      member name: "runtime_coverage_feedback", type: "Boolean",
+             meaning: "Whether guided generation also admits a seed to the corpus for reaching a new line or branch of the Ruby runtime (`Hecks::Fuzzing::RuntimeCoverage`), not only a new (verb, kind, state, mutation, outcome) tuple. Off by default: tracing every line slows each seed."
       member name: "self_consistency_checks", type: "Boolean",
              meaning: "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
       member name: "shrink_budget", type: "Integer",
@@ -802,6 +804,7 @@ Hecks.bluebook "Bluebook" do
       member script: "fuzz", section: "Custodian", aggregate: "FuzzRun", verb: "fuzz"
       member script: "generate", section: "Custodian", aggregate: "FuzzRun", verb: "generate_sequence"
       member script: "bench", section: "Custodian", aggregate: "FuzzRun", verb: "bench"
+      member script: "(new)", section: "Custodian", aggregate: "FuzzRun", verb: "mutate"
       member script: "(new)", section: "Custodian", aggregate: "Era", verb: "hold_first"
       member script: "project_deploy", section: "Deploy", aggregate: "Recipe", verb: "project"
       member script: "lint_deploy_recipes", section: "Deploy", aggregate: "MakefileCheck", verb: "lint"

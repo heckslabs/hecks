@@ -57,10 +57,10 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist` | `bin/rust_coverage` |
 | `hecks build.check_conformance <domain> script= [artifact=]` | `bin/rust_conformance` |
 | `hecks build.fuzz_conformance <domain> artifact= [seeds=] [steps=]` | `bin/rust_conformance_fuzz` |
-| `hecks fuzz_run.fuzz [<domain>] [seeds=] [steps=] [workers=] [adapter=]` | `bin/fuzz` |
+| `hecks fuzz_run.fuzz [<domain>] [seeds=] [steps=] [workers=] [adapter=] [--persist-regressions]` | `bin/fuzz` |
 | `hecks fuzz_run.generate_sequence <domain> [seed=] [steps=] [adversarial=]` | `bin/generate` |
 | `hecks fuzz_run.bench [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]` | `bin/bench` |
-| `hecks era.hold_first <domain> --confirm` | (new: no `bin/` script) |
+| `hecks fuzz_run.mutate <domain> [seeds=] [steps=] [budget=]`; `hecks era.hold_first <domain> --confirm` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 ## Deploy, for clients

@@ -1963,7 +1963,9 @@ policy "RecordTheEra" do
     attribute :seeds,      Count,       optional: true
     attribute :steps,      Count,       optional: true
     attribute :workers,    Count,       optional: true
+    attribute :budget,     Count,       optional: true
     attribute :adapter,    Persistence, optional: true
+    attribute :persist_regressions, RegressionSwitch, optional: true
     attribute :domains,    NameList,    optional: true
     attribute :targets,    NameList,    optional: true
     attribute :iterations, Count,       optional: true
@@ -2004,6 +2006,11 @@ policy "RecordTheEra" do
     # Which persistence every ephemeral boot of a sweep uses.
     value_object "Persistence" do
       attribute :value, String, pattern: '^(memory|sqlite|postgres)$'
+    end
+
+    # Whether each distinct finding's minimized repro is also kept under `spec/corpus/regressions/`.
+    value_object "RegressionSwitch" do
+      attribute :value, Boolean
     end
 
     # Names, comma separated: benchmark domains, or the targets to measure.
@@ -2047,6 +2054,7 @@ policy "RecordTheEra" do
       attribute :steps,   Count,       optional: true
       attribute :workers, Count,       optional: true
       attribute :adapter, Persistence, optional: true
+      attribute :persist_regressions, RegressionSwitch, optional: true
 
       sets :domain
       sets :run
@@ -2054,8 +2062,32 @@ policy "RecordTheEra" do
       sets :steps
       sets :workers
       sets :adapter
+      sets :persist_regressions
 
       emits FuzzRequested
+    end
+
+    # Mutation-tests a domain's own checks: changes its bluebooks in small ways and keeps which
+    # changes the fuzz properties, the corpus script and the domain's behaviors tests let through.
+    # A survivor is a hole in those checks. `budget` caps how many mutants are tried. The run is a
+    # child process started through the ProcessPool adapter, as a sweep is.
+    command "Mutate" do
+      role "Operator"
+      goal "Mutate a domain's rules and keep whether its checks noticed each change"
+
+      attribute :domain, DomainPath
+      attribute :run,    FuzzKey
+      attribute :seeds,  Count, optional: true
+      attribute :steps,  Count, optional: true
+      attribute :budget, Count, optional: true
+
+      sets :domain
+      sets :run
+      sets :seeds
+      sets :steps
+      sets :budget
+
+      emits MutateRequested
     end
 
     # Measures each persistence adapter, and the Rust binary when there is one to build or use.
@@ -2146,6 +2178,11 @@ policy "RecordTheEra" do
   policy "SweepWhenRequested" do
     on      "FuzzRun.FuzzRequested"
     trigger FuzzRun::ProcessPool::Sweep, with: { run: :run }
+  end
+
+  policy "MutateWhenRequested" do
+    on      "FuzzRun.MutateRequested"
+    trigger FuzzRun::ProcessPool::Probe, with: { run: :run }
   end
 
   policy "MeasureWhenRequested" do

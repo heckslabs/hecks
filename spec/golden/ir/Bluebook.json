@@ -31920,6 +31920,20 @@
             [
               [
                 "name",
+                "runtime_coverage_feedback"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether guided generation also admits a seed to the corpus for reaching a new line or branch of the Ruby runtime (`Hecks::Fuzzing::RuntimeCoverage`), not only a new (verb, kind, state, mutation, outcome) tuple. Off by default: tracing every line slows each seed."
+              ]
+            ],
+            [
+              [
+                "name",
                 "self_consistency_checks"
               ],
               [
@@ -32934,6 +32948,24 @@
               [
                 "verb",
                 "bench"
+              ]
+            ],
+            [
+              [
+                "script",
+                "(new)"
+              ],
+              [
+                "section",
+                "Custodian"
+              ],
+              [
+                "aggregate",
+                "FuzzRun"
+              ],
+              [
+                "verb",
+                "mutate"
               ]
             ],
             [

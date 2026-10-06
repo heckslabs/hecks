@@ -329,6 +329,16 @@ hecks fuzz_run.fuzz examples/banking
 hecks run examples/banking tmp/fuzz-failures/banking-seed7.json
 ```
 
+After steps and arguments, the shrinker also offers each surviving argument a simpler value
+(empty, zero, the first element) and keeps it while the finding reproduces, so the saved script
+reads as small as it is.
+
+Add `persist_regressions=true` (the `hecks fuzz` tool's `--persist-regressions`) to also keep each
+distinct finding's minimized repro under `spec/corpus/regressions/<domain>/<id>.json`. The id comes
+from the property, the message with its minted parts (ids, numbers, quoted literals) normalized
+away, and the verbs of the shrunk steps, so two seeds that break the same property the same way
+share one file, and a repro already kept is never overwritten.
+
 ## The corpus — the refusals you already decided matter
 
 Refusals are not exceptions; they are half the language, and

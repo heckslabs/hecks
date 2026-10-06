@@ -171,10 +171,22 @@ pub fn parse_body(
 
         match gated.row.word {
             "role" => {
-                command.role = Some(super::positional_text(file, line, "role", &gated.args, 1)?)
+                command.role = Some(super::positional_literal_text(
+                    file,
+                    line,
+                    "role",
+                    &gated.args,
+                    1,
+                )?)
             }
             "goal" => {
-                command.goal = Some(super::positional_text(file, line, "goal", &gated.args, 1)?)
+                command.goal = Some(super::positional_literal_text(
+                    file,
+                    line,
+                    "goal",
+                    &gated.args,
+                    1,
+                )?)
             }
             // A synthesized inline `one_of(...)` closed set is dropped; `CommandBuilder#build`
             // ignores it.

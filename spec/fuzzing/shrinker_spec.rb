@@ -42,7 +42,7 @@ RSpec.describe Hecks::Fuzzing::Shrinker, :aggregate_failures do
     it "drops the arguments the finding does not need, and keeps the ones it does" do
       steps = [step("Only", keep: 1, drop_me: 2, also_drop: 3)]
 
-      result = described_class.call(steps) { |candidate| candidate.first["args"].key?("keep") }
+      result = described_class.call(steps) { |candidate| candidate.first["args"]["keep"] == 1 }
 
       expect(result.steps).to eq([step("Only", keep: 1)])
     end

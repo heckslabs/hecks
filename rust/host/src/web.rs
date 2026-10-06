@@ -1607,8 +1607,10 @@ fn percent_decode_impl(s: &str, plus_as_space: bool) -> String {
                 i += 1;
             }
             b'%' if i + 2 < bytes.len() => {
-                if let Ok(byte) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                    out.push(byte);
+                // Byte-wise, not `s[i + 1..i + 3]`: that slice panics when it lands inside a
+                // multi-byte character (`%a🍕`), and `from_str_radix` would read a `+` sign as a digit.
+                if let (Some(high), Some(low)) = (hex_digit(bytes[i + 1]), hex_digit(bytes[i + 2])) {
+                    out.push(high << 4 | low);
                     i += 3;
                 } else {
                     out.push(bytes[i]);
@@ -1622,6 +1624,10 @@ fn percent_decode_impl(s: &str, plus_as_space: bool) -> String {
         }
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex_digit(byte: u8) -> Option<u8> {
+    (byte as char).to_digit(16).map(|digit| digit as u8)
 }
 
 const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -2982,3 +2988,7 @@ mod tests {
     }
 
 }
+
+#[cfg(test)]
+#[path = "boundary_fuzz/web.rs"]
+mod boundary_fuzz;

@@ -460,7 +460,8 @@ Only what this repository actually does today, checked, not aspired to:
   query answers match a reference implementation, and — the one that
   actually matters for an event-sourced system — **replaying the same
   steps against a fresh boot produces byte-identical history.** This
-  runs against the Memory adapter by default and against real Sqlite
+  runs against the Memory adapter by default, can steer seeds by real
+  runtime line coverage (`runtime_coverage_feedback`, off by default), and against real Sqlite
   and Postgres with `hecks fuzz_run.fuzz adapter=sqlite` (or `adapter=postgres`) (see
   [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
@@ -506,7 +507,6 @@ exercised in CI on every push, and what is experimental or partial.
 - A standalone outbox relay process / shared adapter-host protocol
   (the transactional outbox itself shipped — see
   [Project status](docs/implemented/guides/project-status.md#experimental-or-partial)).
-- Mutation testing and coverage-guided fuzzing.
 
 [Project status](docs/implemented/guides/project-status.md) is the current
 list of what is experimental or partial.

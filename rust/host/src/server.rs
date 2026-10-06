@@ -276,7 +276,8 @@ fn value_to_response(value: Value) -> Response {
     let Some(status_code) = value.get("statusCode").and_then(|v| v.as_u64()) else {
         return (StatusCode::OK, axum::Json(value)).into_response();
     };
-    let status = StatusCode::from_u16(status_code as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    // `try_from`, not `as u16`: 65736 would wrap to 200 and turn a handler's garbage into a success.
+    let status = u16::try_from(status_code).ok().and_then(|code| StatusCode::from_u16(code).ok()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
 
     let mut headers = HeaderMap::new();
     if let Some(header_obj) = value.get("headers").and_then(|h| h.as_object()) {
@@ -665,3 +666,7 @@ mod tests {
         assert_eq!(version_body("e", "h", Some(""))["build"], env!("CARGO_PKG_VERSION"));
     }
 }
+
+#[cfg(test)]
+#[path = "boundary_fuzz/server.rs"]
+mod boundary_fuzz;

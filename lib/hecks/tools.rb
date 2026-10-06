@@ -39,6 +39,7 @@ module Hecks
       "heki_compact"                   => ["tools/heki_compaction", "HekiCompaction"],
       "fuzz"                           => ["tools/fuzz_sweep", "FuzzSweep"],
       "generate"                       => ["tools/sequence_script", "SequenceScript"],
+      "mutate"                         => ["tools/mutation_run", "MutationRun"],
       "corpus"                         => ["tools/corpus_report", "CorpusReport"],
       "evolve"                         => ["tools/evolve_run", "EvolveRun"],
       "query_ir"                       => ["tools/query_ir_run", "QueryIrRun"],

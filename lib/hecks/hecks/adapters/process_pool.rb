@@ -32,6 +32,12 @@ module Hecks
       # What the sweep child runs: the `fuzz` tool, which takes the flags that follow.
       ENTRY = 'require "hecks/tools"; Hecks::Tools.script("fuzz", ARGV)'
 
+      # What the mutation child runs: the `mutate` tool, which takes the flags that follow.
+      MUTATE_ENTRY = 'require "hecks/tools"; Hecks::Tools.script("mutate", ARGV)'
+
+      # The flags of a mutation run, and the fields of the record that fill them.
+      MUTATE_FLAGS = { "--seeds" => :seeds, "--steps" => :steps, "--budget" => :budget }.freeze
+
       # Signals passed on to a running child's process group.
       FORWARDED = %w[INT TERM HUP QUIT].freeze
 
@@ -61,6 +67,19 @@ module Hecks
         refuse_unnamed_sweep(held)
 
         answer(run([RbConfig.ruby, "-I", LIB, "-e", ENTRY, "--", *sweep_words(held)]))
+      end
+
+      # Mutation-tests one domain: changes its rules in small ways and reports each change its
+      # checks let through.
+      #
+      # @param held [Hash] the `Mutating` record: `domain`, `seeds`, `steps`, `budget`
+      # @return [Hash{Symbol => Hash}] `report:` what the run printed
+      # @raise [ConsoleCapture::Failure] when the run could not start
+      def probe(**held)
+        words = [plain(held[:domain])]
+        MUTATE_FLAGS.each { |flag, key| words.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil? }
+
+        answer(run([RbConfig.ruby, "-I", LIB, "-e", MUTATE_ENTRY, "--", *words]))
       end
 
       # Starts a child, forwards interrupts to it, and waits for it to end.
@@ -97,6 +116,7 @@ module Hecks
         words = []
         words << plain(held[:domain]) if plain(held[:domain])
         SWEEP_FLAGS.each { |flag, key| words.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil? }
+        words << "--persist-regressions" if plain(held[:persist_regressions]) == true
         words
       end
 
