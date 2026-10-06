@@ -1,4 +1,4 @@
-require_relative "../../bluebook/hexagon"
+require_relative "../../bluebook/hecksagon"
 require_relative "../../runtime/registry"
 
 module Hecks
@@ -20,11 +20,11 @@ module Hecks
         # @raise [Runtime::WiringError] if the hecksagon has no `persisted_by` bind for the
         #   aggregate, more or fewer than one bind without a role, or any bind with a role
         def resolve(registry, domain, aggregate)
-          hexagon  = registry.hecksagon(domain)
-          declared = registry.default_adapter_for(domain)
-          return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hexagon
+          hecksagon = registry.hecksagon(domain)
+          declared  = registry.default_adapter_for(domain)
+          return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hecksagon
 
-          bindings = declared_bindings(hexagon, aggregate, declared)
+          bindings = declared_bindings(hecksagon, aggregate, declared)
           raise missing_binding(domain, aggregate) if bindings.empty?
 
           authoritative_among(bindings, domain, aggregate)
@@ -50,12 +50,12 @@ module Hecks
         # Lists the hecksagon's `persisted_by` binds for an aggregate, or the world's default
         # adapter bind when the hecksagon declares none.
         #
-        # @param hexagon [Bluebook::Hexagon] the domain's hecksagon
+        # @param hecksagon [Bluebook::Hexagon] the domain's hecksagon
         # @param aggregate [Bluebook::Aggregate] the aggregate whose binds are wanted
         # @param declared [String, nil] the world's default adapter, if any
         # @return [Array<Bluebook::Bind>] the binds; empty when none and no default exists
-        def declared_bindings(hexagon, aggregate, declared)
-          bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
+        def declared_bindings(hecksagon, aggregate, declared)
+          bindings = hecksagon.binds_for(aggregate.hecks_name, VERB)
           bindings.empty? && declared ? [default_binding(aggregate, declared)] : bindings
         end
 
