@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: a required check counts only when GitHub Actions reported it.** `stable`'s ruleset pins each required check to the GitHub Actions app (`integration_id` 15368), the promotion reads only that app's check runs, and `project_lanes --live` names a check GitHub takes from any app when the model pins one. Before, any app with `checks:write` could post a passing check of a required name against a commit. A check of the right name from another app now stands as missing.
+
 ## [3.6.0] - 2026-10-06
 
 **Changed: the files that hold `Hecksagon` and `World` are named `hecksagon.rb`.** `lib/hecks/bluebook/hexagon.rb` and `behaviour/hexagon.rb` read as a typo for the classes inside them. The files, the `require_relative` lines and the locals that meant a `Hecksagon` carry the right name; hexagonal-architecture wording in the docs is unchanged.

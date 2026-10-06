@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/vocabulary"
+require_relative "../../quality_control/adapters/github_checks"
 
 module Hecks
   module Tools
@@ -12,6 +13,10 @@ module Hecks
       # past it: a push of a commit that passed is how a promotion moves the lane, and the GitHub
       # Actions app cannot be named as a bypass actor.
       module Ruleset
+        # The GitHub Actions app. A required check counts only when this app reported it, so no
+        # other app, token or person can post a passing check of the same name against a commit.
+        GITHUB_ACTIONS_APP_ID = Hecks::Adapters::GithubChecks::GITHUB_ACTIONS_APP_ID
+
         # What every guarded lane forbids: deleting it and rewinding it.
         FIXED = [{ "type" => "deletion" }, { "type" => "non_fast_forward" }].freeze
 
@@ -33,7 +38,9 @@ module Hecks
 
         # @return [Hash] the rule that a pushed commit has already passed every `RequiredCheck`
         def required_checks
-          contexts = Hecks::Vocabulary.rows("RequiredCheck").map { |check| { "context" => check["name"] } }
+          contexts = Hecks::Vocabulary.rows("RequiredCheck").map do |check|
+            { "context" => check["name"], "integration_id" => GITHUB_ACTIONS_APP_ID }
+          end
           { "type"       => "required_status_checks",
             "parameters" => { "strict_required_status_checks_policy" => false, "do_not_enforce_on_create" => false,
                               "required_status_checks" => contexts } }

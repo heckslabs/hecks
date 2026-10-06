@@ -89,17 +89,19 @@ module Hecks
       end
 
       def compare_checks(projected, live)
-        mine = contexts(projected)
-        theirs = contexts(live)
+        mine = required(projected)
+        theirs = required(live)
         return [] if mine == theirs
 
         ["#{projected["name"]}: required checks are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
       end
 
-      # The check names a ruleset's `required_status_checks` rule demands, sorted.
-      def contexts(ruleset)
+      # Each check a ruleset's `required_status_checks` rule demands, as its name and the app id it
+      # must come from (nil when any app may report it), sorted.
+      def required(ruleset)
         rule = Array(ruleset["rules"]).find { |candidate| candidate["type"] == "required_status_checks" }
-        Array(rule&.dig("parameters", "required_status_checks")).map { |check| check["context"] }.sort
+        Array(rule&.dig("parameters", "required_status_checks"))
+          .map { |check| [check["context"], check["integration_id"]] }.sort_by(&:to_s)
       end
 
       def actors(ruleset)
