@@ -49,3 +49,6 @@ coverage/
 # anything inside; the glob form still excludes every current child
 # but leaves each one negatable.
 !.claude/skills/
+# The hooks every agent session on this repo runs (rubocop after an edit), tracked for the same reason.
+!.claude/settings.json
+!.claude/hooks/
