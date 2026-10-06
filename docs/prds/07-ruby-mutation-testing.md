@@ -1,6 +1,6 @@
 # PRD 07 — Mutation testing of the dispatch kernel
 
-**Status:** Rust kernel pass done (2026-10-06): 52% then 96% kill rate after triage.
+**Status:** Rust kernel pass done (2026-10-06): 52% then 98.4% kill rate after triage.
 The Ruby side (`mutant` on `lib/hecks/runtime/command_interpreter.rb` and siblings) is
 not started; revisit it now that the Rust-only direction is paused.
 
@@ -54,7 +54,9 @@ to 223.
 
 Re-run: 159 mutants, 122 caught, 5 missed, 32 unviable. Kill rate 122 / 127 = 96%, up from
 52%. The three `trigger_args` `already_routed` survivors (a projected fact literally named
-`to` or `with`) were then killed by a further test, leaving two:
+`to` or `with`) were then killed by a further test. A full re-run of the committed tree:
+159 mutants, 125 caught, 2 missed, 32 unviable. **Final kill rate 125 / 127 = 98.4%.** The
+two survivors:
 
 - `aggregate_position` and `entity_position`, `<` to `<=` (`dispatch.rs:803`, `:815`):
   equivalent. A step in `ORDER` returns before the bound is reached, and an absent step
