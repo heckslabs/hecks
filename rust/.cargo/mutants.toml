@@ -1,0 +1,8 @@
+# On-demand mutation run over the generic dispatch kernel (not CI).
+#   cd rust && cargo mutants --in-place -f src/kernel/dispatch.rs -f src/kernel/orchestrate.rs
+# --in-place is required: pattern.rs include_str!s ../../../spec/corpus/fixtures, which a
+# copy of rust/ alone does not contain. Run it in a clean worktree (it edits files, then restores).
+# Generated per-domain code and template fixtures are mutation noise; their real
+# tests are the Ruby conformance specs, which cargo-mutants cannot see.
+exclude_globs = ["src/generated/**", "src/exemplar/**"]
+additional_cargo_test_args = ["--lib"]

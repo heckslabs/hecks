@@ -1,91 +1,54 @@
-# PRD 07 — Automated mutation testing of hecks's own Ruby source
+# PRD 07 — Mutation testing of the dispatch kernel
 
-**Status:** Not started. No harness exists — confirmed: no `mutant` gem, no
-custom script, no CI step, nothing beyond a single comment describing a
-one-off manual exercise.
+**Status:** First pass run on the Rust kernel (2026-10-06); survivors not yet triaged.
+The Ruby side (`mutant` on `lib/hecks/runtime/command_interpreter.rb` and siblings) is
+not started; revisit it now that the Rust-only direction is paused.
 
-## The problem
+## What this measures
 
-Two different things both go by "mutation" in this codebase, and it's worth
-being precise about which one this PRD is:
+Mutation testing deliberately breaks source (flip a comparison, stub a function to
+`Ok(())`) and checks that a test fails. A surviving mutant is either an untested branch,
+a weak assertion, or behaviorally equivalent. This is distinct from the DSL's own
+`append`/`remove`/`multiply`/`clamp` "mutations", which are a language construct.
 
-- The **DSL's own** `append`/`remove`/`multiply`/`clamp` "mutations" — a
-  declared, first-class language construct, extensively covered by this
-  session's own `mutations_match_recompute` property. Not this PRD.
-- **Mutation testing as a QA technique** — deliberately mutating
-  hecks's own Ruby *source code* (flip a comparison operator, delete a
-  guard clause, change a boundary) and checking whether the test suite
-  actually catches it. This is what this PRD builds.
+## Running it (Rust)
 
-The only trace of this second sense anywhere in the repo is a comment in
-`lib/hecks/runtime/command_interpreter.rb`:
+    cd rust && cargo mutants --in-place -f src/kernel/dispatch.rs -f src/kernel/orchestrate.rs
 
-> "Mutation testing found this the other way round: the only two
-> declarations in banking whose removal changed observable dispatch
-> behaviour were both `identified_by`."
+Config: `rust/.cargo/mutants.toml` (excludes generated and exemplar code, tests `--lib`).
+`--in-place` is required because `kernel/pattern.rs` `include_str!`s
+`spec/corpus/fixtures/patterns.json`, which a copy of `rust/` alone lacks; run it in a
+clean worktree. Not in CI: ~159 mutants took ~7 minutes. Baseline `cargo test --lib` is
+169 tests, about 10s with a warm build.
 
-That describes a real, one-off, **hand-done** exercise — removing bluebook
-*declarations* one at a time and watching for behavior change, closer to
-`Bluebook::MetaValidator`'s own domain than to a Ruby-source mutant run —
-not a repeatable tool. No automated version of either sense exists.
+## First pass: `dispatch.rs` + `orchestrate.rs`
 
-## Why this is worth doing, and why it's sequenced late
+159 mutants: 66 caught, 61 missed, 32 unviable. Kill rate 66 / 127 viable = 52%.
 
-Mutation testing is the classic technique for finding **weak assertions** —
-tests that pass regardless of whether the code they claim to verify is
-correct (an `expect(result).not_to be_nil` where the real bug would still
-produce a non-nil, just wrong, result). Given how much of this session's own
-work was property-based (recomputing an *independent* expectation rather
-than asserting against production's own answer), there's a real chance this
-codebase's assertion discipline is already unusually strong — but "probably
-strong" isn't "measured," and this is the technique that measures it.
+Where the survivors cluster:
 
-It's sequenced after the cheaper PRDs in this set on purpose: it's the
-highest infrastructure cost here (tooling setup, and a mutation run is
-inherently `O(mutants × suite runtime)` — slow even on a fast suite), and
-the other PRDs are more likely to find something concrete faster. Do this
-once there's already momentum from earlier wins, not as the opening move.
+- **Guards stubbed to `Ok(())` survive.** `enforce_invariants`, `enforce_entity_invariants`,
+  `enforce_givens`, `enforce_ensures`, `admissible_transition`, and the `ElementHalf`
+  equivalents can be replaced with a no-op and every Rust unit test still passes. Their
+  real coverage is the Ruby conformance specs (`spec/rust_conformance*_spec.rb`), which
+  cargo-mutants cannot see. This is the main finding: the kernel's refusal logic has no
+  Rust-side test.
+- **`persist`, `emitted`, `apply_entity_command`, `ElementHalf::apply_mutations`/`run`/
+  `locate_element` stubbed out survive**, same cause.
+- **`trigger_args` (about 20 mutants)** is policy argument assembly with almost no unit
+  tests.
+- **Counter arithmetic** (`+` to `*`/`-` on step indexes in `react_policies`,
+  `deliver_saga_dispatch`, `deliver_derived_compensation`): triage as test-gap or
+  equivalent per site.
+- **`<` to `<=` in `aggregate_position`/`entity_position`**: likely equivalent when the
+  boundary index is unreachable; confirm.
 
-## Approach
+## Next
 
-1. Evaluate `mutant` (the standard Ruby mutation-testing gem) against this
-   codebase's real constraints — it has known friction with metaprogrammed/
-   DSL-heavy code, and this codebase's own `Bluebook`/`Builder` layer is
-   exactly that. Confirm it's usable before committing to it; if `mutant`
-   itself struggles to even generate sensible mutants against the DSL
-   builder layer, that's a real finding worth reporting rather than forcing
-   through.
-2. **Scope narrowly first** — `lib/hecks/runtime/command_interpreter.rb`
-   and its own `mutation_applier.rb`/`argument_gate.rb` siblings (the
-   dispatch pipeline, already the most heavily property-tested code in the
-   runtime, so a good place to find out whether "heavily tested" and
-   "well-asserted" are actually the same thing here). Do not attempt the
-   whole gem on the first pass.
-3. Every surviving mutant (a mutation the suite didn't catch) is a real
-   finding — either a genuinely untested branch, or a weak assertion.
-   Triage each: fix the test, or confirm the mutant is behaviorally
-   equivalent (some are — a mutation that produces provably identical
-   behavior isn't a gap) and document why, the same "measured, not
-   assumed" discipline this whole set of PRDs already holds to.
-
-## Acceptance criteria
-
-- [ ] A real mutation run completes against `command_interpreter.rb` +
-      immediate siblings, with a concrete mutation-kill rate reported (not
-      "seems fine" — an actual number).
-- [ ] Every surviving mutant is triaged: fixed, or documented as
-      behaviorally equivalent with a one-line reason.
-- [ ] A decision recorded on whether to widen scope beyond this first pass
-      (this PRD's own acceptance doesn't require widening — that's a
-      follow-up call based on what the first pass actually finds).
-
-## Non-goals
-
-- Mutation-testing the entire gem in one pass — start narrow, expand only
-  if the first pass proves the tooling works cleanly against this
-  codebase's style.
-- Automating the *other* sense of "mutation testing" (removing bluebook
-  declarations one at a time) as a repeatable tool — that's a genuinely
-  different, smaller idea (closer to `bin/model_check`'s own territory)
-  worth its own, separate PRD if it turns out to matter; conflating the two
-  here would blur what this PRD is actually measuring.
+1. Triage each survivor: add a Rust test, or record it as equivalent with a one-line reason.
+2. Re-run and record the new kill rate here.
+3. Decide whether to widen (`json.rs`, `routing.rs`, `vocab/*_dispatch_order.rs`) and
+   whether to add a pass over `rust/codegen/src/mutations.rs`, whose real tests are the
+   Ruby conformance specs and would need a slow `test_tool`.
+4. Ruby pass with the `mutant` gem on `command_interpreter.rb`, `entity_interpreter.rb`,
+   `policy_interpreter.rb`; note the DSL/builder layer may resist `mutant`.
