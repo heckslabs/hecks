@@ -119,22 +119,33 @@ RSpec.describe "Hecks::Fuzzing::Properties.policy_reactions_follow_declared_wiri
     end
   end
 
+  def register_step(reference)
+    { "verb" => "Banking::Customer.Register",
+      "args" => { "reference" => { "value" => reference },
+                  "name"      => { "given" => "Ada", "family" => "Lovelace" },
+                  "email"     => { "address" => "ada@example.com" } } }
+  end
+
+  def open_step(number, reference)
+    { "verb" => "Banking::Account.Open",
+      "args" => { "number" => { "value" => number }, "kind" => { "name" => "current" },
+                  "daily_limit" => { "cents" => 50_000 }, "customer" => reference } }
+  end
+
+  def close_step(number)
+    { "verb" => "Banking::Account.CloseAccount", "args" => { "number" => { "value" => number } } }
+  end
+
   # Not hand-built: a closed account makes NotifyOnClosure fire at a domain nothing loaded.
-  it "passes the reactions a real banking replay logs, including an undelivered cross-domain one" do
+  def closed_account_replay
     number = "WIRE-#{rand(1_000_000_000)}"
     reference = "WIRE-C-#{rand(1_000_000_000)}"
-    steps = [
-      { "verb" => "Banking::Customer.Register",
-        "args" => { "reference" => { "value" => reference },
-                    "name" => { "given" => "Ada", "family" => "Lovelace" },
-                    "email" => { "address" => "ada@example.com" } } },
-      { "verb" => "Banking::Account.Open",
-        "args" => { "number" => { "value" => number }, "kind" => { "name" => "current" },
-                    "daily_limit" => { "cents" => 50_000 }, "customer" => reference } },
-      { "verb" => "Banking::Account.CloseAccount", "args" => { "number" => { "value" => number } } }
-    ]
+    steps = [register_step(reference), open_step(number, reference), close_step(number)]
+    Hecks::Fuzzing::Replay.call(banking_path, steps)
+  end
 
-    replayed = Hecks::Fuzzing::Replay.call(banking_path, steps)
+  it "passes the reactions a real banking replay logs, including an undelivered cross-domain one" do
+    replayed = closed_account_replay
 
     expect(replayed[:refusals]).to eq([])
     expect(replayed[:reactions]).not_to be_empty
