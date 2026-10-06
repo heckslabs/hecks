@@ -400,6 +400,11 @@ jobs:
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+    # The calling job's permissions cap the reusable workflow's; `actions: read` is for the cargo
+    # job to find the wasm modules the sibling job uploads.
+    permissions:
+      contents: read
+      actions: read
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
   # ci-rust-parser.yml's identical addition for the full comment. rspec_fuzzing is its own
