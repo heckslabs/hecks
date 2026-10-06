@@ -72,6 +72,13 @@ jobs:
           name: host
           crate-root: rust/host
 
+      # The wasm build compiles the `rust` crate into rust/target; restore the `main` cache
+      # (cache-warm.yml warms its wasm32-wasip1 artifacts) so that build is incremental.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: main
+          crate-root: rust
+
       - uses: ./.github/actions/wasm-toolchain
 
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
