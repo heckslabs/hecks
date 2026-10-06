@@ -32,9 +32,14 @@ module Hecks
           def resolve(deploy_settings:, target:, infra_name:)
             s = deploy_settings
             Plan.new(project: check(:project, infra_name, NAME), scope: optional(:scope, s[:scope], SCOPE),
-                     region: target.state[:region].value, memory: target.state[:memory].value,
-                     max_duration: target.state[:max_duration].value,
-                     crons: read_crons(s.fetch(:crons, [])), env: read_env(s.fetch(:env, [])))
+                     **declared_sizes(target), crons: read_crons(s.fetch(:crons, [])),
+                     env: read_env(s.fetch(:env, [])))
+          end
+
+          # @param target [Object] the declared `VercelTarget`
+          # @return [Hash{Symbol => Object}] the values `Declare` has already validated
+          def declared_sizes(target)
+            %i[region memory max_duration].to_h { |key| [key, target.state[key].value] }
           end
 
           # @return [String] the value, when it matches
