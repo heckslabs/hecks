@@ -952,6 +952,10 @@ pub const fn entity_step_site(step: EntityStep) -> StepSite {
     }
 }
 
+#[cfg(test)]
+#[path = "dispatch_guard_tests.rs"]
+mod guard_tests;
+
 // No `match step` above has a wildcard arm, so a step added to the vocabulary fails to
 // compile (E0004) until placed. The tests pin the current kernel/argument-gate mapping.
 #[cfg(test)]
