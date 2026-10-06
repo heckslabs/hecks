@@ -73,6 +73,52 @@ RSpec.describe "Hecks::Fuzzing::Properties.policy_reactions_follow_declared_wiri
     expect(result.split("; ").size).to eq(1)
   end
 
+  describe "declared_undelivered_policies_stay_undelivered" do
+    def undelivered_verdict(history) = Hecks::Fuzzing::Properties.declared_undelivered_policies_stay_undelivered(history)
+
+    # The one banking policy that is `across "Notifications", expect_undelivered: true`.
+    def closure_policy
+      bluebooks.each_value.lazy.flat_map(&:policies).find { |policy| policy.name == "NotifyOnClosure" }
+    end
+
+    def closed_event = { name: closure_policy.event_name, aggregate: "Banking::Account", id: "acct-1" }
+
+    def closure_reaction(**overrides)
+      { policy: "NotifyOnClosure", on: closure_policy.event_name, trigger: "Notifications::Send", delivered: false,
+        reason: "no such domain" }.merge(overrides)
+    end
+
+    it "passes a declared-undelivered policy whose reaction was recorded undelivered" do
+      expect(undelivered_verdict(history([closure_reaction], events: [closed_event]))).to be(true)
+    end
+
+    it "passes when the policy's event never happened, so nothing is owed" do
+      expect(undelivered_verdict(history([], events: []))).to be(true)
+    end
+
+    it "names a declared-undelivered policy whose reaction was delivered" do
+      result = undelivered_verdict(history([closure_reaction(delivered: true)], events: [closed_event]))
+
+      expect(result).to be_a(String).and include("NotifyOnClosure", "expect_undelivered", "was delivered")
+    end
+
+    it "names an event the policy answers that logged no reaction at all" do
+      result = undelivered_verdict(history([], events: [closed_event]))
+
+      expect(result).to be_a(String).and include("NotifyOnClosure", "logged no reaction")
+    end
+
+    it "does not count an event from an aggregate the policy's qualifier excludes" do
+      other = closed_event.merge(aggregate: "Banking::Customer")
+
+      expect(undelivered_verdict(history([], events: [other]))).to be(true)
+    end
+
+    it "leaves a policy that does not declare expect_undelivered alone" do
+      expect(undelivered_verdict(history([reaction(delivered: true)]))).to be(true)
+    end
+  end
+
   # Not hand-built: a closed account makes NotifyOnClosure fire at a domain nothing loaded.
   it "passes the reactions a real banking replay logs, including an undelivered cross-domain one" do
     number = "WIRE-#{rand(1_000_000_000)}"

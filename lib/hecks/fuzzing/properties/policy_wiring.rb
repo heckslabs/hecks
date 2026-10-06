@@ -21,6 +21,53 @@ module Hecks
           offenders.empty? || offenders.uniq.join("; ")
         end
 
+        # A policy declared `expect_undelivered` is held to its word at runtime: its reaction is
+        # never delivered, and an event it answers is never silently dropped.
+        #
+        # model_check holds the static half (a reachable target makes the declaration stale);
+        # this is the dynamic half, over a replay. A policy with a `where` or a `for_each` may
+        # legitimately log nothing, so the missing-reaction check skips those.
+        #
+        # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
+        # @return [true, String] true, or a message naming each policy that broke its declaration
+        def declared_undelivered_policies_stay_undelivered(history)
+          bluebooks = history.fetch(:bluebooks, {})
+          reactions = Array(history[:reactions])
+          events = Array(history[:events])
+
+          offenders = declared_undelivered(bluebooks).flat_map do |policy, home|
+            delivered_offenders(policy, reactions) + silent_offenders(policy, home, reactions, events)
+          end
+          offenders.empty? || offenders.uniq.join("; ")
+        end
+
+        # Every `[policy, home]` pair across the loaded bluebooks that declares `expect_undelivered`.
+        def declared_undelivered(bluebooks)
+          bluebooks.flat_map do |home, bluebook|
+            bluebook.policies.select(&:expect_undelivered).map { |policy| [policy, home.to_s] }
+          end
+        end
+
+        def delivered_offenders(policy, reactions)
+          reactions.select { |reaction| reaction[:policy] == policy.name && reaction[:delivered] == true }.map do |reaction|
+            "policy #{policy.name} declares expect_undelivered, but its reaction to #{reaction[:on]} was delivered"
+          end
+        end
+
+        # An event the policy answers, with no reaction logged at all: a silent drop.
+        def silent_offenders(policy, home, reactions, events)
+          return [] if policy.guarded? || policy.fans_out?
+
+          answered = events.select { |event| answers_event?(policy, event) }
+          answered.reject { |event| reactions.any? { |reaction| reaction[:policy] == policy.name && reaction[:on] == event[:name] } }
+                  .map { |event| "policy #{policy.name} (#{home}) answers #{event[:name]}, which was emitted, yet logged no reaction" }
+        end
+
+        def answers_event?(policy, event)
+          event[:name] == policy.event_name &&
+            (policy.event_qualifier.nil? || event[:aggregate].to_s.split("::").last == policy.event_qualifier)
+        end
+
         # One message for a reaction no declaration of its policy accounts for; nil when one does.
         #
         # A policy name can repeat across domains, so a reaction passes when any declaration

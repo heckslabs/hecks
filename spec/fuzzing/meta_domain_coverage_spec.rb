@@ -45,14 +45,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # Features that deserve an invariant, are not guaranteed by construction, and have no
   # property yet. Each entry names the candidate property to write.
   META_DOMAIN_KNOWN_GAPS = {
-    "Command#references"                => "reference-typed command arguments are exercised constantly (guard dereferencing) " \
-                                           "but have no property of their own asking whether a dangling reference was ever " \
-                                           "silently accepted",
-    # Held statically: model_check.rb raises stale_undelivered_expectation when a declared
-    # target is reachable (spec/model_check_spec.rb proves both directions on banking).
-    "Policy#expect_undelivered"         => "a declared-undelivered across target is held by model_check.rb's static " \
-                                           "stale check, but no fuzzer PROPERTY asks whether a generated sequence's " \
-                                           "reaction to such a policy is actually recorded as undelivered at runtime",
     # Read by the role check, the ungoverned-role boot refusal and the fuzzer's grant steering.
     "Bluebook#provides"                 => "the declared authorization verbs drive every identified-caller role check a " \
                                            "sequence makes, but no property asks whether holds_role? through the " \
