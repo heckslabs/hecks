@@ -24,8 +24,9 @@ module Hecks
         projects_as :site_host, emits: :files
 
         # The `Cms` row: where the content system lives and how its image is built.
-        CMS = RootRows.new("Cms", fields:   { dir: String, node: String, port: Integer, heap_mb: Integer },
-                                  defaults: { dir: "cms", node: "22", port: 8080, heap_mb: 1024 })
+        CMS = RootRows.new("Cms", fields:   { dir: String, node: String, port: Integer, heap_mb: Integer,
+                                             dockerfile: [TrueClass, FalseClass] },
+                                  defaults: { dir: "cms", node: "22", port: 8080, heap_mb: 1024, dockerfile: true })
 
         # A `BootSecret` row: an environment variable filled from a secret whose id the variable
         # `from`
@@ -47,9 +48,9 @@ module Hecks
           cms = CMS.read(bluebook).first
           return {} unless cms
 
-          secrets = BOOT_SECRETS.read(bluebook)
-          { "#{cms[:dir]}/Dockerfile"          => Templates.dockerfile(cms),
-            "#{cms[:dir]}/deploy-aws/boot.mjs" => Templates.boot(secrets) }
+          files = { "#{cms[:dir]}/deploy-aws/boot.mjs" => Templates.boot(BOOT_SECRETS.read(bluebook)) }
+          files["#{cms[:dir]}/Dockerfile"] = Templates.dockerfile(cms) if cms[:dockerfile]
+          files
         end
       end
     end

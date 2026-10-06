@@ -165,7 +165,7 @@ declared beside the route table. They are wiring, not domain: the rows say where
 |---|---|
 | `Secrets` (`vault`, `item`; `section`; `launcher`, the script that starts the stack, named in the header), and `Env` rows (`name`; `value` for a plain setting, `group` for a comment heading, `off` to comment the line out) | `.env.tpl`: a secret is an `op://` reference into 1Password, never a value |
 | `Ci` (`gem_dir`; `name`, `ruby`, `node`, `script`, `test`, `paths`) | `.github/workflows/site-routes.yml`: runs `<script> --check` and the project's test, on the paths named plus the script, the lockfile and the workflow |
-| `Cms` (`dir`, `node`, `port`, `heap_mb`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
+| `Cms` (`dir`, `node`, `port`, `heap_mb`, `dockerfile`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` (unless `dockerfile: false`, for a project that keeps its own image) and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
 
 | `Payload` (`domain`, `chapter`; `out`, `hecks`, `helpers`, `skip`), and `PayloadField` rows | `<out>/driver/lifecycle.ts`, `<out>/driver/specs.ts` and `<out>/collections/fields.ts`: the content system's way of driving the domain's aggregates, read from the domain itself |
 

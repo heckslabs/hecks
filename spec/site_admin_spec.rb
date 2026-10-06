@@ -301,6 +301,15 @@ RSpec.describe "the admin sign-in module" do
       end
     end
 
+    it "leaves the image to the project when the row says dockerfile: false" do
+      dir = edited_members { |text| text.sub("member heap_mb: 768", "member heap_mb: 768, dockerfile: false") }
+      files = tool.projection(dir, out: "/work/out", root_dir: root_for_domain)
+
+      expect(files.keys.grep(%r{cms/(Dockerfile|deploy-aws)}).map do |path|
+        path.split("/cms/").last
+      end).to eq(["deploy-aws/boot.mjs"])
+    end
+
     it "writes the script as JavaScript Node can read" do
       next skip "node is not installed" unless system("node", "--version", out: File::NULL, err: File::NULL)
 

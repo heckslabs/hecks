@@ -80,6 +80,7 @@ Hecks.bluebook "MembersSite" do
 
     value_object "Cms" do
       attribute :heap_mb, Integer
+      attribute :dockerfile, Boolean
 
       member heap_mb: 768
     end
