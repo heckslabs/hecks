@@ -20,6 +20,6 @@ stacks:
 
 deploy:
 	bash ./deploy-box.sh $(TASKDEF)
-	TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh
+	$(MAKE) smoke-after-deploy
 
 include hosting.mk

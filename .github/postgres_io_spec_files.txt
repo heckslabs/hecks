@@ -32,6 +32,7 @@ spec/embryonaut_bluebook_registry_spec.rb
 spec/exe_hecks_help_spec.rb
 spec/gemspec_packaging_spec.rb
 spec/hecks_command_table_spec.rb
+spec/hecks_deploy_smoke_run_spec.rb
 spec/hecks_journal_survives_spec.rb
 spec/installed_gem_smoke_spec.rb
 spec/load_hygiene_spec.rb

@@ -13,10 +13,23 @@ URL     ?=
 deploy-service:
 	bash ./deploy-service.sh $(SERVICE)
 
-# Waits for the last roll to settle, then dispatches and follows the smoke.
+# Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
+# command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database
+# (HECKS_DATABASE, default postgres://hecks@localhost/hecks). Without that database the smoke still
+# runs and its result is printed, and the target exits non-zero (24 if the smoke passed).
 # SKIP_POST_DEPLOY_SMOKE=1 opts out, DRY_RUN=1 dispatches nothing.
 smoke-after-deploy:
-	bash ./smoke-after-deploy.sh
+	@err=$$(mktemp); \
+	$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \
+	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
+	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
+	  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \
+	  echo "    running the smoke anyway so its result is not lost" >&2; \
+	  rm -f "$$err"; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \
+	  echo "==> smoke exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
+	  [ $$rc -ne 0 ] || rc=24; exit $$rc; \
+	fi; \
+	cat "$$err" >&2; rm -f "$$err"; exit $$rc
 
 # Compares the era a live host reports at GET /version with expected-era.
 check-era:
