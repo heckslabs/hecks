@@ -23,7 +23,7 @@ module Hecks
           unless NEEDABLE_FACTS.include?(fact)
             raise Malformed,
                   "#{@name} needs :#{fact}, which the runtime cannot supply — it supplies " \
-                  "#{NEEDABLE_FACTS.map { |known| ":#{known}" }.join(', ')}"
+                  "#{NEEDABLE_FACTS.map { |known| ":#{known}" }.join(", ")}"
           end
           raise Malformed, "#{@name} declares needs :#{fact} twice" if @needs.include?(fact)
 

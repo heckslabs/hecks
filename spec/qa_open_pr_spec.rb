@@ -71,7 +71,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
-           out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
+           out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
   def head = `git -C #{@repo} rev-parse HEAD`.strip
@@ -91,7 +91,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
   end
 
   def open_pr(*args)
-    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
+    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch("PATH")}", "QA_REPO_DIR" => @repo,
             "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state }
     QaLibCli.run(@ledger, "qa_open_pr", *args, env: env)
   end
@@ -247,7 +247,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     expect(real).to include("pr_cap_per_day: 0")
     File.write(capped_settings, real.sub("pr_cap_per_day: 0", "pr_cap_per_day: 1"))
 
-    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
+    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch("PATH")}", "QA_REPO_DIR" => @repo,
             "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state,
             "HECKS_QA_SETTINGS_PATH" => capped_settings }
     _stdout, stderr, status = QaLibCli.run(@ledger, "qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)

@@ -416,7 +416,7 @@ module Hecks
           "#{bluebook.name}::#{aggregate.name}.#{command}"
         else
           owners = candidates.map { |bb, agg| "#{bb.name}::#{agg.name}" }
-          raise ArgumentError, "#{command.inspect} is declared on more than one aggregate (#{owners.join(', ')}) " \
+          raise ArgumentError, "#{command.inspect} is declared on more than one aggregate (#{owners.join(", ")}) " \
                                "— say `on:` to disambiguate, or use the dotted FQN"
         end
       end

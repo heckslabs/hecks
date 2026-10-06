@@ -28,8 +28,8 @@ module Hecks
         columns = (["id"] + persisted_fields.map { |field| field[:name].to_s }).map { |column| quote_ident(column) }
         values  = [entry.id.to_s] + persisted_fields.map { |field| encode_field(field, entry.state[field[:name]]) }
         @db.execute(
-          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{Array.new(columns.size,
-                                                                                              '?').join(', ')})", values
+          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(", ")}) VALUES (#{Array.new(columns.size,
+                                                                                              "?").join(", ")})", values
         )
         entry
       end
@@ -110,7 +110,7 @@ module Hecks
         # A reference column holds the id, so it compares directly against itself.
         clauses = matches.map { |attribute, _id| "#{quote_ident(attribute.name)} = ?" }
         bind = matches.map { |_attribute, id| id }
-        @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(' OR ')} ORDER BY id", bind)
+        @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(" OR ")} ORDER BY id", bind)
            .map { |row| projected_instance(aggregate, row) }
       end
 

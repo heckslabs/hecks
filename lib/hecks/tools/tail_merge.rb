@@ -109,7 +109,7 @@ module Hecks
         diverged = eras.size > 1 ? (1...eras.last[:ordinal]).sum { |era| lineage.diverged_count(era) } : 0
         db.close
 
-        puts "#{bluebook.name}: #{diverged} post-cut write#{'s' unless diverged == 1} " \
+        puts "#{bluebook.name}: #{diverged} post-cut write#{"s" unless diverged == 1} " \
              "in ancestor eras before the merge"
       end
     end

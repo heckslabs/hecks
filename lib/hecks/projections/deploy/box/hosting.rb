@@ -151,7 +151,7 @@ module Hecks
               "    #{Shellwords.escape(container.name)}) #{setting} ;;"
             end
             <<~BASH.chomp
-              SERVICES='#{plan.containers.map(&:name).join(' ')}'
+              SERVICES='#{plan.containers.map(&:name).join(" ")}'
 
               # Sets the container's settings for one service, or exits.
               resolve_service() {
@@ -164,7 +164,7 @@ module Hecks
           end
 
           def repository_step(plan)
-            plan.task_definition ? "#{part('deploy-service.taskdef.part')}\n\n" : ""
+            plan.task_definition ? "#{part("deploy-service.taskdef.part")}\n\n" : ""
           end
 
           def part(file)

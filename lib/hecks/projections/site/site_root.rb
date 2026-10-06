@@ -96,7 +96,7 @@ module Hecks
         end
 
         def reference(var, secrets)
-          "op://#{[secrets[:vault], secrets[:item], secrets[:section], var[:name]].compact.join('/')}"
+          "op://#{[secrets[:vault], secrets[:item], secrets[:section], var[:name]].compact.join("/")}"
         end
 
         # @param row [Hash{Symbol => Object}] the checked `Ci` row

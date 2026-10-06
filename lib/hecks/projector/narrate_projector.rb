@@ -72,7 +72,7 @@ module Hecks
         parts = [DocsProjector.h(depth, "#{entity.hecks_name} (within #{aggregate.hecks_name})")]
         parts << entity.description if entity.description
         parts << "Reached through its #{aggregate.hecks_name} — you address it by the #{aggregate.hecks_name}'s " \
-                 "id together with its own `#{entity.identity_heads.join('`, `')}`."
+                 "id together with its own `#{entity.identity_heads.join("`, `")}`."
 
         parts << lifecycle_narrative(entity)
         parts << verbs_narrative(entity, depth + 1)
@@ -86,7 +86,7 @@ module Hecks
         sentences = ["It carries a `#{lifecycle.field}`, starting out at `#{lifecycle.default}`."]
         lifecycle.transitions.each do |name, transition|
           froms = Array(transition.from).map { |f| "`#{f}`" }
-          sentences << "**#{name}** moves it from #{to_sentence_list(froms, conj: 'or')} to `#{transition.target}`."
+          sentences << "**#{name}** moves it from #{to_sentence_list(froms, conj: "or")} to `#{transition.target}`."
         end
         sentences << "A verb not listed here can be issued from any state."
         sentences.join(" ")
@@ -116,7 +116,7 @@ module Hecks
 
       # The goal is quoted exactly as declared, never recased to fit mid-sentence.
       def command_headline_sentence(command)
-        "**#{command.hecks_name}**#{command.goal ? " — #{command.goal}." : '.'}"
+        "**#{command.hecks_name}**#{command.goal ? " — #{command.goal}." : "."}"
       end
 
       def command_role_sentence(command)
@@ -151,20 +151,20 @@ module Hecks
         conditions = conditions_of(command, holder)
         return nil if conditions.empty?
 
-        "It only goes through if #{conditions.join('; ')}."
+        "It only goes through if #{conditions.join("; ")}."
       end
 
       def command_guarantees_sentence(command)
         guarantees = command.ensures.map(&:description)
         return nil if guarantees.empty?
 
-        "When it succeeds: #{guarantees.join('; ')}."
+        "When it succeeds: #{guarantees.join("; ")}."
       end
 
       def command_emits_sentence(command)
         return nil if command.emits.empty?
 
-        "It records `#{command.emits.join('`, `')}` as a fact."
+        "It records `#{command.emits.join("`, `")}` as a fact."
       end
 
       # Required conditions stated positively ("only goes through if X"), from the lifecycle
@@ -180,7 +180,7 @@ module Hecks
           unless froms.empty?
             conditions << "its `#{lifecycle.field}` is currently #{to_sentence_list(froms.map do |f|
               "`#{f}`"
-            end, conj: 'or')}"
+            end, conj: "or")}"
           end
         end
 
@@ -225,7 +225,7 @@ module Hecks
           shape = saga.to_h
           parts << "**#{shape[:name]}** is a saga: it starts when `#{shape[:starts_on]}` happens and ends when " \
                    "`#{shape[:ends_on]}` happens, with each run tracked by its `#{shape[:correlates_by]}`. Along the " \
-                   "way it moves through #{Array(shape[:states]).map { |s| "`#{s}`" }.join(' → ')}."
+                   "way it moves through #{Array(shape[:states]).map { |s| "`#{s}`" }.join(" → ")}."
         end
         parts.join("\n\n")
       end

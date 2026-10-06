@@ -107,7 +107,7 @@ module Hecks
         record&.state&.dig(:status) == "refused" and
           abort "provisioning #{slug.inspect} was refused: #{refused}"
 
-        puts "wrote #{File.join(domain_directory, 'environments', "#{slug}.world")}"
+        puts "wrote #{File.join(domain_directory, "environments", "#{slug}.world")}"
         dispatcher
       end
 

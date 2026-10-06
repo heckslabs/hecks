@@ -268,7 +268,7 @@ module Hecks
           else
             raise(Malformed,
                   "#{entry[:aggregate]}'s given #{description.inspect} is ambiguous in this " \
-                  "chapter — #{candidates.keys.join(', ')} each declare a DIFFERENT predicate " \
+                  "chapter — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
                   "under this same description; name which one with declared_by: (e.g. " \
                   "given(#{description.inspect}, declared_by: #{candidates.keys.first}))")
           end
@@ -315,7 +315,7 @@ module Hecks
           else
             raise(Malformed,
                   "#{entry[:entity]}'s given #{description.inspect} is ambiguous across the " \
-                  "chapter's own pieces — #{candidates.keys.join(', ')} each declare a DIFFERENT " \
+                  "chapter's own pieces — #{candidates.keys.join(", ")} each declare a DIFFERENT " \
                   "predicate under this same description; name which one with declared_by: (e.g. " \
                   "given(#{description.inspect}, declared_by: #{candidates.keys.first.inspect}))")
           end

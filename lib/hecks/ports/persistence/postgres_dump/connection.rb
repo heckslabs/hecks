@@ -36,7 +36,7 @@ module Hecks
 
           # Builds the libpq environment variables for a child process.
           def env
-            settings.to_h { |key, value| ["PG#{key.to_s.sub('dbname', 'database').upcase}", value.to_s] }
+            settings.to_h { |key, value| ["PG#{key.to_s.sub("dbname", "database").upcase}", value.to_s] }
           end
 
           # Opens a connection with the `pg` gem; the caller closes it.

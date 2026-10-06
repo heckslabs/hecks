@@ -177,7 +177,7 @@ module Hecks
 
         fields = fields_of(proposal, config)
         missing = config[:fields].reject { |f| config[:optional].include?(f) || fields[f].to_s.strip != "" }
-        return say("Ignored a #{config[:kind]} proposal with no #{missing.join(', ')}.") unless missing.empty?
+        return say("Ignored a #{config[:kind]} proposal with no #{missing.join(", ")}.") unless missing.empty?
 
         number = propose(config, fields) or return
         say("  Proposed #{describe(config, fields)}")
@@ -213,19 +213,19 @@ module Hecks
 
       def describe(config, fields)
         case config[:kind]
-        when "thing" then "thing: #{fields['name']}, identified by #{fields['identifier']}"
-        when "action" then "action: #{fields['name']} on #{fields['thing']}, announcing #{fields['event']}" \
-                           "#{', creating it' if fields['creates']}#{action_extras(fields)}"
-        when "field" then "field: #{fields['name']} of #{fields['thing']}#{", one of #{fields['values']}" if fields['values']}"
-        when "transition" then "transition: #{fields['action']} leaves #{fields['thing']} #{fields['to']}" \
-                               "#{", from #{fields['from']}" if fields['from']}"
-        else "rule: #{fields['statement']}"
+        when "thing" then "thing: #{fields["name"]}, identified by #{fields["identifier"]}"
+        when "action" then "action: #{fields["name"]} on #{fields["thing"]}, announcing #{fields["event"]}" \
+                           "#{", creating it" if fields["creates"]}#{action_extras(fields)}"
+        when "field" then "field: #{fields["name"]} of #{fields["thing"]}#{", one of #{fields["values"]}" if fields["values"]}"
+        when "transition" then "transition: #{fields["action"]} leaves #{fields["thing"]} #{fields["to"]}" \
+                               "#{", from #{fields["from"]}" if fields["from"]}"
+        else "rule: #{fields["statement"]}"
         end
       end
 
       # @api private
       def action_extras(fields)
-        "#{", taking #{fields['takes']}" if fields['takes']}#{", by #{fields['by']}" if fields['by']}"
+        "#{", taking #{fields["takes"]}" if fields["takes"]}#{", by #{fields["by"]}" if fields["by"]}"
       end
 
       # The plain prompt: findings typed by the developer, accepted as they are entered.

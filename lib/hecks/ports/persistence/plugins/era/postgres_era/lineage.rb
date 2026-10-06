@@ -107,7 +107,7 @@ module Hecks
 
         def path_literal(path)
           segments = path.to_s.split(".").map { |segment| text_literal(segment) }
-          "ARRAY[#{segments.join(', ')}]::text[]"
+          "ARRAY[#{segments.join(", ")}]::text[]"
         end
       end
     end

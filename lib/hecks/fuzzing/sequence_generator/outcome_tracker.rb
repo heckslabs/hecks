@@ -62,7 +62,7 @@ module Hecks
         # `"Agg.Board#w1"` for a depth-1 pool, `"Agg.Board.Card#w1/1"` one hop
         # deeper. Depth-1 keys must stay stable for pinned seeds.
         def entity_pool_key(aggregate_name, chain_names, scalars)
-          "#{aggregate_name}.#{chain_names.join('.')}##{scalars.join('/')}"
+          "#{aggregate_name}.#{chain_names.join(".")}##{scalars.join("/")}"
         end
 
         # The scalar the step's aggregate identity resolves to. A composite identity

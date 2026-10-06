@@ -47,7 +47,7 @@ RSpec.describe "```ruby skip fences in executable documentation" do
     counts = self.class.counts
     stale = SKIP_FENCE_CAPS.filter_map do |file, cap|
       count = counts.fetch(file, 0)
-      "#{file}: cap #{cap}, now #{count} — set its cap to #{count}#{' (delete the entry)' if count.zero?}" if cap > count
+      "#{file}: cap #{cap}, now #{count} — set its cap to #{count}#{" (delete the entry)" if count.zero?}" if cap > count
     end
     expect(stale).to be_empty, stale.join("\n")
   end

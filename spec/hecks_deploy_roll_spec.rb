@@ -20,7 +20,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
 
   # Runs the verb with the stand-in programs first on PATH, as the generated scripts find them.
   def command(runner, verb, *argv, env: {})
-    settings = { "PATH" => "#{File.join(runner.dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => runner.dir,
+    settings = { "PATH" => "#{File.join(runner.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => runner.dir,
                  "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "3", "SSM_POLL_SECS" => "0.1" }
     saved = ENV.to_h.slice(*settings.merge(env).keys)
     ENV.update(settings.merge(env))
@@ -40,7 +40,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
   # The status of the SmokeRun that the roll's policy requested under the roll's own run key.
   def smoke_status(json)
     out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                        argv: ["deploy", "smoke_run.verdict", "run=#{json.fetch('run')}"])
+                                        argv: ["deploy", "smoke_run.verdict", "run=#{json.fetch("run")}"])
     JSON.parse(out).first&.fetch("status")
   end
 
@@ -259,7 +259,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
       %w[Makefile hosting.mk].each { |f| FileUtils.cp(File.join(taskdef_golden, f), scripts) }
       File.write(File.join(runner.dir, "bin", "hecks"), fake_hecks)
       File.chmod(0o755, File.join(runner.dir, "bin", "hecks"))
-      settings = { "PATH" => "#{File.join(runner.dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => runner.dir,
+      settings = { "PATH" => "#{File.join(runner.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => runner.dir,
                    "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "3", "SSM_POLL_SECS" => "0.1" }
       _out, err, status = Open3.capture3(settings.merge(env), "make", "-C", scripts, *args)
       [err, status.exitstatus]
@@ -292,7 +292,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
         File.write(File.join(runner.dir, "bin", "hecks"), fake_hecks)
         File.chmod(0o755, File.join(runner.dir, "bin", "hecks"))
 
-        _out, err, status = Open3.capture3({ "PATH"     => "#{File.join(runner.dir, 'bin')}:#{ENV.fetch('PATH')}",
+        _out, err, status = Open3.capture3({ "PATH"     => "#{File.join(runner.dir, "bin")}:#{ENV.fetch("PATH")}",
                                              "STUB_DIR" => runner.dir }, "make", "-C", plain, "deploy", "TAGS=web=1")
 
         expect(status.exitstatus).to eq(0), err
@@ -362,7 +362,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
                                           argv: ["deploy", "box_roll.run", dir, "skip_smoke=true", "--wait"])
       expect(JSON.parse(out).dig("state", "refusal", "value")).to include("2 deploy-box.sh files", "script=<path>")
 
-      override = "script=#{File.join(dir, 'b', 'deploy-box.sh')}"
+      override = "script=#{File.join(dir, "b", "deploy-box.sh")}"
       out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
                                                  argv: ["deploy", "box_roll.run", dir, override, "skip_smoke=true", "--wait"])
       expect(status).to eq(0)

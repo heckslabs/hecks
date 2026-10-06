@@ -88,7 +88,7 @@ module Hecks
 
           known = Hecks::Fuzzing::TargetCapabilities::MODE_REQUIREMENTS.keys
           unknown = names - known
-          abort "#{USAGE}\n--modes names no such mode: #{unknown.join(', ')} (known: #{known.join(', ')})" unless unknown.empty?
+          abort "#{USAGE}\n--modes names no such mode: #{unknown.join(", ")} (known: #{known.join(", ")})" unless unknown.empty?
 
           names
         end

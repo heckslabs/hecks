@@ -16,7 +16,7 @@ RSpec.describe "the guides" do
   it "never grows the ungated top-level docs by accident" do
     unaccounted = DoctestNames.unaccounted_top_level_docs
     expect(unaccounted).to be_empty,
-                           "docs/#{unaccounted.join(', docs/')} landed at the top level with no decision recorded — " \
+                           "docs/#{unaccounted.join(", docs/")} landed at the top level with no decision recorded — " \
                            "either give it real fences and move it under guides, or add it to " \
                            "DoctestNames::UNGATED_STATUS_DOCS with the same kind of reason its neighbors carry"
   end

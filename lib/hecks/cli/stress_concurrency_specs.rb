@@ -68,7 +68,7 @@ module Hecks
 
         missing = %i[runs seed_start].reject { |name| settings.key?(name) }
         unless missing.empty?
-          warn "missing #{missing.map { |name| "--#{name.to_s.tr('_', '-')}" }.join(', ')}: " \
+          warn "missing #{missing.map { |name| "--#{name.to_s.tr("_", "-")}" }.join(", ")}: " \
                "`hecks stress_concurrency` supplies the defaults its bluebook declares (--help for usage)"
           return 64
         end
@@ -143,7 +143,7 @@ module Hecks
         command = ["bundle", "exec", "rspec", *spec_files, "--seed", seed.to_s, "--format", "progress"]
         stdout, status = Open3.capture2e({ "CI" => "true" }, *command, chdir: root)
         { label: label, seed: seed, success: status.success?, output: stdout,
-          reproduce: "CI=true bundle exec rspec #{spec_files.join(' ')} --seed #{seed}" }
+          reproduce: "CI=true bundle exec rspec #{spec_files.join(" ")} --seed #{seed}" }
       end
 
       # One thread per child process: `Open3.capture2e` already spawns a real process per call.
@@ -173,9 +173,9 @@ module Hecks
         FileUtils.mkdir_p(dir)
         out.puts "FOUND FLAKINESS — #{failures.size}/#{results.size} runs failed:"
         failures.each do |failure|
-          path = File.join(dir, "#{failure[:label].tr(' ', '_').gsub(/[()]/, '')}-seed#{failure[:seed]}.log")
+          path = File.join(dir, "#{failure[:label].tr(" ", "_").gsub(/[()]/, "")}-seed#{failure[:seed]}.log")
           File.write(path, failure[:output])
-          out.puts "  [#{failure[:label]}] seed #{failure[:seed]} — output saved to #{path.sub("#{root}/", '')}"
+          out.puts "  [#{failure[:label]}] seed #{failure[:seed]} — output saved to #{path.sub("#{root}/", "")}"
           out.puts "    reproduce: #{failure[:reproduce]}"
         end
         out.puts

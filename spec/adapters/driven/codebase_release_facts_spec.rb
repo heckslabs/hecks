@@ -39,14 +39,14 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
     commands.answer("git", "rev-parse", "-q", "--verify", tag_ref, stdout: "#{sha}\n")
     expect(facts.gather("publish")[:tag_state]).to eq(value: "at_release_commit")
 
-    commands.answer("git", "rev-parse", "-q", "--verify", tag_ref, stdout: "#{'c' * 40}\n")
+    commands.answer("git", "rev-parse", "-q", "--verify", tag_ref, stdout: "#{"c" * 40}\n")
     expect(facts.gather("publish")[:tag_state]).to eq(value: "elsewhere")
   end
 
   it "reports a tree that is not clean, not on main, or behind origin as facts, not as refusals" do
     commands.answer("git", "status", "--porcelain", stdout: " M a\n")
     commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "topic\n")
-    commands.answer("git", "rev-parse", "origin/main", stdout: "#{'b' * 40}\n")
+    commands.answer("git", "rev-parse", "origin/main", stdout: "#{"b" * 40}\n")
 
     found = facts.gather("publish")
 

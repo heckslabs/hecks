@@ -60,7 +60,7 @@ module Hecks
       def refuse_uncovered!(bluebook, aggregate, uncovered)
         raise WiringError,
               "cannot boot #{bluebook.name}::#{aggregate.name}: its shape changed and " \
-              "#{uncovered.map { |path| render_path(path) }.join(', ')} #{uncovered.size == 1 ? 'is' : 'are'} not " \
+              "#{uncovered.map { |path| render_path(path) }.join(", ")} #{uncovered.size == 1 ? "is" : "are"} not " \
               "explained by any rename, move, convert, retype, or drop. Update bluebook/translations/*.bluebook, e.g. " \
               "#{suggestion(uncovered.first)}."
       end
@@ -79,8 +79,8 @@ module Hecks
       # @raise [Runtime::WiringError] always, carrying the refusal wording
       def refuse_unsafe_addition!(bluebook, aggregate, unsafe)
         raise WiringError,
-              "cannot boot #{bluebook.name}::#{aggregate.name}: #{unsafe.map { |name| ":#{name}" }.join(', ')} " \
-              "#{unsafe.size == 1 ? 'is new and required' : 'are new and required'}, with no default: to fill " \
+              "cannot boot #{bluebook.name}::#{aggregate.name}: #{unsafe.map { |name| ":#{name}" }.join(", ")} " \
+              "#{unsafe.size == 1 ? "is new and required" : "are new and required"}, with no default: to fill " \
               "an existing record and no translation explaining what one should read there. Give it a " \
               "default:, make it optional: true or list_of, or declare bluebook/translations/*.bluebook, e.g. " \
               "`backfill :#{unsafe.first}, default: ...`."

@@ -45,7 +45,7 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
 
         adapter.generate(domain: { value: "/elsewhere/shop" }, out: { value: "recipe" })
 
-        expect(shell.command).to eq(["project_deploy", "--out=#{File.join(Dir.pwd, 'recipe')}", "/elsewhere/shop"])
+        expect(shell.command).to eq(["project_deploy", "--out=#{File.join(Dir.pwd, "recipe")}", "/elsewhere/shop"])
       end
     end
   end

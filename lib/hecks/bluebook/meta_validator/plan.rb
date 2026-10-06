@@ -171,7 +171,7 @@ module Hecks
 
           raise DSL::Malformed,
                 "#{aggregate.hecks_name} must declare exactly one command that establishes " \
-                "its identity fields #{required.join(', ')} — found #{candidates.map(&:hecks_name).join(', ')}"
+                "its identity fields #{required.join(", ")} — found #{candidates.map(&:hecks_name).join(", ")}"
         end
 
         # The first declared reference attribute is the traversal parent.

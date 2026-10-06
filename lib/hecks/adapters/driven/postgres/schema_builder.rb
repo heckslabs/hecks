@@ -11,7 +11,7 @@ module Hecks
         def create_aggregate_table!
           columns = persisted_fields.map { |field| "#{quote_ident(field[:name])} #{field[:sql_type]}" }
           @db.exec(
-            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
+            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{", " unless columns.empty?}#{columns.join(", ")})"
           )
           # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so
           # the bookkeeping column is healed on every boot.

@@ -132,7 +132,7 @@ module Hecks
           hashes += 1 while @src[idx + hashes] == "#"
           return [pos + 1, col + 1, line] unless @src[idx + hashes] == '"'
 
-          close = @src.index("\"#{'#' * hashes}", idx + hashes + 1) || @len
+          close = @src.index("\"#{"#" * hashes}", idx + hashes + 1) || @len
           advance_span(pos, close + 1 + hashes, col, line)
         end
 
@@ -596,8 +596,8 @@ module Hecks
           opts.banner = "Usage: hecks check_rust_comments [--report|--check|--fix] [--only a,b] PATH..."
           opts.on("--report", "summary tables (default)") { options[:mode] = :report }
           opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
-          opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
-          opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
+          opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(", ")}") { options[:mode] = :fix }
+          opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(", ")}") { |list| options[:only] = list }
           opts.on("--json", "machine-readable output") { options[:json] = true }
           opts.on("--top N", Integer, "rows in the worst-files table") { |n| options[:top] = n }
         end
@@ -624,10 +624,10 @@ module Hecks
         parser = option_parser(options)
         paths = parser.parse(argv)
         unknown = Array(options[:only]) - CATEGORIES.keys
-        abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
+        abort "unknown categories: #{unknown.join(", ")}" unless unknown.empty?
         abort parser.help if paths.empty?
         missing = paths.reject { |path| File.exist?(path) }
-        abort "no such path: #{missing.join(', ')}" unless missing.empty?
+        abort "no such path: #{missing.join(", ")}" unless missing.empty?
 
         run = Run.new(paths, only: options[:only])
         case options[:mode]

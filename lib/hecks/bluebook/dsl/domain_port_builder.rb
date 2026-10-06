@@ -74,7 +74,7 @@ module Hecks
           unless removed.empty?
             raise Malformed, "answers_query #{name.inspect} takes only the query's name — the shape " \
                              "of its answer is the query's own `returns`, declared in the bluebook " \
-                             "(#{removed.keys.join(', ')} is not a word here)"
+                             "(#{removed.keys.join(", ")} is not a word here)"
           end
           if @answered_queries.any? { |answer| answer.name == name.to_s }
             raise Malformed, "#{@name} binds #{name} twice — a query has one answer"

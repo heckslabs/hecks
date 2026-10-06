@@ -350,7 +350,7 @@ RSpec.describe Hecks::Adapters::Heki do
     end
 
     it "refuses a file that is not heki" do
-      expect { write_raw("NOPE#{[0].pack('N')}").count }
+      expect { write_raw("NOPE#{[0].pack("N")}").count }
         .to raise_error(described_class::Malformed, /bad magic/)
     end
 
@@ -360,7 +360,7 @@ RSpec.describe Hecks::Adapters::Heki do
     end
 
     it "refuses a payload that is not zlib" do
-      expect { write_raw("HEKI#{[1].pack('N')}not compressed").count }
+      expect { write_raw("HEKI#{[1].pack("N")}not compressed").count }
         .to raise_error(described_class::Malformed, /zlib error/)
     end
 

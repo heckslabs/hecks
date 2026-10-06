@@ -105,7 +105,7 @@ module Hecks
             <link rel="stylesheet" href="#{FONTS}">
             <script src="#{MERMAID}"></script>
             <style>
-            #{asset('page.css')}
+            #{asset("page.css")}
             </style>
             </head>
             <body>
@@ -117,7 +117,7 @@ module Hecks
             </main>
             </div>
             <script>
-            #{asset('page.js')}
+            #{asset("page.js")}
             </script>
             </body>
             </html>
@@ -147,7 +147,7 @@ module Hecks
           parts = ["<header>"]
           blocks.each do |block|
             case block.type
-            when :heading   then parts << "<h1>#{inline(block.text.split(' — ').first)}</h1>"
+            when :heading   then parts << "<h1>#{inline(block.text.split(" — ").first)}</h1>"
             when :quote     then parts << "<p class=\"vision\">#{inline(block.text)}</p>"
             when :paragraph then parts << "<p class=\"lede\">#{inline(block.text)}</p>"
             when :mermaid   then parts << figure(block, "How it all fits together")

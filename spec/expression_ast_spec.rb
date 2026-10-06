@@ -81,9 +81,9 @@ RSpec.describe "the structured expression AST every rule row carries" do
     expect(rows.size).to be > 100
 
     rows.each do |name, path, row|
-      expect(row).to have_key(:ast), "#{name} #{path.join('.')} has no ast"
+      expect(row).to have_key(:ast), "#{name} #{path.join(".")} has no ast"
       expect(row[:ast]).to eq(ExprAstJson.emit_predicate(row[:canonical])),
-                           "#{name} #{path.join('.')}: ast is not ExprAstJson.emit_predicate(canonical)"
+                           "#{name} #{path.join(".")}: ast is not ExprAstJson.emit_predicate(canonical)"
     end
   end
 

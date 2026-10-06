@@ -35,7 +35,7 @@ RSpec.describe "the launcher forms' arguments" do
       next if help.start_with?("no such")
 
       unknown = names.reject { |name| help.include?(name) }
-      "#{script}: #{verb.join(' ')} has no #{unknown.join(', ')}" unless unknown.empty?
+      "#{script}: #{verb.join(" ")} has no #{unknown.join(", ")}" unless unknown.empty?
     end
 
     expect(stale).to eq([])

@@ -42,7 +42,7 @@ RSpec.describe "the operator domain" do
     DISPATCHER.dispatch_flat(step["verb"], **symbolize(step["args"]))
     nil
   rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
-    "#{step['verb']} #{step['args']} — #{e.message}"
+    "#{step["verb"]} #{step["args"]} — #{e.message}"
   end.freeze
 
   def self.records(aggregate_name)
@@ -264,7 +264,7 @@ RSpec.describe "the operator domain" do
 
     expect(stranded).to be_empty,
                         stranded.map { |symbol, sites|
-                          "#{symbol} is self-bearing (#{sites.first(2).join('; ')}) and not admitted"
+                          "#{symbol} is self-bearing (#{sites.first(2).join("; ")}) and not admitted"
                         }.join("\n")
   end
 

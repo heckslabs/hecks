@@ -59,7 +59,7 @@ module Hecks
         when 0 then raise WiringError, "no adapter implements the #{port_name} port — nothing can answer #{asked}"
         else raise WiringError,
                    "#{implementations.size} adapters implement the #{port_name} port " \
-                   "(#{implementations.map(&:name).sort.join(', ')}) — the runtime will not choose for you"
+                   "(#{implementations.map(&:name).sort.join(", ")}) — the runtime will not choose for you"
         end
       end
 
@@ -79,7 +79,7 @@ module Hecks
         required = klass.instance_method(:initialize).parameters.filter_map { |kind, name| name if %i[req keyreq].include?(kind) }
         unless required.empty?
           raise WiringError, "#{klass} implements the #{port_name} port but its constructor requires " \
-                             "#{required.join(', ')} — it is built with no arguments"
+                             "#{required.join(", ")} — it is built with no arguments"
         end
 
         unless klass.public_method_defined?(method) &&
@@ -100,8 +100,8 @@ module Hecks
         problems   = keyword_problems(parameters, wanted, required)
         return if problems.empty?
 
-        raise WiringError, "#{klass}##{method} answers #{asked} but #{problems.join(' and ')} — it is asked " \
-                           "with keywords for the query's arguments (#{wanted.empty? ? 'none' : wanted.join(', ')})"
+        raise WiringError, "#{klass}##{method} answers #{asked} but #{problems.join(" and ")} — it is asked " \
+                           "with keywords for the query's arguments (#{wanted.empty? ? "none" : wanted.join(", ")})"
       end
 
       # @return [Array<String>] how `parameters` fails to take exactly the `wanted` keywords
@@ -117,7 +117,7 @@ module Hecks
 
       # @return [String, nil] a phrase naming `names` as keywords, or nil when there are none
       def keyword_problem(verb, names, suffix = "")
-        "#{verb} #{names.map { |name| "#{name}:" }.join(', ')}#{suffix}" unless names.empty?
+        "#{verb} #{names.map { |name| "#{name}:" }.join(", ")}#{suffix}" unless names.empty?
       end
     end
   end

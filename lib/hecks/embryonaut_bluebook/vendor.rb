@@ -89,7 +89,7 @@ module Hecks
 
         raise Vendoring::Error, "no release #{tag} in #{@source.path} (releases: #{release_tags.sort_by do |v|
           Gem::Version.new(v)
-        end.join(' ')})"
+        end.join(" ")})"
       end
 
       def release_tags
@@ -117,7 +117,7 @@ module Hecks
 
         raise Vendoring::Error,
               "#{@name} #{previous_version} -> #{version} changes the storage shape but is only a patch bump " \
-              "(before: #{previous_shape.join(' ')}; after: #{shape.join(' ')}). Raise the package's version " \
+              "(before: #{previous_shape.join(" ")}; after: #{shape.join(" ")}). Raise the package's version " \
               "by at least a minor in the source repository and release again. Nothing was changed."
       end
 

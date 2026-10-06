@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts, :io do
 
   def git(*args, dir: work)
     out, err, status = Open3.capture3(identity, "git", *args, chdir: dir)
-    raise "git #{args.join(' ')} failed: #{err}" unless status.success?
+    raise "git #{args.join(" ")} failed: #{err}" unless status.success?
 
     out.strip
   end

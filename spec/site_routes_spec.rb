@@ -86,7 +86,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       status, out, = run("--out=#{work}")
 
       expect(status).to eq(0)
-      expect(out).to eq("wrote #{File.join(work, 'routes.ts')}\nwrote #{File.join(work, 'deploy/template.yaml')}\n")
+      expect(out).to eq("wrote #{File.join(work, "routes.ts")}\nwrote #{File.join(work, "deploy/template.yaml")}\n")
       expect(File.read(File.join(work, "routes.ts"))).to eq(File.read(golden))
 
       status, out, = run("--out=#{work}")
@@ -99,7 +99,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
 
       expect(status).to eq(1)
       expect(out).to eq("")
-      expect(err).to include("out of date: #{File.join(work, 'routes.ts')}, #{File.join(work, 'deploy/template.yaml')}",
+      expect(err).to include("out of date: #{File.join(work, "routes.ts")}, #{File.join(work, "deploy/template.yaml")}",
                              "run hecks site site_projection.project_site")
       expect(Dir.children(work)).to be_empty
     end
@@ -112,7 +112,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       status, _, err = run("--out=#{work}", "--check")
 
       expect(status).to eq(1)
-      expect(err).to include("out of date: #{File.join(work, 'routes.ts')}")
+      expect(err).to include("out of date: #{File.join(work, "routes.ts")}")
       expect(File.read(File.join(work, "routes.ts"))).to eq("// edited\n")
     end
 

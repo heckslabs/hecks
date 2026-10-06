@@ -62,7 +62,7 @@ module Hecks
           unrunnable = @enabled_modes - Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES
           return if unrunnable.empty?
 
-          abort "enabled mode(s) #{unrunnable.join(',')} have no implementation in hecks quality_control ask run " \
+          abort "enabled mode(s) #{unrunnable.join(",")} have no implementation in hecks quality_control ask run " \
                 "(Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES is what exists). Set them false in " \
                 "qa/settings.yml, or drop them from --modes, until the code lands."
         end

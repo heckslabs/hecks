@@ -21,7 +21,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
 
   # Runs the verb with the stand-in programs first on PATH, as the generated script finds them.
   def smoke(runner, *argv, env: {})
-    settings = { "PATH" => "#{File.join(runner.dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => runner.dir,
+    settings = { "PATH" => "#{File.join(runner.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => runner.dir,
                  "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "3", "SSM_POLL_SECS" => "0.1" }
     saved = ENV.to_h.slice(*settings.merge(env).keys)
     ENV.update(settings.merge(env))
@@ -130,7 +130,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
       reason, = refusal_for(dir)
       expect(reason).to include("2 smoke-after-deploy.sh files", "script=<path>")
 
-      override = "script=#{File.join(dir, 'b', 'smoke-after-deploy.sh')}"
+      override = "script=#{File.join(dir, "b", "smoke-after-deploy.sh")}"
       out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
                                           argv: ["deploy", "smoke_run.run", dir, override, "--wait"])
       expect(JSON.parse(out).dig("state", "report", "value")).to eq("b")

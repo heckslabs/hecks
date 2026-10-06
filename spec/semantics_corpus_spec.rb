@@ -35,7 +35,7 @@ RSpec.describe "the semantics corpus" do
                 .flat_map { |group| group.scan(/`([^`]+\.json)`/).flatten }.uniq
     expect(cited).not_to be_empty
     missing = cited.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "spec/corpus/semantics", name)) }
-    expect(missing).to eq([]), "cited but absent: #{missing.join(', ')}"
+    expect(missing).to eq([]), "cited but absent: #{missing.join(", ")}"
   end
 
   it "cites only clauses docs/semantics/bluebook-semantics.md declares" do
@@ -152,7 +152,7 @@ RSpec.describe "the semantics corpus" do
 
         expected = fixture.fetch("expect")
         agrees = %w[refusals instances events].all? { |key| rust.fetch(key) == expected.fetch(key) }
-        "  #{File.basename(path)}: #{agrees ? 'NOW PASSES against Rust — drop ruby_only' : 'still differs'}"
+        "  #{File.basename(path)}: #{agrees ? "NOW PASSES against Rust — drop ruby_only" : "still differs"}"
       end
       RSpec.configuration.reporter.message("ruby_only semantics fixtures against Rust:\n#{lines.join("\n")}")
       expect(lines.size).to eq(SEMANTICS_FIXTURES.count { |path| load_fixture(path)["ruby_only"] })

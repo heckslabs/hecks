@@ -59,7 +59,7 @@ module Hecks
           # Generated — projected from the language's own #{name} aggregate.
           # Do not edit: the holding half is rendered, and #{host.fetch(:behaviour)}
           # is where anything hand-written belongs.
-          require_relative "behaviour/#{File.basename(host.fetch(:file), '.rb')}"
+          require_relative "behaviour/#{File.basename(host.fetch(:file), ".rb")}"
 
           module Hecks
             module Bluebook
@@ -118,7 +118,7 @@ module Hecks
       # @param host [Hash{Symbol => Object}] the construct's `HOST` entry
       # @return [String] the rendered reader/accessor lines, one construct's worth
       def readers(host)
-        lines = ["attr_reader #{host.fetch(:readers).map { |r| ":#{r}" }.join(', ')}"]
+        lines = ["attr_reader #{host.fetch(:readers).map { |r| ":#{r}" }.join(", ")}"]
         accessors = host.fetch(:accessors, [])
         return lines.join("\n") if accessors.empty?
 

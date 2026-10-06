@@ -76,7 +76,7 @@ RSpec.describe "hecks deploy project environment=", :io do
     Dir.mktmpdir do |dir|
       domain_dir = write_fixture(dir)
 
-      _out, err, status = run_project_deploy(domain_dir, "--environment=staging", "--out=#{File.join(dir, 'out')}")
+      _out, err, status = run_project_deploy(domain_dir, "--environment=staging", "--out=#{File.join(dir, "out")}")
 
       expect(status).not_to be_success
       expect(err).to include("environments/staging.world does not exist")

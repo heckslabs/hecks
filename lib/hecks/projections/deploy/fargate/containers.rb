@@ -215,7 +215,7 @@ module Hecks
             target = layout.all.find { |container| container.name == name }
             unless target
               raise ArgumentError,
-                    "default_container #{name.inspect} is not a container; have #{layout.all.map(&:name).join(', ')}"
+                    "default_container #{name.inspect} is not a container; have #{layout.all.map(&:name).join(", ")}"
             end
             unless target.port
               raise ArgumentError,
@@ -252,7 +252,7 @@ module Hecks
           def route_paths(value, container)
             paths = Check.strings!(value, "routes[#{container}] paths", min: 1, max: 5)
             bad = paths.reject { |path| path.start_with?("/", "*") }
-            raise ArgumentError, "routes[#{container}] paths must start with / or *, got #{bad.join(', ')}" unless bad.empty?
+            raise ArgumentError, "routes[#{container}] paths must start with / or *, got #{bad.join(", ")}" unless bad.empty?
 
             paths
           end
@@ -270,7 +270,7 @@ module Hecks
               "route priorities"     => layout.routes.map(&:priority)
             }.each do |what, values|
               repeated = values.tally.select { |_value, count| count > 1 }.keys
-              raise ArgumentError, "#{what} must be unique; repeated: #{repeated.join(', ')}" unless repeated.empty?
+              raise ArgumentError, "#{what} must be unique; repeated: #{repeated.join(", ")}" unless repeated.empty?
             end
           end
           private_class_method :check_unique!
@@ -280,7 +280,7 @@ module Hecks
             stranded = layout.balanced.map(&:name) - routed
             return if stranded.empty?
 
-            raise ArgumentError, "container(s) #{stranded.join(', ')} have a port but no route and are not the " \
+            raise ArgumentError, "container(s) #{stranded.join(", ")} have a port but no route and are not the " \
                                  "default_container, so the load balancer never reaches them; add a routes entry or drop the port"
           end
           private_class_method :check_reachable!

@@ -66,13 +66,13 @@ module Hecks
 
       # @api private
       def next_reference(target)
-        "INT-#{Dir.glob(File.join(target, 'interviews', 'INT-*.md')).length + 1}"
+        "INT-#{Dir.glob(File.join(target, "interviews", "INT-*.md")).length + 1}"
       end
 
       # @api private
       def report(target, written)
         where = target.delete_prefix("#{Dir.pwd}/")
-        lines = ["wrote #{written.length} #{written.length == 1 ? 'file' : 'files'} in #{where}/:"] +
+        lines = ["wrote #{written.length} #{written.length == 1 ? "file" : "files"} in #{where}/:"] +
                 written.sort.map { |path| "  #{path}" }
         lines << "" << "next:"
         if written.any? { |path| path.start_with?("bluebook/") }

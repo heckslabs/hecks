@@ -132,7 +132,7 @@ module Hecks
           modules = Corpus.generated_modules(root: tree.root)
           pending = Corpus::RUST_COVERAGE_PENDING
           unknown = pending.keys - modules
-          raise ConsoleCapture::Failure, "pending names #{unknown.join(', ')}, with no generated module" if unknown.any?
+          raise ConsoleCapture::Failure, "pending names #{unknown.join(", ")}, with no generated module" if unknown.any?
 
           lines, problems = judge(modules, pending, coverage_results(modules, tree))
           raise ConsoleCapture::Failure, [*lines, "", *problems].join("\n") if problems.any?
@@ -150,10 +150,10 @@ module Hecks
             passed, output = results.fetch(name)
             if pending.key?(name)
               problems << "#{name} passes now - delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
-              "#{name}: pending (#{passed ? 'NOW PASSES' : 'still fails'}) - #{pending[name]}"
+              "#{name}: pending (#{passed ? "NOW PASSES" : "still fails"}) - #{pending[name]}"
             else
               problems << "#{name} failed:\n#{output}" unless passed
-              "#{name}: #{passed ? 'ok' : 'FAILED'}"
+              "#{name}: #{passed ? "ok" : "FAILED"}"
             end
           end
           [lines, problems]

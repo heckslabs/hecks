@@ -29,7 +29,7 @@ RSpec.describe Hecks::Tools::CiGates do
         steps = workflow.dig("jobs", gate.fetch("name"), "steps")
         decide = steps.find { |step| step["id"] == "diff" }
 
-        expect(decide["run"]).to eq("bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{gate.fetch('name')} --wait")
+        expect(decide["run"]).to eq("bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{gate.fetch("name")} --wait")
         local = steps.filter_map { |step| step["uses"] }.select { |uses| uses.start_with?("./") }
         expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-environment])
       end

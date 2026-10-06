@@ -61,7 +61,7 @@ module Hecks
         # Constant-time compare: `==` leaks how many leading bytes of a forged signature matched.
         def verify_signature!(request, body)
           header = request.get_header(SIGNATURE_HEADER)
-          raise InvalidSignature, "missing #{SIGNATURE_HEADER.sub('HTTP_', '').tr('_', '-')} header" if header.to_s.empty?
+          raise InvalidSignature, "missing #{SIGNATURE_HEADER.sub("HTTP_", "").tr("_", "-")} header" if header.to_s.empty?
 
           digest   = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha256"), @secret, body)
           expected = "sha256=#{digest}"

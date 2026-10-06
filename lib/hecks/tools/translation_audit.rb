@@ -162,10 +162,10 @@ module Hecks
       # @return [void]
       def print_verdict(bluebook, aggregate, edge, after, verdict)
         puts "── #{bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
-             "#{after.size} record#{'s' unless after.size == 1})"
+             "#{after.size} record#{"s" unless after.size == 1})"
         verdict.violations.each { |violation| puts "   REFUSED: #{violation}" }
-        puts "   dropped (declared data loss): #{verdict.dropped.join(', ')}" unless verdict.dropped.empty?
-        puts "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(', ')}" unless verdict.unfed.empty?
+        puts "   dropped (declared data loss): #{verdict.dropped.join(", ")}" unless verdict.dropped.empty?
+        puts "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(", ")}" unless verdict.unfed.empty?
         verdict.samples.each do |sample|
           puts "   ##{sample[:id]}"
           puts "     before: #{JSON.generate(sample[:before])}" if sample[:before]

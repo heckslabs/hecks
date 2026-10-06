@@ -109,7 +109,7 @@ module Hecks
               # line already sits inside one Rust string literal
               # (`compile_error!("...")`), and `.inspect`'s own quoted form
               # would nest unescaped double quotes and produce invalid Rust.
-              @file.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{@domains.join(', ')} " \
+              @file.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{@domains.join(", ")} " \
                          "(both #{a} and #{b} are enabled)\");"
             end
           end

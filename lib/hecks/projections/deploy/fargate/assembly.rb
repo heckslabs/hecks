@@ -168,7 +168,7 @@ module Hecks
             parameters = template[/^Parameters:\n(.*?)^Resources:/m, 1].to_s
             repeated = Yaml.duplicate_keys(resources) + Yaml.duplicate_keys(parameters)
             unless repeated.empty?
-              raise ArgumentError, "logical id or parameter #{repeated.uniq.join(', ')} is declared more than once; " \
+              raise ArgumentError, "logical id or parameter #{repeated.uniq.join(", ")} is declared more than once; " \
                                    "check logical_ids, containers and parameters for clashes"
             end
           end

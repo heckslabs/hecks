@@ -53,7 +53,7 @@ module Hecks
     def aggregate_ir!(bluebook, name)
       bluebook.aggregate(name) or
         raise Runtime::NotFound, "#{bluebook.name} declares no aggregate named #{name.inspect} — " \
-                                 "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(', ')}"
+                                 "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(", ")}"
     end
 
     # The same alias table CliRunner resolves against, kept here so dispatch
@@ -66,7 +66,7 @@ module Hecks
       return spec if spec
 
       known = cli[:names][asking ? :question : :command].keys.sort.join(", ")
-      raise Runtime::NotFound, "no such #{asking ? 'query' : 'command'}: #{name.inspect} — known: #{known}"
+      raise Runtime::NotFound, "no such #{asking ? "query" : "command"}: #{name.inspect} — known: #{known}"
     end
 
     # A fingerprint of a domain directory: every file's relative path, size and modification time.
@@ -111,7 +111,7 @@ module Hecks
     def valid_source!(source)
       return if source.nil? || SOURCE_TAGS.include?(source.to_s)
 
-      raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{SOURCE_TAGS.join(', ')}"
+      raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{SOURCE_TAGS.join(", ")}"
     end
 
     # actor_id without role would silently bind nothing rather than a real
@@ -162,7 +162,7 @@ module Hecks
 
     # :nodoc:
     def log_path(domain_name)
-      File.join(log_root, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, '_')}.jsonl")
+      File.join(log_root, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, "_")}.jsonl")
     end
 
     # Never fails a real call because its own audit log couldn't be written —
@@ -262,7 +262,7 @@ module Hecks
       names.filter_map do |name|
         spec = resolve!(cli, name.to_s, asking: false)
         arguments = spec[:arguments].map { |arg| arg[:path].split(".").first + (arg[:required] ? "*" : "") }
-        "#{name} (role #{spec[:role] || 'none'}): #{spec[:summary]}. Arguments: #{arguments.uniq.join(', ')}"
+        "#{name} (role #{spec[:role] || "none"}): #{spec[:summary]}. Arguments: #{arguments.uniq.join(", ")}"
       rescue Runtime::NotFound
         nil
       end

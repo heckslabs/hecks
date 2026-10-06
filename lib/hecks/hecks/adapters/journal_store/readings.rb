@@ -163,7 +163,7 @@ module Hecks
 
           [
             "#{name}: the held text does NOT match its recorded digest.",
-            "  recorded: #{era[:held_digest] || '(none)'}", "  computed: #{computed}", shape_line(held, era, ordinal),
+            "  recorded: #{era[:held_digest] || "(none)"}", "  computed: #{computed}", shape_line(held, era, ordinal),
             "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:",
             "─" * 72, era[:held_text], "─" * 72,
             "Read it, then `hecks reattest #{held.bluebook.name} era=#{ordinal} --confirm` accepts it."

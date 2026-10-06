@@ -200,7 +200,7 @@ module Hecks
             unless allow_superuser
               raise Runtime::WiringError,
                     "cannot boot #{@domain}: PostgresEra's era write-fence is row-level security, and this " \
-                    "connection's role #{role} is #{exempt.join(' and ')} — Postgres exempts it from every " \
+                    "connection's role #{role} is #{exempt.join(" and ")} — Postgres exempts it from every " \
                     "policy, FORCE included, so an old checkout connected this way keeps writing a superseded " \
                     "era and nothing refuses. Connect as an ordinary role instead (database " \
                     "\"postgres://<role>@<host>/<db>\" in the .world — a non-superuser OWNER still provisions " \
@@ -208,7 +208,7 @@ module Hecks
                     "the fence void, on the record."
             end
 
-            warn "[hecks] #{@domain}: booting PostgresEra as #{role}, #{exempt.join(' and ')}, under " \
+            warn "[hecks] #{@domain}: booting PostgresEra as #{role}, #{exempt.join(" and ")}, under " \
                  "allow_superuser — the era write-fence is void for this connection; only this process's own " \
                  "superseded-era check (PostgresEra#append) stands between an old checkout and a superseded era"
           end

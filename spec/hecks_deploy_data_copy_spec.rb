@@ -104,7 +104,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
   # Runs the verb with the stand-in programs first on PATH, as the generated scripts find them.
   def command(scratch, verb, *argv, env: {})
-    settings = { "PATH" => "#{File.join(scratch.dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => scratch.dir }
+    settings = { "PATH" => "#{File.join(scratch.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => scratch.dir }
     saved = ENV.to_h.slice(*settings.merge(env).keys)
     ENV.update(settings.merge(env))
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
@@ -116,7 +116,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
   def verification_status(json)
     out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                        argv: ["deploy", "copy_verification.verdict", "run=#{json.fetch('run')}"])
+                                        argv: ["deploy", "copy_verification.verdict", "run=#{json.fetch("run")}"])
     JSON.parse(out).first&.fetch("status")
   end
 

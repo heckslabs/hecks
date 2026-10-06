@@ -88,8 +88,8 @@ module Hecks
 
           raise WiringError,
                 "#{adapter_name} declares the #{port.name} port but does not respond to " \
-                "#{missing.map(&:inspect).join(', ')} — #{port.name}.port declares answers " \
-                "#{answers.map(&:inspect).join(', ')}"
+                "#{missing.map(&:inspect).join(", ")} — #{port.name}.port declares answers " \
+                "#{answers.map(&:inspect).join(", ")}"
         end
 
         # persistence/projection/loading are per-aggregate bound and already checked via
@@ -129,8 +129,8 @@ module Hecks
           return if unknown.empty?
 
           raise WiringError,
-                "#{bind.adapter} does not declare #{unknown.map(&:inspect).join(', ')} — " \
-                "it declares #{adapter.all_fields.map(&:inspect).join(', ')}. " \
+                "#{bind.adapter} does not declare #{unknown.map(&:inspect).join(", ")} — " \
+                "it declares #{adapter.all_fields.map(&:inspect).join(", ")}. " \
                 "Add the field to the adapter, or remove it from the world."
         end
 
@@ -283,7 +283,7 @@ module Hecks
               ".port \"Port\" do answers_query \"#{query.hecks_name}\" end`."
           else
             "#{where} has no answer path: it declares no where and returns nothing, and no hecksagon " \
-              "binds it — its arguments (#{query.attributes.map(&:name).join(', ')}) select nothing. " \
+              "binds it — its arguments (#{query.attributes.map(&:name).join(", ")}) select nothing. " \
               "Add a where, or declare what it returns and bind it in the hecksagon."
           end
         end
@@ -325,7 +325,7 @@ module Hecks
           return if derivable?(query)
 
           raise WiringError, "#{where} has no answer path: it declares no where and returns nothing — its " \
-                             "arguments (#{query.attributes.map(&:name).join(', ')}) select nothing"
+                             "arguments (#{query.attributes.map(&:name).join(", ")}) select nothing"
         end
 
         # Refuses a binding that names a query its aggregate does not declare, or names one twice
@@ -394,7 +394,7 @@ module Hecks
             foreign = sources.reject { |path| gem_chapter_source?(path) }
             next if foreign.empty? && !sources.empty?
 
-            where = foreign.empty? ? "" : " (declared in #{foreign.join(', ')})"
+            where = foreign.empty? ? "" : " (declared in #{foreign.join(", ")})"
             raise WiringError,
                   "a chapter named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
                   "word, the name of the gem's own chapter, and only the gem may declare it#{where}. " \
@@ -419,11 +419,11 @@ module Hecks
             next if roots.size <= 1
 
             raise WiringError,
-                  "#{name.inspect} is declared by more than one package: #{roots.join(' and ')} — " \
+                  "#{name.inspect} is declared by more than one package: #{roots.join(" and ")} — " \
                   "these are two unrelated sources sharing a chapter name by coincidence, not one " \
                   "domain split across files, and merging their declarations into one chapter is " \
                   "almost certainly a stale/vendored copy left on the load path (paths: " \
-                  "#{paths.join(', ')})"
+                  "#{paths.join(", ")})"
           end
         end
 

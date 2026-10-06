@@ -41,13 +41,13 @@ module Hecks
             bluebook.provides.group_by(&:capability).each do |capability, rows|
               contract = Capabilities::CONTRACTS.fetch(capability) do
                 raise Malformed, "#{bluebook.name} provides #{capability.inspect}, which is no capability the " \
-                                 "language knows — known: #{Capabilities::CONTRACTS.keys.sort.join(', ')}"
+                                 "language knows — known: #{Capabilities::CONTRACTS.keys.sort.join(", ")}"
               end
 
               keys = rows.map { |row| row.key.to_sym }
               unless keys.sort == contract.keys.sort
-                raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{keys.join(', ')}, but " \
-                                 "#{capability} needs exactly #{contract.keys.join(', ')}"
+                raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{keys.join(", ")}, but " \
+                                 "#{capability} needs exactly #{contract.keys.join(", ")}"
               end
 
               rows.each { |row| validate_provided_verb!(bluebook, capability, row, contract.fetch(row.key.to_sym)) }
@@ -100,7 +100,7 @@ module Hecks
             return if violations.empty?
 
             raise Malformed,
-                  "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
+                  "an entity command is addressed through its aggregate; #{violations.uniq.join("; ")}"
           end
 
           # Every command that emits a given event must agree on its structural shape
@@ -114,7 +114,7 @@ module Hecks
 
               named = pairs.map { |(owner, command)| "#{owner}.#{command.hecks_name}" }.sort
               raise Malformed,
-                    "#{event_name.inspect} is emitted with different shapes by #{named.join(' and ')} — " \
+                    "#{event_name.inspect} is emitted with different shapes by #{named.join(" and ")} — " \
                     "an event is one fact, and every command that emits it must declare the same fields"
             end
           end
@@ -307,7 +307,7 @@ module Hecks
             cycle = find_reference_cycle(edges)
             return unless cycle
 
-            ring = "#{cycle.join(' -> ')} -> #{cycle.first}"
+            ring = "#{cycle.join(" -> ")} -> #{cycle.first}"
             raise Malformed,
                   "reference cycle: #{ring} — an aggregate points at another by id, and a " \
                   "ring back to where it started means no aggregate in it is a boundary " \
@@ -604,7 +604,7 @@ module Hecks
             end
 
             if Attribute::PRIMITIVES.include?(type_name)
-              return "#{type_name} is already a scalar — #{segments.join('.')} has nothing left to reach"
+              return "#{type_name} is already a scalar — #{segments.join(".")} has nothing left to reach"
             end
 
             shape = owner.value_object(type_name)

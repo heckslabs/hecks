@@ -81,7 +81,7 @@ RSpec.describe "publishing a release" do
 
     it "records the steps taken before a failure, and a rerun that finds nothing left verifies" do
       registry_lists_the_gem_after_the_push!
-      commands.fail_run("op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}")
+      commands.fail_run("op", "run", "--env-file=#{File.join(root, "release/npm_publish.env")}")
 
       launch("publishing_run.publish", "run=partial", "--npm-local", "--confirm")
 
@@ -111,7 +111,7 @@ RSpec.describe "publishing a release" do
     end
 
     it "refuses when main is not origin/main" do
-      commands.answer("git", "rev-parse", "origin/main", stdout: "#{'b' * 40}\n")
+      commands.answer("git", "rev-parse", "origin/main", stdout: "#{"b" * 40}\n")
 
       out, = launch("publishing_run.publish", "run=behind", "--gem-only", "--confirm")
 
@@ -163,7 +163,7 @@ RSpec.describe "publishing a release" do
     end
 
     it "refuses a tag that points at another commit" do
-      commands.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{'c' * 40}\n")
+      commands.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{"c" * 40}\n")
 
       out, = launch("publishing_run.publish", "run=tag", "--gem-only", "--confirm")
 

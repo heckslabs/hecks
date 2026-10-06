@@ -173,7 +173,7 @@ module Hecks
         return world if refusals.empty?
 
         raise DSL::Malformed,
-              "#{world.domain}'s world is not well formed; #{refusals.join('; ')}"
+              "#{world.domain}'s world is not well formed; #{refusals.join("; ")}"
       end
 
       # Judges `port` through the meta-domain's own `PortJudge` door.
@@ -190,7 +190,7 @@ module Hecks
         return port if refusals.empty?
 
         raise DSL::Malformed,
-              "#{port.name}'s port is not well formed; #{refusals.join('; ')}"
+              "#{port.name}'s port is not well formed; #{refusals.join("; ")}"
       end
 
       # Judges `adapter` through the meta-domain's own `AdapterJudge` door.
@@ -207,7 +207,7 @@ module Hecks
         return adapter if refusals.empty?
 
         raise DSL::Malformed,
-              "#{adapter.name}'s adapter is not well formed; #{refusals.join('; ')}"
+              "#{adapter.name}'s adapter is not well formed; #{refusals.join("; ")}"
       end
 
       # Judges `translation` through the meta-domain's own `TranslationJudge`
@@ -229,7 +229,7 @@ module Hecks
         return translation if refusals.empty?
 
         raise DSL::Malformed,
-              "#{translation.domain}'s translation is not well formed; #{refusals.join('; ')}"
+              "#{translation.domain}'s translation is not well formed; #{refusals.join("; ")}"
       end
 
       # Dispatches `bluebook` into the language and returns the graph the
@@ -257,7 +257,7 @@ module Hecks
 
         unless held[:refusals].empty?
           raise DSL::Malformed,
-                "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join('; ')}"
+                "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join("; ")}"
         end
 
         Assembly.call(held[:declaration])

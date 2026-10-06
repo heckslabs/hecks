@@ -146,7 +146,7 @@ module Hecks
 
       def leg_mismatch(process_manager, event_name, state)
         expected = process_manager.handlers_for(event_name).map { |h| h.from_state.inspect }.uniq
-        "in #{state.inspect}, not #{expected.join(' or ')}"
+        "in #{state.inspect}, not #{expected.join(" or ")}"
       end
 
       def pending_marker(event, handler, from_state, to_state)

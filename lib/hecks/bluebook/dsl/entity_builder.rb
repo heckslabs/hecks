@@ -187,7 +187,7 @@ module Hecks
             else
               raise(Malformed,
                     "#{@aggregate_name}::#{@name}'s given #{description.inspect} is ambiguous " \
-                    "across the chapter's own pieces — #{candidates.keys.join(', ')} each declare " \
+                    "across the chapter's own pieces — #{candidates.keys.join(", ")} each declare " \
                     "a DIFFERENT predicate under this same description; name which one with " \
                     "declared_by: (e.g. given(#{description.inspect}, declared_by: " \
                     "#{candidates.keys.first.inspect}))")

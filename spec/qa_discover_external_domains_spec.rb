@@ -22,7 +22,7 @@ RSpec.describe "hecks quality_control discover_external_domains" do
     expect(out).to include("qualifying_sibling/widgets")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "qualifying_sibling/widgets"))
     expect(out).to include("hecks run qa/bluebook identify reference=qualifying_sibling/widgets " \
-                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'qualifying_sibling/widgets')}")
+                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "qualifying_sibling/widgets")}")
   end
 
   it "never reports ~/Projects/hecks itself" do
@@ -91,7 +91,7 @@ RSpec.describe "hecks quality_control discover_external_domains" do
     expect(out).to include("root_shaped_sibling/root_shaped_sibling")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "root_shaped_sibling"))
     expect(out).to include("hecks run qa/bluebook identify reference=root_shaped_sibling/root_shaped_sibling " \
-                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'root_shaped_sibling')}")
+                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "root_shaped_sibling")}")
     expect(out).not_to include("root_shaped_sibling/adapters")
   end
 
@@ -124,7 +124,7 @@ RSpec.describe "hecks quality_control discover_external_domains" do
     expect(out).to include("monorepo_sibling/app")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "monorepo_sibling/app"))
     expect(out).to include("hecks run qa/bluebook identify reference=monorepo_sibling/app " \
-                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'monorepo_sibling/app')}")
+                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "monorepo_sibling/app")}")
     skipped_line = out[/^no hecks dependency, skipped:.*$/]
     expect(skipped_line.to_s).not_to include("monorepo_sibling")
   end

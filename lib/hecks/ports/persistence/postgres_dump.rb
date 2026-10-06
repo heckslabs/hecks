@@ -72,7 +72,7 @@ module Hecks
         def mismatch(expected, actual)
           differing = (expected.keys | actual.keys).reject { |name| expected[name] == actual[name] }
           detail = differing.map { |name| "#{name} (source #{expected[name].inspect}, restored #{actual[name].inspect})" }
-          "the restored dump disagrees with the source for #{detail.join(', ')}; " \
+          "the restored dump disagrees with the source for #{detail.join(", ")}; " \
             "if the database took writes during the dump, dump it again"
         end
 

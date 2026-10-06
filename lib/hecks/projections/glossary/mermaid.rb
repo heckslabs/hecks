@@ -55,7 +55,7 @@ module Hecks
           lines = ["stateDiagram-v2"]
           states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
           states.select { |state| state.to_s.include?("_") }.each do |state|
-            lines << "    state \"#{state.to_s.tr('_', ' ')}\" as #{state}"
+            lines << "    state \"#{state.to_s.tr("_", " ")}\" as #{state}"
           end
           lines << "    [*] --> #{lifecycle.default}"
           lifecycle.transitions.each do |name, transition|
@@ -83,7 +83,7 @@ module Hecks
         end
 
         # A node id that carries no identifier: `n_atm_card`, never `n_ATMCard`.
-        def id(name) = "n_#{Naming.snake(name).gsub(/[^a-z0-9_]/, '_')}"
+        def id(name) = "n_#{Naming.snake(name).gsub(/[^a-z0-9_]/, "_")}"
 
         # Renders one Mermaid node declaration, marked `focus` when asked.
         def node(name, focus: false)

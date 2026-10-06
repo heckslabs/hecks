@@ -63,7 +63,7 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate] the aggregate whose records the picker offers
       # @return [Forms::Field] a `:reference` field at path `"to"` targeting `aggregate`
       def self.identity_field(aggregate)
-        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(', ')})",
+        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(", ")})",
                   kind: :reference, html_type: "text", target_aggregate: aggregate,
                   help: "The record this command acts on.")
       end
@@ -107,7 +107,7 @@ module Hecks
 
         <<~HTML
           <div class="error-banner" role="alert">
-            <p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — #{Escape.html(error.message)}</p>
+            <p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — #{Escape.html(error.message)}</p>
           </div>
         HTML
       end
@@ -141,10 +141,10 @@ module Hecks
         <<~HTML
           <details class="inspect">
             <summary>Inspect — #{Escape.html(verb)}</summary>
-            <p>Emits: #{command.emits.empty? ? '<em>nothing declared</em>' : command.emits.map { |e| "<code>#{Escape.html(e)}</code>" }.join(', ')}</p>
-            <p>Equivalent request (as <code>curl</code>) — every field is <code>#{Escape.html('name.path')}</code>-encoded, form or JSON alike:</p>
+            <p>Emits: #{command.emits.empty? ? "<em>nothing declared</em>" : command.emits.map { |e| "<code>#{Escape.html(e)}</code>" }.join(", ")}</p>
+            <p>Equivalent request (as <code>curl</code>) — every field is <code>#{Escape.html("name.path")}</code>-encoded, form or JSON alike:</p>
             <div class="link-row"><code id="curl-snippet">#{Escape.html(curl)}</code><button type="button" class="copy" data-copy="#curl-snippet">copy</button></div>
-            <p>Fields this command takes: #{paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(', ')}</p>
+            <p>Fields this command takes: #{paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(", ")}</p>
             <p>The command's own declaration, as the runtime holds it:</p>
             <pre>#{Escape.html(JSON.pretty_generate(command.to_h))}</pre>
           </details>

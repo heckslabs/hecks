@@ -110,7 +110,7 @@ module Hecks
       #   draw hits
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []
-        return "missing-#{random.bytes(4).unpack1('H*')}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
+        return "missing-#{random.bytes(4).unpack1("H*")}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
 
         pool.sample(random: random)
       end
@@ -209,7 +209,7 @@ module Hecks
       # @param random [Random] the RNG driving every draw this call makes
       # @return [String] a `"gen-"`-prefixed id with 8 random hex characters
       def random_id(random)
-        "gen-#{random.bytes(4).unpack1('H*')}"
+        "gen-#{random.bytes(4).unpack1("H*")}"
       end
     end
   end

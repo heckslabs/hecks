@@ -78,13 +78,13 @@ module Hecks
       def table(section, context)
         lines = rows.select { |row| row["section"] == section }.group_by { |row| row["script"] }.map do |script, group|
           cell = group.map { |row| cell(row, context) }.join("; ")
-          "| #{cell} | #{script == '(new)' ? '(new: no `bin/` script)' : "`bin/#{script}`"} |"
+          "| #{cell} | #{script == "(new)" ? "(new: no `bin/` script)" : "`bin/#{script}`"} |"
         end
         [HEADER, *lines].join("\n")
       end
 
       # One form as the table shows it: in backticks, with a `|` escaped.
-      def cell(row, context) = "`#{form(row, context).gsub('|', '\|')}`"
+      def cell(row, context) = "`#{form(row, context).gsub("|", '\|')}`"
 
       # @param row [Hash{String => String}] a `RetiredScript` row
       # @param context [Context] the booted chapters
@@ -96,7 +96,7 @@ module Hecks
         passes = row["passes"].to_s
         text = [*words, *argument_words(spec, skip: passes.empty? ? [] : %w[arguments])].join(" ")
         text += %( [arguments="#{passes}"]) unless passes.empty?
-        text += " (#{row['note']})" unless row["note"].to_s.empty?
+        text += " (#{row["note"]})" unless row["note"].to_s.empty?
         "hecks #{text}"
       end
 
@@ -135,7 +135,7 @@ module Hecks
 
       # `--confirm` is what makes a verb act, so it stands bare; any other flag is optional.
       def flag_word(argument)
-        word = "--#{argument[:path].tr('_', '-')}"
+        word = "--#{argument[:path].tr("_", "-")}"
         argument[:path] == "confirm" ? word : "[#{word}]"
       end
 
@@ -146,7 +146,7 @@ module Hecks
         return 0 if text == fresh
 
         stale = SECTIONS.reject { |section| section_text(text, section) == section_text(fresh, section) }
-        warn "tools_doc: #{DOCUMENT} differs from the RetiredScript rows in: #{stale.join(', ')} " \
+        warn "tools_doc: #{DOCUMENT} differs from the RetiredScript rows in: #{stale.join(", ")} " \
              "(run hecks regeneration_run.project_tools_doc --confirm)"
         1
       end
@@ -171,7 +171,7 @@ module Hecks
         def spec_for(row)
           chapter = %w[Custodian Codebase].include?(row["section"]) ? "Hecks" : row["section"]
           cli = projection(chapter)
-          name = "#{Naming.snake(row['aggregate'])}.#{row['verb']}"
+          name = "#{Naming.snake(row["aggregate"])}.#{row["verb"]}"
           command = cli[:commands][cli[:names][:command][name]]
           question = cli[:questions][cli[:names][:question][name]]
           spec = command || question or abort "tools_doc: #{chapter} has no command or query #{name}"

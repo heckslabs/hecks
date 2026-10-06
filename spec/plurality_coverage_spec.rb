@@ -128,7 +128,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     stale  = ALLOWED_SINGLETON.keys.select { |field| maxima[field].to_i >= 2 }
 
     expect(stale).to be_empty,
-                     "the corpus now fills #{stale.join(', ')} more than once — " \
+                     "the corpus now fills #{stale.join(", ")} more than once — " \
                      "delete the ALLOWED_SINGLETON entry, the claim is tested now"
   end
 

@@ -200,8 +200,8 @@ module Hecks
               clash = spec.is_a?(Hash) ? FROM_TASKDEF & spec.keys : []
               next if clash.empty?
 
-              raise ArgumentError, "containers: #{spec[:name]} sets #{clash.join(', ')}, which the task definition " \
-                                   "#{family} supplies; drop #{clash.size == 1 ? 'it' : 'them'} or drop task_definition"
+              raise ArgumentError, "containers: #{spec[:name]} sets #{clash.join(", ")}, which the task definition " \
+                                   "#{family} supplies; drop #{clash.size == 1 ? "it" : "them"} or drop task_definition"
             end
             family
           end
@@ -238,7 +238,7 @@ module Hecks
           # @param name [String] a container name such as `web-app`
           # @return [String] the image-tag parameter a stack names it by, such as `WebAppImageTag`
           def default_tag_parameter(name)
-            "#{name.split('-').map(&:capitalize).join}ImageTag"
+            "#{name.split("-").map(&:capitalize).join}ImageTag"
           end
 
           def read_routes(list, containers)

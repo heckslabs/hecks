@@ -85,9 +85,9 @@ module Hecks
       def report_line(first, last, days, budget)
         mean = days.values.sum { |services| services.values.sum } / days.size
         biggest = totals_by_service(days).max_by(TOP_SERVICES) { |_name, dollars| dollars }
-        named = biggest.map { |name, dollars| "#{name} $#{format('%.2f', dollars / days.size)}/day" }.join(", ")
-        "#{first}..#{last - 1} (#{days.size} days): $#{format('%.2f', mean)}/day, " \
-          "$#{format('%.2f', monthly_rate(days))}/month against $#{budget}; biggest: #{named}"
+        named = biggest.map { |name, dollars| "#{name} $#{format("%.2f", dollars / days.size)}/day" }.join(", ")
+        "#{first}..#{last - 1} (#{days.size} days): $#{format("%.2f", mean)}/day, " \
+          "$#{format("%.2f", monthly_rate(days))}/month against $#{budget}; biggest: #{named}"
       end
 
       def totals_by_service(days)

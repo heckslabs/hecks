@@ -26,8 +26,8 @@ module Hecks
       # @return [String] HTML for the section's heading and aggregate list
       def self.chapter_section(name, chapter)
         items = chapter.aggregates.map do |aggregate|
-          counts = "#{aggregate.commands.size} command#{'s' unless aggregate.commands.size == 1}, " \
-                   "#{aggregate.queries.size} quer#{aggregate.queries.size == 1 ? 'y' : 'ies'}"
+          counts = "#{aggregate.commands.size} command#{"s" unless aggregate.commands.size == 1}, " \
+                   "#{aggregate.queries.size} quer#{aggregate.queries.size == 1 ? "y" : "ies"}"
           <<~HTML
             <li><a href="/#{Escape.attr(name)}/#{Escape.attr(aggregate.hecks_name)}.html">
               <span>#{Escape.html(aggregate.hecks_name)}</span><span class="kind">#{Escape.html(counts)}</span>

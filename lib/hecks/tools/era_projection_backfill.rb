@@ -85,7 +85,7 @@ module Hecks
         end
 
         backfilled = before - missing.call
-        puts "#{bluebook.name}: backfilled #{backfilled} era#{'s' unless backfilled == 1} — " \
+        puts "#{bluebook.name}: backfilled #{backfilled} era#{"s" unless backfilled == 1} — " \
              "every row now carries a projection."
         0
       end

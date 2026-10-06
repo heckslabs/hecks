@@ -219,9 +219,9 @@ module Hecks
         updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
                    ["hecks_version = #{quoted_table}.hecks_version + 1"]
 
-        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
-              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
-              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
+        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(", ")}) " \
+              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(", ")}) " \
+              "ON CONFLICT (id) DO UPDATE SET #{updates.join(", ")}"
         if expected_version
           values += [expected_version]
           sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
@@ -584,7 +584,7 @@ module Hecks
       # Builds an escaped Array[...] literal rather than a hand-rolled '{a,b,c}'
       # string, since a segment name isn't guaranteed schema-declared.
       def jsonb_path(column, segments)
-        "#{quote_ident(column)} #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(', ')}]::text[]"
+        "#{quote_ident(column)} #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(", ")}]::text[]"
       end
 
       # Shared decode step for `entries`/`entries_since` — runs a query already selecting

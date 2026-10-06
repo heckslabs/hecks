@@ -58,7 +58,7 @@ module Hecks
             .group_by { |row| [row[:context], row[:word]] }
             .to_h do |key, same_word|
               targets = same_word.map { |row| row[:calls] }.uniq
-              raise Conflict, "#{key.inspect} names more than one method: #{targets.join(', ')}" if targets.size > 1
+              raise Conflict, "#{key.inspect} names more than one method: #{targets.join(", ")}" if targets.size > 1
 
               [key, targets.first.to_sym]
             end

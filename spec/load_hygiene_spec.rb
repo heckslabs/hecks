@@ -63,7 +63,7 @@ RSpec.describe "load hygiene", :io do
 
     expect(colliding).to be_empty,
                          "spec files sharing a top-level constant name:\n" \
-                         "#{colliding.map { |name, files| "  #{name}: #{files.uniq.join(', ')}" }.join("\n")}"
+                         "#{colliding.map { |name, files| "  #{name}: #{files.uniq.join(", ")}" }.join("\n")}"
   end
 
   # ADR 0033: a domain bound to a lazily-loaded plugin (PostgresEra) must boot in a fresh process.

@@ -101,7 +101,7 @@ module Hecks
 
       def aggregates_in(chapter_ir)
         (chapter_ir["aggregates"] || []).map do |aggregate|
-          ["#{chapter_ir['name']}::#{aggregate['name']}", properties(aggregate)]
+          ["#{chapter_ir["name"]}::#{aggregate["name"]}", properties(aggregate)]
         end
       end
 

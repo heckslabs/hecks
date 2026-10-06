@@ -31,7 +31,7 @@ module Hecks
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
         clauses = where_clauses(declared, args, binds)
-        sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
+        sql << " WHERE #{clauses.join(" AND ")}" unless clauses.empty?
         sql << order_by_sql(declared)
         sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
         # SQLite refuses a bare OFFSET, so the dialect spells its own unbounded limit.
@@ -78,7 +78,7 @@ module Hecks
 
           # `in` reads as text everywhere: casting the column keeps a numeric field
           # matching the stringified members (SQLite's json_extract carries no affinity).
-          "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(', ')})"
+          "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(", ")})"
         else
           raise ArgumentError, "#{dialect_name} query adapter does not support #{oper.inspect}"
         end

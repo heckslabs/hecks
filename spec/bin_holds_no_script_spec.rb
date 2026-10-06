@@ -26,7 +26,7 @@ RSpec.describe "bin/ after the ADR 0080 removal" do
     hand_written = files.reject { |path| banner?(path) }.map { |path| path.delete_prefix("#{bin}/") }
     shims = files.select { |path| File.read(path).match?(SHIM) }.map { |path| path.delete_prefix("#{bin}/") }
 
-    expect(hand_written).to eq([]), "hand-written files under bin/: #{hand_written.join(', ')}"
-    expect(shims).to eq([]), "shim files under bin/: #{shims.join(', ')}"
+    expect(hand_written).to eq([]), "hand-written files under bin/: #{hand_written.join(", ")}"
+    expect(shims).to eq([]), "shim files under bin/: #{shims.join(", ")}"
   end
 end

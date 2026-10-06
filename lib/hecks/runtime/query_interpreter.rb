@@ -138,7 +138,7 @@ module Hecks
         offered = declared.returns_list? ? answer : [answer]
         unless offered.is_a?(Array) && offered.all?(Hash)
           raise TypeMismatch, "#{asked} answered outside the domain, but #{answer.class} is not " \
-                              "#{declared.returns_list? ? 'a list of' : 'a'} #{value_object.hecks_name} row"
+                              "#{declared.returns_list? ? "a list of" : "a"} #{value_object.hecks_name} row"
         end
 
         offered.map { |row| answered_row(value_object, row, aggregate, declared, asked) }

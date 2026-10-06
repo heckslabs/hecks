@@ -53,7 +53,7 @@ RSpec.describe Hecks::Ports::Authentication do
 
       expect(url).to start_with("https://accounts.google.com/o/oauth2/v2/auth?")
       expect(url).to include("client_id=test-client-id")
-      expect(url).to include("redirect_uri=#{ERB::Util.url_encode('http://localhost:4567/auth/google/callback')}")
+      expect(url).to include("redirect_uri=#{ERB::Util.url_encode("http://localhost:4567/auth/google/callback")}")
       expect(url).to include("scope=openid%20email%20profile")
       expect(url).to include("state=#{state}")
       expect(state).to match(/\A[0-9a-f]{48}\z/)

@@ -59,9 +59,9 @@ module Hecks
         end
 
         def announce_all(targets, stale, modes, now)
-          puts "sweeping #{targets.size} target(s), at most #{@max_parallel} at once: #{targets.join(', ')} " \
+          puts "sweeping #{targets.size} target(s), at most #{@max_parallel} at once: #{targets.join(", ")} " \
                "(adversarial fraction #{@adversarial}, self-consistency #{@self_consistency}, " \
-               "role draw #{@role_draw}, dry-run fraction #{@dry_run}, enabled modes #{modes.join(',')})"
+               "role draw #{@role_draw}, dry-run fraction #{@dry_run}, enabled modes #{modes.join(",")})"
           stale.each do |row|
             puts "reclaimed stale hold: #{row[:reference][:value]} (held by #{row[:held_by][:value]}, " \
                  "#{now - row[:claimed_at][:value]}s ago)"
@@ -139,7 +139,7 @@ module Hecks
 
           puts
           puts "parity wave: Memory vs real PostgresEra for #{candidates.size} target(s), " \
-               "at most #{@max_parallel} at once: #{candidates.join(', ')}"
+               "at most #{@max_parallel} at once: #{candidates.join(", ")}"
           results = run_pool(candidates) do |reference|
             spawn_sweep_child(reference, @seeds_override, nil, false, modes: [], parity: true)
           end
@@ -157,7 +157,7 @@ module Hecks
           end
 
           puts
-          puts "#{mode} wave: #{candidates.size} target(s), at most #{@max_parallel} at once: #{candidates.join(', ')}"
+          puts "#{mode} wave: #{candidates.size} target(s), at most #{@max_parallel} at once: #{candidates.join(", ")}"
           results = run_pool(candidates) do |reference|
             spawn_sweep_child(reference, @seeds_override, nil, false, modes: [mode])
           end
@@ -187,7 +187,7 @@ module Hecks
           match = output.match(RESOLVED_MODES_LINE)
           return "modes unknown (target errored before it could resolve them)" unless match
 
-          line = "#{match[1].empty? ? 'none' : match[1]} (capabilities: #{match[2].empty? ? 'none' : match[2]}"
+          line = "#{match[1].empty? ? "none" : match[1]} (capabilities: #{match[2].empty? ? "none" : match[2]}"
           line += "; deferred: #{match[3]}" if match[3] && !match[3].empty?
           "#{line})"
         end
@@ -241,7 +241,7 @@ module Hecks
                "(genuinely parallel — not the sum of every target's own sweep time)"
           puts "=" * 72
           puts
-          puts "clean (#{clean.size}): #{clean.empty? ? 'none' : clean.map { |r| r[:target] }.join(', ')}"
+          puts "clean (#{clean.size}): #{clean.empty? ? "none" : clean.map { |r| r[:target] }.join(", ")}"
 
           print_resolved_depths(results)
           print_resolved_modes(results)

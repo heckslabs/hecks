@@ -55,7 +55,7 @@ module Hecks
           diverged = domain.writing { |lineage| diverged_writes(domain, lineage) }
           PostgresEra::LineageManager.merge!(registry: domain.registry, bluebook: domain.bluebook,
                                              settings: domain.settings, winners: named)
-          ["#{domain.bluebook.name}: #{diverged} post-cut write#{'s' unless diverged == 1} in ancestor " \
+          ["#{domain.bluebook.name}: #{diverged} post-cut write#{"s" unless diverged == 1} in ancestor " \
            "eras before the merge",
            "merged — the head now interleaves both worlds by their recorded ordinals",
            *named.map { |id, side| "  winner #{id}=#{side} appended as the newest row" }].join("\n")
@@ -98,7 +98,7 @@ module Hecks
                                         "(`hecks reattest`), then run this again for the remaining rows."
           end
           done = before - missing.call
-          "#{domain.bluebook.name}: backfilled #{done} era#{'s' unless done == 1} — every row now carries a projection."
+          "#{domain.bluebook.name}: backfilled #{done} era#{"s" unless done == 1} — every row now carries a projection."
         end
 
         def missing_projections(lineage)
@@ -125,8 +125,8 @@ module Hecks
             approved_at: Time.now.utc.iso8601, rehearsal: rehearsal_block(held)
           )
           path = Translation::ApprovalFile.write!(domain.directory, finding.edge, document)
-          "approval of edge #{document['edge']} written to #{path} (digest #{document['edge_digest'][0, 12]}…, " \
-            "by #{document['approved_by']}). Commit it with the edge; the host applies it at its next boot."
+          "approval of edge #{document["edge"]} written to #{path} (digest #{document["edge_digest"][0, 12]}…, " \
+            "by #{document["approved_by"]}). Commit it with the edge; the host applies it at its next boot."
         end
 
         def audited_edge(domain, lineage)

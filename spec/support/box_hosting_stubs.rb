@@ -141,7 +141,7 @@ module BoxHostingStubs
     #
     # @param name [String] the task definition, such as "widget-platform:5"
     # @param tags [Hash{String => String}] container => image tag
-    def pin_task_definition(name, tags) = File.write(File.join(dir, "pin_#{name.tr(':', '_')}"), JSON.generate(tags))
+    def pin_task_definition(name, tags) = File.write(File.join(dir, "pin_#{name.tr(":", "_")}"), JSON.generate(tags))
 
     # @return [Array<String>] the calls the stand-ins recorded, oldest first
     def calls
@@ -155,7 +155,7 @@ module BoxHostingStubs
     # @param script [String] the script's name
     # @return [Array(String, String, Process::Status)] stdout, stderr and status
     def run(script, *, env: {})
-      Open3.capture3({ "PATH" => "#{File.join(dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => dir,
+      Open3.capture3({ "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir,
                        "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "6",
                        "SSM_POLL_SECS" => "0.1" }.merge(env),
                      "bash", File.join(dir, "scripts", script), *)

@@ -22,7 +22,7 @@ RSpec.describe "the QA rotation's own targets" do
   it "names a path that really holds a bluebook, for every one of them" do
     missing = targets.reject { |_, path| Hecks::Corpus.bluebook_files(File.join(root, path)) }
 
-    expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(', ')}"
+    expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(", ")}"
   end
 
   # Fails if someone re-types the membership in the seeder instead of reading the corpus.

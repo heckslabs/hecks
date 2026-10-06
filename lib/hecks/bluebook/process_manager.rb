@@ -33,7 +33,7 @@ module Hecks
     Saga = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
       def undoes = compensations.map(&:command_name)
 
-      def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
+      def to_s = "#{trigger} → #{to_state} (#{undoes.join(", ")})"
     end
 
     # The built form of a `process_manager "Name" do ... end` block, made by

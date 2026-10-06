@@ -41,7 +41,7 @@ module Hecks
 
       def self.fetch(name)
         all.fetch(name) do
-          raise ArgumentError, "unknown domain #{name.inspect} — one of #{all.keys.join(', ')}"
+          raise ArgumentError, "unknown domain #{name.inspect} — one of #{all.keys.join(", ")}"
         end
       end
 

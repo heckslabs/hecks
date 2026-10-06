@@ -40,7 +40,7 @@ module Hecks
         refuse_empty_candidates(candidates)
         files, example_count = matching_files(candidates, tag_args, root, err)
         err.puts "hecks list_io_parallel_specs: #{files.size} of #{candidates.size} candidate files carry a " \
-                 "matching example (#{example_count} examples total) under `#{tag_args.join(' ')}`"
+                 "matching example (#{example_count} examples total) under `#{tag_args.join(" ")}`"
 
         case mode
         when "--write" then File.write(File.expand_path(list_path, root), "#{files.join("\n")}\n")
@@ -89,7 +89,7 @@ module Hecks
         stdout, stderr, status = Open3.capture3(*command, chdir: root)
         unless status.success?
           err.puts stderr
-          abort "hecks list_io_parallel_specs: `#{command.join(' ')}` exited #{status.exitstatus} — " \
+          abort "hecks list_io_parallel_specs: `#{command.join(" ")}` exited #{status.exitstatus} — " \
                 "see stderr above. Refusing to guess a file list from a failed dry run."
         end
 
@@ -101,7 +101,7 @@ module Hecks
         return [files, examples.size] unless files.empty?
 
         abort "hecks list_io_parallel_specs: #{candidates.size} candidate files, but the dry run matched ZERO " \
-              "examples under `#{tag_args.join(' ')}` — that's almost certainly a broken tag filter, not a " \
+              "examples under `#{tag_args.join(" ")}` — that's almost certainly a broken tag filter, not a " \
               "real empty set. Refusing to silently hand parallel_rspec nothing to run."
       end
 
@@ -123,7 +123,7 @@ module Hecks
         err.puts named("carries a matching example but is not listed (would never run in the shards)", missing) if missing.any?
         err.puts named("listed but carries no matching example any more", stale) if stale.any?
         abort "Refresh it and commit the result:\n  " \
-              "hecks list_io_parallel_specs --write #{shown} '#{exclude_arg}' -- #{tag_args.join(' ')}"
+              "hecks list_io_parallel_specs --write #{shown} '#{exclude_arg}' -- #{tag_args.join(" ")}"
       end
 
       # @param heading [String] what the paths have in common

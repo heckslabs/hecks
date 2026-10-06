@@ -288,7 +288,7 @@ RSpec.describe "the declared syntax" do
     contexts = pairs.map(&:first)
     next if builder.equal?(D::AttributeCollector)
 
-    it "declares every word #{builder} answers (#{contexts.join(', ')})" do
+    it "declares every word #{builder} answers (#{contexts.join(", ")})" do
       own_words = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word] } }.uniq
       declared = contexts.flat_map { |ctx| declared_in(ctx).flat_map { |row| [row[:word], row[:was].to_s].reject(&:empty?) } }
                          .map(&:to_sym).uniq
@@ -352,7 +352,7 @@ RSpec.describe "the declared syntax" do
                     .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(early).to be_empty,
-                     "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                     "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ")} " \
                      "— proposed, but the builder already answers; run hecks admit"
   end
 
@@ -361,7 +361,7 @@ RSpec.describe "the declared syntax" do
                         .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(lingering).to be_empty,
-                         "#{lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                         "#{lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ")} " \
                          "— retired, but the builder still answers"
   end
 
@@ -529,7 +529,7 @@ RSpec.describe "the declared syntax" do
       expect(landing.any? { |category| fields.fetch(category).include?(row[:fills]) }).to(
         be(true),
         "#{row[:context]}.#{row[:word]} fills #{row[:fills]}, which " \
-        "#{landing.join('/')} does not declare"
+        "#{landing.join("/")} does not declare"
       )
     end
   end

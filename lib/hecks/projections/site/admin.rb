@@ -84,7 +84,7 @@ module Hecks
 
         def typed_fields(row, problems)
           unknown = row.keys - FIELDS.keys
-          problems << "Admin row has no field #{unknown.join(', ')}; fields are #{FIELDS.keys.join(', ')}" if unknown.any?
+          problems << "Admin row has no field #{unknown.join(", ")}; fields are #{FIELDS.keys.join(", ")}" if unknown.any?
           (REQUIRED - row.keys).each { |field| problems << "Admin row needs #{field}" }
           row.slice(*FIELDS.keys).select do |field, value|
             value.is_a?(FIELDS.fetch(field)) ||

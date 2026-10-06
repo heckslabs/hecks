@@ -31,7 +31,7 @@ module Hecks
           settings = Settings.new(deploy_settings: deploy_settings, plan: plan,
                                   stack_name: stack_name, region: region)
           files.merge(
-            "Makefile"              => "#{files.fetch('Makefile')}\ninclude hosting.mk\n",
+            "Makefile"              => "#{files.fetch("Makefile")}\ninclude hosting.mk\n",
             "hosting.mk"            => hosting_mk(settings),
             "deploy-service.sh"     => deploy_service_sh(settings),
             "smoke-after-deploy.sh" => smoke_after_deploy_sh(settings),
@@ -67,7 +67,7 @@ module Hecks
         # @return [String] the header comment followed by one era id per line
         def expected_era(settings)
           header = File.read(File.join(SCRIPT_DIR, "expected-era.header"))
-          "#{([header.chomp, ''] + settings.expected_eras).join("\n")}\n"
+          "#{([header.chomp, ""] + settings.expected_eras).join("\n")}\n"
         end
 
         # Renders `hosting.mk`.
@@ -94,7 +94,7 @@ module Hecks
             "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
           end
           <<~BASH.chomp
-            SERVICES='#{settings.containers.map(&:name).join(' ')}'
+            SERVICES='#{settings.containers.map(&:name).join(" ")}'
 
             # Sets ECR_REPOSITORY and CFN_PARAM_KEY for one service, or exits.
             resolve_service() {

@@ -91,8 +91,8 @@ module Hecks
         actual = Lock.digest_of(File.join(dir, "bluebook"))
         return if actual == lock.digest
 
-        problems << "#{name}: vendored files hash to #{(actual || 'nothing')[0, 12]}, but bluebook.lock says " \
-                    "#{(lock.digest || '?')[0, 12]} (edited by hand, or re-vendored without its lock?)"
+        problems << "#{name}: vendored files hash to #{(actual || "nothing")[0, 12]}, but bluebook.lock says " \
+                    "#{(lock.digest || "?")[0, 12]} (edited by hand, or re-vendored without its lock?)"
       end
 
       # The tag of a release is `<package>-v<version>`; a lock saying otherwise was edited.

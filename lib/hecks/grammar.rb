@@ -41,7 +41,7 @@ module Hecks
           dispatcher.dispatch_flat(step.fetch("verb"), args)
         rescue *Runtime::DOMAIN_REFUSALS => e
           raise Runtime::WiringError,
-                "the admission ledger refused at #{step['verb']} #{step['args']} — #{e.message}"
+                "the admission ledger refused at #{step["verb"]} #{step["args"]} — #{e.message}"
         end
       end
 

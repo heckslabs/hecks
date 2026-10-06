@@ -61,7 +61,7 @@ module Hecks
           if admitted.empty?
             legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
             raise Malformed,
-                  "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(', ')}"
+                  "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(", ")}"
           end
 
           dispatched = GenericDispatch.try(self, context, word.to_s, args, kwargs, block, rows)

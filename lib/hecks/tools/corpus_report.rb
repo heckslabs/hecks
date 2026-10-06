@@ -61,7 +61,7 @@ module Hecks
         pending = Hecks::Corpus::RUST_COVERAGE_PENDING
         unknown = pending.keys - modules
         if unknown.any?
-          abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, " \
+          abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(", ")}, " \
                 "which has no generated module"
         end
 
@@ -69,10 +69,10 @@ module Hecks
         problems = modules.filter_map do |name|
           passed, output = results.fetch(name)
           if pending.key?(name)
-            puts "#{name}: pending (#{passed ? 'NOW PASSES' : 'still fails'}) — #{pending[name]}"
+            puts "#{name}: pending (#{passed ? "NOW PASSES" : "still fails"}) — #{pending[name]}"
             "#{name} passes now — delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
           else
-            puts "#{name}: #{passed ? 'ok' : 'FAILED'}"
+            puts "#{name}: #{passed ? "ok" : "FAILED"}"
             "#{name} failed:\n#{output}" unless passed
           end
         end

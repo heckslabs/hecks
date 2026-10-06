@@ -120,7 +120,7 @@ module Hecks
                   Priority: #{priority}
                   Conditions:
                     - Field: path-pattern
-                      Values: [#{spec[:paths].map { |p| JSON.generate(p) }.join(', ')}]
+                      Values: [#{spec[:paths].map { |p| JSON.generate(p) }.join(", ")}]
                   Actions:
                     - Type: forward
                       TargetGroupArn: !Ref #{spec[:container].logical}TargetGroup
@@ -134,7 +134,7 @@ module Hecks
             <<~YAML.chomp
               Service:
                 Type: AWS::ECS::Service
-                DependsOn: [#{(['Listener'] + rule_ids).join(', ')}]
+                DependsOn: [#{(["Listener"] + rule_ids).join(", ")}]
                 Properties:
                   ServiceName: !Sub "#{settings.prefix}-${EnvName}"
                   Cluster: !Ref Cluster

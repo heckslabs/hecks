@@ -51,12 +51,12 @@ module Hecks
       def report(results, dry_run)
         label = ->(c) { "#{c.owner}##{c.description.inspect} (#{c.locations.size} locations)" }
 
-        puts "== results (#{dry_run ? 'DRY RUN — nothing written' : 'applied'}) =="
+        puts "== results (#{dry_run ? "DRY RUN — nothing written" : "applied"}) =="
         results.each do |r|
           case r[:status]
           when :clean   then puts "clean (no candidates): #{r[:file]}"
-          when :applied then puts "APPLIED  #{r[:file]}: #{r[:candidates].map(&label).join(', ')}"
-          when :skipped then puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{r[:candidates].map(&label).join(', ')}"
+          when :applied then puts "APPLIED  #{r[:file]}: #{r[:candidates].map(&label).join(", ")}"
+          when :skipped then puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{r[:candidates].map(&label).join(", ")}"
           end
         end
       end

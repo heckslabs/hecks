@@ -34,10 +34,10 @@ module Hecks
         bluebook.aggregates.find { |aggregate| aggregate.hecks_name == only.to_s } ||
           raise(Runtime::NotFound,
                 "#{bluebook.name} declares no aggregate named #{only.to_s.inspect} — " \
-                "it declares #{bluebook.aggregates.map(&:hecks_name).sort.join(', ')}")
+                "it declares #{bluebook.aggregates.map(&:hecks_name).sort.join(", ")}")
       end
 
-      def h(depth, text) = "#{'#' * depth} #{text}"
+      def h(depth, text) = "#{"#" * depth} #{text}"
 
       def chapter_header(bluebook, depth)
         out = [h(depth, bluebook.name), ""]
@@ -45,7 +45,7 @@ module Hecks
         out << "#{bluebook.classification.to_s.capitalize} domain." if bluebook.classification
         out << "Previously known as `#{bluebook.formerly_known_as}`." if bluebook.formerly_known_as
         out << ""
-        out << "Aggregates: #{bluebook.aggregates.map { |a| "[#{a.hecks_name}](##{anchor(a.hecks_name)})" }.join(', ')}."
+        out << "Aggregates: #{bluebook.aggregates.map { |a| "[#{a.hecks_name}](##{anchor(a.hecks_name)})" }.join(", ")}."
         out << ""
         out.join("\n")
       end
@@ -73,7 +73,7 @@ module Hecks
           out << "Starts on `#{shape[:starts_on]}`, ends on `#{shape[:ends_on]}`, " \
                  "correlated by `#{shape[:correlates_by]}`."
           out << ""
-          out << "States: #{Array(shape[:states]).map { |s| "`#{s}`" }.join(' → ')}."
+          out << "States: #{Array(shape[:states]).map { |s| "`#{s}`" }.join(" → ")}."
           out << ""
         end
 
@@ -84,9 +84,9 @@ module Hecks
         out = [h(depth, aggregate.hecks_name), ""]
         out += [aggregate.description, ""] if aggregate.description
 
-        out << "Identified by `#{aggregate.identity_heads.join('`, `')}`." unless aggregate.identity_heads.empty?
+        out << "Identified by `#{aggregate.identity_heads.join("`, `")}`." unless aggregate.identity_heads.empty?
         refs = aggregate.attributes.select(&:reference?)
-        out << "References #{refs.map { |r| "`#{r.type.target_name}`" }.join(', ')}." unless refs.empty?
+        out << "References #{refs.map { |r| "`#{r.type.target_name}`" }.join(", ")}." unless refs.empty?
         out << ""
 
         out << attributes_table(aggregate)
@@ -105,7 +105,7 @@ module Hecks
         # An entity has no door of its own; its verbs go through the holding aggregate.
         out << "Addressed through its holder — `#{aggregate.hecks_name}.#{entity.hecks_name}.<Verb>`, " \
                "passing the #{aggregate.hecks_name}'s `id` and this element's " \
-               "`#{entity.identity_heads.join('`, `')}`."
+               "`#{entity.identity_heads.join("`, `")}`."
         out << ""
         out << attributes_table(entity)
         out << lifecycle_section(entity, depth + 1)
@@ -129,7 +129,7 @@ module Hecks
         value_object = value_object_for(attribute, holder)
         inner =
           if value_object
-            "{ #{value_object.attributes.map { |f| "#{f.name}: #{f.type}" }.join(', ')} }"
+            "{ #{value_object.attributes.map { |f| "#{f.name}: #{f.type}" }.join(", ")} }"
           else
             attribute.type.to_s
           end
@@ -140,7 +140,7 @@ module Hecks
       def rules_of(attribute, holder)
         value_object = value_object_for(attribute, holder)
         rules = []
-        rules << "one of #{closed_members(value_object).map { |m| "`#{m}`" }.join(', ')}" if closed_members(value_object).any?
+        rules << "one of #{closed_members(value_object).map { |m| "`#{m}`" }.join(", ")}" if closed_members(value_object).any?
         Array(value_object&.attributes).each do |field|
           rules << "`#{field.name}` matches `#{field.pattern}`" if field.pattern
           rules << "`#{field.name}` defaults to `#{field.default.inspect}`" unless field.default.nil?
@@ -172,7 +172,7 @@ module Hecks
         lifecycle = holder.lifecycle or return nil
 
         rows = lifecycle.transitions.map do |name, transition|
-          ["`#{name}`", "`#{Array(transition.from).join('`, `')}`", "`#{transition.target}`"]
+          ["`#{name}`", "`#{Array(transition.from).join("`, `")}`", "`#{transition.target}`"]
         end
         [h(depth, "Lifecycle (`#{lifecycle.field}`)"), "",
          "Starts at `#{lifecycle.default}`. A verb not listed here can be issued from any state.", "",
@@ -189,7 +189,7 @@ module Hecks
       end
 
       def command_entry(command, holder, depth)
-        out = [h(depth, "#{command.hecks_name}#{' *(creates)*' if command.creates?}"), ""]
+        out = [h(depth, "#{command.hecks_name}#{" *(creates)*" if command.creates?}"), ""]
         out += [command.goal, ""] if command.goal
         out << "Issued by: **#{command.role}**." if command.role
         out << ""
@@ -205,8 +205,8 @@ module Hecks
           out << ""
         end
 
-        out << "Guarantees: #{command.ensures.map(&:description).join('; ')}." unless command.ensures.empty?
-        out << "Emits `#{command.emits.join('`, `')}`." unless command.emits.empty?
+        out << "Guarantees: #{command.ensures.map(&:description).join("; ")}." unless command.ensures.empty?
+        out << "Emits `#{command.emits.join("`, `")}`." unless command.emits.empty?
         out << ""
         out.join("\n")
       end
@@ -229,7 +229,7 @@ module Hecks
         if froms && !froms.empty?
           refusals << "`#{lifecycle.field}` is anything other than #{froms.map do |f|
             "`#{f}`"
-          end.join(' or ')}"
+          end.join(" or ")}"
         end
 
         command.attributes.select(&:reference?).each do |reference|
@@ -249,15 +249,15 @@ module Hecks
           out << "**#{query.hecks_name}**#{" (#{takes})" unless takes.empty?}  "
           out << (query.description ? "#{query.description}  " : "")
           filters = Array(shape[:wheres]).map { |w| "`#{w[:field]} #{w[:op]} #{w[:value].inspect}`" }
-          out << "Filters: #{filters.join(', ')}." unless filters.empty?
+          out << "Filters: #{filters.join(", ")}." unless filters.empty?
           out << ""
         end
         out.join("\n")
       end
 
       def table(headers, rows)
-        lines = ["| #{headers.join(' | ')} |", "|#{headers.map { '---' }.join('|')}|"]
-        rows.each { |row| lines << "| #{row.join(' | ')} |" }
+        lines = ["| #{headers.join(" | ")} |", "|#{headers.map { "---" }.join("|")}|"]
+        rows.each { |row| lines << "| #{row.join(" | ")} |" }
         (lines + [""]).join("\n")
       end
     end

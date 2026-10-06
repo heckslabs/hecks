@@ -38,14 +38,14 @@ RSpec.describe "the argument-gate ordering matrix" do
       order = MATRIX.fetch(row.fetch("kind") == "entity" ? "entity_order" : "aggregate_order")
       earlier, later = row.fetch("pair")
       expect(order.index(earlier)).to be < order.index(later),
-                                      "#{row.fetch('verb')}: #{earlier} is not declared before #{later}"
+                                      "#{row.fetch("verb")}: #{earlier} is not declared before #{later}"
     end
   end
 
   it "attributes every row's refusal to the EARLIER of its two violated steps" do
     MATRIX.fetch("rows").each do |row|
       expect(row.dig("expected", "refused_at")).to eq(row.fetch("pair").first),
-                                                   "#{row.fetch('verb')} #{row.fetch('pair').inspect}"
+                                                   "#{row.fetch("verb")} #{row.fetch("pair").inspect}"
     end
   end
 

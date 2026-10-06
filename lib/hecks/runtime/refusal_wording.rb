@@ -49,8 +49,8 @@ module Hecks
         missing  = declared - arguments.keys
         extra    = arguments.keys - declared
         if missing.any? || extra.any?
-          raise ArgumentError, "#{refusal}/#{site} takes #{declared.join(', ')} — " \
-                               "missing: #{missing.join(', ')}; undeclared: #{extra.join(', ')}"
+          raise ArgumentError, "#{refusal}/#{site} takes #{declared.join(", ")} — " \
+                               "missing: #{missing.join(", ")}; undeclared: #{extra.join(", ")}"
         end
 
         render_with(template(refusal, site), specs, arguments)

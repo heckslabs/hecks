@@ -80,7 +80,7 @@ module Hecks
         options[:chdir] = chdir if chdir
         return if system(env, *command, **options)
 
-        raise Failure, "`#{command.join(' ')}` failed#{" in #{chdir}" if chdir}"
+        raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end
 
       # Runs a tool and holds what it printed.

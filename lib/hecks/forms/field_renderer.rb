@@ -39,7 +39,7 @@ module Hecks
             <label for="#{dom_id(field.path)}">#{Escape.html(field.label)}#{required_mark(field)}</label>
             <textarea id="#{dom_id(field.path)}" name="#{Escape.attr(field.path)}"
               #{aria(field)} placeholder="one #{Escape.attr(item.label.downcase)} per line">#{Escape.html(current)}</textarea>
-            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{' — each line is one JSON object' unless item.leaf?}.</span>
+            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{" — each line is one JSON object" unless item.leaf?}.</span>
           </div>
         HTML
       end
@@ -61,7 +61,7 @@ module Hecks
       # A :boolean gets no label here because `checkbox` renders its own beside the box.
       def self.wrap(field, body, error)
         <<~HTML
-          <div class="field#{' has-error' if error}">
+          <div class="field#{" has-error" if error}">
             #{%(<label for="#{dom_id(field.path)}">#{Escape.html(field.label)}#{required_mark(field)}</label>) unless field.kind == :boolean}
             #{body}
             #{%(<span class="help" id="#{dom_id(field.path)}-help">#{Escape.html(field.help)}</span>) if field.help}
@@ -91,7 +91,7 @@ module Hecks
         <<~HTML
           <div class="checkbox-row">
             <input type="hidden" name="#{Escape.attr(field.path)}" value="0">
-            #{Tag.void('input', id: dom_id(field.path), name: field.path, type: 'checkbox', value: '1', checked: checked)}
+            #{Tag.void("input", id: dom_id(field.path), name: field.path, type: "checkbox", value: "1", checked: checked)}
             <label for="#{dom_id(field.path)}">#{Escape.html(field.label)}</label>
           </div>
         HTML
@@ -103,7 +103,7 @@ module Hecks
           checked = option_value.to_s == selected.to_s
           id = "#{dom_id(field.path)}-#{Naming.snake(option_value)}"
           <<~HTML
-            <label>#{Tag.void('input', id: id, type: 'radio', name: field.path, value: option_value, checked: checked)} #{Escape.html(option_label)}</label>
+            <label>#{Tag.void("input", id: id, type: "radio", name: field.path, value: option_value, checked: checked)} #{Escape.html(option_label)}</label>
           HTML
         end
         %(<div class="radio-group" role="radiogroup">#{options.join}</div>)
@@ -112,7 +112,7 @@ module Hecks
       def self.select(field, value)
         selected = value || field.default
         options = field.options.map do |option_value, option_label|
-          %(<option value="#{Escape.attr(option_value)}"#{' selected' if option_value.to_s == selected.to_s}>) \
+          %(<option value="#{Escape.attr(option_value)}"#{" selected" if option_value.to_s == selected.to_s}>) \
             "#{Escape.html(option_label)}</option>"
         end
         blank = field.optional? ? %(<option value="">—</option>) : ""
@@ -124,12 +124,12 @@ module Hecks
         return input(field.tap { |f| f.html_type = "text" }, value) unless options && !options.empty?
 
         rendered = options.map do |id, label|
-          %(<option value="#{Escape.attr(id)}"#{' selected' if id.to_s == value.to_s}>#{Escape.html(label)}</option>)
+          %(<option value="#{Escape.attr(id)}"#{" selected" if id.to_s == value.to_s}>#{Escape.html(label)}</option>)
         end
         blank = if field.optional?
                   %(<option value="">—</option>)
                 else
-                  %(<option value="" disabled#{' selected' unless value}>choose one…</option>)
+                  %(<option value="" disabled#{" selected" unless value}>choose one…</option>)
                 end
         %(<select id="#{dom_id(field.path)}" name="#{Escape.attr(field.path)}" #{aria(field)}>#{blank}#{rendered.join}</select>)
       end
@@ -137,7 +137,7 @@ module Hecks
       def self.required_mark(field) = field.required? ? %(<span class="required-mark" title="required">*</span>) : ""
 
       # "amount.cents" -> "f-amount-cents".
-      def self.dom_id(path) = "f-#{path.to_s.tr('.', '-')}"
+      def self.dom_id(path) = "f-#{path.to_s.tr(".", "-")}"
 
       # A :reference input takes a record id, so the attribute's own pattern must not apply.
       def self.leaf_pattern(field) = field.kind == :reference ? nil : field.pattern

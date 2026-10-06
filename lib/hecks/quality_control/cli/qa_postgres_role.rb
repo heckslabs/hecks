@@ -83,7 +83,7 @@ module Hecks
         elsif attrs[0]["rolsuper"] == "t" || attrs[0]["rolbypassrls"] == "t"
           admin.close
           abort "hecks quality_control create_ledger_role: role #{role} already exists as " \
-                "#{attrs[0]['rolsuper'] == 't' ? 'a superuser' : 'a BYPASSRLS role'} — the era write-fence " \
+                "#{attrs[0]["rolsuper"] == "t" ? "a superuser" : "a BYPASSRLS role"} — the era write-fence " \
                 "cannot bite it, which is the exact state this script exists to end. Pick another role, or " \
                 "ALTER ROLE #{role} NOSUPERUSER NOBYPASSRLS first."
         else
@@ -104,7 +104,7 @@ module Hecks
           skipped << "database #{database} already owned by #{role}"
         else
           admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{admin.quote_ident(role)}")
-          done << "database #{database}: owner #{owner[0]['owner']} -> #{role}"
+          done << "database #{database}: owner #{owner[0]["owner"]} -> #{role}"
         end
       end
 
@@ -114,7 +114,7 @@ module Hecks
         schema_owner = db.exec("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname = 'public'")
         if schema_owner.ntuples.positive? && schema_owner[0]["owner"] != role
           db.exec("ALTER SCHEMA public OWNER TO #{quoted_role}")
-          done << "schema public: owner #{schema_owner[0]['owner']} -> #{role}"
+          done << "schema public: owner #{schema_owner[0]["owner"]} -> #{role}"
         end
         take_relations(db, role, quoted_role, done)
         take_functions(db, role, quoted_role, done)
@@ -130,7 +130,7 @@ module Hecks
           ORDER BY c.relkind, c.relname
         SQL
         relations.each do |row|
-          db.exec("ALTER #{KINDS.fetch(row['relkind'])} #{db.quote_ident(row['relname'])} OWNER TO #{quoted_role}")
+          db.exec("ALTER #{KINDS.fetch(row["relkind"])} #{db.quote_ident(row["relname"])} OWNER TO #{quoted_role}")
         end
         done << "#{relations.ntuples} relation(s) in public -> #{role}" if relations.ntuples.positive?
       end
@@ -143,7 +143,7 @@ module Hecks
           ORDER BY p.proname
         SQL
         functions.each do |row|
-          db.exec("ALTER FUNCTION #{db.quote_ident(row['proname'])}(#{row['args']}) OWNER TO #{quoted_role}")
+          db.exec("ALTER FUNCTION #{db.quote_ident(row["proname"])}(#{row["args"]}) OWNER TO #{quoted_role}")
         end
         done << "#{functions.ntuples} function(s) in public -> #{role}" if functions.ntuples.positive?
       end

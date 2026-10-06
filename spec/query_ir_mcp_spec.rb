@@ -36,7 +36,7 @@ RSpec.describe Hecks::QueryIrMcp do
 
   it "answers a line that is not JSON with a parse error and keeps serving" do
     output = StringIO.new
-    described_class.serve(input: StringIO.new("{\n#{JSON.generate(id: 1, method: 'ping')}\n"), output: output)
+    described_class.serve(input: StringIO.new("{\n#{JSON.generate(id: 1, method: "ping")}\n"), output: output)
 
     codes = output.string.lines.map { |line| JSON.parse(line) }
 

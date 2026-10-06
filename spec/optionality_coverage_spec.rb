@@ -76,7 +76,7 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
     stale = ALLOWED_UNSET.keys.select { |key| set[key].to_i.positive? }
 
     expect(stale).to be_empty,
-                     "the corpus now fills #{stale.join(', ')} — delete the " \
+                     "the corpus now fills #{stale.join(", ")} — delete the " \
                      "ALLOWED_UNSET entry, the claim is tested now"
   end
 

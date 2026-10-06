@@ -136,7 +136,7 @@ module Hecks
 
         width = new_pairs.keys.map(&:size).max
         puts "new pair(s) — met on one aggregate here, on none of the existing targets:"
-        new_pairs.sort.each { |pair, names| puts "  #{pair.ljust(width)}  #{names.uniq.join(', ')}" }
+        new_pairs.sort.each { |pair, names| puts "  #{pair.ljust(width)}  #{names.uniq.join(", ")}" }
         puts
         puts "#{new_pairs.size} new pair(s) — #{candidate} earns its place."
         EXIT_NOVEL

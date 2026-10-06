@@ -1274,13 +1274,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   it "refuses to boot over a superuser connection by default — the era write-fence is void for it, and says so" do
     ambient = ambient_role
-    skip "the ambient Postgres role #{ambient['rolname']} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
+    skip "the ambient Postgres role #{ambient["rolname"]} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
 
     refusal = Regexp.new(
       "\\A#{Regexp.escape("cannot boot Ledger: PostgresEra's era write-fence is row-level security, and this " \
-                          "connection's role #{ambient['rolname'].inspect} is ")}(a superuser|granted BYPASSRLS).*" \
-      "#{Regexp.escape('Connect as an ordinary role instead')}.*" \
-      "#{Regexp.escape('or declare `allow_superuser true` in the same persisted_by block')}",
+                          "connection's role #{ambient["rolname"].inspect} is ")}(a superuser|granted BYPASSRLS).*" \
+      "#{Regexp.escape("Connect as an ordinary role instead")}.*" \
+      "#{Regexp.escape("or declare `allow_superuser true` in the same persisted_by block")}",
       Regexp::MULTILINE
     )
     expect { check_as_ambient!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, refusal)
@@ -1293,11 +1293,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   it "boots over a superuser connection under allow_superuser — and says the fence is void, every boot" do
     ambient = ambient_role
-    skip "the ambient Postgres role #{ambient['rolname']} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
+    skip "the ambient Postgres role #{ambient["rolname"]} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
 
     void = Regexp.new(
-      "#{Regexp.escape("[hecks] Ledger: booting PostgresEra as #{ambient['rolname'].inspect}, ")}.*" \
-      "#{Regexp.escape('under allow_superuser — the era write-fence is void for this connection')}"
+      "#{Regexp.escape("[hecks] Ledger: booting PostgresEra as #{ambient["rolname"].inspect}, ")}.*" \
+      "#{Regexp.escape("under allow_superuser — the era write-fence is void for this connection")}"
     )
     expect { check_as_ambient!(V1_SOURCE, allow_superuser: true) }.to output(void).to_stderr
     # the string spelling opts in too, and a quiet reboot warns again —

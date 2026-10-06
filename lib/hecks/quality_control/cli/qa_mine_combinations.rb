@@ -66,7 +66,7 @@ module Hecks
         @options = parse(argv.dup)
         return EXIT_OK if @options == :help
 
-        @run_dir = File.join(runs_root, "run-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}")
+        @run_dir = File.join(runs_root, "run-#{Time.now.strftime("%Y%m%d-%H%M%S")}-#{Process.pid}")
         @out_dir = @options[:from] || File.join(@run_dir, "candidates")
         @agent_log = File.join(@run_dir, "agent.log")
         @agent = Hecks::Adapters::Agent.new
@@ -161,8 +161,8 @@ module Hecks
       def mine(prompt)
         FileUtils.mkdir_p(@out_dir)
         FileUtils.mkdir_p(@run_dir)
-        puts "combination miner: #{@brief['corpus'].size} corpus domain(s), " \
-             "#{@brief['unmet_pairs'].size} unmet pair(s) — #{relative(@run_dir)}"
+        puts "combination miner: #{@brief["corpus"].size} corpus domain(s), " \
+             "#{@brief["unmet_pairs"].size} unmet pair(s) — #{relative(@run_dir)}"
         unless @options[:from]
           puts "asking the agent for #{@options[:candidates]} candidate(s) (#{@command.first}; " \
                "log #{relative(@agent_log)})…"
@@ -215,8 +215,8 @@ module Hecks
           rescue StandardError, ScriptError => e
             ["(census failed: #{e.class})"]
           end
-          puts "  #{candidate[:slug]}: boots#{' (repaired)' if repaired.include?(candidate[:slug])}; " \
-               "new pair(s): #{pairs.empty? ? 'none' : pairs.join(', ')}"
+          puts "  #{candidate[:slug]}: boots#{" (repaired)" if repaired.include?(candidate[:slug])}; " \
+               "new pair(s): #{pairs.empty? ? "none" : pairs.join(", ")}"
           first = candidate[:hypothesis].to_s.lines.map(&:strip).find { |line| !line.empty? && !line.start_with?("#") }
           puts "    #{first}" if first
         end

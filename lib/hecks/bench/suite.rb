@@ -25,7 +25,7 @@ module Hecks
 
       def validate(config)
         unknown = config.targets - TARGETS
-        raise ArgumentError, "unknown target #{unknown.first.inspect} — one of #{TARGETS.join(', ')}" if unknown.any?
+        raise ArgumentError, "unknown target #{unknown.first.inspect} — one of #{TARGETS.join(", ")}" if unknown.any?
 
         config.domains.each { |domain| Workload.fetch(domain) }
         if config.iterations < 1 || config.runs < 1 || config.warmup.negative?

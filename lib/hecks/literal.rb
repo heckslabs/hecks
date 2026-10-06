@@ -23,8 +23,8 @@ module Hecks
       when Symbol then ":#{value}"
       when String then quote(value)
       when StateRef, true, false, Integer, Float then value.to_s
-      when Hash   then "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(', ')}}"
-      when Array  then "[#{value.map { |held| render(held) }.join(', ')}]"
+      when Hash   then "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(", ")}}"
+      when Array  then "[#{value.map { |held| render(held) }.join(", ")}]"
       else
         raise ArgumentError, "#{value.class} has no pinned literal spelling — teach Literal.render one " \
                              "rather than letting #to_s decide it"

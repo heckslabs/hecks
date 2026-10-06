@@ -36,7 +36,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
       _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
 
       expect(verb).to include("."), "hecks #{verb} is not qualified with its aggregate"
-      expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(' ')} does not resolve"
+      expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(" ")} does not resolve"
     end
   end
 

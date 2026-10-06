@@ -188,10 +188,10 @@ module Hecks
       end
 
       def report(results, dry_run:)
-        puts "== results (#{dry_run ? 'DRY RUN — nothing written' : 'applied'}) =="
-        puts "clean (no candidates): #{results[:clean].join(', ')}" unless results[:clean].empty?
-        results[:applied].each { |r| puts "APPLIED  #{r[:file]}: #{r[:candidates].join(', ')}" }
-        results[:skipped].each { |r| puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{Array(r[:candidates]).join(', ')}" }
+        puts "== results (#{dry_run ? "DRY RUN — nothing written" : "applied"}) =="
+        puts "clean (no candidates): #{results[:clean].join(", ")}" unless results[:clean].empty?
+        results[:applied].each { |r| puts "APPLIED  #{r[:file]}: #{r[:candidates].join(", ")}" }
+        results[:skipped].each { |r| puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{Array(r[:candidates]).join(", ")}" }
       end
 
       private

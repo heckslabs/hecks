@@ -105,7 +105,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "records two templates that agree as matching, and exits 0 under --wait" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'a.yaml')}",
+        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, "a.yaml")}",
                                "--wait"])
 
         expect(status).to eq(0)
@@ -120,7 +120,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "records templates that differ as drifted, and exits 1 under --wait" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}",
+        json, status = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, "b.yaml")}",
                                "--wait"])
 
         expect(status).to eq(1)
@@ -133,7 +133,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "writes the report as JSON with --json" do
       Dir.mktmpdir("deploy_diff") do |dir|
         write_templates(dir)
-        json, = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, 'b.yaml')}", "--json",
+        json, = answer(["template_comparison.diff", File.join(dir, "a.yaml"), "after=#{File.join(dir, "b.yaml")}", "--json",
                         "--wait"])
 
         report = JSON.parse(json.dig("state", "report", "value"))
@@ -164,7 +164,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("provisioned")
         expect(json.fetch("events")).to eq(%w[TenantProvisionRequested TenantProvisioned TenantRecorded])
-        expect(json.dig("state", "output", "value")).to eq("wrote #{File.join(dir, 'environments/acme.world')}\n")
+        expect(json.dig("state", "output", "value")).to eq("wrote #{File.join(dir, "environments/acme.world")}\n")
 
         overlay = File.read(File.join(dir, "environments/acme.world"))
         expect(overlay).to include('realm "Acme"', 'persisted_by("PostgresEra")', 'database "hecks_tenants"')

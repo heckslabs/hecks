@@ -80,7 +80,7 @@ module Hecks
 
               next if problems.empty?
 
-              "#{pm_name}##{correlation.inspect}: #{problems.join(' and ')}"
+              "#{pm_name}##{correlation.inspect}: #{problems.join(" and ")}"
             end
           end
 
@@ -230,9 +230,9 @@ module Hecks
         def collision_offense(asked, fields, shared, checked)
           return nil if checked && asked[:error]
 
-          "#{asked[:query]} #{asked[:args].inspect} #{checked ? 'answered' : 'reached'}, but #{shared} key " \
+          "#{asked[:query]} #{asked[:args].inspect} #{checked ? "answered" : "reached"}, but #{shared} key " \
             "path(s) of group_by #{fields.inspect} are shared by more than one eligible row, " \
-            "#{checked ? 'so the ask must refuse' : 'though they cover the identity'}"
+            "#{checked ? "so the ask must refuse" : "though they cover the identity"}"
         end
 
         # Every full `group_by` key path more than one row reaches, found by

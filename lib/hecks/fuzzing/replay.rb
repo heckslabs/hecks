@@ -499,7 +499,7 @@ module Hecks
 
       # Builds the `refusals` entry's own "verb" column for a refused ad hoc filter,
       # which carries no real verb to report.
-      def filter_label(filter) = "filter #{filter['aggregate']}.#{filter['field']} #{filter['op']}"
+      def filter_label(filter) = "filter #{filter["aggregate"]}.#{filter["field"]} #{filter["op"]}"
     end
   end
 end

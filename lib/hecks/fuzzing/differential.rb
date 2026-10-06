@@ -34,8 +34,8 @@ module Hecks
         declared = ->(row) { gaps.not_generated?(verb_of.call(row)) }
         stale = rust_queries.select(&declared).map do |row|
           { field: "manifest", verb: row["query"],
-            detail: "#{row['query']} is declared generated: false in manifest.json " \
-                    "(#{gaps.not_generated(row['query']).values_at('gap_class', 'construct').join('/')}), " \
+            detail: "#{row["query"]} is declared generated: false in manifest.json " \
+                    "(#{gaps.not_generated(row["query"]).values_at("gap_class", "construct").join("/")}), " \
                     "but the Rust binary answered it — regenerate with hecks project_rust" }
         end
         reached = (ruby_refusals + rust_refusals + ruby_queries).select(&declared)

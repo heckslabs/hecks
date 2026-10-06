@@ -43,7 +43,7 @@ module Hecks
           return holders.first if holders.one?
 
           raise Invalid, "#{holders.size} chapters declare a value_object \"#{ROW_OBJECT}\": " \
-                         "#{holders.map(&:name).join(', ')}; a project has one route table"
+                         "#{holders.map(&:name).join(", ")}; a project has one route table"
         end
 
         # Reads and checks one chapter's route table.

@@ -174,7 +174,7 @@ module Hecks
           skipped << "database #{database} already owned by #{role}"
         else
           admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{admin.quote_ident(role)}")
-          done << "database #{database}: owner #{owner[0]['owner']} -> #{role}"
+          done << "database #{database}: owner #{owner[0]["owner"]} -> #{role}"
         end
       end
 
@@ -183,7 +183,7 @@ module Hecks
         schema = db.exec("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname = 'public'")
         if schema.ntuples.positive? && schema[0]["owner"] != role
           db.exec("ALTER SCHEMA public OWNER TO #{quoted}")
-          done << "schema public: owner #{schema[0]['owner']} -> #{role}"
+          done << "schema public: owner #{schema[0]["owner"]} -> #{role}"
         end
 
         relations = db.exec_params(<<~SQL, [role])
@@ -193,7 +193,7 @@ module Hecks
           ORDER BY c.relkind, c.relname
         SQL
         relations.each do |row|
-          db.exec("ALTER #{KINDS.fetch(row['relkind'])} #{db.quote_ident(row['relname'])} OWNER TO #{quoted}")
+          db.exec("ALTER #{KINDS.fetch(row["relkind"])} #{db.quote_ident(row["relname"])} OWNER TO #{quoted}")
         end
         done << "#{relations.ntuples} relation(s) in public -> #{role}" if relations.ntuples.positive?
 
@@ -204,7 +204,7 @@ module Hecks
           ORDER BY p.proname
         SQL
         functions.each do |row|
-          db.exec("ALTER FUNCTION #{db.quote_ident(row['proname'])}(#{row['args']}) OWNER TO #{quoted}")
+          db.exec("ALTER FUNCTION #{db.quote_ident(row["proname"])}(#{row["args"]}) OWNER TO #{quoted}")
         end
         done << "#{functions.ntuples} function(s) in public -> #{role}" if functions.ntuples.positive?
       end

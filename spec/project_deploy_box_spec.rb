@@ -523,7 +523,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           { name: "cms", image: "img/cms", environment: [] }
         ]
         File.write(File.join(dir, "task.json"), JSON.generate(containers))
-        env = { "PATH" => "#{bin}:#{ENV.fetch('PATH')}", "STUB_TASK_DEFINITION" => File.join(dir, "task.json"),
+        env = { "PATH" => "#{bin}:#{ENV.fetch("PATH")}", "STUB_TASK_DEFINITION" => File.join(dir, "task.json"),
                 "STUB_ORIGIN_SECRET" => origin_value }
         _out, err, status = Open3.capture3(env, "bash", File.join(dir, "render-compose.sh"), "db.example", "arn:db", chdir: dir)
         [status.success?, err, File.exist?(File.join(dir, "compose.json"))]

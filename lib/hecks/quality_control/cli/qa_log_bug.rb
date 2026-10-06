@@ -102,11 +102,11 @@ module Hecks
           abort "#{USAGE}\n--#{key} is required" unless options[key]
         end
         unless DISPOSITIONS.include?(options[:triage])
-          abort "#{USAGE}\n--triage must be one of #{DISPOSITIONS.join('|')}, got #{options[:triage].inspect}"
+          abort "#{USAGE}\n--triage must be one of #{DISPOSITIONS.join("|")}, got #{options[:triage].inspect}"
         end
         return if REPRODUCED.include?(options[:reproduced])
 
-        abort "#{USAGE}\n--reproduced must be one of #{REPRODUCED.join('|')}, got #{options[:reproduced].inspect}"
+        abort "#{USAGE}\n--reproduced must be one of #{REPRODUCED.join("|")}, got #{options[:reproduced].inspect}"
       end
 
       # Only used with `--reproduced no`, which never runs the string: a file path, an interpreter

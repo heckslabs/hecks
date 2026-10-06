@@ -82,7 +82,7 @@ module Hecks
           def base_options(given, default_origin_id)
             aliases = Check.strings!(given.fetch(:aliases, []), "cdn aliases")
             bad = aliases.grep_v(HOSTNAME)
-            raise ArgumentError, "cdn aliases must be hostnames, got #{bad.join(', ')}" unless bad.empty?
+            raise ArgumentError, "cdn aliases must be hostnames, got #{bad.join(", ")}" unless bad.empty?
 
             certificate = given[:certificate_arn]&.to_s
             if !aliases.empty? && certificate.nil?
@@ -136,7 +136,7 @@ module Hecks
 
           def check_unique!(values, what)
             repeated = values.tally.select { |_value, count| count > 1 }.keys
-            raise ArgumentError, "#{what} must be unique; repeated: #{repeated.join(', ')}" unless repeated.empty?
+            raise ArgumentError, "#{what} must be unique; repeated: #{repeated.join(", ")}" unless repeated.empty?
           end
           private_class_method :check_unique!
 
@@ -145,7 +145,7 @@ module Hecks
             origin = given.fetch(:origin, options[:origin_id]).to_s
             unless origins.include?(origin)
               raise ArgumentError,
-                    "#{where} origin #{origin.inspect} is not one of #{origins.join(', ')}"
+                    "#{where} origin #{origin.inspect} is not one of #{origins.join(", ")}"
             end
 
             balanced = origin == options[:origin_id]
@@ -177,7 +177,7 @@ module Hecks
             return METHODS.fetch(value.to_s) if METHODS.key?(value.to_s)
 
             raise ArgumentError,
-                  "#{where} methods must be #{METHODS.keys.join(', ')} or a list of HTTP methods, got #{value.inspect}"
+                  "#{where} methods must be #{METHODS.keys.join(", ")} or a list of HTTP methods, got #{value.inspect}"
           end
           private_class_method :allowed_methods
 
@@ -188,7 +188,7 @@ module Hecks
             return [text, nil] if UUID.match?(text)
 
             raise ArgumentError,
-                  "#{where} must be #{MANAGED_POLICIES.keys.join(', ')}#{', none' if none}, or a policy id, got #{value.inspect}"
+                  "#{where} must be #{MANAGED_POLICIES.keys.join(", ")}#{", none" if none}, or a policy id, got #{value.inspect}"
           end
           private_class_method :policy
 

@@ -130,8 +130,8 @@ module Hecks
           source = args[:from_run] ? ["--from-run", args[:from_run]] : [*args[:workers]&.to_s]
           return answer { command("refresh_rspec_runtime_baseline").call(source, root: tree.root) } if args[:confirm] == true
 
-          "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : 'time a local run'} " \
-            "and rewrite #{BASELINES.join(', ')} (add --confirm)"
+          "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : "time a local run"} " \
+            "and rewrite #{BASELINES.join(", ")} (add --confirm)"
         end
 
         # @param args [Hash] `runs`, `parallel` and `seed_start`

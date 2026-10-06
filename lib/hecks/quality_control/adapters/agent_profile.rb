@@ -158,7 +158,7 @@ module Hecks
       end
 
       def quote(path)
-        %("#{path.gsub('\\', '\\\\\\\\').gsub('"', '\\"')}")
+        %("#{path.gsub("\\", "\\\\\\\\").gsub('"', '\\"')}")
       end
     end
   end

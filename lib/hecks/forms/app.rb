@@ -86,7 +86,7 @@ module Hecks
       def refuse_unexposed(domain)
         return if @exposed.include?(domain)
 
-        raise RouteNotFound, "#{domain.inspect} is not exposed by this app — declared chapters: #{@exposed.join(', ')}"
+        raise RouteNotFound, "#{domain.inspect} is not exposed by this app — declared chapters: #{@exposed.join(", ")}"
       end
 
       # Only a trailing ".html"/".json" is a format; other dots belong to the identity

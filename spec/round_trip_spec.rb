@@ -113,7 +113,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
       rows.each do |row|
         missing = construct.ir_spec.keys - row.keys - RECONSTRUCTION_KNOWN_GAPS
         expect(missing).to be_empty,
-                           "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(', ')} " \
+                           "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(", ")} " \
                            "(row #{row[:name].inspect})"
         walk.call(row[:entities] || [], Hecks::Bluebook::Entity, chapter)
       end

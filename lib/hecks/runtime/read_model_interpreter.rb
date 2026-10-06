@@ -169,7 +169,7 @@ module Hecks
 
           raise ArgumentError,
                 "#{model.name}'s group_by names #{field.inspect}, but #{target[:aggregate]} " \
-                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
+                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(", ")})"
         end
         target
       end
@@ -219,7 +219,7 @@ module Hecks
         unless attribute
           raise ArgumentError,
                 "#{model.name}'s #{word} names #{field.inspect}, but #{target[:aggregate]} " \
-                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
+                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(", ")})"
         end
         validate_reduction_type!(model, word, field, target[:aggregate], aggregate, attribute, ivar)
         target
@@ -240,7 +240,7 @@ module Hecks
         kind = BOOLEAN_REDUCTIONS.include?(ivar) ? "boolean" : "numeric"
         raise ArgumentError,
               "#{model.name}'s #{word} names #{field.inspect} on #{aggregate_name}, " \
-              "which is not #{kind} — #{word} needs a #{kind == 'boolean' ? 'true/false' : 'numeric'} field"
+              "which is not #{kind} — #{word} needs a #{kind == "boolean" ? "true/false" : "numeric"} field"
       end
 
       # Dispatches to the one reduction `model` declares, over the eligible collection's own

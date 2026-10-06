@@ -36,7 +36,7 @@ module Hecks
     def self.chapter(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
+              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(", ")}"
       end
 
       lib = File.expand_path("..", __dir__)
@@ -64,7 +64,7 @@ module Hecks
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
+              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(", ")}"
       end
 
       return if Hecks.current_registry.bluebook(name.to_s)

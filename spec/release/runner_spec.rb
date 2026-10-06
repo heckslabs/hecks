@@ -55,7 +55,7 @@ RSpec.describe Hecks::Release::Runner do
   # The vault's `op run` for the gem push and for the npm publish, by the env file each names.
   def gem_push = ["op", "run", "--env-file=release/gem_push.env"]
 
-  def npm_publish = ["op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}"]
+  def npm_publish = ["op", "run", "--env-file=#{File.join(root, "release/npm_publish.env")}"]
 
   def gem_pushed? = commands.runs.any? { |c| c.argv.first(3) == gem_push }
 
@@ -302,7 +302,7 @@ RSpec.describe Hecks::Release::Runner do
 
       call = commands.runs.find { |c| c.argv.first(3) == npm_publish }
       expect(call.argv).to eq(
-        ["op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}", "--",
+        ["op", "run", "--env-file=#{File.join(root, "release/npm_publish.env")}", "--",
          "npm", "publish", "--access", "public", "--auth-type=web", "--userconfig", seen[:path]]
       )
       expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))

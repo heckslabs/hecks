@@ -28,7 +28,7 @@ class RegistryRepo
           description #{description.inspect}
           identified_by :name
           attribute :name, WidgetName
-          #{'attribute :colour, WidgetColour, optional: true' if extra_attribute}
+          #{"attribute :colour, WidgetColour, optional: true" if extra_attribute}
 
           value_object "WidgetName" do
             attribute :value, String

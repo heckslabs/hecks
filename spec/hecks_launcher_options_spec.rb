@@ -64,7 +64,7 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "run keys" do
     it "mints the key of a creating command given none, and answers it" do
-      out, status = run_verb("model_check_run.model_check", "domains=#{File.join(@dir, 'clean')}")
+      out, status = run_verb("model_check_run.model_check", "domains=#{File.join(@dir, "clean")}")
       key = JSON.parse(out).fetch("run")
 
       expect(status).to eq(0)
@@ -97,7 +97,7 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "keeps an explicit key" do
-      out, = run_verb("model_check_run.model_check", "run=mine-1", "domains=#{File.join(@dir, 'clean')}")
+      out, = run_verb("model_check_run.model_check", "run=mine-1", "domains=#{File.join(@dir, "clean")}")
 
       expect(JSON.parse(out)).not_to have_key("run")
       expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first.dig("run", "value")).to eq("mine-1")
@@ -146,14 +146,14 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "--wait" do
     it "exits 1 when the check is flagged, and prints the final state" do
-      out, status = run_verb("model_check_run.model_check", "run=wait-1", "domains=#{File.join(@dir, 'shelf')}", "--wait")
+      out, status = run_verb("model_check_run.model_check", "run=wait-1", "domains=#{File.join(@dir, "shelf")}", "--wait")
 
       expect(status).to eq(1)
       expect(JSON.parse(out).dig("state", "status")).to eq("flagged")
     end
 
     it "exits 0 when the check is clean" do
-      out, status = run_verb("model_check_run.model_check", "run=wait-2", "domains=#{File.join(@dir, 'clean')}", "--wait")
+      out, status = run_verb("model_check_run.model_check", "run=wait-2", "domains=#{File.join(@dir, "clean")}", "--wait")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).dig("state", "status")).to eq("clean")

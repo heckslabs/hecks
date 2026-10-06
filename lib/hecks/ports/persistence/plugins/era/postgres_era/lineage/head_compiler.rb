@@ -183,7 +183,7 @@ module Hecks
                           end
               "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column}, operation, " \
                 "CASE WHEN #{guard} THEN #{expression} ELSE state END AS state " \
-                "FROM #{index.zero? ? 'tail' : "edge_#{index}"})"
+                "FROM #{index.zero? ? "tail" : "edge_#{index}"})"
             end
 
             <<~SQL

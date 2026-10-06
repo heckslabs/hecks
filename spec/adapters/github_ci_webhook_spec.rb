@@ -130,7 +130,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     }
   end
 
-  def sign(body) = "sha256=#{OpenSSL::HMAC.hexdigest('sha256', SECRET, body)}"
+  def sign(body) = "sha256=#{OpenSSL::HMAC.hexdigest("sha256", SECRET, body)}"
 
   def post_webhook(payload, event: "check_suite", signature: nil, event_header: true)
     body = JSON.generate(payload)
@@ -340,7 +340,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     it "refuses a subclass that never implements handle_event" do
       app = described_class.new(secret: "s")
       body = JSON.generate({ "action" => "completed" })
-      signature = "sha256=#{OpenSSL::HMAC.hexdigest('sha256', 's', body)}"
+      signature = "sha256=#{OpenSSL::HMAC.hexdigest("sha256", "s", body)}"
       env = Rack::MockRequest.env_for("/", method: "POST", input: body,
                                       "CONTENT_TYPE" => "application/json",
                                       "HTTP_X_HUB_SIGNATURE_256" => signature,

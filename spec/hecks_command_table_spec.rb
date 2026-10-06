@@ -133,7 +133,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
   describe "model_check" do
     it "keeps a clean verdict beside the request" do
-      out, status = run_verb("model_check_run.model_check", "run=clean-1", "domains=#{File.join(@dir, 'clean')}")
+      out, status = run_verb("model_check_run.model_check", "run=clean-1", "domains=#{File.join(@dir, "clean")}")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).fetch("events")).to eq(["ModelCheckRequested"])
@@ -154,7 +154,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "flags a domain that does not exist instead of calling it clean" do
-      run_verb("model_check_run.model_check", "run=none-1", "domains=#{File.join(@dir, 'nowhere')}")
+      run_verb("model_check_run.model_check", "run=none-1", "domains=#{File.join(@dir, "nowhere")}")
 
       expect(verdict_of("none-1").fetch("status")).to eq("flagged")
     end
@@ -178,7 +178,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run_behaviors keeps the per-test report" do
-      run_verb("operation.run_behaviors", "run=behave-1", "subject=#{File.join(@shelf, 'bluebook/shelf.behaviors')}")
+      run_verb("operation.run_behaviors", "run=behave-1", "subject=#{File.join(@shelf, "bluebook/shelf.behaviors")}")
 
       row = outcome_of("behave-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -219,7 +219,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run accepts a script alone, and keeps its failure as the operation's" do
-      run_verb("operation.run", "run=script-1", "subject=#{@shelf}", "script=#{File.join(@dir, 'no-such-steps.json')}")
+      run_verb("operation.run", "run=script-1", "subject=#{@shelf}", "script=#{File.join(@dir, "no-such-steps.json")}")
 
       row = outcome_of("script-1")
       expect(row.fetch("status")).to eq("failed")
@@ -227,7 +227,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "smoke_test dispatches one call per command" do
-      run_verb("operation.smoke_test", "run=smoke-1", "subject=#{File.join(@dir, 'clean')}")
+      run_verb("operation.smoke_test", "run=smoke-1", "subject=#{File.join(@dir, "clean")}")
 
       row = outcome_of("smoke-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -324,7 +324,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
   describe "the Host verbs" do
     it "check_era keeps a host that cannot be reached as unreachable, with the reason" do
-      run_verb("host.check_era", "http://127.0.0.1:1", "expected=#{File.join(@dir, 'eras.txt')}")
+      run_verb("host.check_era", "http://127.0.0.1:1", "expected=#{File.join(@dir, "eras.txt")}")
 
       row = standing_of("http://127.0.0.1:1")
       expect(row.fetch("status")).to eq("unreachable")
@@ -346,12 +346,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       write("eras-ok.txt", "abc123\n")
       write("eras-old.txt", "def456\n")
 
-      run_verb("host.check_era", url, "expected=#{File.join(@dir, 'eras-ok.txt')}")
+      run_verb("host.check_era", url, "expected=#{File.join(@dir, "eras-ok.txt")}")
       row = standing_of(url)
       expect([row.fetch("status"), row.dig("era", "value"), row.dig("version", "value")])
         .to eq(["observed", "abc123", "3.0.0"])
 
-      run_verb("host.recheck", url, "expected=#{File.join(@dir, 'eras-old.txt')}")
+      run_verb("host.recheck", url, "expected=#{File.join(@dir, "eras-old.txt")}")
       expect(standing_of(url).fetch("status")).to eq("drifted")
       expect(JSON.parse(run_verb("host.drifted").first).map { |host| host.dig("host", "value") }).to include(url)
     ensure
@@ -360,8 +360,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "refuses a second check of a host that is already recorded" do
-      run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, 'eras.txt')}")
-      out, status = run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, 'eras.txt')}")
+      run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
+      out, status = run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
 
       expect(status).to eq(1)
       expect(out).to include("already exists")
@@ -393,11 +393,11 @@ RSpec.describe "the Hecks command table through the launcher" do
 
     it "refuses every change that changes something until it is confirmed, and records nothing" do
       %w[era.hold_first era.merge_tail era.compact era.compact_heki era.approve_translation].each do |verb|
-        out, status = run_verb(verb, @shelf, "run=unconfirmed-#{verb.split('.').last}")
+        out, status = run_verb(verb, @shelf, "run=unconfirmed-#{verb.split(".").last}")
 
         expect(status).to eq(1)
         expect(out).to include("is confirmed")
-        expect(run_verb("era.settlement", "unconfirmed-#{verb.split('.').last}").first).not_to include("unconfirmed")
+        expect(run_verb("era.settlement", "unconfirmed-#{verb.split(".").last}").first).not_to include("unconfirmed")
       end
       expect(run_verb("era.reattest", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
     end
@@ -573,7 +573,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "vendor keeps a source that is not there as a refused pinning, and unpinned lists it" do
-      run_verb("package.vendor", "payments@1.2.0", "from=#{File.join(@dir, 'nowhere')}", "root=#{@dir}")
+      run_verb("package.vendor", "payments@1.2.0", "from=#{File.join(@dir, "nowhere")}", "root=#{@dir}")
 
       row = pinning_of("payments@1.2.0")
       expect(row.fetch("status")).to eq("refused")
@@ -945,7 +945,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "answers rust_coverage as a report and writes no journal entry of its own" do
-      toolchain_says(out: "#{'=' * 72}\nShelf - 2 constructs\n")
+      toolchain_says(out: "#{"=" * 72}\nShelf - 2 constructs\n")
       before = @hecks.registry.event_log.to_a.size
 
       out, status = run_verb("build.rust_coverage", "shelf", "codegen=rust")

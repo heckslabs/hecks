@@ -133,9 +133,9 @@ RSpec.describe "the declared vocabularies" do
       orphans = handler_steps - declared(vocabulary)
 
       expect(orphans).to be_empty,
-                         "#{interpreter} defines #{orphans.map { |s| "step_#{s}" }.join(', ')}, but " \
-                         "#{vocabulary} does not declare #{orphans.length == 1 ? 'it' : 'them'} — " \
-                         "dispatch will never call #{orphans.length == 1 ? 'this handler' : 'these handlers'}"
+                         "#{interpreter} defines #{orphans.map { |s| "step_#{s}" }.join(", ")}, but " \
+                         "#{vocabulary} does not declare #{orphans.length == 1 ? "it" : "them"} — " \
+                         "dispatch will never call #{orphans.length == 1 ? "this handler" : "these handlers"}"
     end
   end
 

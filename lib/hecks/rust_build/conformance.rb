@@ -88,7 +88,7 @@ module Hecks
 
       def run_process(command, stdin_data)
         stdout, status = Open3.capture2(*command, stdin_data: stdin_data)
-        raise Failure, "#{command.join(' ')} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
+        raise Failure, "#{command.join(" ")} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
 
         stdout
       end
@@ -149,7 +149,7 @@ module Hecks
         end
         their_dry_runs = Array(theirs["dry_runs"]).map { |dry| dry.slice("verb", "ok") }
         if (ours["dry_runs"] || []) != their_dry_runs
-          found << "dry_runs:\n  ruby:  #{ours['dry_runs'].inspect}\n  other: #{their_dry_runs.inspect}"
+          found << "dry_runs:\n  ruby:  #{ours["dry_runs"].inspect}\n  other: #{their_dry_runs.inspect}"
         end
         found
       end

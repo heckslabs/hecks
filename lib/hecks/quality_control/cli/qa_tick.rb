@@ -203,21 +203,21 @@ module Hecks
       def write_tick_log!(pr_check_output, sweep_output, generated_output)
         dir = File.join(@root, "tmp/qa-tick-logs")
         FileUtils.mkdir_p(dir)
-        path = File.join(dir, "#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}.log")
+        path = File.join(dir, "#{Time.now.strftime("%Y%m%d-%H%M%S")}-#{Process.pid}.log")
         File.write(path, <<~LOG)
-          #{'=' * 72}
+          #{"=" * 72}
           hecks quality_control check_pull_requests -- full raw output
-          #{'=' * 72}
+          #{"=" * 72}
           #{pr_check_output}
 
-          #{'=' * 72}
+          #{"=" * 72}
           hecks quality_control ask run --all -- full raw output
-          #{'=' * 72}
+          #{"=" * 72}
           #{sweep_output}
 
-          #{'=' * 72}
+          #{"=" * 72}
           hecks quality_control check_generated_domains --from-dials -- full raw output
-          #{'=' * 72}
+          #{"=" * 72}
           #{generated_output}
         LOG
         path
@@ -257,7 +257,7 @@ module Hecks
         puts "hecks quality_control check_pull_requests:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
         puts "hecks quality_control ask run --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
         puts "hecks quality_control check_generated_domains: #{verdict(generated_exit)} (exit #{generated_exit.inspect})"
-        named = reclaimed.empty? ? "" : " (#{reclaimed.join(', ')})"
+        named = reclaimed.empty? ? "" : " (#{reclaimed.join(", ")})"
         puts "stale holds reclaimed: #{reclaimed.size}#{named}"
 
         tick_exit =

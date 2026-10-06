@@ -36,7 +36,7 @@ module Hecks
       EXTENSIONS = %w[ts mts].freeze
 
       USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] " \
-              "[--template=<file>] [--cms=<dir>] [--root=<dir>] [--extension=#{EXTENSIONS.join('|')}] [--check]".freeze
+              "[--template=<file>] [--cms=<dir>] [--root=<dir>] [--extension=#{EXTENSIONS.join("|")}] [--check]".freeze
 
       module_function
 
@@ -71,7 +71,7 @@ module Hecks
           File.write(path, files.fetch(path))
           puts "wrote #{display(path, project)}"
         end
-        puts "project_site: #{files.size} #{files.size == 1 ? 'file' : 'files'}, current" if stale.empty?
+        puts "project_site: #{files.size} #{files.size == 1 ? "file" : "files"}, current" if stale.empty?
         0
       end
 
@@ -86,7 +86,7 @@ module Hecks
       def projection(root, out: nil, template: nil, extension: nil, cms: nil, root_dir: nil)
         extension ||= EXTENSIONS.first
         unless EXTENSIONS.include?(extension)
-          abort "project_site: --extension is one of #{EXTENSIONS.join(', ')}, not #{extension.inspect}"
+          abort "project_site: --extension is one of #{EXTENSIONS.join(", ")}, not #{extension.inspect}"
         end
         dir = out ? File.expand_path(out) : File.join(root, DEFAULT_OUT)
         abort "project_site: --out #{dir} is a file; it names the directory routes.#{extension} goes in" if File.file?(dir)
@@ -249,7 +249,7 @@ module Hecks
           return 0
         end
 
-        warn "project_site: out of date: #{stale.map { |path| display(path, project) }.join(', ')} " \
+        warn "project_site: out of date: #{stale.map { |path| display(path, project) }.join(", ")} " \
              "(run hecks site site_projection.project_site)"
         1
       end

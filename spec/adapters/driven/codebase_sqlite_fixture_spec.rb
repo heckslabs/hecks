@@ -31,7 +31,7 @@ RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
     report = described_class.new(tree, shell: FakeCodebaseShell.new, regenerator: regenerator).regenerate(confirm: true)
 
     expect(written).to eq([tree.path("spec/fixtures/persistence_legacy")])
-    expect(report).to eq("wrote #{tree.path('spec/fixtures/persistence_legacy')}")
+    expect(report).to eq("wrote #{tree.path("spec/fixtures/persistence_legacy")}")
   end
 
   it "refuses with the reason when the regeneration cannot run" do

@@ -59,7 +59,7 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
   end
 
   def preview(dir, verb, *argv, env: {})
-    settings = { "PATH" => "#{File.join(dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => dir }.merge(env)
+    settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",

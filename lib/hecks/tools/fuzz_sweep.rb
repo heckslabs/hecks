@@ -318,7 +318,7 @@ module Hecks
 
           puts
           puts "   (#{number}) #{group.first[:signature]} — #{group.first[:message]}"
-          puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(', ')}#{', …' if seeds_hit.length > 8}"
+          puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(", ")}#{", …" if seeds_hit.length > 8}"
 
           shrunk = shrink(domain, smallest[:steps], smallest[:signature], adapter)
           save_path = File.join(save_dir, "#{name}-seed#{smallest[:seed]}.json")
@@ -360,7 +360,7 @@ module Hecks
         end
         slowest = results.max_by(5) { |_, (_, _, seconds)| seconds }
                          .map { |index, (_, _, seconds)| "#{File.basename(domains[index])} #{seconds.round}s" }
-        warn "slowest domains: #{slowest.join(', ')}"
+        warn "slowest domains: #{slowest.join(", ")}"
         results.sort.map do |_, (clean, out, _)|
           out.rewind
           print out.read

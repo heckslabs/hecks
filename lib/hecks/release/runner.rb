@@ -209,7 +209,7 @@ module Hecks
         return true if targets.empty?
 
         suffix = ci_publishes?(pending) ? " (CI then publishes @hecks/client from the tag)" : ""
-        @console.confirm?("Publish #{targets.join(' and ')}#{suffix}? This cannot be undone.")
+        @console.confirm?("Publish #{targets.join(" and ")}#{suffix}? This cannot be undone.")
       end
 
       def run_steps(version, pending)

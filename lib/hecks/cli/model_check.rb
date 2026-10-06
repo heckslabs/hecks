@@ -38,7 +38,7 @@ module Hecks
         argv.delete("--wait")
         profile = take_profile(argv)
         unless profile.nil? || Bluebook::ModelCheck::PROFILES.include?(profile)
-          warn "unknown profile #{profile.inspect} (known: #{Bluebook::ModelCheck::PROFILES.join(', ')})"
+          warn "unknown profile #{profile.inspect} (known: #{Bluebook::ModelCheck::PROFILES.join(", ")})"
           exit 2
         end
 

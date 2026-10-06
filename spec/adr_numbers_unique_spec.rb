@@ -17,12 +17,12 @@ RSpec.describe "architecture decision records" do
   it "gives every decision its own number" do
     expect(duplicated - known_duplicates).to be_empty,
                                              "these ADR numbers are used twice — take the next free number: " \
-                                             "#{(duplicated - known_duplicates).join(', ')}"
+                                             "#{(duplicated - known_duplicates).join(", ")}"
   end
 
   it "drops a number from the known duplicates once it is unique again" do
     expect(known_duplicates - duplicated).to be_empty,
                                              "no longer duplicated, remove from known_duplicates: " \
-                                             "#{(known_duplicates - duplicated).join(', ')}"
+                                             "#{(known_duplicates - duplicated).join(", ")}"
   end
 end

@@ -32,7 +32,7 @@ RSpec.describe "hecks deploy project — smoke true", :io do
           cpu 256
           memory 512
           port 8080
-      #{smoke_lines.gsub(/^/, '    ')}
+      #{smoke_lines.gsub(/^/, "    ")}
         end
       end
     WORLD

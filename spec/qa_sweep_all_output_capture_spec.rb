@@ -24,7 +24,7 @@ RSpec.describe "qa_sweep --all", :io do
                               "-- broken_one (exit 1) --", "FOUND SOMETHING (1)")
 
     # `found_one`'s report prints last, so everything after its header came from one child's file.
-    found_report = stdout[/^#{'#' * 72}\n# found_one\n.*\z/m]
+    found_report = stdout[/^#{"#" * 72}\n# found_one\n.*\z/m]
     expect(found_report).not_to be_nil
     expect(found_report).to include("target:      found_one", "sweep:       SW-found_one-",
                                     "-- instances --", "-- events --")

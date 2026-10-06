@@ -12,7 +12,7 @@ module Hecks
         # Only the `:version` keyword is accepted; any other key raises `ArgumentError`.
         def initialize(router:, realm:, domain:, aggregate:, options:)
           unknown = options.keys - [:version]
-          raise ArgumentError, "unknown router options: #{unknown.join(', ')}" unless unknown.empty?
+          raise ArgumentError, "unknown router options: #{unknown.join(", ")}" unless unknown.empty?
 
           @router = router
           @realm = realm

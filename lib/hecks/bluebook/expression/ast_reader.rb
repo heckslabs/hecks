@@ -78,7 +78,7 @@ module Hecks
           when "split"         then Resolver::Split.new(receiver: recv.call, separator: json["separator"])
           when "starts_with"   then Resolver::StartsWith.new(receiver: recv.call, substring: json["substring"])
           when "ends_with"     then Resolver::EndsWith.new(receiver: recv.call, substring: json["substring"])
-          else raise "no reader handles op #{json['op'].inspect} — add an arm before AstJson can emit it"
+          else raise "no reader handles op #{json["op"].inspect} — add an arm before AstJson can emit it"
           end
         end
         # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity

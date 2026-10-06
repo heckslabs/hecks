@@ -43,7 +43,7 @@ module Hecks
         else
           raise Runtime::WiringError,
                 "#{implementations.size} adapters implement the #{NAME} port " \
-                "(#{implementations.map(&:name).sort.join(', ')}) — the runtime " \
+                "(#{implementations.map(&:name).sort.join(", ")}) — the runtime " \
                 "will not choose for you"
         end
       end

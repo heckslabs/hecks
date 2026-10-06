@@ -61,7 +61,7 @@ module Hecks
         unless visible
           names = scopes.map(&:name).join(" then ")
           # Names every visible option so a caller isn't left guessing at fields.
-          offered = scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(', ')}" }.join("; ")
+          offered = scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(", ")}" }.join("; ")
           raise UnknownArgument,
                 "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
         end
@@ -268,7 +268,7 @@ module Hecks
 
         raise UnknownArgument,
               "#{command.hecks_name} reaction projection contains neither receiver identity nor declared command facts: " \
-              "#{unknown.sort.join(', ')}"
+              "#{unknown.sort.join(", ")}"
       end
       private_class_method :refuse_unconsumed!
     end

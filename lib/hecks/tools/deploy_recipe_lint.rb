@@ -238,7 +238,7 @@ module Hecks
         begin
           if argv.empty?
             fixtures.each do |label, (world_body, env_local)|
-              basename = "lint_deploy_recipes_fixture_#{label.tr(' ', '_')}"
+              basename = "lint_deploy_recipes_fixture_#{label.tr(" ", "_")}"
               dir = generate!(root, basename, world_body, env_local: env_local)
               generated_dirs << dir
               makefile_path = File.join(dir, "Makefile")

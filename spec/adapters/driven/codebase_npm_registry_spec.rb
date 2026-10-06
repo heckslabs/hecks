@@ -54,7 +54,7 @@ RSpec.describe Hecks::Adapters::Codebase::NpmRegistry do
 
     registry.publish!
 
-    env_file = "--env-file=#{File.join(root, 'release/npm_publish.env')}"
+    env_file = "--env-file=#{File.join(root, "release/npm_publish.env")}"
     expect(commands.runs.first.argv.first(6)).to eq(["op", "run", env_file, "--", "npm", "publish"])
     expect(seen[:content]).to eq("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n")
     expect(seen[:mode]).to eq(0o600)

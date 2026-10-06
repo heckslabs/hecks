@@ -47,7 +47,7 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
                                          chdir: InMemoryDomain::ROOT)
 
         expect(status).to be_success, output
-        expect(output.lines.last.strip).to eq("true"), "#{forms.join(' + ')} not both on the primary aggregate:\n#{output}"
+        expect(output.lines.last.strip).to eq("true"), "#{forms.join(" + ")} not both on the primary aggregate:\n#{output}"
       end
     end
   end
@@ -69,7 +69,7 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
       end
 
       colliding = shapes_by_event.select { |_event, shapes| shapes.uniq.size > 1 }
-      expect(colliding).to be_empty, "seed #{seed}: #{colliding.keys.join(', ')} emitted with more than one shape"
+      expect(colliding).to be_empty, "seed #{seed}: #{colliding.keys.join(", ")} emitted with more than one shape"
     end
   end
 

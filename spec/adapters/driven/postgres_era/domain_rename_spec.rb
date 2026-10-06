@@ -205,17 +205,17 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     db = PG.connect(dbname: RENAME_DB)
     expect(to_regclass(db, journal_name("OldName"))).to be_nil
     expect(to_regclass(db, journal_name("NewName"))).not_to be_nil
-    expect(to_regclass(db, "#{journal_name('OldName')}_era_1")).to be_nil
-    expect(to_regclass(db, "#{journal_name('NewName')}_era_1")).not_to be_nil
-    expect(to_regclass(db, "#{journal_name('OldName')}_ordinal")).to be_nil
-    expect(to_regclass(db, "#{journal_name('NewName')}_ordinal")).not_to be_nil
+    expect(to_regclass(db, "#{journal_name("OldName")}_era_1")).to be_nil
+    expect(to_regclass(db, "#{journal_name("NewName")}_era_1")).not_to be_nil
+    expect(to_regclass(db, "#{journal_name("OldName")}_ordinal")).to be_nil
+    expect(to_regclass(db, "#{journal_name("NewName")}_ordinal")).not_to be_nil
 
     # Postgres stores the nextval() default as a regclass reference, so the rename keeps it
     db.exec_params(
-      "INSERT INTO #{journal_name('NewName')} (era, aggregate, aggregate_id, operation, state) " \
+      "INSERT INTO #{journal_name("NewName")} (era, aggregate, aggregate_id, operation, state) " \
       "VALUES (1, 'acct', 'a2', 'save', '{}'::jsonb)"
     )
-    ordinals = db.exec("SELECT ordinal FROM #{journal_name('NewName')} ORDER BY ordinal").map { |r| r["ordinal"].to_i }
+    ordinals = db.exec("SELECT ordinal FROM #{journal_name("NewName")} ORDER BY ordinal").map { |r| r["ordinal"].to_i }
     expect(ordinals).to eq([1, 2])
     db.close
   end
@@ -255,7 +255,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     write_old_record
     check!(OLD_SOURCE, role: RENAME_ROLE)
     expect(
-      as_app_role("INSERT INTO #{journal_name('OldName')} (era, aggregate, aggregate_id, operation, state) " \
+      as_app_role("INSERT INTO #{journal_name("OldName")} (era, aggregate, aggregate_id, operation, state) " \
                   "VALUES (1, 'acct', 'granted-before', 'save', '{}'::jsonb)")
     ).to eq(:allowed)
 
@@ -263,7 +263,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     check!(NEW_SOURCE)
 
     expect(
-      as_app_role("INSERT INTO #{journal_name('NewName')} (era, aggregate, aggregate_id, operation, state) " \
+      as_app_role("INSERT INTO #{journal_name("NewName")} (era, aggregate, aggregate_id, operation, state) " \
                   "VALUES (1, 'acct', 'granted-after', 'save', '{}'::jsonb)")
     ).to eq(:allowed)
   end

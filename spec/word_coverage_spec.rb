@@ -211,7 +211,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     end
 
     expect(stale).to be_empty,
-                     "the corpus now declares #{stale.join(', ')} for real — " \
+                     "the corpus now declares #{stale.join(", ")} for real — " \
                      "delete the EXEMPT entry, the claim is covered now"
   end
 

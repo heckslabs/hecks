@@ -434,7 +434,7 @@ module Hecks
         return [] if reached.empty?
 
         [Finding.new(kind: :stale_undelivered_expectation, severity: :error, subject: policy.name,
-                     message: "across #{target.inspect}, expect_undelivered: true — but #{reached.join(' and ')}, " \
+                     message: "across #{target.inspect}, expect_undelivered: true — but #{reached.join(" and ")}, " \
                               "so the reaction can be delivered after all; drop expect_undelivered: or remove " \
                               "what reaches #{target}")]
       end

@@ -74,7 +74,7 @@ module Hecks
       # spelled with underscores, unless an argument is named with the dashes.
       def underscored(pair, options)
         name, value = pair.split("=", 2)
-        options.key?(name) ? pair : "#{name.tr('-', '_')}=#{value}"
+        options.key?(name) ? pair : "#{name.tr("-", "_")}=#{value}"
       end
 
       # A `--name` flag, as the path of the Boolean argument it stands for. A dashed name
@@ -102,7 +102,7 @@ module Hecks
 
       # Words the refusal for more than one unnamed argument.
       def too_many_bare(bare)
-        "only one argument may go unnamed, not #{bare.map(&:inspect).join(', ')}; name the rest as name=value"
+        "only one argument may go unnamed, not #{bare.map(&:inspect).join(", ")}; name the rest as name=value"
       end
 
       # Cuts one word at its first `=`, so a value may itself contain `=`.
@@ -189,7 +189,7 @@ module Hecks
 
       # Words the refusal for an argument the command does not take, listing what it does.
       def unknown(path, known)
-        "no argument #{path.inspect} — this command takes #{known.sort.join(', ')}"
+        "no argument #{path.inspect} — this command takes #{known.sort.join(", ")}"
       end
     end
   end

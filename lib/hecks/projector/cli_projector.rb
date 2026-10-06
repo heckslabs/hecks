@@ -234,7 +234,7 @@ module Hecks
       # Names both endings of a port operation, since `--help` is where a caller
       # learns that e.g. a spec run answers `SpecsCompleted` even when the suite is red.
       def port_summary(port, operation)
-        return "#{port.name} reports it; emits #{operation.emits.join(', ')}" unless operation.outbound?
+        return "#{port.name} reports it; emits #{operation.emits.join(", ")}" unless operation.outbound?
 
         "Ask #{port.name} — answers #{operation.answers}, refuses #{operation.refuses}"
       end
@@ -376,7 +376,7 @@ module Hecks
         froms = lifecycle && lifecycle.transitions.filter_map do |name, transition|
           Array(transition.from) if name.to_s == command.hecks_name
         end.flatten.uniq
-        out << "#{lifecycle.field} is not #{froms.join(' or ')}" if froms && !froms.empty?
+        out << "#{lifecycle.field} is not #{froms.join(" or ")}" if froms && !froms.empty?
         out += command.attributes.select(&:reference?).map { |r| "no #{r.type.target_name} has that #{r.name}" }
         out
       end
@@ -554,12 +554,12 @@ module Hecks
         lines = spec[:arguments].map do |argument|
           notes = []
           notes << argument[:type]
-          notes << "one of #{argument[:enum].join(', ')}" if argument[:enum]
+          notes << "one of #{argument[:enum].join(", ")}" if argument[:enum]
           notes << "matches #{argument[:pattern]}"        if argument[:pattern]
           notes << "defaults to #{argument[:default].inspect}" unless argument[:default].nil?
           notes << argument[:note]                        if argument[:note]
           notes << "optional"                             unless argument[:required]
-          "  #{argument[:path].ljust(width)}  #{notes.join('; ')}"
+          "  #{argument[:path].ljust(width)}  #{notes.join("; ")}"
         end
         lines << ""
       end

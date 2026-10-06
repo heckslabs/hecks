@@ -187,7 +187,7 @@ module Hecks
         states = step[:from].to_s.split(/\s*,\s*/).map { |text| state_word(text) }.reject(&:empty?)
         return "" if states.empty?
 
-        states.one? ? ", from: #{states.first.inspect}" : ", from: %w[#{states.join(' ')}]"
+        states.one? ? ", from: #{states.first.inspect}" : ", from: %w[#{states.join(" ")}]"
       end
 
       # A state as a lowercase word: `Not Yet Triaged` is `not_yet_triaged`.

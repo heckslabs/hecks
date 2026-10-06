@@ -32,7 +32,7 @@ RSpec.describe Hecks::Corpus do
     uncovered = described_class.sweepable_domains - covered
 
     expect(uncovered).to be_empty,
-                         "no Hecks::Corpus kind holds #{uncovered.join(', ')} — add a kind, or a ROUTE to the check that owns it"
+                         "no Hecks::Corpus kind holds #{uncovered.join(", ")} — add a kind, or a ROUTE to the check that owns it"
   end
 
   it "names a real, sweepable domain and a reason for each one a fuzz cannot boot" do
@@ -77,7 +77,7 @@ RSpec.describe Hecks::Corpus do
   it "keeps stems unique within each kind" do
     described_class.members.group_by(&:kind).each do |kind, members|
       duplicates = members.map(&:stem).tally.select { |_, count| count > 1 }.keys
-      expect(duplicates).to be_empty, "#{kind}: #{duplicates.join(', ')} name more than one member"
+      expect(duplicates).to be_empty, "#{kind}: #{duplicates.join(", ")} name more than one member"
     end
   end
 

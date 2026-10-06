@@ -104,7 +104,7 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
     script = files["deploy-service.sh"]
     parameters = template_of(files).fetch("Parameters").keys
 
-    expect(script).to include("SERVICES='#{defined.keys.join(' ')}'")
+    expect(script).to include("SERVICES='#{defined.keys.join(" ")}'")
     expect(script.scan(/^\s+\S+\) ECR_REPOSITORY=/).size).to eq(defined.size)
     defined.each do |name, names|
       expect(script).to include("#{name}) ECR_REPOSITORY=#{names[:repository]}; CFN_PARAM_KEY=#{names[:parameter]} ;;")
@@ -185,7 +185,7 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
         template = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
         cluster = template["Resources"].values.find { |resource| resource["Type"] == "AWS::ECS::Cluster" }
 
-        expect(script).to include("CLUSTER=#{cluster['Properties']['ClusterName']}")
+        expect(script).to include("CLUSTER=#{cluster["Properties"]["ClusterName"]}")
         expect(script).to include("ECS_SERVICE=acme-#{HOSTING_FIXTURE_BASENAME}")
         expect(script).to include("ECR_REPOSITORY=#{HOSTING_FIXTURE_BASENAME}; CFN_PARAM_KEY=ImageTag")
         expect(template["Parameters"]).to have_key("ImageTag")
@@ -277,8 +277,8 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
         cluster = resources.find { |resource| resource["Type"] == "AWS::ECS::Cluster" }
         service = resources.find { |resource| resource["Type"] == "AWS::ECS::Service" }
 
-        expect(files["deploy-service.sh"]).to include("CLUSTER=#{cluster['Properties']['ClusterName']}",
-                                                      "ECS_SERVICE=#{service['Properties']['ServiceName']}")
+        expect(files["deploy-service.sh"]).to include("CLUSTER=#{cluster["Properties"]["ClusterName"]}",
+                                                      "ECS_SERVICE=#{service["Properties"]["ServiceName"]}")
         expect(files["deploy-service.sh"]).to include("CLUSTER=acme-shared-cluster", "ECS_SERVICE=acme-shared-svc")
       end
     end

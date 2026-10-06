@@ -46,7 +46,7 @@ module Hecks
         tables = { "defaults" => {}, "needs" => {}, "query_needs" => {} }
         ir = generated_ir(domain_path) or return tables
         domain = ir["name"].to_s
-        Array(ir["aggregates"]).each { |aggregate| collect(aggregate, "#{domain}::#{aggregate['name']}", tables) }
+        Array(ir["aggregates"]).each { |aggregate| collect(aggregate, "#{domain}::#{aggregate["name"]}", tables) }
         tables
       end
 
@@ -59,16 +59,16 @@ module Hecks
       # @return [void]
       def collect(node, prefix, tables)
         Array(node["commands"]).each do |command|
-          verb = "#{prefix}.#{command['name']}"
+          verb = "#{prefix}.#{command["name"]}"
           held = Array(command["attributes"]).reject { |attribute| attribute["default"].nil? }
                                              .to_h { |attribute| [attribute["name"], attribute["default"]] }
           tables["defaults"][verb] = held unless held.empty?
           tables["needs"][verb] = needs_of(command) unless Array(command["needs"]).empty?
         end
         Array(node["queries"]).each do |query|
-          tables["query_needs"]["#{prefix}.#{query['name']}"] = needs_of(query) unless Array(query["needs"]).empty?
+          tables["query_needs"]["#{prefix}.#{query["name"]}"] = needs_of(query) unless Array(query["needs"]).empty?
         end
-        Array(node["entities"]).each { |entity| collect(entity, "#{prefix}.#{entity['name']}", tables) }
+        Array(node["entities"]).each { |entity| collect(entity, "#{prefix}.#{entity["name"]}", tables) }
       end
 
       # @param declaration [Hash] a command or query of the IR that declares `needs`

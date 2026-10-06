@@ -19,7 +19,7 @@ RSpec.describe "gem packaging" do
       packaged.include?(Pathname.new(path).relative_path_from(root).to_s)
     end
 
-    message = "not in the packaged gem: #{missing.join(', ')} — a symlink pointing outside lib/ " \
+    message = "not in the packaged gem: #{missing.join(", ")} — a symlink pointing outside lib/ " \
               "never survives `gem build` (RubyGems drops it silently); the real content has to " \
               "live inside lib/ itself"
     expect(missing).to be_empty, message
@@ -77,7 +77,7 @@ RSpec.describe "gem packaging" do
     symlinked = Dir.glob(File.join(root, "lib/**/*"), File::FNM_DOTMATCH).select { |path| File.symlink?(path) }
     names = symlinked.map { |path| Pathname.new(path).relative_path_from(root) }
 
-    message = "symlink(s) under lib/: #{names.join(', ')} — RubyGems warns and drops these from the " \
+    message = "symlink(s) under lib/: #{names.join(", ")} — RubyGems warns and drops these from the " \
               "packaged gem regardless of where they point; the real content has to be a real file " \
               "inside lib/, with any symlink pointing the other way, from outside lib/ back in"
     expect(symlinked).to be_empty, message
@@ -115,10 +115,10 @@ RSpec.describe "gem packaging" do
 
     it "ships the tooling the commands load on demand" do
       missing = tooling.reject { |path| File.exist?(File.join(root, path)) }
-      expect(missing).to be_empty, "named here but gone from the repository: #{missing.join(', ')}"
+      expect(missing).to be_empty, "named here but gone from the repository: #{missing.join(", ")}"
 
       unshipped = tooling.reject { |path| gemspec.files.any? { |file| file == path || file.start_with?(path) } }
-      expect(unshipped).to be_empty, "tooling missing from the packaged gem: #{unshipped.join(', ')}"
+      expect(unshipped).to be_empty, "tooling missing from the packaged gem: #{unshipped.join(", ")}"
     end
 
     it "loads none of the tooling from `require \"hecks\"`" do
@@ -132,7 +132,7 @@ RSpec.describe "gem packaging" do
       expect(status).to be_success, err
 
       loaded = out.lines.map(&:chomp).select(&in_tooling)
-      expect(loaded).to be_empty, "lib/hecks.rb loads tooling: #{loaded.join(', ')}"
+      expect(loaded).to be_empty, "lib/hecks.rb loads tooling: #{loaded.join(", ")}"
     end
 
     describe "the Rust workspace" do
@@ -149,7 +149,7 @@ RSpec.describe "gem packaging" do
 
       it "ships no build output, no corpus tests and no generated corpus domain" do
         stray = rust.grep(%r{\Arust/(tests/|[^/]+/tests/|src/generated/)|(\A|/)target/})
-        expect(stray).to be_empty, "in the packaged gem: #{stray.first(5).join(', ')}"
+        expect(stray).to be_empty, "in the packaged gem: #{stray.first(5).join(", ")}"
         expect(Dir.exist?(File.join(root, "rust/src/generated"))).to be(true), "the corpus's generated modules moved"
       end
 

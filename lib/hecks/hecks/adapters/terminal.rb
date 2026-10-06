@@ -40,7 +40,7 @@ module Hecks
         launcher = self.class.launcher
         launcher ? CLI::Console.call(domain, launcher: launcher) : CLI::Console.call(domain)
 
-        { output: { value: "console session ended (#{domain || 'pizzas'})" } }
+        { output: { value: "console session ended (#{domain || "pizzas"})" } }
       end
 
       # Hands the process over to the MCP door until the client closes stdin. The door writes its

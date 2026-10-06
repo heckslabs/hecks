@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::TenantProvisioner, "#write_overlay" do
     Dir.mktmpdir("provisioner") do |dir|
       answer = adapter.write_overlay(**tenant, directory: dir)
 
-      expect(answer.fetch(:output)[:value]).to eq("wrote #{File.join(dir, 'environments/acme.world')}\n")
+      expect(answer.fetch(:output)[:value]).to eq("wrote #{File.join(dir, "environments/acme.world")}\n")
     end
   end
 

@@ -532,7 +532,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         InMemoryDomain.load_bluebook_files([path])
       end
-      expected = "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch('Lookup'))}\n"
+      expected = "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch("Lookup"))}\n"
 
       expect(stdout).to eq(expected)
       expect(stdout).to include('"returns": "list_of(Listing)"')

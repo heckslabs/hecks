@@ -73,7 +73,7 @@ module Hecks
         private_class_method :section_lines
 
         def entity_lines(entity, report)
-          head = "  ~ #{entity.name}#{" (#{entity.type})" if entity.type}#{'  REPLACEMENT: the type changed' if entity.replaced}"
+          head = "  ~ #{entity.name}#{" (#{entity.type})" if entity.type}#{"  REPLACEMENT: the type changed" if entity.replaced}"
           [head] + entity.changes.flat_map { |change| change_lines(change, report, "      ") }
         end
         private_class_method :entity_lines

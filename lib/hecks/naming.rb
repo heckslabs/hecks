@@ -74,7 +74,7 @@ module Hecks
       when 0 then ""
       when 1 then items[0].to_s
       when 2 then "#{items[0]} #{conj} #{items[1]}"
-      else "#{items[0..-2].join(', ')}, #{conj} #{items[-1]}"
+      else "#{items[0..-2].join(", ")}, #{conj} #{items[-1]}"
       end
     end
 
@@ -175,7 +175,7 @@ module Hecks
       domain, aggregate, *rest = path.to_s.split("::")
       return nil unless domain && aggregate
 
-      command = "#{rest.join('.')}.#{command}" unless rest.empty?
+      command = "#{rest.join(".")}.#{command}" unless rest.empty?
 
       [domain, aggregate, command]
     end

@@ -88,7 +88,7 @@ module Hecks
         end
 
         puts "#{bluebook.name} era #{ordinal}: the held text does NOT match its recorded digest."
-        puts "  recorded: #{stored || '(none)'}"
+        puts "  recorded: #{stored || "(none)"}"
         puts "  computed: #{computed}"
         return 1 unless shape_unchanged?(bluebook, era, ordinal, text)
 

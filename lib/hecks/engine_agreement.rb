@@ -140,7 +140,7 @@ module Hecks
     # @return [String] the clean-pass line
     def clean_line(finding)
       "check_engine_agreement: #{finding.declared.size} declared comparator(s) " \
-        "(#{finding.declared.sort.join(', ')}) — every one has a shared Comparison case, a cross-engine " \
+        "(#{finding.declared.sort.join(", ")}) — every one has a shared Comparison case, a cross-engine " \
         "agreement spec, and both engine files still route through Comparison.holds? alone. 0 problems."
     end
 

@@ -56,12 +56,12 @@ module Hecks
       #   key, or gives a value the wrong type for its dial
       def initialize(raw, path)
         missing = EXPECTED_TYPES.keys - raw.keys
-        raise ArgumentError, "#{path} is missing #{missing.sort.join(', ')}" if missing.any?
+        raise ArgumentError, "#{path} is missing #{missing.sort.join(", ")}" if missing.any?
 
         extra = raw.keys - EXPECTED_TYPES.keys
         if extra.any?
           raise ArgumentError,
-                "#{path} declares unknown key(s) #{extra.sort.join(', ')} — " \
+                "#{path} declares unknown key(s) #{extra.sort.join(", ")} — " \
                 "no QaDial row of the Vocabulary chapter declares them"
         end
 
@@ -70,7 +70,7 @@ module Hecks
           expected_classes = Array(expected)
           unless expected_classes.any? { |klass| value.is_a?(klass) }
             raise ArgumentError,
-                  "#{path}: #{key} must be a #{expected_classes.map(&:name).join(' or ')}, " \
+                  "#{path}: #{key} must be a #{expected_classes.map(&:name).join(" or ")}, " \
                   "got #{value.class} (#{value.inspect})"
           end
 

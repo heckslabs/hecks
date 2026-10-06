@@ -104,7 +104,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     by_id_results = run_harness(binary, db_name, app_role, domain, era, by_id_ops)
     by_id_results.each_with_index do |result, index|
       id, expected_state = ruby_rows[index]
-      expect(result["ok"]).to be(true), "read_by_id(#{id.inspect}): #{result['error']}"
+      expect(result["ok"]).to be(true), "read_by_id(#{id.inspect}): #{result["error"]}"
       expect(result["state"]).to eq(expected_state)
     end
   ensure
@@ -246,9 +246,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     ensure
       require "pg"
       admin = PG.connect(dbname: "postgres")
-      admin.exec("DROP DATABASE IF EXISTS #{result.fetch('ruby_db')} WITH (FORCE)")
-      admin.exec("DROP DATABASE IF EXISTS #{result.fetch('rust_db')} WITH (FORCE)")
-      admin.exec("DROP ROLE IF EXISTS #{result.fetch('owner')}")
+      admin.exec("DROP DATABASE IF EXISTS #{result.fetch("ruby_db")} WITH (FORCE)")
+      admin.exec("DROP DATABASE IF EXISTS #{result.fetch("rust_db")} WITH (FORCE)")
+      admin.exec("DROP ROLE IF EXISTS #{result.fetch("owner")}")
       admin.close
     end
   end

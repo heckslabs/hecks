@@ -45,7 +45,7 @@ module Hecks
     # @raise [ArgumentError] if `name` is not a `CONSTRUCTS` key
     def construct_diff(name)
       klass = CONSTRUCTS.fetch(name) do
-        raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}"
+        raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(", ")}"
       end
       declared = meta_declared(name)
       emitted  = klass.ir_spec.keys
@@ -207,18 +207,18 @@ module Hecks
     def format_constructs(diffs)
       diffs.map do |diff|
         lines = ["== #{diff[:name]} =="]
-        lines << "  emits:    #{diff[:emitted].join(', ')}"
-        lines << "  declares: #{diff[:declared].join(', ')}"
+        lines << "  emits:    #{diff[:emitted].join(", ")}"
+        lines << "  declares: #{diff[:declared].join(", ")}"
         if diff[:missing_from_ruby].empty? && diff[:unaccounted_in_ruby].empty?
           lines << "  clean — every declared field is emitted (or a named deviation), nothing emitted is undeclared"
         else
           unless diff[:missing_from_ruby].empty?
             lines << "  MISSING FROM RUBY (declared, not emitted, not a named deviation): " \
-                     "#{diff[:missing_from_ruby].join(', ')}"
+                     "#{diff[:missing_from_ruby].join(", ")}"
           end
           unless diff[:unaccounted_in_ruby].empty?
             lines << "  UNACCOUNTED IN RUBY (emitted, not declared, not a named deviation): " \
-                     "#{diff[:unaccounted_in_ruby].join(', ')}"
+                     "#{diff[:unaccounted_in_ruby].join(", ")}"
           end
         end
         lines.join("\n")
@@ -240,7 +240,7 @@ module Hecks
     #   touchpoint does not apply to `name`)
     # @raise [ArgumentError] if `name` is not a `CONSTRUCTS` key
     def impact_preview(name, field)
-      CONSTRUCTS.fetch(name) { raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}" }
+      CONSTRUCTS.fetch(name) { raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(", ")}" }
       field = field.to_s
 
       {

@@ -296,7 +296,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     before { File.write(File.join(dir, "gem/hecks.gemspec"), "") }
 
     it "answers the report as text, and passes the generator it was asked to read" do
-      runner.answer(out: "#{'=' * 72}\nPizzas - 3 constructs\n")
+      runner.answer(out: "#{"=" * 72}\nPizzas - 3 constructs\n")
 
       answer = toolchain.rust_coverage(module_name: { value: "pizzas" }, codegen: { value: "rust" })
 
@@ -305,7 +305,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     end
 
     it "answers a report that found gaps, since the gaps are what it reports" do
-      runner.answer(out: "#{'=' * 72}\nGAP (2)\n", passed: false)
+      runner.answer(out: "#{"=" * 72}\nGAP (2)\n", passed: false)
 
       expect(toolchain.rust_coverage(module_name: { value: "pizzas" }).fetch(:text)).to include("GAP (2)")
     end

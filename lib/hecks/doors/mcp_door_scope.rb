@@ -65,7 +65,7 @@ module Hecks
       def self.setting_problems(env)
         known = [TOOLS_VARIABLE, DOMAINS_VARIABLE, COMMANDS_VARIABLE]
         problems = (env.keys.select { |name| name.start_with?(ENV_PREFIX) } - known).map do |name|
-          "environment #{name} is not accepted; the door takes only #{known.join(', ')}"
+          "environment #{name} is not accepted; the door takes only #{known.join(", ")}"
         end
         problems + mode_problems(env[TOOLS_VARIABLE], env[DOMAINS_VARIABLE], env[COMMANDS_VARIABLE])
       end
@@ -73,7 +73,7 @@ module Hecks
       def self.mode_problems(tools, domains, commands)
         return stray_problems(domains, commands) if tools.nil?
         unless MODES.include?(tools)
-          return ["#{TOOLS_VARIABLE}=#{tools.inspect} is not accepted; the values are #{MODES.map(&:inspect).join(' and ')}"]
+          return ["#{TOOLS_VARIABLE}=#{tools.inspect} is not accepted; the values are #{MODES.map(&:inspect).join(" and ")}"]
         end
 
         problems = []
@@ -87,7 +87,7 @@ module Hecks
         stray = { DOMAINS_VARIABLE => domains, COMMANDS_VARIABLE => commands }.compact.keys
         return [] if stray.empty?
 
-        ["#{stray.join(' and ')} set without #{TOOLS_VARIABLE}=#{READERS} or #{TOOLS_VARIABLE}=#{COMMANDS}; " \
+        ["#{stray.join(" and ")} set without #{TOOLS_VARIABLE}=#{READERS} or #{TOOLS_VARIABLE}=#{COMMANDS}; " \
          "they only narrow a restricted door"]
       end
 
@@ -136,7 +136,7 @@ module Hecks
       def refusal(name)
         { ok:    false,
           error: "#{name.inspect} is refused: this door runs in #{mode_label}, " \
-                 "which serves only #{served_tools.join(', ')}" }
+                 "which serves only #{served_tools.join(", ")}" }
       end
 
       # Checked before anything boots, so a path outside the allowed set never reaches Kernel.load.
@@ -146,7 +146,7 @@ module Hecks
 
         raise Runtime::TypeMismatch,
               "domain: #{domain.inspect} is refused: this door runs in #{mode_label} " \
-              "and reads only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(', ')}"
+              "and reads only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(", ")}"
       end
 
       # A commands door dispatches only the commands it was given. A requested name and each
@@ -165,7 +165,7 @@ module Hecks
         unless verbs.first && verbs.drop(1).include?(verbs.first)
           raise Runtime::TypeMismatch,
                 "command: #{command.to_s.inspect} is refused: this door runs in #{mode_label} " \
-                "and dispatches only #{COMMANDS_VARIABLE}: #{allowed_commands.join(', ')}"
+                "and dispatches only #{COMMANDS_VARIABLE}: #{allowed_commands.join(", ")}"
         end
 
         admit_arguments!(args)
@@ -340,16 +340,16 @@ module Hecks
       end
 
       def reader_notes
-        ["Reader mode (#{TOOLS_VARIABLE}=#{READERS}): serves #{READER_TOOLS.join(', ')}; " \
+        ["Reader mode (#{TOOLS_VARIABLE}=#{READERS}): serves #{READER_TOOLS.join(", ")}; " \
          "refuses dispatch (with dry_run and steps), behaviors and every other tool.",
-         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(', ')}.",
+         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(", ")}.",
          "Reader mode limits reach and identifies no one; it is not authentication."]
       end
 
       def commands_notes
-        ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(', ')} and dispatch of only " \
-         "#{COMMANDS_VARIABLE}: #{@allowed_commands.join(', ')}; refuses behaviors and every other tool.",
-         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(', ')}.",
+        ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(", ")} and dispatch of only " \
+         "#{COMMANDS_VARIABLE}: #{@allowed_commands.join(", ")}; refuses behaviors and every other tool.",
+         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(", ")}.",
          "Commands mode limits reach and identifies no one; role: stays self-asserted and it is not authentication."]
       end
     end

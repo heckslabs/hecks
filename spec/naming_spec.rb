@@ -34,7 +34,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".snake" do
     cases("snake").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.snake(row["in"])).to eq(row["out"])
       end
     end
@@ -42,7 +42,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".demodulise" do
     cases("demodulise").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.demodulise(row["in"])).to eq(row["out"])
       end
     end
@@ -50,7 +50,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".reference_key" do
     cases("reference_key").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.reference_key(row["in"]).to_s).to eq(row["out"])
       end
     end
@@ -62,7 +62,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".split_dotted" do
     cases("split_dotted").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.split_dotted(row["in"])).to eq(row["out"])
       end
     end
@@ -70,7 +70,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".qualifier" do
     cases("qualifier").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.qualifier(row["in"])).to eq(row["out"])
       end
     end
@@ -78,7 +78,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".unqualified" do
     cases("unqualified").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.unqualified(row["in"])).to eq(row["out"])
       end
     end
@@ -86,7 +86,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".split_verb" do
     cases("split_verb").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.split_verb(row["in"])).to eq(row["out"])
       end
     end

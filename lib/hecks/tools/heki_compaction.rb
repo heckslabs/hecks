@@ -34,7 +34,7 @@ module Hecks
         candidates = candidates(registry, wanted)
         if candidates.empty?
           puts "hecks compact_heki: no Heki-backed aggregate matched " \
-               "#{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
+               "#{wanted.empty? ? "(any)" : wanted.inspect} in #{domain}"
           return 0
         end
 
@@ -69,7 +69,7 @@ module Hecks
 
         if bound.any?
           warn "REFUSED #{aggregate.storage_name}: a projected_by binding reads its full journal " \
-               "(#{bound.map(&:adapter).join(', ')}) — compacting would silently break " \
+               "(#{bound.map(&:adapter).join(", ")}) — compacting would silently break " \
                "Projection::Worker#catch_up!/Registry#projection_current?. Not compacted."
           return true
         end

@@ -64,7 +64,7 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
     stale = ALLOWED_APART.keys.select { |key| covered.key?(key) }
 
     expect(stale).to be_empty,
-                     "the corpus now meets #{stale.join(', ')} on one aggregate — " \
+                     "the corpus now meets #{stale.join(", ")} on one aggregate — " \
                      "delete the ALLOWED_APART entry, the claim is tested now"
   end
 
@@ -75,7 +75,7 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
     end
 
     expect(outgrown).to be_empty,
-                        "the goldens now meet every pair of #{outgrown.join(', ')} on their own — " \
+                        "the goldens now meet every pair of #{outgrown.join(", ")} on their own — " \
                         "delete the HELD_OUTSIDE_THE_GOLDENS entry, the gate holds them now"
   end
 
@@ -103,7 +103,7 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
     expect(rare.select { |form| box.last[form] }).to eq(rare),
                                                      "Banking::SafeDepositBox no longer carries #{rare.reject do |f|
                                                        box.last[f]
-                                                     end.join(', ')}"
+                                                     end.join(", ")}"
   end
 
   # The same walk over a domain on disk, the path hecks quality_control judge_novelty measures

@@ -154,7 +154,7 @@ module Hecks
           theirs = current.keys.reject { |path| path == DEFAULT || !generated.key?(path) }
           return [] if mine == theirs
 
-          ["order differs among the behaviours both have:\n    project: #{mine.join(' ')}\n    live:    #{theirs.join(' ')}"]
+          ["order differs among the behaviours both have:\n    project: #{mine.join(" ")}\n    live:    #{theirs.join(" ")}"]
         end
       end
     end

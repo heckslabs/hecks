@@ -242,7 +242,7 @@ module Hecks
 
         if @persistence_parity_mode && !@active_modes.include?(:persistence_parity)
           abort "target #{@target_reference.inspect} (#{@target_path}) declares no persisted_by(\"PostgresEra\") " \
-                "binding in its own .hecksagon (capabilities: #{@capabilities.join(',')}) — " \
+                "binding in its own .hecksagon (capabilities: #{@capabilities.join(",")}) — " \
                 "--persistence-parity has nothing to compare Memory against for this domain. " \
                 "examples/directory is the known example that qualifies."
         end
@@ -251,8 +251,8 @@ module Hecks
         # so it counts here too.
         unless @active_modes.intersect?(%i[differential ruby_only persistence_parity concurrency era_boundary])
           abort "target #{@target_reference.inspect} (#{@target_path}) resolves no comparison mode at all — " \
-                "enabled #{@enabled_modes.join(',')}, capabilities #{@capabilities.join(',')} " \
-                "(deferred: #{@deferred_modes.join(',')}). Nothing here can be swept without at least one of " \
+                "enabled #{@enabled_modes.join(",")}, capabilities #{@capabilities.join(",")} " \
+                "(deferred: #{@deferred_modes.join(",")}). Nothing here can be swept without at least one of " \
                 "differential/ruby_only/persistence_parity/concurrency/era_boundary."
         end
         @seeded_modes = @active_modes - SEEDLESS_MODES
@@ -310,8 +310,8 @@ module Hecks
       def announce_resolution
         puts "resolved depth: seeds=#{@seeds} steps=#{@steps_per_sequence} (clean_streak=#{@current_streak})"
         puts "seed range: #{@seed_offset + 1}..#{@seed_offset + @seeds}" if @seeded_modes.any?
-        line = "resolved modes: #{@active_modes.join(',')} (capabilities=#{@capabilities.join(',')}"
-        line += "; deferred=#{@deferred_modes.join(',')}" unless @deferred_modes.empty?
+        line = "resolved modes: #{@active_modes.join(",")} (capabilities=#{@capabilities.join(",")}"
+        line += "; deferred=#{@deferred_modes.join(",")}" unless @deferred_modes.empty?
         puts "#{line})"
       end
 
@@ -417,7 +417,7 @@ module Hecks
         when :concurrency
           "real forked cross-process dispatch vs its own sequential oracle (#{@feature}) — write-lock serialization"
         when :seedless
-          "no primary seat (#{@active_modes.join(',')} — audits this target's own real state, generates nothing)"
+          "no primary seat (#{@active_modes.join(",")} — audits this target's own real state, generates nothing)"
         else "Ruby-only property/exception check (no compiled Rust binary for #{@feature})"
         end
       end
@@ -425,11 +425,11 @@ module Hecks
       def announce_sweep
         if @mode == :seedless
           puts "sweeping #{@target_reference} (#{@target_path}) — #{mode_label}, " \
-               "active modes #{@active_modes.join(',')}"
+               "active modes #{@active_modes.join(",")}"
         else
           puts "sweeping #{@target_reference} (#{@target_path}) — #{mode_label}, #{@seeds} seed(s), " \
                "#{@steps_per_sequence} steps each, adversarial fraction #{@adversarial}, role draw #{@role_draw}, " \
-               "dry-run fraction #{@dry_run}, active modes #{@active_modes.join(',')}"
+               "dry-run fraction #{@dry_run}, active modes #{@active_modes.join(",")}"
         end
       end
 
@@ -482,11 +482,11 @@ module Hecks
 
           surprised = log_seed_checks(result)
           if surprised.empty?
-            puts "  seed #{seed}: held (#{result[:checks].map { |c| c[:mode] }.join(', ')})"
+            puts "  seed #{seed}: held (#{result[:checks].map { |c| c[:mode] }.join(", ")})"
             next
           end
 
-          puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(', ')})"
+          puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(", ")})"
           surprise = result.merge(seed: seed, checks: surprised)
           break
         end
@@ -590,8 +590,8 @@ module Hecks
       # Reached only when every seed held; re-reads the sticky `ever_surprised` bit, not the loop's
       # local.
       def conclude_clean_sweep
-        notes = "domain=#{@target_reference} path=#{@target_path} mode=#{@mode} modes=#{@active_modes.join(',')} " \
-                "capabilities=#{@capabilities.join(',')} feature=#{@feature} seeds=#{@seeds} " \
+        notes = "domain=#{@target_reference} path=#{@target_path} mode=#{@mode} modes=#{@active_modes.join(",")} " \
+                "capabilities=#{@capabilities.join(",")} feature=#{@feature} seeds=#{@seeds} " \
                 "steps=#{@steps_per_sequence} adversarial=#{@adversarial} role_draw=#{@role_draw} " \
                 "dry_run=#{@dry_run} — every seed held, no divergence or property violation found."
         @sweep.conclude!(notes: { value: notes })

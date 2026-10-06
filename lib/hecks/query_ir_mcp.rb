@@ -125,7 +125,7 @@ module Hecks
       when "query_ir_impact"
         tool_result(QueryIR.format_impact_preview(QueryIR.impact_preview(arguments["name"], arguments["field"])))
       else
-        tool_result("no such tool: #{name.inspect} - known: #{TOOLS.map { |t| t[:name] }.join(', ')}", error: true)
+        tool_result("no such tool: #{name.inspect} - known: #{TOOLS.map { |t| t[:name] }.join(", ")}", error: true)
       end
     rescue ArgumentError, Runtime::TypeMismatch => e
       tool_result(e.message, error: true)
@@ -177,7 +177,7 @@ module Hecks
       when "tools/list" then result(output, id, { tools: TOOLS })
       when "tools/call" then result(output, id, call_tool(params["name"], params["arguments"] || {}))
       when "ping" then result(output, id, {})
-      else error(output, id, -32_601, "Method not found: #{request['method']}") unless id.nil?
+      else error(output, id, -32_601, "Method not found: #{request["method"]}") unless id.nil?
       end
     end
 

@@ -72,7 +72,7 @@ module Hecks
       rows = coverage(root: root)
       prefix = "#{root}/"
       lines = rows.map do |row|
-        "#{row.present ? 'OK  ' : 'MISS'}  #{row.path.delete_prefix(prefix)}  (#{row.source}: #{row.name.inspect})"
+        "#{row.present ? "OK  " : "MISS"}  #{row.path.delete_prefix(prefix)}  (#{row.source}: #{row.name.inspect})"
       end
       missing = rows.reject(&:present)
       return [lines.join("\n"), coverage_verdict(rows.size), true] if missing.empty?
@@ -163,7 +163,7 @@ module Hecks
 
         #{mods}
 
-        /// One variant per real #{shapes ? 'attribute shape' : 'expression-operator category'} the Ruby
+        /// One variant per real #{shapes ? "attribute shape" : "expression-operator category"} the Ruby
         /// grammar admits, in the order #{doc_line} declares them. Every match
         /// over this enum in the kernel (rust/src/kernel/expr.rs) is written
         /// WITHOUT a wildcard `_ =>` arm — see expr.rs's own header for why:
@@ -176,7 +176,7 @@ module Hecks
         }
 
         impl #{enum_name} {
-            /// The `rust/src/kernel/#{shapes ? 'attribute_shapes' : 'expression_operators'}/<name>.rs` file this
+            /// The `rust/src/kernel/#{shapes ? "attribute_shapes" : "expression_operators"}/<name>.rs` file this
             /// variant names — `hecks measure_kernel_coverage`'s own existence
             /// check reads this, so the file-name spelling here is the ONE
             /// place that ever needs to change if a name is renamed.

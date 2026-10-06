@@ -59,7 +59,7 @@ module Hecks
                        "be used as-is — it has to double as a Rust module identifier and a Cargo feature " \
                        "name, and this one is either not a plain lowercase identifier, is a Rust keyword, " \
                        "or collides with a reserved Cargo.toml key " \
-                       "(#{DomainName::CARGO_RESERVED.join(', ')}). " \
+                       "(#{DomainName::CARGO_RESERVED.join(", ")}). " \
                        "Rename the domain directory."
       end
 

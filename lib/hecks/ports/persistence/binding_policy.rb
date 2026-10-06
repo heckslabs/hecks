@@ -81,8 +81,8 @@ module Hecks
         # @return [Runtime::WiringError] an error whose message lists each role
         def unsupported_roles(domain, aggregate, bindings)
           Runtime::WiringError.new(
-            "#{domain}::#{aggregate.hecks_name} uses persistence role#{'s' unless bindings.size == 1} " \
-            "#{bindings.map(&:role).map(&:inspect).join(', ')}. Only persisted_by is supported."
+            "#{domain}::#{aggregate.hecks_name} uses persistence role#{"s" unless bindings.size == 1} " \
+            "#{bindings.map(&:role).map(&:inspect).join(", ")}. Only persisted_by is supported."
           )
         end
       end

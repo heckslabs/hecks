@@ -23,7 +23,7 @@ module Hecks
             "t=#{stamp},v1=#{digest(secret, "#{stamp}.#{body}")}"
           when "sha256" then "sha256=#{digest(secret, body)}"
           when "hex" then digest(secret, body)
-          else raise ArgumentError, "unknown scheme #{scheme.inspect}; expected one of #{SCHEMES.join(', ')}"
+          else raise ArgumentError, "unknown scheme #{scheme.inspect}; expected one of #{SCHEMES.join(", ")}"
           end
         end
 
@@ -79,7 +79,7 @@ module Hecks
       def self.parser(options)
         OptionParser.new do |parser|
           %i[url path secret header scheme payload health_path state_path].each do |name|
-            flag = "--#{name.to_s.tr('_', '-')}"
+            flag = "--#{name.to_s.tr("_", "-")}"
             parser.on("#{flag} VALUE") { |value| options[name] = value }
           end
           parser.on("--payload-file FILE") { |file| options[:payload] = File.read(file) }
@@ -96,7 +96,7 @@ module Hecks
         raise ArgumentError, "no signing secret: set SMOKE_WEBHOOK_SECRET (or pass --secret)" if settings[:secret].to_s.empty?
         return if Signature::SCHEMES.include?(settings[:scheme])
 
-        raise ArgumentError, "unknown scheme #{settings[:scheme].inspect}; expected one of #{Signature::SCHEMES.join(', ')}"
+        raise ArgumentError, "unknown scheme #{settings[:scheme].inspect}; expected one of #{Signature::SCHEMES.join(", ")}"
       end
 
       # @param settings [Hash{Symbol => String}] validated settings

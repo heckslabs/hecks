@@ -35,7 +35,7 @@ module Hecks
         candidates = candidates(registry, wanted)
         if candidates.empty?
           puts "hecks compact: no Postgres/Sqlite-backed aggregate matched " \
-               "#{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
+               "#{wanted.empty? ? "(any)" : wanted.inspect} in #{domain}"
           return 0
         end
 

@@ -44,7 +44,7 @@ module Hecks
 
           def checked_fields(member, label)
             member.each_key do |key|
-              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(', ')}") unless FIELDS.key?(key)
+              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(", ")}") unless FIELDS.key?(key)
             end
             known = member.slice(*FIELDS.keys)
             known.each do |key, value|

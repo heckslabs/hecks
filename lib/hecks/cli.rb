@@ -247,14 +247,14 @@ module Hecks
     # @return [String, nil] a refusal when the form takes no such argument
     def bind_flag_or_option(form, key, value, extra)
       if Array(form[:flags]).include?(key)
-        extra << "--#{key.tr('_', '-')}" if Doors::CliDoor.boolean(value)
+        extra << "--#{key.tr("_", "-")}" if Doors::CliDoor.boolean(value)
         nil
       elsif Array(form[:options]).include?(key)
         extra.push("--#{key}", value)
         nil
       elsif !Array(form[:ignored]).include?(key)
         known = form[:slots].flatten + Array(form[:flags]) + Array(form[:options])
-        "no argument #{key.inspect} — this verb takes #{known.sort.join(', ')}"
+        "no argument #{key.inspect} — this verb takes #{known.sort.join(", ")}"
       end
     end
 

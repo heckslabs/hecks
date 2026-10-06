@@ -309,7 +309,7 @@ module Hecks
         when "follow"
           Storehouse.follow(runtime: boot(args["domain"]), limit: args["limit"] || 20)
         else
-          { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
+          { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(", ")}" }
         end
       rescue StandardError => e
         # A defect, not a refusal: reaching here means a bad domain path or an

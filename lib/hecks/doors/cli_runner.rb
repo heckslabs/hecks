@@ -208,7 +208,7 @@ module Hecks
                                 events: handle.events.map(&:name) }.merge(extra)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A bad argument and a missing record both need the same next step: read the help.
-        ["#{e.message}\n\n  #{program} #{'query ' if asking}#{name} --help", 1]
+        ["#{e.message}\n\n  #{program} #{"query " if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
         # The refusal is the chapter's own sentence, verbatim.
         [e.message, 1]
@@ -276,7 +276,7 @@ module Hecks
         refusal  = refusal[:value] if refusal.is_a?(Hash)
         return sentence if refusal.to_s.strip.empty?
 
-        "#{sentence}: #{refusal.to_s.strip.sub(/\A(\w+::)+\w+: /, '')}"
+        "#{sentence}: #{refusal.to_s.strip.sub(/\A(\w+::)+\w+: /, "")}"
       end
 
       # The answer and its status: 0 when nothing failed, else 1 with the reasons joined.
@@ -375,9 +375,9 @@ module Hecks
                       .map(&:last)
         near = homes + (similar - homes)
 
-        lines = ["no such #{asking ? 'query' : 'command'}: #{name}"]
+        lines = ["no such #{asking ? "query" : "command"}: #{name}"]
         lines += ["", "did you mean:", *near.first(5).map { |candidate| "  #{candidate}" }] unless near.empty?
-        lines += ["", "  #{program}#{' query' if asking}   for the full list"]
+        lines += ["", "  #{program}#{" query" if asking}   for the full list"]
         lines.join("\n")
       end
 

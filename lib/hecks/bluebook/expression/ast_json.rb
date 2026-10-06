@@ -44,7 +44,7 @@ module Hecks
             next unless rejection
 
             raise DSL::Malformed,
-                  "#{owner}'s #{word} matches against #{node['pattern'].inspect}, which uses a " \
+                  "#{owner}'s #{word} matches against #{node["pattern"].inspect}, which uses a " \
                   "#{rejection.construct} — #{rejection.reason}"
           end
           ast

@@ -15,7 +15,7 @@ module Hecks
 
       def call(workload, adapter:, warmup:, iterations:)
         unless ADAPTERS.include?(adapter)
-          raise ArgumentError, "unknown adapter #{adapter.inspect} — one of #{ADAPTERS.join(', ')}"
+          raise ArgumentError, "unknown adapter #{adapter.inspect} — one of #{ADAPTERS.join(", ")}"
         end
 
         load_dependencies

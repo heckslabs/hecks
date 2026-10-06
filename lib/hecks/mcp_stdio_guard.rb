@@ -88,7 +88,7 @@ module Hecks
     # @api private
     def argument_violations(argv)
       (argv - ACCEPTED_ARGS).map do |arg|
-        "argument #{arg.inspect} is not accepted (only #{ACCEPTED_ARGS.join(', ')}); network options are refused, not ignored"
+        "argument #{arg.inspect} is not accepted (only #{ACCEPTED_ARGS.join(", ")}); network options are refused, not ignored"
       end
     end
 
@@ -96,7 +96,7 @@ module Hecks
     def environment_violations(env)
       env.select { |name, value| name.start_with?(ENV_PREFIX) && ACCEPTED_ENV[name] != value }.map do |name, value|
         "environment #{name}=#{value.inspect} is not accepted; the servers take no #{ENV_PREFIX}* options " \
-          "except #{ACCEPTED_ENV.map { |k, v| "#{k}=#{v}" }.join(', ')}"
+          "except #{ACCEPTED_ENV.map { |k, v| "#{k}=#{v}" }.join(", ")}"
       end
     end
 

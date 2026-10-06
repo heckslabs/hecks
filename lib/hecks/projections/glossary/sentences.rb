@@ -38,7 +38,7 @@ module Hecks
         def lifecycle_sentence(lifecycle)
           states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
           "Starts out #{spoken(lifecycle.default)}. " \
-            "Can be #{Naming.to_sentence_list(states.map { |state| spoken(state) }, conj: 'or')}."
+            "Can be #{Naming.to_sentence_list(states.map { |state| spoken(state) }, conj: "or")}."
         end
 
         def spoken(state) = state.to_s.tr("_", " ")
@@ -80,11 +80,11 @@ module Hecks
           if members.first && members.first.size > 1
             rows = members.map do |row|
               lead, *rest = row.map { |field, value| [field, value] }
-              "#{lead.last} (#{rest.map { |field, value| "#{Naming.words(field).downcase} #{value}" }.join(', ')})"
+              "#{lead.last} (#{rest.map { |field, value| "#{Naming.words(field).downcase} #{value}" }.join(", ")})"
             end
-            "One of: #{rows.join('; ')}."
+            "One of: #{rows.join("; ")}."
           else
-            "One of #{Naming.to_sentence_list(members.flat_map(&:values).uniq.map(&:to_s), conj: 'or')}."
+            "One of #{Naming.to_sentence_list(members.flat_map(&:values).uniq.map(&:to_s), conj: "or")}."
           end
         end
 
@@ -93,7 +93,7 @@ module Hecks
           return nil if rules.empty?
 
           clauses = rules.map { |rule| lower_first(rule.sub(/\.\z/, "")) }
-          "Always true: #{clauses.join('; ')}."
+          "Always true: #{clauses.join("; ")}."
         end
 
         def command_sentence(command)
@@ -105,7 +105,7 @@ module Hecks
 
         def event_sentence(facts, index)
           raisers = command_links(facts[:raised_by], index)
-          sentence = "Recorded after #{Naming.to_sentence_list(raisers, conj: 'or')}."
+          sentence = "Recorded after #{Naming.to_sentence_list(raisers, conj: "or")}."
           reactions = facts[:policies].map { |policy| index.link(:policy, policy.name) }
           sentence += " Prompts #{Naming.to_sentence_list(reactions)}." unless reactions.empty?
           sentence
@@ -133,7 +133,7 @@ module Hecks
           sentence = "Begins when #{index.link(:event, bare(shape[:starts_on]))} happens " \
                      "and ends when #{index.link(:event, bare(shape[:ends_on]))} happens."
           states = Array(shape[:states]).map { |state| spoken(state) }
-          sentence += " Along the way it can be #{Naming.to_sentence_list(states, conj: 'or')}." unless states.empty?
+          sentence += " Along the way it can be #{Naming.to_sentence_list(states, conj: "or")}." unless states.empty?
           sentence
         end
 

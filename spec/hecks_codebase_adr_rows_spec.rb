@@ -131,12 +131,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
 
     unaccounted = domain_verbs - listed - outcomes - faults
 
-    expect(unaccounted).to eq([]), "verbs with no row of the ADR table: #{unaccounted.join(', ')}"
+    expect(unaccounted).to eq([]), "verbs with no row of the ADR table: #{unaccounted.join(", ")}"
   end
 
   it "leaves no row of the table without a verb the domain declares" do
     missing = ADR_CODEBASE_ROWS.flat_map(&:verbs) - domain_verbs
 
-    expect(missing).to eq([]), "rows with no command or query in the domain: #{missing.join(', ')}"
+    expect(missing).to eq([]), "rows with no command or query in the domain: #{missing.join(", ")}"
   end
 end

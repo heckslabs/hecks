@@ -101,7 +101,7 @@ module Hecks
           if entities.size != entity_depth
             raise TypeMismatch,
                   "to: for an entity command needs #{entity_depth} entity " \
-                  "#{entity_depth == 1 ? 'identity' : 'identities'} after the aggregate — got #{entities.size}"
+                  "#{entity_depth == 1 ? "identity" : "identities"} after the aggregate — got #{entities.size}"
           end
           raise TypeMismatch, "to: contains a blank entity identity" if entities.any? do |identity|
             identity.nil? || identity.to_s.empty?
@@ -158,7 +158,7 @@ module Hecks
         def envelope_hash(to)
           hash = to.transform_keys(&:to_sym)
           unknown = hash.keys - %i[aggregate entity entities]
-          raise TypeMismatch, "to: does not recognize #{unknown.sort.join(', ')}" unless unknown.empty?
+          raise TypeMismatch, "to: does not recognize #{unknown.sort.join(", ")}" unless unknown.empty?
 
           [hash[:aggregate], entity_identities(hash)]
         end

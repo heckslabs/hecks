@@ -23,7 +23,7 @@ RSpec.describe "README's planned-or-research-only list" do
     end
 
     expect(contradicted).to be_empty,
-                            "README lists #{contradicted.join(', ')} as planned, but the ADR's " \
+                            "README lists #{contradicted.join(", ")} as planned, but the ADR's " \
                             "own Status line says it is implemented — drop it from the list"
   end
 end

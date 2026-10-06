@@ -102,7 +102,7 @@ module Hecks
       # @return [String] names both versions
       def host_refusal(rehearsal, host_version = HOST_RELEASE)
         line = release_line(host_version)&.join(".")
-        "the rehearsal ran on Hecks #{rehearsal['host_version']}, but this host is Hecks #{host_version}; " \
+        "the rehearsal ran on Hecks #{rehearsal["host_version"]}, but this host is Hecks #{host_version}; " \
           "a rehearsal counts only on a host of the same major.minor (#{line}.x) — " \
           "re-run the rehearsal on this host and approve again"
       end

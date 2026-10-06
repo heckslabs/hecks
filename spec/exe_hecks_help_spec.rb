@@ -23,7 +23,7 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
     ["deploy", "--help"],
     ["query", "language_run.word_status", "--help"]
   ].each do |argv|
-    it "answers `hecks #{argv.join(' ')}` with no adapter bound" do
+    it "answers `hecks #{argv.join(" ")}` with no adapter bound" do
       out, err, status = hecks(*argv)
 
       expect(status).to be_success, "failed:\n#{err}"

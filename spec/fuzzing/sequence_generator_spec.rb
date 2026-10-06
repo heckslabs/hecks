@@ -109,9 +109,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
     end
 
     it "leaves the real example data untouched" do
-      before = Dir.glob("#{domain('pizzas')}/data/**/*")
+      before = Dir.glob("#{domain("pizzas")}/data/**/*")
       described_class.generate(domain("pizzas"), seed: 1, steps: 20)
-      after = Dir.glob("#{domain('pizzas')}/data/**/*")
+      after = Dir.glob("#{domain("pizzas")}/data/**/*")
 
       expect(after).to eq(before)
     end

@@ -996,11 +996,11 @@ module Hecks
           opts.banner = "Usage: hecks check_comments [--report|--check|--fix] [--only a,b] PATH..."
           opts.on("--report", "summary tables (default)") { options[:mode] = :report }
           opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
-          opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
+          opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(", ")}") { options[:mode] = :fix }
           opts.on("--write-baseline", "record every block over #{MAX_BLOCK} lines as tolerated") do
             options[:mode] = :write_baseline
           end
-          opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
+          opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(", ")}") { |list| options[:only] = list }
           opts.on("--code-unchanged REF", "exit 1 if any file's code (not comments) differs from REF") do |ref|
             options[:mode] = :code_unchanged
             options[:ref] = ref
@@ -1031,10 +1031,10 @@ module Hecks
         parser = option_parser(options)
         paths = parser.parse(argv)
         unknown = Array(options[:only]) - CATEGORIES.keys
-        abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
+        abort "unknown categories: #{unknown.join(", ")}" unless unknown.empty?
         abort parser.help if paths.empty?
         missing = paths.reject { |path| File.exist?(path) }
-        abort "no such path: #{missing.join(', ')}" unless missing.empty?
+        abort "no such path: #{missing.join(", ")}" unless missing.empty?
 
         baseline_path = Baseline.path_in(root)
         run = Run.new(paths, only: options[:only], baseline: Baseline.load(baseline_path))

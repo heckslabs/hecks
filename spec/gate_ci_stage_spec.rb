@@ -81,7 +81,7 @@ RSpec.describe "the ci and post_commit gate stages" do
       expect(calls).not_to be_empty
       calls.each do |kind, verb|
         _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: [kind, verb, "--help"].reject(&:empty?), program: "hecks")
-        expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(' ')} does not resolve"
+        expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(" ")} does not resolve"
       end
     end
   end
@@ -99,7 +99,7 @@ RSpec.describe "the ci and post_commit gate stages" do
       File.write(stub, "#!/bin/sh\necho \"bundle $*\"\nexit #{status}\n")
       FileUtils.chmod(0o755, stub)
       system("git", "init", "-q", work, exception: true)
-      out, result = Open3.capture2e({ "PATH" => "#{File.join(work, 'bin')}:#{ENV.fetch('PATH', nil)}" }.merge(env), hook,
+      out, result = Open3.capture2e({ "PATH" => "#{File.join(work, "bin")}:#{ENV.fetch("PATH", nil)}" }.merge(env), hook,
                                     chdir: work)
       [out, result.exitstatus]
     end

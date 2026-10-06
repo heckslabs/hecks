@@ -162,7 +162,7 @@ module Hecks
                 raise Malformed,
                       "#{@name}.#{command.hecks_name} corrects #{event.inspect}, reverses: " \
                       "true, but the command(s) that emit it use " \
-                      "#{unsupported.map(&:op).uniq.join(', ')} — not statically invertible " \
+                      "#{unsupported.map(&:op).uniq.join(", ")} — not statically invertible " \
                       "(set needs the specific prior value, multiply/clamp are lossy) — " \
                       "declare the corrective sets by hand instead"
               end
@@ -323,7 +323,7 @@ module Hecks
 
             raise Malformed,
                   "#{owner}.#{query.hecks_name} asks about #{field}, which names #{attribute.type} — " \
-                  "it has #{members.size} members (#{members.join(', ')}) and no single one a " \
+                  "it has #{members.size} members (#{members.join(", ")}) and no single one a " \
                   "comparison can mean; name the member (#{field}.#{members.first})"
           end
 

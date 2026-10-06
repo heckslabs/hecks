@@ -50,8 +50,8 @@ module Hecks
       # @raise [SystemExit] when a row's `mode` or `push` is not one the action understands
       def gates
         Hecks::Vocabulary.rows("CiGate").each do |gate|
-          abort "ci_gates: #{gate['name']} has mode #{gate['mode'].inspect}" unless MODES.include?(gate["mode"])
-          abort "ci_gates: #{gate['name']} has push #{gate['push'].inspect}" unless PUSHES.include?(gate["push"])
+          abort "ci_gates: #{gate["name"]} has mode #{gate["mode"].inspect}" unless MODES.include?(gate["mode"])
+          abort "ci_gates: #{gate["name"]} has push #{gate["push"].inspect}" unless PUSHES.include?(gate["push"])
         end
       end
 
@@ -64,7 +64,7 @@ module Hecks
           return 0
         end
 
-        warn "ci_gates: out of date: #{stale.map { |path| path.delete_prefix("#{root}/") }.join(', ')} " \
+        warn "ci_gates: out of date: #{stale.map { |path| path.delete_prefix("#{root}/") }.join(", ")} " \
              "(run hecks project_ci_gates)"
         1
       end
@@ -101,7 +101,7 @@ module Hecks
           "      - uses: ./.github/actions/setup-ruby",
           "      - uses: ./.github/actions/hecks-environment",
           "      - id: diff",
-          "        name: #{quoted(gate.fetch('label'))}",
+          "        name: #{quoted(gate.fetch("label"))}",
           "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
           "  # END GENERATED ci_gate #{name}"
         ].join("\n")

@@ -38,7 +38,7 @@ module Hecks
           loose = request.keys - [:to, :with]
           unless loose.empty?
             raise Runtime::TypeMismatch,
-                  "an explicit command envelope takes routing in to: and facts in with:, not loose #{loose.sort.join(', ')}"
+                  "an explicit command envelope takes routing in to: and facts in with:, not loose #{loose.sort.join(", ")}"
           end
 
           facts = request[:with]

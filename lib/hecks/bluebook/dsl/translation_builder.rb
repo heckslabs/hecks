@@ -180,7 +180,7 @@ module Hecks
             "#{@name}'s translation leaves #{render_path(name)} unresolved (no candidate matched — " \
               "consider drop, or compute on Postgres) — replace unresolved with a real rule before booting."
           else
-            "#{@name}'s translation leaves #{render_path(name)} unresolved (candidates: #{rendered.join(', ')}) — " \
+            "#{@name}'s translation leaves #{render_path(name)} unresolved (candidates: #{rendered.join(", ")}) — " \
               "replace unresolved with a rename, move, convert, or drop before booting."
           end
         end

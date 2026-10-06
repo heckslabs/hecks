@@ -72,17 +72,17 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   def child(*argv)
     env = { "HECKS_DATABASE" => FencedOwner.url(JOURNAL_DB), "HECKS_ENVIRONMENT" => nil,
             "HECKS_NO_3_0_NOTICE" => "1" }
-    Open3.capture3(env, RbConfig.ruby, "-I#{File.join(HECKS_ROOT, 'lib')}", *argv, chdir: HECKS_ROOT)
+    Open3.capture3(env, RbConfig.ruby, "-I#{File.join(HECKS_ROOT, "lib")}", *argv, chdir: HECKS_ROOT)
   end
 
   it "keeps a journaled command's events for a later process" do
     out, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "model_check_run.model_check", "run=kept-1",
-                             "domains=#{File.join(@dir, 'shelf')}")
+                             "domains=#{File.join(@dir, "shelf")}")
     expect(status.success?).to be(true), "#{out}\n#{err}"
     expect(JSON.parse(out).fetch("events")).to eq(["ModelCheckRequested"])
 
     history, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "query", "introspection.history",
-                                 "domain=#{File.join(HECKS_ROOT, 'lib/hecks/hecks')}")
+                                 "domain=#{File.join(HECKS_ROOT, "lib/hecks/hecks")}")
     expect(status.success?).to be(true), err
     entries = JSON.parse(history.lines.last).fetch("model_check_run")
     expect(entries.map { |entry| entry.fetch("operation") }).to eq(%w[save save])

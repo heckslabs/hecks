@@ -30,7 +30,7 @@ module Hecks
 
           return [{ field:  "concurrency_unraceable",
                     detail: "no command step could be raced because the cross-process-lock probe failed: " \
-                            "#{probe_errors.uniq.join('; ')}" }]
+                            "#{probe_errors.uniq.join("; ")}" }]
         end
 
         setup_steps = normalized[0...race_index]
@@ -95,7 +95,7 @@ module Hecks
         return [] if reference.sort == concurrent.sort
 
         [{ field: "concurrency_race", verb: race_step["verb"], reference: reference, concurrent: concurrent,
-           detail: "two concurrent cross-process dispatches of #{race_step['verb']} settled as #{concurrent.sort} " \
+           detail: "two concurrent cross-process dispatches of #{race_step["verb"]} settled as #{concurrent.sort} " \
                    "where the identical pair, dispatched sequentially with no contention, settled as " \
                    "#{reference.sort} — the cross-process write lock did not correctly serialize this write" }]
       end
@@ -161,7 +161,7 @@ module Hecks
       def dispatch_all!(runtime, steps)
         steps.each do |step|
           outcome = dispatch_one(runtime, step)
-          raise "setup step #{step['verb']} #{outcome}" if outcome.start_with?("crashed:")
+          raise "setup step #{step["verb"]} #{outcome}" if outcome.start_with?("crashed:")
         end
       end
 

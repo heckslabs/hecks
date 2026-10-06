@@ -110,11 +110,11 @@ module Hecks
 
         def describe(aggregate, edge, verdict, records)
           lines = ["── #{@held.bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
-                   "#{records} record#{'s' unless records == 1})"]
+                   "#{records} record#{"s" unless records == 1})"]
           verdict.violations.each { |violation| lines << "   REFUSED: #{violation}" }
-          lines << "   dropped (declared data loss): #{verdict.dropped.join(', ')}" unless verdict.dropped.empty?
+          lines << "   dropped (declared data loss): #{verdict.dropped.join(", ")}" unless verdict.dropped.empty?
           unless verdict.unfed.empty?
-            lines << "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(', ')}"
+            lines << "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(", ")}"
           end
           verdict.samples.each { |sample| lines.concat(sample_lines(sample)) }
           lines

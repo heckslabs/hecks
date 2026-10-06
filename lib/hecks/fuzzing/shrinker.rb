@@ -127,7 +127,7 @@ module Hecks
         return [] unless left.is_a?(Hash) && right.is_a?(Hash)
 
         (left.keys | right.keys).reject { |key| left[key] == right[key] }
-                                .map { |key| "instances:#{key.to_s.split('#').first}" }
+                                .map { |key| "instances:#{key.to_s.split("#").first}" }
       end
 
       # True when the candidate's signature contains the original's.

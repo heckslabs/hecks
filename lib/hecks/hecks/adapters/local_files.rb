@@ -81,7 +81,7 @@ module Hecks
         return if taken.empty?
 
         raise ConsoleCapture::Failure,
-              "nothing written; already there: #{taken.map { |full| shown(full) }.join(', ')}"
+              "nothing written; already there: #{taken.map { |full| shown(full) }.join(", ")}"
       end
 
       def inside_clone?(target)

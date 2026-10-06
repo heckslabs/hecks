@@ -178,8 +178,8 @@ module Hecks
             next if check[:recomputed_refused] == check[:actual_refused]
 
             "#{check[:verb]} — independently recomputing enforce_givens/enforce_lifecycle_guard against the " \
-              "pre-dispatch state says #{check[:recomputed_refused] ? "refused (#{check[:recomputed_kind]})" : 'admitted'}, " \
-              "but the real dispatch #{check[:actual_refused] ? "refused (#{check[:actual_kind]})" : 'admitted it'}"
+              "pre-dispatch state says #{check[:recomputed_refused] ? "refused (#{check[:recomputed_kind]})" : "admitted"}, " \
+              "but the real dispatch #{check[:actual_refused] ? "refused (#{check[:actual_kind]})" : "admitted it"}"
           end
 
           offenders.empty? || offenders.join("; ")

@@ -80,7 +80,7 @@ module Hecks
           return record_marking(name.delete_prefix("has_"), readable_by) if name.start_with?("has_")
 
           if !args.empty? || !kwargs.empty? || block
-            raise Malformed, "#{@fqn}.#{@path.join('.')}.#{name} — an attribute path chain takes no " \
+            raise Malformed, "#{@fqn}.#{@path.join(".")}.#{name} — an attribute path chain takes no " \
                              "arguments except a terminal has_<category>(readable_by:)"
           end
 
@@ -89,7 +89,7 @@ module Hecks
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        def to_s = "#{@fqn}.#{@path.join('.')}"
+        def to_s = "#{@fqn}.#{@path.join(".")}"
 
         private
 

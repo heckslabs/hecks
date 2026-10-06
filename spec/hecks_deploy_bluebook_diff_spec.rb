@@ -119,7 +119,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
 
     it "records unavailable, still exit 0, when a file cannot be read" do
       with_project do |dir|
-        json, status = diff(dir, "old=#{File.join(dir, 'missing.json')}", "new=#{File.join(dir, 'missing.json')}")
+        json, status = diff(dir, "old=#{File.join(dir, "missing.json")}", "new=#{File.join(dir, "missing.json")}")
 
         expect(status).to eq(0)
         expect(json.dig("state", "status")).to eq("unavailable")
@@ -129,7 +129,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
 
     it "flags a request that gives only one of them (exit 1), the only way it fails" do
       with_project do |dir|
-        json, status = diff(dir, "old=#{write_json(dir, 'a.json', book(version: '1.0.0'))}")
+        json, status = diff(dir, "old=#{write_json(dir, "a.json", book(version: "1.0.0"))}")
 
         expect(status).to eq(1)
         expect(json.dig("state", "status")).to eq("flagged")

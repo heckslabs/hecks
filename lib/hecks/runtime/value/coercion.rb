@@ -497,7 +497,7 @@ module Hecks
           heads = Array(attribute.type.resolve&.identity_heads)
           return "" if heads.empty?
 
-          " (#{attribute.type.target_name} is known by #{heads.join(', ')})"
+          " (#{attribute.type.target_name} is known by #{heads.join(", ")})"
         end
 
         # Renders a value object into the bare scalar its one field holds — for a

@@ -37,7 +37,7 @@ module Hecks
           child = RubyChild.new(tree)
           return child.answer(SCRIPTS.fetch(operation)) if confirm == true
 
-          "dry run, nothing kept (add --confirm to rewrite):\n#{child.answer(SCRIPTS.fetch(operation), '--dry-run')}"
+          "dry run, nothing kept (add --confirm to rewrite):\n#{child.answer(SCRIPTS.fetch(operation), "--dry-run")}"
         end
       end
     end

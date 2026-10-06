@@ -83,33 +83,33 @@ module Hecks
         failed = checks.reject { |check| results.fetch(check["id"]).last }
         failed.each do |check|
           output, = results.fetch(check["id"])
-          puts "\n[gate #{name}] #{check['title']}\n\n#{output}"
-          puts "\n[gate #{name}] BLOCKED: #{check['blocked']}\n"
+          puts "\n[gate #{name}] #{check["title"]}\n\n#{output}"
+          puts "\n[gate #{name}] BLOCKED: #{check["blocked"]}\n"
         end
         if failed.empty?
-          puts "[gate #{name}] green: #{checks.map { |check| check['id'] }.join(', ')}"
+          puts "[gate #{name}] green: #{checks.map { |check| check["id"] }.join(", ")}"
           return 0
         end
 
-        puts "[gate #{name}] red: #{failed.map { |check| check['id'] }.join(', ')}"
+        puts "[gate #{name}] red: #{failed.map { |check| check["id"] }.join(", ")}"
         1
       end
 
       def list(stages)
         stages.each do |name, stage|
-          puts "#{name}: #{stage.fetch('checks').map { |check| check['id'] }.join(', ')}"
+          puts "#{name}: #{stage.fetch("checks").map { |check| check["id"] }.join(", ")}"
         end
         0
       end
 
       def unknown(stage, only)
         known = stage.fetch("checks").map { |check| check["id"] }
-        warn "no such check: #{(only - known).join(', ')} (checks: #{known.join(', ')})"
+        warn "no such check: #{(only - known).join(", ")} (checks: #{known.join(", ")})"
         2
       end
 
       def usage(stages, name)
-        warn(name ? "no such stage: #{name} (stages: #{stages.keys.join(', ')})" : USAGE)
+        warn(name ? "no such stage: #{name} (stages: #{stages.keys.join(", ")})" : USAGE)
         2
       end
     end

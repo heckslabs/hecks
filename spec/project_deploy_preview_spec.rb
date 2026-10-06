@@ -615,7 +615,7 @@ RSpec.describe Hecks::Projections::Deploy::Preview do
       by_name = env.to_h { |e| [e["Name"], e["Value"]] }
 
       expect(by_name).to include("HECKS_DOMAIN" => "Scratch", "HECKS_SESSION_COOKIE" => "scratch_session")
-      expect(files["preview.sh"]).to include(%(PREFIX="hecks-#{basename.tr('_', '-')}-preview"))
+      expect(files["preview.sh"]).to include(%(PREFIX="hecks-#{basename.tr("_", "-")}-preview"))
     end
 
     it "generates a single-container preview from a bare preview setting" do

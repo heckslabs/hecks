@@ -411,7 +411,7 @@ module Hecks
         code = result.status.exitstatus
         return { report: { value: report }, status: code } if answering.include?(code)
 
-        raise ConsoleCapture::Failure, "#{label} ended #{code} (#{statuses.fetch(code, 'unexpected')})\n#{report}"
+        raise ConsoleCapture::Failure, "#{label} ended #{code} (#{statuses.fetch(code, "unexpected")})\n#{report}"
       end
 
       # The script a project runs: the override, else the named one in the project itself, else the
@@ -432,7 +432,7 @@ module Hecks
       def ambiguity(name, root, found)
         return "no #{name} under #{root}; generate the AwsBox recipe or pass script=<path>" if found.empty?
 
-        "#{found.size} #{name} files under #{root}; pass script=<path>: #{found.join(', ')}"
+        "#{found.size} #{name} files under #{root}; pass script=<path>: #{found.join(", ")}"
       end
 
       def existing_script(path)

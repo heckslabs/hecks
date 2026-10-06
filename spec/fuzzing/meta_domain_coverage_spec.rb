@@ -162,7 +162,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     unaccounted = META_DOMAIN_ALL_FEATURES - accounted.to_a
 
     expect(unaccounted).to be_empty,
-                           "the language declares #{unaccounted.join(', ')} with no property claiming it, no structural " \
+                           "the language declares #{unaccounted.join(", ")} with no property claiming it, no structural " \
                            "exemption, no construction guarantee, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just " \
                            "joined the language with nothing deciding, on purpose, whether a fuzzer property should exist for it"
   end
@@ -171,7 +171,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     stale = META_DOMAIN_PROPERTY_COVERAGE.values.flatten - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "FEATURE_COVERAGE claims #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "FEATURE_COVERAGE claims #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
@@ -180,7 +180,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     stale = META_DOMAIN_KNOWN_GAPS.keys - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "META_DOMAIN_KNOWN_GAPS names #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "META_DOMAIN_KNOWN_GAPS names #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — delete the entry, or fix the name it was meant to point at"
   end
 
@@ -194,15 +194,15 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     retired = META_DOMAIN_PROPERTY_COVERAGE.keys - checked
 
     expect(checked).not_to be_empty, "could not read Properties.check's own property list from the source"
-    expect(unclaimed).to be_empty, "these properties run but claim no feature: #{unclaimed.join(', ')}"
-    expect(retired).to be_empty, "these claim a feature but no longer run: #{retired.join(', ')}"
+    expect(unclaimed).to be_empty, "these properties run but claim no feature: #{unclaimed.join(", ")}"
+    expect(retired).to be_empty, "these claim a feature but no longer run: #{retired.join(", ")}"
   end
 
   it "never lets a construction guarantee rot either — the same drift check, aimed at GUARANTEED_BY_CONSTRUCTION" do
     stale = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "GUARANTEED_BY_CONSTRUCTION claims #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "GUARANTEED_BY_CONSTRUCTION claims #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — a rename or removal left a guarantee pointing at nothing"
   end
 
@@ -213,7 +213,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     overlap = exempted & claimed
 
     expect(overlap).to be_empty,
-                       "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked " \
+                       "#{overlap.to_a.join(", ")} is both CLAIMED by a property and marked " \
                        "structural/guaranteed/a known gap — pick one: a real property makes the exemption a lie"
   end
 
@@ -221,7 +221,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     overlap = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set & META_DOMAIN_KNOWN_GAPS.keys.to_set
 
     expect(overlap).to be_empty,
-                       "#{overlap.to_a.join(', ')} is claimed BOTH as guaranteed-by-construction and as an open gap — " \
+                       "#{overlap.to_a.join(", ")} is claimed BOTH as guaranteed-by-construction and as an open gap — " \
                        "one of the two entries is wrong; a feature is either provably true by construction or it isn't"
   end
 end

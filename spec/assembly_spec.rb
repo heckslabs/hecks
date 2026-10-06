@@ -113,7 +113,7 @@ RSpec.describe "a graph assembled from declarations" do
       end
 
       expect(missing).to be_empty,
-                         "the language declares #{missing.join(', ')} and the table has no contract for it"
+                         "the language declares #{missing.join(", ")} and the table has no contract for it"
     end
 
     # PARENT_POINTERS cannot be computed in lib without going circular, so it is derived here

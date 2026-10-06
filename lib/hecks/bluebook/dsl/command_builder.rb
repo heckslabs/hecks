@@ -200,7 +200,7 @@ module Hecks
 
           if named.size > 1
             raise Malformed,
-                  "#{@name}'s sets :#{target} tries to #{named.keys.join(' and ')} " \
+                  "#{@name}'s sets :#{target} tries to #{named.keys.join(" and ")} " \
                   "at once — one mutation, one meaning"
           end
 
@@ -479,7 +479,7 @@ module Hecks
 
           if named.size > 1
             raise Malformed,
-                  "#{@name}'s then_set :#{target} tries to #{named.keys.join(' and ')} " \
+                  "#{@name}'s then_set :#{target} tries to #{named.keys.join(" and ")} " \
                   "at once — one mutation, one meaning"
           end
 

@@ -28,8 +28,8 @@ module Hecks
             imports = %w[instancesOf] + (uses?(aggregates, :integer) ? %w[whole] : [])
             names = %w[optionalValue statusOf unwrap unwrapList wrapped] + %w[type\ Instance type\ Spec type\ Wire]
             <<~TS.chomp
-              import { #{imports.join(', ')} } from #{hecks.to_json};
-              import { #{names.join(', ')} } from #{lifecycle.to_json};
+              import { #{imports.join(", ")} } from #{hecks.to_json};
+              import { #{names.join(", ")} } from #{lifecycle.to_json};
             TS
           end
 

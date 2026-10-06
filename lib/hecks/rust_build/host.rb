@@ -107,10 +107,10 @@ module Hecks
       end
 
       def linker_for(target)
-        variable = "CARGO_TARGET_#{target.upcase.tr('-.', '__')}_LINKER"
+        variable = "CARGO_TARGET_#{target.upcase.tr("-.", "__")}_LINKER"
         return {} if ENV.key?(variable) || target == host_triple
 
-        candidate = "#{target.split('-').first}-linux-gnu-gcc"
+        candidate = "#{target.split("-").first}-linux-gnu-gcc"
         target.end_with?("linux-gnu") && query(candidate, "--version") ? { variable => candidate } : {}
       end
 
@@ -118,8 +118,8 @@ module Hecks
         return "" if target == host_triple
 
         "\n#{target} differs from this machine's #{host_triple}, so linking needs a linker for it: " \
-          "put a cross compiler such as #{target.split('-').first}-linux-gnu-gcc on PATH, or set " \
-          "CARGO_TARGET_#{target.upcase.tr('-.', '__')}_LINKER"
+          "put a cross compiler such as #{target.split("-").first}-linux-gnu-gcc on PATH, or set " \
+          "CARGO_TARGET_#{target.upcase.tr("-.", "__")}_LINKER"
       end
 
       def publish(binary, name, stage)
@@ -132,7 +132,7 @@ module Hecks
         FileUtils.mkdir_p(stage)
         files.each { |from, to| FileUtils.cp(from, File.join(stage, to)) }
         File.chmod(0o755, File.join(stage, "#{name}-host"))
-        puts "staged in #{stage}: #{files.values.join(', ')}"
+        puts "staged in #{stage}: #{files.values.join(", ")}"
       end
 
       # @return [String, nil] a program's combined output, nil when it is missing or fails

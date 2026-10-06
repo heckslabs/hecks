@@ -41,7 +41,7 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
     end
 
     expect(orphaned_projects_as).to be_empty,
-                                    "#{orphaned_projects_as.map { |p| File.basename(p) }.join(', ')} call projects_as without " \
+                                    "#{orphaned_projects_as.map { |p| File.basename(p) }.join(", ")} call projects_as without " \
                                     "extending Projector::Target"
   end
 
@@ -56,7 +56,7 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   it "never lets the known-non-projection roster rot — every named file still exists" do
     missing = KNOWN_NON_PROJECTIONS.keys.reject { |path| File.exist?(File.join(InMemoryDomain::ROOT, path)) }
     expect(missing).to be_empty,
-                       "named as a known non-projection but no longer exists: #{missing.join(', ')} — a rename or " \
+                       "named as a known non-projection but no longer exists: #{missing.join(", ")} — a rename or " \
                        "deletion left this roster pointing at nothing"
   end
 end

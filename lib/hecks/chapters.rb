@@ -51,7 +51,7 @@ module Hecks
 
       raise Runtime::WiringError,
             "attaches #{name.inspect}: the gem carries no chapter of that name — known: " \
-            "#{table.keys.sort.join(', ')}. To attach a vendored package, write " \
+            "#{table.keys.sort.join(", ")}. To attach a vendored package, write " \
             "`attaches #{name.to_s.inspect}, from: :vendor`"
     end
 
@@ -67,7 +67,7 @@ module Hecks
     def self.load!(name)
       paths = index.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no attachable chapter named #{name.inspect} — known: #{index.keys.join(', ')}"
+              "no attachable chapter named #{name.inspect} — known: #{index.keys.join(", ")}"
       end
       registry = Hecks.current_registry or
         raise Runtime::WiringError, "attaches #{name.to_s.inspect} outside a boot: no registry is open"
@@ -105,7 +105,7 @@ module Hecks
 
       raise Runtime::WiringError,
             "attaches #{name.inspect}, but a chapter named #{name.inspect} is already declared in " \
-            "#{foreign.join(', ')} — rename it, since the gem's own #{name} chapter cannot merge into it"
+            "#{foreign.join(", ")} — rename it, since the gem's own #{name} chapter cannot merge into it"
     end
     private_class_method :refuse_own_chapter
 

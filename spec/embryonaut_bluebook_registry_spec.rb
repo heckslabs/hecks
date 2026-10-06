@@ -118,7 +118,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Registry, :io do
       tagged = registry.release("widgets")
 
       expect(tagged.tag).to eq("widgets-v1.0.0")
-      expect(tagged.to_s).to eq("Tagged widgets-v1.0.0 at #{repo.git('rev-parse', '--short', 'HEAD').strip}. " \
+      expect(tagged.to_s).to eq("Tagged widgets-v1.0.0 at #{repo.git("rev-parse", "--short", "HEAD").strip}. " \
                                 "Publish it with:\n  git push origin widgets-v1.0.0")
       expect(repo.git("cat-file", "-t", "widgets-v1.0.0").strip).to eq("tag")
       expect(repo.git("tag", "-l", "--format=%(contents)", "widgets-v1.0.0").strip)

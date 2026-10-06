@@ -29,7 +29,7 @@ module Hecks
             raw = raw.is_a?(Hash) ? raw.transform_keys(&:to_sym) : {}
             unknown = raw.keys - KEYS
             unless unknown.empty?
-              raise ArgumentError, "unknown preview setting(s): #{unknown.join(', ')} (known: #{KEYS.join(', ')})"
+              raise ArgumentError, "unknown preview setting(s): #{unknown.join(", ")} (known: #{KEYS.join(", ")})"
             end
 
             new(raw, deploy_settings, main)
@@ -57,7 +57,7 @@ module Hecks
           def assign_names(raw, main)
             prefix_default = "#{main.fetch(:stack_prefix)}-#{infra_name}-preview".downcase.gsub(/[^a-z0-9-]+/, "-")
             @prefix = pick(raw, :prefix, prefix_default, PREFIX_PATTERN)
-            alb_default = "#{infra_name.downcase.gsub(/[^a-z0-9]/, '')[0, 8]}pv"
+            alb_default = "#{infra_name.downcase.gsub(/[^a-z0-9]/, "")[0, 8]}pv"
             @alb_prefix = pick(raw, :alb_prefix, alb_default, ALB_PREFIX_PATTERN)
             @owner_stack = pick(raw, :owner_stack, main[:owner_stack] || stack_name, STACK_PATTERN)
             @database_stack = pick(raw, :database_stack, owner_stack, STACK_PATTERN)
@@ -78,7 +78,7 @@ module Hecks
             @log_retention_days = Integer(raw.fetch(:log_retention_days, 7))
             return if RETENTION_DAYS.include?(log_retention_days)
 
-            raise ArgumentError, "preview log_retention_days must be one of #{RETENTION_DAYS.join(', ')}"
+            raise ArgumentError, "preview log_retention_days must be one of #{RETENTION_DAYS.join(", ")}"
           end
 
           def assign_behaviour(raw)

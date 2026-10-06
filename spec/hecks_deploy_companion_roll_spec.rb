@@ -48,7 +48,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
   end
 
   def roll(dir, *argv, env: {})
-    settings = { "PATH" => "#{File.join(dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => dir }.merge(env)
+    settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",

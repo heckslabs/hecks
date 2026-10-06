@@ -89,7 +89,7 @@ module Hecks
                         - Name: TARGET_DB
                           Value: !Ref DbName
                         - Name: PROTECTED_DATABASES
-                          Value: #{JSON.generate(settings.protected_databases.join(' '))}
+                          Value: #{JSON.generate(settings.protected_databases.join(" "))}
               #{indent(DB_INIT_SECRETS, 8)}
             YAML
           end

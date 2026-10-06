@@ -209,7 +209,7 @@ module Hecks
             candidates = nested.attributes.map(&:name).join(", ")
             raise Malformed,
                   "#{context_name}.identified_by :#{path} names #{nested.hecks_name}, which has " \
-                  "#{nested.attributes.size} field#{'s' unless nested.attributes.size == 1} (#{candidates})"
+                  "#{nested.attributes.size} field#{"s" unless nested.attributes.size == 1} (#{candidates})"
           end
 
           member = nested.attributes.first

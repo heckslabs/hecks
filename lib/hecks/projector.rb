@@ -60,7 +60,7 @@ module Hecks
       missing = needed.reject { |capability| capable?(construct, capability) }
       unless missing.empty?
         raise WrongConstruct,
-              "#{name.inspect} needs #{missing.map(&:name).join(' and ')}, and was handed " \
+              "#{name.inspect} needs #{missing.map(&:name).join(" and ")}, and was handed " \
               "#{construct.class} (#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect})."
       end
 
@@ -68,7 +68,7 @@ module Hecks
       absent   = declared.reject { |named| construct.aggregate(named) }
       unless absent.empty?
         raise WrongConstruct,
-              "#{name.inspect} needs a chapter declaring #{absent.join(' and ')}; " \
+              "#{name.inspect} needs a chapter declaring #{absent.join(" and ")}; " \
               "#{construct.name} declares no such aggregate."
       end
 

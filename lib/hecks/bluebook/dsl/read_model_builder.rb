@@ -224,7 +224,7 @@ module Hecks
 
             raise Malformed,
                   "#{@name}'s `on: #{target}` doesn't name one of its own many-side included " \
-                  "aggregates (it includes #{many.map { |head| head[:aggregate] }.join(', ')} as " \
+                  "aggregates (it includes #{many.map { |head| head[:aggregate] }.join(", ")} as " \
                   "many-side heads)"
           end
         end
@@ -261,11 +261,11 @@ module Hecks
 
           if @group_by&.any?
             raise Malformed,
-                  "#{@name} declares #{declared.join('/')} together with group_by — a read " \
+                  "#{@name} declares #{declared.join("/")} together with group_by — a read " \
                   "model reports one shape; choose one"
           end
           if declared.size > 1
-            joiner = declared.size == 2 ? "both #{declared.join(' and ')}" : declared.join(", ")
+            joiner = declared.size == 2 ? "both #{declared.join(" and ")}" : declared.join(", ")
             raise Malformed, "#{@name} declares #{joiner} — a read model reports one shape; choose one"
           end
 

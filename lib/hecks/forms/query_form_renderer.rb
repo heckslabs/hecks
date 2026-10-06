@@ -44,7 +44,7 @@ module Hecks
 
       def self.canonical_link(action, fields)
         paths = Params.paths(fields)
-        template = paths.empty? ? action : "#{action}?#{paths.map { |path| "#{path}={#{path}}" }.join('&')}"
+        template = paths.empty? ? action : "#{action}?#{paths.map { |path| "#{path}={#{path}}" }.join("&")}"
         <<~HTML
           <p class="help">Every query is a plain GET — this exact URL is bookmarkable, linkable from a dashboard, curlable, whatever a feature needs:</p>
           <div class="link-row"><code id="canonical-link">#{Escape.html(template)}</code><button type="button" class="copy" data-copy="#canonical-link">copy</button></div>
@@ -77,7 +77,7 @@ module Hecks
       def self.error_banner(error)
         return "" unless error
 
-        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — ) \
+        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — ) \
           "#{Escape.html(error.message)}</p></div>"
       end
 
@@ -93,7 +93,7 @@ module Hecks
         <<~HTML
           <details class="inspect">
             <summary>Inspect — #{Escape.html(verb)}</summary>
-            <p>Parameters: #{paths.empty? ? '<em>none</em>' : paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(', ')}</p>
+            <p>Parameters: #{paths.empty? ? "<em>none</em>" : paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(", ")}</p>
             <pre>#{Escape.html(JSON.pretty_generate(query.to_h))}</pre>
           </details>
         HTML

@@ -162,7 +162,7 @@ module Hecks
         places = [File.join(name, "bluebook"), File.join("vendor", "embryonaut_bluebooks", name, "bluebook")]
         found = places.map { |place| File.join(root, place) }.find { |dir| File.directory?(dir) }
         found or raise Runtime::NotFound,
-                       "#{name} has no bluebook/ directory in #{root} (looked in #{places.join(' and ')})"
+                       "#{name} has no bluebook/ directory in #{root} (looked in #{places.join(" and ")})"
       end
 
       def registry(held)

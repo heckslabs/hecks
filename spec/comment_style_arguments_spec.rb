@@ -17,7 +17,7 @@ RSpec.describe Hecks::Tools::CommentStyle, ".main and .code_changed_since" do
 
   def run_vcs(*args)
     _out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args)
-    raise "git #{args.join(' ')} failed" unless status.success?
+    raise "git #{args.join(" ")} failed" unless status.success?
   end
 
   def quiet

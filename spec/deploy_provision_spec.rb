@@ -98,7 +98,7 @@ RSpec.describe "hecks deploy provision", :io do
         dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL
       )
       expect(status).to be_success, "stdout: #{out}\nstderr: #{err}"
-      expect(out).to include("wrote #{File.join(dir, 'environments/acme.world')}")
+      expect(out).to include("wrote #{File.join(dir, "environments/acme.world")}")
       expect(out).to include('booted Scratch for tenant "acme"')
       expect(out).to include("tenant_capable?")
 

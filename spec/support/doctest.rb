@@ -183,7 +183,7 @@ module Doctest
         "__dt__.eq(#{number}, #{match[:expected].dump}, #{match[:code].strip.dump}) { (#{match[:code]}) }\n"
       elsif (match = line.match(/\A(?<code>.*\S)\s*#\s*~>\s*(?<klass>\w+)(?::\s*(?<message>.+?))?\s*\z/))
         single_line!(match[:code], number)
-        "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || '').dump}, " \
+        "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || "").dump}, " \
           "#{match[:code].strip.dump}) { (#{match[:code]}) }\n"
       else
         line

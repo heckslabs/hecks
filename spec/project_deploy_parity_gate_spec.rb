@@ -18,7 +18,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
         FileUtils.mkdir_p(bluebook_dir)
 
         File.write(File.join(bluebook_dir, "#{PARITY_GATE_FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
-          Hecks.bluebook "#{PARITY_GATE_FIXTURE_BASENAME.split('_').map(&:capitalize).join}" do
+          Hecks.bluebook "#{PARITY_GATE_FIXTURE_BASENAME.split("_").map(&:capitalize).join}" do
             aggregate "Widget" do
               identified_by :id
               attribute :id, Id
@@ -35,7 +35,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
         BLUEBOOK
 
         File.write(File.join(bluebook_dir, "#{PARITY_GATE_FIXTURE_BASENAME}.world"), <<~WORLD)
-          Hecks.world "#{PARITY_GATE_FIXTURE_BASENAME.split('_').map(&:capitalize).join}" do
+          Hecks.world "#{PARITY_GATE_FIXTURE_BASENAME.split("_").map(&:capitalize).join}" do
             region "us-east-1"
             deployed_to("AwsLambda") do
               region "us-east-1"

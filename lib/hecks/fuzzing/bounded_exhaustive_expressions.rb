@@ -227,13 +227,13 @@ module Hecks
       #
       # @param depth [Integer] maximum recursive steps remaining for its elements
       # @return [String] the literal's source text
-      def numeric_array_literal(depth) = "[#{bounded(:numeric, depth).first(2).join(', ')}]"
+      def numeric_array_literal(depth) = "[#{bounded(:numeric, depth).first(2).join(", ")}]"
 
       # Builds a two-element string array literal at `depth`.
       #
       # @param depth [Integer] maximum recursive steps remaining for its elements
       # @return [String] the literal's source text
-      def string_array_literal(depth)  = "[#{bounded(:string, depth).first(2).join(', ')}]"
+      def string_array_literal(depth)  = "[#{bounded(:string, depth).first(2).join(", ")}]"
 
       # Arrays known by construction to hold numeric elements, so `.first`/`.last` and block
       # predicates know the element type without a richer AST.

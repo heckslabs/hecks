@@ -111,9 +111,9 @@ module Hecks
         when "has_many"
           %(    #{holder.hecks_name} ||--o{ #{target} : "#{attribute.name}")
         when "has_one"
-          %(    #{holder.hecks_name} ||--#{attribute.optional? ? 'o|' : '||'} #{target} : "#{attribute.name}")
+          %(    #{holder.hecks_name} ||--#{attribute.optional? ? "o|" : "||"} #{target} : "#{attribute.name}")
         when "belongs_to", "reference_to"
-          %(    #{target} #{attribute.optional? ? '|o' : '||'}--o{ #{holder.hecks_name} : "#{attribute.name}")
+          %(    #{target} #{attribute.optional? ? "|o" : "||"}--o{ #{holder.hecks_name} : "#{attribute.name}")
         end
       end
 
@@ -171,7 +171,7 @@ module Hecks
       def role_node(role_name) = %(#{role_id(role_name)}((#{role_name})))
 
       # A role is free text ("Back office"), so only its id is sanitized; the label keeps the text.
-      def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, '_')}"
+      def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, "_")}"
 
       # Walks `bluebook.aggregates`, not `holders`: an entity has no `ports` method.
       def ports_diagram(bluebook)
@@ -291,7 +291,7 @@ module Hecks
         # Derived compensations first, matching the order `SagaInterpreter#unwind` runs them.
         dispatched = handler.event_type == Bluebook::ProcessManager::REFUSED ? derived_compensations(saga) : []
         dispatched += handler.dispatches.map(&:command_name)
-        label += " / dispatches #{dispatched.join(', ')}" unless dispatched.empty?
+        label += " / dispatches #{dispatched.join(", ")}" unless dispatched.empty?
 
         "    #{handler.from_state} --> #{handler.to_state}: #{label}"
       end

@@ -39,7 +39,7 @@ module Hecks
         # @return [Find, BlockPredicate, nil] the parsed node, or nil when `expr` does
         #   not open a `.all?`/`.any?`/`.none?`/`.find` block, or its brace never closes
         def parse_block_opener(expr)
-          pattern = /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join('|')})\s*\{\s*\|(\w+)\|\s*/m
+          pattern = /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join("|")})\s*\{\s*\|(\w+)\|\s*/m
           header = expr.match(pattern)
           return nil unless header
 

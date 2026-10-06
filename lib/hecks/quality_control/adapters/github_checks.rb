@@ -43,7 +43,7 @@ module Hecks
         return { summary: { value: "#{runs.length} checks, all green (#{sha[0, 7]})" } } if failing.empty?
 
         raise "#{failing.length} of #{runs.length} checks failed against #{sha[0, 7]}: " \
-              "#{failing.map { |run| run['name'] }.join(', ')}"
+              "#{failing.map { |run| run["name"] }.join(", ")}"
       end
 
       private

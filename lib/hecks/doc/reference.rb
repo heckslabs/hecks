@@ -71,7 +71,7 @@ module Hecks
         words = keywords.select { |row| row[:context] == context }.group_by { |row| row[:word] }
         orphans = prose.keys - words.keys - [PREAMBLE]
         unless orphans.empty?
-          raise "#{path} carries prose for #{orphans.join(', ')}, which the language no longer " \
+          raise "#{path} carries prose for #{orphans.join(", ")}, which the language no longer " \
                 "declares in #{context} — deleting writing is a human's decision, so decide"
         end
 
@@ -80,7 +80,7 @@ module Hecks
         <<~PAGE
           # #{context}
 
-          #{region_begin('page')}
+          #{region_begin("page")}
           #{context_lede(context)}
 
           *The tables on this page are generated from the language's own
@@ -119,7 +119,7 @@ module Hecks
           ## #{row[:word]}
 
           #{generated_begin(row[:word])}
-          #{spellings}#{" — #{facts.join(', ')}" unless facts.empty?}
+          #{spellings}#{" — #{facts.join(", ")}" unless facts.empty?}
           #{table}#{GENERATED_END}
 
           #{prose_or_sentinel(prose)}
@@ -146,7 +146,7 @@ module Hecks
         named = word_arguments(row).select { |arg| arg[:at].to_s.empty? }
                                    .map { |arg| "#{arg[:named]}:" }
         parts = positional + named
-        base = parts.empty? ? row[:word] : "#{row[:word]} #{parts.join(', ')}"
+        base = parts.empty? ? row[:word] : "#{row[:word]} #{parts.join(", ")}"
         row[:body].to_s == "none" ? base : "#{base} do ... end"
       end
 
@@ -167,7 +167,7 @@ module Hecks
       def render_index
         listed = contexts.map do |context|
           count = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.size
-          "- [#{context}](#{page_name(context)}) — #{count} #{count == 1 ? 'word' : 'words'}"
+          "- [#{context}](#{page_name(context)}) — #{count} #{count == 1 ? "word" : "words"}"
         end
         <<~INDEX
           # The DSL reference
@@ -340,7 +340,7 @@ module Hecks
         gaps = [[undocumented(directory), "no prose — write their sections"],
                 [unexemplified(directory), "no running example — write one in each word's own section"]]
         sections = gaps.reject { |words, _| words.empty? }.map do |words, owed|
-          head = "#{words.size} live #{words.size == 1 ? 'word carries' : 'words carry'} #{owed}:\n"
+          head = "#{words.size} live #{words.size == 1 ? "word carries" : "words carry"} #{owed}:\n"
           "#{head}#{words.map { |word| "  #{word}\n" }.join}\n"
         end
         return [true, "every live word carries prose and a running example."] if sections.empty?

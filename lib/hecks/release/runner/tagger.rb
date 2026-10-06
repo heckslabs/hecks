@@ -72,7 +72,7 @@ module Hecks
         end
 
         def create(tag, sha)
-          @git.run!("tag", "-a", tag, "-m", "Release #{tag.delete_prefix('v')}", sha)
+          @git.run!("tag", "-a", tag, "-m", "Release #{tag.delete_prefix("v")}", sha)
         end
 
         def push(tag)

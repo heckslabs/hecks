@@ -59,7 +59,7 @@ module Hecks
             @rows.reject { |row| row.switch.empty? }.group_by(&:switch).each do |id, rows|
               next if rows.map(&:off).uniq.size == 1
 
-              problem("switch #{id}", "is on for #{rows.reject(&:off).map(&:path).join(', ')} and off for the rest")
+              problem("switch #{id}", "is on for #{rows.reject(&:off).map(&:path).join(", ")} and off for the rest")
             end
           end
 
@@ -99,7 +99,7 @@ module Hecks
             return if slots.empty?
 
             unless row.verbs.include?("GET")
-              problem(path, "sits in the navigation but answers #{row.verbs.join(',')}; a link is a GET")
+              problem(path, "sits in the navigation but answers #{row.verbs.join(",")}; a link is a GET")
             end
             problem(path, "sits in the navigation and has a parameter") if path.match?(/[:*]/)
             problem(path, "sits in the navigation and has no label") if row.label.to_s.empty?
@@ -146,7 +146,7 @@ module Hecks
           def check_menu_audience(row, path, slots)
             public_slots = slots & PUBLIC_MENUS
             if row.auth != "public" && public_slots.any?
-              problem(path, "is an admin page in the #{public_slots.join(' and ')} navigation")
+              problem(path, "is an admin page in the #{public_slots.join(" and ")} navigation")
             end
             problem(path, "is public and sits in the admin navigation") if row.auth == "public" && slots.include?("admin")
           end

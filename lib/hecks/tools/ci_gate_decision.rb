@@ -102,7 +102,7 @@ module Hecks
       #
       # @return [nil]
       def explain(gate, reason)
-        warn "decide_ci_gate: #{reason} (#{gate['label']}): running the gated job rather than guessing"
+        warn "decide_ci_gate: #{reason} (#{gate["label"]}): running the gated job rather than guessing"
       end
     end
   end

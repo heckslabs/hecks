@@ -185,7 +185,7 @@ module Hecks
         slots   = Array.new(columns.size, "?").join(", ")
 
         @db.execute(
-          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{slots})",
+          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(", ")}) VALUES (#{slots})",
           values
         )
         instance
@@ -261,12 +261,12 @@ module Hecks
         aggregate_sql, aggregate_binds =
           if insert_only
             [
-              "INSERT INTO #{quoted_table} (#{columns.join(', ')}) SELECT #{slots} #{not_exists}",
+              "INSERT INTO #{quoted_table} (#{columns.join(", ")}) SELECT #{slots} #{not_exists}",
               values + [entry.id.to_s]
             ]
           else
             [
-              "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{slots})",
+              "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(", ")}) VALUES (#{slots})",
               values
             ]
           end
@@ -391,7 +391,7 @@ module Hecks
       def plain_column(name) = quote_ident(name)
 
       def nested_expression(name, path, member)
-        json_path = path.empty? ? "$.#{member || 'value'}" : "$.#{path.join('.')}"
+        json_path = path.empty? ? "$.#{member || "value"}" : "$.#{path.join(".")}"
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 

@@ -61,7 +61,7 @@ module Hecks
           "Shape: #{now} (no earlier vendored copy to compare against)"
         elsif result.shape_changed?
           "SHAPE CHANGED: the next deploy mints a new era; add its translation edge first.\n  " \
-            "before: #{result.previous_shape.join(' ')}\n  after:  #{now}"
+            "before: #{result.previous_shape.join(" ")}\n  after:  #{now}"
         else
           "Shape unchanged: #{now}. No new era on deploy."
         end

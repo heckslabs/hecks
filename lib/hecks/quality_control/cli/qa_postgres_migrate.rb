@@ -60,7 +60,7 @@ module Hecks
         candidates = candidates_in(registry, heki_dir, argv)
         if candidates.empty?
           @out.puts "hecks quality_control migrate_ledger_from_heki: no aggregate matched " \
-                    "#{argv.empty? ? '(any)' : argv.inspect} with a " \
+                    "#{argv.empty? ? "(any)" : argv.inspect} with a " \
                     "corresponding .heki file under #{heki_dir}"
           return 0
         end
@@ -145,7 +145,7 @@ module Hecks
                     "which is authoritative) before migrating this id again."
         end
         @out.puts "" unless migrated.empty? && skipped.empty? && conflicts.empty?
-        @out.puts "#{force ? 'migrated' : 'would migrate'} #{migrated.size}, skipped #{skipped.size} " \
+        @out.puts "#{force ? "migrated" : "would migrate"} #{migrated.size}, skipped #{skipped.size} " \
                   "(already caught up), refused #{conflicts.size} (conflicting data)"
         @out.puts "re-run with --force to apply" unless force || migrated.empty?
       end

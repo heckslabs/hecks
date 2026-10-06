@@ -84,7 +84,7 @@ module Hecks
             expectation: MODE_EXPECTATIONS.fetch(mode),
             divergences: divergences,
             clean:       divergences.empty?,
-            observation: divergences.empty? ? "held" : "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}" }
+            observation: divergences.empty? ? "held" : "diverged on: #{divergences.map { |d| d[:field] }.join(", ")}" }
         end
 
         # Extra `generate` arguments a guided seed needs in its `reproduce:` line; empty when
@@ -95,7 +95,7 @@ module Hecks
           parts = []
           parts << "prefix: #{plan.prefix.inspect}" if plan.prefix
           parts << "favor: #{plan.favor.inspect}" unless plan.favor.empty?
-          parts.empty? ? "" : ", #{parts.join(', ')}"
+          parts.empty? ? "" : ", #{parts.join(", ")}"
         end
 
         # Once-per-sweep report of verbs skipped as not generated: held with the full list,
@@ -105,7 +105,7 @@ module Hecks
           gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
           attributed = Hecks::Fuzzing::StructuralSkips.attribute(gaps, skipped)
           outside = Hecks::Fuzzing::StructuralSkips.outside_boundary(attributed, boundary)
-          listing = attributed.map { |e| "#{e[:verb]} [#{e[:constructs].join(',')}]" }.join("; ")
+          listing = attributed.map { |e| "#{e[:verb]} [#{e[:constructs].join(",")}]" }.join("; ")
           divergences = outside.map do |e|
             declares = e[:constructs].empty? ? "nothing" : e[:constructs].join(",")
             { field: "structural_skip", verb: e[:verb], constructs: e[:constructs],

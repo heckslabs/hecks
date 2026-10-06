@@ -84,7 +84,7 @@ module Hecks
             label = "#{OBJECTS.fetch(kind)} row #{index + 1}"
             unknown = member.keys - FIELDS.fetch(kind).keys
             if unknown.any?
-              problems << "#{label} has no field #{unknown.join(', ')}; fields are #{FIELDS.fetch(kind).keys.join(', ')}"
+              problems << "#{label} has no field #{unknown.join(", ")}; fields are #{FIELDS.fetch(kind).keys.join(", ")}"
             end
             (REQUIRED.fetch(kind) - member.keys).each { |field| problems << "#{label} needs #{field}" }
             typed = member.slice(*FIELDS.fetch(kind).keys).select do |field, value|

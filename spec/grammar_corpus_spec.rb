@@ -146,12 +146,12 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
       # ruby_only fixtures are covered by the non-gating report below.
       next if JSON.parse(File.read(path)).fetch("ruby_only", false)
 
-      it "#{File.basename(path, '.json')}: hecks-parse's own ast matches Ruby's" do
+      it "#{File.basename(path, ".json")}: hecks-parse's own ast matches Ruby's" do
         fixture = JSON.parse(File.read(path))
         ast, failure = self.class.hecks_parse_ast(path, fixture)
         expect(failure).to be_nil, failure
         expect(ast).to eq(fixture.fetch("expect_ast")),
-                       "hecks-parse's own ast for `#{fixture.fetch('canonical')}` diverges " \
+                       "hecks-parse's own ast for `#{fixture.fetch("canonical")}` diverges " \
                        "from Ruby's — see docs/semantics/bluebook-grammar.md for the G-clause " \
                        "this pins"
       end

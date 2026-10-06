@@ -47,12 +47,9 @@ legitimate use anywhere in this codebase); `Hecks/ThreadSharedIvarMutation`
 is scoped via `Include` to `Dispatcher`/`Registry` alone, matching its own
 stanza's comment in `.rubocop.yml`.
 
-A full-tree run at wiring time (`bundle exec rubocop -c .rubocop.yml`)
-came back with 0 offenses across all three cops — including
-`Hecks/FallbackHashLookup`, whose earlier ad hoc run (see below) had
-found real pre-existing instances; those were fixed by the time this
-pass landed, so nothing needed an `Exclude` entry in `.rubocop_todo.yml`
-alongside the new `require:` entries.
+A full-tree run (`bundle exec rubocop -c .rubocop.yml`) comes back clean
+across all three cops, and no file is excluded from them: there is no
+todo file, so an instance they find is fixed, not parked.
 
 `.github/workflows/ci.yml`'s `checks:` job also now runs
 `bundle exec rubocop -c .rubocop.yml` as its own step, in the same

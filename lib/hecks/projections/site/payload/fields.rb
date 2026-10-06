@@ -58,7 +58,7 @@ module Hecks
             kind = row[:kind]
             if kind && !KINDS.key?(kind)
               raise ArgumentError,
-                    "PayloadField kind #{kind.inspect} is one of #{KINDS.keys.join(', ')}"
+                    "PayloadField kind #{kind.inspect} is one of #{KINDS.keys.join(", ")}"
             end
             return unless %w[upload relationship].include?(kind) && !row[:relation]
 
@@ -143,9 +143,9 @@ module Hecks
             admin << ["description", row[:description].to_json] if describe && row[:description]
             if KINDS[kind] == "date"
               admin << ["date",
-                        "{ pickerAppearance: #{(kind == 'day' ? 'dayOnly' : 'dayAndTime').to_json} }"]
+                        "{ pickerAppearance: #{(kind == "day" ? "dayOnly" : "dayAndTime").to_json} }"]
             end
-            pairs << ["admin", "{ #{admin.map { |key, value| "#{key}: #{value}" }.join(', ')} }"] if admin.any?
+            pairs << ["admin", "{ #{admin.map { |key, value| "#{key}: #{value}" }.join(", ")} }"] if admin.any?
             pairs
           end
 
@@ -154,10 +154,10 @@ module Hecks
               value, label = item.split("=", 2)
               label ? "{ label: #{label.to_json}, value: #{value.to_json} }" : value.to_json
             end
-            "[#{items.join(', ')}]"
+            "[#{items.join(", ")}]"
           end
 
-          def literal(pairs) = "{ #{pairs.map { |key, value| "#{key}: #{value}" }.join(', ')} }"
+          def literal(pairs) = "{ #{pairs.map { |key, value| "#{key}: #{value}" }.join(", ")} }"
 
           def array(_attr, row, name)
             kind = row[:kind] || "text"
@@ -183,7 +183,7 @@ module Hecks
             pairs = [["name", name.to_json], ["type", '"array"']]
             pairs << ["labels", labels(row[:label])] if row[:label]
             pairs << ["admin", "{ description: #{row[:description].to_json} }"] if row[:description]
-            pairs << ["fields", "[#{subs.join(', ')}]"]
+            pairs << ["fields", "[#{subs.join(", ")}]"]
             literal(pairs)
           end
 
@@ -197,7 +197,7 @@ module Hecks
             scalar_input(attr, row, name, kind)
           end
 
-          def list_input(name, kind) = "valuesOf(doc.#{name}, #{kind == 'date' ? 'isoOrNull' : 'nonBlank'})"
+          def list_input(name, kind) = "valuesOf(doc.#{name}, #{kind == "date" ? "isoOrNull" : "nonBlank"})"
 
           def scalar_input(attr, row, name, kind)
             case kind

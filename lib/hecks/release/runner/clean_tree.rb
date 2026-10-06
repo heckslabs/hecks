@@ -33,8 +33,8 @@ module Hecks
           paths = stray
           return if paths.empty?
 
-          raise Refusal, "#{paths.size} file(s) under #{SHIPPED.join(', ')} are modified, untracked or " \
-                         "ignored (#{paths.first(5).join(', ')}); commit or delete them before releasing"
+          raise Refusal, "#{paths.size} file(s) under #{SHIPPED.join(", ")} are modified, untracked or " \
+                         "ignored (#{paths.first(5).join(", ")}); commit or delete them before releasing"
         end
       end
     end

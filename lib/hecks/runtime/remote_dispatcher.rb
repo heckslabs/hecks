@@ -99,7 +99,7 @@ module Hecks
         response = @client.dispatch(verb, args)
 
         refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
-        raise RemoteRefusal, "#{verb} refused: #{refusal['error']}" if refusal
+        raise RemoteRefusal, "#{verb} refused: #{refusal["error"]}" if refusal
 
         # `mutations` has one entry per replayed step, so `.last` is this step. Match by
         # aggregate name: a reaction can mutate other aggregates in the same step.

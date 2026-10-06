@@ -553,7 +553,7 @@ module Hecks
       # `ARRAY[...]` of escaped literals, never the '{a,b}' syntax: that form has no escaping, so
       # a quote in a segment would become live SQL.
       def jsonb_path(segments)
-        "state #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(', ')}]::text[]"
+        "state #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(", ")}]::text[]"
       end
 
       def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
@@ -602,7 +602,7 @@ module Hecks
         binds = []
         clauses = cached.map do |clause, value|
           cache_table = @lineage.field_cache(table, @era, clause.field.to_s)
-          "SELECT id FROM #{quote_ident(cache_table)} WHERE #{where_clause(clause.op.to_s, quote_ident('value'), value, binds,
+          "SELECT id FROM #{quote_ident(cache_table)} WHERE #{where_clause(clause.op.to_s, quote_ident("value"), value, binds,
                                                                            field: clause.field)}"
         end
         @db.exec_params(clauses.join("\nINTERSECT\n"), binds).map { |row| row["id"] }
@@ -612,7 +612,7 @@ module Hecks
       # accelerate. Repeats the tail of `SqlQueryBuilder#query` so that module stays untouched.
       def head_phase(declared, uncached, ids, args)
         binds = []
-        clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(', ')})"]
+        clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(", ")})"]
         uncached.each do |clause, value|
           expression = query_expression(clause.field, value: value)
           if (null_predicate = QuerySpecification::Common::NullPolicy.sql_predicate(expression, clause.op, value))
@@ -622,7 +622,7 @@ module Hecks
           clauses << where_clause(clause.op.to_s, expression, value, binds, field: clause.field)
         end
 
-        sql = "SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(' AND ')}"
+        sql = "SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(" AND ")}"
         sql << if declared.order_by
                  " ORDER BY #{order_clause(declared.order_by, declared.null_semantics)}"
                else

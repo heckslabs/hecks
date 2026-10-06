@@ -128,7 +128,7 @@ module Hecks
 
         def nav_const(name, comment, entries)
           body = entries.map { |entry| "  #{literal(entry)}," }
-          "// #{comment}\nexport const #{name} = #{body.empty? ? '[]' : "[\n#{body.join("\n")}\n]"} as const;"
+          "// #{comment}\nexport const #{name} = #{body.empty? ? "[]" : "[\n#{body.join("\n")}\n]"} as const;"
         end
 
         # One link: a row's or a link's path and label, the fragment a link names, and for a page
@@ -292,8 +292,8 @@ module Hecks
           when nil then "null"
           when true, false, Integer then value.to_s
           when String then JSON.generate(value)
-          when Array then "[#{value.map { |item| literal(item) }.join(', ')}]"
-          when Hash then "{ #{value.map { |key, item| "#{key_literal(key)}: #{literal(item)}" }.join(', ')} }".sub("{  }", "{}")
+          when Array then "[#{value.map { |item| literal(item) }.join(", ")}]"
+          when Hash then "{ #{value.map { |key, item| "#{key_literal(key)}: #{literal(item)}" }.join(", ")} }".sub("{  }", "{}")
           else raise ArgumentError, "no TypeScript literal for #{value.inspect}"
           end
         end

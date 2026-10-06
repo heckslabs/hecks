@@ -224,7 +224,7 @@ module Hecks
       def report(options, candidates, skipped, siblings)
         puts "scanned #{siblings.size} sibling(s) under #{options[:projects_dir]} " \
              "(max depth #{options[:max_depth]}), #{siblings.size - skipped.size} depend on the hecks gem"
-        puts "no hecks dependency, skipped: #{skipped.map { |p| File.basename(p) }.join(', ')}" unless skipped.empty?
+        puts "no hecks dependency, skipped: #{skipped.map { |p| File.basename(p) }.join(", ")}" unless skipped.empty?
         puts
         if candidates.empty?
           puts "no new candidates — every hecks-dependent sibling's bluebook-shaped domain is either " \

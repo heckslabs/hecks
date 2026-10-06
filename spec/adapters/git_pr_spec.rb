@@ -7,7 +7,7 @@ require_relative "../../lib/hecks/quality_control/adapters/git_pr"
 RSpec.describe Hecks::Adapters::GitPr do
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args,
-           chdir: @repo, out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
+           chdir: @repo, out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
   def commit_file(name)

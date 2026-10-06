@@ -17,7 +17,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
 
   def git(*args)
     out, status = Open3.capture2e("git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", *args)
-    raise "git #{args.join(' ')}: #{out}" unless status.success?
+    raise "git #{args.join(" ")}: #{out}" unless status.success?
 
     out.strip
   end

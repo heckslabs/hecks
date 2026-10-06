@@ -89,8 +89,8 @@ module Hecks
         failed   = outcomes.select { |_, outcome| outcome == :failed }.keys
         return if drifted.empty? && failed.empty?
 
-        warn "launcher out of date for: #{drifted.join(', ')}; run `hecks project_cli #{drifted.join(' ')}`" unless drifted.empty?
-        warn "no launcher could be checked or written for: #{failed.join(', ')}" unless failed.empty?
+        warn "launcher out of date for: #{drifted.join(", ")}; run `hecks project_cli #{drifted.join(" ")}`" unless drifted.empty?
+        warn "no launcher could be checked or written for: #{failed.join(", ")}" unless failed.empty?
         exit 1
       end
 
@@ -309,7 +309,7 @@ module Hecks
           # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
           # A person is at them: they wait for their result, say why when they are refused, and print
           # no record when they end well.
-          MEMORY_COMMANDS = %w[#{commands.join(' ')}].freeze
+          MEMORY_COMMANDS = %w[#{commands.join(" ")}].freeze
           ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
           ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
         RUBY
@@ -325,7 +325,7 @@ module Hecks
         <<~RUBY
 
           # The names the gem has always shipped keep their positional forms.
-          LEGACY = %w[#{legacy.join(' ')}].freeze
+          LEGACY = %w[#{legacy.join(" ")}].freeze
           if LEGACY.include?(ARGV.first)
             require "hecks/cli"
             exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)

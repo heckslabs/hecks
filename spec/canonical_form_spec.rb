@@ -87,7 +87,7 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
     cases = JSON.parse(File.read(File.join(__dir__, "fixtures/canonical_form_cases.json"))).fetch("cases")
 
     cases.each do |row|
-      it "gives #{row['source'].inspect} the canonical form #{row['canonical'].inspect}" do
+      it "gives #{row["source"].inspect} the canonical form #{row["canonical"].inspect}" do
         expect(described_class.apply(row["source"])).to eq(row["canonical"])
       end
     end

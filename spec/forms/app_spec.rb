@@ -198,7 +198,7 @@ RSpec.describe Hecks::Forms::App do
     end
 
     it "still runs cleanly for a well-formed line" do
-      get "/ListQueryDomain/Basket/BySpecs?items=#{URI.encode_www_form_component(JSON.generate(name: 'bolt', qty: 3))}"
+      get "/ListQueryDomain/Basket/BySpecs?items=#{URI.encode_www_form_component(JSON.generate(name: "bolt", qty: 3))}"
       expect(last_response.status).to eq(200)
       expect(JSON.parse(last_response.body)).to eq([])
     end

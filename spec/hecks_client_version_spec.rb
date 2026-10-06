@@ -12,7 +12,7 @@ RSpec.describe "packages/hecks-client version" do
 
   it "carries the same version as Hecks::VERSION" do
     expect(manifest.fetch("version")).to eq(Hecks::VERSION),
-                                         "packages/hecks-client/package.json says #{manifest.fetch('version')} but " \
+                                         "packages/hecks-client/package.json says #{manifest.fetch("version")} but " \
                                          "Hecks::VERSION is #{Hecks::VERSION} — bump the package with " \
                                          "`npm version #{Hecks::VERSION} --no-git-tag-version` in packages/hecks-client"
   end

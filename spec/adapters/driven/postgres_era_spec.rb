@@ -105,7 +105,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     end
     threads.each(&:join)
 
-    expect(errors).to be_empty, -> { "expected no boot to raise, got: #{errors.map(&:message).join('; ')}" }
+    expect(errors).to be_empty, -> { "expected no boot to raise, got: #{errors.map(&:message).join("; ")}" }
   end
 
   it "answers nil for an id it never stored" do

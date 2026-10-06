@@ -42,7 +42,7 @@ module Hecks
           missing = required.reject { |method| adapter.respond_to?(method) }
           unless missing.empty?
             raise Runtime::WiringError,
-                  "#{adapter.class} does not implement append-only persistence: #{missing.join(', ')}"
+                  "#{adapter.class} does not implement append-only persistence: #{missing.join(", ")}"
           end
         end
 

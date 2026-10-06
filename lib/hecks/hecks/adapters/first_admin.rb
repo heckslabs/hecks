@@ -34,7 +34,7 @@ module Hecks
       #   @return [Boolean] whether the person had to be admitted first
       Result = Struct.new(:email, :role, :admitted, keyword_init: true) do
         # @return [String] the sentence the verb answers with
-        def to_s = "Granted #{role} access to #{email}#{' (admitted first)' if admitted}"
+        def to_s = "Granted #{role} access to #{email}#{" (admitted first)" if admitted}"
       end
 
       # @param runtime [Hecks::Runtime] the booted domain

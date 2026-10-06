@@ -62,7 +62,7 @@ module Hecks
             names = @edge.rules.map(&:rule)
             @rows.select(&:alb_rule).each do |row|
               rule = @edge.rules.find { |candidate| candidate.rule == row.alb_rule }
-              next problem(row.path, "names alb_rule #{row.alb_rule}; rules are #{names.join(', ')}") unless rule
+              next problem(row.path, "names alb_rule #{row.alb_rule}; rules are #{names.join(", ")}") unless rule
               next if rule.origin == row.origin
 
               problem(row.path, "is served from #{row.origin} but its rule #{rule.rule} forwards to #{rule.origin}")

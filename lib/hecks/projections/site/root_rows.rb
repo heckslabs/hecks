@@ -44,12 +44,12 @@ module Hecks
         def check(member, index, problems)
           label = "#{@object} row #{index + 1}"
           unknown = member.keys - @fields.keys
-          problems << "#{label} has no field #{unknown.join(', ')}; fields are #{@fields.keys.join(', ')}" if unknown.any?
+          problems << "#{label} has no field #{unknown.join(", ")}; fields are #{@fields.keys.join(", ")}" if unknown.any?
           (@required - member.keys).each { |field| problems << "#{label} needs #{field}" }
           typed = member.slice(*@fields.keys).select do |field, value|
             kinds = Array(@fields.fetch(field))
             kinds.any? { |kind| value.is_a?(kind) } ||
-              (problems << "#{label} has #{field} #{value.inspect}; it is a #{kinds.join(' or ')}")
+              (problems << "#{label} has #{field} #{value.inspect}; it is a #{kinds.join(" or ")}")
           end
           @defaults.merge(typed)
         end

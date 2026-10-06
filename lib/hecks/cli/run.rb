@@ -135,7 +135,7 @@ module Hecks
       def unmet_expectations(expectations, report)
         missing_events = Array(expectations["event_names"]) - report[:events].map { |event| event[:name] }
         unmet = []
-        unmet << "matrix expected events missing: #{missing_events.join(', ')}" unless missing_events.empty?
+        unmet << "matrix expected events missing: #{missing_events.join(", ")}" unless missing_events.empty?
         unmet.concat(unmet_refusals(Array(expectations["refusals"]), report[:refusals]))
         unmet.concat(unmet_instances(expectations["instances"] || {}, report[:instances]))
       end
@@ -153,7 +153,7 @@ module Hecks
           # happened, so the actual errors are printed beside the wanted one.
           said = refusals.select { |refusal| refusal[:verb] == verb }.map { |refusal| refusal[:error] }.uniq
           "matrix expected refusal missing: #{expected}\n  " \
-            "#{verb} actually refused with: #{said.empty? ? '(nothing — every attempt was accepted)' : said.inspect}"
+            "#{verb} actually refused with: #{said.empty? ? "(nothing — every attempt was accepted)" : said.inspect}"
         end
       end
 

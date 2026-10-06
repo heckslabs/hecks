@@ -148,7 +148,7 @@ module Hecks
           def member_of(label, field, value, vocabulary)
             return if @vocabulary.fetch(vocabulary).include?(value)
 
-            problem(label, "has #{field} #{value.inspect}; #{field} is one of #{@vocabulary.fetch(vocabulary).join(', ')}")
+            problem(label, "has #{field} #{value.inspect}; #{field} is one of #{@vocabulary.fetch(vocabulary).join(", ")}")
           end
 
           def repeated(keys, what)

@@ -21,7 +21,7 @@ module Hecks
             traces << "instances changed" unless before[:instances] == after[:instances]
             next if traces.empty?
 
-            "dry run of #{entry[:verb]} (ok: #{entry[:ok]}) left a trace: #{traces.join(', ')}"
+            "dry run of #{entry[:verb]} (ok: #{entry[:ok]}) left a trace: #{traces.join(", ")}"
           end
 
           offenders.empty? || offenders.join("; ")

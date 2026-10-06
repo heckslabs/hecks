@@ -33,13 +33,13 @@ bundle exec parallel_rspec spec   # same suite, split across your machine's core
 bundle exec rubocop -c .rubocop.yml
 ```
 
-`.rubocop.yml` is tuned to this codebase's own established style —
-long, deliberate prose comments, `module_function`-heavy modules,
-Struct-based value types, comfortably long lines — not to force a
-generic rewrite. Read a neighboring file before fighting a cop; the
-answer is usually "match what's already here," and anything genuinely
-pre-existing and out of scope lives in `.rubocop_todo.yml` rather than
-being silently disabled.
+`.rubocop.yml` is RuboCop's defaults plus a short list of deliberate
+overrides, each with its reason beside it and the whole list argued in
+`docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`.
+A cop that is not on that list runs at its default, so new and changed
+code is held to it, and no file is excluded: fix an offense rather than
+parking it. Fix `Style/GuardClause`, `Style/Next` and the other cops
+that move control flow by hand, not with autocorrect.
 
 Two tags are excluded from a plain `rspec` run and worth knowing about
 before you assume a red suite everywhere:

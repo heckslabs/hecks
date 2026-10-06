@@ -43,9 +43,9 @@ module Hecks
           puts "domain:      #{@target_path} (#{@domain_path})"
           puts "target:      #{@target_reference}"
           puts "sweep:       #{@sweep_reference} (id #{@sweep.id})"
-          puts "mode:        #{@mode} (active modes: #{@active_modes.join(', ')}; " \
-               "capabilities: #{@capabilities.join(', ')})"
-          puts "seed:        #{surprise[:seed] || 'n/a (once-per-sweep check)'}"
+          puts "mode:        #{@mode} (active modes: #{@active_modes.join(", ")}; " \
+               "capabilities: #{@capabilities.join(", ")})"
+          puts "seed:        #{surprise[:seed] || "n/a (once-per-sweep check)"}"
           puts "steps:       #{@steps_per_sequence}"
           puts "adversarial: #{@adversarial}"
           puts "role-draw:   #{@role_draw}"
@@ -56,7 +56,7 @@ module Hecks
                  "seed: #{surprise[:seed]}, steps: #{@steps_per_sequence}, adversarial: #{@adversarial}, " \
                  "role_draw: #{@role_draw}, dry_run: #{@dry_run}#{plan_arguments(surprise[:plan])})"
           end
-          puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(', ')}"
+          puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(", ")}"
           puts
         end
 
@@ -86,7 +86,7 @@ module Hecks
             label = %w[verb query dry_run].filter_map { |key| step[key] if step.key?(key) }.first
             mutation = step["adversarial"] ? JSON.generate(step["adversarial"]) : "(not mutated)"
             puts "#{index}: #{label}  #{mutation}"
-            puts "   args: #{JSON.generate(step['args'])}" if step["adversarial"]
+            puts "   args: #{JSON.generate(step["args"])}" if step["adversarial"]
           end
           puts
         end
@@ -107,7 +107,7 @@ module Hecks
           puts "-- shrunk steps [#{shrunk[:mode]}] --"
           shrunk[:steps].each_with_index do |step, index|
             kind = %w[verb query dry_run].find { |key| step.key?(key) }
-            puts "#{index}: #{"#{kind} " unless kind == 'verb'}#{step[kind]}  args: #{JSON.generate(step['args'])}"
+            puts "#{index}: #{"#{kind} " unless kind == "verb"}#{step[kind]}  args: #{JSON.generate(step["args"])}"
           end
           puts
         end

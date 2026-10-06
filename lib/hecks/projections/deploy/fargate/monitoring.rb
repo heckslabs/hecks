@@ -75,7 +75,7 @@ module Hecks
             named = given[:container]&.to_s
             if named && !containers.include?(named)
               raise ArgumentError,
-                    "alerts alarms container #{named.inspect} has no target group; have #{containers.join(', ')}"
+                    "alerts alarms container #{named.inspect} has no target group; have #{containers.join(", ")}"
             end
 
             (named ? [named] : containers).map { |container| alarm("target_unhealthy", given, container) }
@@ -97,8 +97,8 @@ module Hecks
             paths = Check.strings!(given[:paths], "alerts warmer paths", min: 1)
             unless paths.all? { |path| path.start_with?("/") }
               raise ArgumentError, "alerts warmer paths must start with /, got #{paths.reject do |p|
-                p.start_with?('/')
-              end.join(', ')}"
+                p.start_with?("/")
+              end.join(", ")}"
             end
 
             rate = given.fetch(:rate, "rate(1 minute)").to_s
@@ -314,7 +314,7 @@ module Hecks
                   Code:
                     ZipFile: |
             FUNCTION
-            "#{head}\n#{Yaml.indent(warmer[:code] || warmer_code(warmer, namespace), '        ')}".rstrip
+            "#{head}\n#{Yaml.indent(warmer[:code] || warmer_code(warmer, namespace), "        ")}".rstrip
           end
           private_class_method :warmer_function_yaml
 
@@ -388,7 +388,7 @@ module Hecks
                 Type: AWS::Scheduler::Schedule
                 Properties:
                   Name: !Sub "${AWS::StackName}-warmer"
-                  Description: #{Yaml.string(warmer[:schedule_description] || 'Runs the synthetic check against the CDN.')}
+                  Description: #{Yaml.string(warmer[:schedule_description] || "Runs the synthetic check against the CDN.")}
                   ScheduleExpression: #{warmer[:rate].to_json}
                   FlexibleTimeWindow: { Mode: "OFF" }
                   Target:

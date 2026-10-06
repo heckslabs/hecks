@@ -90,7 +90,7 @@ module Hecks
       def check(answer, what)
         return if answer.start_with?('{"ok":true')
 
-        raise StepRefused, "#{what} was not accepted: #{answer.strip.empty? ? 'the binary closed its output' : answer.strip}"
+        raise StepRefused, "#{what} was not accepted: #{answer.strip.empty? ? "the binary closed its output" : answer.strip}"
       end
 
       def now

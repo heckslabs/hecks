@@ -57,7 +57,7 @@ module Hecks
         def resolve(deploy_settings)
           missing = REQUIRED.reject { |name| deploy_settings[setting_key(name)] }
           unless missing.empty?
-            raise ArgumentError, "smoke true needs #{missing.map { |name| setting_key(name) }.join(', ')} " \
+            raise ArgumentError, "smoke true needs #{missing.map { |name| setting_key(name) }.join(", ")} " \
                                  "in the deployed_to block; the workflow cannot be rendered without them"
           end
 

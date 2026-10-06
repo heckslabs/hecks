@@ -103,17 +103,17 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
 
       expect(disagreements).to be_empty,
                                "Ruby departs from the contract on: " \
-                               "#{disagreements.map { |r| "#{r['pattern'].inspect} against #{r['input'].inspect}" }.join(', ')}"
+                               "#{disagreements.map { |r| "#{r["pattern"].inspect} against #{r["input"].inspect}" }.join(", ")}"
     end
 
     it "only records patterns the subset admits" do
       refused = JSON.parse(File.read(PATTERNS_CONTRACT)).filter_map do |row|
         rejection = described_class.validate(row.fetch("pattern"))
-        "#{row.fetch('pattern').inspect} (#{rejection.construct})" if rejection
+        "#{row.fetch("pattern").inspect} (#{rejection.construct})" if rejection
       end
 
       expect(refused.uniq).to be_empty,
-                              "the contract records patterns a bluebook may not say: #{refused.uniq.join(', ')}"
+                              "the contract records patterns a bluebook may not say: #{refused.uniq.join(", ")}"
     end
   end
 end

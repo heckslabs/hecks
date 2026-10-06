@@ -103,7 +103,7 @@ module Hecks
             end
           else
             if @answers || @refuses
-              raise Malformed, "#{@name} is a tells and declares #{@answers ? 'answers' : 'refuses'} — " \
+              raise Malformed, "#{@name} is a tells and declares #{@answers ? "answers" : "refuses"} — " \
                                "an inbound fact has no channel back to whoever sent it"
             end
           end

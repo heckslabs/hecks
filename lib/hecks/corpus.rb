@@ -91,7 +91,7 @@ module Hecks
           Dir.glob(File.join(root, glob))
              .map { |file| Member.new(file.delete_prefix("#{prefix}/").delete_suffix(".bluebook"), kind, file) }
         else
-          raise ArgumentError, "unknown corpus kind #{kind.inspect} — known: #{KINDS.join(', ')}"
+          raise ArgumentError, "unknown corpus kind #{kind.inspect} — known: #{KINDS.join(", ")}"
         end
       end
     end

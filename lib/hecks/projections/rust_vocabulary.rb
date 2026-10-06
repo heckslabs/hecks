@@ -81,7 +81,7 @@ module Hecks
       def table_file(table, spec, rows, argument_rows = nil)
         variants = rows.map { |row| variant_name(row, spec[:variant_from]) }
         duplicates = variants.tally.select { |_, count| count > 1 }.keys
-        raise ArgumentError, "duplicate #{spec[:enum]} variant(s): #{duplicates.join(', ')}" if duplicates.any?
+        raise ArgumentError, "duplicate #{spec[:enum]} variant(s): #{duplicates.join(", ")}" if duplicates.any?
 
         enum   = spec[:enum]
         fields = rows.first.keys
@@ -179,7 +179,7 @@ module Hecks
           wants = row.fetch("template").scan(/\{(\w+)\}/).flatten.uniq
           names = specs.map { |spec| spec.fetch("argument") }
           unless names == wants
-            raise ArgumentError, "RefusalSiteArgument for #{key.join('/')} declares #{names.inspect}; " \
+            raise ArgumentError, "RefusalSiteArgument for #{key.join("/")} declares #{names.inspect}; " \
                                  "its template's placeholders are #{wants.inspect}"
           end
           specs.each { |spec| check_rule!(key, spec) }
@@ -188,12 +188,12 @@ module Hecks
       end
 
       def check_rule!(key, spec)
-        where = "#{key.join('/')}.#{spec.fetch('argument')}"
+        where = "#{key.join("/")}.#{spec.fetch("argument")}"
         unless Runtime::RefusalWording::SHAPES.include?(spec.fetch("shape"))
-          raise ArgumentError, "#{where}: unknown shape #{spec['shape'].inspect}"
+          raise ArgumentError, "#{where}: unknown shape #{spec["shape"].inspect}"
         end
         unless Runtime::RefusalWording::QUOTINGS.include?(spec.fetch("quoting"))
-          raise ArgumentError, "#{where}: unknown quoting #{spec['quoting'].inspect}"
+          raise ArgumentError, "#{where}: unknown quoting #{spec["quoting"].inspect}"
         end
         return if %w[true false].include?(spec.fetch("sorted"))
 
@@ -233,7 +233,7 @@ module Hecks
       def args_struct(enum, variant, row, specs)
         fields = specs.flat_map do |spec|
           type = spec.fetch("shape") == "list" ? "&'a [&'a str]" : "&'a str"
-          ["    /// #{rule_reading(spec)}", "    pub #{rust_field(spec.fetch('argument'))}: #{type},"]
+          ["    /// #{rule_reading(spec)}", "    pub #{rust_field(spec.fetch("argument"))}: #{type},"]
         end
         locals = specs.filter_map { |spec| formatted_local(spec) }
         pairs  = specs.map do |spec|
@@ -242,7 +242,7 @@ module Hecks
           "            (#{rust_string(name)}, #{value}),"
         end
         ["/// `#{enum}::#{variant}`'s arguments — `RefusalWording.render_site(" \
-         "#{rust_string(row.fetch('refusal'))}, #{rust_string(row.fetch('site'))}, ...)`.",
+         "#{rust_string(row.fetch("refusal"))}, #{rust_string(row.fetch("site"))}, ...)`.",
          "#[derive(Debug, Clone, Copy)]",
          "pub struct #{variant}Args<'a> {",
          fields,
@@ -264,8 +264,8 @@ module Hecks
         name  = spec.fetch("argument")
         field = "self.#{rust_field(name)}"
         if spec.fetch("shape") == "list"
-          "let #{local_name(name)} = list(#{field}, #{spec.fetch('sorted')}, #{spec.fetch('quoting') == 'inspect'}, " \
-            "#{rust_string(spec.fetch('separator'))}, #{rust_string(spec.fetch('when_empty'))});"
+          "let #{local_name(name)} = list(#{field}, #{spec.fetch("sorted")}, #{spec.fetch("quoting") == "inspect"}, " \
+            "#{rust_string(spec.fetch("separator"))}, #{rust_string(spec.fetch("when_empty"))});"
         elsif spec.fetch("quoting") == "inspect"
           "let #{local_name(name)} = quoted(#{field});"
         end
@@ -276,7 +276,7 @@ module Hecks
         return "scalar#{quoting}" unless spec.fetch("shape") == "list"
 
         sorted = spec.fetch("sorted") == "true" ? ", sorted" : ""
-        "list#{sorted}#{quoting}, joined #{spec.fetch('separator').inspect}, empty reads #{spec.fetch('when_empty').inspect}"
+        "list#{sorted}#{quoting}, joined #{spec.fetch("separator").inspect}, empty reads #{spec.fetch("when_empty").inspect}"
       end
 
       def local_name(argument) = "#{argument}_text"
@@ -357,11 +357,11 @@ module Hecks
             expected = Runtime::RefusalWording.render_with(row.fetch("template"), specs, arguments)
             fields = specs.map do |spec|
               value = arguments.fetch(spec.fetch("argument").to_sym)
-              rust_value = value.is_a?(Array) ? "&[#{value.map { |item| rust_string(item) }.join(', ')}]" : rust_string(value)
-              "#{rust_field(spec.fetch('argument'))}: #{rust_value}"
+              rust_value = value.is_a?(Array) ? "&[#{value.map { |item| rust_string(item) }.join(", ")}]" : rust_string(value)
+              "#{rust_field(spec.fetch("argument"))}: #{rust_value}"
             end
             ["        assert_eq!(",
-             "            #{variant}Args { #{fields.join(', ')} }.render_args(),",
+             "            #{variant}Args { #{fields.join(", ")} }.render_args(),",
              "            #{rust_string(expected)}",
              "        );"]
           end

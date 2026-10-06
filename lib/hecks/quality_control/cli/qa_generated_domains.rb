@@ -177,7 +177,7 @@ module Hecks
         <<~NOTES
           # #{name}
 
-          Promoted from a `hecks quality_control check_generated_domains` finding — #{recorded&.key?('source') ? 'written by `hecks quality_control mine_combinations`\' agent' : 'generated'}, not
+          Promoted from a `hecks quality_control check_generated_domains` finding — #{recorded&.key?("source") ? "written by `hecks quality_control mine_combinations`' agent" : "generated"}, not
           hand-written. The bluebook is the minimal form of the domain that
           surprised; `QaGenerated` was renamed to `#{camelize(name)}` and nothing
           else changed.
@@ -185,13 +185,13 @@ module Hecks
           ## Blueprint
 
           ```json
-          #{recorded ? JSON.pretty_generate(recorded.except('source', 'hypothesis')) : '(not recorded)'}
+          #{recorded ? JSON.pretty_generate(recorded.except("source", "hypothesis")) : "(not recorded)"}
           ```
 
           ## Finding
 
           ```json
-          #{File.exist?(finding) ? File.read(finding).strip : '(not recorded)'}
+          #{File.exist?(finding) ? File.read(finding).strip : "(not recorded)"}
           ```
         NOTES
       end
@@ -302,22 +302,22 @@ module Hecks
       def print_finding_header(report)
         puts
         puts "=" * 72
-        puts "GENERATED DOMAIN FOUND SOMETHING — domain seed #{report[:seed]}, forms #{report[:forms].join(' + ')}"
+        puts "GENERATED DOMAIN FOUND SOMETHING — domain seed #{report[:seed]}, forms #{report[:forms].join(" + ")}"
         puts "=" * 72
         puts "domain:      #{relative(report[:dir])}"
         puts "             shrunk from #{report[:size_before]} to #{report[:size_after]} removable element(s) " \
              "in #{report[:domain_attempts]} candidate check(s)"
-        puts "blueprint:   #{relative(File.join(report[:root], 'blueprint.json'))}"
+        puts "blueprint:   #{relative(File.join(report[:root], "blueprint.json"))}"
       end
 
       def print_finding(report)
         found = report[:final]
         options = report[:options]
         print_finding_header(report)
-        puts "mode:        #{found['mode']}"
-        puts "signature:   #{found['signature'].join(', ')}"
+        puts "mode:        #{found["mode"]}"
+        puts "signature:   #{found["signature"].join(", ")}"
         if found["seed"]
-          puts "sequence:    seed #{found['seed']} of --seeds #{options[:seeds]}, #{options[:steps]} steps, " \
+          puts "sequence:    seed #{found["seed"]} of --seeds #{options[:seeds]}, #{options[:steps]} steps, " \
                "adversarial #{options[:adversarial]}"
         end
         print_shrunk(report, found["steps"], found["shrunk_steps"])
@@ -325,7 +325,7 @@ module Hecks
              "#{relative(report[:root])} --name <stress_domain_name>"
         puts
         found["divergences"].each do |divergence|
-          puts "-- #{divergence['field']} --"
+          puts "-- #{divergence["field"]} --"
           divergence.except("field").each do |key, value|
             puts "#{key}: #{value.is_a?(String) ? value : JSON.generate(value)}"
           end
@@ -346,7 +346,7 @@ module Hecks
         puts "replay:      #{replay}"
         shrunk.each_with_index do |step, index|
           kind = %w[verb query dry_run].find { |key| step.key?(key) }
-          puts "  #{index}: #{"#{kind} " unless kind == 'verb'}#{step[kind]}  args: #{JSON.generate(step['args'])}"
+          puts "  #{index}: #{"#{kind} " unless kind == "verb"}#{step[kind]}  args: #{JSON.generate(step["args"])}"
         end
       end
 
@@ -401,7 +401,7 @@ module Hecks
         sync_scratch! if @options[:rust]
         puts "generated domains: #{@options[:domains]} starting at seed #{start}; #{@options[:seeds]} seed(s) x " \
              "#{@options[:steps]} steps each, adversarial #{@options[:adversarial]}" \
-             "#{', against Rust' if @options[:rust]} — #{relative(run_dir)}"
+             "#{", against Rust" if @options[:rust]} — #{relative(run_dir)}"
 
         counts = Hash.new(0)
         findings = []
@@ -416,19 +416,19 @@ module Hecks
       def check_blueprint(domain_seed, blueprint, run_dir, counts, findings)
         root = File.join(run_dir, domain_seed.to_s)
         result = evaluate(blueprint, root)
-        label = "domain #{domain_seed} [#{blueprint['forms'].join('+')}]"
-        label += " #{blueprint['aggregates'].size} aggregate(s)" unless blueprint["source"]
+        label = "domain #{domain_seed} [#{blueprint["forms"].join("+")}]"
+        label += " #{blueprint["aggregates"].size} aggregate(s)" unless blueprint["source"]
 
         case result["status"]
         when "clean"
           counts[:clean] += 1
-          puts "  #{label}: clean (#{result['seeds_run']} seed(s))"
+          puts "  #{label}: clean (#{result["seeds_run"]} seed(s))"
         when "invalid", "error"
           counts[result["status"].to_sym] += 1
-          puts "  #{label}: #{result['status'].upcase} — #{result['error']}"
+          puts "  #{label}: #{result["status"].upcase} — #{result["error"]}"
         else
           counts[:found] += 1
-          puts "  #{label}: FOUND SOMETHING (#{result['mode']}: #{result['signature'].join(', ')}) — " \
+          puts "  #{label}: FOUND SOMETHING (#{result["mode"]}: #{result["signature"].join(", ")}) — " \
                "shrinking the domain…"
           findings << record_finding(blueprint, result, root).merge(seed: domain_seed)
         end

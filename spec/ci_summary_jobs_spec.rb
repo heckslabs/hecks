@@ -32,7 +32,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   end
 
   wrappers.each do |name, job|
-    it "#{name} lets #{job.fetch('needs')}'s skip through only when its own skip condition holds" do
+    it "#{name} lets #{job.fetch("needs")}'s skip through only when its own skip condition holds" do
       impl = job.fetch("needs")
       condition = skip_condition(job)
       step = job.fetch("steps").find { |candidate| candidate["uses"] == REQUIRE_RESULT }
@@ -42,7 +42,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
                                    "#{name}'s if: must be either `always() && !(needs.#{impl}.result == 'success' || " \
                                    "(needs.#{impl}.result == 'skipped' && (<skip condition>)))` or, when nothing about " \
                                    "#{impl} ever legitimately skips, `always() && needs.#{impl}.result != 'success'`; " \
-                                   "got #{job['if'].inspect}"
+                                   "got #{job["if"].inspect}"
         expect(step.dig("with", "skip-expected")).to be_nil,
                                                      "#{name} tolerates no skip at all, so it must not claim one is expected"
       else
@@ -82,7 +82,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     [CI_YML, File.join(InMemoryDomain::ROOT, ".github/workflows/ci-checks.yml")].each do |path|
       YAML.load_file(path).fetch("jobs").each do |name, job|
         expect(job["if"].to_s).not_to include("full-ci"),
-                                      "#{File.basename(path)}'s #{name} still gates on the retired full-ci label: #{job['if']}"
+                                      "#{File.basename(path)}'s #{name} still gates on the retired full-ci label: #{job["if"]}"
       end
     end
   end

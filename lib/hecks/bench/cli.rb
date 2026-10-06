@@ -42,7 +42,7 @@ module Hecks
         OptionParser.new do |opts|
           opts.banner = "usage: hecks bench [options]"
           opts.on("--domain NAMES", Array, "pizzas, banking (default: both)") { |v| values[:domains] = v }
-          opts.on("--targets NAMES", Array, "#{Suite::TARGETS.join(', ')} (default: all)") { |v| values[:targets] = v }
+          opts.on("--targets NAMES", Array, "#{Suite::TARGETS.join(", ")} (default: all)") { |v| values[:targets] = v }
           opts.on("--iterations N", Integer, "timed cycles per run (default #{DEFAULTS[:iterations]})") do |v|
             values[:iterations] = v
           end

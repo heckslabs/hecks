@@ -130,7 +130,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     stale = SELF_USE_KNOWN_GAPS.keys.select { |feature| SELF_USE_COUNTS.fetch(feature).call.positive? }
 
     expect(stale).to be_empty,
-                     "the language now declares #{stale.join(', ')} for real — " \
+                     "the language now declares #{stale.join(", ")} for real — " \
                      "delete the SELF_USE_KNOWN_GAPS entry, the claim is used now"
   end
 
@@ -138,7 +138,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     orphaned = SELF_USE_KNOWN_GAPS.keys - SELF_USE_COUNTS.keys
 
     expect(orphaned).to be_empty,
-                        "SELF_USE_KNOWN_GAPS names #{orphaned.join(', ')}, which SELF_USE_COUNTS does not " \
+                        "SELF_USE_KNOWN_GAPS names #{orphaned.join(", ")}, which SELF_USE_COUNTS does not " \
                         "track — a gap entry for nothing this spec measures is dead weight"
   end
 end

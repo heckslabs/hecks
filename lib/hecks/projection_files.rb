@@ -228,7 +228,7 @@ module Hecks
     def dropped_message(dropped)
       dropped.map do |symbol, sites|
         "#{symbol} is self-bearing — the language's own predicates evaluate through it " \
-          "(#{sites.first(3).join('; ')}) — rewrite those guards before retiring it"
+          "(#{sites.first(3).join("; ")}) — rewrite those guards before retiring it"
       end.join("\n")
     end
 

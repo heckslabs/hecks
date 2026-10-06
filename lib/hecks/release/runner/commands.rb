@@ -52,7 +52,7 @@ module Hecks
         def run!(*argv, env: {}, chdir: nil)
           return true if system(env, *argv, **directory(chdir))
 
-          raise CommandFailed, "`#{argv.first(2).join(' ')}` failed"
+          raise CommandFailed, "`#{argv.first(2).join(" ")}` failed"
         end
 
         private

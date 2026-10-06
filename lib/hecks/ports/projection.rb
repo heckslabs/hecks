@@ -42,7 +42,7 @@ module Hecks
           unless VALID_POLICIES.include?(@policy)
             raise ArgumentError,
                   "unknown projection catch_up! policy #{@policy.inspect} — expected one of " \
-                  "#{VALID_POLICIES.map(&:inspect).join(' or ')}"
+                  "#{VALID_POLICIES.map(&:inspect).join(" or ")}"
           end
         end
 

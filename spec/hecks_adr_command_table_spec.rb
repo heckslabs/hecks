@@ -55,11 +55,11 @@ RSpec.describe "the ADR 0080 command table, every row" do
   end
 
   ALL_ROWS.each do |row|
-    it "answers #{row.script} as #{row.chapter}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(' ')}`" do
+    it "answers #{row.script} as #{row.chapter}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(" ")}`" do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in #{row.chapter}"
       next if NOT_USER_FACING.include?(row.verb)
 
-      expect(answers_help?(row)).to be(true), "`hecks #{row.argv.join(' ')} --help` does not answer"
+      expect(answers_help?(row)).to be(true), "`hecks #{row.argv.join(" ")} --help` does not answer"
     end
   end
 

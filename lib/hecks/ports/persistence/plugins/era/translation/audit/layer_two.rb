@@ -78,7 +78,7 @@ module Hecks
 
             diverged = (expected.keys | actual.keys).reject { |key| expected[key] == actual[key] }
             violations << "#{aggregate.name}##{id}: the translated state diverges from the reference " \
-                          "transform at #{diverged.sort.join(', ')}"
+                          "transform at #{diverged.sort.join(", ")}"
           end
         end
 

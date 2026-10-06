@@ -150,7 +150,7 @@ module Hecks
 
             Generated from the world's `migration` setting. Nothing here has been run for you.
 
-            Schemas to copy: #{migration.schemas.map { |name| "`#{name}`" }.join(', ')}, in database
+            Schemas to copy: #{migration.schemas.map { |name| "`#{name}`" }.join(", ")}, in database
             `#{migration.source_database}` on the old server and `#{migration.database}` on RDS.
 
             ## Before cutover
@@ -294,16 +294,16 @@ module Hecks
 
           arns = plan.writable_secrets.map { |name| name.end_with?("*") ? name : "#{name}-*" }.uniq
           resources = arns.map do |pattern|
-            "#{' ' * 20}- !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
+            "#{" " * 20}- !Sub \"arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{pattern}\"\n"
           end.join
           <<~YAML.chomp
-            #{' ' * 14}- !If
-            #{' ' * 16}- IsProduction
-            #{' ' * 16}- Effect: Allow
-            #{' ' * 18}Action: secretsmanager:PutSecretValue
-            #{' ' * 18}Resource:
+            #{" " * 14}- !If
+            #{" " * 16}- IsProduction
+            #{" " * 16}- Effect: Allow
+            #{" " * 18}Action: secretsmanager:PutSecretValue
+            #{" " * 18}Resource:
             #{resources.chomp}
-            #{' ' * 16}- !Ref AWS::NoValue
+            #{" " * 16}- !Ref AWS::NoValue
           YAML
         end
 
@@ -313,17 +313,17 @@ module Hecks
           return "" unless plan.tunnel
 
           <<~YAML
-            #{' ' * 8}# cloudflared dials out to the tunnel edge on 7844. Outbound only: nothing opens inbound.
-            #{' ' * 8}- IpProtocol: tcp
-            #{' ' * 8}  FromPort: 7844
-            #{' ' * 8}  ToPort: 7844
-            #{' ' * 8}  CidrIp: 0.0.0.0/0
-            #{' ' * 8}  Description: tunnel to the edge
-            #{' ' * 8}- IpProtocol: udp
-            #{' ' * 8}  FromPort: 7844
-            #{' ' * 8}  ToPort: 7844
-            #{' ' * 8}  CidrIp: 0.0.0.0/0
-            #{' ' * 8}  Description: tunnel to the edge (QUIC)
+            #{" " * 8}# cloudflared dials out to the tunnel edge on 7844. Outbound only: nothing opens inbound.
+            #{" " * 8}- IpProtocol: tcp
+            #{" " * 8}  FromPort: 7844
+            #{" " * 8}  ToPort: 7844
+            #{" " * 8}  CidrIp: 0.0.0.0/0
+            #{" " * 8}  Description: tunnel to the edge
+            #{" " * 8}- IpProtocol: udp
+            #{" " * 8}  FromPort: 7844
+            #{" " * 8}  ToPort: 7844
+            #{" " * 8}  CidrIp: 0.0.0.0/0
+            #{" " * 8}  Description: tunnel to the edge (QUIC)
           YAML
         end
 
@@ -402,7 +402,7 @@ module Hecks
         def route_blocks(plan)
           routes = plan.routes.each_with_index.map do |route, i|
             port = plan.containers.find { |c| c.name == route.container }.port
-            "@r#{i + 1} path #{route.paths.join(' ')}\nhandle @r#{i + 1} {\n#{upstream(port)}}\n\n"
+            "@r#{i + 1} path #{route.paths.join(" ")}\nhandle @r#{i + 1} {\n#{upstream(port)}}\n\n"
           end
           "#{routes.join}handle {\n#{upstream(plan.default.port)}}\n"
         end
@@ -464,7 +464,7 @@ module Hecks
           document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service
           json = JSON.pretty_generate(document)
           # An empty object prints as `{}` or `{` newline `}`, depending on the json gem.
-          "#{json.gsub(/\{\s*\}/, '{}')}\n"
+          "#{json.gsub(/\{\s*\}/, "{}")}\n"
         end
 
         # A container's entry. With a task definition the image, environment and secrets are read
@@ -572,7 +572,7 @@ module Hecks
           base = <<~MAKE
             # #{plan.infra_name}: one app box and one RDS instance.
             #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true]
-            #   make deploy #{plan.task_definition ? '[TASKDEF=family:revision]' : '[TAGS="web=20260101 worker=20260101"]'}
+            #   make deploy #{plan.task_definition ? "[TASKDEF=family:revision]" : '[TAGS="web=20260101 worker=20260101"]'}
             RDS_STACK = #{plan.rds_stack}
             BOX_STACK = #{plan.box_stack}
             # true makes a throwaway pair: the database is deleted with its stack and the box has no

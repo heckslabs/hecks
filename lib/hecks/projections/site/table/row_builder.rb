@@ -67,7 +67,7 @@ module Hecks
 
           def checked_fields(member, label)
             member.each_key do |key|
-              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(', ')}") unless FIELDS.key?(key)
+              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(", ")}") unless FIELDS.key?(key)
             end
             known = member.slice(*FIELDS.keys)
             known.each { |key, value| check_type(label, key, value) }
@@ -78,7 +78,7 @@ module Hecks
             expected = FIELDS.fetch(key)
             return if expected == :bool ? [true, false].include?(value) : value.is_a?(expected)
 
-            problem(label, "has #{key} #{value.inspect}; #{key} is #{expected == :bool ? 'true or false' : "a #{expected}"}")
+            problem(label, "has #{key} #{value.inspect}; #{key} is #{expected == :bool ? "true or false" : "a #{expected}"}")
           end
 
           def default_kind(source) = source.match?(DERIVED_SOURCE) ? "endpoint" : "page"
@@ -126,7 +126,7 @@ module Hecks
             VOCABULARY.each_key do |field|
               next if @vocabulary.fetch(field).include?(row[field])
 
-              problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(', ')}")
+              problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(", ")}")
             end
             check_verbs(row, label)
           end
@@ -136,13 +136,13 @@ module Hecks
               verbs.each do |verb|
                 next if @vocabulary.fetch(:http_method).include?(verb)
 
-                problem(label, "has #{what} #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(', ')}")
+                problem(label, "has #{what} #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(", ")}")
               end
             end
             return if (row.verbs - row.edge_verbs).empty?
 
-            problem(label, "has edge_methods #{row.edge_verbs.join(',')}, which leave out its methods " \
-                           "#{(row.verbs - row.edge_verbs).join(',')}; the edge must allow every verb the route answers")
+            problem(label, "has edge_methods #{row.edge_verbs.join(",")}, which leave out its methods " \
+                           "#{(row.verbs - row.edge_verbs).join(",")}; the edge must allow every verb the route answers")
           end
 
           def check_source(label, source)
