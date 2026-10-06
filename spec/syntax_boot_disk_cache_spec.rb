@@ -36,4 +36,28 @@ RSpec.describe Hecks::Bluebook::MetaValidator::SyntaxBoot::DiskCache do
     expect(Time.now - File.mtime(current)).to be < 60
     expect(File.exist?(current)).to be(true)
   end
+
+  describe "a table the gem ships" do
+    let(:shipped) { File.join(directory, "prebuilt", "current.marshal") }
+    let(:table) { { keywords: [{ name: "shipped" }], arguments: [] } }
+
+    before do
+      FileUtils.mkdir_p(File.dirname(shipped))
+      File.binwrite(shipped, Marshal.dump(table))
+      allow(Hecks::CacheDir).to receive(:prebuilt).with("current.marshal").and_return(shipped)
+    end
+
+    it "is read when the user has cached none, and left as it was", :aggregate_failures do
+      File.utime(Time.at(0), Time.at(0), shipped)
+
+      expect(host.read_disk_cache([])).to eq(table)
+      expect(File.mtime(shipped)).to eq(Time.at(0))
+    end
+
+    it "yields to the user's own table" do
+      entry("current", unread_for: 60)
+
+      expect(host.read_disk_cache([])).to eq({ keywords: [], arguments: [] })
+    end
+  end
 end
