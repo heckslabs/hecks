@@ -68,6 +68,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "project_lanes", verbs: %w[project_lanes],
                note: "no bin script: it writes the branch rulesets and the promotion workflow from the Lane rows; " \
                      "without --confirm it only compares, and only --live --confirm changes GitHub"),
+    AdrRow.new(script: "watch", verbs: %w[watch],
+               note: "no bin script: it faults when a lane has stood behind the lane it follows for longer than " \
+                     "its Lane row allows, and the fault files a finding"),
     AdrRow.new(script: "promote", verbs: %w[promote],
                note: "no bin script: it moves a lane onto a commit that passed every RequiredCheck; without " \
                      "--confirm it only rehearses the move"),

@@ -209,7 +209,10 @@ move with every commit.
   `hecks promotion_run.promote`; the ruleset on `stable` refuses deleting or
   rewinding it and takes only a commit on which every required check has already
   passed, with no bypass actor (`.github/rulesets/stable.json`). Releases and the `edge` tag
-  come from `stable`. `hecks regeneration_run.project_lanes` writes these
+  come from `stable`. `.github/workflows/lane-watch.yml` runs hourly and, through
+  `hecks promotion_run.watch`, files an issue (one a day) when `stable` has stood
+  behind `main` for longer than its `Lane` row's `alert_after` hours.
+  `hecks regeneration_run.project_lanes` writes these
   files from the rows, and with `--live` compares the rulesets GitHub holds
   with them.
 - **GitHub does not require an approving review.** Branch protection and

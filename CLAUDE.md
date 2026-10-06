@@ -109,6 +109,11 @@ commit must pass as `RequiredCheck` rows beside them.
   already passed, and refuses deleting or rewinding it. Rehearse a move
   without `--confirm`: it names the
   move and makes none, and it says which check is red or still running.
+- **A late `stable` files a finding.** `lane-watch.yml` runs every hour and asks
+  `exe/hecks promotion_run.watch lane=stable`; when `stable` has stood behind
+  `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails
+  and files one GitHub issue a day, saying which required check is red or still
+  running. Fix `main` forward or revert on it; the issue is yours to close.
 - **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
   the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
   lines, `packages/hecks-client`) to `main`, wait for `stable` to contain

@@ -16,10 +16,8 @@ module Hecks
 
         # @return [Hash{String => String}] each file's absolute path to the text it should hold
         def projection
-          files = Lanes.lanes.select { |lane| lane["guarded"] == "yes" }.to_h { |lane| [ruleset_path(lane), ruleset(lane)] }
-          promoted = Lanes.lanes.reject { |lane| lane["follows"].to_s.empty? }
-          files[File.join(@root, Lanes::WORKFLOW)] = Lanes.workflow(promoted) unless promoted.empty?
-          files
+          rulesets.merge(workflow(Lanes::WORKFLOW, "follows") { |lanes| Lanes.workflow(lanes) })
+                  .merge(workflow(Lanes::WATCH_WORKFLOW, "alert_after") { |lanes| WatchWorkflow.text(lanes) })
         end
 
         # @param files [Hash{String => String}] the projection
@@ -41,6 +39,16 @@ module Hecks
         end
 
         private
+
+        def rulesets
+          Lanes.lanes.select { |lane| lane["guarded"] == "yes" }.to_h { |lane| [ruleset_path(lane), ruleset(lane)] }
+        end
+
+        # The workflow at `path` for the lanes whose `column` is set, or no file if none is.
+        def workflow(path, column)
+          lanes = Lanes.lanes.reject { |lane| lane[column].to_s.empty? }
+          lanes.empty? ? {} : { File.join(@root, path) => yield(lanes) }
+        end
 
         def ruleset_path(lane) = File.join(@root, Lanes::RULESETS, "#{lane["name"]}.json")
 

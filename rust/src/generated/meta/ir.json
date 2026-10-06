@@ -31638,6 +31638,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "alert_after",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -31665,6 +31675,10 @@
               [
                 "follows",
                 ""
+              ],
+              [
+                "alert_after",
+                ""
               ]
             ],
             [
@@ -31687,6 +31701,10 @@
               [
                 "follows",
                 "main"
+              ],
+              [
+                "alert_after",
+                4
               ]
             ]
           ]
