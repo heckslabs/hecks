@@ -142,6 +142,22 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(queued.map { |path| File.basename(path) }).to be_empty, "still trigger on merge_group"
   end
 
+  # A commit is certified only by a check run of its own sha: the run of a main commit that is
+  # cancelled reports no checks, and promotion can then never name that commit.
+  it "never cancels the run of a push to main" do
+    cancel = YAML.load_file(CI_YML).dig("concurrency", "cancel-in-progress").to_s
+
+    expect(cancel).to eq("${{ github.event_name == 'pull_request' }}")
+  end
+
+  # Promotion waits for each RequiredCheck by name; a name no job of ci.yml carries would report
+  # nothing for ever, and `stable` would never move.
+  it "has a job for every RequiredCheck of the Vocabulary chapter" do
+    required = Hecks::Vocabulary.rows("RequiredCheck").map { |row| row["name"] }
+
+    expect(required - YAML.load_file(CI_YML).fetch("jobs").keys).to be_empty
+  end
+
   # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.
   it "gives every job that takes a runner a timeout" do
     running = workflow_jobs(workflow_files(".github/workflows/*.yml")).reject { |_, _, job| job.key?("uses") }

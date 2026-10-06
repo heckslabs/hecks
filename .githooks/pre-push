@@ -91,7 +91,14 @@ printf '\n[pre-push] every gate check is green.\n\n'
 # The notes push needs --no-verify: otherwise it re-enters this hook and reruns the suite.
 ATTEST_KEY=$(security find-generic-password -a "$(whoami)" -s hecks-ci-attest-key -w 2>/dev/null || true)
 
-if [ -n "$ATTEST_KEY" ]; then
+# The suite above ran against the working tree, and the note vouches for HEAD's tree: the two are
+# the same thing only when nothing is modified or untracked, so a dirty tree attests nothing. A
+# note over code the checks never saw would let CI skip a check on a tree nobody ran it against.
+ATTEST_DIRTY=$(git status --porcelain --untracked-files=normal 2>/dev/null)
+
+if [ -n "$ATTEST_DIRTY" ]; then
+  printf '[pre-push] the working tree has uncommitted changes, so the checks did not run on HEAD alone — no CI attestation note written\n\n'
+elif [ -n "$ATTEST_KEY" ]; then
   ATTEST_TREE=$(git rev-parse HEAD^{tree})
   ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rspec,rubocop"
   ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')

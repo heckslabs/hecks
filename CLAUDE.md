@@ -104,11 +104,22 @@ commit must pass as `RequiredCheck` rows beside them.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through
-  `exe/hecks promotion_run.promote lane=stable --confirm --wait`. Never push
+  `exe/hecks promotion_run.promote lane=stable --confirm --wait`, onto the newest
+  commit of `main` that every required check passed on (named `commit=<sha>` it
+  judges exactly that commit and no other). Never push
   to `stable` yourself: its ruleset takes only a commit every required check
   already passed, and refuses deleting or rewinding it. Rehearse a move
   without `--confirm`: it names the
   move and makes none, and it says which check is red or still running.
+- **What `stable` guarantees.** `main` is integrated state, `stable` is certified
+  state, and a commit is certified by the check runs of that exact sha, never by
+  "`main` was green about then". Every commit reachable from `stable` was moved
+  there by a fast-forward of a commit that every `RequiredCheck` had passed on
+  (the ruleset refuses anything else, and refuses rewinding or deleting it). A
+  promotion is not tied to the push that started it, so a dropped, late, or
+  out-of-order run changes nothing, and a certified commit is never stranded
+  behind a red or still-running one. `edge` is brought up to `stable`'s head on
+  every confirmed run, even one that finds `stable` already there.
 - **A late `stable` files a finding.** `lane-watch.yml` runs every hour and asks
   `exe/hecks promotion_run.watch lane=stable`; when `stable` has stood behind
   `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails
@@ -117,7 +128,9 @@ commit must pass as `RequiredCheck` rows beside them.
 - **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
   the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
   lines, `packages/hecks-client`) to `main`, wait for `stable` to contain
-  it, then publish from a clean `stable`.
+  it, then publish from a clean `stable`. `release.yml` enforces it: it runs
+  after Promote, releases the commit on `stable` that set the version, and
+  refuses any commit `stable` does not contain, a by-hand run included.
 - **A red `main` blocks promotion, not pushes.** Fix forward or revert on
   `main`; `stable` does not move until a commit is green. Do not
   cherry-pick onto `stable` unless the user says production is down.

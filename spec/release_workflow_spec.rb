@@ -36,9 +36,37 @@ RSpec.describe ".github/workflows/release.yml" do
       .to eq("contents" => "write", "actions" => "write", "id-token" => "write")
   end
 
-  it "runs when main changes the version file, and by hand with a tag", :aggregate_failures do
-    expect(triggers.fetch("push")).to include("branches" => ["main"], "paths" => ["lib/hecks/version.rb"])
+  it "runs after Promote, and by hand with a tag; a push to main starts no release", :aggregate_failures do
+    expect(triggers).not_to have_key("push")
+    expect(triggers.fetch("workflow_run")).to include("workflows" => ["Promote"], "types" => ["completed"])
     expect(triggers.fetch("workflow_dispatch").fetch("inputs").fetch("tag")).to include("required" => true)
+  end
+
+  # Releases come from `stable`: main is integrated state, stable is certified state.
+  describe "what it releases" do
+    it "reads stable after a promotion" do
+      expect(steps.first.fetch("with").fetch("ref")).to include("workflow_run", "'stable'")
+    end
+
+    it "releases the commit that set the version, not whatever stable has moved on to" do
+      stand = step_named("Stand on the commit that set the version")
+
+      expect(stand.fetch("run")).to include("--first-parent", "lib/hecks/version.rb", "checkout --detach")
+    end
+
+    it "refuses a commit that stable does not contain, before it tags or publishes", :aggregate_failures do
+      guard = step_named("The release commit is on stable")
+
+      expect(guard.fetch("run")).to include("fetch --quiet origin stable", "merge-base --is-ancestor HEAD FETCH_HEAD", "exit 1")
+      expect(names.index("The release commit is on stable")).to be < names.index("The files agree on one version")
+      expect(guard).not_to have_key("if")
+    end
+
+    it "starts a promotion-triggered release only from a successful Promote run" do
+      condition = workflow.fetch("jobs").fetch("release").fetch("if")
+
+      expect(condition).to include("workflow_run.conclusion == 'success'", "workflow_dispatch")
+    end
   end
 
   it "queues releases and never cancels one that is running" do
