@@ -185,7 +185,8 @@ if [ "$RUNNING_IMAGE" != "$IMAGE_URI" ]; then
 fi
 echo "==> task definition ${TD} carries ${SERVICE_NAME}=${TAG}"
 
-bash ./deploy-box.sh "$TD"
+# Only this container is replaced, so only its log is captured first (SKIP_LOG_CAPTURE=1 skips it).
+LOG_CAPTURE_SERVICES="$SERVICE_NAME" bash ./deploy-box.sh "$TD"
 export TASKDEF="$TD"
 
 # The deploy itself is done. End with the smoke, which reports separately, unless the caller runs it.

@@ -9,6 +9,12 @@
 #   41  the roll did not succeed on the box
 #   42  the roll succeeded but the box is not healthy after it
 #
+# Before the roll replaces a container, the box saves that container's log to
+# /var/log/hecks-captures/<container>-<UTC timestamp>.log and keeps the newest 14 per container
+# (a roll deletes the old container's log with it). A capture never changes the exit codes: if it
+# cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
+# those services (deploy-service.sh sets the one it rolls).
+#
 #   deploy-box.sh [task-definition]
 #
 # The task definition (a family or family:revision) defaults to the latest active revision of
@@ -48,7 +54,7 @@ SMOKE_EOF
 run_on_box() {
   local cid st i
   cid=$(aws ssm send-command --instance-ids "$BOX" --document-name AWS-RunShellScript --timeout-seconds 900 \
-    --parameters "$1" --query 'Command.CommandId' --output text)
+    --parameters "$1" --query 'Command.CommandId' --output text) || return 1
   sleep 3
   for i in $(seq 1 150); do
     st=$(aws ssm get-command-invocation --command-id "$cid" --instance-id "$BOX" --query Status --output text)
@@ -77,6 +83,40 @@ ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$
     "[ \"$(sha256sum < Caddyfile)\" = \"$CADDY_BEFORE\" ] || docker compose -f compose.json restart caddy",
     "for i in $(seq 1 40); do docker compose -f compose.json ps --format \"{{.Status}}\" | grep -qE \"^Up (Less than a second|[0-4] seconds?)|Restarting|Created|Exited\" || break; sleep 1; done; docker compose -f compose.json ps --format \"table {{.Service}}\\t{{.Status}}\""],
    executionTimeout: ["900"]}')
+
+# Saves the log of each running container about to be replaced. It only reads containers and writes
+# files under /var/log/hecks-captures, skips on low disk, never prints a log's contents, and ends 0.
+CAPTURE=$(cat <<'CAPTURE_EOF'
+umask 027
+cd "${CAPTURE_HOME:-/opt/widget-shop}" 2>/dev/null && [ -f compose.json ] || { echo "log capture: no running roll to capture"; exit 0; }
+LOGDIR=${CAPTURE_DIR:-/var/log/hecks-captures}; KEEP=14
+FREE_KB=$(df -Pk "${CAPTURE_DF_PATH:-/var/log}" 2>/dev/null | awk 'NR==2 {print $4}')
+if [ "${FREE_KB:-0}" -lt "${CAPTURE_MIN_FREE_KB:-2097152}" ]; then
+  echo "WARNING log capture skipped: under 2 GiB free on /var/log"; exit 0
+fi
+mkdir -p "$LOGDIR" && chmod 750 "$LOGDIR" || { echo "WARNING log capture skipped: cannot create $LOGDIR"; exit 0; }
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+docker compose -f compose.json ps --format '{{.Service}} {{.Name}}' 2>/dev/null | while read -r svc name; do
+  [ -z "$ONLY" ] || printf ' %s ' "$ONLY" | grep -qF " $svc " || continue
+  f="$LOGDIR/$name-$STAMP.log"
+  if docker logs "$name" > "$f" 2>&1 < /dev/null; then
+    chmod 640 "$f"; echo "captured $f $(wc -c < "$f" | tr -d ' ') bytes"
+  else
+    rm -f "$f"; echo "WARNING log capture failed for $name; the roll goes on"
+  fi
+  ls -1 "$LOGDIR/$name"-[0-9]*T[0-9]*Z.log 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do rm -f "$old"; done
+done
+exit 0
+CAPTURE_EOF
+)
+if [ "${SKIP_LOG_CAPTURE:-}" = 1 ]; then
+  echo "==> skipping the log capture (SKIP_LOG_CAPTURE=1)"
+else
+  echo "==> capturing the logs of the containers about to be replaced"
+  ONLY=$(printf '%s' "${LOG_CAPTURE_SERVICES:-}" | tr -cd 'A-Za-z0-9_. -')
+  CAPTURE_JSON=$(jq -n --arg c "$(printf "ONLY='%s'\n%s\n" "$ONLY" "$CAPTURE" | base64 | tr -d '\n')" '{commands: ["echo \($c) | base64 -d | bash"]}')
+  run_on_box "$CAPTURE_JSON" || echo "WARNING the log capture could not run on the box; the roll goes on" >&2
+fi
 
 echo "==> rolling $BOX_STACK ($BOX) at $(date -u +%H:%M:%SZ)"
 run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 41; }
