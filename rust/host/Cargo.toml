@@ -59,3 +59,8 @@ async-trait = "0.1.92"
 # CI never attaches a debugger to dev binaries, so skip debuginfo to save build time.
 [profile.dev]
 debug = 0
+
+# The tests compile wasm modules through wasmtime's Cranelift, which is far slower unoptimized.
+# Optimize dependencies only; the host crate itself stays at opt-level 0.
+[profile.dev.package."*"]
+opt-level = 2
