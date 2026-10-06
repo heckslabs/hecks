@@ -1,0 +1,58 @@
+# A members' club's site: a third neutral sample project beside the studio and the gallery. It
+# declares an `Admin` row, so it exercises the admin sign-in module: a public login page beneath
+# the admin prefix, an admin endpoint that hands a signed-in admin to the CMS, a draft preview, and
+# a page listed after a wildcard that still has to win because it is more specific.
+Hecks.bluebook "MembersSite" do
+  vision "The routes of a members' club's website, with a sign-in for its admins."
+
+  aggregate "SiteMap" do
+    description "The club site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :seo,       String
+      attribute :preview,   String
+      attribute :nav_order, Integer
+
+      member path: "/",              label: "Home", cache: "home", source: "global:home", seo: "home", nav_order: 1
+      member path: "/events",        label: "Events", source: "global:events", seo: "events", nav_order: 2
+      member path: "/cms/*",         kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST,PUT,PATCH,DELETE"
+      member path: "/admin*",        kind: "proxy", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login",   render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/api/cms-sso",   kind: "endpoint", auth: "admin", methods: "GET"
+      member path: "/admin-preview/*", kind: "proxy", auth: "admin", methods: "GET"
+      member path: "/*",             kind: "proxy"
+    end
+
+    value_object "Admin" do
+      attribute :session_cookie,  String
+      attribute :host_env,        String
+      attribute :login,           String
+      attribute :sso,             String
+      attribute :session_max_age, Integer
+      attribute :host_default,    String
+      attribute :roles,           String
+      attribute :verdict_ttl_ms,  Integer
+
+      member session_cookie: "club_session", host_env: "CLUB_DOMAIN_SERVICE_URL", login: "/admin-login",
+             sso: "/api/cms-sso", host_default: "http://127.0.0.1:4500", roles: "Admin,Owner",
+             verdict_ttl_ms: 2_000
+    end
+  end
+end

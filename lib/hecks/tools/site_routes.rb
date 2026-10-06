@@ -7,12 +7,14 @@ require_relative "../tools"
 require_relative "../projections/site/routes_ts"
 require_relative "../projections/site/site_cdn"
 require_relative "../projections/site/regions"
+require_relative "../projections/site/admin"
+require_relative "../projections/site/site_admin"
 
 module Hecks
   module Tools
-    # Projects a project's route table into `routes.ts` (`Projections::Site::RoutesTs`) and, when
-    # it declares an edge, into the behaviours and listener rules of its template
-    # (`Projections::Site::SiteCdn`).
+    # Projects a project's route table into `routes.ts` (`Projections::Site::RoutesTs`), its edge
+    # into the behaviours and listener rules of its template (`Projections::Site::SiteCdn`) and its
+    # `Admin` row into `admin.ts` (`Projections::Site::SiteAdmin`), each when it declares one.
     #
     #   hecks site site_projection.project_site [<project>] [--out=<dir>] [--template=<file>]
     #                                           [--extension=ts|mts] [--check]
@@ -88,9 +90,24 @@ module Hecks
         table = Projections::Site::Table.read(chapter, registry: registry)
         files = Projector.call(:site_routes_ts, bluebook: chapter, options: { table: table })
         written = files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
+        written.merge!(admin_files(dir, chapter, table, extension))
         written.merge(template_files(root, out, chapter, table, registry, template: template))
       rescue Projections::Site::Table::Invalid => e
         abort "project_site: #{e.message}"
+      end
+
+      # The admin sign-in module, when the project declares an `Admin` row.
+      #
+      # @param dir [String] the directory the route table module is written to
+      # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+      # @param table [Projections::Site::Table] the checked table
+      # @param extension [String] the extension the modules are written with
+      # @return [Hash{String => String}] the module's path to its text; empty with no admin row
+      # @raise [Projections::Site::Table::Invalid] when the admin row is refused
+      def admin_files(dir, chapter, table, extension)
+        admin = Projections::Site::Admin.read(chapter, table: table)
+        files = Projector.call(:site_admin, bluebook: chapter, options: { admin: admin, extension: extension })
+        files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
       end
 
       # The template with the edge's regions rewritten, when the project declares an edge.
