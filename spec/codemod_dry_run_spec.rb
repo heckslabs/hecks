@@ -24,41 +24,51 @@ RSpec.describe Hecks::Tools::HoistLocalGivens, ".run_files" do
     end
   end
 
-  it "finds the repeated rule in the scratch domain" do
+  it "finds the repeated rule in the scratch domain", :aggregate_failures do
     result = described_class.run_files([@file], dry_run: true)
 
     expect(result[:status]).to eq(:applied)
     expect(result[:candidates].map(&:description)).to eq(["a pizza needs at least one topping"])
   end
 
-  it "never writes the file during a dry run" do
+  # The paths File.write was asked to write while the block ran.
+  def files_written_during
     written = []
     allow(File).to receive(:write).and_wrap_original do |original, path, *rest, **options|
       written << path
       original.call(path, *rest, **options)
     end
+    yield
+    written
+  end
 
-    described_class.run_files([@file], dry_run: true)
+  # The text of the codemod's file as each bluebook load saw it while the block ran.
+  def file_texts_seen_by_loads
+    seen = []
+    allow(Hecks::Codemod).to receive(:load_bluebook).and_wrap_original do |original, *args|
+      seen << File.read(@file)
+      original.call(*args)
+    end
+    yield
+    seen
+  end
+
+  it "never writes the file during a dry run", :aggregate_failures do
+    written = files_written_during { described_class.run_files([@file], dry_run: true) }
 
     expect(written).not_to include(@file)
     expect(File.read(@file)).to eq(source)
     expect(File.mtime(@file)).to eq(Time.at(1_000_000))
   end
 
-  it "shows the file unchanged from inside the run, at every load" do
-    seen = []
-    allow(Hecks::Codemod).to receive(:load_bluebook).and_wrap_original do |original, *args|
-      seen << File.read(@file)
-      original.call(*args)
-    end
-
-    described_class.run_files([@file], dry_run: true)
+  it "shows the file unchanged from inside the run, at every load", :aggregate_failures do
+    seen = file_texts_seen_by_loads { described_class.run_files([@file], dry_run: true) }
 
     expect(seen).not_to be_empty
     expect(seen.uniq).to eq([source])
   end
 
-  it "still rewrites the file when it is not a dry run" do
+  it "still rewrites the file when it is not a dry run", :aggregate_failures do
     result = described_class.run_files([@file], dry_run: false)
 
     expect(result[:status]).to eq(:applied)
@@ -66,7 +76,7 @@ RSpec.describe Hecks::Tools::HoistLocalGivens, ".run_files" do
     expect(File.read(@file)).not_to eq(source)
   end
 
-  it "leaves no staged text behind after a dry run" do
+  it "leaves no staged text behind after a dry run", :aggregate_failures do
     described_class.run_files([@file], dry_run: true)
 
     expect(Hecks::Codemod::Shadow).not_to be_active

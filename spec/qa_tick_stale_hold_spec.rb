@@ -9,10 +9,14 @@ require_relative "support/qa_tick_fixture"
 RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_stale_hold_spec"
 
-  it "counts a stale hold the sweep reclaimed, so a recurring one is visible across ticks" do
+  # A target held by a ghost long ago, which the sweep will reclaim as stale.
+  def stale_hold!
     identify!("stale_one" => @target_domain_relpath)
     QualityControl::Target.find("stale_one").claim!(held_by: { value: "ghost" }, now: { value: Time.now.to_i - 5_000 })
+  end
 
+  it "counts a stale hold the sweep reclaimed, so a recurring one is visible across ticks", :aggregate_failures do
+    stale_hold!
     stdout, stderr, status = tick
 
     expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"

@@ -140,7 +140,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
                           "from rust/parser/src/main.rs::COVERED_PAIRS: #{undeclared.inspect}"
   end
 
-  it "keeps the allowlist itself sorted and duplicate-free (a real, reviewable list)" do
+  it "keeps the allowlist itself sorted and duplicate-free (a real, reviewable list)", :aggregate_failures do
     expect(PENDING).to eq(PENDING.uniq)
     expect(PENDING_PAIRS.map(&:last)).to all(satisfy { |pairs| pairs == pairs.sort })
   end

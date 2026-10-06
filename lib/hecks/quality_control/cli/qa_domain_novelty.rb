@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require_relative "../../../hecks"
 require_relative "../../fuzzing/form_census"
+require_relative "qa_domain_novelty/verdict"
 
 module Hecks
   module QualityControlCli
@@ -19,6 +20,8 @@ module Hecks
     #
     # Exit codes: 0 new pair found; 1 no new pair; 2 usage or wrong path shape.
     class QaDomainNovelty
+      include Verdict
+
       EXIT_NOVEL = 0
       EXIT_NOTHING = 1
       EXIT_USAGE = 2
@@ -45,14 +48,7 @@ module Hecks
       def call(argv)
         candidate, against = parse(argv)
         refuse_unless_stress_domain_shaped!(normalize(candidate))
-        existing_source = against.empty? ? "the ledger's Target.path rows" : "--against"
-        existing = (against.empty? ? ledger_target_paths : against).map { |path| normalize(path) }.uniq
-        own = existing.select { |path| path == normalize(candidate) }
-        existing -= own
-        puts "note: #{candidate} is already a target — left out of the comparison" unless own.empty?
-
-        missing, present = existing.partition { |path| Hecks::Fuzzing::FormCensus.bluebook_files(path).nil? }
-        missing.each { |path| warn "skipping #{path}: no bluebook/*.bluebook on disk" }
+        present, existing_source = comparison_set(candidate, against)
         judge(candidate, present, existing_source)
       rescue UsageError => e
         warn e.message
@@ -70,25 +66,37 @@ module Hecks
       # Raised once the reason has been printed; it ends the run with `EXIT_USAGE`.
       class Stopped < StandardError; end
 
-      def parse(argv)
-        candidate = nil
-        against = []
-        mode = :candidate
-        argv.each do |arg|
-          if arg == "--against"
-            mode = :against
-          elsif mode == :against
-            against << arg
-          elsif candidate.nil?
-            candidate = arg
-          else
-            raise UsageError, "unexpected argument #{arg.inspect}"
-          end
-        end
-        raise UsageError, "no candidate domain given" if candidate.nil?
-        raise UsageError, "--against needs at least one path" if mode == :against && against.empty?
+      # The domains to compare against that exist on disk, and where they came from.
+      def comparison_set(candidate, against)
+        existing_source = against.empty? ? "the ledger's Target.path rows" : "--against"
+        existing = (against.empty? ? ledger_target_paths : against).map { |path| normalize(path) }.uniq
+        [present_domains(candidate, existing), existing_source]
+      end
 
-        [candidate, against]
+      def present_domains(candidate, existing)
+        own = existing.select { |path| path == normalize(candidate) }
+        puts "note: #{candidate} is already a target — left out of the comparison" unless own.empty?
+
+        missing, present = (existing - own).partition { |path| Hecks::Fuzzing::FormCensus.bluebook_files(path).nil? }
+        missing.each { |path| warn "skipping #{path}: no bluebook/*.bluebook on disk" }
+        present
+      end
+
+      def parse(argv)
+        before, against = split_at_against(argv)
+        raise UsageError, "unexpected argument #{before[1].inspect}" if before.size > 1
+        raise UsageError, "no candidate domain given" if before.empty?
+        raise UsageError, "--against needs at least one path" if against == []
+
+        [before.first, against || []]
+      end
+
+      # The arguments before the first `--against`, and the paths after it (nil without the flag).
+      def split_at_against(argv)
+        split = argv.index("--against")
+        return [argv, nil] unless split
+
+        [argv.first(split), argv.drop(split + 1).reject { |arg| arg == "--against" }]
       end
 
       # `hecks project_rust` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything
@@ -117,47 +125,6 @@ module Hecks
       end
 
       def normalize(path) = File.expand_path(path, @root)
-
-      def judge(candidate, present, existing_source)
-        census = Hecks::Fuzzing::FormCensus.census(normalize(candidate))
-        candidate_pairs = Hecks::Fuzzing::FormCensus.covered_pairs(census)
-        existing_pairs = present.each_with_object(Hash.new { |h, k| h[k] = [] }) do |path, covered|
-          Hecks::Fuzzing::FormCensus.covered_pairs(Hecks::Fuzzing::FormCensus.census(path)).each do |pair, names|
-            covered[pair].concat(names.map { |name| "#{name} (#{path.delete_prefix("#{@root}/")})" })
-          end
-        end
-        new_pairs = candidate_pairs.reject { |pair, _| existing_pairs.key?(pair) }
-
-        puts "candidate: #{candidate} — #{census.size} aggregate(s), #{candidate_pairs.size} form pair(s) met"
-        puts "against:   #{present.size} domain(s) from #{existing_source}, " \
-             "#{existing_pairs.size} form pair(s) met between them"
-        puts
-        return nothing_new(candidate) if new_pairs.empty?
-
-        width = new_pairs.keys.map(&:size).max
-        puts "new pair(s) — met on one aggregate here, on none of the existing targets:"
-        new_pairs.sort.each { |pair, names| puts "  #{pair.ljust(width)}  #{names.uniq.join(', ')}" }
-        puts
-        puts "#{new_pairs.size} new pair(s) — #{candidate} earns its place."
-        EXIT_NOVEL
-      end
-
-      def nothing_new(candidate)
-        puts "no new pair — every pair of forms #{candidate} puts together on one aggregate is already met " \
-             "by an existing target. Either the domain is not new, or the form it exists for is not yet " \
-             "named in Hecks::Fuzzing::FormCensus::FORMS (lib/hecks/fuzzing/form_census.rb) — name it " \
-             "there first, citing the gap it is one step from, and run this again."
-        puts
-        puts "READ THAT AS A QUESTION ABOUT THE CENSUS, NOT A VERDICT ON THE DOMAIN. This gate measures " \
-             "ONE AGGREGATE's own declared forms, so a domain whose point is a chapter-level construct — " \
-             "a policy, an `across` target, a process manager, a read model's own group_by/median, an " \
-             "outbox, a dry run — is invisible to it by construction, not by omission. `corrects` and " \
-             "`role_gated` were exactly that: declared all over the corpus, unnamed here, so this line " \
-             "told three stress domains built around retroactive correction that they were redundant " \
-             "(their own NOTES.md each say so). If that is your domain's case, say which construct it " \
-             "exists for in its NOTES.md and keep it."
-        EXIT_NOTHING
-      end
     end
   end
 end

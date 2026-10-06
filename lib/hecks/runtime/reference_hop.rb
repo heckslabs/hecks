@@ -23,22 +23,22 @@ module Hecks
 
       # Folds one hop clause into a synthetic `in` clause over the hop attribute's own ids.
       def fold(clause, args, registry:, domain:, aggregate:)
-        step = QuerySpecification::HopPath.next_hop(clause.field, aggregate.attributes)
-        hop, rest = step
-
-        # BluebookBuilder#validate_query_hops! already checked this hop at boot; if it
-        # still fails to resolve here, raise rather than silently matching everything.
-        unless hop&.target
-          raise WiringError,
-                "#{clause.field} hops through a reference this domain cannot resolve " \
-                "right now — the chapter seal already checked this once; something " \
-                "changed between then and this dispatch"
-        end
+        hop, rest = QuerySpecification::HopPath.next_hop(clause.field, aggregate.attributes)
+        refuse_unresolvable_hop!(clause) unless hop&.target
 
         inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
         ids   = matching_ids(domain, hop.target, [inner], args, registry: registry)
 
         QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
+      end
+
+      # BluebookBuilder#validate_query_hops! already checked this hop at boot; if it
+      # still fails to resolve here, raise rather than silently matching everything.
+      def refuse_unresolvable_hop!(clause)
+        raise WiringError,
+              "#{clause.field} hops through a reference this domain cannot resolve " \
+              "right now — the chapter seal already checked this once; something " \
+              "changed between then and this dispatch"
       end
 
       # Every id the inner clause(s) admit on `target`, queried through `target`'s own

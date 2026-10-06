@@ -45,15 +45,20 @@ module Hecks
           when :plain    then value
           when :identity then value&.to_sym
           when :flag     then value ? true : false
-          when Array
-            # `[:option, name]` needs its name as well as its value.
-            if reader.first == :each
-              Array(value).map { |held| Marks.public_send(reader.last, held) }
-            else
-              Marks.option(reader.last, value)
-            end
+          when Array then read_marked(reader, value)
           else Marks.public_send(reader, value)
           end
+        end
+
+        # `[:option, name]` needs its name as well as its value.
+        #
+        # @param reader [Array] `[:each, marks_method]` or `[:option, name]`
+        # @param value [Object] the raw declared value to read
+        # @return [Object] the value read through the `Marks` method `reader` names
+        def read_marked(reader, value)
+          return Marks.option(reader.last, value) unless reader.first == :each
+
+          Array(value).map { |held| Marks.public_send(reader.last, held) }
         end
       end
     end

@@ -7,7 +7,7 @@ require_relative "support/qa_mine_combinations_helpers"
 RSpec.describe "hecks quality_control mine_combinations, repairing a candidate" do
   include QaMineCombinationsHelpers
 
-  it "sends a candidate that does not boot back to the agent, and checks the repaired file" do
+  it "sends a candidate that does not boot back to the agent, and checks the repaired file", :aggregate_failures do
     out, status = run_miner("--candidates", "1", "--seeds", "1", "--steps", "4", mode: "repair")
 
     expect(status.exitstatus).to eq(0), out
@@ -15,7 +15,8 @@ RSpec.describe "hecks quality_control mine_combinations, repairing a candidate" 
     expect(out).to include("mined_desk: boots (repaired)")
   end
 
-  it "reports a candidate still broken after the repair rounds as INVALID and exits 1 with nothing to check" do
+  it "reports a candidate still broken after the repair rounds as INVALID and exits 1 with nothing to check",
+     :aggregate_failures do
     out, status = run_miner("--candidates", "1", "--repair-rounds", "0", mode: "repair")
 
     expect(status.exitstatus).to eq(1), out

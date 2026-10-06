@@ -14,14 +14,18 @@ RSpec.describe "the generated Rust vocabulary tables (hecks project_rust_vocabul
     )
   end
 
-  it "is exactly what hecks project_rust_vocabulary would regenerate right now" do
-    stale = projected.reject do |relative, content|
+  def stale_files
+    projected.reject do |relative, content|
       path = File.join(kernel, relative)
       File.exist?(path) && File.read(path) == content
     end
+  end
+
+  it "is exactly what hecks project_rust_vocabulary would regenerate right now" do
+    stale = stale_files
 
     expect(stale.keys).to be_empty,
-                          "#{stale.keys.join(', ')} drifted from vocabulary.bluebook — run hecks project_rust_vocabulary"
+                          "#{stale.keys.join(", ")} drifted from vocabulary.bluebook — run hecks project_rust_vocabulary"
   end
 
   it "leaves no committed file under vocab/ that the projection no longer emits" do

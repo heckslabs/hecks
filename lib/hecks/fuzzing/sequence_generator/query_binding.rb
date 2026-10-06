@@ -56,11 +56,16 @@ module Hecks
         def harvest_written_rows(runtime, catalog)
           catalog[:query_bindings].each do |key, binding|
             repository = runtime.registry.repository(binding[:domain], binding[:aggregate])
-            repository.all.each do |record|
-              row = binding[:fields].to_h { |field| [field, written_value(field_of(record, field))] }.compact
-              @written_rows[key] << row unless row.empty? || @written_rows[key].include?(row)
-            end
+            repository.all.each { |record| remember_row(key, written_row(binding, record)) }
           end
+        end
+
+        def written_row(binding, record)
+          binding[:fields].to_h { |field| [field, written_value(field_of(record, field))] }.compact
+        end
+
+        def remember_row(key, row)
+          @written_rows[key] << row unless row.empty? || @written_rows[key].include?(row)
         end
 
         def field_of(record, field) = QuerySpecification::FieldPath.dig(record.state, field)
@@ -85,11 +90,17 @@ module Hecks
 
           rows   = @written_rows[entry[:verb].split(".").first]
           params = bound_fields(entry[:query]).select { |param, _| args.key?(param) }
-          return if rows.empty? || params.empty?
-          return unless @binding_random.rand < BOUND_QUERY_PROBABILITY
+          return if rows.empty? || params.empty? || @binding_random.rand >= BOUND_QUERY_PROBABILITY
 
-          row = rows.select { |candidate| params.values.any? { |field| candidate.key?(field) } }
-                    .sample(random: @binding_random)
+          bind_params!(args, params, row_for(rows, params))
+        end
+
+        def row_for(rows, params)
+          rows.select { |candidate| params.values.any? { |field| candidate.key?(field) } }
+              .sample(random: @binding_random)
+        end
+
+        def bind_params!(args, params, row)
           params.each do |param, field|
             args[param] = shaped_like(args[param], row[field]) if row&.key?(field)
           end

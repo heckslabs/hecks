@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::InProcessKeyVault do
     expect(described_class.fetch(key_reference)).to be_a(String)
   end
 
-  it "issues a distinct reference and secret per call, even for the same subject" do
+  it "issues a distinct reference and secret per call, even for the same subject", :aggregate_failures do
     first  = described_class.issue(subject_id: "attendee-482")
     second = described_class.issue(subject_id: "attendee-482")
 
@@ -17,14 +17,14 @@ RSpec.describe Hecks::Adapters::InProcessKeyVault do
     expect(described_class.fetch(first)).not_to eq(described_class.fetch(second))
   end
 
-  it "makes a destroyed key's material permanently unfetchable" do
+  it "makes a destroyed key's material permanently unfetchable", :aggregate_failures do
     key_reference = described_class.issue(subject_id: "attendee-482")
 
     expect(described_class.destroy(key_reference: key_reference)).to be(true)
     expect(described_class.fetch(key_reference)).to be_nil
   end
 
-  it "reports false for a reference already destroyed, or never issued" do
+  it "reports false for a reference already destroyed, or never issued", :aggregate_failures do
     key_reference = described_class.issue(subject_id: "attendee-482")
     described_class.destroy(key_reference: key_reference)
 

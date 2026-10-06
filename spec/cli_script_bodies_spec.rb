@@ -32,12 +32,12 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
       expect(described_class.render(File.dirname(pizzas))).to match(/\APizzas [0-9a-f]+\z/)
     end
 
-    it "refuses a missing path and a directory with no bluebook" do
+    it "refuses a missing path and a directory with no bluebook", :aggregate_failures do
       expect { described_class.render("/nonexistent") }.to raise_error(Hecks::Runtime::NotFound, /does not exist/)
       expect { described_class.render(root) }.to raise_error(Hecks::Runtime::NotFound, /no \*\.bluebook files/)
     end
 
-    it "aborts with usage when given no target" do
+    it "aborts with usage when given no target", :aggregate_failures do
       expect { expect { described_class.call([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end
   end
@@ -47,7 +47,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
       expect(described_class.entries(Object.new)).to eq([])
     end
 
-    it "aborts with usage when given no domain" do
+    it "aborts with usage when given no domain", :aggregate_failures do
       expect { expect { described_class.call([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end
   end
@@ -55,7 +55,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
   describe Hecks::CLI::Follow do
     let(:event) { Struct.new(:aggregate).new("Banking::Account") }
 
-    it "matches every event without a filter, and by bare name, case-insensitively or exactly" do
+    it "matches every event without a filter, and by bare name, case-insensitively or exactly", :aggregate_failures do
       expect(described_class.matches?(event, nil)).to be true
       expect(described_class.matches?(event, "account")).to be true
       expect(described_class.matches?(event, "Banking::Account")).to be true
@@ -70,7 +70,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
   end
 
   describe Hecks::CLI::DeployTemplateDiff do
-    it "answers 0 for the same template, 1 for a difference and 2 for a missing file" do
+    it "answers 0 for the same template, 1 for a difference and 2 for a missing file", :aggregate_failures do
       base   = File.join(fixtures, "base.yaml")
       edited = File.join(fixtures, "edited.yaml")
 
@@ -79,13 +79,13 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
       expect { expect(described_class.call([base, "/nonexistent.yaml"])).to eq(2) }.to output(/./).to_stderr
     end
 
-    it "aborts with usage unless given two templates" do
+    it "aborts with usage unless given two templates", :aggregate_failures do
       expect { expect { described_class.call(["one.yaml"]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end
   end
 
   describe Hecks::CLI::RefreshProjections do
-    it "aborts with usage when given no domain" do
+    it "aborts with usage when given no domain", :aggregate_failures do
       expect { expect { described_class.run([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end
   end

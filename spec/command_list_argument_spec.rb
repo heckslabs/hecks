@@ -67,14 +67,14 @@ RSpec.describe "a command's list_of argument" do
 
   def open_folder(labels) = @runtime.dispatch("Binder::Folder.Open", with: { name: { value: rand.to_s }, labels: labels })
 
-  it "takes an Array" do
+  it "takes an Array", :aggregate_failures do
     expect { open_folder([{ value: "a" }, { value: "b" }]) }.not_to raise_error
     expect { open_folder([]) }.not_to raise_error
     expect { @runtime.dispatch("Binder::Folder.Note", to: open_folder([]).id, with: { words: %w[a b] }) }
       .not_to raise_error
   end
 
-  it "refuses a lone scalar naming the argument and the expected list" do
+  it "refuses a lone scalar naming the argument and the expected list", :aggregate_failures do
     expect { open_folder("a") }
       .to raise_error(Hecks::Runtime::TypeMismatch, /Open\.labels expects list_of\(Label\), got "a"/)
     expect { open_folder({ value: "a" }) }.to raise_error(Hecks::Runtime::TypeMismatch, /Open\.labels/)
@@ -98,12 +98,12 @@ RSpec.describe "a command's list_of argument" do
       .to raise_error(Hecks::Runtime::TypeMismatch, /labels expects list_of\(Label\), got "x"/)
   end
 
-  it "keeps the single-element form for the append and remove effects" do
+  it "keeps the single-element form for the append and remove effects", :aggregate_failures do
     id = open_folder([]).id
     @runtime.dispatch("Binder::Folder.Attach", to: id, with: { label: "x" })
     two = @runtime.dispatch("Binder::Folder.Attach", to: id, with: { label: "y" })
-    expect(two.state[:labels].size).to eq(2)
     one = @runtime.dispatch("Binder::Folder.Detach", to: id, with: { label: "x" })
-    expect(one.state[:labels].size).to eq(1)
+
+    expect([two, one].map { |result| result.state[:labels].size }).to eq([2, 1])
   end
 end

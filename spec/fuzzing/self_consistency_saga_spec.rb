@@ -4,7 +4,7 @@ require "hecks/fuzzing/self_consistency"
 
 # Saga cold-rehydration and redelivery idempotency, against the waybill stress domain's
 # `Packing` process manager.
-RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)" do
+RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)", :aggregate_failures do
   # File-unique constant names: a bare name inside `describe` lands on Object, and
   # load_hygiene_spec refuses collisions across spec files.
   SAGA_REHYDRATION_WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/waybill").freeze
@@ -21,6 +21,10 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
   def replay_waybill
     stub_const("Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH", 3)
     Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: true)
+  end
+
+  def replay_waybill_with(self_consistency)
+    Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: self_consistency)
   end
 
   # Swaps `each_saga` for a transformed read and restores it in `ensure`. It returns an
@@ -50,15 +54,20 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
   end
 
   describe "check 4 — saga rehydration" do
-    it "fires when cold-reading a durable saga checkpoint silently drops memory" do
+    before do
       drop_memory = ->(blk, pm, corr, state, _memory, comp) { blk.call(pm, corr, state, {}, comp) }
-      findings = corrupt_each_saga(drop_memory) { replay_waybill.fetch(:self_consistency) }
+      @findings = corrupt_each_saga(drop_memory) { replay_waybill.fetch(:self_consistency) }
+    end
 
-      expect(findings[:saga_rehydration]).not_to be_empty
-      finding = findings[:saga_rehydration].first
-      expect(finding[:field]).to eq("saga_rehydration")
-      expect(finding[:domain]).to eq("Waybill")
-      expect(finding[:process_manager]).to eq("Packing")
+    it "fires when cold-reading a durable saga checkpoint silently drops memory" do
+      expect(@findings[:saga_rehydration]).not_to be_empty
+      expect(@findings[:saga_rehydration].first)
+        .to include(field: "saga_rehydration", domain: "Waybill", process_manager: "Packing")
+    end
+
+    it "shows the memory that was dropped" do
+      finding = @findings[:saga_rehydration].first
+
       expect(finding[:rehydrated]["R1"][:memory]).to eq({})
       expect(finding[:live]["R1"][:memory]).not_to eq({})
     end
@@ -69,19 +78,23 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
   end
 
   describe "check 5 — saga redelivery idempotency" do
-    it "fires when a corrupted rehydration reverts the checkpoint to an earlier, still-matching state" do
+    before do
       # Seeded bug: rehydration answers "filling" instead of "filled", so redelivering SlotFilled
       # matches leg 4 again and dispatches Consignment::Ship a second time.
       revert_state = ->(blk, pm, corr, _state, memory, comp) { blk.call(pm, corr, "filling", memory, comp) }
-      findings = corrupt_each_saga(revert_state) { replay_waybill.fetch(:self_consistency) }
+      @findings = corrupt_each_saga(revert_state) { replay_waybill.fetch(:self_consistency) }
+    end
 
-      expect(findings[:saga_redelivery_idempotency]).not_to be_empty
-      finding = findings[:saga_redelivery_idempotency].first
-      expect(finding[:field]).to eq("saga_redelivery_idempotency")
-      expect(finding[:domain]).to eq("Waybill")
-      expect(finding[:process_manager]).to eq("Packing")
-      expect(finding[:correlation]).to eq("R1")
-      expect(finding[:on]).to eq("SlotFilled")
+    it "fires when a corrupted rehydration reverts the checkpoint to an earlier, still-matching state" do
+      expect(@findings[:saga_redelivery_idempotency]).not_to be_empty
+      expect(@findings[:saga_redelivery_idempotency].first).to include(
+        field: "saga_redelivery_idempotency", domain: "Waybill", process_manager: "Packing", correlation: "R1", on: "SlotFilled"
+      )
+    end
+
+    it "records the earlier state and no resulting state" do
+      finding = @findings[:saga_redelivery_idempotency].first
+
       expect(finding[:before][:state]).to eq("filling")
       expect(finding[:after]).to be_nil
     end
@@ -95,10 +108,8 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     # "diverged on: sagas" in diff_ruby_vs_rust. The trace must match with the mode on or off.
     it "does not leak the redelivery probe's own saga_log row into the primary sagas trace" do
       stub_const("Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH", 3)
-      without_self_consistency =
-        Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: false)
-      with_self_consistency =
-        Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: true)
+      without_self_consistency = replay_waybill_with(false)
+      with_self_consistency = replay_waybill_with(true)
 
       # The probe genuinely ran: the stuck "filled" instance has no handler for SlotFilled, so
       # advance_saga appends a leg-mismatch row every time, making this more than a vacuous pass.

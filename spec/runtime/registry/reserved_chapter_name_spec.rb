@@ -6,37 +6,46 @@ require "tmpdir"
 RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
   GEM_CHAPTER_ROOT = File.expand_path("../../../lib/hecks/hecks", __dir__)
 
-  def client_bluebook(dir, name, namespace: nil)
-    path = File.join(dir, "client.bluebook")
-    nest = namespace ? %(namespace "#{namespace}"\n  ) : ""
-    File.write(path, <<~RUBY)
-      Hecks.bluebook "#{name}" do
-        #{nest}aggregate "Widget" do
-          description "A widget."
-          attribute :reference, Reference
-          identified_by :reference
+  CLIENT_BLUEBOOK_TEMPLATE = <<~'RUBY'.freeze
+    Hecks.bluebook "%<name>s" do
+      %<nest>saggregate "Widget" do
+        description "A widget."
+        attribute :reference, Reference
+        identified_by :reference
 
-          value_object "Reference" do
-            attribute :value, String, pattern: '[^ \\t\\n\\r]'
-            invariant("a reference is present") { !value.to_s.empty? }
-          end
+        value_object "Reference" do
+          attribute :value, String, pattern: '[^ \t\n\r]'
+          invariant("a reference is present") { !value.to_s.empty? }
         end
       end
-    RUBY
+    end
+  RUBY
+
+  around do |example|
+    Dir.mktmpdir do |tmp|
+      @dir = tmp
+      example.run
+    end
+  end
+
+  attr_reader :dir
+
+  def client_bluebook(name, namespace: nil)
+    path = File.join(dir, "client.bluebook")
+    nest = namespace ? %(namespace "#{namespace}"\n  ) : ""
+    File.write(path, format(CLIENT_BLUEBOOK_TEMPLATE, name: name, nest: nest))
     path
   end
 
-  # Boots `dir` as a client project; `verify!` runs inside the boot.
-  def boot(dir) = Hecks.boot(dir, install_doors: false)
+  # Boots `directory` as a client project; `verify!` runs inside the boot.
+  def boot(directory) = Hecks.boot(directory, install_doors: false)
 
-  it "refuses a client chapter named Hecks and names the word, the file and the fix" do
-    Dir.mktmpdir do |dir|
-      path = client_bluebook(dir, "Hecks", namespace: "ClientHecks")
+  it "refuses a client chapter named Hecks and names the word, the file and the fix", :aggregate_failures do
+    path = client_bluebook("Hecks", namespace: "ClientHecks")
 
-      expect { boot(dir) }.to raise_error(Hecks::Runtime::WiringError) { |error|
-        expect(error.message).to include('"Hecks" is a reserved word', "Rename the chapter", path)
-      }
-    end
+    expect { boot(dir) }.to raise_error(Hecks::Runtime::WiringError) { |error|
+      expect(error.message).to include('"Hecks" is a reserved word', "Rename the chapter", path)
+    }
   end
 
   it "refuses a Hecks chapter that no file declared" do
@@ -51,18 +60,14 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
   end
 
   it "boots a differently named client chapter" do
-    Dir.mktmpdir do |dir|
-      client_bluebook(dir, "Hecksy")
+    client_bluebook("Hecksy")
 
-      expect(boot(dir).registry.bluebooks.keys).to eq(["Hecksy"])
-    end
+    expect(boot(dir).registry.bluebooks.keys).to eq(["Hecksy"])
   end
 
   it "leaves the Hecks::Domain namespace working for a chapter under another name" do
-    Dir.mktmpdir do |dir|
-      client_bluebook(dir, "Widgets", namespace: "Hecks::Domain")
+    client_bluebook("Widgets", namespace: "Hecks::Domain")
 
-      expect(boot(dir).registry.bluebook("Widgets").namespace).to eq("Hecks::Domain")
-    end
+    expect(boot(dir).registry.bluebook("Widgets").namespace).to eq("Hecks::Domain")
   end
 end

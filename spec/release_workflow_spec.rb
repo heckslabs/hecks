@@ -5,21 +5,38 @@ require "yaml"
 # shape is pinned: least-privilege permissions, a queue that never cancels a release, the
 # agreement check before anything is published, and a secret that reaches only the push.
 RSpec.describe ".github/workflows/release.yml" do
-  let(:path) { File.join(InMemoryDomain::ROOT, ".github/workflows/release.yml") }
-  let(:text) { File.read(path) }
-  let(:workflow) { YAML.safe_load(text) }
-  # YAML 1.1 reads the bare key `on` as true.
-  let(:triggers) { workflow.fetch("on") { workflow.fetch(true) } }
-  let(:steps) { workflow.fetch("jobs").fetch("release").fetch("steps") }
-  let(:code) { text.lines.reject { |line| line.strip.start_with?("#") }.join }
+  # Each step is skipped when its result already exists.
+  STEP_GATES = {
+    "Tag the release commit"        => "steps.state.outputs.tagged == 'false'",
+    "Build the gem"                 => "steps.state.outputs.gem == 'false'",
+    "Push the gem with the API key" => "steps.state.outputs.gem == 'false'",
+    "Start the npm publish"         => "steps.state.outputs.npm == 'false'",
+    "Create the GitHub Release"     => "steps.state.outputs.release == 'false'"
+  }.freeze
 
-  it "asks for contents and actions write at the top, and adds the OIDC token to the job only" do
+  UNLESS_PUSHED = "steps.api_key_push.outputs.pushed != 'true'".freeze
+
+  let(:workflow) { YAML.safe_load(text) }
+  let(:steps) { workflow.fetch("jobs").fetch("release").fetch("steps") }
+
+  def text = File.read(File.join(InMemoryDomain::ROOT, ".github/workflows/release.yml"))
+
+  # YAML 1.1 reads the bare key `on` as true.
+  def triggers = workflow.fetch("on") { workflow.fetch(true) }
+
+  def code = text.lines.reject { |line| line.strip.start_with?("#") }.join
+
+  def names = steps.filter_map { |step| step["name"] }
+
+  def step_named(name) = steps.find { |step| step["name"] == name }
+
+  it "asks for contents and actions write at the top, and adds the OIDC token to the job only", :aggregate_failures do
     expect(workflow.fetch("permissions")).to eq("contents" => "write", "actions" => "write")
     expect(workflow.fetch("jobs").fetch("release").fetch("permissions"))
       .to eq("contents" => "write", "actions" => "write", "id-token" => "write")
   end
 
-  it "runs when main changes the version file, and by hand with a tag" do
+  it "runs when main changes the version file, and by hand with a tag", :aggregate_failures do
     expect(triggers.fetch("push")).to include("branches" => ["main"], "paths" => ["lib/hecks/version.rb"])
     expect(triggers.fetch("workflow_dispatch").fetch("inputs").fetch("tag")).to include("required" => true)
   end
@@ -32,9 +49,8 @@ RSpec.describe ".github/workflows/release.yml" do
     expect(workflow.fetch("jobs").fetch("release")).to include("timeout-minutes")
   end
 
-  it "checks that the four version sources agree before it tags or publishes" do
-    names = steps.filter_map { |step| step["name"] }
-    check = steps.find { |step| step["name"] == "The files agree on one version" }
+  it "checks that the four version sources agree before it tags or publishes", :aggregate_failures do
+    check = step_named("The files agree on one version")
 
     expect(check.fetch("run")).to include("lib/hecks/version.rb", "packages/hecks-client/package.json",
                                           "rust/host/HECKS_RELEASE", "CHANGELOG.md")
@@ -42,7 +58,7 @@ RSpec.describe ".github/workflows/release.yml" do
     expect(names.index("Tag the release commit")).to be < names.index("Push the gem with the API key")
   end
 
-  it "hands the gem key to the push step only" do
+  it "hands the gem key to the push step only", :aggregate_failures do
     holders = steps.select { |step| step.to_s.include?("secrets.RUBYGEMS_API_KEY") }
 
     expect(holders.map { |step| step["name"] }).to eq(["Push the gem with the API key"])
@@ -53,42 +69,40 @@ RSpec.describe ".github/workflows/release.yml" do
   it "skips each step whose result already exists" do
     gated = steps.select { |step| step["name"] && step["if"] }.to_h { |step| [step["name"], step["if"]] }
 
-    expect(gated.fetch("Tag the release commit")).to eq("steps.state.outputs.tagged == 'false'")
-    expect(gated.fetch("Build the gem")).to eq("steps.state.outputs.gem == 'false'")
-    expect(gated.fetch("Push the gem with the API key")).to eq("steps.state.outputs.gem == 'false'")
-    expect(gated.fetch("Start the npm publish")).to eq("steps.state.outputs.npm == 'false'")
-    expect(gated.fetch("Create the GitHub Release")).to eq("steps.state.outputs.release == 'false'")
+    expect(gated.slice(*STEP_GATES.keys)).to eq(STEP_GATES)
   end
 
   it "starts the npm publish by dispatch, since a GITHUB_TOKEN tag push starts nothing" do
-    start = steps.find { |step| step["name"] == "Start the npm publish" }
+    start = step_named("Start the npm publish")
 
     expect(start.fetch("run")).to include("gh workflow run publish-client.yml")
   end
 
   it "creates the release from the CHANGELOG section and marks it latest" do
-    release = steps.find { |step| step["name"] == "Create the GitHub Release" }
+    release = step_named("Create the GitHub Release")
 
     expect(release.fetch("run")).to include("CHANGELOG.md", "--notes-file", "--latest", "--verify-tag")
   end
 
   describe "the gem push" do
-    let(:api_push) { steps.find { |step| step["name"] == "Push the gem with the API key" } }
-    let(:oidc_push) { steps.find { |step| step["name"] == "Push the gem with trusted publishing" } }
-    let(:configure) { steps.find { |step| step["name"] == "Configure RubyGems trusted publishing" } }
-    let(:names) { steps.filter_map { |step| step["name"] } }
+    def api_push = step_named("Push the gem with the API key")
+
+    def oidc_push = step_named("Push the gem with trusted publishing")
+
+    def configure = step_named("Configure RubyGems trusted publishing")
 
     it "retries the API-key push with backoff and does not retry a refused key" do
       expect(api_push.fetch("run")).to include("for attempt in", "sleep", "401|403")
     end
 
-    it "falls back to trusted publishing when the API-key push did not land" do
-      unless_pushed = "steps.api_key_push.outputs.pushed != 'true'"
-
+    it "falls back to trusted publishing when the API-key push did not land", :aggregate_failures do
       expect(api_push.fetch("id")).to eq("api_key_push")
       expect(configure.fetch("uses")).to match(%r{\Arubygems/configure-rubygems-credentials@\h{40}})
-      expect(configure.fetch("if")).to include(unless_pushed)
-      expect(oidc_push.fetch("if")).to include(unless_pushed)
+      expect(configure.fetch("if")).to include(UNLESS_PUSHED)
+      expect(oidc_push.fetch("if")).to include(UNLESS_PUSHED)
+    end
+
+    it "configures and uses trusted publishing only after the API-key push", :aggregate_failures do
       expect(names.index("Push the gem with the API key")).to be < names.index("Configure RubyGems trusted publishing")
       expect(names.index("Push the gem with trusted publishing")).to be < names.index("The gem is listed")
     end
@@ -108,7 +122,7 @@ RSpec.describe ".github/workflows/release.yml" do
       expect(oidc_push.to_s).not_to include("secrets.")
     end
 
-    it "checks the version is listed before the npm publish and the release" do
+    it "checks the version is listed before the npm publish and the release", :aggregate_failures do
       expect(names.index("The gem is listed")).to be < names.index("Start the npm publish")
       expect(names.index("The gem is listed")).to be < names.index("Create the GitHub Release")
     end

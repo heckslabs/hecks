@@ -42,15 +42,15 @@ module Hecks
     # carries the MCP protocol, and a stray line there corrupts the client's framing.
     #
     # @param server [String] the server's name, used as the line prefix
-    # @param argv [Array<String>] the command-line arguments
-    # @param env [Hash{String => String}] the process environment
-    # @param stdin [IO] the stream requests arrive on
-    # @param stdout [IO] the stream responses leave on
     # @param stderr [IO] where the refusal is written
+    # @param checks [Hash{Symbol => Object}] what `violations` looks at: `argv:` (the command-line
+    #   arguments), `env:` (the process environment), `stdin:` (the stream requests arrive on) and
+    #   `stdout:` (the stream responses leave on)
     # @return [void]
     # @raise [SystemExit] with status `EXIT_STATUS` when `violations` is not empty
-    def enforce_stdio!(server:, argv: ARGV, env: ENV, stdin: $stdin, stdout: $stdout, stderr: $stderr)
-      found = violations(argv: argv, env: env, stdin: stdin, stdout: stdout)
+    # @raise [ArgumentError] for any other keyword
+    def enforce_stdio!(server:, stderr: $stderr, **checks)
+      found = violations(**checks)
       refuse!(server, found, stderr) unless found.empty?
     end
 
@@ -88,7 +88,7 @@ module Hecks
     # @api private
     def argument_violations(argv)
       (argv - ACCEPTED_ARGS).map do |arg|
-        "argument #{arg.inspect} is not accepted (only #{ACCEPTED_ARGS.join(', ')}); network options are refused, not ignored"
+        "argument #{arg.inspect} is not accepted (only #{ACCEPTED_ARGS.join(", ")}); network options are refused, not ignored"
       end
     end
 
@@ -96,7 +96,7 @@ module Hecks
     def environment_violations(env)
       env.select { |name, value| name.start_with?(ENV_PREFIX) && ACCEPTED_ENV[name] != value }.map do |name, value|
         "environment #{name}=#{value.inspect} is not accepted; the servers take no #{ENV_PREFIX}* options " \
-          "except #{ACCEPTED_ENV.map { |k, v| "#{k}=#{v}" }.join(', ')}"
+          "except #{ACCEPTED_ENV.map { |k, v| "#{k}=#{v}" }.join(", ")}"
       end
     end
 

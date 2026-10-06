@@ -21,7 +21,7 @@ RSpec.describe Hecks::Projections::Deploy::Smoke do
     YAML.safe_load(text).fetch("jobs").fetch("smoke").fetch("steps")
   end
 
-  it "adds nothing unless the domain opted in" do
+  it "adds nothing unless the domain opted in", :aggregate_failures do
     expect(described_class.files({ region: "us-east-1" }, stack_name: "example")).to eq({})
     expect(described_class.files(opted_in.merge(smoke: false), stack_name: "example")).to eq({})
   end
@@ -30,25 +30,30 @@ RSpec.describe Hecks::Projections::Deploy::Smoke do
     expect { described_class.files({}, stack_name: "example") }.not_to raise_error
   end
 
-  it "emits the harness unchanged, beside the rendered workflow" do
+  it "emits the harness unchanged, beside the rendered workflow", :aggregate_failures do
     files = described_class.files(opted_in, stack_name: "example")
 
     expect(files.keys).to eq(%w[smoke/harness.js smoke/workflow.yml])
     expect(files["smoke/harness.js"]).to eq(File.read(File.join(described_class::TEMPLATES, "harness.js")))
   end
 
-  it "renders a workflow that trades the OIDC token for the role and reads one secret" do
-    parsed = YAML.safe_load(workflow)
+  describe "the rendered workflow, trading the OIDC token for the role and reading one secret" do
+    let(:parsed) { YAML.safe_load(workflow) }
 
-    expect(parsed["name"]).to eq("example smoke test")
-    expect(parsed["permissions"]).to include("id-token" => "write", "contents" => "read")
-    expect(parsed[true]["schedule"]).to eq([{ "cron" => "*/15 * * * *" }])
+    it "names itself, asks for the token and runs on a schedule", :aggregate_failures do
+      expect(parsed["name"]).to eq("example smoke test")
+      expect(parsed["permissions"]).to include("id-token" => "write", "contents" => "read")
+      expect(parsed[true]["schedule"]).to eq([{ "cron" => "*/15 * * * *" }])
+    end
 
-    aws = steps(workflow).find { |step| step["uses"].to_s.start_with?("aws-actions/configure-aws-credentials") }
-    expect(aws["with"]).to eq("role-to-assume" => "arn:aws:iam::123456789012:role/example-smoke", "aws-region" => "us-east-1")
+    it "assumes the smoke role" do
+      aws = steps(workflow).find { |step| step["uses"].to_s.start_with?("aws-actions/configure-aws-credentials") }
+
+      expect(aws["with"]).to eq("role-to-assume" => "arn:aws:iam::123456789012:role/example-smoke", "aws-region" => "us-east-1")
+    end
   end
 
-  it "runs the harness in safe mode against the site, with the secret in the configured variable" do
+  it "runs the harness in safe mode against the site, with the secret in the configured variable", :aggregate_failures do
     run = steps(workflow).last
 
     expect(run["env"]).to include("SMOKE_MODE" => "safe", "SMOKE_SITE_URL" => "https://example.org")
@@ -56,28 +61,41 @@ RSpec.describe Hecks::Projections::Deploy::Smoke do
     expect(run["run"]).to eq("node smoke/harness.js smoke/config.js")
   end
 
-  it "leaves no placeholder behind, and no setup step when none was asked for" do
+  it "leaves no placeholder behind, and no setup step when none was asked for", :aggregate_failures do
     expect(workflow).not_to include("@@")
     expect(steps(workflow).map { |step| step["name"] }).not_to include("Set up the smoke run")
   end
 
-  it "takes a secret field, a variable name, a schedule, paths and a setup command" do
-    text = workflow(opted_in.merge(smoke_secret_field: "session_secret", smoke_secret_env: "APP_SECRET",
-                                   smoke_schedule: "0 * * * *", smoke_harness: "ci/harness.js",
-                                   smoke_config: "ci/config.js", smoke_setup: "npm ci --no-audit"))
-    parsed_steps = steps(text)
-    setup = parsed_steps.find { |step| step["name"] == "Set up the smoke run" }
-    secret = parsed_steps.find { |step| step["id"] == "secret" }
+  describe "taking a secret field, a variable name, a schedule, paths and a setup command" do
+    let(:text) do
+      workflow(opted_in.merge(smoke_secret_field: "session_secret", smoke_secret_env: "APP_SECRET",
+                              smoke_schedule: "0 * * * *", smoke_harness: "ci/harness.js",
+                              smoke_config: "ci/config.js", smoke_setup: "npm ci --no-audit"))
+    end
+    let(:parsed_steps) { steps(text) }
+    let(:setup) { parsed_steps.find { |step| step["name"] == "Set up the smoke run" } }
+    let(:secret) { parsed_steps.find { |step| step["id"] == "secret" } }
 
-    expect(YAML.safe_load(text)[true]["schedule"]).to eq([{ "cron" => "0 * * * *" }])
-    expect(parsed_steps.index(setup)).to be < parsed_steps.index(secret)
-    expect(setup["run"]).to eq("npm ci --no-audit")
-    expect(secret["run"]).to include("JSON.parse(require(\"fs\").readFileSync(0)).session_secret")
-    expect(parsed_steps.last["env"]).to have_key("APP_SECRET")
-    expect(parsed_steps.last["run"]).to eq("node ci/harness.js ci/config.js")
+    it "schedules the run" do
+      expect(YAML.safe_load(text)[true]["schedule"]).to eq([{ "cron" => "0 * * * *" }])
+    end
+
+    it "runs the setup command before the secret is read", :aggregate_failures do
+      expect(parsed_steps.index(setup)).to be < parsed_steps.index(secret)
+      expect(setup["run"]).to eq("npm ci --no-audit")
+    end
+
+    it "reads the named field of the secret" do
+      expect(secret["run"]).to include("JSON.parse(require(\"fs\").readFileSync(0)).session_secret")
+    end
+
+    it "carries the variable name and the paths into the harness step", :aggregate_failures do
+      expect(parsed_steps.last["env"]).to have_key("APP_SECRET")
+      expect(parsed_steps.last["run"]).to eq("node ci/harness.js ci/config.js")
+    end
   end
 
-  it "reads the secret as plain text when no field is named" do
+  it "reads the secret as plain text when no field is named", :aggregate_failures do
     secret_step = steps(workflow).find { |step| step["id"] == "secret" }
 
     expect(secret_step["run"]).not_to include("node -e")

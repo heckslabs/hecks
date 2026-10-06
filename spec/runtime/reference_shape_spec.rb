@@ -25,27 +25,25 @@ RSpec.describe "a reference that arrives as an object" do
     runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "b" })
   end
 
+  def ask(reference, **endpoints)
+    runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: reference }, amount: { cents: 100 }, **endpoints)
+  end
+
   it "is refused, and says what to send instead" do
-    expect do
-      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
-                                         source: { value: "a" }, destination: "b")
-    end.to raise_error(Hecks::Runtime::TypeMismatch,
-                       "Ask refused — a reference is an id, and source arrived as an object " \
-                       "(Drawer is known by number)")
+    expect { ask("w1", source: { value: "a" }, destination: "b") }
+      .to raise_error(Hecks::Runtime::TypeMismatch,
+                      "Ask refused — a reference is an id, and source arrived as an object (Drawer is known by number)")
   end
 
   # Declaration order, not payload order: the walk is over the command's own attributes.
   it "names the first reference the command declares, not the first one passed" do
-    expect do
-      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
-                                         destination: { value: "b" }, source: { value: "a" })
-    end.to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
+    expect { ask("w1", destination: { value: "b" }, source: { value: "a" }) }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
   end
 
   # The accepted form is stored as the scalar, not re-wrapped downstream.
-  it "accepts the id, and stores it as the id" do
-    runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
-                                       source: "a", destination: "b")
+  it "accepts the id, and stores it as the id", :aggregate_failures do
+    ask("w1", source: "a", destination: "b")
 
     wire = runtime.registry.repository("Wire", runtime.registry.bluebook("Wire").aggregate("Wire")).find("w1")
 
@@ -62,21 +60,18 @@ RSpec.describe "a reference that arrives as an object" do
       "a bare Array"           => [8, 8]
     }.each do |description, malformed|
       it "refuses #{description} as a wrong shape, not a lookup" do
-        expect do
-          runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w3" }, amount: { cents: 100 },
-                                              source: malformed, destination: "b")
-        end.to raise_error(Hecks::Runtime::TypeMismatch,
-                           "Ask refused — a reference is an id, and source arrived as " \
-                           "#{malformed.is_a?(Array) ? malformed.to_json : malformed} (Drawer is known by number)")
+        shown = malformed.is_a?(Array) ? malformed.to_json : malformed
+
+        expect { ask("w3", source: malformed, destination: "b") }
+          .to raise_error(Hecks::Runtime::TypeMismatch,
+                          "Ask refused — a reference is an id, and source arrived as #{shown} (Drawer is known by number)")
       end
     end
 
     it "refuses a REQUIRED reference offered as null, rather than reaching the command's own given" do
-      expect do
-        runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w4" }, amount: { cents: 100 },
-                                            source: nil, destination: "b")
-      end.to raise_error(Hecks::Runtime::TypeMismatch,
-                         "Ask refused — a reference is an id, and source arrived as nil (Drawer is known by number)")
+      expect { ask("w4", source: nil, destination: "b") }
+        .to raise_error(Hecks::Runtime::TypeMismatch,
+                        "Ask refused — a reference is an id, and source arrived as nil (Drawer is known by number)")
     end
   end
 
@@ -132,10 +127,15 @@ RSpec.describe "a reference that arrives as an object" do
       end
     end
 
-    it "is refused by the query's own name" do
+    def banking_with_customer
       banking = boot_banking
       banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+                            name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      banking
+    end
+
+    it "is refused by the query's own name" do
+      banking = banking_with_customer
 
       expect { banking.query("Banking.customer_portfolio", customer: { value: "c" }) }
         .to raise_error(Hecks::Runtime::TypeMismatch,
@@ -143,9 +143,7 @@ RSpec.describe "a reference that arrives as an object" do
     end
 
     it "answers when it is given the id" do
-      banking = boot_banking
-      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      banking = banking_with_customer
 
       expect(banking.query("Banking.customer_portfolio", customer: "c")).not_to be_empty
     end

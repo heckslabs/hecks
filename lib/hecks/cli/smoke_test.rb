@@ -17,14 +17,28 @@ module Hecks
         missing = argv.reject { |dir| File.directory?(dir) }
         abort "smoke_test: no such domain #{missing.first.inspect}" unless missing.empty?
 
-        targets = argv.empty? ? Dir.glob("#{root}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) } : argv
+        targets = targets_for(argv, root)
         abort "no wired example domains found (none of examples/* has a .hecksagon)" if targets.empty?
 
-        ok = targets.reduce(true) { |all_ok, dir| clean?(dir) && all_ok }
+        finish(targets.reduce(true) { |all_ok, dir| clean?(dir) && all_ok })
+      end
 
+      # Prints the verdict and exits with its status.
+      #
+      # @api private
+      def finish(passed)
         puts
-        puts ok ? "Every declared command and report dispatched cleanly." : "SMOKE TEST FOUND PROBLEMS."
-        exit(ok ? 0 : 1)
+        puts passed ? "Every declared command and report dispatched cleanly." : "SMOKE TEST FOUND PROBLEMS."
+        exit(passed ? 0 : 1)
+      end
+
+      # The named domains, or every wired example under `root` when none is named.
+      #
+      # @api private
+      def targets_for(argv, root)
+        return argv unless argv.empty?
+
+        Dir.glob("#{root}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) }
       end
 
       def wired?(dir) = !Dir.glob(File.join(dir, "**/*.hecksagon")).empty?

@@ -20,51 +20,42 @@ RSpec.describe "qa_sweep seed range", :io do
                     next_streak: { value: next_streak }, capabilities: { value: "sqlite" })
   end
 
-  it "sweeps the familiar 1..seeds for a fresh target, whose streak is 0" do
-    identify_targets!("seed_offset_target" => @target_domain_relpath)
-
-    stdout, _stderr, status = run_qa_sweep("seed_offset_target")
+  # Sweeps the fixture target (with any extra flags), expects a clean exit, and answers stdout.
+  def sweep_ok(*flags)
+    stdout, _stderr, status = run_qa_sweep("seed_offset_target", *flags)
     expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("resolved depth: seeds=10 steps=25 (clean_streak=0)")
-    expect(stdout).to include("seed range: 1..10")
+    stdout
   end
 
-  it "advances the range forward one full stride per further clean release, once widened" do
-    identify_targets!("seed_offset_target" => @target_domain_relpath)
+  before { identify_targets!("seed_offset_target" => @target_domain_relpath) }
+
+  it "sweeps the familiar 1..seeds for a fresh target, whose streak is 0" do
+    expect(sweep_ok).to include("resolved depth: seeds=10 steps=25 (clean_streak=0)", "seed range: 1..10")
+  end
+
+  it "advances the range forward one full stride per clean release, once widened" do
     fast_forward_streak!("seed_offset_target", 20)
 
-    stdout, _stderr, status = run_qa_sweep("seed_offset_target")
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("resolved depth: seeds=50 steps=100 (clean_streak=20)")
-    expect(stdout).to include("seed range: 1001..1050")
+    expect(sweep_ok).to include("resolved depth: seeds=50 steps=100 (clean_streak=20)", "seed range: 1001..1050")
+  end
 
-    # Keeps the ceiling tier's seed count, but the two ranges are back to back, never overlapping.
+  # Keeps the ceiling tier's seed count, but the two ranges are back to back, never overlapping.
+  it "advances the range by a further full stride for each further clean release" do
     fast_forward_streak!("seed_offset_target", 21)
 
-    stdout, _stderr, status = run_qa_sweep("seed_offset_target")
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("resolved depth: seeds=50 steps=100 (clean_streak=21)")
-    expect(stdout).to include("seed range: 1051..1100")
+    expect(sweep_ok).to include("resolved depth: seeds=50 steps=100 (clean_streak=21)", "seed range: 1051..1100")
   end
 
   it "keeps an explicit --seeds at the predictable 1..N, whatever the streak has climbed to" do
-    identify_targets!("seed_offset_target" => @target_domain_relpath)
     fast_forward_streak!("seed_offset_target", 20)
 
-    stdout, _stderr, status = run_qa_sweep("seed_offset_target", "--seeds", "3")
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("resolved depth: seeds=3")
-    expect(stdout).to include("seed range: 1..3")
+    expect(sweep_ok("--seeds", "3")).to include("resolved depth: seeds=3", "seed range: 1..3")
   end
 
   it "resets the range back to 1..seeds once a streak reset lands the target back at 0" do
-    identify_targets!("seed_offset_target" => @target_domain_relpath)
     fast_forward_streak!("seed_offset_target", 20)
     fast_forward_streak!("seed_offset_target", 0)
 
-    stdout, _stderr, status = run_qa_sweep("seed_offset_target")
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("resolved depth: seeds=10 steps=25 (clean_streak=0)")
-    expect(stdout).to include("seed range: 1..10")
+    expect(sweep_ok).to include("resolved depth: seeds=10 steps=25 (clean_streak=0)", "seed range: 1..10")
   end
 end

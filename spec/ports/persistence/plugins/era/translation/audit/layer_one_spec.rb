@@ -36,38 +36,29 @@ RSpec.describe "Layer 1's lifecycle-value check against the full declared state 
     violations
   end
 
-  it "does not block the mint on a record holding a valid from:-only state" do
-    aggregate = aggregate_with(lifecycle_with_from_only_state)
-    after = { "w1" => { "status" => "retired" } }
+  let(:aggregate) { aggregate_with(lifecycle_with_from_only_state) }
 
-    expect(violations_for(aggregate, after)).to be_empty
+  def after_holding(*statuses)
+    statuses.each_with_index.to_h { |status, index| ["w#{index + 1}", { "status" => status }] }
+  end
+
+  it "does not block the mint on a record holding a valid from:-only state" do
+    expect(violations_for(aggregate, after_holding("retired"))).to be_empty
   end
 
   it "still passes a record holding the default or an ordinary target state" do
-    aggregate = aggregate_with(lifecycle_with_from_only_state)
-    after = {
-      "w1" => { "status" => "new" },
-      "w2" => { "status" => "active" },
-      "w3" => { "status" => "archived" }
-    }
-
-    expect(violations_for(aggregate, after)).to be_empty
+    expect(violations_for(aggregate, after_holding("new", "active", "archived"))).to be_empty
   end
 
-  it "still catches a state this lifecycle never declares at all" do
-    aggregate = aggregate_with(lifecycle_with_from_only_state)
-    after = { "w1" => { "status" => "nowhere" } }
+  it "still catches a state this lifecycle never declares at all", :aggregate_failures do
+    violations = violations_for(aggregate, after_holding("nowhere"))
 
-    violations = violations_for(aggregate, after)
     expect(violations.size).to eq(1)
     expect(violations.first).to include("Widget#w1")
     expect(violations.first).to include("nowhere")
   end
 
   it "is a no-op for an aggregate with no lifecycle at all" do
-    aggregate = aggregate_with(nil)
-    after = { "w1" => { "status" => "anything" } }
-
-    expect(violations_for(aggregate, after)).to be_empty
+    expect(violations_for(aggregate_with(nil), after_holding("anything"))).to be_empty
   end
 end

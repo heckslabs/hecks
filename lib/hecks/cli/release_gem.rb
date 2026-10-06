@@ -25,19 +25,25 @@ module Hecks
       def call(root:, commands: nil, out: $stdout, err: $stderr, version: Hecks::VERSION)
         Dir.chdir(root) do
           commands ||= Hecks::Release::Runner::Commands.new
-          registry = Hecks::Adapters::Codebase::GemRegistry.new(root: root, commands: commands)
           refusal = refusal_for(root, commands, version)
           if refusal
             err.puts refusal
             return 1
           end
 
-          out.puts "Building and pushing hecks-#{version}.gem to rubygems.org " \
-                   "(1Password will prompt for Touch ID)..."
-          registry.push!(version)
-          out.puts "Released hecks #{version}."
-          0
+          push(root, commands, version, out)
         end
+      end
+
+      # @api private
+      # @return [Integer] 0 once pushed
+      def push(root, commands, version, out)
+        registry = Hecks::Adapters::Codebase::GemRegistry.new(root: root, commands: commands)
+        out.puts "Building and pushing hecks-#{version}.gem to rubygems.org " \
+                 "(1Password will prompt for Touch ID)..."
+        registry.push!(version)
+        out.puts "Released hecks #{version}."
+        0
       end
 
       # @param root [String] the repository root

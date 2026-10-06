@@ -7,7 +7,7 @@ require "fileutils"
 # `Hecks::Fuzzing::ConcurrentDispatch` against the real cross-process lock. Proves the pure
 # comparison (`divergences_for`, synthetic outcomes, no Postgres) and, separately, the forked
 # real-Postgres pipeline agreeing with its sequential oracle on a conflicting pair (ADR 0036).
-RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
+RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
   # A broken probe is not a sequence with nothing to race: answering `[]` would log a clean
   # concurrency Check while the race never ran. No Postgres: refusal happens before boot.
   describe ".check, when the cross-process-lock probe itself fails" do
@@ -240,21 +240,27 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
                     "scope" => { "value" => scope }, "starts_at" => starts_at } }
     end
 
+    def check_unbound(steps)
+      described_class.check(@unbound_fixture_root, steps,
+                            database: CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE,
+                            race_schema: "cd_race_unbound", reference_schema: "cd_ref_unbound")
+    end
+
+    def spurious_race_message(divergences)
+      "expected no finding (Governance::RoleAssignment isn't durably, sharedly " \
+        "persisted in this fixture, so it should never have been raced at all) but " \
+        "got: #{divergences.inspect} — this is BUG#142, a false positive from racing " \
+        "a Memory-backed aggregate, not a broken PostgresEra write lock"
+    end
+
     # The oracle settles this pair as `["succeeded", "refused"]` (AlreadyExists within one
     # Memory store); raced across two processes it settles `["succeeded", "succeeded"]`
     # because each boots its own empty store. `check` should never pick this aggregate.
     it "reports a spurious concurrency_race today — racing an aggregate with no shared persistence guarantees one" do
       steps = [assign_step("golf", "Governance administrator", "bravo", "echo")]
+      divergences = check_unbound(steps)
 
-      divergences = described_class.check(@unbound_fixture_root, steps,
-                                          database: CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE,
-                                          race_schema: "cd_race_unbound", reference_schema: "cd_ref_unbound")
-
-      expect(divergences).to eq([]),
-                             "expected no finding (Governance::RoleAssignment isn't durably, sharedly " \
-                             "persisted in this fixture, so it should never have been raced at all) but " \
-                             "got: #{divergences.inspect} — this is BUG#142, a false positive from racing " \
-                             "a Memory-backed aggregate, not a broken PostgresEra write lock"
+      expect(divergences).to eq([]), spurious_race_message(divergences)
     end
   end
 end

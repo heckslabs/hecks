@@ -1,0 +1,8 @@
+# deploy's own last step below looks up @@web_logical_id@@'s
+# CURRENTLY deployed Function URL live (not tracked anywhere
+# generated) and passes it as WebRedirectBaseUrl -- see that
+# Parameter's own comment, above, for why GOOGLE_REDIRECT_URI can't
+# just be a CloudFormation intrinsic. Empty on a genuine first
+# deploy (before the Url exists at all); every deploy after that
+# finds the real, STABLE hostname (confirmed unchanged across every
+# redeploy this session) and self-heals GOOGLE_REDIRECT_URI to match.

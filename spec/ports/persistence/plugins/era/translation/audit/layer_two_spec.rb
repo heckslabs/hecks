@@ -28,30 +28,34 @@ RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member com
     expect(violations_for(declared, before, after)).to be_empty
   end
 
-  it "no longer exempts a SIBLING member of a dotted compute's own value object" do
-    declared = declared_with_compute(from: "price.cents", to: "price.cents")
-    before = { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } }
+  describe "a SIBLING member of a dotted compute's own value object" do
+    let(:declared) { declared_with_compute(from: "price.cents", to: "price.cents") }
+    let(:before)   { { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } } }
 
-    # recomputing "price.cents" alone must not be flagged; the SQL is its implementation
-    recomputed_only = { "p1" => { "price" => { "cents" => 1, "currency" => "USD" } } }
-    expect(violations_for(declared, before, recomputed_only)).to be_empty
+    it "is no longer exempt when only the computed member is recomputed" do
+      # recomputing "price.cents" alone must not be flagged; the SQL is its implementation
+      recomputed_only = { "p1" => { "price" => { "cents" => 1, "currency" => "USD" } } }
 
-    # a migration nulling the sibling member the compute never touches is real data loss
-    sibling_nulled = { "p1" => { "price" => { "cents" => 1, "currency" => nil } } }
-    violations = violations_for(declared, before, sibling_nulled)
+      expect(violations_for(declared, before, recomputed_only)).to be_empty
+    end
 
-    expect(violations.size).to eq(1)
-    expect(violations.first).to include("Product#p1")
-    expect(violations.first).to include("price")
+    it "is no longer exempt when a migration nulls the sibling the compute never touches",
+       :aggregate_failures do
+      # that is real data loss
+      sibling_nulled = { "p1" => { "price" => { "cents" => 1, "currency" => nil } } }
+      violations = violations_for(declared, before, sibling_nulled)
+
+      expect(violations.size).to eq(1)
+      expect(violations.first).to include("Product#p1")
+      expect(violations.first).to include("price")
+    end
   end
 
-  it "no longer exempts a sibling member when the dotted compute's from/to paths differ" do
+  it "no longer exempts a sibling member when the dotted compute's from/to paths differ", :aggregate_failures do
     declared = declared_with_compute(from: "price.cents", to: "price.rounded_cents")
-    before = { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } }
     # "currency" vanished, unexplained
     sibling_dropped = { "p1" => { "price" => { "rounded_cents" => 100 } } }
-
-    violations = violations_for(declared, before, sibling_dropped)
+    violations = violations_for(declared, { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } }, sibling_dropped)
 
     expect(violations.size).to eq(1)
     expect(violations.first).to include("Product#p1")

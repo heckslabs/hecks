@@ -12,214 +12,193 @@ RSpec.describe "a composite-identified aggregate with two entities" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(BANKING_BLUEBOOK)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
-  def rented_box(runtime)
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
-                                                     box_number: { value: 12 }, size: { value: "medium" })
+  let(:runtime) { boot_banking }
+
+  def register_customer(reference, given, family, email)
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: reference },
+                          name: { given: given, family: family }, email: { address: email })
   end
 
-  it "accepts a customer identity fact and stores the declared relationship" do
-    runtime = boot_banking
-    box = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox")
-    rent = box.command("Rent")
-
-    expect(box.attribute(:customer).relationship).to eq("belongs_to")
-    # Redeclaring `attribute :customer, CustomerNumber` on `Rent` would shadow the aggregate's
-    # `belongs_to Customer` Reference, so a `given("customer is active")` guard could not read it.
-    expect([rent.attribute(:customer).type.to_s, rent.attribute(:customer).reference?])
-      .to eq(["Reference<Customer>", true])
-
-    rented_box(runtime)
-    expect(Banking::SafeDepositBox.find("DOWNTOWN:12")[:customer]).to eq("c")
+  def rent(customer, branch, number, size)
+    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: customer, branch_code: { value: branch },
+                          box_number: { value: number }, size: { value: size })
   end
 
-  it "refuses Rent for a suspended customer, and accepts it for an active one (#278)" do
-    runtime = boot_banking
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "active" },
-                     name: { given: "A", family: "One" }, email: { address: "a@example.com" })
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "flagged" },
-                     name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
+  def rented_box
+    register_customer("c", "A", "Customer", "a@example.com")
+    rent("c", "DOWNTOWN", 12, "medium")
+  end
+
+  # Runs a SafeDepositBox command against the DOWNTOWN:12 box.
+  def box_command(verb, **facts)
+    box_identity = { branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 } }
+    runtime.dispatch_flat("Banking::SafeDepositBox.#{verb}", **box_identity, **facts)
+  end
+
+  def log_visit(sequence = 1, date = "2026-01-05")
+    box_command("LogVisit", date: { value: date }, sequence: { value: sequence })
+  end
+
+  def issue_key = box_command("IssueKey", serial: { value: "KEY-1" })
+
+  def return_key = box_command("KeyIssuance.Return", serial: { value: "KEY-1" })
+
+  def downtown_box = Banking::SafeDepositBox.find("DOWNTOWN:12")
+
+  def rented_ids(branch) = runtime.query("Banking::SafeDepositBox.Rented", branch_code: branch).map { |row| row[:id] }
+
+  describe "its declared shape" do
+    let(:box) { runtime.registry.bluebook("Banking").aggregate("SafeDepositBox") }
+
+    it "accepts a customer identity fact", :aggregate_failures do
+      rent_command = box.command("Rent")
+
+      expect(box.attribute(:customer).relationship).to eq("belongs_to")
+      # Redeclaring `attribute :customer, CustomerNumber` on `Rent` would shadow the aggregate's
+      # `belongs_to Customer` Reference, so a `given("customer is active")` guard could not read it.
+      expect([rent_command.attribute(:customer).type.to_s, rent_command.attribute(:customer).reference?])
+        .to eq(["Reference<Customer>", true])
+    end
+
+    it "stores the declared relationship" do
+      rented_box
+
+      expect(downtown_box[:customer]).to eq("c")
+    end
+  end
+
+  it "refuses Rent for a suspended customer, and accepts it for an active one (#278)", :aggregate_failures do
+    register_customer("active", "A", "One", "a@example.com")
+    register_customer("flagged", "B", "Two", "b@example.com")
     runtime.dispatch_flat("Banking::Customer.Suspend", reference: "flagged", standing: { value: "flagged" })
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "active", branch_code: { value: "DOWNTOWN" },
-                                                        box_number: { value: 1 }, size: { value: "small" })
-    end.not_to raise_error
-
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "flagged", branch_code: { value: "DOWNTOWN" },
-                                                        box_number: { value: 2 }, size: { value: "small" })
-    end.to raise_error(Hecks::Runtime::GivenNotMet, /customer is active/)
+    expect { rent("active", "DOWNTOWN", 1, "small") }.not_to raise_error
+    expect { rent("flagged", "DOWNTOWN", 2, "small") }.to raise_error(Hecks::Runtime::GivenNotMet, /customer is active/)
   end
 
-  it "is born at the join of its two identity paths" do
-    runtime = boot_banking
-    rented_box(runtime)
+  it "is born at the join of its two identity paths", :aggregate_failures do
+    rented_box
 
-    box = Banking::SafeDepositBox.find("DOWNTOWN:12")
+    box = downtown_box
     expect(box.branch_code.to_h).to eq(value: "DOWNTOWN")
     expect(box.box_number.to_h).to  eq(value: 12)
     expect(box.status).to eq("rented")
   end
 
-  it "logs a composite-identified entity, appended by its own two-path identity" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-05" }, sequence: { value: 2 })
+  it "logs a composite-identified entity, appended by its own two-path identity", :aggregate_failures do
+    rented_box
+    [1, 2].each { |sequence| log_visit(sequence) }
 
-    visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
+    visits = downtown_box.visits
     expect(visits.map { |v| v[:sequence].to_h }).to eq([{ value: 1 }, { value: 2 }])
     expect(visits.map { |v| v[:state] }).to eq(%w[logged logged])
   end
 
   it "addresses the composite entity through the parent's composite identity" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
-    runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                                date: { value: "2026-01-05" }, sequence: { value: 1 },
-                                                                note: { text: "Flagged" })
+    rented_box
+    log_visit
+    box_command("Visit.Annotate", date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "Flagged" })
 
-    visit = Banking::SafeDepositBox.find("DOWNTOWN:12").visits.first
-    expect(visit[:note].to_h).to eq(text: "Flagged")
+    expect(downtown_box.visits.first[:note].to_h).to eq(text: "Flagged")
   end
 
-  it "carries a single-identified entity beside a composite one on the same head" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          serial: { value: "KEY-1" })
+  it "carries a single-identified entity beside a composite one on the same head", :aggregate_failures do
+    rented_box
+    issue_key
 
-    key = Banking::SafeDepositBox.find("DOWNTOWN:12").keys.first
+    key = downtown_box.keys.first
     expect(key[:serial].to_h).to eq(value: "KEY-1")
     expect(key[:status]).to eq("issued")
+  end
 
-    runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return",
-                          branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
-    expect(Banking::SafeDepositBox.find("DOWNTOWN:12").keys.first[:status]).to eq("returned")
+  it "returns a single-identified entity beside a composite one on the same head" do
+    rented_box
+    issue_key
+    return_key
+
+    expect(downtown_box.keys.first[:status]).to eq("returned")
   end
 
   it "refuses to log a visit against a box that is not rented" do
-    runtime = boot_banking
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
-                                                     box_number: { value: 12 }, size: { value: "medium" })
-    runtime.dispatch_flat("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
+    rented_box
+    box_command("Surrender")
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                            date: { value: "2026-01-05" }, sequence: { value: 1 })
-    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
+    expect { log_visit }.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
   end
 
   it "refuses to return a key that is not issued" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          serial: { value: "KEY-1" })
-    runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return",
-                          branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
+    rented_box
+    issue_key
+    return_key
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" },
-                                                                          box_number:  { value: 12 },
-                                                                          serial:      { value: "KEY-1" })
-    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "issued"/)
+    expect { return_key }.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "issued"/)
   end
 
-  it "announces two facts from one dispatch, and refuses a second surrender" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
+  it "announces two facts from one dispatch", :aggregate_failures do
+    rented_box
+    box_command("Surrender")
 
-    names = runtime.events.map(&:name)
-    expect(names).to include("BoxSurrendered", "KeyReturnDue")
-    expect(Banking::SafeDepositBox.find("DOWNTOWN:12").status).to eq("vacant")
-
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
-    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
+    expect(runtime.events.map(&:name)).to include("BoxSurrendered", "KeyReturnDue")
+    expect(downtown_box.status).to eq("vacant")
   end
 
-  it "answers a query with the closed-set attribute the inline shorthand declared" do
-    runtime = boot_banking
-    rented_box(runtime)
+  it "refuses a second surrender" do
+    rented_box
+    box_command("Surrender")
+
+    expect { box_command("Surrender") }.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
+  end
+
+  it "answers a query with the closed-set attribute the inline shorthand declared", :aggregate_failures do
+    rented_box
 
     rows = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN")
     expect(rows.map { |row| row[:id] }).to eq(["DOWNTOWN:12"])
     expect(rows.first[:size].to_h).to eq(value: "medium")
   end
 
-  it "refuses a second LogVisit that collides on the composite date+sequence identity" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
+  it "refuses a second LogVisit that collides on the composite date+sequence identity", :aggregate_failures do
+    rented_box
+    log_visit
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                            date: { value: "2026-01-05" }, sequence: { value: 1 })
-    end.to raise_error(Hecks::Runtime::AlreadyExists, /Visit.*already exists/)
-
+    expect { log_visit }.to raise_error(Hecks::Runtime::AlreadyExists, /Visit.*already exists/)
     # A refused second write leaves the first exactly as it was.
-    visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
-    expect(visits.size).to eq(1)
+    expect(downtown_box.visits.size).to eq(1)
   end
 
-  it "refuses a second IssueKey that collides on the single serial identity" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          serial: { value: "KEY-1" })
+  it "refuses a second IssueKey that collides on the single serial identity", :aggregate_failures do
+    rented_box
+    issue_key
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                            serial: { value: "KEY-1" })
-    end.to raise_error(Hecks::Runtime::AlreadyExists, /KeyIssuance.*already exists/)
-
-    keys = Banking::SafeDepositBox.find("DOWNTOWN:12").keys
-    expect(keys.size).to eq(1)
+    expect { issue_key }.to raise_error(Hecks::Runtime::AlreadyExists, /KeyIssuance.*already exists/)
+    expect(downtown_box.keys.size).to eq(1)
   end
 
   it "does not spuriously flag an auto-minted entity list — two visits on different days both land" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
-    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                          date: { value: "2026-01-06" }, sequence: { value: 1 })
+    rented_box
+    log_visit(1, "2026-01-05")
+    log_visit(1, "2026-01-06")
 
-    visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
-    expect(visits.map { |v| v[:date].to_h }).to eq([{ value: "2026-01-05" }, { value: "2026-01-06" }])
+    expect(downtown_box.visits.map { |v| v[:date].to_h }).to eq([{ value: "2026-01-05" }, { value: "2026-01-06" }])
   end
 
-  it "refuses a tenant-scoped query with no tenant, and scopes results away from another branch's box" do
-    runtime = boot_banking
-    rented_box(runtime)
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c2" },
-                     name: { given: "B", family: "Customer" }, email: { address: "b@example.com" })
-    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c2", branch_code: { value: "UPTOWN" },
-                                                     box_number: { value: 1 }, size: { value: "small" })
+  it "refuses a tenant-scoped query with no tenant" do
+    rented_box
 
     expect { runtime.query("Banking::SafeDepositBox.Rented") }
       .to raise_error(Hecks::Runtime::Unauthorized, /declares authorize with tenant: branch_code/)
+  end
 
-    downtown = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN")
-    expect(downtown.map { |row| row[:id] }).to eq(["DOWNTOWN:12"])
+  it "scopes results away from another branch's box", :aggregate_failures do
+    rented_box
+    register_customer("c2", "B", "Customer", "b@example.com")
+    rent("c2", "UPTOWN", 1, "small")
 
-    uptown = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "UPTOWN")
-    expect(uptown.map { |row| row[:id] }).to eq(["UPTOWN:1"])
+    expect(rented_ids("DOWNTOWN")).to eq(["DOWNTOWN:12"])
+    expect(rented_ids("UPTOWN")).to eq(["UPTOWN:1"])
   end
 end

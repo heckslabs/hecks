@@ -42,32 +42,51 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
       expect(text).to eq(File.read(tree.path("lib/hecks/bluebook/expression/projection.json")))
     end
 
-    it "reports drift without writing, and writes only when confirmed, in another tree" do
-      Dir.mktmpdir do |dir|
-        other = Hecks::Adapters::Codebase::Tree.new(root: dir)
-        target = File.join(dir, "lib/hecks/vocabulary.rb")
+    context "with another tree" do
+      around do |example|
+        Dir.mktmpdir do |dir|
+          @dir = dir
+          example.run
+        end
+      end
 
+      let(:other) { Hecks::Adapters::Codebase::Tree.new(root: @dir) }
+
+      def target = File.join(@dir, "lib/hecks/vocabulary.rb")
+
+      # A file the Rust vocabulary no longer emits.
+      def plant_retired_table
+        FileUtils.mkdir_p(File.join(@dir, "rust/src/kernel/vocab"))
+        File.join(@dir, "rust/src/kernel/vocab/retired_table.rs").tap { |path| File.write(path, "// no longer projected\n") }
+      end
+
+      it "reports drift without writing, unless confirmed", :aggregate_failures do
         dry = described_class.call("project_vocabulary", {}, other)
+
         expect(dry).to include("dry run, 1 files differ", "new lib/hecks/vocabulary.rb")
         expect(File.exist?(target)).to be(false)
+      end
 
+      it "writes what the language projects when confirmed", :aggregate_failures do
         written = described_class.call("project_vocabulary", { confirm: { value: true } }, other)
+
         expect(written).to start_with("wrote 1 files:")
         expect(File.read(target)).to eq(File.read(tree.path("lib/hecks/vocabulary.rb")))
       end
-    end
 
-    it "removes what the Rust vocabulary no longer emits, only when confirmed" do
-      Dir.mktmpdir do |dir|
-        other = Hecks::Adapters::Codebase::Tree.new(root: dir)
-        FileUtils.mkdir_p(File.join(dir, "rust/src/kernel/vocab"))
-        stale = File.join(dir, "rust/src/kernel/vocab/retired_table.rs")
-        File.write(stale, "// no longer projected\n")
+      it "keeps what the Rust vocabulary no longer emits, unless confirmed" do
+        stale = plant_retired_table
 
         described_class.call("project_rust_vocabulary", {}, other)
+
         expect(File.exist?(stale)).to be(true)
+      end
+
+      it "removes what the Rust vocabulary no longer emits when confirmed", :aggregate_failures do
+        stale = plant_retired_table
 
         report = described_class.call("project_rust_vocabulary", { confirm: { value: true } }, other)
+
         expect(report).to include("removed rust/src/kernel/vocab/retired_table.rs")
         expect(File.exist?(stale)).to be(false)
       end
@@ -75,7 +94,7 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
   end
 
   describe "the words' standing" do
-    it "counts the keyword rows and names each one that is moving" do
+    it "counts the keyword rows and names each one that is moving", :aggregate_failures do
       status = described_class.word_status
 
       expect(status).to match(/\A[0-9]+ keyword rows; [0-9]+ not simply admitted; [0-9]+ renamed/)
@@ -85,8 +104,10 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
 
   describe "an evolution" do
     let(:tree) { @copy }
-    let(:tables) { Hecks::Grammar::Evolve.syntax_paths }
-    let(:golden) { tree.path(described_class::GOLDEN) }
+    let(:shell) { shell_class.new }
+
+    def tables = Hecks::Grammar::Evolve.syntax_paths
+    def golden = tree.path(described_class::GOLDEN)
 
     def snapshot = (tables + [golden]).to_h { |path| [path, File.read(path)] }
 
@@ -106,7 +127,7 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
       end
     end
 
-    it "rehearses the edit without writing when it is not confirmed" do
+    it "rehearses the edit without writing when it is not confirmed", :aggregate_failures do
       before = snapshot
 
       report = language("propose", { word: { value: "no_such_word" }, context: { value: "Aggregate" } })
@@ -116,7 +137,7 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
       expect(snapshot).to eq(before)
     end
 
-    it "refuses a word that is not declared, in words, and changes nothing" do
+    it "refuses a word that is not declared, in words, and changes nothing", :aggregate_failures do
       before = snapshot
 
       expect { language("admit", { word: { value: "no_such_word" }, context: { value: "Aggregate" } }) }
@@ -134,28 +155,41 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
         .to raise_error(console_failure, /a rename goes somewhere/)
     end
 
-    it "makes the edit, regenerates the golden and holds the gates when confirmed" do
-      shell = shell_class.new
-      report = language("propose", { word: { value: "no_such_word" }, context: { value: "Aggregate" },
-                                     confirm: { value: true } }, shell: shell)
-
-      expect(File.read(tables.find { |path| path.end_with?("aggregate.bluebook") }))
-        .to include('word: "no_such_word", context: "Aggregate"')
-      expect(report).to include("Aggregate.no_such_word — the gates hold", "teach the Aggregate builder the word")
-      expect(shell.asked.map { |ask| ask[:command].last(3) }.first).to eq(%w[exec rspec spec/ir_golden_spec.rb])
-      expect(shell.asked.first[:env]).to eq("GOLDEN" => "rewrite")
-      expect(shell.asked.last[:command]).to include(*described_class::GATES)
-      expect(shell.asked.map { |ask| ask[:chdir] }.uniq).to eq([tree.root])
+    # Proposes a word that is not declared yet, confirmed, answering the report.
+    def propose_confirmed(shell)
+      language("propose", { word: { value: "no_such_word" }, context: { value: "Aggregate" },
+                            confirm: { value: true } }, shell: shell)
     end
 
-    it "puts every file back when a gate refuses, and says what failed" do
-      before = snapshot
-      shell = shell_class.new(0, 1)
+    context "when confirmed and the gates hold" do
+      let(:report) { propose_confirmed(shell) }
 
-      expect do
-        language("propose", { word: { value: "no_such_word" }, context: { value: "Aggregate" },
-                              confirm: { value: true } }, shell: shell)
-      end.to raise_error(console_failure, /RESTORED — the gates refused/)
+      before { report }
+
+      it "makes the edit" do
+        expect(File.read(tables.find { |path| path.end_with?("aggregate.bluebook") }))
+          .to include('word: "no_such_word", context: "Aggregate"')
+      end
+
+      it "says the gates hold, and what to teach the builder" do
+        expect(report).to include("Aggregate.no_such_word — the gates hold", "teach the Aggregate builder the word")
+      end
+
+      it "regenerates the golden first", :aggregate_failures do
+        expect(shell.asked.map { |ask| ask[:command].last(3) }.first).to eq(%w[exec rspec spec/ir_golden_spec.rb])
+        expect(shell.asked.first[:env]).to eq("GOLDEN" => "rewrite")
+      end
+
+      it "runs the gates last, from the tree's root", :aggregate_failures do
+        expect(shell.asked.last[:command]).to include(*described_class::GATES)
+        expect(shell.asked.map { |ask| ask[:chdir] }.uniq).to eq([tree.root])
+      end
+    end
+
+    it "puts every file back when a gate refuses, and says what failed", :aggregate_failures do
+      before = snapshot
+
+      expect { propose_confirmed(shell_class.new(0, 1)) }.to raise_error(console_failure, /RESTORED — the gates refused/)
       expect(snapshot).to eq(before)
     end
   end

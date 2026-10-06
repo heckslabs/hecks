@@ -3,6 +3,8 @@
 require "etc"
 require "open3"
 require "fileutils"
+require_relative "stress_concurrency_specs/usage"
+require_relative "stress_concurrency_specs/reporting"
 
 module Hecks
   module CLI
@@ -28,28 +30,10 @@ module Hecks
         "spec/adapters/driven/postgres_concurrent_dispatch_spec.rb"
       ].freeze
 
-      USAGE = <<~TEXT
-        Usage: hecks stress_concurrency [--runs N] [--parallel N] [--seed-start N]
+      # The value flags and the settings they fill.
+      FLAGS = { "--runs" => :runs, "--parallel" => :parallel, "--seed-start" => :seed_start }.freeze
 
-          --runs N        How many times to run EACH group below. Each run uses
-                           a different --seed (seed-start + run index).
-          --parallel N    How many parallel-safe-group runs to have going as
-                           separate OS processes AT THE SAME TIME (default: this
-                           machine's own core count, via Etc.nprocessors) — real
-                           concurrent scheduler/CPU contention, not just varied
-                           seeds one after another. The Postgres-backed group
-                           always runs one process at a time regardless of this
-                           flag.
-          --seed-start N  First --seed value; runs use seed_start,
-                           seed_start + 1, ... seed_start + runs - 1.
-
-        `hecks stress_concurrency` fills --runs and --seed-start from the defaults its
-        bluebook declares (`hecks stress_concurrency --help` shows them).
-
-        Exits 0 if every run's every example passed, 1 if anything failed -
-        failing runs' full output is saved under tmp/stress-failures/
-        for a real repro (same seed, same command, just add CI=true).
-      TEXT
+      extend Reporting
 
       module_function
 
@@ -66,15 +50,23 @@ module Hecks
         status = parse!(argv, settings, out)
         return status if status
 
-        missing = %i[runs seed_start].reject { |name| settings.key?(name) }
-        unless missing.empty?
-          warn "missing #{missing.map { |name| "--#{name.to_s.tr('_', '-')}" }.join(', ')}: " \
-               "`hecks stress_concurrency` supplies the defaults its bluebook declares (--help for usage)"
-          return 64
-        end
+        return 64 if missing_defaults?(settings)
 
         results = run_all(root, settings, out)
         report(root, results, out)
+      end
+
+      # Warns when the launcher did not supply `--runs` and `--seed-start`.
+      #
+      # @param settings [Hash{Symbol => Integer}] the parsed flags
+      # @return [Boolean] whether a default is missing
+      def missing_defaults?(settings)
+        missing = %i[runs seed_start].reject { |name| settings.key?(name) }
+        return false if missing.empty?
+
+        warn "missing #{missing.map { |name| "--#{name.to_s.tr("_", "-")}" }.join(", ")}: " \
+             "`hecks stress_concurrency` supplies the defaults its bluebook declares (--help for usage)"
+        true
       end
 
       # @param argv [Array<String>] the arguments; consumed
@@ -82,20 +74,26 @@ module Hecks
       # @param out [IO] where the usage goes for `--help`
       # @return [Integer, nil] an exit status to stop with, or nil to go on
       def parse!(argv, settings, out)
-        flags = { "--runs" => :runs, "--parallel" => :parallel, "--seed-start" => :seed_start }
         until argv.empty?
           arg = argv.shift
-          if flags.key?(arg)
-            settings[flags[arg]] = Integer(argv.shift)
-          elsif %w[--help -h].include?(arg)
-            out.puts USAGE
-            return 0
-          else
-            warn "unrecognized argument: #{arg.inspect} (--help for usage)"
-            return 64
-          end
+          return stop_for(arg, out) unless FLAGS.key?(arg)
+
+          settings[FLAGS[arg]] = Integer(argv.shift)
         end
         nil
+      end
+
+      # @param arg [String] a command-line word that is not a value flag
+      # @param out [IO] where the usage goes for `--help`
+      # @return [Integer] 0 for `--help`, 64 for an unknown argument
+      def stop_for(arg, out)
+        if %w[--help -h].include?(arg)
+          out.puts USAGE
+          return 0
+        end
+
+        warn "unrecognized argument: #{arg.inspect} (--help for usage)"
+        64
       end
 
       # @param root [String] the checkout the specs run in
@@ -103,31 +101,60 @@ module Hecks
       # @param out [IO] where the progress goes
       # @return [Array<Hash>] one result per run
       def run_all(root, settings, out)
+        seeds = (settings[:seed_start]...(settings[:seed_start] + settings[:runs])).to_a
+        announce(settings, out)
+
+        results = run_parallel_group(root, seeds, settings[:parallel], out) + run_serial_group(root, seeds, out)
+        out.puts
+        out.puts
+        results
+      end
+
+      # @param root [String] the checkout the specs run in
+      # @param seeds [Array<Integer>] the seeds to run
+      # @param parallel [Integer] how many runs go at the same time
+      # @param out [IO] where the progress goes
+      # @return [Array<Hash>] one result per seed
+      def run_parallel_group(root, seeds, parallel, out)
+        seeds.each_slice(parallel).flat_map do |batch|
+          progress(run_batch(root, PARALLEL_SAFE_SPEC_FILES, batch, label: "parallel-safe"), out)
+        end
+      end
+
+      # @param root [String] the checkout the specs run in
+      # @param seeds [Array<Integer>] the seeds to run, one process at a time
+      # @param out [IO] where the progress goes
+      # @return [Array<Hash>] one result per seed
+      def run_serial_group(root, seeds, out)
+        seeds.flat_map do |seed|
+          progress([run_once(root, SERIAL_ONLY_SPEC_FILES, seed, label: "postgres (serial)")], out)
+        end
+      end
+
+      # Says what is about to run.
+      #
+      # @param settings [Hash{Symbol => Integer}] `runs`, `parallel` and `seed_start`
+      # @param out [IO] where the announcement goes
+      # @return [void]
+      def announce(settings, out)
         runs = settings[:runs]
         seed_start = settings[:seed_start]
-        seeds = (seed_start...(seed_start + runs)).to_a
         out.puts "Stress-running the parallel-safe group #{runs} time(s) (#{settings[:parallel]} at a time), " \
                  "seeds #{seed_start}..#{seed_start + runs - 1}:"
         PARALLEL_SAFE_SPEC_FILES.each { |f| out.puts "  - #{f}" }
         out.puts "...and the Postgres-backed group #{runs} time(s), ONE PROCESS AT A TIME:"
         SERIAL_ONLY_SPEC_FILES.each { |f| out.puts "  - #{f}" }
         out.puts
+      end
 
-        results = []
-        seeds.each_slice(settings[:parallel]) do |batch|
-          batch_results = run_batch(root, PARALLEL_SAFE_SPEC_FILES, batch, label: "parallel-safe")
-          results.concat(batch_results)
-          batch_results.each { |result| out.print result[:success] ? "." : "F" }
-          out.flush
-        end
-        seeds.each do |seed|
-          result = run_once(root, SERIAL_ONLY_SPEC_FILES, seed, label: "postgres (serial)")
-          results << result
-          out.print result[:success] ? "." : "F"
-          out.flush
-        end
-        out.puts
-        out.puts
+      # Prints one dot per passing run and an F per failing one.
+      #
+      # @param results [Array<Hash>] the runs just finished
+      # @param out [IO] where the progress goes
+      # @return [Array<Hash>] `results`
+      def progress(results, out)
+        results.each { |result| out.print result[:success] ? "." : "F" }
+        out.flush
         results
       end
 
@@ -143,7 +170,7 @@ module Hecks
         command = ["bundle", "exec", "rspec", *spec_files, "--seed", seed.to_s, "--format", "progress"]
         stdout, status = Open3.capture2e({ "CI" => "true" }, *command, chdir: root)
         { label: label, seed: seed, success: status.success?, output: stdout,
-          reproduce: "CI=true bundle exec rspec #{spec_files.join(' ')} --seed #{seed}" }
+          reproduce: "CI=true bundle exec rspec #{spec_files.join(" ")} --seed #{seed}" }
       end
 
       # One thread per child process: `Open3.capture2e` already spawns a real process per call.
@@ -155,31 +182,6 @@ module Hecks
       # @return [Array<Hash>] one result per seed
       def run_batch(root, spec_files, seeds, label:)
         seeds.map { |seed| Thread.new { run_once(root, spec_files, seed, label: label) } }.map(&:value)
-      end
-
-      # @param root [String] the checkout; failing runs' output is saved under its `tmp/`
-      # @param results [Array<Hash>] every run's result
-      # @param out [IO] where the verdict goes
-      # @return [Integer] 0 when every run passed, else 1
-      def report(root, results, out)
-        failures = results.reject { |r| r[:success] }
-        if failures.empty?
-          out.puts "CLEAN — #{results.size}/#{results.size} runs passed. " \
-                   "No new flakiness beyond a single ordinary `rspec` run found in this many tries."
-          return 0
-        end
-
-        dir = File.join(root, "tmp/stress-failures")
-        FileUtils.mkdir_p(dir)
-        out.puts "FOUND FLAKINESS — #{failures.size}/#{results.size} runs failed:"
-        failures.each do |failure|
-          path = File.join(dir, "#{failure[:label].tr(' ', '_').gsub(/[()]/, '')}-seed#{failure[:seed]}.log")
-          File.write(path, failure[:output])
-          out.puts "  [#{failure[:label]}] seed #{failure[:seed]} — output saved to #{path.sub("#{root}/", '')}"
-          out.puts "    reproduce: #{failure[:reproduce]}"
-        end
-        out.puts
-        1
       end
     end
   end

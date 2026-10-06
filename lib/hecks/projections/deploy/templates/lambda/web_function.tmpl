@@ -1,0 +1,207 @@
+# THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
+# VPC-attached for the SAME reason @@logical_id@@ is (Member's own
+# persistence needs the private RDS instance directly, permanently —
+# the hecksagon's own comment on why), sharing
+# @@logical_id@@SecurityGroup rather than minting a second one, since
+# both need the identical egress-to-DB rule. That VPC attachment
+# ALSO cuts off the public internet by default (this stack's own "NO
+# NAT GATEWAY" design) — but this function has to reach
+# @@logical_id@@ itself via `lambda:InvokeFunction`, a public AWS API
+# call. @@web_logical_id@@LambdaEndpoint below is the targeted fix: a
+# VPC Interface Endpoint for the Lambda service ONLY (not a NAT
+# Gateway) — a few dollars a month, not a general internet route.
+@@db_id@@LambdaEndpointSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    # EC2's own GroupDescription character set excludes apostrophes
+    # too, not just em-dashes -- "this stack's own" was a real,
+    # live rejection ("Invalid security group description").
+    GroupDescription: @@db_id@@LambdaEndpoint - HTTPS from this stacks own Lambdas only
+
+@@db_id@@LambdaEndpointIngress:
+  Type: AWS::EC2::SecurityGroupIngress
+  Properties:
+    GroupId: !Ref @@db_id@@LambdaEndpointSecurityGroup
+    IpProtocol: tcp
+    FromPort: 443
+    ToPort: 443
+    SourceSecurityGroupId: !Ref @@logical_id@@SecurityGroup
+
+@@db_id@@LambdaEndpoint:
+  Type: AWS::EC2::VPCEndpoint
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    ServiceName: !Sub "com.amazonaws.${AWS::Region}.lambda"
+    VpcEndpointType: Interface
+    PrivateDnsEnabled: true
+    SubnetIds: [!Ref @@db_id@@SubnetA, !Ref @@db_id@@SubnetB]
+    SecurityGroupIds: [!Ref @@db_id@@LambdaEndpointSecurityGroup]
+
+# Auto-generated, never typed or seen — the SAME
+# ManageMasterUserPassword pattern @@db_id@@ already uses for its own
+# password, applied to Sinatra's own session-signing secret instead.
+@@web_logical_id@@SessionSecret:
+  Type: AWS::SecretsManager::Secret
+  Properties:
+    GenerateSecretString:
+      SecretStringTemplate: '{}'
+      GenerateStringKey: session_secret
+      PasswordLength: 64
+      ExcludePunctuation: true
+
+@@webhook_secret_resource@@
+@@web_logical_id@@:
+  Type: AWS::Serverless::Function
+  # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
+  # real, live UnsupportedBuilderException caught this); `Runtime:
+  # ruby3.2` alone is enough for SAM to select its own built-in Ruby
+  # bundler workflow automatically. @@logical_id@@'s own `BuildMethod:
+  # makefile` above is different: rust/host isn't a runtime SAM
+  # knows how to build at all, so it needs an explicit custom
+  # workflow — this function doesn't. STAYS `ruby3.2` deliberately,
+  # even though `sam validate --lint` now flags it deprecated
+  # (2026-03-31, creation disabled 2027-02-01, still comfortably
+  # ahead of today) — `patch-pg-native`'s own build-ruby3.2 container
+  # image and `lib/3.2/pg_ext.so` path glob (this Makefile, below)
+  # are BOTH hardcoded to this exact runtime; bumping Runtime alone
+  # without reworking that whole from-source pg build for a newer
+  # image is a real, separate undertaking (untested container image
+  # availability, a different vendor/bundle native-extension path)
+  # out of scope here. Matches the live, currently-
+  # deployed choice exactly, so both consumers of this one shared
+  # WebFunction code path stay on the same, PROVEN runtime.
+  Properties:
+    FunctionName: @@stack_name@@-web
+    Runtime: ruby3.2
+    Architectures: [arm64]
+    # THREE parts (file.Class.method), not two — aws-lambda-ric's own
+    # 2-part form calls a plain TOP-LEVEL function via __send__, not
+    # a module method; @@web_handler_relpath@@.rb's own comment on
+    # why its module is named the way it is explains the rest — a
+    # real, live "LambdaHandler is not a module" caught both halves
+    # of this the hard way. `web_handler_relpath` (not a bare
+    # "lambda_handler") whenever `dispatch "None"` moved CodeUri off
+    # @@domain@@ itself — see that variable's own comment, above.
+    Handler: @@web_handler_relpath@@.@@webhook_handler_module@@.lambda_handler
+    CodeUri: @@web_code_uri@@
+    MemorySize: 512
+    Timeout: 15
+    Environment:
+      Variables:
+        DOMAIN_ROOT: /var/task
+        # NOT `declared_domain_name` — `Adapters::Lambda`/
+        # `RemoteDispatcher` both read this to compute WHICH
+        # deployed Lambda function to invoke (`hecks-#{...}`,
+        # matching this stack's own name), a question `infra_name`
+        # answers and a domain's own business identity does not.
+        # Real, live, and confirmed the hard way: this was still
+        # wired to `declared_domain_name` when a client app
+        # first deployed, and WebFunction immediately threw
+        # `ResourceNotFoundException: Function not found:
+        # hecks-<domain>` on every read AND on the
+        # Google OAuth callback itself — a real signed-in user hit
+        # this within minutes of the deploy that introduced it.
+        DOMAIN_NAME: @@infra_name@@
+        HECKS_LAMBDA_ROUTING: "true"
+        HECKS_LAMBDA_REGION: @@region@@@@web_schema_env@@
+        # SAME setting @@domain@@'s own fly.toml/Dockerfile already
+        # sets for the Fly deployment this one replaces — Sinatra's
+        # own `host_authorization` default is only PERMISSIVE in
+        # production mode (an empty `permitted_hosts` list means
+        # "allow any host" — checked directly in rack-protection's
+        # own source); its DEVELOPMENT default is the restrictive
+        # one (only localhost/.test), which is what Sinatra falls
+        # back to when NEITHER RACK_ENV nor APP_ENV is set. A real,
+        # live "Host not permitted" 403 against this function's own
+        # unpredictable *.lambda-url.*.on.aws hostname caught the
+        # gap — this function's Environment never set either var.
+        RACK_ENV: production
+        # The precompiled `pg` gem's aarch64-linux native extension
+        # needs GLIBC 2.29+; Lambda's ruby3.2 MANAGED runtime is
+        # Amazon Linux 2 (glibc 2.26) -- a real, live "Init<NameError>:
+        # uninitialized constant PG::Error" caught this (rescuing
+        # PG::Error itself failed to resolve, because pg's own
+        # require died before reaching the file that defines it).
+        # `make deploy`'s own `patch-pg-native` step (this directory's
+        # Makefile) replaces the broken precompiled extension with one
+        # compiled from source, in-container, against a real
+        # SSL-enabled libpq -- and drops that libpq's .so beside it at
+        # /var/task/lib, found by the dynamic loader with NO explicit
+        # LD_LIBRARY_PATH override needed: the base ruby3.2 image's
+        # own baked-in default (`docker inspect
+        # public.ecr.aws/lambda/ruby:3.2-arm64`) is already
+        # "/var/lang/lib:/lib64:/usr/lib64:/var/runtime:/var/runtime/lib:/var/task:/var/task/lib:/opt/lib"
+        # -- setting LD_LIBRARY_PATH here as a Lambda env var
+        # REPLACES that whole list rather than extending it (a real,
+        # live gotcha: Lambda env vars always fully override a
+        # same-named baked-in image env, never merge with it), which
+        # is exactly what broke Ruby's OWN interpreter startup
+        # ("libcrypt.so.1: cannot open shared object file") the one
+        # time this was set explicitly, before libpq.so.5.16 itself
+        # ever got a chance to matter.
+        # Member's own permanent Postgres connection — the SAME RDS
+        # instance @@logical_id@@ itself writes rust/host's flat
+        # journal into, different database engine role (Ruby's own
+        # era/lineage schema, not rust/host's), never the real
+        # Fly-hosted Postgres this whole effort is retiring away from.
+        #
+        # GENERATOR-ONLY FIX, NOT YET SAFE TO DEPLOY — DB_HOST/DB_NAME/
+        # DB_SECRET_ARN/SESSION_SECRET_ARN/GOOGLE_OAUTH_SECRET_ID below
+        # replace the SAME `{{resolve:secretsmanager:...}}`-into-
+        # Environment.Variables shape rust/host's own main.rs (this
+        # template's own @@logical_id@@) used to have -- readable in
+        # plaintext by any read-only account principal via
+        # lambda:GetFunctionConfiguration, the exact exposure
+        # @@logical_id@@'s own comment above the Policies section
+        # documents. But THIS function's consumer (`lambda_handler.rb`)
+        # is not a file this generator writes or this repo carries --
+        # it lives in the deploying app's own domain directory (real,
+        # live example: a Sinatra app), outside this
+        # codebase entirely. Redeploying a domain with an existing
+        # `lambda_handler.rb` BEFORE that handler is updated to fetch
+        # these itself (`aws-sdk-secretsmanager`, not yet in this
+        # project's own Gemfile) breaks it: it still expects
+        # `ENV["DATABASE_URL"]`/`ENV["SESSION_SECRET"]`/
+        # `ENV["GOOGLE_CLIENT_ID"]`/`ENV["GOOGLE_CLIENT_SECRET"]`
+        # already resolved, and none of those keys exist below anymore.
+        DB_HOST: !GetAtt @@db_ref_id@@.Endpoint.Address
+        DB_NAME: @@db_name@@
+        DB_SECRET_ARN: !Sub "${@@secret_sub@@}"
+        SESSION_SECRET_ARN: !Sub "${@@web_logical_id@@SessionSecret}"@@web_webhook_env@@
+        @@web_google_oauth_env_yaml@@
+    VpcConfig:
+      SubnetIds: [!Ref @@db_id@@SubnetA, !Ref @@db_id@@SubnetB]
+      SecurityGroupIds: [!Ref @@logical_id@@SecurityGroup]
+    # LEAST-PRIVILEGE, scoped to @@logical_id@@'s own ARN specifically
+    # (SAM's own LambdaInvokePolicy template) — WebFunctionRole is
+    # otherwise SAM's bare default execution role (logging only), and
+    # had NO lambda:InvokeFunction permission at all until this: a
+    # real, live AccessDeniedException caught it, the same request
+    # that also caught the wrong-function-name bug just above
+    # (WebFunctionRole is not authorized... on resource
+    # hecks-task — this stack has never had ANY policy granting
+    # that action, so the fix isn't complete without adding one).
+    # THE SAME secretsmanager:GetSecretValue GRANTS @@logical_id@@'s
+    # own Policies section (above) needed, once this function's own
+    # `lambda_handler.rb` fetches DB_SECRET_ARN/SESSION_SECRET_ARN/
+    # GOOGLE_OAUTH_SECRET_ID itself instead of relying on a resolved
+    # Environment.Variables value -- see this Environment block's own
+    # comment for why that consumer-side change isn't in this repo.
+    Policies:
+      - LambdaInvokePolicy:
+          FunctionName: !Ref @@logical_id@@
+      - Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub "${@@secret_sub@@}"
+      - Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub "${@@web_logical_id@@SessionSecret}"@@web_webhook_policy@@
+      @@web_oauth_policy@@
+    # NONE, not AWS_IAM — real users need to reach sign-in over
+    # plain HTTPS, unlike @@logical_id@@'s own AWS_IAM-protected URL
+    # (this function is the ONLY thing meant to call that one).
+    FunctionUrlConfig:
+      AuthType: NONE

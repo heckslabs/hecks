@@ -25,30 +25,40 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
   end
 
   describe "the corpus questions" do
-    it "lists each domain with a Rust feature, its feature and its directory" do
+    it "lists each domain with a Rust feature, its feature and its directory", :aggregate_failures do
       lines = described_class.report("rust_domains", {}, tree).lines.map(&:chomp)
 
       expect(lines).not_to be_empty
       expect(lines.map { |line| line.split("\t").size }.uniq).to eq([2])
     end
 
-    it "lists the directories regeneration walks, relative to the checkout" do
+    it "lists the directories regeneration walks, relative to the checkout", :aggregate_failures do
       lines = described_class.report("regen_order", {}, tree).lines.map(&:chomp)
 
       expect(lines).not_to be_empty
       expect(lines).to all(satisfy { |line| !line.start_with?("/") })
     end
 
-    it "runs the coverage tool once for each generated module in this process, and says how many passed" do
-      asked = runner_answering("ok\n")
+    context "when every generated module passes" do
+      let(:modules) { Hecks::Corpus.generated_modules(root: tree.root) }
 
-      report = described_class.report("corpus_rust_coverage", {}, tree)
+      before do
+        @asked = runner_answering("ok\n")
+        @report = described_class.report("corpus_rust_coverage", {}, tree)
+      end
 
-      modules = Hecks::Corpus.generated_modules(root: tree.root)
-      expect(asked.map { |ask| ask[:tool] }.uniq).to eq(["rust_coverage"])
-      expect(asked.map { |ask| ask[:argv] }).to eq(modules.map { |name| [name] })
-      expect(asked.first[:env]).to eq("HECKS_RUST_DIR" => tree.path("rust"))
-      expect(report).to end_with("#{modules.size} generated modules checked")
+      it "runs the coverage tool once for each generated module in this process", :aggregate_failures do
+        expect(@asked.map { |ask| ask[:tool] }.uniq).to eq(["rust_coverage"])
+        expect(@asked.map { |ask| ask[:argv] }).to eq(modules.map { |name| [name] })
+      end
+
+      it "points the tool at the checkout's Rust directory" do
+        expect(@asked.first[:env]).to eq("HECKS_RUST_DIR" => tree.path("rust"))
+      end
+
+      it "says how many passed" do
+        expect(@report).to end_with("#{modules.size} generated modules checked")
+      end
     end
 
     it "refuses with each module that failed" do
@@ -71,14 +81,12 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
   end
 
   describe "the doors" do
-    it "serves the MCP door on stdio, with no arguments, and notes when it closed" do
+    it "serves the MCP door on stdio, with no arguments, and notes when it closed", :aggregate_failures do
       served = nil
       described_class.mcp_server = ->(**options) { served = options }
 
-      report = described_class.call("serve_query_ir_mcp", {}, tree)
-
+      expect(described_class.call("serve_query_ir_mcp", {}, tree)).to eq("query ir mcp door closed")
       expect(served).to eq(argv: [])
-      expect(report).to eq("query ir mcp door closed")
     end
 
     it "refuses when the MCP door will not start" do
@@ -87,18 +95,23 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
       expect { described_class.call("serve_query_ir_mcp", {}, tree) }.to raise_error(failure, /status 2/)
     end
 
-    it "serves the banking forms app on the port named, and on 4567 otherwise" do
-      ports = []
-      described_class.web_server = lambda do |app:, port:|
-        expect(app).to respond_to(:call)
-        ports << port
+    context "when the forms app is served" do
+      let(:ports) { [] }
+
+      before { described_class.web_server = ->(app:, port:) { ports << port if app.respond_to?(:call) } }
+
+      it "serves the banking forms app on the port named" do
+        described_class.call("present", { port: { value: 8080 } }, tree)
+
+        expect(ports).to eq([8080])
       end
 
-      described_class.call("present", { port: { value: 8080 } }, tree)
-      report = described_class.call("present", {}, tree)
+      it "serves it on 4567 otherwise, and notes when it stopped", :aggregate_failures do
+        report = described_class.call("present", {}, tree)
 
-      expect(ports).to eq([8080, 4567])
-      expect(report).to eq("presented on port 4567, now stopped")
+        expect(ports).to eq([4567])
+        expect(report).to eq("presented on port 4567, now stopped")
+      end
     end
   end
 end

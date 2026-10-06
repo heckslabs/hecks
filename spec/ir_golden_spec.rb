@@ -10,18 +10,26 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   # The Gemfile pins `json` exactly because newer versions reformat empty arrays/hashes in
   # pretty_generate, which would fail every fixture with diffs unrelated to the IR.
-  it "resolves the exact `json` gem the Gemfile pins, not merely one the lockfile once recorded" do
-    pin = File.read(File.join(InMemoryDomain::ROOT, "Gemfile"))
-              .match(/^\s*gem\s+"json"\s*,\s*"([\d.]+)"\s*$/)&.captures&.first
+  PIN_MISSING_MESSAGE = "Gemfile no longer pins `json` to an exact version — " \
+                        "the golden fixtures below need that pin to stay pretty-printed identically".freeze
 
-    expect(pin).not_to be_nil, "Gemfile no longer pins `json` to an exact version — " \
-                               "the golden fixtures below need that pin to stay pretty-printed identically"
-    expect(JSON::VERSION).to eq(pin),
-                             "installed `json` gem (#{JSON::VERSION}) does not match the Gemfile's pin " \
-                             "(#{pin}) — run `bundle install` (or check for a stray `bundle config " \
-                             "disable_local_branch_check`/frozen-lockfile override) before trusting any " \
-                             "failure below, since a mismatched `json` gem reformats JSON.pretty_generate " \
-                             "output and fails every fixture here for reasons unrelated to the IR itself"
+  def gemfile_json_pin
+    File.read(File.join(InMemoryDomain::ROOT, "Gemfile")).match(/^\s*gem\s+"json"\s*,\s*"([\d.]+)"\s*$/)&.captures&.first
+  end
+
+  def pin_mismatch_message(pin)
+    "installed `json` gem (#{JSON::VERSION}) does not match the Gemfile's pin " \
+      "(#{pin}) — run `bundle install` (or check for a stray `bundle config " \
+      "disable_local_branch_check`/frozen-lockfile override) before trusting any " \
+      "failure below, since a mismatched `json` gem reformats JSON.pretty_generate " \
+      "output and fails every fixture here for reasons unrelated to the IR itself"
+  end
+
+  it "resolves the exact `json` gem the Gemfile pins, not merely one the lockfile once recorded", :aggregate_failures do
+    pin = gemfile_json_pin
+
+    expect(pin).not_to be_nil, PIN_MISSING_MESSAGE
+    expect(JSON::VERSION).to eq(pin), pin_mismatch_message(pin)
   end
 
   # Chapters that load from a file, name => path.
@@ -68,7 +76,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     end
   end
 
-  def compare(name, bluebook)
+  def expect_frozen_ir(name, bluebook)
     actual = rendered(bluebook)
 
     if ENV["GOLDEN"] == "rewrite"
@@ -84,13 +92,13 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   LOADABLE.each do |name, file|
     it "#{name} matches its frozen IR" do
-      compare(name, load_chapter(file).bluebook(name))
+      expect_frozen_ir(name, load_chapter(file).bluebook(name))
     end
   end
 
   LANGUAGES.each do |name|
     it "#{name}, the language itself, matches its frozen IR" do
-      compare(name, Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name))
+      expect_frozen_ir(name, Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name))
     end
   end
 end

@@ -123,7 +123,7 @@ module Hecks
           kind = row["kind"].to_s.to_sym
           return kind if CRITIQUE_KINDS.include?(kind)
 
-          raise ValidationError, "#{kind.inspect} is not a critique kind this port knows (#{CRITIQUE_KINDS.join(', ')})"
+          raise ValidationError, "#{kind.inspect} is not a critique kind this port knows (#{CRITIQUE_KINDS.join(", ")})"
         end
 
         # Reads a finding row's severity, refusing anything but the two that exist.
@@ -136,7 +136,7 @@ module Hecks
           severity = row["severity"].to_s.to_sym
           return severity if SEVERITIES.include?(severity)
 
-          raise ValidationError, "#{severity.inspect} is not a severity this port knows (#{SEVERITIES.join(', ')})"
+          raise ValidationError, "#{severity.inspect} is not a severity this port knows (#{SEVERITIES.join(", ")})"
         end
 
         # Normalises a proposal row's arguments into symbol-keyed, all-String rows.

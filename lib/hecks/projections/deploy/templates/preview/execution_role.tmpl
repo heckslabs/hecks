@@ -1,0 +1,16 @@
+# The execution role reads the database secret only so the one-shot task can be given
+# its credentials as container secrets.
+ExecutionRole:
+  Type: AWS::IAM::Role
+  Properties:
+@@assume@@
+    ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    Policies:
+      - PolicyName: SharedDatabaseSecretRead
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref OwningDatabaseSecretArn

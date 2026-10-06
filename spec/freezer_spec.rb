@@ -6,7 +6,7 @@ require "spec_helper"
 # whole reachable graph of a real result rather than only its top object.
 RSpec.describe Hecks::Freezer do
   describe "the walk itself" do
-    it "sees through a container that is frozen on top" do
+    it "sees through a container that is frozen on top", :aggregate_failures do
       shallow = { name: +"mutable" }.freeze
 
       expect(shallow).to be_frozen
@@ -14,7 +14,7 @@ RSpec.describe Hecks::Freezer do
       expect(described_class.unfrozen_within(shallow)).to eq("name")
     end
 
-    it "names the PATH to the first mutable thing, not merely that there is one" do
+    it "names the PATH to the first mutable thing, not merely that there is one", :aggregate_failures do
       # frozen on top, mutable two levels down
       nested = { order: { pizzas: [{ name: +"m" }].freeze }.freeze }.freeze
 
@@ -51,7 +51,7 @@ RSpec.describe Hecks::Freezer do
 
     # Regression: `@fields.freeze` left the String inside mutable. Asserted on
     # `@fields`, not `to_h`, which answers a fresh hash.
-    it "is frozen through, not merely on top" do
+    it "is frozen through, not merely on top", :aggregate_failures do
       name = result.instance.state[:name]
 
       expect(name).to be_frozen
@@ -65,7 +65,7 @@ RSpec.describe Hecks::Freezer do
     end
 
     # The new value object must itself be frozen through.
-    it "answers a frozen value object from `with`" do
+    it "answers a frozen value object from `with`", :aggregate_failures do
       grown = result.instance.state[:name].with(:value, "Napoli")
 
       expect(grown).to be_frozen
@@ -87,13 +87,13 @@ RSpec.describe Hecks::Freezer do
       expect(described_class.unfrozen_within(event.payload)).to be_nil
     end
 
-    it "refuses a write reached into the payload" do
+    it "refuses a write reached into the payload", :aggregate_failures do
       expect { event.payload[event.payload.keys.first] }.not_to raise_error
       expect { event.payload["forged"] = 1 }.to raise_error(FrozenError)
     end
 
     # The event itself, not only its payload; correlation is set at construction.
-    it "is frozen once it exists" do
+    it "is frozen once it exists", :aggregate_failures do
       expect(event).to be_frozen
       expect { event.name = "Forged" }.to raise_error(FrozenError)
     end

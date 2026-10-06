@@ -95,38 +95,42 @@ RSpec.describe Hecks::Doors::JsonDoor do
   end
 
   describe ".deep_symbolize" do
-    it "symbolizes hash keys and maps arrays, arbitrarily deep, leaving scalars alone" do
-      parsed = {
+    let(:parsed) do
+      {
         "pizza"    => { "price_cents" => { "cents" => 1200 }, "size" => { "value" => "large" } },
         "toppings" => [{ "name" => "basil", "amount" => 2 }, { "name" => "olives", "amount" => 1 }],
         "name"     => { "value" => "Margherita" }
       }
+    end
 
-      result = json_door.deep_symbolize(parsed)
-
-      expect(result).to eq(
+    let(:symbolized) do
+      {
         pizza:    { price_cents: { cents: 1200 }, size: { value: "large" } },
         toppings: [{ name: "basil", amount: 2 }, { name: "olives", amount: 1 }],
         name:     { value: "Margherita" }
-      )
+      }
+    end
+
+    it "symbolizes hash keys and maps arrays, arbitrarily deep, leaving scalars alone" do
+      expect(json_door.deep_symbolize(parsed)).to eq(symbolized)
     end
   end
 
   describe ".materialize" do
-    it "deep-unwraps a Handle's nested Runtime::Value fields to plain Ruby" do
-      dispatcher = boot_in_memory
-      pizza = order(dispatcher)
-
-      result = json_door.materialize(pizza)
-
-      expect(result).to eq(
-        id:            pizza.id,
+    def margherita_state(pizza)
+      { id:            pizza.id,
         name:          { value: "Margherita" },
         pizza:         { price_cents: { cents: 1200 }, size: { value: "large" } },
         toppings:      [],
         customer_name: nil,
-        status:        "available"
-      )
+        status:        "available" }
+    end
+
+    it "deep-unwraps a Handle's nested Runtime::Value fields to plain Ruby", :aggregate_failures do
+      pizza = order(boot_in_memory)
+      result = json_door.materialize(pizza)
+
+      expect(result).to eq(margherita_state(pizza))
       # `eq` alone misses a leftover Runtime::Value, which compares equal by content.
       expect(result[:pizza][:price_cents]).to be_a(Hash)
       expect(result[:pizza][:price_cents]).not_to be_a(Hecks::Runtime::Value)
@@ -143,11 +147,12 @@ RSpec.describe Hecks::Doors::JsonDoor do
   end
 
   describe ".command_request" do
+    let(:entity_envelope) do
+      '{"to":{"aggregate":"DOWNTOWN:12","entity":"2026-01-05:1"},"with":{"note":{"text":"Flagged"}}}'
+    end
+
     it "keeps an entity receiver outside the declared JSON facts" do
-      request = json_door.command_request(
-        '{"to":{"aggregate":"DOWNTOWN:12","entity":"2026-01-05:1"},"with":{"note":{"text":"Flagged"}}}',
-        receiver: :entity
-      )
+      request = json_door.command_request(entity_envelope, receiver: :entity)
 
       expect(request).to eq(
         to:   { aggregate: "DOWNTOWN:12", entity: "2026-01-05:1" },

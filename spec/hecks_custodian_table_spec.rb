@@ -114,7 +114,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   end
 
   CUSTODIAN_ROWS.each do |row|
-    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.qualified}`" do
+    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.qualified}`", :aggregate_failures do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
       out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [row.qualified, "--help"], program: "hecks")
@@ -125,13 +125,13 @@ RSpec.describe "the Custodian rows of the ADR command table" do
     end
   end
 
-  it "lists every script of the Custodian table once per command, with a reason for each rename" do
+  it "lists every script of the Custodian table once per command, with a reason for each rename", :aggregate_failures do
     expect(CUSTODIAN_ROWS.map { |row| [row.aggregate, row.name] }.uniq.size).to eq(CUSTODIAN_ROWS.size)
     expect(CUSTODIAN_ROWS.select(&:renamed).map(&:renamed)).to all(be_a(String))
     expect(CUSTODIAN_ROWS.map(&:verb).uniq.size).to eq(CUSTODIAN_ROWS.size)
   end
 
-  it "gives every Custodian aggregate at least one row" do
+  it "gives every Custodian aggregate at least one row", :aggregate_failures do
     custodian = %w[Introspection ModelCheckRun Operation Host Era Package Door Build FuzzRun]
 
     expect(custodian - CUSTODIAN_ROWS.map(&:aggregate)).to be_empty

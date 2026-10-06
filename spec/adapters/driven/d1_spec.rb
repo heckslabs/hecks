@@ -32,11 +32,10 @@ RSpec.describe Hecks::Adapters::D1 do
     allow(described_class::Connection).to receive(:new).and_return(fake_connection)
   end
 
+  def build_adapter(settings) = described_class.new(aggregate: aggregate, settings: settings)
+
   it "still falls back to the aggregate's own name when :domain is genuinely absent" do
-    adapter = described_class.new(
-      aggregate: aggregate,
-      settings:  { account_id: "acc", database_id: "db", api_token: "tok" }
-    )
+    adapter = build_adapter(account_id: "acc", database_id: "db", api_token: "tok")
 
     expect(adapter.instance_variable_get(:@domain)).to eq("Item")
   end
@@ -46,14 +45,9 @@ RSpec.describe Hecks::Adapters::D1 do
     # (`false` at :account_id treated as if absent). Asserting on the exact
     # args `Connection.new` receives is what actually proves the fixed
     # `key?`-gated read, not just that construction happened to succeed.
-    # rubocop:disable-next RSpec/StubbedMock -- see comment above
-    expect(described_class::Connection).to receive(:new)
-      .with(account_id: false, database_id: "db", api_token: "tok")
-      .and_return(fake_connection)
+    build_adapter(account_id: false, "account_id" => "should-not-be-used", database_id: "db", api_token: "tok")
 
-    described_class.new(
-      aggregate: aggregate,
-      settings:  { account_id: false, "account_id" => "should-not-be-used", database_id: "db", api_token: "tok" }
-    )
+    expect(described_class::Connection).to have_received(:new)
+      .with(account_id: false, database_id: "db", api_token: "tok")
   end
 end

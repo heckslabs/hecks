@@ -1,0 +1,8 @@
+ComputeIngressFromAlb@@logical@@:
+  Type: AWS::EC2::SecurityGroupIngress
+  Properties:
+    GroupId: !Ref OwningSecurityGroupId
+    IpProtocol: tcp
+    FromPort: @@port@@
+    ToPort: @@port@@
+    SourceSecurityGroupId: !Ref AlbSecurityGroup

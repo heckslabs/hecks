@@ -1,9 +1,13 @@
+require_relative "translation_judge/rules"
+
 module Hecks
   module Bluebook
     module MetaValidator
       # Offers a built translation (a `translations/*.bluebook` edge) to the language that
       # describes translations. Field names follow the `Translation` structs, not the DSL builder.
       class TranslationJudge
+        include Rules
+
         attr_reader :refusals
 
         # @param translation [Bluebook::Translation] the built translation to judge
@@ -36,18 +40,25 @@ module Hecks
         end
 
         def judge!
+          declare_translation
+          retire_aggregates
+
+          Array(@translation.aggregates).each { |aggregate| judge_aggregate(@translation, aggregate) }
+        end
+
+        def declare_translation
           t = @translation
           send_to("Translation::Translation.Declare", t.domain,
                   with: { domain: v(t.domain), from: v(t.from), to: v(t.to) })
+        end
 
+        def retire_aggregates
+          t = @translation
           # Translation's identity is composite, so `id:` must be computed, not a bare field.
           translation_id = Naming.identity([t.domain, t.from, t.to])
           Array(t.retired).each do |name|
-            send_to("Translation::Translation.Retire", t.domain, to:   translation_id,
-                                                                 with: { value: v(name) })
+            send_to("Translation::Translation.Retire", t.domain, to: translation_id, with: { value: v(name) })
           end
-
-          Array(t.aggregates).each { |aggregate| judge_aggregate(t, aggregate) }
         end
 
         # Declares the aggregate, then adds each rule collection. Only Declare-before-Add is
@@ -74,67 +85,6 @@ module Hecks
           }
           send_to("Translation::TranslationAggregate.Declare", name,
                   with: { translation_ref: parent, name: v(name), was: v(aggregate.was) })
-        end
-
-        def judge_renames(aggregate, name)
-          Hash(aggregate.renames).each do |from, to|
-            send_to("Translation::TranslationAggregate.AddRename", name, to:   name,
-                                                                         with: { from: v(from), to: v(to) })
-          end
-        end
-
-        def judge_moves(aggregate, name)
-          Array(aggregate.moves).each do |move|
-            send_to("Translation::TranslationAggregate.AddMove", name, to:   name,
-                                                                       with: { from: v(move.from), to: v(move.to) })
-          end
-        end
-
-        def judge_converts(aggregate, name)
-          Array(aggregate.converts).each do |convert|
-            send_to("Translation::TranslationAggregate.AddConvert", name, to:   name,
-                                                                          with: { from:   v(convert.from),
-                                                                                  to:     v(convert.to),
-                                                                                  values: v(convert.values.inspect) })
-          end
-        end
-
-        def judge_drops(aggregate, name)
-          Array(aggregate.drops).each do |dropped|
-            send_to("Translation::TranslationAggregate.AddDrop", name, to:   name,
-                                                                       with: { value: v(dropped) })
-          end
-        end
-
-        def judge_retypes(aggregate, name)
-          Array(aggregate.retypes).each do |retype|
-            send_to("Translation::TranslationAggregate.AddRetype", name, to:   name,
-                                                                         with: { from: v(retype.from), to: v(retype.to) })
-          end
-        end
-
-        def judge_computes(aggregate, name)
-          Array(aggregate.computes).each do |compute|
-            send_to("Translation::TranslationAggregate.AddCompute", name, to:   name,
-                                                                          with: { from: v(compute.from),
-                                                                                  to:   v(compute.to),
-                                                                                  sql:  v(compute.sql) })
-          end
-        end
-
-        def judge_rekeys(aggregate, name)
-          Array(aggregate.rekeys).each do |rekey|
-            send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,
-                                                                        with: { sql: v(rekey.sql) })
-          end
-        end
-
-        def judge_backfills(aggregate, name)
-          Array(aggregate.backfills).each do |backfill|
-            send_to("Translation::TranslationAggregate.AddBackfill", name, to:   name,
-                                                                           with: { name:    v(backfill.name),
-                                                                                   default: v(backfill.default.inspect) })
-          end
         end
       end
     end

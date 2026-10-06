@@ -2,6 +2,7 @@ require_relative "../../rendering"
 require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../value"
+require_relative "operands"
 
 module Hecks
   module Runtime
@@ -9,6 +10,8 @@ module Hecks
       # The arithmetic half of mutation: source resolution, and how
       # increment/decrement land on an Integer or a one-numeric-field value object.
       module Arithmetic
+        include Operands
+
         # Mirrors Vocabulary::MutationOp (language/bluebook/vocabulary.bluebook) so
         # increment/decrement's sign cannot drift from the language's own definition.
         # Ops with no arithmetic (set, append, multiply, clamp, remove, delegate,
@@ -52,23 +55,15 @@ module Hecks
           op = sign.positive? ? "increment" : "decrement"
           current ||= 0
 
-          return arithmetic_value_object(current, amount, target, sign, op) if current.is_a?(Value) && amount.is_a?(Value)
+          return arithmetic_value_object(current, amount, target, sign, op) if value_objects?(current, amount)
 
           # A VO-typed attribute with no declared default is genuinely absent
           # here (`current` is 0, not a Value), so `amount` still needs
           # unwrapping to compare against a bare number.
           amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
+          refuse_non_numeric!(op, target, amount, current)
 
-          unless amount.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_amount",
-                                                           op: op, target: target, offered: Rendering.describe(amount))
-          end
-          unless current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
-                                                           op: op, target: target, offered: Rendering.describe(current))
-          end
-
-          bounded(current + (sign * amount), op, current, sign * amount, sign.positive? ? "+" : "-")
+          bounded(current + (sign * amount), op, current, sign * amount, sign_symbol(sign))
         end
 
         # An effect's arithmetic is held to the same value model an expression's is:
@@ -113,21 +108,10 @@ module Hecks
         # @raise [Bluebook::Expression::EvaluationError] if the result overflows Integer, or isn't
         #   finite
         def arithmetic_value_object(current, amount, target, sign, oper)
-          current_fields = current.to_h
-          amount_fields  = amount.to_h
-          # A synthesized value-object wrapper around a bare numeric attribute
-          # always carries exactly one numeric field.
-          shared_numeric = current_fields.keys.select do |field|
-            current_fields[field].is_a?(Numeric) && amount_fields[field].is_a?(Numeric)
+          symbol = sign_symbol(sign)
+          combine_value_object(current, amount, target, oper) do |held, by|
+            bounded(held + (sign * by), oper, held, by, symbol)
           end
-          unless shared_numeric.size == 1
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
-          end
-
-          field = shared_numeric.first
-          current.with(field, bounded(current[field] + (sign * amount[field]), oper,
-                                      current[field], amount[field], sign.positive? ? "+" : "-"))
         end
 
         # Looks up whether a mutation op adds or subtracts, from the generated
@@ -159,7 +143,7 @@ module Hecks
         def multiply(current, amount, target)
           current ||= 0
 
-          if current.is_a?(Value) && amount.is_a?(Value)
+          if value_objects?(current, amount)
             return combine_value_object(current, amount, target, "multiply") do |c, a|
               bounded(c * a, "multiply", c, a, "*")
             end
@@ -167,12 +151,7 @@ module Hecks
 
           # Same absent-current, VO-wrapped-amount gap as #arithmetic, above.
           amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
-
-          unless amount.is_a?(Numeric) && current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_amount",
-                                                           op: "multiply", target: target,
-                                                           offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
-          end
+          refuse_unmultipliable!(target, amount, current)
 
           bounded(current * amount, "multiply", current, amount, "*")
         end
@@ -190,48 +169,10 @@ module Hecks
         def clamp(current, bounds, target)
           min, max = bounds
           current ||= 0
-          if current.is_a?(Value)
-            fields = current.to_h
-            field  = fields.keys.find { |f| fields[f].is_a?(Numeric) } or
-              raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
-                                                             op: "clamp", target: target, offered: Rendering.describe(current))
-            return current.with(field, fields[field].clamp(min, max))
-          end
+          return clamp_value_object(current, min, max, target) if current.is_a?(Value)
 
-          unless current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
-                                                           op: "clamp", target: target, offered: Rendering.describe(current))
-          end
-
+          refuse_clamp_current!(current, target) unless current.is_a?(Numeric)
           current.clamp(min, max)
-        end
-
-        private
-
-        # Only meaningful once `current` is known not to itself be a Value (the
-        # both-sides-are-Values branch owns that case in each caller). Refuses
-        # rather than guesses when more than one field is numeric.
-        def unwrap_single_numeric_field(value)
-          fields = value.to_h
-          numeric_fields = fields.keys.select { |field| fields[field].is_a?(Numeric) }
-          return value unless numeric_fields.size == 1
-
-          fields[numeric_fields.first]
-        end
-
-        def combine_value_object(current, amount, target, oper)
-          current_fields = current.to_h
-          amount_fields  = amount.to_h
-          shared_numeric = current_fields.keys.select do |field|
-            current_fields[field].is_a?(Numeric) && amount_fields[field].is_a?(Numeric)
-          end
-          unless shared_numeric.size == 1
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
-          end
-
-          field = shared_numeric.first
-          current.with(field, yield(current[field], amount[field]))
         end
       end
     end

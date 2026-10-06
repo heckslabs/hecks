@@ -51,15 +51,19 @@ RSpec.describe "every live DSL word, used somewhere real" do
     corpus_files.any? do |path|
       next false if exclude_extension && File.extname(path) == exclude_extension
 
-      File.foreach(path).any? do |line|
-        next false if line.lstrip.start_with?("#")
-        # An attribute that happens to be named like a word (`attribute :cursor, Integer`) is data.
-        next false if line.match?(/\A\s*attribute\s+:#{Regexp.escape(word)}\b/)
-
-        match = line.match(pattern)
-        match && !inside_quotes?(line, match.begin(0))
-      end
+      File.foreach(path).any? { |line| real_use?(line, word, pattern) }
     end
+  end
+
+  # Whether the line is a real use of `word`: not a comment, not data named like the word, not
+  # inside a string.
+  def real_use?(line, word, pattern)
+    return false if line.lstrip.start_with?("#")
+    # An attribute that happens to be named like a word (`attribute :cursor, Integer`) is data.
+    return false if line.match?(/\A\s*attribute\s+:#{Regexp.escape(word)}\b/)
+
+    match = line.match(pattern)
+    match && !inside_quotes?(line, match.begin(0))
   end
 
   # A real call is always a bareword (`rename :old, to: :new`); only its
@@ -176,42 +180,52 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "already is, never to succeed and land in a corpus record."
   }.freeze
 
+  UNNAMED_WORDS_WHY = <<~WHY.freeze
+    These live words carry no real corpus declaration — only doctest
+    fixtures invented on their own reference page — and nothing says
+    why:
+
+      %<list>s
+
+    Either add a real declaration somewhere in examples/,
+    lib/hecks/grammar/, or lib/hecks/framework/bluebook/,
+    or add a reasoned entry to EXEMPT naming why one would be
+    synthetic, vacuous, or impossible.
+  WHY
+
+  # DomainPort/PortOperation words can't appear for real in a `.port`
+  # file (a different context — see corpus_uses?) — excluded so real
+  # `.port` coverage of Port's own words doesn't collide with these.
+  PORT_FILE_ONLY_CONTEXTS = %w[DomainPort PortOperation].freeze
+
+  # The live words of the reference pages that no corpus file uses for real.
+  def missing_words
+    Hecks::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/implemented/reference"))
+                         .reject { |word, _context, _prose| corpus_uses?(word) }
+                         .map { |word, context, _prose| Hecks::Doc::Reference.name_of(word, context) }
+  end
+
+  # The exemptions whose word the corpus now uses for real.
+  def stale_exemptions
+    EXEMPT.keys.select do |name|
+      word, context = name.match(/\A(.+) \((.+)\)\z/)&.captures
+      word && corpus_uses?(word, exclude_extension: PORT_FILE_ONLY_CONTEXTS.include?(context) ? ".port" : nil)
+    end
+  end
+
   it "gives every declared word a real corpus use or a written, named exemption" do
-    missing = Hecks::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/implemented/reference"))
-                                   .reject { |word, _context, _prose| corpus_uses?(word) }
-                                   .map { |word, context, _prose| Hecks::Doc::Reference.name_of(word, context) }
+    unnamed = missing_words - EXEMPT.keys
 
-    unnamed = missing - EXEMPT.keys
-
-    expect(unnamed).to be_empty, <<~WHY
-      These live words carry no real corpus declaration — only doctest
-      fixtures invented on their own reference page — and nothing says
-      why:
-
-        #{unnamed.join("\n        ")}
-
-      Either add a real declaration somewhere in examples/,
-      lib/hecks/grammar/, or lib/hecks/framework/bluebook/,
-      or add a reasoned entry to EXEMPT naming why one would be
-      synthetic, vacuous, or impossible.
-    WHY
+    expect(unnamed).to be_empty, format(UNNAMED_WORDS_WHY, list: unnamed.join("\n        "))
   end
 
   # A stale exemption is how a gate quietly stops gating — mirrors
   # plurality_coverage_spec.rb's own sibling check.
   it "carries no exemption the corpus has outgrown" do
-    # DomainPort/PortOperation words can't appear for real in a `.port`
-    # file (a different context — see corpus_uses?) — excluded so real
-    # `.port` coverage of Port's own words doesn't collide with these.
-    PORT_FILE_ONLY_CONTEXTS = %w[DomainPort PortOperation].freeze
-
-    stale = EXEMPT.keys.select do |name|
-      word, context = name.match(/\A(.+) \((.+)\)\z/)&.captures
-      word && corpus_uses?(word, exclude_extension: PORT_FILE_ONLY_CONTEXTS.include?(context) ? ".port" : nil)
-    end
+    stale = stale_exemptions
 
     expect(stale).to be_empty,
-                     "the corpus now declares #{stale.join(', ')} for real — " \
+                     "the corpus now declares #{stale.join(", ")} for real — " \
                      "delete the EXEMPT entry, the claim is covered now"
   end
 

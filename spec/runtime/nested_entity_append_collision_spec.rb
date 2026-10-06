@@ -24,42 +24,36 @@ RSpec.describe "Board.AddCard — a nested-entity-owned append's own duplicate-i
     }
   end
 
+  # Replays a workspace with one board and two AddCards, one per given sequence.
+  def replay_cards(reference, number, sequences)
+    steps = [open_workspace_step(reference), add_board_step(reference, number)]
+    steps += sequences.map { |sequence| add_card_step(reference, number, sequence) }
+    Hecks::Fuzzing::Replay.call(NESTED_ENTITY_APPEND_COLLISION_DOMAIN, steps)
+  end
+
+  def card_sequences(history, reference, number)
+    workspace = history[:instances].values.find { |record| record[:reference].to_h == { value: reference } }
+    board = workspace[:boards].find { |b| b[:number].to_h == { value: number } }
+    board[:cards].map { |card| card[:sequence].to_h }
+  end
+
   # Shrunk sweep reproduction (nested_pieces, seed 11): a second Card under a held sequence is
   # refused, else `find_index` leaves the duplicate permanently unaddressable.
-  it "refuses a second AddCard under a sequence the board already holds, the same way append already does one hop up" do
-    steps = [
-      open_workspace_step("india"),
-      add_board_step("india", 979),
-      add_card_step("india", 979, 168),
-      add_card_step("india", 979, 168)
-    ]
-
-    history = Hecks::Fuzzing::Replay.call(NESTED_ENTITY_APPEND_COLLISION_DOMAIN, steps)
+  it "refuses a second AddCard under a sequence the board already holds, the same way append already does one hop up",
+     :aggregate_failures do
+    history = replay_cards("india", 979, [168, 168])
 
     expect(history[:refusals].size).to eq(1)
-    refusal = history[:refusals].first
-    expect(refusal[:verb]).to eq("NestedPieces::Workspace.Board.AddCard")
-    expect(refusal[:kind]).to eq("Hecks::Runtime::AlreadyExists")
-
-    workspace = history[:instances].values.find { |record| record[:reference].to_h == { value: "india" } }
-    board = workspace[:boards].find { |b| b[:number].to_h == { value: 979 } }
-    expect(board[:cards].map { |card| card[:sequence].to_h }).to eq([{ value: 168 }])
+    expect(history[:refusals].first).to include(verb: "NestedPieces::Workspace.Board.AddCard",
+                                                kind: "Hecks::Runtime::AlreadyExists")
+    expect(card_sequences(history, "india", 979)).to eq([{ value: 168 }])
   end
 
   # Negative control: two distinct sequences on the same board must both land.
-  it "accepts two AddCards under distinct sequences on the same board" do
-    steps = [
-      open_workspace_step("kilo"),
-      add_board_step("kilo", 12),
-      add_card_step("kilo", 12, 1),
-      add_card_step("kilo", 12, 2)
-    ]
-
-    history = Hecks::Fuzzing::Replay.call(NESTED_ENTITY_APPEND_COLLISION_DOMAIN, steps)
+  it "accepts two AddCards under distinct sequences on the same board", :aggregate_failures do
+    history = replay_cards("kilo", 12, [1, 2])
 
     expect(history[:refusals]).to eq([])
-    workspace = history[:instances].values.find { |record| record[:reference].to_h == { value: "kilo" } }
-    board = workspace[:boards].find { |b| b[:number].to_h == { value: 12 } }
-    expect(board[:cards].map { |card| card[:sequence].to_h }).to eq([{ value: 1 }, { value: 2 }])
+    expect(card_sequences(history, "kilo", 12)).to eq([{ value: 1 }, { value: 2 }])
   end
 end

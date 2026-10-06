@@ -11,6 +11,10 @@ module Hecks
         def to_s = "#{domain}::#{aggregate}.#{command}: #{error}"
       end
 
+      # One smoke run: what is being dispatched through, which ids earlier commands minted, and
+      # the failures collected so far.
+      Run = Struct.new(:dispatcher, :domain, :chapter, :created, :failures)
+
       module_function
 
       # Boots an isolated copy of `dir` on Memory bindings, so real stores are never touched.
@@ -46,7 +50,6 @@ module Hecks
       end
 
       # Walks aggregates in declaration order so later ones can reference earlier `created` ids.
-      # rubocop:disable-next Metrics/AbcSize
       #
       # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the
       #   booted dispatcher to dispatch synthesized commands and queries through
@@ -59,45 +62,57 @@ module Hecks
         chapter = dispatcher.registry.bluebook(domain)
         return [] unless chapter
 
-        created  = {}
-        failures = []
+        run = Run.new(dispatcher, domain, chapter, {}, [])
+        chapter.aggregates.each { |aggregate| smoke_aggregate(run, aggregate) }
+        chapter.read_models.each { |model| smoke_read_model(run, model) }
+        run.failures
+      end
 
-        chapter.aggregates.each do |aggregate|
-          creating, noncreating = aggregate.commands.partition(&:creates?)
+      # Dispatches every creating command, then, after each that succeeds, every other command.
+      def smoke_aggregate(run, aggregate)
+        creating, noncreating = aggregate.commands.partition(&:creates?)
 
-          creating.each do |command|
-            args = Synthesizer.args_for(chapter, aggregate, command, created)
-            begin
-              result = dispatcher.dispatch_flat("#{domain}::#{aggregate.name}.#{command.hecks_name}", args)
-              created[aggregate.name] = result.instance.id
-            rescue StandardError => e
-              failures << Failure.new(domain: domain, aggregate: aggregate.name, command: command.hecks_name,
-                                      error: "#{e.class}: #{e.message}")
-              next
-            end
+        creating.each do |command|
+          args = Synthesizer.args_for(run.chapter, aggregate, command, run.created)
+          next unless smoke_created?(run, aggregate, command, args)
 
-            noncreating.each do |nc_command|
-              nc_args = Synthesizer.args_for(chapter, aggregate, nc_command, created).merge(id: created[aggregate.name])
-              dispatcher.dispatch_flat("#{domain}::#{aggregate.name}.#{nc_command.hecks_name}", nc_args)
-            rescue StandardError => e
-              failures << Failure.new(domain: domain, aggregate: aggregate.name, command: nc_command.hecks_name,
-                                      error: "#{e.class}: #{e.message}")
-            end
-          end
+          noncreating.each { |other| smoke_other(run, aggregate, other) }
         end
+      end
 
-        chapter.read_models.each do |model|
-          root_id = created[model.reference_target]
-          # No root was created, so there is nothing to query yet.
-          next unless root_id
+      # @return [Boolean] whether the creating command dispatched; a refusal is recorded instead
+      def smoke_created?(run, aggregate, command, args)
+        result = run.dispatcher.dispatch_flat("#{run.domain}::#{aggregate.name}.#{command.hecks_name}", args)
+        run.created[aggregate.name] = result.instance.id
+        true
+      rescue StandardError => e
+        record_failure(run, aggregate.name, command.hecks_name, e)
+        false
+      end
 
-          dispatcher.query("#{domain}.#{model.query_name}", model.reference_name => root_id)
-        rescue StandardError => e
-          failures << Failure.new(domain: domain, aggregate: model.name, command: "report(#{model.name})",
-                                  error: "#{e.class}: #{e.message}")
-        end
+      # Dispatches a command against the instance the creating command made; a refusal is recorded.
+      def smoke_other(run, aggregate, command)
+        args = Synthesizer.args_for(run.chapter, aggregate, command, run.created).merge(id: run.created[aggregate.name])
+        run.dispatcher.dispatch_flat("#{run.domain}::#{aggregate.name}.#{command.hecks_name}", args)
+      rescue StandardError => e
+        record_failure(run, aggregate.name, command.hecks_name, e)
+      end
 
-        failures
+      # Queries a read model once its root exists; a refusal is recorded.
+      def smoke_read_model(run, model)
+        root_id = run.created[model.reference_target]
+        # No root was created, so there is nothing to query yet.
+        return unless root_id
+
+        run.dispatcher.query("#{run.domain}.#{model.query_name}", model.reference_name => root_id)
+      rescue StandardError => e
+        record_failure(run, model.name, "report(#{model.name})", e)
+      end
+
+      # @return [Array<Failure>] `run.failures`, now holding one more
+      def record_failure(run, aggregate_name, command_name, error)
+        run.failures << Failure.new(domain: run.domain, aggregate: aggregate_name, command: command_name,
+                                    error: "#{error.class}: #{error.message}")
       end
     end
   end

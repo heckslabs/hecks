@@ -8,18 +8,24 @@ module Hecks
         private
 
         def pick(catalog)
-          rest = catalog[:queries].dup
-          catalog[:instance].each { |entry| rest << entry if actionable?(catalog, entry) }
-          catalog[:entity_commands].each { |entry| rest << entry if actionable?(catalog, entry) }
-          catalog[:entity_queries].each { |entry| rest << entry if @known_ids[entry[:aggregate].hecks_name].any? }
-          catalog[:read_models].each { |entry| rest << entry if read_model_actionable?(entry) }
-
+          rest = eligible_entries(catalog)
           makers = catalog[:creating].select { |entry| satisfiable?(catalog, entry) }
           pool   = rest + makers.flat_map { |entry| [entry] * creating_weight(rest.size) }
           pool  += deep_entity_bias(rest) if adversarial?
 
           steer(pool).sample(random: @random)
         end
+
+        # Every query, and every instance command, entity command, entity query and report whose
+        # state exists so far.
+        def eligible_entries(catalog)
+          rest = catalog[:queries].dup
+          rest.concat((catalog[:instance] + catalog[:entity_commands]).select { |entry| actionable?(catalog, entry) })
+          rest.concat(catalog[:entity_queries].select { |entry| known_instance?(entry) })
+          rest.concat(catalog[:read_models].select { |entry| read_model_actionable?(entry) })
+        end
+
+        def known_instance?(entry) = @known_ids[entry[:aggregate].hecks_name].any?
 
         # Weights up entity commands two or more hops deep; adversarial mode only,
         # and eligibility still decides what is possible.

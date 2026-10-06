@@ -1,5 +1,6 @@
 require_relative "bluebook/meta_validator"
 require_relative "corpus"
+require_relative "codemod/runner"
 
 module Hecks
   # Shared machinery for a codemod that migrates real `.bluebook` source: boot,
@@ -18,6 +19,7 @@ module Hecks
     EXTRACTION_PORT  = File.join(ROOT, "lib/hecks/ports/extraction.port")
     MEMORY_ADAPTER   = File.join(ROOT, "lib/hecks/adapters/driven/memory.adapter")
     PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
+    BOOT_FILES       = [PERSISTENCE_PORT, EXTRACTION_PORT, MEMORY_ADAPTER, PRISM_ADAPTER].freeze
 
     def self.export_json(registry) = Hecks::Projector::Exporter.json(registry)
 
@@ -93,26 +95,26 @@ module Hecks
     # Forgets each path's cached AST first — a stale tree after editing a file
     # misreports that file's own source locations.
     def self.load_bluebook(path)
-      paths = if path.is_a?(Array)
-                path
-              elsif File.directory?(path)
-                Dir.glob(File.join(path, "*.bluebook"))
-              else
-                [path]
-              end
+      paths = bluebook_paths(path)
       paths.each { |file| Hecks::Adapters::Prism.forget(file) }
 
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        Kernel.load(PERSISTENCE_PORT)
-        Kernel.load(EXTRACTION_PORT)
-        Kernel.load(MEMORY_ADAPTER)
-        Kernel.load(PRISM_ADAPTER)
+        BOOT_FILES.each { |file| Kernel.load(file) }
         Hecks::Bluebook::MetaValidator.defer { paths.each { |file| Kernel.load(file) } }
         Hecks::Bluebook::MetaValidator.judge_deferred!(registry)
       end
       registry
     end
+
+    # @param path [String, Array<String>] a bluebook file, a directory of them, or a list of files
+    # @return [Array<String>] the bluebook files it names
+    def self.bluebook_paths(path)
+      return path if path.is_a?(Array)
+
+      File.directory?(path) ? Dir.glob(File.join(path, "*.bluebook")) : [path]
+    end
+    private_class_method :bluebook_paths
 
     # Forgets every tree, not just one — callers rarely know which of the
     # meta-domain's several files they just edited.
@@ -151,10 +153,7 @@ module Hecks
       list_attr = owner_attribute(construct, list_field)
       return nil unless list_attr&.list?
 
-      value_objects = construct.respond_to?(:value_objects) ? construct.value_objects : []
-      entities      = construct.respond_to?(:entities) ? construct.entities : []
-      matches = (value_objects + entities).select { |c| c.hecks_name.to_s == list_attr.type.to_s }
-
+      matches = element_candidates(construct).select { |c| c.hecks_name.to_s == list_attr.type.to_s }
       if matches.size > 1
         raise "#{construct.hecks_name}##{list_field} names #{list_attr.type}, held by both a value " \
               "object and an entity — ambiguous, cannot resolve which one the list holds"
@@ -163,162 +162,20 @@ module Hecks
       matches.first
     end
 
+    # @return [Array<Object>] the construct's value objects and entities, whichever it has
+    def self.element_candidates(construct)
+      value_objects = construct.respond_to?(:value_objects) ? construct.value_objects : []
+      entities      = construct.respond_to?(:entities) ? construct.entities : []
+      value_objects + entities
+    end
+    private_class_method :element_candidates
+
     # Rescues StandardError only, so a genuine bug still raises rather than
     # silently counting as an unsafe candidate to revert.
     def self.safely
       [yield, nil]
     rescue StandardError => e
       [nil, "#{e.class}: #{e.message}"]
-    end
-
-    # Runs one codemod rule across every example domain and the meta-domain,
-    # verifying each candidate edit via IR diff before keeping it.
-    class Runner
-      def initialize(find_candidates:, apply_candidate:, label:)
-        @find_candidates = find_candidates
-        @apply_candidate = apply_candidate
-        @label = label
-      end
-
-      def run(dry_run: false)
-        results = { applied: [], skipped: [], clean: [] }
-        run_example_domains(results, dry_run)
-        run_meta_domain(results, dry_run)
-        results
-      end
-
-      def report(results, dry_run:)
-        puts "== results (#{dry_run ? 'DRY RUN — nothing written' : 'applied'}) =="
-        puts "clean (no candidates): #{results[:clean].join(', ')}" unless results[:clean].empty?
-        results[:applied].each { |r| puts "APPLIED  #{r[:file]}: #{r[:candidates].join(', ')}" }
-        results[:skipped].each { |r| puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{Array(r[:candidates]).join(', ')}" }
-      end
-
-      private
-
-      def apply_many(text, candidates)
-        applied = []
-        candidates.each do |c|
-          text, changed = @apply_candidate.call(text, c)
-          applied << c if changed
-        end
-        [text, applied]
-      end
-
-      # Kept as one method: the write/verify/revert sequence is a single unit,
-      # and splitting it would scatter shared state for no readability gain.
-      # rubocop:disable-next Metrics/AbcSize
-      # rubocop:disable-next Metrics/BlockLength
-      # rubocop:disable-next Metrics/CyclomaticComplexity
-      # rubocop:disable-next Metrics/MethodLength
-      # rubocop:disable-next Metrics/PerceivedComplexity
-      def run_example_domains(results, dry_run)
-        Codemod::EXAMPLE_ROOTS.each do |domain_dir|
-          bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
-          next if bluebook_files.empty?
-
-          before_json = Codemod.export_json(Codemod.load_bluebook(bluebook_files))
-          candidates  = @find_candidates.call(Codemod.load_bluebook(bluebook_files))
-
-          if candidates.empty?
-            results[:clean] << domain_dir
-            next
-          end
-
-          live = bluebook_files.to_h { |file| [file, File.read(file)] }
-          applied_by_file = Hash.new { |hash, file| hash[file] = [] }
-
-          candidates.each do |candidate|
-            target_file = bluebook_files.find { |file| apply_many(live[file], [candidate]).last.any? }
-            unless target_file
-              results[:skipped] << { file: domain_dir, reason: "no matching source line", candidates: [@label.call(candidate)] }
-              next
-            end
-
-            original_text = live[target_file]
-            text, = apply_many(original_text, [candidate])
-            live[target_file] = text
-            Codemod.stage(target_file, text, dry_run: dry_run)
-            after_json, error = Codemod.safely do
-              Codemod.export_json(Codemod.load_bluebook(bluebook_files))
-            end
-
-            if after_json == before_json && !dry_run
-              applied_by_file[target_file] << candidate
-            elsif after_json == before_json
-              live[target_file] = original_text
-              Codemod.unstage(target_file, original_text, dry_run: dry_run)
-              Codemod.safely { Codemod.load_bluebook(bluebook_files) }
-              applied_by_file[target_file] << candidate
-            else
-              live[target_file] = original_text
-              Codemod.unstage(target_file, original_text, dry_run: dry_run)
-              Codemod.safely { Codemod.load_bluebook(bluebook_files) }
-              reason = error ? "reboot raised after edit (#{error}) — reverted" : "IR changed after edit — reverted"
-              results[:skipped] << { file: target_file, reason: reason, candidates: [@label.call(candidate)] }
-            end
-          end
-
-          applied_by_file.each do |file, applied|
-            results[:applied] << { file: file, candidates: applied.map(&@label) }
-          end
-        end
-      end
-
-      # Per-candidate, not batched — the meta-domain is one shared,
-      # self-dispatching registry (S14), so a single unsafe candidate could
-      # otherwise sink every other, genuinely safe one in the same run.
-      # rubocop:disable-next Metrics/AbcSize
-      # rubocop:disable-next Metrics/CyclomaticComplexity
-      # rubocop:disable-next Metrics/PerceivedComplexity
-      def run_meta_domain(results, dry_run)
-        before_meta     = Codemod.boot_meta
-        meta_candidates = @find_candidates.call(Codemod.meta_registry)
-
-        if meta_candidates.empty?
-          results[:clean] << "meta-domain"
-          return
-        end
-
-        live_meta = Codemod::META_FILES.to_h { |f| [f, File.read(f)] }
-        applied_by_file = Hash.new { |h, k| h[k] = [] }
-
-        meta_candidates.each do |candidate|
-          target_file = Codemod::META_FILES.find { |f| apply_many(live_meta[f], [candidate]).last.any? }
-          unless target_file
-            results[:skipped] << { file: "meta-domain", reason: "no matching source line", candidates: [@label.call(candidate)] }
-            next
-          end
-
-          text, = apply_many(live_meta[target_file], [candidate])
-          original_text = live_meta[target_file]
-          live_meta[target_file] = text
-          Codemod::META_FILES.each { |f| Codemod.stage(f, live_meta[f], dry_run: dry_run) }
-
-          # A dry run stages the text in memory and reboots from it, then drops it — so the next
-          # candidate is judged against the true original state and no file is written.
-          after_meta, error = Codemod.safely { Codemod.boot_meta }
-
-          if after_meta == before_meta && !dry_run
-            applied_by_file[target_file] << candidate
-          elsif after_meta == before_meta # dry-run, safe — revert, but count as applied
-            live_meta[target_file] = original_text
-            Codemod::META_FILES.each { |f| Codemod.unstage(f, live_meta[f], dry_run: dry_run) }
-            Codemod.safely { Codemod.boot_meta }
-            applied_by_file[target_file] << candidate
-          else
-            live_meta[target_file] = original_text
-            Codemod::META_FILES.each { |f| Codemod.unstage(f, live_meta[f], dry_run: dry_run) }
-            Codemod.safely { Codemod.boot_meta } # resync memoized state to the reverted text
-            reason = error ? "reboot raised (#{error})" : "IR changed"
-            results[:skipped] << { file: "meta-domain", reason: reason, candidates: [@label.call(candidate)] }
-          end
-        end
-
-        applied_by_file.each do |file, candidates|
-          results[:applied] << { file: file, candidates: candidates.map(&@label) }
-        end
-      end
     end
   end
 end

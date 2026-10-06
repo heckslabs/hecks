@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "row_defaults"
+
 module Hecks
   module Projections
     module Site
@@ -49,25 +51,31 @@ module Hecks
             fields = checked_fields(member, label)
             source = fields[:source] || "none"
             path = fields[:path] || derived_path(source)
-            label = path || label
-            check_source(label, source)
+            check_source(path || label, source)
+            finish(build_row(fields, path, source), path || label)
+          end
+
+          private
+
+          def build_row(fields, path, source)
             verbs = fields.delete(:methods)
             edge_verbs = fields.delete(:edge_methods)
-            row = Row.new(**fields, verbs: verbs, edge_verbs: edge_verbs, path: path, source: source,
-                                    explicit_cache: !fields[:cache].nil?,
-                                    kind: fields[:kind] || default_kind(source), auth: fields[:auth] || "public",
-                                    origin: fields[:origin] || default_origin(source))
-            fill_defaults(row)
+            Row.new(**fields, verbs: verbs, edge_verbs: edge_verbs, path: path, source: source,
+                              explicit_cache: !fields[:cache].nil?,
+                              kind: fields[:kind] || RowDefaults.kind(source), auth: fields[:auth] || "public",
+                              origin: fields[:origin] || RowDefaults.origin(source))
+          end
+
+          def finish(row, label)
+            RowDefaults.fill(row)
             check_values(row, label)
             problem(label, "needs a path") if row.path.nil?
             row
           end
 
-          private
-
           def checked_fields(member, label)
             member.each_key do |key|
-              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(', ')}") unless FIELDS.key?(key)
+              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(", ")}") unless FIELDS.key?(key)
             end
             known = member.slice(*FIELDS.keys)
             known.each { |key, value| check_type(label, key, value) }
@@ -78,12 +86,8 @@ module Hecks
             expected = FIELDS.fetch(key)
             return if expected == :bool ? [true, false].include?(value) : value.is_a?(expected)
 
-            problem(label, "has #{key} #{value.inspect}; #{key} is #{expected == :bool ? 'true or false' : "a #{expected}"}")
+            problem(label, "has #{key} #{value.inspect}; #{key} is #{expected == :bool ? "true or false" : "a #{expected}"}")
           end
-
-          def default_kind(source) = source.match?(DERIVED_SOURCE) ? "endpoint" : "page"
-
-          def default_origin(source) = source.match?(DERIVED_SOURCE) ? "domain" : "website"
 
           # A `command:` or `query:` source leaves the path to the forms scheme,
           # `/Chapter/Aggregate/Verb`.
@@ -92,57 +96,31 @@ module Hecks
             "/#{match[2]}/#{match[3]}/#{match[4]}"
           end
 
-          def fill_defaults(row)
-            row.off = false if row.off.nil?
-            row.compress = true if row.compress.nil?
-            row.cdn = true if row.cdn.nil?
-            row.render ||= row.kind == "page" ? "prerender" : "ssr"
-            row.verbs = list(row.verbs || (row.source.start_with?("command:") ? "POST" : "GET"))
-            row.edge_verbs = row.edge_verbs.nil? ? row.verbs : list(row.edge_verbs)
-            row.aliases = list(row.aliases)
-            row.cache ||= default_cache(row)
-            row.indexable = indexable_by_default?(row) if row.indexable.nil?
-            fill_slots(row)
-          end
-
-          def fill_slots(row)
-            row.preview ||= "public"
-            row.switch ||= ""
-            row.footer_order ||= 0 if row.footer_column
-            row.admin_order ||= 0 if row.admin_key
-          end
-
-          def list(text) = text.to_s.split(",").map(&:strip).reject(&:empty?)
-
-          def default_cache(row)
-            return "no_store" if row.auth != "public" || row.kind == "endpoint"
-
-            row.origin == "assets" ? "immutable" : "page"
-          end
-
-          def indexable_by_default?(row) = row.kind == "page" && row.auth == "public" && !row.off
-
           def check_values(row, label)
             VOCABULARY.each_key do |field|
               next if @vocabulary.fetch(field).include?(row[field])
 
-              problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(', ')}")
+              problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(", ")}")
             end
             check_verbs(row, label)
           end
 
           def check_verbs(row, label)
             { "method" => row.verbs, "edge method" => row.edge_verbs }.each do |what, verbs|
-              verbs.each do |verb|
-                next if @vocabulary.fetch(:http_method).include?(verb)
-
-                problem(label, "has #{what} #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(', ')}")
-              end
+              check_known_verbs(label, what, verbs)
             end
             return if (row.verbs - row.edge_verbs).empty?
 
-            problem(label, "has edge_methods #{row.edge_verbs.join(',')}, which leave out its methods " \
-                           "#{(row.verbs - row.edge_verbs).join(',')}; the edge must allow every verb the route answers")
+            problem(label, "has edge_methods #{row.edge_verbs.join(",")}, which leave out its methods " \
+                           "#{(row.verbs - row.edge_verbs).join(",")}; the edge must allow every verb the route answers")
+          end
+
+          def check_known_verbs(label, what, verbs)
+            verbs.each do |verb|
+              next if @vocabulary.fetch(:http_method).include?(verb)
+
+              problem(label, "has #{what} #{verb.inspect}; methods are #{@vocabulary.fetch(:http_method).join(", ")}")
+            end
           end
 
           def check_source(label, source)

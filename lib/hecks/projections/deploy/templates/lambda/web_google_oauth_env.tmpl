@@ -1,0 +1,12 @@
+# BY NAME, not `!Ref`/`!GetAtt` -- @@web_logical_id@@GoogleOauth
+# is deliberately NOT declared as a CloudFormation resource
+# here (would need either GenerateSecretString, which can't
+# invent a real Google client_id/secret, or a value baked
+# into this git-TRACKED template as plaintext). `make
+# sync-google-oauth` owns this secret's whole lifecycle
+# instead, straight from @@domain@@'s own gitignored
+# .env.local, outside CloudFormation entirely. GetSecretValue
+# accepts a bare name directly, no ARN needed -- same
+# generator-only caveat as DB_SECRET_ARN's own comment above.
+GOOGLE_OAUTH_SECRET_ID: @@stack_name@@-web-google-oauth
+GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"

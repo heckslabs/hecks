@@ -32,7 +32,8 @@ RSpec.describe "Port#answers, checked at verify!" do
     expect { registry.verify! }.not_to raise_error
   end
 
-  it "leaves the existing zero/many refusal alone — that stays a live, first-dispatch check, not a boot one" do
+  it "leaves the existing zero/many refusal alone — that stays a live, first-dispatch check, not a boot one",
+     :aggregate_failures do
     empty_registry = registry_with
     expect { empty_registry.verify! }.not_to raise_error
     expect { Hecks::Ports::Clock.now(empty_registry) }

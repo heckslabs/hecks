@@ -33,4 +33,4 @@ RUNTIME.dispatch_port(
 
 sold = Order.find(NAME)
 puts "After payment:  #{sold.status}, customer=#{sold.customer_name.to_h}"
-puts "Events: #{sold.events.map(&:name).join(', ')}"
+puts "Events: #{sold.events.map(&:name).join(", ")}"

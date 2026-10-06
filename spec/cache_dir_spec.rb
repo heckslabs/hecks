@@ -11,7 +11,7 @@ RSpec.describe Hecks::CacheDir do
   after { FileUtils.rm_rf(scratch) }
 
   describe ".resolve" do
-    it "prefers $XDG_CACHE_HOME/hecks" do
+    it "prefers $XDG_CACHE_HOME/hecks", :aggregate_failures do
       xdg = File.join(scratch, "xdg")
 
       root = described_class.resolve(env: { "XDG_CACHE_HOME" => xdg, "HOME" => scratch }, tmpdir: scratch)
@@ -47,11 +47,15 @@ RSpec.describe Hecks::CacheDir do
       expect(root).to eq(File.join(scratch, "hecks-4242"))
     end
 
-    it "refuses a directory other users can write to and uses a private per-process one instead" do
-      shared = File.join(scratch, "hecks-4242")
-      Dir.mkdir(shared)
-      File.chmod(0o777, shared)
+    def world_writable_cache
+      File.join(scratch, "hecks-4242").tap do |shared|
+        Dir.mkdir(shared)
+        File.chmod(0o777, shared)
+      end
+    end
 
+    it "refuses a directory other users can write to and uses a private per-process one instead", :aggregate_failures do
+      shared = world_writable_cache
       root = described_class.resolve(env: {}, tmpdir: scratch, uid: 4242)
 
       expect(root).not_to eq(shared)
@@ -84,17 +88,18 @@ RSpec.describe Hecks::CacheDir do
       raise "subprocess failed: #{err}" unless status.success?
     end
 
+    def audit_log = File.join(scratch, "hecks", "storehouse", "Pizzas.jsonl")
+
     def gem_tmp_entries
       Dir.glob(File.join(gem_root, "tmp", "{storehouse,hecks_syntax_boot_cache}", "**", "*"))
     end
 
-    it "writes the audit log and the syntax-boot cache under the cache root, not under <gem root>/tmp" do
+    it "writes the audit log and the syntax-boot cache under the cache root, not under <gem root>/tmp", :aggregate_failures do
       before = gem_tmp_entries
 
       run_process("XDG_CACHE_HOME" => scratch, "HECKS_SYNTAX_BOOT_CACHE" => nil)
 
-      log = File.join(scratch, "hecks", "storehouse", "Pizzas.jsonl")
-      expect(JSON.parse(File.read(log))).to include("tool" => "state", "ok" => true)
+      expect(JSON.parse(File.read(audit_log))).to include("tool" => "state", "ok" => true)
       expect(Dir.glob(File.join(scratch, "hecks", "hecks_syntax_boot_cache", "*.marshal"))).not_to be_empty
       expect(gem_tmp_entries).to eq(before)
     end

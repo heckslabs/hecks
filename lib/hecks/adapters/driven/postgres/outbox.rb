@@ -6,6 +6,25 @@ module Hecks
     # Outbox storage shared by `Postgres` and `PostgresEra`; needs `@db` and `table`.
     # See `Runtime::Outbox` for the four verbs.
     module PostgresOutbox
+      CREATE_OUTBOX_TABLE = <<~SQL.freeze
+        CREATE TABLE IF NOT EXISTS hecks_outbox (
+          id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          delivery_id  text NOT NULL UNIQUE,
+          event_uid    text NOT NULL,
+          aggregate    text NOT NULL,
+          domain       text NOT NULL,
+          kind         text NOT NULL,
+          consumer     text NOT NULL,
+          event        jsonb NOT NULL,
+          status       text NOT NULL DEFAULT 'pending',
+          attempts     integer NOT NULL DEFAULT 0,
+          error        text,
+          enqueued_at  timestamptz NOT NULL DEFAULT now(),
+          claimed_at   timestamptz,
+          settled_at   timestamptz
+        )
+      SQL
+
       # Runs the block inside one Postgres transaction, joining an already-open one.
       #
       # Re-entrant: PG refuses BEGIN inside BEGIN, so an inner call joins the open one.
@@ -34,11 +53,7 @@ module Hecks
       # @raise [PG::Error] if an insert fails
       def outbox_enqueue(rows)
         rows.filter_map do |row|
-          result = pg_exec_params(
-            "INSERT INTO hecks_outbox (delivery_id, event_uid, aggregate, domain, kind, consumer, event, status, attempts) " \
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 0) ON CONFLICT (delivery_id) DO NOTHING RETURNING id",
-            [row.delivery_id, row.event_uid, row.aggregate, row.domain, row.kind, row.consumer, JSON.generate(row.event)]
-          )
+          result = insert_outbox_row(row)
           next nil if result.ntuples.zero?
 
           row.id = result[0]["id"].to_i
@@ -91,37 +106,30 @@ module Hecks
           sql << " AND status = $2"
           binds << status.to_s
         end
-        pg_exec_params("#{sql} ORDER BY id", binds).map do |row|
-          Runtime::Outbox::Row.new(
-            id: row["id"].to_i, delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
-            domain: row["domain"], kind: row["kind"], consumer: row["consumer"],
-            event: JSON.parse(row["event"], symbolize_names: true), status: row["status"],
-            attempts: row["attempts"].to_i, error: row["error"]
-          )
-        end
+        pg_exec_params("#{sql} ORDER BY id", binds).map { |row| outbox_row_from(row) }
       end
 
       private
 
+      def insert_outbox_row(row)
+        pg_exec_params(
+          "INSERT INTO hecks_outbox (delivery_id, event_uid, aggregate, domain, kind, consumer, event, status, attempts) " \
+          "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 0) ON CONFLICT (delivery_id) DO NOTHING RETURNING id",
+          [row.delivery_id, row.event_uid, row.aggregate, row.domain, row.kind, row.consumer, JSON.generate(row.event)]
+        )
+      end
+
+      def outbox_row_from(row)
+        Runtime::Outbox::Row.new(
+          id: row["id"].to_i, delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
+          domain: row["domain"], kind: row["kind"], consumer: row["consumer"],
+          event: JSON.parse(row["event"], symbolize_names: true), status: row["status"],
+          attempts: row["attempts"].to_i, error: row["error"]
+        )
+      end
+
       def create_outbox_table!
-        @db.exec(<<~SQL)
-          CREATE TABLE IF NOT EXISTS hecks_outbox (
-            id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            delivery_id  text NOT NULL UNIQUE,
-            event_uid    text NOT NULL,
-            aggregate    text NOT NULL,
-            domain       text NOT NULL,
-            kind         text NOT NULL,
-            consumer     text NOT NULL,
-            event        jsonb NOT NULL,
-            status       text NOT NULL DEFAULT 'pending',
-            attempts     integer NOT NULL DEFAULT 0,
-            error        text,
-            enqueued_at  timestamptz NOT NULL DEFAULT now(),
-            claimed_at   timestamptz,
-            settled_at   timestamptz
-          )
-        SQL
+        @db.exec(CREATE_OUTBOX_TABLE)
         @db.exec("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
       end
     end

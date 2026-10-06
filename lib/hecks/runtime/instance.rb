@@ -19,18 +19,13 @@ module Hecks
       # `hydrate_with:` replaces the default hydration with a callable that takes the given
       # state and answers the hydrated one (defaults filled), for an adapter that can reuse
       # work across saves.
+      # rubocop:disable-next Metrics/ParameterLists -- the public keyword constructor every caller spells out
       def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true, hydrate_with: nil)
         @aggregate = aggregate
         @id        = id
         # Inside a persistence adapter call this refuses undecoded stored state.
         Ports::Persistence::CodecBoundary.check_state!(aggregate, state) if state
-        @state = if !hydrate
-                   state || self.class.defaults(aggregate)
-                 elsif state
-                   hydrate_with ? hydrate_with.call(state) : self.class.hydrate_with_defaults(aggregate, state)
-                 else
-                   self.class.defaults(aggregate)
-                 end
+        @state   = starting_state(state, hydrate, hydrate_with)
         @version = nil
         materialize_identity!(args)
       end
@@ -103,6 +98,15 @@ module Hecks
       end
 
       private
+
+      # The state this record starts from: the given one (hydrated unless `hydrate` is false) or
+      # the aggregate's defaults.
+      def starting_state(state, hydrate, hydrate_with)
+        return state || self.class.defaults(@aggregate) unless hydrate
+        return self.class.defaults(@aggregate) unless state
+
+        hydrate_with ? hydrate_with.call(state) : self.class.hydrate_with_defaults(@aggregate, state)
+      end
 
       # A composite identity has no single head, so each head is filled from `args`.
       # Never split `@id`: it is a display key and a part's text can contain the separator.

@@ -1,0 +1,9 @@
+@@logical@@TargetGroup:
+  Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  Properties:
+    TargetType: ip
+    Port: @@port@@
+    Protocol: HTTP
+    VpcId: !Ref OwningVpcId
+    HealthCheckPath: @@health_check_path@@
+    HealthCheckPort: "@@port@@"

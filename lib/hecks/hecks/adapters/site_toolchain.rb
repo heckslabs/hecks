@@ -40,9 +40,7 @@ module Hecks
       #   a duplicate path), a path or the extension is refused, or under `check` a file is out
       #   of date
       def project(**held)
-        flags = FLAGS.filter_map { |flag, key| "--#{flag}=#{located(key, held[key])}" unless plain(held[key]).nil? }
-        flags << "--check" if plain(held[:check]) == true
-        result = Codebase::RubyChild.new(Codebase::Tree.new).capture(SCRIPTS.fetch(:project), *flags,
+        result = Codebase::RubyChild.new(Codebase::Tree.new).capture(SCRIPTS.fetch(:project), *project_flags(held),
                                                                      located(:domain, held[:domain]))
         raise ConsoleCapture::Failure, message_of(result) unless result.ok?
 
@@ -62,16 +60,27 @@ module Hecks
       #   cannot be read, or the two differ; the message is the report
       def compare(**held)
         edge = edge_of(located(:domain, held[:domain]), located(:template, held[:template]))
-        live = live_configuration(held)
-        live_edge = Projections::Site::LiveEdge
-        comparison = live_edge.new(edge, live, expect_new: words(held[:expect_new]),
-                                               refs:       live_edge.refs_from(plain(held[:refs]))).call
+        comparison = compared(edge, live_configuration(held), held)
         raise ConsoleCapture::Failure, comparison.to_s unless comparison.clean?
 
         { output: { value: comparison.to_s } }
       end
 
       private
+
+      # The flags `project_site` is run with: each the record names, and `--check` when asked.
+      def project_flags(held)
+        flags = FLAGS.filter_map { |flag, key| "--#{flag}=#{located(key, held[key])}" unless plain(held[key]).nil? }
+        flags << "--check" if plain(held[:check]) == true
+        flags
+      end
+
+      # The comparison of the project's edge with the live configuration.
+      def compared(edge, live, held)
+        live_edge = Projections::Site::LiveEdge
+        live_edge.new(edge, live, expect_new: words(held[:expect_new]),
+                                  refs:       live_edge.refs_from(plain(held[:refs]))).call
+      end
 
       # The project's checked edge, read the way `project_site` reads it.
       def edge_of(root, template = nil)

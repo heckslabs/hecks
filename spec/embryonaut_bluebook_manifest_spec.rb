@@ -26,17 +26,31 @@ RSpec.describe Hecks::EmbryonautBluebook::Manifest, :io do
     e.problems
   end
 
+  def expected_manifest(result)
+    { "built_from" => { "commit" => "abc", "dirty" => false },
+      "bluebooks"  => { "widgets" => { "version" => "1.2.0", "tag" => "widgets-v1.2.0", "commit" => result.commit,
+                                       "digest" => result.digest, "shape" => result.shape } } }
+  end
+
+  def vendored_json_text
+    release("1.0.0")
+    vendor
+    described_class.new(root).to_json_text
+  end
+
+  # Releases and vendors widgets 1.0.0 and returns the path of its lock file.
+  def vendored_lock
+    release("1.0.0")
+    vendor
+    File.join(package_dir, "bluebook.lock")
+  end
+
   it "describes a vendored package by its lock" do
     release("1.2.0")
     result = vendor
-
     manifest = described_class.new(root, built_from: { "commit" => "abc", "dirty" => false }).call
 
-    expect(manifest).to eq(
-      "built_from" => { "commit" => "abc", "dirty" => false },
-      "bluebooks"  => { "widgets" => { "version" => "1.2.0", "tag" => "widgets-v1.2.0", "commit" => result.commit,
-                                       "digest" => result.digest, "shape" => result.shape } }
-    )
+    expect(manifest).to eq(expected_manifest(result))
   end
 
   it "uses the digest the vendoring wrote, from Lock.digest_of" do
@@ -54,11 +68,8 @@ RSpec.describe Hecks::EmbryonautBluebook::Manifest, :io do
     expect(described_class.new(root).call).to eq("bluebooks" => {})
   end
 
-  it "writes sorted keys with a trailing newline, the same text every time" do
-    release("1.0.0")
-    vendor
-
-    text = described_class.new(root).to_json_text
+  it "writes sorted keys with a trailing newline, the same text every time", :aggregate_failures do
+    text = vendored_json_text
 
     expect(text).to end_with("}\n")
     expect(JSON.parse(text).fetch("bluebooks").fetch("widgets").keys).to eq(%w[commit digest shape tag version])
@@ -89,9 +100,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Manifest, :io do
   end
 
   it "refuses a lock whose tag does not match its version, or that names another package" do
-    release("1.0.0")
-    vendor
-    lock = File.join(package_dir, "bluebook.lock")
+    lock = vendored_lock
     edited = File.read(lock).sub("tag: widgets-v1.0.0", "tag: widgets-v2.0.0").sub("package: widgets", "package: gadgets")
     File.write(lock, edited)
 
@@ -102,9 +111,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Manifest, :io do
   it "reports every package that disagrees, one FAIL line each" do
     release("1.0.0")
     vendor
-    FileUtils.mkdir_p(File.join(root, "vendor", "embryonaut_bluebooks", "gadgets", "bluebook"))
-
-    FileUtils.mkdir_p(File.join(root, "vendor", "embryonaut_bluebooks", "doodads", "bluebook"))
+    %w[gadgets doodads].each { |name| FileUtils.mkdir_p(File.join(root, "vendor", "embryonaut_bluebooks", name, "bluebook")) }
 
     expect { described_class.new(root).call }
       .to raise_error(described_class::Mismatch, /\AFAIL doodads: no bluebook.lock.*\nFAIL gadgets: no bluebook.lock/)

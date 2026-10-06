@@ -22,6 +22,9 @@ module Hecks
       # What a domain directory's basename may be: a plain identifier, never `.` or `..`.
       DOMAIN_NAME = /\A[A-Za-z0-9][A-Za-z0-9_-]*\z/
 
+      # One fuzz run: what is replayed, against which artifact, how much, and where the scripts go.
+      Run = Struct.new(:domain, :artifact, :seeds, :steps, :scratch)
+
       module_function
 
       # @param argv [Array<String>] the domain, the artifact, and optionally seeds and steps
@@ -30,16 +33,20 @@ module Hecks
       def call(argv)
         require_relative "../../hecks"
         require_relative "../fuzzing"
+        run = build_run(argv)
+        (1..run.seeds).each { |seed| replay(run, seed) }
+        FileUtils.rm_rf(run.scratch)
+        puts "#{run.domain}: #{run.seeds} generated sequence(s) x #{run.steps} step(s) each, " \
+             "all matched #{run.artifact}."
+        0
+      end
+
+      def build_run(argv)
         domain, artifact, seeds, steps = argv
         raise Failure, USAGE unless domain && artifact
 
-        seeds = Integer(seeds || ENV["SEEDS"] || 10)
-        steps = Integer(steps || ENV["STEPS"] || 25)
-        scratch = scratch_dir(domain)
-        (1..seeds).each { |seed| replay(domain, artifact, seed, seeds, steps, scratch) }
-        FileUtils.rm_rf(scratch)
-        puts "#{domain}: #{seeds} generated sequence(s) x #{steps} step(s) each, all matched #{artifact}."
-        0
+        Run.new(domain, artifact, Integer(seeds || ENV["SEEDS"] || 10), Integer(steps || ENV["STEPS"] || 25),
+                scratch_dir(domain))
       end
 
       # A fresh directory per run, under the cache root outside the gem, so concurrent runs never
@@ -57,15 +64,19 @@ module Hecks
         Dir.mktmpdir("#{name}-", parent)
       end
 
-      def replay(domain, artifact, seed, seeds, steps, scratch)
-        sequence = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
-        path = File.join(scratch, "seed-#{seed}.json")
-        File.write(path, KernelInput.json(domain, sequence))
-        return if Conformance.call([domain, path, artifact]).zero?
+      def replay(run, seed)
+        sequence = Hecks::Fuzzing::SequenceGenerator.generate(run.domain, seed: seed, steps: run.steps)
+        path = File.join(run.scratch, "seed-#{seed}.json")
+        File.write(path, KernelInput.json(run.domain, sequence))
+        return if Conformance.call([run.domain, path, run.artifact]).zero?
 
-        raise Failure, "hecks fuzz_conformance: seed #{seed}/#{seeds} diverged against #{artifact} " \
-                       "(see the conformance output above) — " \
-                       "reproduce with: hecks check_conformance #{domain} #{path} #{artifact}"
+        raise Failure, divergence_message(run, seed, path)
+      end
+
+      def divergence_message(run, seed, path)
+        "hecks fuzz_conformance: seed #{seed}/#{run.seeds} diverged against #{run.artifact} " \
+          "(see the conformance output above) — " \
+          "reproduce with: hecks check_conformance #{run.domain} #{path} #{run.artifact}"
       end
     end
   end

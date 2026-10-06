@@ -21,14 +21,17 @@ module Hecks
           exit 1
         end
 
-        registry = Hecks.boot(domain).registry
-        stores = registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
+        puts JSON.generate(stores_of(Hecks.boot(domain).registry))
+      end
+
+      # @param registry [Runtime::Registry] a booted domain's registry
+      # @return [Hash{String => Hash}] each aggregate's dump, keyed by its storage name
+      def stores_of(registry)
+        registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
           bluebook.aggregates.each do |aggregate|
             all[aggregate.storage_name] = data_for(registry.repository(name, aggregate))
           end
         end
-
-        puts JSON.generate(stores)
       end
 
       # Reads one aggregate's current records as plain JSON-ready hashes, ordered by id.

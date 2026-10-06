@@ -53,15 +53,7 @@ module Hecks
         def transition_impl(mapping, &block)
           mapping = mapping.dup
           from    = mapping.delete(:from)
-
-          # `from:` is required: the saga's admission check tests `from_state` by plain equality,
-          # so a transition with no `from:` would match no instance.
-          if from.nil?
-            raise InvalidProcessManager,
-                  "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
-                  "admission checks a saga instance's CURRENT state exactly, so a transition with no " \
-                  "from: would match no instance ever, silently"
-          end
+          refuse_missing_from!(mapping, from)
 
           handler = HandlerBuilder.new
           handler.instance_eval(&block) if block
@@ -110,6 +102,17 @@ module Hecks
 
         private
 
+        # `from:` is required: the saga's admission check tests `from_state` by plain equality,
+        # so a transition with no `from:` would match no instance.
+        def refuse_missing_from!(mapping, from)
+          return unless from.nil?
+
+          raise InvalidProcessManager,
+                "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
+                "admission checks a saga instance's CURRENT state exactly, so a transition with no " \
+                "from: would match no instance ever, silently"
+        end
+
         # One row per source state, since a `ProcessManagerHandler` carries a single `from_state`.
         def expand(event_type, transition, dispatches)
           sources = transition.from.nil? ? [nil] : Array(transition.from)
@@ -130,18 +133,7 @@ module Hecks
         end
 
         def validate!
-          unless @correlates_by
-            raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-                                         "nothing would tie its events to one instance"
-          end
-
-          # Names a scalar (`:"end_to_end.value"`), never a whole field or value object.
-          # A syntactic check: the dotted spelling leaves no question about the key's type.
-          unless @correlates_by.to_s.include?(".")
-            raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
-                                         "field rather than one of its scalars — say which one, e.g. " \
-                                         "#{@correlates_by}.value"
-          end
+          refuse_bad_correlation!
 
           if @starts_on.to_s.empty?
             raise InvalidProcessManager, "#{@name} declares no starts_on — " \
@@ -156,6 +148,21 @@ module Hecks
           refuse_ambiguous_legs!
         end
 
+        def refuse_bad_correlation!
+          unless @correlates_by
+            raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
+                                         "nothing would tie its events to one instance"
+          end
+
+          # Names a scalar (`:"end_to_end.value"`), never a whole field or value object.
+          # A syntactic check: the dotted spelling leaves no question about the key's type.
+          return if @correlates_by.to_s.include?(".")
+
+          raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
+                                       "field rather than one of its scalars — say which one, e.g. " \
+                                       "#{@correlates_by}.value"
+        end
+
         # A leg is selected by (event, current state), so two legs on the same pair would
         # be picked by declaration order; `from: [...]` fan-out counts.
         def refuse_ambiguous_legs!
@@ -164,15 +171,17 @@ module Hecks
           seen = {}
           @handlers.each do |handler|
             key = [handler.event_type, handler.from_state]
-            if (earlier = seen[key])
-              raise InvalidProcessManager,
-                    "#{@name} declares two transitions on #{handler.event_type.inspect} from " \
-                    "#{handler.from_state.inspect} (=> #{earlier.to_state.inspect} and => " \
-                    "#{handler.to_state.inspect}) — a leg is selected by (event, current state), so " \
-                    "only one may answer"
-            end
+            refuse_ambiguous_pair!(handler, seen[key]) if seen[key]
             seen[key] = handler
           end
+        end
+
+        def refuse_ambiguous_pair!(handler, earlier)
+          raise InvalidProcessManager,
+                "#{@name} declares two transitions on #{handler.event_type.inspect} from " \
+                "#{handler.from_state.inspect} (=> #{earlier.to_state.inspect} and => " \
+                "#{handler.to_state.inspect}) — a leg is selected by (event, current state), so " \
+                "only one may answer"
         end
 
         # The body of one `transition ... do ... end` block; collects its `dispatch` calls.
@@ -199,28 +208,35 @@ module Hecks
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
           #   is quoted text outside shadow-parsing
           def dispatch_impl(command_ref, with: nil, &block)
-            if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
-              raise InvalidProcessManager,
-                    "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \
-                    "instead, e.g. dispatch Account::Debit"
-            end
+            refuse_quoted_command!(command_ref)
 
             spec = DispatchSpec.new(
               command_name: Naming.command_ref(command_ref),
               with_spec:    (with || {}).to_a
             )
             spec.instance_variable_set(:@projection_declared, !with.nil?)
-
-            if block
-              builder = DispatchBuilder.new
-              builder.instance_eval(&block)
-              # `instance_variable_get`, not a public reader: a reader would be a method the
-              # grammar never declares (syntax_conformance_spec).
-              spec.compensates = builder.instance_variable_get(:@compensates_spec)
-            end
+            spec.compensates = compensation_from(block) if block
 
             @dispatches << spec
             spec
+          end
+
+          private
+
+          def refuse_quoted_command!(command_ref)
+            return unless command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
+
+            raise InvalidProcessManager,
+                  "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \
+                  "instead, e.g. dispatch Account::Debit"
+          end
+
+          # `instance_variable_get`, not a public reader: a reader would be a method the
+          # grammar never declares (syntax_conformance_spec).
+          def compensation_from(block)
+            builder = DispatchBuilder.new
+            builder.instance_eval(&block)
+            builder.instance_variable_get(:@compensates_spec)
           end
 
           # The nested scope `dispatch ... do ... end` opens; its one word, `compensates`,

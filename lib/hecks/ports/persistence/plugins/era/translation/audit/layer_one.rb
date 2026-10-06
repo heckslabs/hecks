@@ -17,22 +17,29 @@ module Hecks
         # @param after [Hash{String => Hash}] translated state per record id, as parsed JSON
         # @return [void]
         def layer_one!(violations, aggregate, after)
-          after.each do |id, state|
-            symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)
-            instance = Runtime::Instance.new(aggregate: aggregate, id: id, state: symbolized)
-            lifecycle = aggregate.lifecycle
-            next unless lifecycle
+          after.each { |id, state| check_record!(violations, aggregate, id, state) }
+        end
 
-            held = instance[lifecycle.field]
-            # `Lifecycle#states` omits states declared only as a `from:`; `full_states` has them.
-            allowed = Bluebook::ModelCheck.full_states(lifecycle)
-            unless held.nil? || allowed.include?(held.to_s)
-              violations << "#{aggregate.name}##{id}: #{lifecycle.field} is #{held.inspect}, " \
-                            "a state this era's lifecycle never reaches"
-            end
-          rescue Runtime::InvariantViolation, Runtime::TypeMismatch => e
-            violations << "#{aggregate.name}##{id}: #{e.message}"
-          end
+        private
+
+        def check_record!(violations, aggregate, id, state)
+          symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)
+          instance = Runtime::Instance.new(aggregate: aggregate, id: id, state: symbolized)
+          lifecycle = aggregate.lifecycle
+          return unless lifecycle
+
+          check_lifecycle_state!(violations, aggregate, id, lifecycle, instance[lifecycle.field])
+        rescue Runtime::InvariantViolation, Runtime::TypeMismatch => e
+          violations << "#{aggregate.name}##{id}: #{e.message}"
+        end
+
+        def check_lifecycle_state!(violations, aggregate, id, lifecycle, held)
+          # `Lifecycle#states` omits states declared only as a `from:`; `full_states` has them.
+          allowed = Bluebook::ModelCheck.full_states(lifecycle)
+          return if held.nil? || allowed.include?(held.to_s)
+
+          violations << "#{aggregate.name}##{id}: #{lifecycle.field} is #{held.inspect}, " \
+                        "a state this era's lifecycle never reaches"
         end
       end
     end

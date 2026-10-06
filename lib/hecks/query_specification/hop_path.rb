@@ -77,28 +77,25 @@ module Hecks
       #   target is not found, `:too_deep` when the chain exceeds `MAX_HOPS`
       # @raise [Bluebook::DSL::Malformed] if a reference on the path has no `declared_in`
       #   aggregate to resolve its target through
-      def plan(field, attributes)
-        hops = []
-        remaining = field.to_s
-        current = attributes
+      def plan(field, attributes) = walk(field.to_s, attributes, [])
 
-        loop do
-          step = next_hop(remaining, current)
-          break unless step
+      # @param remaining [String] the part of the path not yet resolved
+      # @param current [Array<Bluebook::Attribute>] the attributes the next hop is looked up in
+      # @param hops [Array<Hop>] the hops resolved so far, added to in place
+      # @return [Plan] as for `plan`
+      def walk(remaining, current, hops)
+        step = next_hop(remaining, current)
+        return Plan.new(hops: hops, tail: remaining, refusal: nil) unless step
 
-          hop, rest = step
-          return Plan.new(hops: hops, tail: nil, refusal: :too_deep) if hops.size >= MAX_HOPS
+        hop, rest = step
+        return Plan.new(hops: hops, tail: nil, refusal: :too_deep) if hops.size >= MAX_HOPS
 
-          # Pushed even unresolved: a caller reporting :unresolvable needs this hop's
-          # target_name, and `.target` is nil on this one entry.
-          hops << hop
-          return Plan.new(hops: hops, tail: nil, refusal: :unresolvable) unless hop.target
+        # Pushed even unresolved: a caller reporting :unresolvable needs this hop's
+        # target_name, and `.target` is nil on this one entry.
+        hops << hop
+        return Plan.new(hops: hops, tail: nil, refusal: :unresolvable) unless hop.target
 
-          current = hop.target.attributes
-          remaining = rest
-        end
-
-        Plan.new(hops: hops, tail: remaining, refusal: nil)
+        walk(rest, hop.target.attributes, hops)
       end
     end
   end

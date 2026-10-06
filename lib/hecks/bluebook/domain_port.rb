@@ -1,4 +1,5 @@
 require_relative "behaviour/domain_port"
+require_relative "keyword_fields"
 
 module Hecks
   module Bluebook
@@ -17,6 +18,11 @@ module Hecks
       # `:outbound` (`asks`) is the domain wanting something from outside, naming both
       # `answers` and `refuses` so the failure is visible to the model.
       #
+      # Every optional keyword and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil
+      }.freeze
+
       # @param name [String, Symbol] the operation's declared name
       # @param attributes [Array<Bluebook::Attribute>] the declared payload fields
       # @param emits [Array<String>] the events an inbound operation records
@@ -24,15 +30,12 @@ module Hecks
       # @param answers [String, nil] an outbound operation's event for the adapter's answer
       # @param refuses [String, nil] an outbound operation's event for the adapter's refusal
       # @param to [String, nil] the aggregate this operation routes to, if any
-      def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil)
+      def initialize(name:, **given)
+        fields = KeywordFields.fill(given, FIELD_DEFAULTS)
         @hecks_name = name.to_s
-        @attributes = attributes
-        @emits      = emits
-        @direction  = direction.to_sym
-        @answers    = answers
-        @refuses    = refuses
-        @to         = to
-        @attributes_by_name = attributes.to_h { |attribute| [attribute.name, attribute] }
+        KeywordFields.assign(self, fields)
+        @direction = fields[:direction].to_sym
+        @attributes_by_name = @attributes.to_h { |attribute| [attribute.name, attribute] }
       end
 
       # Says whether this operation is the domain asking something of an adapter.

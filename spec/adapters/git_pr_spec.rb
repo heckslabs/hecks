@@ -7,7 +7,7 @@ require_relative "../../lib/hecks/quality_control/adapters/git_pr"
 RSpec.describe Hecks::Adapters::GitPr do
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args,
-           chdir: @repo, out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
+           chdir: @repo, out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
   def commit_file(name)
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::GitPr do
   after { FileUtils.remove_entry(@repo) }
 
   describe "the checkout" do
-    it "names the branch and the head commit" do
+    it "names the branch and the head commit", :aggregate_failures do
       git("checkout", "-qb", "qa/x")
 
       expect(adapter.branch).to eq("qa/x")
@@ -106,7 +106,7 @@ RSpec.describe Hecks::Adapters::GitPr do
       expect { adapter.assert_pushed!(branch: "qa/x", commit: fix, owner: "BUG#1") }.not_to raise_error
     end
 
-    it "refuses a PR head that does not carry the commit" do
+    it "refuses a PR head that does not carry the commit", :aggregate_failures do
       fix = commit_file("fix")
 
       expect { adapter.assert_pr_head!(head: @first, commit: fix, owner: "BUG#1") }
@@ -116,11 +116,12 @@ RSpec.describe Hecks::Adapters::GitPr do
   end
 
   describe "a commit that is not a sha" do
-    it "is refused before it reaches git, so it cannot pass as an option" do
-      expect(Open3).not_to receive(:capture3)
+    it "is refused before it reaches git, so it cannot pass as an option", :aggregate_failures do
+      allow(Open3).to receive(:capture3)
 
       expect { adapter.assert_ancestor!(commit: "--all", owner: "BUG#1") }
         .to raise_error(described_class::Refusal, /does not look like a sha/)
+      expect(Open3).not_to have_received(:capture3)
     end
   end
 
@@ -131,7 +132,7 @@ RSpec.describe Hecks::Adapters::GitPr do
       expect(adapter.open_pull_request("qa/x")).to include(number: 7, headRefOid: @first)
     end
 
-    it "finds none when the branch's PR is closed, or gh knows none" do
+    it "finds none when the branch's PR is closed, or gh knows none", :aggregate_failures do
       gh_answers(JSON.generate(number: 7, state: "MERGED"))
       expect(adapter.open_pull_request("qa/x")).to be_nil
 
@@ -146,7 +147,7 @@ RSpec.describe Hecks::Adapters::GitPr do
         .to raise_error(described_class::CommandFailed, %r{gh pr view qa/x failed — error connecting})
     end
 
-    it "refuses clearly when gh or git is not installed, not with Errno::ENOENT" do
+    it "refuses clearly when gh or git is not installed, not with Errno::ENOENT", :aggregate_failures do
       allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
 
       expect { adapter.open_pull_request("qa/x") }.to raise_error(described_class::Refusal, /gh is not installed/)
@@ -176,14 +177,21 @@ RSpec.describe Hecks::Adapters::GitPr do
       expect { adapter.merge_when_green(7) }.not_to raise_error
     end
 
-    it "reads a tracked PR's state and its checks, and reports a failure by name" do
+    it "reads a tracked PR's state" do
       gh_answers(JSON.generate(state: "OPEN", headRefOid: @first, url: "u"))
+
       expect(adapter.pull_request(7)).to eq(state: "OPEN", headRefOid: @first, url: "u")
+    end
 
+    it "reads a tracked PR's checks" do
       gh_answers(JSON.generate([{ name: "rspec", bucket: "pass" }]))
-      expect(adapter.checks(7)).to eq([{ name: "rspec", bucket: "pass" }])
 
+      expect(adapter.checks(7)).to eq([{ name: "rspec", bucket: "pass" }])
+    end
+
+    it "reports a failure to read a tracked PR's checks by name" do
       gh_answers("", success: false, stderr: "rate limited")
+
       expect { adapter.checks(7) }.to raise_error(described_class::CommandFailed, /gh pr checks failed — rate limited/)
     end
   end

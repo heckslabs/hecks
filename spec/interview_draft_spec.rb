@@ -40,11 +40,41 @@ status: "accepted" }],
 
   def accepted(**finding) = { status: "accepted", source: 1 }.merge(finding)
 
+  def draft_of(interview) = described_class.files(interview).fetch("bluebook/lending.bluebook")
+
+  # Runs `code` as a Ruby child process in the checkout, with `dir` as its argument; answers what it printed.
+  def run_ruby!(code, dir)
+    out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", code, dir, chdir: InMemoryDomain::ROOT)
+    raise err unless status.success?
+
+    out
+  end
+
+  # Shelve, and Lend a book accepted twice with different takers and fields.
+  def lent_twice_actions
+    [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, takes: "title"),
+     accepted(number: 6, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition", by: "people"),
+     accepted(number: 7, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition, title", by: "members")]
+  end
+
+  # Shelve accepted twice, creating in only one of the two.
+  def shelved_twice_actions
+    [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved"),
+     accepted(number: 6, name: "Shelve", thing: "Book", event: "BookShelved", creates: true)]
+  end
+
+  # Lend a book reaches "lent" from two different states.
+  def joined_transitions
+    [accepted(number: 7, thing: "Book", action: "Shelve", to: "shelved"),
+     accepted(number: 8, thing: "Book", action: "Lend a book", from: "shelved", to: "lent"),
+     accepted(number: 9, thing: "Book", action: "Lend a book", from: "returned", to: "lent")]
+  end
+
   it "writes an aggregate for an accepted thing, identified by the field the expert named" do
     expect(bluebook).to include('aggregate "Book" do', "identified_by :isbn", "attribute :isbn, Isbn", 'value_object "Isbn" do')
   end
 
-  it "writes a creating action with the identifier, and any other action on the thing it names" do
+  it "writes a creating action with the identifier, and any other action on the thing it names", :aggregate_failures do
     expect(bluebook).to include('command "Shelve" do', 'emits "BookShelved"')
     expect(bluebook[/command "Shelve".*?^    end/m]).to include("attribute :isbn, Isbn")
     expect(bluebook[/command "LendABook".*?^    end/m]).to include("reference_to Book", 'emits "BookLent"')
@@ -54,7 +84,7 @@ status: "accepted" }],
     expect(bluebook).to include('# from INT-1 #1: "Books, each with an ISBN."', '# from INT-1 #2: "We put it on the shelf."')
   end
 
-  it "keeps an accepted rule as a comment, never as code, and leaves a rejected one out" do
+  it "keeps an accepted rule as a comment, never as code, and leaves a rejected one out", :aggregate_failures do
     expect(bluebook).to include("#   - INT-1 #3: A book cannot be lent twice at once")
     expect(bluebook).not_to include("Reference books never leave")
     expect(bluebook).not_to match(/^\s+given\b/)
@@ -67,7 +97,7 @@ status: "accepted" }],
     expect(text).to include('command "Create" do', 'emits "BookCreated"', "TODO: no action that creates was accepted")
   end
 
-  it "keeps an accepted action whose thing was not accepted, as a comment, not lost" do
+  it "keeps an accepted action whose thing was not accepted, as a comment, not lost", :aggregate_failures do
     orphan = interview(actions: [{ number: 6, name: "Renew", thing: "Loan", event: "LoanRenewed", source: 3,
 status: "accepted" }])
     text = described_class.files(orphan).fetch("bluebook/lending.bluebook")
@@ -84,17 +114,17 @@ status: "accepted" }])
     expect(text).to include('aggregate "LibraryCard" do', "identified_by :card_number", 'emits "LibraryCardCreated"')
   end
 
-  it "writes a field as an attribute, required when the creating action takes it and optional otherwise" do
+  it "writes a field as an attribute, required when the creating action takes it and optional otherwise", :aggregate_failures do
     expect(shaped_bluebook).to include("attribute :title, Title\n", "attribute :condition, Condition, optional: true")
     expect(shaped_bluebook).not_to include("attribute :title, Title, optional")
   end
 
-  it "writes a closed set when the expert listed values, and free text when they did not" do
+  it "writes a closed set when the expert listed values, and free text when they did not", :aggregate_failures do
     expect(shaped_bluebook).to include('attribute :value, String, one_of: ["good", "worn", "new"]')
     expect(shaped_bluebook[/value_object "Title".*?^    end/m]).not_to include("one_of")
   end
 
-  it "gives a command the fields it takes and sets them, and notes who may do it without declaring a role" do
+  it "gives a command the fields it takes and sets them, and notes who may do it without declaring a role", :aggregate_failures do
     lend = shaped_bluebook[/command "LendABook".*?^    end/m]
 
     expect(lend).to include("attribute :condition, Condition", "sets :condition", "# Who: a librarian")
@@ -103,37 +133,27 @@ status: "accepted" }])
     expect(shaped_bluebook[/command "Shelve".*?^    end/m]).to include("attribute :title, Title")
   end
 
-  it "starts the lifecycle where the creating action leaves the thing, and leaves a status field out" do
+  it "starts the lifecycle where the creating action leaves the thing, and leaves a status field out", :aggregate_failures do
     expect(shaped_bluebook).to include('lifecycle :status, default: "shelved" do',
                                        'transition "LendABook" => "lent", from: "shelved"')
     expect(shaped_bluebook).not_to include("attribute :status")
   end
 
-  it "keeps a transition for an action nobody accepted as a comment, not lost" do
+  it "keeps a transition for an action nobody accepted as a comment, not lost", :aggregate_failures do
     expect(shaped_bluebook).to include("# UNPLACED transition: Archive to archived")
     expect(shaped_bluebook).not_to include('transition "Archive"')
   end
 
-  it "writes one command for an action accepted more than once, joining what it takes and who does it" do
-    twice = shaped.merge(
-      actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved", creates: true, takes: "title"),
-                accepted(number: 6, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition", by: "people"),
-                accepted(number: 7, name: "Lend a book", thing: "Book", event: "BookLent", takes: "condition, title",
-                         by: "members")]
-    )
-    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+  it "writes one command for an action accepted more than once, joining what it takes and who does it", :aggregate_failures do
+    text = draft_of(shaped.merge(actions: lent_twice_actions))
     lend = text[/command "LendABook".*?^    end/m]
 
     expect(text.scan('command "LendABook"').size).to eq(1)
     expect(lend).to include("attribute :condition, Condition", "attribute :title, Title", "# Who: people or members")
   end
 
-  it "keeps a creating action creating when only one of its acceptances said it creates" do
-    twice = shaped.merge(
-      actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved"),
-                accepted(number: 6, name: "Shelve", thing: "Book", event: "BookShelved", creates: true)]
-    )
-    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+  it "keeps a creating action creating when only one of its acceptances said it creates", :aggregate_failures do
+    text = draft_of(shaped.merge(actions: shelved_twice_actions))
 
     expect(text).not_to include("no action that creates was accepted")
     expect(text[/command "Shelve".*?^    end/m]).to include("attribute :isbn, Isbn")
@@ -146,7 +166,7 @@ status: "accepted" }])
     expect(described_class.files(twice).fetch("bluebook/lending.bluebook").scan('aggregate "Book"').size).to eq(1)
   end
 
-  it "does not count the identifier among what an action takes" do
+  it "does not count the identifier among what an action takes", :aggregate_failures do
     takes_it = shaped.merge(actions: [accepted(number: 5, name: "Shelve", thing: "Book", event: "BookShelved",
                                                creates: true, takes: "isbn, title")])
     text = described_class.files(takes_it).fetch("bluebook/lending.bluebook")
@@ -168,11 +188,8 @@ status: "accepted" }])
     expect(bluebook).not_to include("lifecycle")
   end
 
-  it "joins steps that lead an action to the same state from different ones" do
-    twice = shaped.merge(transitions: [accepted(number: 7, thing: "Book", action: "Shelve", to: "shelved"),
-                                       accepted(number: 8, thing: "Book", action: "Lend a book", from: "shelved", to: "lent"),
-                                       accepted(number: 9, thing: "Book", action: "Lend a book", from: "returned", to: "lent")])
-    text = described_class.files(twice).fetch("bluebook/lending.bluebook")
+  it "joins steps that lead an action to the same state from different ones", :aggregate_failures do
+    text = draft_of(shaped.merge(transitions: joined_transitions))
 
     expect(text.scan('transition "LendABook"').size).to eq(1)
     expect(text).to include('transition "LendABook" => "lent", from: %w[shelved returned]')
@@ -186,7 +203,7 @@ status: "accepted" }])
     expect(described_class.files(several).fetch("bluebook/lending.bluebook")).to include("from: %w[shelved returned]")
   end
 
-  it "records fields, transitions and what an action takes in the record, and offers them as additions" do
+  it "records fields, transitions and what an action takes in the record, and offers them as additions", :aggregate_failures do
     record = described_class.record(shaped)
 
     expect(record).to include("- Field 3, accepted: **condition** on Book, one of good, worn or new (exchange 1)",
@@ -201,7 +218,7 @@ status: "accepted" }])
     expect { described_class.files(none) }.to raise_error(ArgumentError, /at least one thing/)
   end
 
-  it "writes the files around the bluebook that hecks init writes, for the chosen adapter" do
+  it "writes the files around the bluebook that hecks init writes, for the chosen adapter", :aggregate_failures do
     files = described_class.files(interview, adapter: "Postgres")
 
     expect(files.keys).to include("bluebook/lending.world", "bluebook/environments/memory.world", "interviews/INT-1.md")
@@ -209,7 +226,7 @@ status: "accepted" }])
                                                           .fetch("bluebook/lending.world"))
   end
 
-  it "records every exchange in order and every finding with how it was decided" do
+  it "records every exchange in order and every finding with how it was decided", :aggregate_failures do
     record = described_class.record(interview)
 
     expect(record).to include("# Interview INT-1: Lending", "Expert: Maria", "_Topic: catalogue_")
@@ -218,7 +235,7 @@ status: "accepted" }])
                               "- Rule 5, rejected: Reference books never leave (exchange 1)")
   end
 
-  it "offers a later interview's findings as proposed additions and writes no bluebook" do
+  it "offers a later interview's findings as proposed additions and writes no bluebook", :aggregate_failures do
     files = described_class.additions(interview)
 
     expect(files.keys).to eq(["interviews/INT-1.md"])
@@ -276,13 +293,15 @@ status: "accepted" }])
     puts "STATUS=" + book.status.to_s
   RUBY
 
-  it "turns a real interview into a domain that boots and runs" do
-    Dir.mktmpdir do |dir|
-      _out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", DRAFT_TRIP, dir, chdir: InMemoryDomain::ROOT)
-      expect(status).to be_success, err
+  context "with the draft written to a directory" do
+    let(:dir) { Dir.mktmpdir }
 
-      out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", DRAFT_BOOT, dir, chdir: InMemoryDomain::ROOT)
-      expect(status).to be_success, err
+    after { FileUtils.rm_rf(dir) }
+
+    it "turns a real interview into a domain that boots and runs", :aggregate_failures do
+      run_ruby!(DRAFT_TRIP, dir)
+      out = run_ruby!(DRAFT_BOOT, dir)
+
       expect(out).to include("EVENTS=BookShelved,BookLent", "STATUS=lent")
       expect(File.read(File.join(dir, "interviews/INT-1.md"))).to include("Rule 4, accepted: A book cannot be lent twice at once")
     end

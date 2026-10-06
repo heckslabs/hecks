@@ -16,6 +16,8 @@ RSpec.describe "a reaction that cannot be delivered" do
     )
   end
 
+  let(:registry) { registry_for(policy) }
+
   # A door that fails the way the thing behind it fails.
   def door_raising(error)
     Class.new do
@@ -25,11 +27,11 @@ RSpec.describe "a reaction that cannot be delivered" do
     end.new
   end
 
-  def registry_for(policy)
-    # `#aggregate` answers nil like a real Bluebook asked about an unloaded target;
-    # ReactionInvocation#resolve_target reads it before the door, so a double
-    # without it would raise its own NoMethodError.
-    bluebook = Class.new do
+  # `#aggregate` answers nil like a real Bluebook asked about an unloaded target;
+  # ReactionInvocation#resolve_target reads it before the door, so a double
+  # without it would raise its own NoMethodError.
+  def bluebook_double(policy)
+    Class.new do
       attr_reader :name, :policies
 
       define_method(:initialize) do |name, policies|
@@ -38,6 +40,10 @@ RSpec.describe "a reaction that cannot be delivered" do
       end
       define_method(:aggregate) { |_name| nil }
     end.new("Reflex", [policy])
+  end
+
+  def registry_for(policy)
+    bluebook = bluebook_double(policy)
 
     Class.new do
       attr_reader :reaction_log
@@ -49,21 +55,20 @@ RSpec.describe "a reaction that cannot be delivered" do
     end.new
   end
 
-  it "RECORDS a refusal by the domain — the emitting command still stands" do
-    registry = registry_for(policy)
-    interpreter = Hecks::Runtime::PolicyInterpreter.new(
-      registry, door: door_raising(Hecks::Runtime::GivenNotMet.new("bell already rung"))
-    )
+  def interpreter_failing_with(error)
+    Hecks::Runtime::PolicyInterpreter.new(registry, door: door_raising(error))
+  end
+
+  it "RECORDS a refusal by the domain — the emitting command still stands", :aggregate_failures do
+    interpreter = interpreter_failing_with(Hecks::Runtime::GivenNotMet.new("bell already rung"))
 
     expect { interpreter.react(event, "Reflex") }.not_to raise_error
     expect(registry.reaction_log.first).to include(delivered: false, reason: "bell already rung")
   end
 
-  it "RECORDS a defect in the runtime, distinguishably, rather than raising or logging it as a refusal" do
-    registry = registry_for(policy)
-    interpreter = Hecks::Runtime::PolicyInterpreter.new(
-      registry, door: door_raising(NoMethodError.new("undefined method `boom'"))
-    )
+  it "RECORDS a defect in the runtime, distinguishably, rather than raising or logging it as a refusal",
+     :aggregate_failures do
+    interpreter = interpreter_failing_with(NoMethodError.new("undefined method `boom'"))
 
     expect { interpreter.react(event, "Reflex") }.to output(/ReactToRing.*Rang.*boom/m).to_stderr
     expect(registry.reaction_log.first).to include(

@@ -1,4 +1,5 @@
 require_relative "behaviour/command"
+require_relative "keyword_fields"
 require_relative "../vocabulary"
 require_relative "expression/ast_json"
 
@@ -62,6 +63,12 @@ module Hecks
         provenance: :provenance
       )
 
+      # Every optional declared field and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        role: nil, goal: nil, attributes: [], givens: [], ensures: [], needs: [],
+        mutations: [], emits: [], references: nil, from: nil, provenance: nil
+      }.freeze
+
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
                     :from, :provenance
@@ -78,13 +85,11 @@ module Hecks
         # @param references [String, Symbol, nil] the aggregate its `reference_to` addresses
         # @param from [String, Array<String>, nil] the lifecycle states it is admissible from
         # @param provenance [Object, nil] the declared canonical source, as written
-        def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [], needs: [],
-                    mutations: [], emits: [], references: nil, from: nil, provenance: nil)
+        def declare(name:, **given)
+          fields = KeywordFields.fill(given, FIELD_DEFAULTS)
           verb = Class.new(self)
           verb.hecks_name = name.to_s
-          verb.absorb(role: role, goal: goal, attributes: attributes, givens: givens,
-                      ensures: ensures, needs: needs, mutations: mutations, emits: emits, references: references&.to_s,
-                      from: from, provenance: provenance)
+          verb.absorb(**fields, references: fields[:references]&.to_s)
           verb
         end
 
@@ -93,19 +98,10 @@ module Hecks
         # Takes the keywords `declare` takes, minus `name`.
         #
         # @return [Class] self
-        def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:,
-                   needs: [], from: nil, provenance: nil)
-          @role       = role
-          @goal       = goal
-          @attributes = attributes
-          @givens     = givens
-          @ensures    = ensures
-          @needs      = needs
-          @mutations  = mutations
-          @emits      = emits
-          @references = references
-          @from       = from
-          @provenance = provenance
+        def absorb(**fields)
+          KeywordFields.fill(fields, FIELD_DEFAULTS).each do |key, value|
+            instance_variable_set(:"@#{key}", value)
+          end
           settle
         end
       end

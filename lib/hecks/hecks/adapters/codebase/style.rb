@@ -161,7 +161,7 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when a path begins with `-`
         def after_separator(paths)
           flagged = paths.select { |path| path.start_with?("-") }
-          raise ConsoleCapture::Failure, "paths may not begin with '-': #{flagged.join(', ')}" if flagged.any?
+          raise ConsoleCapture::Failure, "paths may not begin with '-': #{flagged.join(", ")}" if flagged.any?
 
           ["--", *paths]
         end

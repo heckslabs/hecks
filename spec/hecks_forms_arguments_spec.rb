@@ -27,16 +27,19 @@ RSpec.describe "the launcher forms' arguments" do
     end
   end
 
+  # What a form names that its verb's `--help` does not list, as a message; nil when nothing.
+  def unknown_argument_problem(script, verb, names)
+    return if names.empty?
+
+    help = help_for(verb)
+    return if help.start_with?("no such")
+
+    unknown = names.reject { |name| help.include?(name) }
+    "#{script}: #{verb.join(" ")} has no #{unknown.join(", ")}" unless unknown.empty?
+  end
+
   it "names only arguments its verb takes" do
-    stale = commands.filter_map do |script, verb, names|
-      next if names.empty?
-
-      help = help_for(verb)
-      next if help.start_with?("no such")
-
-      unknown = names.reject { |name| help.include?(name) }
-      "#{script}: #{verb.join(' ')} has no #{unknown.join(', ')}" unless unknown.empty?
-    end
+    stale = commands.filter_map { |script, verb, names| unknown_argument_problem(script, verb, names) }
 
     expect(stale).to eq([])
   end

@@ -33,22 +33,22 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
   end
 
+  def install_executable(path, content)
+    File.write(path, content)
+    File.chmod(0o755, path)
+  end
+
   def with_project(script: true)
     Dir.mktmpdir do |dir|
       FileUtils.mkdir_p([File.join(dir, "bin"), File.join(dir, "project", "umami")])
-      File.write(File.join(dir, "bin", "aws"), AWS_COMPANION_STUB)
-      File.chmod(0o755, File.join(dir, "bin", "aws"))
-      if script
-        path = File.join(dir, "project", "umami", "deploy-umami.sh")
-        File.write(path, COMPANION_SCRIPT_STUB)
-        File.chmod(0o755, path)
-      end
+      install_executable(File.join(dir, "bin", "aws"), AWS_COMPANION_STUB)
+      install_executable(File.join(dir, "project", "umami", "deploy-umami.sh"), COMPANION_SCRIPT_STUB) if script
       yield dir
     end
   end
 
   def roll(dir, *argv, env: {})
-    settings = { "PATH" => "#{File.join(dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => dir }.merge(env)
+    settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
@@ -64,74 +64,72 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
     File.exist?(path) ? File.readlines(path, chomp: true) : []
   end
 
+  # Rolls inside a throwaway project and returns the parsed answer, the exit status, and what ran.
+  def rolled(*argv, env: {}, script: true)
+    with_project(script: script) do |dir|
+      json, status = roll(dir, *argv, env: env)
+      [json, status, calls(dir)]
+    end
+  end
+
+  def refusal_plan
+    ["refusing to roll umami", "Compose project umami in /opt/widget/umami", "task definition umami:4",
+     "stack widget-box", "over SSM", "confirm=true"]
+  end
+
   it "declares the roll and its recorders in the Deploy chapter" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("CompanionRoll").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Run Complete Plan Flag])
   end
 
-  it "refuses without confirm=true, names the plan read from the script, and runs nothing" do
-    with_project do |dir|
-      json, status = roll(dir, "taskdef=umami:4")
+  it "refuses without confirm=true, names the plan read from the script, and runs nothing", :aggregate_failures do
+    json, status, logged = rolled("taskdef=umami:4")
 
-      expect(status).to eq(1)
-      expect(json.dig("state", "status")).to eq("flagged")
-      expect(json.dig("state", "refusal", "value")).to include(
-        "refusing to roll umami", "Compose project umami in /opt/widget/umami", "task definition umami:4",
-        "stack widget-box", "over SSM", "confirm=true"
-      )
-      expect(calls(dir)).to be_empty
-    end
+    expect(status).to eq(1)
+    expect(json.dig("state", "status")).to eq("flagged")
+    expect(json.dig("state", "refusal", "value")).to include(*refusal_plan)
+    expect(logged).to be_empty
   end
 
-  it "prints the plan for dry_run=true, runs nothing, even with confirm=true" do
-    with_project do |dir|
-      json, status = roll(dir, "taskdef=umami:4", "confirm=true", "dry_run=true")
+  it "prints the plan for dry_run=true, runs nothing, even with confirm=true", :aggregate_failures do
+    json, status, logged = rolled("taskdef=umami:4", "confirm=true", "dry_run=true")
 
-      expect(status).to eq(0)
-      expect(json.dig("state", "status")).to eq("planned")
-      expect(json.dig("state", "report", "value")).to include("dry run: nothing was run")
-      expect(calls(dir)).to be_empty
-    end
+    expect(status).to eq(0)
+    expect(json.dig("state", "status")).to eq("planned")
+    expect(json.dig("state", "report", "value")).to include("dry run: nothing was run")
+    expect(logged).to be_empty
   end
 
-  it "rolls when confirmed, passing the task definition, and records the box check" do
-    with_project do |dir|
-      json, status = roll(dir, "taskdef=umami:4", "confirm=true")
+  it "rolls when confirmed, passing the task definition, and records the box check", :aggregate_failures do
+    json, status, logged = rolled("taskdef=umami:4", "confirm=true")
 
-      expect(status).to eq(0)
-      expect(json.dig("state", "status")).to eq("rolled")
-      expect(json.dig("state", "report", "value")).to include("umami Up 15 seconds", "Umami is up on the box")
-      expect(calls(dir)).to include("deploy-umami.sh umami:4")
-    end
+    expect(status).to eq(0)
+    expect(json.dig("state", "status")).to eq("rolled")
+    expect(json.dig("state", "report", "value")).to include("umami Up 15 seconds", "Umami is up on the box")
+    expect(logged).to include("deploy-umami.sh umami:4")
   end
 
-  it "flags a companion that is not healthy on the box (exit 1, the script's status in the reason)" do
-    with_project do |dir|
-      json, status = roll(dir, "taskdef=umami:4", "confirm=true", env: { "STUB_UNHEALTHY" => "1" })
+  it "flags a companion that is not healthy on the box (exit 1, the script's status in the reason)", :aggregate_failures do
+    json, status = rolled("taskdef=umami:4", "confirm=true", env: { "STUB_UNHEALTHY" => "1" })
 
-      expect(status).to eq(1)
-      expect(json.dig("state", "status")).to eq("flagged")
-      expect(json.dig("state", "refusal", "value")).to include("companion roll ended 1", "Umami is NOT healthy")
-    end
+    expect(status).to eq(1)
+    expect(json.dig("state", "status")).to eq("flagged")
+    expect(json.dig("state", "refusal", "value")).to include("companion roll ended 1", "Umami is NOT healthy")
   end
 
-  it "flags a stack with no box instance" do
-    with_project do |dir|
-      json, status = roll(dir, "taskdef=umami:4", "confirm=true", env: { "STUB_NO_BOX" => "1" })
+  it "flags a stack with no box instance", :aggregate_failures do
+    json, status = rolled("taskdef=umami:4", "confirm=true", env: { "STUB_NO_BOX" => "1" })
 
-      expect(status).to eq(1)
-      expect(json.dig("state", "refusal", "value")).to include("no box instance")
-    end
+    expect(status).to eq(1)
+    expect(json.dig("state", "refusal", "value")).to include("no box instance")
   end
 
-  it "finds the script of another companion by name, and says how to name one when there is none" do
-    with_project(script: false) do |dir|
-      json, status = roll(dir, "taskdef=umami:4", "companion=metrics", "confirm=true")
+  it "finds the script of another companion by name, and says how to name one when there is none", :aggregate_failures do
+    json, status = rolled("taskdef=umami:4", "companion=metrics", "confirm=true", script: false)
 
-      expect(status).to eq(1)
-      expect(json.dig("state", "refusal", "value")).to include("no deploy-metrics.sh", "script=<path>")
-    end
+    expect(status).to eq(1)
+    expect(json.dig("state", "refusal", "value")).to include("no deploy-metrics.sh", "script=<path>")
   end
 
   it "lists the rolls that were flagged" do

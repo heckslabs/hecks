@@ -79,21 +79,7 @@ module Hecks
         def build
           seal_cursor
           refuse_undeclared_needs!
-          Query.new(
-            name:           @name,
-            description:    @description,
-            attributes:     attributes,
-            wheres:         @wheres,
-            order_by:       @order_by,
-            limit:          @limit,
-            offset:         @offset,
-            cursor:         @cursor,
-            authorization:  @authorization,
-            null_semantics: @null_semantics,
-            inspection:     @inspection,
-            returns:        @returns,
-            needs:          @needs
-          )
+          Query.new(**query_shape, **query_policy, returns: @returns, needs: @needs)
         end
 
         # Evaluates a `query` block against a fresh builder, then fills in owner-derived types.
@@ -115,6 +101,17 @@ module Hecks
         end
 
         private
+
+        # The query's name, parameters and filtering clauses.
+        def query_shape
+          { name: @name, description: @description, attributes: attributes, wheres: @wheres,
+            order_by: @order_by, limit: @limit, offset: @offset, cursor: @cursor }
+        end
+
+        # How the query is authorised and how it treats nulls.
+        def query_policy
+          { authorization: @authorization, null_semantics: @null_semantics, inspection: @inspection }
+        end
 
         # Fills in a block parameter that names an owner attribute (`query "X" do |decision|`)
         # with the owner's type, unless the body declared it. Unmatched names are left for

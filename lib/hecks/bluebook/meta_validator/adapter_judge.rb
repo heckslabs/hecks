@@ -34,13 +34,14 @@ module Hecks
 
         def judge!
           send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port))
+          add_all("AddField", @adapter.fields)
+          add_all("AddSecret", @adapter.secrets)
+        end
 
-          Array(@adapter.fields).each do |field|
-            send_to("Adapter::Adapter.AddField", @adapter.name, name: @adapter.name, value: v(field))
-          end
-
-          Array(@adapter.secrets).each do |secret|
-            send_to("Adapter::Adapter.AddSecret", @adapter.name, name: @adapter.name, value: v(secret))
+        # Offers one `verb` per value, each addressed to the adapter by name.
+        def add_all(verb, values)
+          Array(values).each do |value|
+            send_to("Adapter::Adapter.#{verb}", @adapter.name, name: @adapter.name, value: v(value))
           end
         end
       end

@@ -14,16 +14,15 @@ module Hecks
           end
         end
 
-        def saga_domains = @hecksagons.keys | @bluebooks.keys.select { |domain| default_adapter_for(domain) }
+        def saga_domains = @declared.hecksagons.keys | @declared.bluebooks.keys.select { |domain| default_adapter_for(domain) }
 
         # Boot-time-only (Loader.run_boot_gates!, before dispatch exists); no concurrent
         # writer to race here, unlike saga_interpreter.rb's writes under @saga_mutex.
-        # rubocop:disable-next Hecks/ThreadSharedIvarMutation
         def rehydrate_sagas!
           saga_domains.each do |domain|
             saga_persistence(domain).each_saga do |process_manager, correlation, state, memory, completed_compensations = []|
               pending = memory.delete(SAGA_PENDING_DISPATCH_KEY)
-              @saga_instances[process_manager][correlation] =
+              @state.saga_instances[process_manager][correlation] =
                 { state: state, memory: memory, completed_compensations: completed_compensations || [] }
               warn_stalled_saga(domain, process_manager, correlation, state, pending) if pending
             end
@@ -46,22 +45,27 @@ module Hecks
                "#{dispatches} (on #{pending[:on].inspect}, #{pending[:from].inspect} -> #{pending[:to].inspect}) " \
                "may or may not have actually run. hecks does not auto-redrive a pending saga dispatch (that " \
                "needs idempotent delivery, which this pipeline doesn't have yet); reconcile this instance by hand."
-          @saga_log << { process_manager: process_manager, instance: correlation, rehydrated_stalled: true,
-                         state: state, pending: pending }
+          @state.saga_log << { process_manager: process_manager, instance: correlation, rehydrated_stalled: true,
+                               state: state, pending: pending }
         end
 
         def resolve_saga_persistence(domain)
           anchor = hecksagon(domain) && bluebook(domain)&.aggregates&.first
           return Ports::Persistence::NULL_SAGA_STORE unless anchor
 
+          persisting_adapter(domain, anchor)
+        rescue WiringError
+          # An unwired domain degrades to no saga persistence rather than raising mid-dispatch.
+          Ports::Persistence::NULL_SAGA_STORE
+        end
+
+        # The anchor aggregate's own adapter when it can checkpoint sagas, else the null store.
+        def persisting_adapter(domain, anchor)
           bind = Ports::Persistence::BindingPolicy.resolve(self, domain, anchor)
           return Ports::Persistence::NULL_SAGA_STORE if adapter_class(bind.adapter) <= Ports::Persistence::RemoteRuntime
 
           adapter = repository(domain, anchor).adapter
           adapter.respond_to?(:save_saga) ? adapter : Ports::Persistence::NULL_SAGA_STORE
-        rescue WiringError
-          # An unwired domain degrades to no saga persistence rather than raising mid-dispatch.
-          Ports::Persistence::NULL_SAGA_STORE
         end
       end
     end

@@ -21,25 +21,31 @@ RSpec.describe Hecks::IR do
     end
   end
 
+  # The class-level half of a construct declared by subclassing: `declare` mints an anonymous
+  # subclass carrying the given fields.
+  def declaring_class_methods
+    Module.new do
+      attr_accessor :hecks_name, :size
+
+      def declare(name:, size:)
+        Class.new(self).tap do |shape|
+          shape.hecks_name = name
+          shape.size = size
+        end
+      end
+    end
+  end
+
   # A construct that is a class, declared by subclassing — Command,
   # Entity and ValueObject are all this shape, because a bluebook names
   # them as types and a type has to be a real constant.
   def class_shaped
+    declaring = declaring_class_methods
     Class.new do
       extend Hecks::IR
+      extend declaring
 
       emits_ir(name: :hecks_name, size: :size)
-
-      class << self
-        attr_accessor :hecks_name, :size
-
-        def declare(name:, size:)
-          shape = Class.new(self)
-          shape.hecks_name = name
-          shape.size = size
-          shape
-        end
-      end
     end
   end
 
@@ -81,8 +87,8 @@ RSpec.describe Hecks::IR do
       end
     end
 
-    it "recurses into a list with many" do
-      parent = Class.new do
+    def parent_of_many
+      Class.new do
         include Hecks::IR
 
         emits_ir(kids: many(:kids))
@@ -90,12 +96,10 @@ RSpec.describe Hecks::IR do
 
         def initialize(kids) = @kids = kids
       end
-
-      expect(parent.new([child.new(1), child.new(2)]).to_h).to eq(kids: [{ n: 1 }, { n: 2 }])
     end
 
-    it "recurses into a single child with one" do
-      parent = Class.new do
+    def parent_of_one
+      Class.new do
         include Hecks::IR
 
         emits_ir(kid: one(:kid))
@@ -103,21 +107,29 @@ RSpec.describe Hecks::IR do
 
         def initialize(kid) = @kid = kid
       end
-
-      expect(parent.new(child.new(7)).to_h).to eq(kid: { n: 7 })
     end
 
-    # A lifecycle is genuinely optional on an aggregate, so this is the
-    # ordinary case rather than an edge one.
-    it "answers nil for an absent child rather than raising" do
-      parent = Class.new do
+    def parent_without_child
+      Class.new do
         include Hecks::IR
 
         emits_ir(kid: one(:kid))
         def kid = nil
       end
+    end
 
-      expect(parent.new.to_h).to eq(kid: nil)
+    it "recurses into a list with many" do
+      expect(parent_of_many.new([child.new(1), child.new(2)]).to_h).to eq(kids: [{ n: 1 }, { n: 2 }])
+    end
+
+    it "recurses into a single child with one" do
+      expect(parent_of_one.new(child.new(7)).to_h).to eq(kid: { n: 7 })
+    end
+
+    # A lifecycle is genuinely optional on an aggregate, so this is the
+    # ordinary case rather than an edge one.
+    it "answers nil for an absent child rather than raising" do
+      expect(parent_without_child.new.to_h).to eq(kid: nil)
     end
   end
 
@@ -131,7 +143,7 @@ RSpec.describe Hecks::IR do
   # anything that wants to know what a construct carries can now ask,
   # instead of reading a method body.
   describe "the declaration is readable" do
-    it "reports the emitted shape of a real construct" do
+    it "reports the emitted shape of a real construct", :aggregate_failures do
       spec = Hecks::Bluebook::Aggregate.ir_spec
 
       expect(spec.keys).to include(:name, :attributes, :commands, :lifecycle)

@@ -6,22 +6,51 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# What a real client's adoption of the Site chapter needed beyond the studio sample: a project run
-# from outside a checkout with its template and output anywhere, a site with no load balancer, a page
-# that is off but keeps its navigation slots, links to an endpoint and to a fragment, a heading in
-# the mobile menu, edge verbs apart from a route's own, a SEO title, a public page beneath the admin
-# prefix, `*` matching as a CDN reads it, and a module Node loads under a commonjs package.
+# What a real client's adoption of the Site chapter needed beyond the studio sample: a project
+# run from outside a checkout with its template and output anywhere, a site with no load
+# balancer, a page that is off but keeps its navigation slots, links to an endpoint and to a
+# fragment, a heading in the mobile menu, edge verbs apart from a route's own, a search-engine
+# title, a public page beneath the admin prefix, `*` matching as a CDN reads it, and a module
+# Node loads under a commonjs package.
 # spec/fixtures/site/gallery is the neutral sample project that uses them; its goldens sit in
 # spec/fixtures/site/gallery/expected (`GOLDEN=rewrite` regenerates them, to be read in the diff).
 RSpec.describe "the Site chapter beyond the studio sample" do
-  let(:tool)       { Hecks::Tools::SiteRoutes }
-  let(:gallery)    { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/gallery") }
-  let(:studio)     { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio") }
-  let(:expected)   { File.join(gallery, "expected") }
-  let(:work)       { Dir.mktmpdir("site_gaps") }
-  let(:table_class) { Hecks::Projections::Site::Table }
+  let(:gallery)  { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/gallery") }
+  let(:expected) { File.join(gallery, "expected") }
+  let(:work)     { Dir.mktmpdir("site_gaps") }
 
   after { FileUtils.rm_rf(work) }
+
+  def tool = Hecks::Tools::SiteRoutes
+
+  def studio = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio")
+
+  def table_class = Hecks::Projections::Site::Table
+
+  def template_text = projected.fetch("/work/out/deploy/template.yaml")
+
+  def rewrite_goldens(files)
+    FileUtils.mkdir_p(expected)
+    File.write(File.join(expected, "routes.ts"), files.fetch("/work/out/routes.ts"))
+    File.write(File.join(expected, "template.yaml"), files.fetch("/work/out/deploy/template.yaml"))
+  end
+
+  def with_edge_rule(text)
+    text.sub('    command "Name"', "    value_object \"EdgeRule\" do\n      attribute :rule, String\n      " \
+                                   "member rule: \"R\", priority: 1, origin: \"cms\"\n    end\n\n    command \"Name\"")
+  end
+
+  def unmapped_cms_origin(text) = text.sub(/      member origin: "cms".*\n/, "")
+
+  def skipped_cms_route(text)
+    unmapped_cms_origin(text).sub(%r{member path: "/cms/\*",\s+kind}, 'member path: "/cms/*", cdn: false, kind')
+  end
+
+  def bad_nav_links
+    [{ path: "/missing", label: "M", nav_order: 1 }, { path: "/a", label: "A" },
+     { path: "/a", nav_order: 1 }, { path: "/a", label: "A", nav_order: 1, fragment: "#top" },
+     { path: "/a", label: "A", nav_order: 1, colour: "red" }]
+  end
 
   def projected(project = gallery, **options) = tool.projection(project, out: "/work/out", **options)
 
@@ -53,13 +82,9 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "the gallery projection" do
-    it "equals the committed goldens, byte for byte" do
+    it "equals the committed goldens, byte for byte", :aggregate_failures do
       files = projected
-      if ENV["GOLDEN"] == "rewrite"
-        FileUtils.mkdir_p(expected)
-        File.write(File.join(expected, "routes.ts"), files.fetch("/work/out/routes.ts"))
-        File.write(File.join(expected, "template.yaml"), files.fetch("/work/out/deploy/template.yaml"))
-      end
+      rewrite_goldens(files) if ENV["GOLDEN"] == "rewrite"
 
       expect(files.fetch("/work/out/routes.ts")).to eq(File.read(File.join(expected, "routes.ts")))
       expect(files.fetch("/work/out/deploy/template.yaml")).to eq(File.read(File.join(expected, "template.yaml")))
@@ -73,7 +98,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "an edge with no load balancer" do
-    it "projects the behaviours alone, and no listener_rules region is needed in the template" do
+    it "projects the behaviours alone, and no listener_rules region is needed in the template", :aggregate_failures do
       files = projected
 
       expect(files.fetch("/work/out/deploy/template.yaml")).to include("PathPattern: \"/cms/*\"")
@@ -89,23 +114,17 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       expect(refusal(dir)).to include("has a BEGIN/END GENERATED site_cdn listener_rules region", "alb: false")
     end
 
-    it "refuses a rule row and a route that names a rule, which describe a load balancer the edge lacks" do
-      rule = refusal(edited_gallery do |text|
-        text.sub('    command "Name"', "    value_object \"EdgeRule\" do\n      attribute :rule, String\n      " \
-                                       "member rule: \"R\", priority: 1, origin: \"cms\"\n    end\n\n    command \"Name\"")
-      end)
+    it "refuses a rule row and a route that names a rule, which describe a load balancer the edge lacks", :aggregate_failures do
+      rule = refusal(edited_gallery { |text| with_edge_rule(text) })
       named = refusal(edited_gallery { |text| text.sub('member path: "/cms/*",', 'member path: "/cms/*", alb_rule: "R",') })
 
       expect(rule).to include("EdgeRule rows describe a load balancer, and the Edge row says alb: false")
       expect(named).to include("/cms/* names alb_rule R, and the Edge row says alb: false")
     end
 
-    it "still refuses a cms route whose origin no EdgeOrigin maps, even one the CDN skips" do
-      unmapped = refusal(edited_gallery { |text| text.sub(/      member origin: "cms".*\n/, "") })
-      skipped = refusal(edited_gallery do |text|
-        text.sub(/      member origin: "cms".*\n/, "").sub(%r{member path: "/cms/\*",\s+kind},
-                                                           'member path: "/cms/*", cdn: false, kind')
-      end)
+    it "still refuses a cms route whose origin no EdgeOrigin maps, even one the CDN skips", :aggregate_failures do
+      unmapped = refusal(edited_gallery { |text| unmapped_cms_origin(text) })
+      skipped = refusal(edited_gallery { |text| skipped_cms_route(text) })
 
       expect(unmapped).to include("/cms/* has origin cms, which no EdgeOrigin maps")
       expect(skipped).to include("/cms/* is served from cms, which no EdgeOrigin maps, " \
@@ -125,7 +144,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "a page that is off" do
-    it "keeps its navigation slots, each entry carrying the switch and on: false" do
+    it "keeps its navigation slots, each entry carrying the switch and on: false", :aggregate_failures do
       text = routes_ts
 
       expect(text).to include('{ path: "/shop", label: "Shop", switch: "shop", on: false }',
@@ -140,7 +159,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "navigation to an endpoint, a fragment and under a heading" do
-    it "lets an endpoint or a redirect sit in a menu, and refuses a route that does not answer GET" do
+    it "lets an endpoint or a redirect sit in a menu, and refuses a route that does not answer GET", :aggregate_failures do
       expect(routes_ts).to include('{ path: "/ticket-file", label: "Download tickets" }',
                                    '{ path: "/press-kit", label: "Press kit" }')
       expect(refused([{ path: "/send", kind: "endpoint", methods: "POST", label: "Send", footer_column: "Studio" }]))
@@ -152,17 +171,14 @@ RSpec.describe "the Site chapter beyond the studio sample" do
                                    '{ path: "/about", label: "Opening hours", fragment: "opening-hours" }')
     end
 
-    it "carries a heading on the mobile entry that opens a section" do
+    it "carries a heading on the mobile entry that opens a section", :aggregate_failures do
       expect(routes_ts).to include('{ heading: "Visit", path: "/exhibitions", label: "Exhibitions" }')
       expect(refused([{ path: "/a", label: "A", footer_column: "X", mobile_heading: "Menu" }]))
         .to include("/a has a mobile_heading but no mobile_order")
     end
 
     it "refuses a NavLink that points at no route, has no slot or label, or a fragment that is not an id" do
-      rows = [{ path: "/a" }]
-      message = refused(rows, links: [{ path: "/missing", label: "M", nav_order: 1 }, { path: "/a", label: "A" },
-                                      { path: "/a", nav_order: 1 }, { path: "/a", label: "A", nav_order: 1, fragment: "#top" },
-                                      { path: "/a", label: "A", nav_order: 1, colour: "red" }])
+      message = refused([{ path: "/a" }], links: bad_nav_links)
 
       expect(message).to include("NavLink /missing points at no route that answers GET",
                                  "NavLink /a sits in no navigation", "NavLink /a has no label",
@@ -179,7 +195,8 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "edge verbs apart from a route's own" do
-    it "lets admin pages answer GET and ride the prefix that lets POST through, with no behaviour of their own" do
+    it "lets admin pages answer GET and ride the prefix that lets " \
+       "POST through, with no behaviour of their own", :aggregate_failures do
       template = projected.fetch("/work/out/deploy/template.yaml")
 
       expect(routes_ts).to include('path: "/admin-orders", kind: "page", render: "ssr", auth: "admin", methods: ["GET"]')
@@ -196,7 +213,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       expect(refusal(dir)).to include("/admin-orders is shadowed by /admin*")
     end
 
-    it "refuses edge verbs that leave out a verb the route answers, or are not verbs" do
+    it "refuses edge verbs that leave out a verb the route answers, or are not verbs", :aggregate_failures do
       expect(refused([{ path: "/a", methods: "GET,POST", edge_methods: "GET" }]))
         .to include("/a has edge_methods GET, which leave out its methods POST")
       expect(refused([{ path: "/a", edge_methods: "GET,FETCH" }])).to include('/a has edge method "FETCH"')
@@ -204,7 +221,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "a SEO title" do
-    it "is written for a row that sets it, beside its seo id, and left out for one that does not" do
+    it "is written for a row that sets it, beside its seo id, and left out for one that does not", :aggregate_failures do
       text = routes_ts
 
       expect(text).to include('seo: "home", redirectTo: null, seoTitle: "Harbor Gallery | Contemporary art" }')
@@ -214,12 +231,13 @@ RSpec.describe "the Site chapter beyond the studio sample" do
   end
 
   describe "a public page beneath the admin prefix" do
-    it "is the sign-in page: public, uncached, indexable false, riding /admin* when the edge allows its verbs" do
-      template = projected.fetch("/work/out/deploy/template.yaml")
-
+    it "is the sign-in page: public, uncached, riding /admin* when the edge allows its verbs", :aggregate_failures do
       expect(routes_ts).to include('path: "/admin-login", kind: "page", render: "ssr", auth: "public",',
                                    'methods: ["GET"], cache: "no_store"')
-      expect(template).not_to include('PathPattern: "/admin-login"')
+      expect(template_text).not_to include('PathPattern: "/admin-login"')
+    end
+
+    it "is indexable false, so it stays out of the sitemap", :aggregate_failures do
       expect(routes_ts).to match(/SITEMAP_PATHS = \[[^\]]*\]/)
       expect(routes_ts[/SITEMAP_PATHS = \[[^\]]*\]/]).not_to include("admin-login")
     end
@@ -250,21 +268,32 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       $stderr = STDERR
     end
 
-    it "writes routes to --out and rewrites a --template anywhere in place, apart from the project" do
-      template = File.join(work, "infra/stack.yaml")
-      FileUtils.mkdir_p(File.dirname(template))
-      FileUtils.cp(File.join(gallery, "deploy/template.yaml"), template)
+    def template_path = File.join(work, "infra/stack.yaml")
 
-      status, out, = run(gallery, "--out=#{work}/web/generated", "--template=#{template}")
-
-      expect(status).to eq(0)
-      expect(out).to eq("wrote #{work}/web/generated/routes.ts\nwrote #{template}\n")
-      expect(File.read(template)).to eq(File.read(File.join(expected, "template.yaml")))
-      expect(File.read(File.join(work, "web/generated/routes.ts"))).to eq(File.read(File.join(expected, "routes.ts")))
-      expect(run(gallery, "--out=#{work}/web/generated", "--template=#{template}", "--check").first).to eq(0)
+    def copy_template
+      FileUtils.mkdir_p(File.dirname(template_path))
+      FileUtils.cp(File.join(gallery, "deploy/template.yaml"), template_path)
     end
 
-    it "uses the working directory as the project when none is named" do
+    it "writes routes to --out, apart from the project", :aggregate_failures do
+      copy_template
+      status, out, = run(gallery, "--out=#{work}/web/generated", "--template=#{template_path}")
+
+      expect(status).to eq(0)
+      expect(out).to eq("wrote #{work}/web/generated/routes.ts\nwrote #{template_path}\n")
+      expect(File.read(File.join(work, "web/generated/routes.ts"))).to eq(File.read(File.join(expected, "routes.ts")))
+    end
+
+    it "rewrites a --template anywhere in place, and then passes --check", :aggregate_failures do
+      copy_template
+      args = [gallery, "--out=#{work}/web/generated", "--template=#{template_path}"]
+      run(*args)
+
+      expect(File.read(template_path)).to eq(File.read(File.join(expected, "template.yaml")))
+      expect(run(*args, "--check").first).to eq(0)
+    end
+
+    it "uses the working directory as the project when none is named", :aggregate_failures do
       Dir.chdir(gallery) do
         status, out, = run("--out=#{work}/o", "--check")
 
@@ -273,24 +302,28 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       end
     end
 
-    it "names the module routes.mts under --extension=mts, with the same text" do
+    it "names the module routes.mts under --extension=mts, with the same text", :aggregate_failures do
       files = projected(extension: "mts")
 
       expect(files.keys).to eq(["/work/out/routes.mts", "/work/out/deploy/template.yaml"])
       expect(files.fetch("/work/out/routes.mts")).to eq(File.read(File.join(expected, "routes.ts")))
     end
 
-    it "refuses an unknown extension, a --template for a project with no edge, a missing template and an --out that is a file" do
+    it "refuses an unknown extension and a missing template", :aggregate_failures do
       expect(refusal(gallery, extension: "cjs")).to include("--extension is one of ts, mts")
       expect(refusal(gallery, template: File.join(work, "nothing.yaml"))).to include("nothing.yaml does not exist")
+    end
+
+    it "refuses an --out that is a file, and a --template for a project with no edge", :aggregate_failures do
       file = File.join(work, "a_file")
       File.write(file, "")
-      expect(refusal(gallery, out: file)).to include("is a file")
       bare = edited_gallery { |text| text.sub(/    # The edge:.*?(?=\n    command "Name")/m, "") }
+
+      expect(refusal(gallery, out: file)).to include("is a file")
       expect(refusal(bare, template: file)).to include("the project declares no Edge rows")
     end
 
-    it "lets the Edge row leave out its template when the tool is told which file" do
+    it "lets the Edge row leave out its template when the tool is told which file", :aggregate_failures do
       dir = edited_gallery { |text| text.sub('member template: "deploy/template.yaml", alb: false', "member alb: false") }
       template = File.join(dir, "deploy/template.yaml")
 
@@ -313,29 +346,33 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       end
     end
 
-    it "loads under a commonjs package and matches a trailing * as the CDN reads it" do
+    NODE_ROUTES_CHECK = <<~JS.freeze
+      const m = site.matchesPath;
+      console.log(JSON.stringify({
+        prefixStar: [m("/admin*", "/admin"), m("/admin*", "/admin-orders"), m("/admin*", "/admin-orders.html"),
+                     m("/admin*", "/admin/x/y"), m("/admin*", "/adm")],
+        slashStar: [m("/cms/*", "/cms/x"), m("/cms/*", "/cms/a/b"), m("/cms/*", "/cms"), m("/cms/*", "/cmsx")],
+        middle: [m("/a*z", "/abz"), m("/a*z", "/a/b/z"), m("/a*z", "/abq")],
+        param: [m("/blog/:slug.html", "/blog/x"), m("/blog/:slug.html", "/blog/x/y")],
+        dots: [m("/a.b*", "/a.bc"), m("/a.b*", "/axbc")],
+        off: [site.pageIsOn("shop"), site.NAV_DESKTOP.flatMap((e) => e.items).filter((i) => !("switch" in i) || site.pageIsOn(i.switch)).length],
+        search: [site.notForSearch("/admin-login"), site.notForSearch("/exhibitions")],
+      }));
+    JS
+
+    NODE_ROUTES_ANSWER = {
+      "prefixStar" => [true, true, true, true, false], "slashStar" => [true, true, false, false],
+      "middle" => [true, true, false], "param" => [true, false], "dots" => [true, false],
+      "off" => [false, 3], "search" => [true, false]
+    }.freeze
+
+    it "loads under a commonjs package and matches a trailing * as the CDN reads it", :aggregate_failures do
       skip "node is not installed" unless node?
 
-      out, status, err = run_node(<<~JS)
-        const m = site.matchesPath;
-        console.log(JSON.stringify({
-          prefixStar: [m("/admin*", "/admin"), m("/admin*", "/admin-orders"), m("/admin*", "/admin-orders.html"),
-                       m("/admin*", "/admin/x/y"), m("/admin*", "/adm")],
-          slashStar: [m("/cms/*", "/cms/x"), m("/cms/*", "/cms/a/b"), m("/cms/*", "/cms"), m("/cms/*", "/cmsx")],
-          middle: [m("/a*z", "/abz"), m("/a*z", "/a/b/z"), m("/a*z", "/abq")],
-          param: [m("/blog/:slug.html", "/blog/x"), m("/blog/:slug.html", "/blog/x/y")],
-          dots: [m("/a.b*", "/a.bc"), m("/a.b*", "/axbc")],
-          off: [site.pageIsOn("shop"), site.NAV_DESKTOP.flatMap((e) => e.items).filter((i) => !("switch" in i) || site.pageIsOn(i.switch)).length],
-          search: [site.notForSearch("/admin-login"), site.notForSearch("/exhibitions")],
-        }));
-      JS
+      out, status, err = run_node(NODE_ROUTES_CHECK)
 
       expect(status.success?).to be(true), err
-      expect(JSON.parse(out)).to eq(
-        "prefixStar" => [true, true, true, true, false], "slashStar" => [true, true, false, false],
-        "middle" => [true, true, false], "param" => [true, false], "dots" => [true, false],
-        "off" => [false, 3], "search" => [true, false]
-      )
+      expect(JSON.parse(out)).to eq(NODE_ROUTES_ANSWER)
     end
   end
 end

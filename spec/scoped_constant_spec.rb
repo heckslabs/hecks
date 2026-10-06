@@ -31,16 +31,19 @@ RSpec.describe "the scoped-constant bridge" do
     end
   BLUEBOOK
 
-  def boot_domain(root)
+  def write_domain(root)
     domain_dir = File.join(root, "bluebook")
     FileUtils.mkdir_p(domain_dir)
-    File.write(File.join(domain_dir, "scoped_bridge_domain.bluebook"), DOMAIN_SOURCE)
+    File.join(domain_dir, "scoped_bridge_domain.bluebook").tap { |file| File.write(file, DOMAIN_SOURCE) }
+  end
 
+  def boot_domain(root)
+    file = write_domain(root)
     registry = Hecks::Runtime::Registry.new(root: root)
     loading  = Hecks::Ports::Loading.bootstrap
     Hecks.with_registry(registry) do
       loading.load_library
-      Kernel.load(File.join(domain_dir, "scoped_bridge_domain.bluebook"))
+      Kernel.load(file)
     end
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     registry
@@ -52,7 +55,7 @@ RSpec.describe "the scoped-constant bridge" do
   end
 
   describe "ScopedConstant itself" do
-    it "chains indefinitely, reading back the full dotted path" do
+    it "chains indefinitely, reading back the full dotted path", :aggregate_failures do
       scoped = ScopedConstant.for("Account")
       expect(scoped.to_s).to eq("Account")
 
@@ -61,7 +64,7 @@ RSpec.describe "the scoped-constant bridge" do
       expect(deeper).to be_a(Module)
     end
 
-    it "duck-types as the bareword symbol it replaces, for a single segment" do
+    it "duck-types as the bareword symbol it replaces, for a single segment", :aggregate_failures do
       scoped = ScopedConstant.for("PizzaName")
 
       expect(scoped.to_sym).to eq(:PizzaName)
@@ -77,24 +80,26 @@ RSpec.describe "the scoped-constant bridge" do
     expect(result.to_s).to eq("ScopedBridgeFreshDomain::Something")
   end
 
-  # `RubyDoor.install` also installs each aggregate as a bare top-level constant, so after a
-  # boot `ScopedBridgeThing::Make` reaches the aggregate's const_missing, never `ConstShim::Hook`.
-  it "resolves a scoped reference through a REAL, already-installed facade module" do
-    Dir.mktmpdir do |root|
-      boot_domain(root)
+  context "with a domain booted in a scratch directory" do
+    around do |example|
+      Dir.mktmpdir do |root|
+        boot_domain(root)
+        example.run
+      end
+    end
+
+    # `RubyDoor.install` also installs each aggregate as a bare top-level constant, so after a
+    # boot `ScopedBridgeThing::Make` reaches the aggregate's const_missing, never `ConstShim::Hook`.
+    it "resolves a scoped reference through a REAL, already-installed facade module", :aggregate_failures do
       expect(defined?(ScopedBridgeThing)).to be_truthy
 
       result = with_declaration_resolver { ScopedBridgeThing::Make }
       expect(result.to_s).to eq("ScopedBridgeThing::Make")
       expect(result).to be_a(ScopedConstant)
     end
-  end
 
-  # A genuine existing constant or method resolves by ordinary lookup; the shim never shadows it.
-  it "never shadows a real facade constant or method with the same name" do
-    Dir.mktmpdir do |root|
-      boot_domain(root)
-
+    # A genuine existing constant or method resolves by ordinary lookup; the shim never shadows it.
+    it "never shadows a real facade constant or method with the same name", :aggregate_failures do
       nested = with_declaration_resolver { ScopedBridgeDomain::ScopedBridgeThing }
       expect(nested).to be_a(Module)
       # a real constant, found without const_missing at all
@@ -102,13 +107,9 @@ RSpec.describe "the scoped-constant bridge" do
 
       expect(ScopedBridgeThing.commands).to eq(["make!"])
     end
-  end
 
-  # Two domains in one registry: domain B references A's aggregate after A's facade is real.
-  it "resolves a cross-domain reference declared AFTER the referenced domain already booted" do
-    Dir.mktmpdir do |root|
-      boot_domain(root)
-
+    # Two domains in one registry: domain B references A's aggregate after A's facade is real.
+    it "resolves a cross-domain reference declared AFTER the referenced domain already booted", :aggregate_failures do
       result = with_declaration_resolver { ScopedBridgeThing::Make }
       expect(result.to_s).to eq("ScopedBridgeThing::Make")
 

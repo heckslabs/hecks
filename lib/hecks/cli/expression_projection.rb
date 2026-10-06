@@ -23,18 +23,20 @@ module Hecks
       # @return [Integer] the exit status, 0 once written or printed
       # @raise [SystemExit] with the refusal when the projection drops a self-bearing operator
       def call(argv, out: $stdout)
-        result = begin
-          Hecks::ProjectionFiles.build(:expression_tables)
-        rescue Hecks::ProjectionFiles::Refused => e
-          abort e.message
-        end
-
+        result = build
         if argv.include?("--stdout")
           out.print result.content.values.first
         else
           out.puts Hecks::ProjectionFiles.write(:expression_tables)
         end
         0
+      end
+
+      # @api private
+      def build
+        Hecks::ProjectionFiles.build(:expression_tables)
+      rescue Hecks::ProjectionFiles::Refused => e
+        abort e.message
       end
     end
   end

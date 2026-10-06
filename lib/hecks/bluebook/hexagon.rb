@@ -1,4 +1,5 @@
 require_relative "behaviour/hexagon"
+require_relative "keyword_fields"
 require_relative "../ir"
 
 module Hecks
@@ -54,6 +55,11 @@ module Hecks
 
       attr_reader :domain, :binds, :subscriptions, :attachments, :translates
 
+      # Every optional keyword and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        binds: [], subscriptions: [], attachments: [], bounded: false, translates: []
+      }.freeze
+
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
       # @param subscriptions [Array<String, Symbol>] the external events this domain
@@ -63,14 +69,11 @@ module Hecks
       # @param bounded [Boolean] whether this chapter is an explicit bounded context
       #   (consumer-owned; `attaches` marks attached chapters bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
-      def initialize(domain:, binds: [], subscriptions: [], attachments: [], bounded: false,
-                     translates: [])
+      def initialize(domain:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain             = domain.to_s
-        @binds              = binds
-        @subscriptions      = subscriptions
-        @attachments        = attachments
-        @bounded            = bounded ? true : false
-        @translates         = Array(translates).map(&:to_s)
+        @bounded            = @bounded ? true : false
+        @translates         = Array(@translates).map(&:to_s)
       end
 
       # Says whether this hecksagon marked its own chapter `bounded`.
@@ -107,6 +110,11 @@ module Hecks
 
       attr_reader :domain, :realm, :latest, :settings, :default_database, :default_adapter
 
+      # Every optional keyword and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        realm: nil, latest: nil, settings: {}, default_database: nil, default_adapter: nil
+      }.freeze
+
       # @param domain [String, Symbol] the domain this world configures
       # @param realm [String, Symbol, nil] the declared realm/version marker, or `nil`
       #   if none is declared
@@ -119,13 +127,13 @@ module Hecks
       #   or `nil` if none is declared
       # @param default_adapter [String, nil] the persistence adapter every aggregate
       #   binds to unless its chapter's hecksagon binds it, or `nil` if none is declared
-      def initialize(domain:, realm: nil, latest: nil, settings: {}, default_database: nil, default_adapter: nil)
+      def initialize(domain:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain           = domain.to_s
-        @realm            = realm&.to_s
-        @latest           = latest&.to_s
-        @settings         = settings
-        @default_database = default_database&.to_s
-        @default_adapter  = default_adapter&.to_s
+        @realm            = @realm&.to_s
+        @latest           = @latest&.to_s
+        @default_database = @default_database&.to_s
+        @default_adapter  = @default_adapter&.to_s
       end
     end
   end

@@ -14,16 +14,14 @@ RSpec.describe Hecks::Doors::McpGuideCache do
 
   after { FileUtils.rm_rf([cache_dir, domain]) }
 
-  it "builds the guide once and reads it back" do
-    builds = 0
-    2.times do
-      expect(described_class.remember(domain, ["a.b"]) do
-        builds += 1
-        guide
-      end).to eq(guide)
-    end
+  def counted_guide = guide.tap { @builds += 1 }
 
-    expect(builds).to eq(1)
+  it "builds the guide once and reads it back", :aggregate_failures do
+    @builds = 0
+    answers = Array.new(2) { described_class.remember(domain, ["a.b"]) { counted_guide } }
+
+    expect(answers).to eq([guide, guide])
+    expect(@builds).to eq(1)
   end
 
   it "builds a new guide when a file of the domain changes, or the allowed commands do" do
@@ -35,7 +33,7 @@ RSpec.describe Hecks::Doors::McpGuideCache do
     expect([rebuilt, other_commands]).to eq([["new"], ["other"]])
   end
 
-  it "does not remember a guide that is empty or that the block could not build" do
+  it "does not remember a guide that is empty or that the block could not build", :aggregate_failures do
     expect(described_class.remember(domain, ["a.b"]) { [] }).to eq([])
     expect(described_class.remember(domain, ["a.b"]) { nil }).to be_nil
     expect(Dir.children(cache_dir)).to be_empty

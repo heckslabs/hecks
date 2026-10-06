@@ -38,45 +38,49 @@ RSpec.describe Hecks::Translation::ApprovalFile do
   let(:registry) { registry_with(COMPUTED_EDGE) }
   let(:edge) { registry.translations.first }
 
+  # Builds the approval for the computed edge, Ada approving at noon unless an override says otherwise.
+  def build_with(**overrides)
+    described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00Z",
+                          rehearsal: REHEARSAL, **overrides)
+  end
+
   describe ".build" do
     it "binds to the edge's digest, who approved it, when, and the rehearsal" do
-      document = described_class.build(edge: edge, approved_by: "Ada <ada@example.com>",
-                                       approved_at: "2026-09-28T12:30:00Z", rehearsal: REHEARSAL)
+      document = build_with(approved_by: "Ada <ada@example.com>")
 
-      expect(document).to eq(
-        "edge" => "aaaaaa-bbbbbb", "edge_digest" => Hecks::Translation::Audit.edge_digest(edge),
-        "approved_by" => "Ada <ada@example.com>", "approved_at" => "2026-09-28T12:30:00Z", "rehearsal" => REHEARSAL
-      )
+      expect(document).to eq("edge" => "aaaaaa-bbbbbb", "edge_digest" => Hecks::Translation::Audit.edge_digest(edge),
+                             "approved_by" => "Ada <ada@example.com>", "approved_at" => "2026-09-28T12:30:00Z",
+                             "rehearsal" => REHEARSAL)
     end
 
     it "requires a rehearsal that passed for an edge with a compute or rekey rule" do
       [nil, {}, REHEARSAL.merge("result" => "fail"), REHEARSAL.merge("snapshot" => " ")].each do |rehearsal|
-        expect do
-          described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00Z", rehearsal: rehearsal)
-        end.to raise_error(ArgumentError, /approved on a rehearsal that passed/)
+        expect { build_with(rehearsal: rehearsal) }
+          .to raise_error(ArgumentError, /approved on a rehearsal that passed/)
       end
     end
 
     it "refuses a rehearsal field that is not a String, as rust/host does" do
       [{ "snapshot" => 42 }, { "host_version" => 3.0 }, { "at" => nil }].each do |bad|
-        rehearsal = REHEARSAL.merge(bad)
-        expect do
-          described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00Z", rehearsal: rehearsal)
-        end.to raise_error(ArgumentError, /approved on a rehearsal that passed/)
+        expect { build_with(rehearsal: REHEARSAL.merge(bad)) }
+          .to raise_error(ArgumentError, /approved on a rehearsal that passed/)
       end
     end
 
-    it "names who approved it and when, as a time that exists" do
+    it "names who approved it" do
       ["", " ", nil, 7].each do |who|
-        expect { described_class.build(edge: edge, approved_by: who, approved_at: "2026-09-28T12:30:00Z", rehearsal: REHEARSAL) }
-          .to raise_error(ArgumentError, /names who approved it/)
+        expect { build_with(approved_by: who) }.to raise_error(ArgumentError, /names who approved it/)
       end
+    end
+
+    it "names when it was approved, as a time that exists" do
       ["", "yesterday", nil, "2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2026-09-28T25:00:00Z", "2026-09-28"].each do |at|
-        expect { described_class.build(edge: edge, approved_by: "Ada", approved_at: at, rehearsal: REHEARSAL) }
-          .to raise_error(ArgumentError, /names who approved it/)
+        expect { build_with(approved_at: at) }.to raise_error(ArgumentError, /names who approved it/)
       end
-      expect(described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00.5+02:00",
-                                   rehearsal: REHEARSAL)).to include("approved_by" => "Ada")
+    end
+
+    it "accepts a time with a fractional second and an offset" do
+      expect(build_with(approved_at: "2026-09-28T12:30:00.5+02:00")).to include("approved_by" => "Ada")
     end
 
     it "needs no rehearsal for an edge whose rules an audit's samples can vouch for" do
@@ -92,18 +96,16 @@ RSpec.describe Hecks::Translation::ApprovalFile do
     around { |example| Dir.mktmpdir { |dir| (@dir = dir) && example.run } }
 
     def approve!(rehearsal: REHEARSAL)
-      document = described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00Z",
-                                       rehearsal: rehearsal)
-      described_class.write!(@dir, edge, document)
+      described_class.write!(@dir, edge, build_with(rehearsal: rehearsal))
     end
 
-    it "lives beside the edge as translations/<edge>.approval" do
+    it "lives beside the edge as translations/<edge>.approval", :aggregate_failures do
       expect(approve!).to eq(File.join(@dir, "translations", "aaaaaa-bbbbbb.approval"))
       expect(JSON.parse(File.read(File.join(@dir, "translations",
                                             "aaaaaa-bbbbbb.approval")))).to include("edge" => "aaaaaa-bbbbbb")
     end
 
-    it "applies to the edge whose digest it holds, and to no other" do
+    it "applies to the edge whose digest it holds, and to no other", :aggregate_failures do
       approve!
 
       expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to include("approved_by" => "Ada")
@@ -111,33 +113,47 @@ RSpec.describe Hecks::Translation::ApprovalFile do
       expect(described_class.applicable(@dir, changed, host_version: "3.0.0")).to be_nil
     end
 
-    it "applies only on a host of the rehearsal's major.minor, and refuses naming both versions" do
+    it "applies on a host of the rehearsal's major.minor" do
       approve!
 
       %w[3.0.0 3.0.9 3.0.1-rc.1].each do |host|
         expect(described_class.applicable(@dir, edge, host_version: host)).to include("approved_by" => "Ada")
       end
+    end
+
+    it "does not apply on a host of another major.minor" do
+      approve!
+
       %w[2.9.0 3.1.0 4.0.0].each do |host|
         expect(described_class.applicable(@dir, edge, host_version: host)).to be_nil
       end
+    end
+
+    it "refuses a host of another major.minor, naming both versions" do
+      approve!
+
       expect(described_class.host_mismatch(@dir, edge, host_version: "3.1.2")).to eq(
         "the rehearsal ran on Hecks 3.0.0, but this host is Hecks 3.1.2; a rehearsal counts only on a " \
         "host of the same major.minor (3.1.x) — re-run the rehearsal on this host and approve again"
       )
+    end
+
+    it "does not refuse a host of the rehearsal's major.minor" do
+      approve!
+
       expect(described_class.host_mismatch(@dir, edge, host_version: "3.0.4")).to be_nil
     end
 
-    it "does not apply a rehearsal whose host_version is not a version" do
-      path = approve!
-      original = File.read(path)
-      ["three", "3", "v3.0.0"].each do |bad|
-        File.write(path, original.sub('"3.0.0"', %("#{bad}")))
+    ["three", "3", "v3.0.0"].each do |bad|
+      it "does not apply a rehearsal whose host_version is #{bad.inspect}, not a version" do
+        path = approve!
+        File.write(path, File.read(path).sub('"3.0.0"', %("#{bad}")))
 
         expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
       end
     end
 
-    it "checks against the running release by default" do
+    it "checks against the running release by default", :aggregate_failures do
       approve!(rehearsal: REHEARSAL.merge("host_version" => Hecks::VERSION))
 
       expect(described_class.applicable(@dir, edge)).to include("approved_by" => "Ada")
@@ -151,18 +167,17 @@ RSpec.describe Hecks::Translation::ApprovalFile do
       expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
     end
 
-    it "does not apply once approved_by or approved_at was blanked or a rehearsal field made a number" do
-      path = approve!
-      original = File.read(path)
-      [['"approved_by": "Ada"', '"approved_by": ""'], ['"2026-09-28T12:30:00Z"', '"someday"'],
-       ['"rds:ledger-2026-09-28"', "20260928"], ['"3.0.0"', '""']].each do |from, to|
-        File.write(path, original.sub(from, to))
+    [['"approved_by": "Ada"', '"approved_by": ""'], ['"2026-09-28T12:30:00Z"', '"someday"'],
+     ['"rds:ledger-2026-09-28"', "20260928"], ['"3.0.0"', '""']].each do |from, to|
+      it "does not apply once #{from} is edited to #{to}, blanking a field or making it a number" do
+        path = approve!
+        File.write(path, File.read(path).sub(from, to))
 
         expect(described_class.applicable(@dir, edge, host_version: "3.0.0")).to be_nil
       end
     end
 
-    it "skips a file that is not JSON, since it approves nothing" do
+    it "skips a file that is not JSON, since it approves nothing", :aggregate_failures do
       FileUtils.mkdir_p(File.join(@dir, "translations"))
       File.write(File.join(@dir, "translations", "junk.approval"), "not json")
 
@@ -180,11 +195,9 @@ RSpec.describe Hecks::Translation::ApprovalFile do
   # digest of that edge is that approval's.
   describe "the digest rust/host agrees on" do
     def exported
-      document = described_class.build(edge: edge, approved_by: "Ada <ada@example.com>",
-                                       approved_at: "2026-09-28T12:30:00Z", rehearsal: REHEARSAL)
       JSON.pretty_generate(
         "translations" => JSON.parse(JSON.generate(Hecks::Projector::Exporter.translations(registry))),
-        "approvals"    => [document]
+        "approvals"    => [build_with(approved_by: "Ada <ada@example.com>")]
       )
     end
 

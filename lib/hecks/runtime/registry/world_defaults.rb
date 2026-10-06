@@ -19,7 +19,7 @@ module Hecks
         def default_database_for(domain) = world_default(domain, :default_database)
 
         def verify_world_defaults!
-          @worlds.each_value do |declared|
+          @declared.worlds.each_value do |declared|
             name = declared.default_adapter
             next unless name
 
@@ -37,10 +37,10 @@ module Hecks
 
         # The world of the first chapter this registry loaded — the target of a boot, ahead of
         # any framework member it attaches.
-        def project_world = world(@bluebooks.keys.first || @worlds.keys.first)
+        def project_world = world(@declared.bluebooks.keys.first || @declared.worlds.keys.first)
 
         def default_database_applies?(verb, adapter)
-          verb.to_s == Ports::Persistence::VERB && @adapters[adapter.to_s]&.declares?(:database)
+          verb.to_s == Ports::Persistence::VERB && @declared.adapters[adapter.to_s]&.declares?(:database)
         end
 
         def verify_default_adapter_named!(domain, name)

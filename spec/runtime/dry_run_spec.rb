@@ -14,9 +14,7 @@ RSpec.describe "Dispatcher#dry_run?" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(DRY_RUN_FIXTURE)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -24,59 +22,57 @@ RSpec.describe "Dispatcher#dry_run?" do
     runtime.registry.repository("DelegatesTo", runtime.registry.bluebook("DelegatesTo").aggregate("Board")).find(name)
   end
 
-  it "returns true for a legal entity command, and persists nothing" do
+  def square_of(runtime, name) = board(runtime, name)[:pieces].first[:square].to_h
+
+  def board_with_piece(name)
     runtime = boot
-    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
-    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: name })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: name, id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime
+  end
 
-    result = runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
+  def dry_run_move?(runtime, verb, name, file, rank)
+    runtime.dry_run?("DelegatesTo::Board.#{verb}", name: name, id: { value: "p1" }, to: { file: file, rank: rank })
+  end
 
-    expect(result).to be(true)
-    expect(board(runtime, "b1")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
+  it "returns true for a legal entity command, and persists nothing", :aggregate_failures do
+    runtime = board_with_piece("b1")
+
+    expect(dry_run_move?(runtime, "Piece.Move", "b1", 5, 5)).to be(true)
+    expect(square_of(runtime, "b1")).to eq(file: 3, rank: 3)
   end
 
   it "raises the same refusal a real dispatch would, for the same entity command" do
-    runtime = boot
-    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
-    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime = board_with_piece("b2")
 
-    expect do
-      runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
-    end.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
+    expect { dry_run_move?(runtime, "Piece.Move", "b2", 3, 3) }
+      .to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
   # A delegated entity mutation is discarded too, not only a plain entity command's.
-  it "sees through delegates_to too — persists nothing from the delegated entity's own mutation" do
-    runtime = boot
-    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
-    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
+  it "sees through delegates_to too — persists nothing from the delegated entity's own mutation", :aggregate_failures do
+    runtime = board_with_piece("b3")
 
-    result = runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 5, rank: 5 })
-
-    expect(result).to be(true)
-    expect(board(runtime, "b3")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
+    expect(dry_run_move?(runtime, "MovePiece", "b3", 5, 5)).to be(true)
+    expect(square_of(runtime, "b3")).to eq(file: 3, rank: 3)
   end
 
   # `move_count` (bumped by OnPieceMovedBumpMoveCount) staying at its default proves no policy ran.
   it "never triggers a policy reaction — nothing was announced to react to" do
-    runtime = boot
-    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
-    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime = board_with_piece("b4")
 
-    runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    dry_run_move?(runtime, "MovePiece", "b4", 5, 5)
 
     expect(board(runtime, "b4")[:move_count].to_h).to eq(value: 0)
   end
 
-  it "leaves a real dispatch working normally afterward — no residue from the dry run" do
-    runtime = boot
-    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
-    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
+  it "leaves a real dispatch working normally afterward — no residue from the dry run", :aggregate_failures do
+    runtime = board_with_piece("b5")
 
-    runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    dry_run_move?(runtime, "MovePiece", "b5", 5, 5)
     runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b5", with: { id: { value: "p1" }, to: { file: 6, rank: 6 } })
 
-    expect(board(runtime, "b5")[:pieces].first[:square].to_h).to eq(file: 6, rank: 6)
+    expect(square_of(runtime, "b5")).to eq(file: 6, rank: 6)
     expect(board(runtime, "b5")[:move_count].to_h).to eq(value: 1)
   end
 

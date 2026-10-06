@@ -40,7 +40,7 @@ module Hecks
         def regenerate(confirm:)
           return rewrite if confirm
 
-          "dry run, would rewrite #{DIRECTORY}/ for #{STORES.join(', ')} through the real adapters " \
+          "dry run, would rewrite #{DIRECTORY}/ for #{STORES.join(", ")} through the real adapters " \
             "(#{installed}; add --confirm)"
         end
 

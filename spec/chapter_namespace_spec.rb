@@ -15,24 +15,43 @@ RSpec.describe "a chapter's namespace" do
     registry
   end
 
+  def widget_id_value_object
+    proc do
+      value_object "Id" do
+        attribute :value, String
+        invariant("an id is present") { !value.to_s.empty? }
+      end
+    end
+  end
+
+  def make_widget_command
+    proc do
+      command "Make" do
+        goal "make a widget"
+        attribute :id, Id
+        sets :id
+        emits "Made"
+      end
+    end
+  end
+
+  def widget_aggregate
+    parts = [widget_id_value_object, make_widget_command]
+    proc do
+      aggregate "Widget" do
+        identified_by :id
+        attribute :id, Id
+        parts.each { |part| instance_eval(&part) }
+      end
+    end
+  end
+
   def declare(name, nest: nil)
+    widget = widget_aggregate
     registry_with do
       Hecks.bluebook name do
         namespace nest if nest
-        aggregate "Widget" do
-          identified_by :id
-          attribute :id, Id
-          value_object "Id" do
-            attribute :value, String
-            invariant("an id is present") { !value.to_s.empty? }
-          end
-          command "Make" do
-            goal "make a widget"
-            attribute :id, Id
-            sets :id
-            emits "Made"
-          end
-        end
+        instance_eval(&widget)
       end
       Hecks.hecksagon(name) { persisted_by "Memory" }
     end
@@ -41,12 +60,12 @@ RSpec.describe "a chapter's namespace" do
   # RSpec restores the stubbed constant, and everything installed under it, after each example.
   before { stub_const("NsOuter", Module.new) }
 
-  it "is carried on the chapter and its IR, nil when undeclared" do
+  it "is carried on the chapter and its IR, nil when undeclared", :aggregate_failures do
     expect(declare("NsPlain").bluebook("NsPlain").to_h[:namespace]).to be_nil
     expect(declare("NsNested", nest: "NsOuter::Inner").bluebook("NsNested").to_h[:namespace]).to eq("NsOuter::Inner")
   end
 
-  it "installs the chapter at its namespace, with its aggregates inside it and none at the top level" do
+  it "installs the chapter at its namespace, with its aggregates inside it and none at the top level", :aggregate_failures do
     registry = declare("NsNested", nest: "NsOuter::Inner")
     Hecks::Doors::RubyDoor.install(Hecks::Runtime::Dispatcher.new(registry))
 

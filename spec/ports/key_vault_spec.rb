@@ -25,7 +25,7 @@ RSpec.describe Hecks::Ports::KeyVault do
         .to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
     end
 
-    it "resolves the one bound adapter, minting and then destroying its key" do
+    it "resolves the one bound adapter, minting and then destroying its key", :aggregate_failures do
       registry      = registry_with(IN_PROCESS_ADAPTER)
       key_reference = described_class.issue(registry, subject_id: "attendee-482")
 

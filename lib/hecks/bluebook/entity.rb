@@ -1,4 +1,5 @@
 require_relative "behaviour/entity"
+require_relative "keyword_fields"
 require_relative "expression/ast_json"
 
 module Hecks
@@ -29,6 +30,12 @@ module Hecks
         lifecycle:     one(:lifecycle)
       )
 
+      # Every optional declared field and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        description: nil, identified_by: nil, attributes: [], commands: [], queries: [],
+        entities: [], preconditions: [], invariants: [], lifecycle: nil
+      }.freeze
+
       class << self
         attr_reader :description, :identified_by, :identity_paths, :identity_heads,
                     :attributes, :commands, :queries, :entities, :preconditions, :invariants, :lifecycle
@@ -42,31 +49,20 @@ module Hecks
         # @param entities [Array<Class>] the entity classes nested directly under this entity
         # @param lifecycle [Bluebook::Lifecycle, nil] the declared state machine, or `nil`
         # @return [Class] the minted piece class (a `Bluebook::Entity` subclass)
-        def declare(name:, description: nil, identified_by: nil, attributes: [],
-                    commands: [], queries: [], entities: [], preconditions: [], invariants: [], lifecycle: nil)
+        def declare(name:, **given)
           piece = Class.new(self)
           piece.hecks_name = name.to_s
-          piece.absorb(description: description, identified_by: identified_by,
-                       attributes: attributes, commands: commands,
-                       queries: queries, entities: entities, preconditions: preconditions,
-                       invariants: invariants, lifecycle: lifecycle)
+          piece.absorb(**KeywordFields.fill(given, FIELD_DEFAULTS))
           piece.stamp_children
           piece
         end
 
         # Assigns the declared fields, then lets the behaviour's `settle` derive identity and
         # indexes.
-        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:,
-                   lifecycle:)
-          @description    = description
-          @identified_by  = identified_by
-          @attributes     = attributes
-          @commands       = commands
-          @queries        = queries
-          @entities       = entities
-          @preconditions  = preconditions
-          @invariants     = invariants
-          @lifecycle      = lifecycle
+        def absorb(**fields)
+          KeywordFields.fill(fields, FIELD_DEFAULTS).each do |key, value|
+            instance_variable_set(:"@#{key}", value)
+          end
 
           settle
         end

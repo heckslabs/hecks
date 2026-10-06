@@ -47,7 +47,7 @@ module Hecks
       end
 
       def os
-        return "macOS #{capture('sw_vers', '-productVersion')} (#{capture('uname', '-m')})" if RUBY_PLATFORM.include?("darwin")
+        return "macOS #{capture("sw_vers", "-productVersion")} (#{capture("uname", "-m")})" if RUBY_PLATFORM.include?("darwin")
 
         capture("uname", "-sr")
       end

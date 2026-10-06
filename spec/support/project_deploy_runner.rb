@@ -23,18 +23,21 @@ module ProjectDeployRunner
   def run(domain_dir, *flags, root: Hecks::Tools::ROOT)
     out = StringIO.new
     err = StringIO.new
-    code = 0
-    begin
-      $stdout = out
-      $stderr = err
-      Hecks::Tools.fetch("project_deploy").main([domain_dir, *flags], root: root)
-    rescue SystemExit => e
-      err.puts(e.message) unless e.message == "exit" || e.success?
-      code = e.status
-    ensure
-      $stdout = STDOUT
-      $stderr = STDERR
-    end
+    code = capture(out, err) { Hecks::Tools.fetch("project_deploy").main([domain_dir, *flags], root: root) }
     [out.string, err.string, Result.new(code)]
+  end
+
+  # Runs the block with stdout and stderr redirected; returns the exit code it ended with.
+  def capture(out, err)
+    $stdout = out
+    $stderr = err
+    yield
+    0
+  rescue SystemExit => e
+    err.puts(e.message) unless e.message == "exit" || e.success?
+    e.status
+  ensure
+    $stdout = STDOUT
+    $stderr = STDERR
   end
 end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../tools"
+require_relative "hoist_local_givens/rewriting"
 
 module Hecks
   module Tools
@@ -20,6 +21,12 @@ module Hecks
       # One rule several commands of an owner repeat.
       Candidate = Struct.new(:description, :canonical, :owner, :locations, keyword_init: true)
 
+      # What one example domain's run starts from: its files, their text and effective rules before
+      # any edit, the path its result is reported under, and whether nothing is kept.
+      Snapshot = Struct.new(:files, :originals, :before_rules, :path, :dry_run)
+
+      extend Rewriting
+
       module_function
 
       # Rewrites every example domain that has a candidate, and prints one line for each.
@@ -34,31 +41,38 @@ module Hecks
         require "hecks/query_ir"
         dry_run = argv.include?("--dry-run")
 
-        results = Hecks::Codemod::EXAMPLE_ROOTS.filter_map do |domain_dir|
-          bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
-          next if bluebook_files.empty?
-
-          run_files(bluebook_files, dry_run: dry_run)
-        end
-
-        report(results, dry_run)
+        report(run_domains(dry_run), dry_run)
         0
+      end
+
+      # @param dry_run [Boolean] whether nothing is kept
+      # @return [Array<Hash>] one outcome for each example domain that has bluebooks
+      def run_domains(dry_run)
+        Hecks::Codemod::EXAMPLE_ROOTS.filter_map do |domain_dir|
+          bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
+          run_files(bluebook_files, dry_run: dry_run) unless bluebook_files.empty?
+        end
       end
 
       # @param results [Array<Hash>] one outcome for each example domain
       # @param dry_run [Boolean] whether nothing was kept
       # @return [void]
       def report(results, dry_run)
-        label = ->(c) { "#{c.owner}##{c.description.inspect} (#{c.locations.size} locations)" }
+        puts "== results (#{dry_run ? "DRY RUN — nothing written" : "applied"}) =="
+        results.filter_map { |result| result_line(result) }.each { |line| puts line }
+      end
 
-        puts "== results (#{dry_run ? 'DRY RUN — nothing written' : 'applied'}) =="
-        results.each do |r|
-          case r[:status]
-          when :clean   then puts "clean (no candidates): #{r[:file]}"
-          when :applied then puts "APPLIED  #{r[:file]}: #{r[:candidates].map(&label).join(', ')}"
-          when :skipped then puts "SKIPPED  #{r[:file]} (#{r[:reason]}): #{r[:candidates].map(&label).join(', ')}"
-          end
+      # @return [String, nil] the line that reports one outcome, nil for an outcome of no kind
+      def result_line(result)
+        case result[:status]
+        when :clean   then "clean (no candidates): #{result[:file]}"
+        when :applied then "APPLIED  #{result[:file]}: #{candidate_labels(result)}"
+        when :skipped then "SKIPPED  #{result[:file]} (#{result[:reason]}): #{candidate_labels(result)}"
         end
+      end
+
+      def candidate_labels(result)
+        result[:candidates].map { |c| "#{c.owner}##{c.description.inspect} (#{c.locations.size} locations)" }.join(", ")
       end
 
       # Grouped by owner as well as description: identical rules recur across unrelated
@@ -67,115 +81,21 @@ module Hecks
       # @param registry [Object] the booted bluebooks
       # @return [Array<Candidate>] the rules to hoist
       def find_candidates(registry)
-        Hecks::QueryIR.collect_rules(registry)
-                      .select { |r| r.kind == "given" }
-                      .group_by { |r| [r.description, r.canonical, Hecks::QueryIR.owner_of(r.location)] }
-                      .filter_map do |(description, canonical, owner), rules|
-          next if rules.size < 2
-          # An owner-level "(declared)" rule is already hoisted for this owner.
-          next if rules.any? { |r| r.location.end_with?(" (declared)") }
+        groups = Hecks::QueryIR.collect_rules(registry)
+                               .select { |r| r.kind == "given" }
+                               .group_by { |r| [r.description, r.canonical, Hecks::QueryIR.owner_of(r.location)] }
+        groups.filter_map do |(description, canonical, owner), rules|
+          next unless hoistable?(rules)
 
           Candidate.new(description: description, canonical: canonical, owner: owner,
                         locations: rules.map(&:location))
         end
       end
 
-      # The owner's own window: its opening line to the next `end` at the same indentation.
-      # `collect_rules` yields a dotted owner ("Account.LedgerEntry") but the source spells the
-      # bare name, so the last segment is matched; a name that is not unique in the file is
-      # skipped.
-      #
-      # @param text [String] a bluebook's source
-      # @param owner [String] the owner's dotted name
-      # @return [Array(MatchData, Integer), nil] the opening line's match and the closing offset
-      def owner_window(text, owner)
-        bare_name = owner.split(".").last
-        open_re = /^([ \t]*)(?:aggregate|entity)\s+"#{Regexp.escape(bare_name)}"\s+do\n/
-        return nil if text.scan(open_re).size != 1
-
-        open_match = text.match(open_re)
-        indent = open_match[1]
-        close_at = text.index(/^#{indent}end\n/, open_match.end(0))
-        return nil unless close_at
-
-        [open_match, close_at]
-      end
-
-      # Nested entity blocks are carved out of the scan: an entity may declare a `given` with the
-      # same description but a different predicate.
-      #
-      # @param window [String] the owner's source
-      # @return [Array<Array(String, Boolean)>] each stretch of source, and whether it is nested
-      def strip_nested_entities(window)
-        entity_re = /^([ \t]*)entity\s+"[^"]+"\s+do\n/
-        segments  = []
-        pos = 0
-
-        while (m = window.match(entity_re, pos))
-          end_match = window.match(/^#{m[1]}end\n/, m.end(0))
-          break unless end_match
-
-          segments << [window[pos...m.begin(0)], false]
-          segments << [window[m.begin(0)...end_match.end(0)], true]
-          pos = end_match.end(0)
-        end
-        segments << [window[pos..], false]
-        segments
-      end
-
-      # A match needs the predicate to equal the candidate's canonical, not just the description:
-      # the same words can carry a different rule (`disputed_by.status` vs
-      # `account.customer.status`).
-      #
-      # @param predicate_src [String] a `given`'s block source
-      # @param candidate [Candidate] the rule being hoisted
-      # @return [Boolean] whether it is the same rule
-      def matching_occurrence?(predicate_src, candidate)
-        predicate_src.strip == candidate.canonical
-      end
-
-      # @param description [String] a `given`'s description
-      # @return [Regexp] the line that declares it with a block
-      def desc_pattern_for(description)
-        /^([ \t]*)given\(#{Regexp.escape(description.inspect)}\)\s*\{([^\n}]*)\}\n/
-      end
-
-      # @param text [String] a bluebook's source
-      # @param candidate [Candidate] the rule to hoist
-      # @return [Array(String, Boolean)] the new source and whether the rule was hoisted
-      def apply_candidate(text, candidate)
-        bounds = owner_window(text, candidate.owner)
-        return [text, false] unless bounds
-
-        open_match, close_at = bounds
-        window   = text[open_match.end(0)...close_at]
-        segments = strip_nested_entities(window)
-        pattern  = desc_pattern_for(candidate.description)
-
-        outside_matches = segments.flat_map { |seg, nested| nested ? [] : seg.scan(pattern) }
-                                  .select { |_, predicate_src| matching_occurrence?(predicate_src, candidate) }
-        return [text, false] if outside_matches.size < 2
-
-        # Indent one level inside the owner, not as deep as the occurrence in a command block.
-        child_indent = "#{open_match[1]}  "
-        new_given_line = "#{child_indent}given(#{candidate.description.inspect}) { #{candidate.canonical} }\n"
-
-        bare_window = segments.map do |seg, nested|
-          next seg if nested
-
-          seg.gsub(pattern) do
-            indent = Regexp.last_match(1)
-            predicate_src = Regexp.last_match(2)
-            if matching_occurrence?(predicate_src, candidate)
-              "#{indent}given(#{candidate.description.inspect})\n"
-            else
-              Regexp.last_match(0)
-            end
-          end
-        end.join
-
-        new_text = text[0...open_match.end(0)] + new_given_line + bare_window + text[close_at..]
-        [new_text, true]
+      # Two or more occurrences, none of them an owner-level "(declared)" rule, which is already
+      # hoisted for this owner.
+      def hoistable?(rules)
+        rules.size >= 2 && rules.none? { |r| r.location.end_with?(" (declared)") }
       end
 
       # Every command's effective rule set (block-declared or referenced) must be unchanged.
@@ -190,56 +110,68 @@ module Hecks
                       .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
       end
 
-      # Kept in one method: `originals` and `before_rules` must be captured before any candidate
-      # is applied, and splitting would mean threading that snapshot through parameters.
-      #
       # @param files [Array<String>] one example domain's bluebook files
       # @param dry_run [Boolean] whether to judge the edit in memory and write nothing
       # @return [Hash] `file`, `status` (`:clean`, `:applied`, `:skipped`), and the candidates
-      # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def run_files(files, dry_run:)
-        files = files.sort
+        snapshot = snapshot_of(files.sort, dry_run)
+        candidates = find_candidates(Hecks::Codemod.load_bluebook(snapshot.files))
+        return { file: snapshot.path, status: :clean } if candidates.empty?
+
+        texts = snapshot.originals.transform_values(&:dup)
+        applied = candidates.select { |candidate| hoist_into(snapshot.files, texts, candidate) }
+        return no_match(snapshot) if applied.empty?
+
+        judge_edit(snapshot, texts, applied)
+      end
+
+      # The files' text and effective rules, taken before any candidate is applied.
+      #
+      # @return [Snapshot]
+      def snapshot_of(files, dry_run)
         originals = files.to_h { |file| [file, File.read(file)] }
         before_rules = command_rule_map(Hecks::Codemod.load_bluebook(files))
-        candidates = find_candidates(Hecks::Codemod.load_bluebook(files))
-        result_path = files.one? ? files.first : File.dirname(files.first)
+        path = files.one? ? files.first : File.dirname(files.first)
+        Snapshot.new(files, originals, before_rules, path, dry_run)
+      end
 
-        return { file: result_path, status: :clean } if candidates.empty?
+      # Applies the candidate to the first file it fits, in `texts`.
+      #
+      # @return [Boolean] whether any file took it
+      def hoist_into(files, texts, candidate)
+        target = files.find { |file| apply_candidate(texts[file], candidate).last }
+        return false unless target
 
-        texts = originals.transform_values(&:dup)
-        applied = []
-        candidates.each do |c|
-          target = files.find { |file| apply_candidate(texts[file], c).last }
-          next unless target
+        texts[target], changed = apply_candidate(texts[target], candidate)
+        changed
+      end
 
-          text, changed = apply_candidate(texts[target], c)
-          texts[target] = text
-          applied << c if changed
-        end
+      def no_match(snapshot)
+        { file: snapshot.path, status: :skipped, reason: "no candidate matched its own source text", candidates: [] }
+      end
 
-        if applied.empty?
-          return { file: result_path, status: :skipped,
-                   reason: "no candidate matched its own source text", candidates: [] }
-        end
+      # Stages the edit, reboots on it, and keeps it only when every command's rules held.
+      #
+      # @return [Hash] the outcome: `:applied`, or `:skipped` with the reason it was reverted
+      def judge_edit(snapshot, texts, applied)
+        texts.each { |file, text| Hecks::Codemod.stage(file, text, dry_run: snapshot.dry_run) }
+        after_rules, error = Hecks::Codemod.safely { command_rule_map(Hecks::Codemod.load_bluebook(snapshot.files)) }
+        held = after_rules == snapshot.before_rules
+        revert(snapshot) if snapshot.dry_run || !held
+        return { file: snapshot.path, status: :applied, candidates: applied } if held
 
-        texts.each { |file, text| Hecks::Codemod.stage(file, text, dry_run: dry_run) }
-        after_rules, error = Hecks::Codemod.safely do
-          command_rule_map(Hecks::Codemod.load_bluebook(files))
-        end
-        if dry_run || after_rules != before_rules
-          originals.each { |file, text| Hecks::Codemod.unstage(file, text, dry_run: dry_run) }
-        end
+        { file: snapshot.path, status: :skipped, reason: revert_reason(error), candidates: applied }
+      end
 
-        if after_rules == before_rules
-          { file: result_path, status: :applied, candidates: applied }
-        else
-          reason = if error
-                     "reboot raised after edit (#{error}) — reverted"
-                   else
-                     "a command's own effective rule set changed after edit — reverted"
-                   end
-          { file: result_path, status: :skipped, reason: reason, candidates: applied }
-        end
+      # Puts every file's original text back.
+      def revert(snapshot)
+        snapshot.originals.each { |file, text| Hecks::Codemod.unstage(file, text, dry_run: snapshot.dry_run) }
+      end
+
+      def revert_reason(error)
+        return "reboot raised after edit (#{error}) — reverted" if error
+
+        "a command's own effective rule set changed after edit — reverted"
       end
     end
   end

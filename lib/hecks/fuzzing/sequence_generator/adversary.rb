@@ -1,6 +1,8 @@
-require_relative "../invalid_value_generator"
 require_relative "../value_generator"
-require_relative "../../runtime/value"
+require_relative "adversary/argument_mutations"
+require_relative "adversary/caller_draw"
+require_relative "adversary/identity_mutations"
+require_relative "adversary/precedence_mutations"
 
 module Hecks
   module Fuzzing
@@ -8,6 +10,11 @@ module Hecks
       # Adversarial argument mutations, the shapes Ruby/Rust divergences were found through.
       # Off at `adversarial: 0.0`, which returns before any RNG draw.
       module Adversary
+        include ArgumentMutations
+        include CallerDraw
+        include IdentityMutations
+        include PrecedenceMutations
+
         KINDS = %i[
           routing_key
           blank_identity
@@ -70,11 +77,19 @@ module Hecks
           mutations << deep_entity_addressing!(args, entry) if (entry[:chain] || []).size >= DEEP_ENTITY_DEPTH
           return mutations if @random.rand >= @adversarial
 
+          kind = drawn_kind(args, entry, catalog)
+          mutations << send(:"apply_#{kind}!", args, entry, catalog) if kind
+          mutations
+        end
+
+        # One kind applicable to this step, with `duplicate_entity_identity` weighted up; nil when
+        # none applies.
+        def drawn_kind(args, entry, catalog)
           applicable = KINDS.select { |kind| send(:"#{kind}_applicable?", args, entry, catalog) }
-          return mutations if applicable.empty?
+          return nil if applicable.empty?
 
           weighted = applicable.flat_map { |kind| [kind] * (kind == :duplicate_entity_identity ? DUPLICATE_IDENTITY_WEIGHT : 1) }
-          mutations << send(:"apply_#{weighted.sample(random: @random)}!", args, entry, catalog)
+          weighted.sample(random: @random)
         end
 
         def deep_entity_addressing!(args, entry)
@@ -82,298 +97,23 @@ module Hecks
           routed = @random.rand(2).zero?
           note   = { "mutation" => "deep_entity", "bug" => "BUG#11", "depth" => depth,
                      "addressing" => routed ? "routed" : "flat" }
-          return note unless routed
+          route_deep_entity!(args, entry) if routed
+          note
+        end
 
+        def route_deep_entity!(args, entry)
           heads   = [entry[:aggregate], *entry[:chain]].map { |construct| (construct.identified_by || :id).to_s }
           scalars = heads.map { |head| ValueGenerator.scalar_of(args[head]) }
           # The heads leave the flat args unless the command declares an attribute of that name
           # (chess's `Piece.Move` declares `id`); dropping that would be a different mutation.
           heads.each { |head| args.delete(head) unless entry[:command].attribute(head) }
           args["to"] = { "aggregate" => scalars.first, "entities" => scalars.drop(1) }
-          note
-        end
-
-        # Not applied over a routed `to:` from `deep_entity_addressing!`; overwriting it would
-        # contradict that step's note.
-        def routing_key_applicable?(args, _entry, _catalog) = !args.key?("to")
-
-        def apply_routing_key!(args, entry, _catalog)
-          key   = ROUTING_KEYS.sample(random: @random)
-          shape = ROUTING_SHAPES.sample(random: @random)
-          args[key] =
-            case shape
-            when "null"   then nil
-            when "scalar" then routing_scalar(args, entry)
-            else               routing_object(args, entry)
-            end
-          { "mutation" => "routing_key", "bug" => "BUG#7/#16/#8", "key" => key, "shape" => shape,
-            "declared" => !entry[:command].attribute(key).nil? }
-        end
-
-        # This step's own parent id, an out-of-range Integer, or a minted id nothing holds.
-        def routing_scalar(args, entry)
-          case @random.rand(3)
-          when 0 then parent_scalar_of(args, entry)
-          when 1 then ValueGenerator::INTEGER_EDGE_CASES.sample(random: @random)
-          else        ValueGenerator.random_id(@random)
-          end
-        end
-
-        def routing_object(args, entry)
-          entities = (entry[:chain] || []).map { |piece| ValueGenerator.scalar_of(args[(piece.identified_by || :id).to_s]) }
-          # Half the time one identity too many, a depth the verb lacks, which both engines must
-          # refuse alike.
-          entities << ValueGenerator.random_id(@random) if @random.rand(2).zero?
-          { "aggregate" => parent_scalar_of(args, entry), "entities" => entities }
-        end
-
-        def parent_scalar_of(args, entry)
-          key = (entry[:aggregate].identified_by || :id).to_s
-          args.key?(key) ? ValueGenerator.scalar_of(args[key]) : identity_scalar_of(entry[:aggregate], args)
-        end
-
-        def blank_identity_applicable?(args, entry, catalog) = blank_identity_targets(args, entry, catalog).any?
-
-        # Identity heads this step supplies: a creating command's own (every composite part) and
-        # an append's entity identity arguments.
-        def blank_identity_targets(args, entry, catalog)
-          targets = []
-          if entry[:entity].nil? && entry[:command].creates?
-            aggregate = entry[:aggregate]
-            heads = composite_identity?(aggregate) ? aggregate.identity_heads : [aggregate.identified_by || :id]
-            targets.concat(heads.map(&:to_s))
-          end
-          populator = populator_for_entry(catalog, entry)
-          targets.concat(populator[:identity_arguments].map(&:to_s)) if populator
-          targets.uniq.select { |head| args.key?(head) }
-        end
-
-        def apply_blank_identity!(args, entry, catalog)
-          head  = blank_identity_targets(args, entry, catalog).sample(random: @random)
-          shape = BLANK_SHAPES.sample(random: @random)
-          blank = shape == "empty" ? "" : "   "
-          args[head] =
-            if shape == "null" then nil
-            elsif args[head].is_a?(Hash) then args[head].transform_values { blank }
-            else blank
-            end
-          { "mutation" => "blank_identity", "bug" => "BUG#15", "argument" => head, "shape" => shape }
-        end
-
-        def null_value_object_applicable?(args, entry, _catalog) = value_object_targets(args, entry).any?
-
-        def value_object_targets(args, entry)
-          aggregate = entry[:aggregate]
-          entry[:command].attributes.reject { |attribute| attribute.list? || attribute.reference? }
-                         .select { |attribute| args.key?(attribute.name.to_s) }
-                         .filter_map do |attribute|
-            value_object = Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
-            [attribute, value_object] if value_object&.sole_attribute
-          end
-        end
-
-        def apply_null_value_object!(args, entry, _catalog)
-          targets = value_object_targets(args, entry)
-          closed  = targets.select { |_, value_object| value_object.closed_set? }
-          attribute, value_object = (closed.empty? ? targets : closed).sample(random: @random)
-          shape = VALUE_OBJECT_SHAPES.sample(random: @random)
-          args[attribute.name.to_s] = shape == "null" ? nil : {}
-          { "mutation" => "null_value_object", "bug" => "BUG#14", "argument" => attribute.name.to_s,
-            "value_object" => value_object.hecks_name, "closed_set" => value_object.closed_set? == true,
-            "shape" => shape }
-        end
-
-        def duplicate_entity_identity_applicable?(args, entry, catalog) = duplicate_identity_pool(args, entry, catalog).any?
-
-        def duplicate_identity_pool(args, entry, catalog)
-          populator = populator_for_entry(catalog, entry)
-          return [] unless populator && populator[:identity_arguments].any?
-
-          @appended_identities[append_pool_key(populator, args)]
-        end
-
-        def apply_duplicate_entity_identity!(args, entry, catalog)
-          populator = populator_for_entry(catalog, entry)
-          tuple     = duplicate_identity_pool(args, entry, catalog).sample(random: @random)
-          args.merge!(tuple)
-          { "mutation" => "duplicate_entity_identity", "bug" => "BUG#13", "entity" => populator[:entity].hecks_name,
-            "composite" => populator[:identity_arguments].size > 1, "identity" => tuple }
-        end
-
-        def omit_mapped_argument_applicable?(args, entry, _catalog) = mapped_argument_targets(args, entry).any?
-
-        # An append's mapped source arguments, or a plain creating command's non-identity
-        # attributes; never an identity head.
-        def mapped_argument_targets(args, entry)
-          command = entry[:command]
-          heads   = identity_heads_of(entry)
-          mapped  = command.mutations.select { |mutation| mutation.op == :append }
-                           .flat_map { |mutation| mutation.source.values.grep(Symbol).map(&:to_s) }
-          if mapped.empty? && !entry.key?(:entity) && command.creates?
-            mapped = command.attributes.map { |attribute| attribute.name.to_s }
-          end
-          needed = needed_facts_of(entry)
-          command.attributes.select do |attribute|
-            name = attribute.name.to_s
-            mapped.include?(name) && args.key?(name) && !heads.include?(name) && !needed.include?(name)
-          end
-        end
-
-        def apply_omit_mapped_argument!(args, entry, _catalog)
-          attribute = mapped_argument_targets(args, entry).sample(random: @random)
-          args.delete(attribute.name.to_s)
-          { "mutation" => "omit_mapped_argument", "bug" => "BUG#12", "argument" => attribute.name.to_s,
-            "optional" => attribute.optional? == true }
-        end
-
-        def refusal_precedence_applicable?(args, entry, _catalog)
-          precedence_shapes_for(args, entry).any?
-        end
-
-        # Every shape whose parts this step can carry. `nonexistent` and `lifecycle` need a
-        # record-addressing command with flat addressing; `lifecycle` also a guarded command;
-        # `role` a declared role.
-        def precedence_shapes_for(args, entry)
-          can = {
-            "mismatch"    => corruptible_attributes(args, entry).any?,
-            "absent"      => droppable_required_attributes(args, entry).any?,
-            "unknown"     => true,
-            "nonexistent" => acts_on_record?(args, entry),
-            "lifecycle"   => acts_on_record?(args, entry) && transition_guarded?(entry),
-            "role"        => !entry[:command].role.to_s.empty?
-          }
-          PRECEDENCE_SHAPES.select { |shape| shape.split("+").all? { |part| can.fetch(part) } }
-        end
-
-        def acts_on_record?(args, entry) = !entry[:command].creates? && !args.key?("to")
-
-        def transition_guarded?(entry)
-          command = entry[:command]
-          owner   = entry.key?(:entity) ? entry[:entity] : entry[:aggregate]
-          return true if command.from
-          return false unless owner.respond_to?(:lifecycle)
-
-          owner.lifecycle&.transitions_for(command.hecks_name)&.any? || false
-        end
-
-        def apply_refusal_precedence!(args, entry, catalog)
-          corruptible = corruptible_attributes(args, entry)
-          droppable   = droppable_required_attributes(args, entry)
-          wanted      = precedence_shapes_for(args, entry).sample(random: @random).split("+")
-          detail      = { "mutation" => "refusal_precedence", "bug" => "BUG#7/#8/#14" }
-          applied     = []
-
-          if wanted.include?("absent")
-            dropped = droppable.sample(random: @random)
-            args.delete(dropped.name.to_s)
-            detail["absent"] = dropped.name.to_s
-            applied << "absent"
-            corruptible -= [dropped]
-          end
-          if wanted.include?("mismatch") && corruptible.any?
-            attribute = corruptible.sample(random: @random)
-            args[attribute.name.to_s] = InvalidValueGenerator.corrupt(attribute, entry[:aggregate], random: @random)
-            detail["mismatched"] = attribute.name.to_s
-            applied << "mismatch"
-          end
-          if wanted.include?("unknown")
-            name, value = InvalidValueGenerator.undeclared_argument(random: @random)
-            args[name] = value
-            detail["unknown"] = name
-            applied << "unknown"
-          end
-          apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
-          # Reported as what was done: a single-attribute command cannot carry both a drop and a
-          # corruption.
-          detail.merge("shape" => applied.sort.join("+"))
-        end
-
-        # The parts past the argument gate. `nonexistent` re-addresses the last hop to an id
-        # nothing holds; `lifecycle` mutates nothing and is recorded so the pairing is visible;
-        # `role` parks a mismatched caller for StepBuilder to bind around the dispatch.
-        def apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
-          if wanted.include?("nonexistent")
-            piece = (entry[:chain] || []).last || entry[:aggregate]
-            head  = (piece.identified_by || :id).to_s
-            args[head] = identity_shaped(piece, piece.identified_by, ValueGenerator.random_id(@random), entry[:aggregate])
-            detail["nonexistent"] = head
-            applied << "nonexistent"
-          end
-          if wanted.include?("lifecycle")
-            detail["lifecycle"] = entry[:command].from || "transition-guarded"
-            applied << "lifecycle"
-          end
-          return unless wanted.include?("role")
-
-          @precedence_caller = { "role" => other_role(entry[:command].role.to_s, catalog) }
-          detail["role"] = @precedence_caller["role"]
-          applied << "role"
-        end
-
-        def role_draw? = @role_draw.positive?
-
-        # `[caller, note]`: the caller StepBuilder binds around the dispatch (nil for the unchecked
-        # control) and the note for the step's `"adversarial"` metadata. A caller parked by
-        # `refusal_precedence` wins; an ungated command draws nothing.
-        def caller_draw!(entry, catalog)
-          if @precedence_caller
-            caller = @precedence_caller
-            @precedence_caller = nil
-            return [caller, nil]
-          end
-
-          role = entry[:command].role.to_s
-          return [nil, nil] if !role_draw? || role.empty? || @random.rand >= @role_draw
-
-          shapes = CALLER_SHAPES.dup
-          shapes.delete("actor_known") if @granted[role].empty?
-          shape  = shapes.sample(random: @random)
-          caller = caller_for_shape(shape, role, catalog)
-          note   = { "mutation" => "caller_role", "angle" => "ANGLE-5", "shape" => shape, "gated_role" => role }
-          [caller, caller ? note.merge(caller) : note]
-        end
-
-        def caller_for_shape(shape, role, catalog)
-          case shape
-          when "matching"      then { "role" => role }
-          when "mismatched"    then { "role" => other_role(role, catalog) }
-          when "actor_known"   then { "role" => role, "actor_id" => @granted[role].sample(random: @random) }
-          when "actor_unknown" then { "role" => role, "actor_id" => ValueGenerator.random_id(@random) }
-          end
-        end
-
-        # Another declared role when there is one (a real wrong hat), else a role none names.
-        def other_role(role, catalog)
-          others = catalog[:roles] - [role]
-          others.empty? ? UNKNOWN_ROLE : others.sample(random: @random)
-        end
-
-        def corruptible_attributes(args, entry)
-          entry[:command].attributes.reject(&:list?).select { |attribute| args.key?(attribute.name.to_s) }
-        end
-
-        def droppable_required_attributes(args, entry)
-          heads  = identity_heads_of(entry)
-          needed = needed_facts_of(entry)
-          entry[:command].attributes.reject(&:optional?).select do |attribute|
-            name = attribute.name.to_s
-            args.key?(name) && !heads.include?(name) && !needed.include?(name)
-          end
         end
 
         # The facts the command `needs`: the runtime answers them when a step leaves them out
         # (each engine from its own clock), so a recorded step carries them and dropping one is not
         # an absent-argument case.
         def needed_facts_of(entry) = entry[:command].needs.map(&:to_s)
-
-        # Aims a grant at a role some command declares; random role text would make `actor_known`
-        # unreachable. Does nothing without the role draw.
-        def steer_grant!(args, entry, catalog)
-          return unless role_draw? && catalog[:grant_verbs].include?(entry[:verb]) && catalog[:roles].any?
-          return unless args.key?("role_name")
-
-          args["role_name"] = { "value" => catalog[:roles].sample(random: @random) }
-        end
 
         def populator_for_entry(catalog, entry)
           owner = entry.key?(:entity) ? entry[:entity] : entry[:aggregate]

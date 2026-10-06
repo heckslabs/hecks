@@ -19,13 +19,8 @@ module Hecks
 
         def method_missing(word, *args, **kwargs, &block)
           if MetaValidator.bootstrapping?
-            fallback = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK
-            # Own context first, then "Type", as in `word_gate_dispatch`.
-            own_key  = [self.class::GRAMMAR_CONTEXT, word.to_s]
-            type_key = ["Type", word.to_s]
-            found  = fallback.key?(own_key) || fallback.key?(type_key)
-            target = fallback.key?(own_key) ? fallback[own_key] : fallback[type_key]
-            return send(target, *args, **kwargs, &block) if found
+            key = word_gate_bootstrap_key(word)
+            return send(GenericDispatch::BOOTSTRAP_CALLS_FALLBACK[key], *args, **kwargs, &block) if key
 
             return super
           end
@@ -36,33 +31,45 @@ module Hecks
           result
         end
 
+        # Own context first, then "Type", as in `word_gate_dispatch`.
+        def word_gate_bootstrap_key(word)
+          fallback = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK
+          [[self.class::GRAMMAR_CONTEXT, word.to_s], ["Type", word.to_s]].find { |key| fallback.key?(key) }
+        end
+
+        # `one_of`/`list_of` in an attribute's type position run on whichever builder is
+        # evaluating, whose context is never "Type". Try "Type" only when its own context has
+        # no row, so a same-named row of its own (ValueObject's `one_of`) still wins.
+        #
+        # Returns the context the word was admitted under and the rows admitting it.
+        def word_gate_admitted(keywords, context, word)
+          admitted = keywords.select { |row| word_gate_row?(row, context, word.to_s) }
+          return [context, admitted] unless admitted.empty?
+
+          type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
+          type_admitted.empty? ? [context, admitted] : ["Type", type_admitted]
+        end
+
+        def word_gate_row?(row, context, name)
+          row[:context] == context && (row[:word] == name || row[:was] == name)
+        end
+
+        def refuse_unadmitted_word!(keywords, context, word)
+          legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
+          raise Malformed,
+                "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(", ")}"
+        end
+
         # Admission then dispatch: own context, "Type" fallback, admitted-elsewhere check,
         # `GenericDispatch`. Returns `NOT_ADMITTED` for an unknown word rather than raising.
-        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def word_gate_dispatch(word, args, kwargs, block)
-          context = self.class::GRAMMAR_CONTEXT
           rows = MetaValidator::SyntaxBoot.call
           keywords = rows[:keywords]
-          admitted = keywords.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
-
-          # `one_of`/`list_of` in an attribute's type position run on whichever builder is
-          # evaluating, whose context is never "Type". Try "Type" only when its own context has
-          # no row, so a same-named row of its own (ValueObject's `one_of`) still wins.
-          if admitted.empty?
-            type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
-            unless type_admitted.empty?
-              admitted = type_admitted
-              context = "Type"
-            end
-          end
+          context, admitted = word_gate_admitted(keywords, self.class::GRAMMAR_CONTEXT, word)
 
           return NOT_ADMITTED if admitted.empty? && !admitted_anywhere?(keywords, word)
 
-          if admitted.empty?
-            legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
-            raise Malformed,
-                  "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(', ')}"
-          end
+          refuse_unadmitted_word!(keywords, context, word) if admitted.empty?
 
           dispatched = GenericDispatch.try(self, context, word.to_s, args, kwargs, block, rows)
           return dispatched unless dispatched.equal?(GenericDispatch::NOT_HANDLED)
@@ -77,7 +84,7 @@ module Hecks
 
           context = self.class::GRAMMAR_CONTEXT
           keywords = MetaValidator::SyntaxBoot.call[:keywords]
-          keywords.any? { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) } ||
+          keywords.any? { |row| word_gate_row?(row, context, word.to_s) } ||
             keywords.any? { |row| row[:context] == "Type" && row[:word] == word.to_s } ||
             super
         end

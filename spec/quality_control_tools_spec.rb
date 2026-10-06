@@ -24,48 +24,52 @@ RSpec.describe "the QualityControl tool queries" do
     end
   end
 
-  it "answers twelve scripts by four ports" do
+  it "answers twelve scripts by four ports", :aggregate_failures do
     expect(tool_queries.map { |_, _, port| port }.uniq.sort)
       .to eq(%w[AngleTools ClearanceTools SweepTools TargetTools])
     expect(tool_queries.size).to eq(12)
   end
 
-  it "binds one adapter to each port, and the adapter has a method for every query it answers" do
-    tool_queries.each do |aggregate, query, port|
-      adapters = @hecks.registry.adapters.values.select { |adapter| adapter.port == port }
+  # The class of the one adapter bound to the port.
+  def adapter_class_for(port)
+    adapters = @hecks.registry.adapters.values.select { |adapter| adapter.port == port }
+    expect(adapters.size).to eq(1), "#{port} is bound to #{adapters.map(&:name)}"
+    Hecks::Adapters.const_get(adapters.first.name)
+  end
 
-      expect(adapters.size).to eq(1), "#{port} is bound to #{adapters.map(&:name)}"
-      klass = Hecks::Adapters.const_get(adapters.first.name)
+  it "binds one adapter to each port, and the adapter has a method for every query it answers", :aggregate_failures do
+    tool_queries.each do |aggregate, query, port|
+      klass = adapter_class_for(port)
       answered = "#{klass} answers #{aggregate.hecks_name}.#{query.name}"
       expect(klass.method_defined?(Hecks::Naming.snake(query.name))).to be(true), answered
     end
   end
 
-  it "runs the novelty gate through the launcher and answers its report" do
-    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'hopper')}",
-                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}")
+  it "runs the novelty gate through the launcher and answers its report", :aggregate_failures do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "hopper")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
 
     expect(status).to eq(0), out
     expect(out).to include("earns its place", "Hopper::Proposal")
   end
 
-  it "answers a judgment that is not a pass, as the command does: no new pair is still an answer" do
-    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}",
-                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'hopper')}")
+  it "answers a judgment that is not a pass, as the command does: no new pair is still an answer", :aggregate_failures do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "baseline")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "hopper")}")
 
     expect(status).to eq(0), out
     expect(out).to include("no new pair")
   end
 
-  it "refuses with the command's own report when it ends in an error" do
-    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, 'flat.bluebook')}",
-                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, 'baseline')}")
+  it "refuses with the command's own report when it ends in an error", :aggregate_failures do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "flat.bluebook")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
 
     expect(status).to eq(1)
     expect(out).to include("not shaped like a stress domain", "ended with status 2")
   end
 
-  it "answers help for the sweep by asking for it, qualified: `sweep.run`" do
+  it "answers help for the sweep by asking for it, qualified: `sweep.run`", :aggregate_failures do
     out, status = launch("quality_control", "ask", "sweep.run", "--help")
 
     expect(status).to eq(0)
@@ -97,23 +101,30 @@ RSpec.describe "the QualityControl tool queries" do
       expect { tool.tick }.to raise_error(Hecks::Runtime::GivenNotMet)
     end
 
-    it "hands the command its arguments, a value object's text and a flag string split as a shell would" do
-      expect(Open3).to receive(:capture2e) do |*argv, **|
-        expect(argv[(argv.index("--") + 1)..]).to eq(["banking", "--seeds", "5", "--notes", "two words"])
-        expect(argv[argv.index("-e") + 1]).to include("qa_sweep")
+    # Answers every command with an empty report and status 0; records each [argv, options] asked.
+    def recorded_commands
+      calls = []
+      allow(Open3).to receive(:capture2e) do |*argv, **options|
+        calls << [argv, options]
         ["", instance_double(Process::Status, exitstatus: 0)]
       end
+      calls
+    end
 
+    it "hands the command its arguments, a value object's text and a flag string split as a shell would", :aggregate_failures do
+      calls = recorded_commands
       tool.run(target: { value: "banking" }, arguments: { value: "--seeds 5 --notes 'two words'" })
+      argv, = calls.first
+
+      expect(argv[(argv.index("--") + 1)..]).to eq(["banking", "--seeds", "5", "--notes", "two words"])
+      expect(argv[argv.index("-e") + 1]).to include("qa_sweep")
     end
 
     it "starts each command in the checkout it was given" do
-      expect(Open3).to receive(:capture2e) do |*_argv, **options|
-        expect(options).to eq(chdir: "/repo")
-        ["", instance_double(Process::Status, exitstatus: 0)]
-      end
-
+      calls = recorded_commands
       tool.tick
+
+      expect(calls.first.last).to eq(chdir: "/repo")
     end
   end
 end

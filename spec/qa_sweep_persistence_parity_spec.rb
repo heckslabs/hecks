@@ -134,28 +134,36 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
   # `--all --persistence-parity` folds back to plain `--all` with the parity wave forced on, rather
   # than narrowing every child to one mode (which would abort the ineligible target). Wave 2 then
   # runs over `directory` alone, the only `postgres_era`-capable target.
-  it "runs --all normally and forces the parity wave on when combined with --persistence-parity" do
+  # The lines a clean `--all --persistence-parity` run prints for the directory target.
+  def parity_all_lines
+    ["clean (3): directory, ineligible, directory [parity wave]",
+     "parity wave: Memory vs real PostgresEra for 1 target(s), at most " \
+     "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory",
+     "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
+     "deferred: persistence_parity)",
+     "  directory [parity wave]: persistence_parity (capabilities: postgres_era,sqlite,translations)"]
+  end
+
+  # Sweeps both targets with `--all --persistence-parity`, expecting a clean exit, and answers
+  # what the sweep printed.
+  def parity_all_stdout
     identify_target!("directory", "examples/directory")
     identify_target!("ineligible", @ineligible_relpath)
-
     stdout, stderr, status = run_qa_sweep("--all", "--persistence-parity", "--seeds", "2")
-
     expect(status.exitstatus).to eq(0), "expected a clean --all, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
-    expect(stdout).to include("clean (3): directory, ineligible, directory [parity wave]")
-    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s), at most " \
-                              "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory")
-    expect(stdout).to include(
-      "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
-      "deferred: persistence_parity)"
-    )
-    expect(stdout).to include(
-      "  directory [parity wave]: persistence_parity (capabilities: postgres_era,sqlite,translations)"
-    )
+    stdout
+  end
+
+  it "runs --all normally and forces the parity wave on when combined with --persistence-parity", :aggregate_failures do
+    stdout = parity_all_stdout
+
+    expect(stdout).to include(*parity_all_lines)
     expect(stdout).to match(/^  ineligible: ruby_only,self_consistency \(capabilities: sqlite\)$/)
     expect(stdout).not_to include("declares no persisted_by")
   end
 
-  it "still skips the parity wave under --all when --no-parity is also given, even with --persistence-parity" do
+  it "still skips the parity wave under --all when --no-parity is also given, even with --persistence-parity",
+     :aggregate_failures do
     identify_target!("directory", "examples/directory")
 
     stdout, _stderr, status = run_qa_sweep("--all", "--persistence-parity", "--no-parity", "--seeds", "2")
@@ -164,32 +172,35 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     expect(stdout).not_to include("parity wave")
   end
 
-  it "refuses --persistence-parity with no explicit target-reference" do
+  it "refuses --persistence-parity with no explicit target-reference", :aggregate_failures do
     _stdout, stderr, status = run_qa_sweep("--persistence-parity")
 
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("needs an explicit target-reference")
   end
 
-  it "refuses a target with no persisted_by(\"PostgresEra\") binding at all — an operational error, not a finding" do
+  it "refuses a target with no persisted_by(\"PostgresEra\") binding at all — an operational error, not a finding",
+     :aggregate_failures do
     identify_target!("ineligible", @ineligible_relpath)
 
     _stdout, stderr, status = run_qa_sweep("ineligible", "--persistence-parity")
 
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("declares no persisted_by(\"PostgresEra\") binding")
+  end
 
-    # An ineligible target must be left as found, not held by a sweep that was going to abort.
+  it "leaves an ineligible target as found, not held by a sweep that was going to abort" do
+    identify_target!("ineligible", @ineligible_relpath)
+    run_qa_sweep("ineligible", "--persistence-parity")
     Hecks.boot(@fixture_dir)
-    row = QualityControl::Target.find("ineligible")
-    expect(row.status).to eq("waiting")
+
+    expect(QualityControl::Target.find("ineligible").status).to eq("waiting")
   end
 
   # `examples/directory` is shelved out of the live rotation because Memory-only paths cannot
   # reach it; restore it into a fixture ledger and run a full claim, sweep, conclude, release.
-  it "restores a shelved PostgresEra-bound target and sweeps it clean, end to end, against real PostgresEra" do
+  def restore_shelved_directory!
     identify_target!("directory", "examples/directory")
-
     Hecks.boot(@fixture_dir)
     target = QualityControl::Target.find("directory")
     target = target.shelve!(reason: { value: "structurally can't be reached by any Memory-only fuzz/replay path" })
@@ -197,14 +208,27 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
 
     target = target.restore!(reason: { value: "PR #564 fixed the era-check blocker; PostgresEra-bound domains fuzz again" })
     expect(target.status).to eq("waiting")
+  end
 
+  def directory_parity_stdout
     stdout, stderr, status = run_qa_sweep("directory", "--persistence-parity", "--seeds", "2")
-
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
-    expect(stdout).to include("Memory vs real PostgresEra (directory) — persistence-adapter parity")
-    expect(stdout).to include("seed 1: held", "seed 2: held")
-    expect(stdout).to include("clean — directory concluded and released.")
-    expect(stdout).to include("mode=persistence_parity")
+    stdout
+  end
+
+  it "restores a shelved PostgresEra-bound target and sweeps it clean, end to end, against real PostgresEra",
+     :aggregate_failures do
+    restore_shelved_directory!
+
+    expect(directory_parity_stdout).to include(
+      "Memory vs real PostgresEra (directory) — persistence-adapter parity", "seed 1: held", "seed 2: held",
+      "clean — directory concluded and released.", "mode=persistence_parity"
+    )
+  end
+
+  it "releases the restored target without resetting held_by, as an audit trail", :aggregate_failures do
+    restore_shelved_directory!
+    directory_parity_stdout
 
     # `Target.Release` only sets `last_swept`; `held_by` is never reset, as an audit trail.
     row = QualityControl::Target.find("directory")
@@ -212,7 +236,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     expect(row.held_by.to_h).to eq(value: "qa_sweep")
   end
 
-  it "clamps --seeds down to QualityControlDials::PERSISTENCE_PARITY_SEED_CAP and says so" do
+  it "clamps --seeds down to QualityControlDials::PERSISTENCE_PARITY_SEED_CAP and says so", :aggregate_failures do
     identify_target!("directory-clamp", "examples/directory")
 
     stdout, _stderr, status = run_qa_sweep("directory-clamp", "--persistence-parity", "--seeds", "999")

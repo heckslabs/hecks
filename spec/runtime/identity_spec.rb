@@ -54,7 +54,7 @@ RSpec.describe Hecks::Runtime::Identity do
       def attribute(_name) = nil
     end
 
-    it "does not raise NoMethodError when a bare identity part is an Integer" do
+    it "does not raise NoMethodError when a bare identity part is an Integer", :aggregate_failures do
       construct = IdentityNonStringFakeConstruct.new(["thing"], [:thing])
 
       expect { described_class.of(construct, { thing: 5 }) }.not_to raise_error
@@ -73,7 +73,7 @@ RSpec.describe Hecks::Runtime::Identity do
       expect { described_class.of(construct, { thing: { a: 1 } }) }.not_to raise_error
     end
 
-    it "does not raise NoMethodError when a bare identity part is false" do
+    it "does not raise NoMethodError when a bare identity part is false", :aggregate_failures do
       construct = IdentityNonStringFakeConstruct.new(["thing"], [:thing])
 
       expect { described_class.of(construct, { thing: false }) }.not_to raise_error

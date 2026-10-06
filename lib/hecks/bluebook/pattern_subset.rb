@@ -1,105 +1,91 @@
+require_relative "pattern_subset/scan"
+require_relative "pattern_subset/refusals"
+
 module Hecks
   module Bluebook
     # Which regexes a bluebook `pattern:` may say: only what every engine reads the same way.
     # Backtracking-only and ASCII/Unicode-dependent constructs are refused.
     module PatternSubset
-      Rejection = Struct.new(:construct, :reason)
-
-      REASONS = {
-        backreference:
-                             "backreferences cannot be matched in linear time and portable " \
-                             "engines refuse them ; a declared pattern may not depend on one",
-        named_backreference:
-                             "a named backreference is still a backreference — it cannot be " \
-                             "matched in linear time ; a declared pattern may not depend on one",
-        perl_class:
-                             "engines read it in OPPOSITE directions : ASCII in some and " \
-                             "Unicode in others, so an Arabic-Indic digit satisfies one and not " \
-                             "the other. Spell the range you mean — [0-9], [A-Za-z0-9_], [ \t] " \
-                             "— which every engine reads the same way",
-        posix_class:
-                             "[:digit:] and friends flip between ASCII and Unicode across " \
-                             "engines — the mirror of the perl classes, and wrong in the same " \
-                             "way. Spell the range you mean",
-        lookahead:
-                             "lookahead cannot be matched in linear time and portable engines " \
-                             "refuse it ; a declared pattern may not depend on it",
-        lookbehind:
-                             "lookbehind cannot be matched in linear time and portable engines " \
-                             "refuse it ; a declared pattern may not depend on it",
-        atomic_group:
-                             "an atomic group is a backtracking-engine control knob — " \
-                             "linear-time engines reject `(?>` as a syntax error",
-        possessive:
-                             "a possessive quantifier is a backtracking-engine control knob — " \
-                             "linear-time engines reject it as a syntax error"
-      }.freeze
-
       module_function
 
       # Returns nil when the pattern is admitted, a Rejection when it is not.
       #
       # One ordered character walk defines the subset; an escaped construct is a literal,
       # which is why each backslash pair is stepped over rather than matched as a whole.
-      # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       #
       # @param pattern [String, Symbol, #to_s] the declared `pattern:` regex source
       # @return [Rejection, nil] the reason the pattern is refused, or `nil` if admitted
       def validate(pattern)
-        chars = pattern.to_s.chars
-        index = 0
-        # Inside `[...]` quantifier characters are literals, and `]` closes the class unless
-        # it is the first character after `[` or `[^`.
-        in_class = false
-        class_start = nil
-
-        while index < chars.length
-          if chars[index] == "\\"
-            nxt = chars[index + 1]
-            return refuse(:backreference)        if nxt&.match?(/[1-9]/)
-            return refuse(:named_backreference)  if %w[k g].include?(nxt)
-            return refuse(:perl_class)           if %w[d D w W s S].include?(nxt)
-
-            index += nxt ? 2 : 1
-            next
-          end
-
-          if in_class
-            if chars[index] == "]" && index != class_start
-              in_class = false
-              index += 1
-              next
-            end
-
-            return refuse(:posix_class) if posix_class_at?(chars, index)
-
-            index += 1
-            next
-          end
-
-          if chars[index] == "["
-            return refuse(:posix_class) if posix_class_at?(chars, index)
-
-            in_class = true
-            class_start = index + 1
-            class_start += 1 if chars[class_start] == "^"
-            index += 1
-            next
-          end
-
-          if chars[index] == "(" && chars[index + 1] == "?"
-            return refuse(:lookahead)    if %w[= !].include?(chars[index + 2])
-            return refuse(:lookbehind)   if chars[index + 2] == "<" && %w[= !].include?(chars[index + 3])
-            return refuse(:atomic_group) if chars[index + 2] == ">"
-          end
-
-          return refuse(:possessive) if possessive_at?(chars, index)
-
-          index += 1
+        scan = Scan.new(pattern.to_s.chars)
+        until scan.done?
+          key = read_step(scan)
+          return refuse(key) if key
         end
-
         nil
       end
+
+      # Reads one construct, advancing `scan` past it.
+      #
+      # @return [Symbol, nil] the refusal key when the construct is outside the subset
+      def read_step(scan)
+        return escape_step(scan) if scan.char == "\\"
+        return class_step(scan) if scan.in_class?
+        return open_class_step(scan) if scan.char == "["
+
+        plain_step(scan)
+      end
+
+      def escape_step(scan)
+        nxt = scan.peek
+        key = escape_refusal(nxt)
+        scan.take(nxt ? 2 : 1) unless key
+        key
+      end
+
+      def escape_refusal(nxt)
+        return :backreference if nxt&.match?(/[1-9]/)
+        return :named_backreference if %w[k g].include?(nxt)
+
+        :perl_class if %w[d D w W s S].include?(nxt)
+      end
+
+      def class_step(scan)
+        if scan.closing_bracket?
+          scan.leave_class
+          scan.take
+          return nil
+        end
+
+        key = :posix_class if posix_class_at?(scan.chars, scan.index)
+        scan.take
+        key
+      end
+
+      def open_class_step(scan)
+        return :posix_class if posix_class_at?(scan.chars, scan.index)
+
+        scan.enter_class
+        scan.take
+        nil
+      end
+
+      def plain_step(scan)
+        key = group_refusal(scan.chars, scan.index) || (:possessive if possessive_at?(scan.chars, scan.index))
+        scan.take
+        key
+      end
+
+      # @return [Symbol, nil] the refusal key for a `(?=`, `(?!`, `(?<=`, `(?<!` or `(?>` group
+      def group_refusal(chars, index)
+        return unless chars[index] == "(" && chars[index + 1] == "?"
+        return :lookahead if %w[= !].include?(chars[index + 2])
+        return :lookbehind if chars[index + 2] == "<" && %w[= !].include?(chars[index + 3])
+
+        :atomic_group if chars[index + 2] == ">"
+      end
+
+      # How a line anchor is rewritten to a whole-string anchor.
+      ANCHORS = { "^" => "\\A", "$" => "\\z" }.freeze
 
       # Rewrites the line anchors of a declared pattern into whole-string anchors.
       #
@@ -110,48 +96,26 @@ module Hecks
       # @param pattern [String, Symbol, #to_s] the declared `pattern:` regex source
       # @return [String] the source with `^` as `\A` and `$` as `\z` outside classes
       def whole_string(pattern)
-        chars = pattern.to_s.chars
-        in_class = false
-        class_start = nil
+        scan = Scan.new(pattern.to_s.chars)
         out = +""
-        index = 0
-        while index < chars.length
-          char = chars[index]
-          if char == "\\"
-            out << char << chars[index + 1].to_s
-            index += 2
-            next
-          end
-          if in_class
-            in_class = false if char == "]" && index != class_start
-          elsif char == "["
-            in_class = true
-            class_start = index + 1
-            class_start += 1 if chars[class_start] == "^"
-          elsif char == "^"
-            char = "\\A"
-          elsif char == "$"
-            char = "\\z"
-          end
-          out << char
-          index += 1
-        end
+        out << anchored(scan) until scan.done?
         out
       end
 
-      # Spelled out, not derived from the key: callers read these strings in refusals.
-      CONSTRUCTS = {
-        backreference:       "backreference",
-        named_backreference: "named backreference",
-        perl_class:          "perl character class",
-        posix_class:         "posix bracket class",
-        lookahead:           "lookahead",
-        lookbehind:          "lookbehind",
-        atomic_group:        "atomic group",
-        possessive:          "possessive quantifier"
-      }.freeze
+      # Reads one character (or an escaped pair) and answers what it becomes.
+      def anchored(scan)
+        return scan.take(2) if scan.char == "\\"
 
-      def refuse(key) = Rejection.new(CONSTRUCTS.fetch(key), REASONS.fetch(key))
+        if scan.in_class?
+          scan.leave_class if scan.closing_bracket?
+          scan.take
+        elsif scan.char == "["
+          scan.enter_class
+          scan.take
+        else
+          ANCHORS.fetch(scan.char) { scan.char }.tap { scan.take }
+        end
+      end
 
       def posix_class_at?(chars, index)
         return false unless chars[index] == "[" && chars[index + 1] == ":"
@@ -172,23 +136,18 @@ module Hecks
 
       # Length of a `{n}` / `{n,}` / `{n,m}` bound at `index`, or nil if there is none.
       def bounded_quantifier_length(chars, index)
-        cursor = index + 1
-        digit_seen = false
+        cursor = skip_digits(chars, index + 1)
+        return nil if cursor == index + 1
 
-        while chars[cursor]&.match?(/[0-9]/)
-          digit_seen = true
-          cursor += 1
-        end
-        return nil unless digit_seen
-
-        if chars[cursor] == ","
-          cursor += 1
-          cursor += 1 while chars[cursor]&.match?(/[0-9]/)
-        end
-
+        cursor = skip_digits(chars, cursor + 1) if chars[cursor] == ","
         return nil unless chars[cursor] == "}"
 
         cursor - index + 1
+      end
+
+      def skip_digits(chars, cursor)
+        cursor += 1 while chars[cursor]&.match?(/[0-9]/)
+        cursor
       end
     end
   end

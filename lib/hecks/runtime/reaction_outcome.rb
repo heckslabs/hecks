@@ -33,10 +33,14 @@ module Hecks
       # @return [Array<Hash{Symbol => Object}>] `{ policy:, trigger:, reason: }` per blocker
       def blocking(entries, event_of: nil)
         rows = Array(entries).map { |entry| Row.new(entry.transform_keys(&:to_sym), event_of&.call(entry)) }
-        rows.select { |row| row.delivered == false && !row.fields[:defect] }
-            .reject { |row| already_there?(row) }
-            .reject { |row| rows.any? { |other| alternative?(row, other) } }
+        rows.select { |row| blocks?(row, rows) }
             .map { |row| row.fields.slice(:policy, :trigger, :reason) }
+      end
+
+      # Whether `row` is a refusal by the domain that no sibling reaction excuses.
+      def blocks?(row, rows)
+        row.delivered == false && !row.fields[:defect] &&
+          !already_there?(row) && rows.none? { |other| alternative?(row, other) }
       end
 
       # Whether `row` is its own creating command reporting the record already exists.

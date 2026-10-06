@@ -9,6 +9,9 @@ module InvocationSpecFixtures
     def identity_attribute(_owner_name) = identity
   end
   Aggregate = Struct.new(:hecks_name, :identified_by)
+  Row = Struct.new(:label, :receiver, :declaring, :to, :with, :flat, :depth) do
+    def call_facts = { to: to, with: with, flat: flat, entity_depth: depth }
+  end
 
   CREDIT   = Declaring.new("Credit", [Attr.new(:amount, false), Attr.new(:narrative, false), Attr.new(:note, true)])
   ANNOTATE = Declaring.new("Annotate", [Attr.new(:note, false)])
@@ -19,7 +22,7 @@ module InvocationSpecFixtures
 
   # Characterization table: the args, envelope or refusal each call shape must produce, including
   # the regression shapes mined from earlier routing specs.
-  # rubocop:disable Layout/LineLength
+  # rubocop:disable-next Layout/LineLength
   ROWS = [
     ["flat facts only", :aggregate, CREDIT, nil, nil, { account: "a1", amount: 1, narrative: 2 }, 0],
     ["to: + with:", :aggregate, CREDIT, "a1", { amount: 1, narrative: 2 }, {}, 0],
@@ -74,6 +77,13 @@ module InvocationSpecFixtures
     ["port to:-declared absent identity field", :port, BY_TO, nil, nil, { amount: 1 }, 0]
   ].freeze
 
+  ROW_CASES = ROWS.map { |row| Row.new(*row) }.freeze
+end
+
+# The args, target or refusal each characterization row produced before the Invocation value
+# existed.
+module InvocationSpecExpectations
+  # rubocop:disable-next Layout/LineLength
   PRE_I1 = {
     "flat facts only"                                 => { args: [[:account, "a1"], [:amount, 1], [:narrative, 2]], target: nil },
     "to: + with:"                                     => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },
@@ -127,25 +137,38 @@ module InvocationSpecFixtures
     "port to:-declared reads identity field"          => { args: [[:payment_id, "P1"], [:amount, 1]], target: ["P1", []] },
     "port to:-declared absent identity field"         => { refusal: ["Hecks::Runtime::TypeMismatch", "Refund requires its receiving aggregate in to:"] }
   }.freeze
-  # rubocop:enable Layout/LineLength
 end
 
 RSpec.describe Hecks::Runtime::Invocation do
   let(:invocation_class) { described_class }
 
-  def call(receiver, declaring, to: nil, with: nil, flat: {}, entity_depth: 0)
-    invocation_class.from_call("V", to: to, with: with, flat: flat, receiver: receiver,
-                                    entity_depth: entity_depth, aggregate: InvocationSpecFixtures::PAYMENT) { declaring }
+  # @param offered [Hash] any of `to:`, `with:`, `flat:` and `entity_depth:`
+  def call(receiver, declaring, **offered)
+    invocation_class.from_call("V", to: offered[:to], with: offered[:with], flat: offered.fetch(:flat, {}),
+                                    receiver: receiver, entity_depth: offered.fetch(:entity_depth, 0),
+                                    aggregate: InvocationSpecFixtures::PAYMENT) { declaring }
+  end
+
+  # The declaring-construct resolutions that happened before `to: 7` was refused.
+  def resolutions_before_refusal(declaring, **route)
+    order = []
+    expect do
+      invocation_class.from_call("V", to: 7, with: nil, flat: {}, **route) do
+        order << :resolved
+        declaring
+      end
+    end.to raise_error(Hecks::Runtime::TypeMismatch)
+    order
   end
 
   describe "fact markers" do
-    it "has frozen Absent and Null singletons, and a Present carrying its value" do
+    it "has frozen Absent and Null singletons, and a Present carrying its value", :aggregate_failures do
       expect(described_class::Absent).to be_frozen
       expect(described_class::Null).to be_frozen
       expect(described_class::Present.new(value: 1).value).to eq(1)
     end
 
-    it "freezes facts, even when built from a mutable Hash" do
+    it "freezes facts, even when built from a mutable Hash", :aggregate_failures do
       facts = { amount: described_class::Present.new(value: 1) }
       invocation = described_class.new(verb: "V", target: nil, facts: facts)
 
@@ -155,24 +178,22 @@ RSpec.describe Hecks::Runtime::Invocation do
   end
 
   describe ".from_call" do
-    it "reads loose keyword arguments: missing key Absent, nil Null, value Present" do
+    it "reads loose keyword arguments: missing key Absent, nil Null, value Present", :aggregate_failures do
       invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { account: "a1", amount: nil })
 
       expect(invocation.facts[:account]).to eq(described_class::Present.new(value: "a1"))
       expect(invocation.facts[:amount]).to equal(described_class::Null)
-      expect(invocation.facts[:narrative]).to equal(described_class::Absent)
-      expect(invocation.facts[:note]).to equal(described_class::Absent)
+      expect(invocation.facts.values_at(:narrative, :note)).to all(equal(described_class::Absent))
       expect(invocation.target).to be_nil
     end
 
-    it "reads with: the same way, symbolizing its keys" do
+    it "reads with: the same way, symbolizing its keys", :aggregate_failures do
       invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, to: "a1", with: { "amount" => 1, "narrative" => nil })
 
       expect(invocation.present?(:amount)).to be(true)
       expect(invocation.null?(:narrative)).to be(true)
       expect(invocation.absent?(:note)).to be(true)
-      expect(invocation.target.aggregate).to eq("a1")
-      expect(invocation.target.entities).to eq([])
+      expect([invocation.target.aggregate, invocation.target.entities]).to eq(["a1", []])
     end
 
     it "treats an explicit nil to: exactly like no to: (BUG#16)" do
@@ -202,50 +223,42 @@ RSpec.describe Hecks::Runtime::Invocation do
         .to raise_error(Hecks::Runtime::TypeMismatch, "to: contains a blank entity identity")
     end
 
-    it "lifts a port operation's reference attribute out of the facts into the target" do
+    it "lifts a port operation's reference attribute out of the facts into the target", :aggregate_failures do
       invocation = call(:port, InvocationSpecFixtures::BY_REF, flat: { payment: "P1", amount: 1 })
 
       expect(invocation.target.aggregate).to eq("P1")
       expect(invocation.facts[:payment]).to equal(described_class::Absent)
     end
 
-    it "resolves the declaring construct after to: for an entity, before to: for an aggregate command" do
-      entity_order = []
-      expect do
-        invocation_class.from_call("V", to: 7, with: nil, flat: {}, receiver: :entity, entity_depth: 1) do
-          entity_order << :resolved
-          InvocationSpecFixtures::ANNOTATE
-        end
-      end.to raise_error(Hecks::Runtime::TypeMismatch)
-      expect(entity_order).to be_empty
+    it "resolves the declaring construct after to: for an entity" do
+      order = resolutions_before_refusal(InvocationSpecFixtures::ANNOTATE, receiver: :entity, entity_depth: 1)
 
-      aggregate_order = []
-      expect do
-        invocation_class.from_call("V", to: 7, with: nil, flat: {}) do
-          aggregate_order << :resolved
-          InvocationSpecFixtures::CREDIT
-        end
-      end.to raise_error(Hecks::Runtime::TypeMismatch)
-      expect(aggregate_order).to eq([:resolved])
+      expect(order).to be_empty
+    end
+
+    it "resolves the declaring construct before to: for an aggregate command" do
+      order = resolutions_before_refusal(InvocationSpecFixtures::CREDIT)
+
+      expect(order).to eq([:resolved])
     end
   end
 
   describe "#value" do
     let(:invocation) { call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { amount: 1, narrative: nil }) }
 
-    it "answers a Present value and nil for Null" do
+    it "answers a Present value and nil for Null", :aggregate_failures do
       expect(invocation.value(:amount)).to eq(1)
       expect(invocation.value(:narrative)).to be_nil
     end
 
-    it "raises KeyError for an Absent fact rather than answering nil" do
+    it "raises KeyError for an Absent fact rather than answering nil", :aggregate_failures do
       expect { invocation.value(:note) }.to raise_error(KeyError, /V was not given :note/)
       expect { invocation.value(:never_declared) }.to raise_error(KeyError)
     end
   end
 
   describe "#to_args" do
-    it "omits Absent, maps Null to nil, and keeps offered order and key spelling" do
+    it "omits Absent, maps Null to nil, and keeps offered order and key spelling", :aggregate_failures do
       invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { "zeta" => 1, amount: nil, account: "a1" })
 
       expect(invocation.to_args.to_a).to eq([["zeta", 1], [:amount, nil], [:account, "a1"]])
@@ -262,28 +275,30 @@ RSpec.describe Hecks::Runtime::Invocation do
       { refusal: [e.class.name, e.message] }
     end
 
-    it "covers every pinned row" do
-      expect(InvocationSpecFixtures::ROWS.map(&:first)).to match_array(InvocationSpecFixtures::PRE_I1.keys)
+    # The invocation `Routing.payload`/`.envelope` build for one row, wrapping each fact as
+    # from_call does.
+    def delegated_invocation(row)
+      args  = Hecks::Runtime::Routing.payload(row.declaring, with: row.with, flat: row.flat)
+      facts = args.transform_values { |v| v.nil? ? described_class::Null : described_class::Present.new(value: v) }
+      described_class.new(verb: "V", target: Hecks::Runtime::Routing.envelope(row.to), facts: facts)
     end
 
-    InvocationSpecFixtures::ROWS.each do |label, receiver, declaring, to, with, flat, depth|
-      it "#{label} (#{receiver})" do
-        result = outcome { call(receiver, declaring, to: to, with: with, flat: flat, entity_depth: depth) }
+    it "covers every pinned row" do
+      expect(InvocationSpecFixtures::ROW_CASES.map(&:label)).to match_array(InvocationSpecExpectations::PRE_I1.keys)
+    end
 
-        expect(result).to eq(InvocationSpecFixtures::PRE_I1.fetch(label))
+    InvocationSpecFixtures::ROW_CASES.each do |row|
+      it "#{row.label} (#{row.receiver})" do
+        result = outcome { call(row.receiver, row.declaring, **row.call_facts) }
+
+        expect(result).to eq(InvocationSpecExpectations::PRE_I1.fetch(row.label))
       end
     end
 
     it "keeps Routing.payload/.envelope, now delegators, agreeing with from_call" do
-      aggregate_rows = InvocationSpecFixtures::ROWS.select { |row| row[1] == :aggregate }
-      aggregate_rows.each do |label, _receiver, declaring, to, with, flat, _depth|
-        delegated_result = outcome do
-          args  = Hecks::Runtime::Routing.payload(declaring, with: with, flat: flat)
-          facts = args.transform_values { |v| v.nil? ? described_class::Null : described_class::Present.new(value: v) }
-          described_class.new(verb: "V", target: Hecks::Runtime::Routing.envelope(to), facts: facts)
-        end
-
-        expect(delegated_result).to eq(InvocationSpecFixtures::PRE_I1.fetch(label)), label
+      aggregate_rows = InvocationSpecFixtures::ROW_CASES.select { |row| row.receiver == :aggregate }
+      aggregate_rows.each do |row|
+        expect(outcome { delegated_invocation(row) }).to eq(InvocationSpecExpectations::PRE_I1.fetch(row.label)), row.label
       end
     end
   end

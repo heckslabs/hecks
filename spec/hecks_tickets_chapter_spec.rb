@@ -37,18 +37,24 @@ RSpec.describe "the Tickets chapter" do
     expect(policies["RecordTheIssue"]).to eq("IssueOpened")
   end
 
-  it "keeps a reported finding when GitHub cannot be driven, and records why" do
-    expect(Open3).not_to receive(:capture3)
+  # Reports a finding with no findings repository set, so GitHub cannot be driven; answers what the
+  # launcher printed and the policies that reacted.
+  def report_without_a_repository
+    allow(Open3).to receive(:capture3)
     stub_const("ENV", ENV.to_h.except("HECKS_FINDINGS_REPO"))
     before = @hecks.registry.reaction_log.size
-    argv = ["tickets", "finding.report", "finding.value=f-1", "title.value=A gap",
-            "source.value=maintainer"]
+    argv = ["tickets", "finding.report", "finding.value=f-1", "title.value=A gap", "source.value=maintainer"]
 
     out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
-    reacted = @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }
+    [out, @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }]
+  end
+
+  it "keeps a reported finding when GitHub cannot be driven, and records why", :aggregate_failures do
+    out, reacted = report_without_a_repository
 
     expect(JSON.parse(out).dig("state", "status")).to eq("reported")
     expect(reacted).to include("OpenIssueWhenReported", "RecordTheSyncFailure")
+    expect(Open3).not_to have_received(:capture3)
   end
 
   it "lists a reported finding among the open ones" do
@@ -60,7 +66,7 @@ RSpec.describe "the Tickets chapter" do
     expect(JSON.parse(out).map { |row| row.dig("finding", "value") }).to include("f-open")
   end
 
-  it "files a finding when a conformance or gate run faults" do
+  it "files a finding when a conformance or gate run faults", :aggregate_failures do
     policies = @bluebook.policies.map(&:hecks_name)
 
     expect(policies).to include("ReportWhenConformanceFaulted", "ReportWhenGateFaulted", "OpenIssueWhenRunReported")

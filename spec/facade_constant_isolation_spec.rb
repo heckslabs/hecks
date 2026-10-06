@@ -3,9 +3,13 @@ require "spec_helper"
 RSpec.describe FacadeConstantIsolation do
   let(:module_for) { ->(label) { Module.new { define_singleton_method(:label) { label } } } }
 
-  after { Hecks::Namespace::GENERATED.delete([Object, "IsolationProbe"]) }
+  after do
+    Hecks::Namespace::GENERATED.delete([Object, "IsolationProbe"])
+    # The probe is installed on purpose and must not outlive the example.
+    Object.send(:remove_const, :IsolationProbe) if Object.const_defined?(:IsolationProbe, false) # rubocop:disable RSpec/RemoveConst -- the probe must not outlive the example
+  end
 
-  it "removes a facade constant installed after the snapshot" do
+  it "removes a facade constant installed after the snapshot", :aggregate_failures do
     before = described_class.snapshot
     Hecks::Namespace.install(Object, "IsolationProbe", module_for.call(:late))
 
@@ -23,7 +27,5 @@ RSpec.describe FacadeConstantIsolation do
     described_class.restore(before)
 
     expect(Object.const_get(:IsolationProbe, false)).to equal(original)
-  ensure
-    Object.send(:remove_const, :IsolationProbe) if Object.const_defined?(:IsolationProbe, false) # rubocop:disable RSpec/RemoveConst
   end
 end

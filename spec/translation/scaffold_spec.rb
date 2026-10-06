@@ -121,17 +121,32 @@ RSpec.describe "the translation scaffold" do
 
   def parse(source)
     registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
     file = Tempfile.new(["scaffold-", ".bluebook"])
     file.write(source)
     file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-    end
+    load_into(registry, source, file.path)
     registry.bluebooks.values.first
   ensure
     file&.close!
+  end
+
+  def load_into(registry, source, path)
+    loading = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
+      loading.load_library
+      Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+    end
+  end
+
+  def edge_for(domain, aggregates, retired)
+    Hecks::Translation::Scaffold::Edge.new(
+      domain: domain, from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
+      aggregates: aggregates, retired: retired
+    )
+  end
+
+  def evaluate_in_fresh_registry(rendered)
+    Hecks.with_registry(Hecks::Runtime::Registry.new) { eval(rendered) }
   end
 
   let(:diffed) { Hecks::Translation::Scaffold.diff(parse(SCAFFOLD_HELD), parse(SCAFFOLD_CURRENT)) }
@@ -162,9 +177,12 @@ RSpec.describe "the translation scaffold" do
     expect(unresolved[:candidates]).to eq([])
   end
 
-  it "infers an aggregate rename only from an identical shape, and retired only when nothing is left unmatched" do
+  it "infers an aggregate rename only from an identical shape" do
     strongbox = diffed[:aggregates].find { |aggregate| aggregate.name == "Strongbox" }
     expect(strongbox.was).to eq("Vault")
+  end
+
+  it "infers retired only when nothing is left unmatched" do
     expect(diffed[:retired]).to eq(["Shed"])
   end
 
@@ -216,55 +234,48 @@ RSpec.describe "the translation scaffold" do
     expect(rules).to eq([{ kind: :unresolved, from: :identity, candidates: [] }])
   end
 
-  it "renders the identity hint as an unresolved line that refuses toward rekey, not the generic message" do
-    edge = Hecks::Translation::Scaffold::Edge.new(
-      domain: "Roster", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
-      aggregates: Hecks::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))[:aggregates],
-      retired: []
-    )
-    rendered = Hecks::Translation::Scaffold.render(edge)
+  it "renders the identity hint as an unresolved line that refuses toward rekey, not the generic message", :aggregate_failures do
+    roster = Hecks::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))[:aggregates]
+    rendered = Hecks::Translation::Scaffold.render(edge_for("Roster", roster, []))
+
     expect(rendered).to include("unresolved :identity, candidates: []")
-
-    registry = Hecks::Runtime::Registry.new
-    expect do
-      Hecks.with_registry(registry) { eval(rendered) }
-    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /Declare a rekey rule/)
+    expect { evaluate_in_fresh_registry(rendered) }.to raise_error(Hecks::Bluebook::DSL::Malformed, /Declare a rekey rule/)
   end
 
-  it "renders a file that can only boot into a refusal while unresolved lines remain" do
-    edge = Hecks::Translation::Scaffold::Edge.new(
-      domain: "Orders", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
-      aggregates: diffed[:aggregates], retired: diffed[:retired]
-    )
-    rendered = Hecks::Translation::Scaffold.render(edge)
+  it "renders a file that can only boot into a refusal while unresolved lines remain", :aggregate_failures do
+    rendered = Hecks::Translation::Scaffold.render(edge_for("Orders", diffed[:aggregates], diffed[:retired]))
+
     expect(rendered).to include("unresolved :pen, candidates: [:pencil, :stylus]")
-
-    registry = Hecks::Runtime::Registry.new
-    expect do
-      Hecks.with_registry(registry) { eval(rendered) }
-    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /unresolved/)
+    expect { evaluate_in_fresh_registry(rendered) }.to raise_error(Hecks::Bluebook::DSL::Malformed, /unresolved/)
   end
 
-  it "regenerates the file in place, matched by shape pair" do
-    Dir.mktmpdir do |dir|
-      edge = Hecks::Translation::Scaffold::Edge.new(
-        domain: "Orders", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
-        aggregates: [], retired: ["Shed"]
-      )
-      first = Hecks::Translation::Scaffold.write!(dir, edge)
+  describe "writing the file" do
+    around { |example| Dir.mktmpdir { |dir| (@dir = dir) && example.run } }
+
+    def translations_written = Dir[File.join(@dir, "translations", "*.bluebook")]
+
+    it "names it by ordinal and destination shape" do
+      first = Hecks::Translation::Scaffold.write!(@dir, edge_for("Orders", [], ["Shed"]))
+
       expect(File.basename(first)).to eq("2-b81d04.bluebook")
+    end
 
+    it "regenerates the file in place, matched by shape pair", :aggregate_failures do
+      edge = edge_for("Orders", [], ["Shed"])
+      first = Hecks::Translation::Scaffold.write!(@dir, edge)
       edge.retired = []
-      second = Hecks::Translation::Scaffold.write!(dir, edge)
-      expect(second).to eq(first)
-      expect(Dir[File.join(dir, "translations", "*.bluebook")].size).to eq(1)
 
-      other = Hecks::Translation::Scaffold::Edge.new(
-        domain: "Orders", from: "b81d04", to: "c92e15", ordinal: 3, label: "c92e15",
-        aggregates: [], retired: []
-      )
-      Hecks::Translation::Scaffold.write!(dir, other)
-      expect(Dir[File.join(dir, "translations", "*.bluebook")].size).to eq(2)
+      expect(Hecks::Translation::Scaffold.write!(@dir, edge)).to eq(first)
+      expect(translations_written.size).to eq(1)
+    end
+
+    it "writes a different shape pair beside it" do
+      Hecks::Translation::Scaffold.write!(@dir, edge_for("Orders", [], ["Shed"]))
+      later = Hecks::Translation::Scaffold::Edge.new(domain: "Orders", from: "b81d04", to: "c92e15", ordinal: 3,
+                                                     label: "c92e15", aggregates: [], retired: [])
+      Hecks::Translation::Scaffold.write!(@dir, later)
+
+      expect(translations_written.size).to eq(2)
     end
   end
 end

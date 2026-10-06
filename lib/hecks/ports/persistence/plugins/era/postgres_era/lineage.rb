@@ -3,6 +3,7 @@ require "digest"
 
 require_relative "lineage/provisioning"
 require_relative "lineage/era_store"
+require_relative "lineage/era_integrity"
 require_relative "lineage/mint_transaction"
 require_relative "lineage/tail_merge"
 require_relative "lineage/resumable_backfill"
@@ -19,6 +20,7 @@ module Hecks
       class Lineage
         include Provisioning
         include EraStore
+        include EraIntegrity
         include MintTransaction
         include TailMerge
         include ResumableBackfill
@@ -107,7 +109,7 @@ module Hecks
 
         def path_literal(path)
           segments = path.to_s.split(".").map { |segment| text_literal(segment) }
-          "ARRAY[#{segments.join(', ')}]::text[]"
+          "ARRAY[#{segments.join(", ")}]::text[]"
         end
       end
     end

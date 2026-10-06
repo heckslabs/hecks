@@ -6,11 +6,15 @@ RSpec.describe "Hecks.boot_files" do
     Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_doors: false)
   end
 
-  it "dispatches identically to a directory boot of the same domain" do
+  def create_pizza(runtime, name, cents:, size:)
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name:  { value: name },
+                          pizza: { price_cents: { cents: cents }, size: { value: size } })
+  end
+
+  it "dispatches identically to a directory boot of the same domain", :aggregate_failures do
     runtime = boot_files_runtime
-    result = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
-                                   name:  { value: "Margherita" },
-                                   pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    result = create_pizza(runtime, "Margherita", cents: 1200, size: "large")
 
     expect(result.events.map(&:name)).to eq(["PizzaCreated"])
     expect(runtime.query("Pizzas::Order.Available").map { |row| row[:id] }).to eq(["Margherita"])
@@ -30,8 +34,7 @@ RSpec.describe "Hecks.boot_files" do
     first  = boot_files_runtime
     second = boot_files_runtime
 
-    first.dispatch_flat("Pizzas::Order.CreatePizza", name:  { value: "First" },
-                                                     pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+    create_pizza(first, "First", cents: 900, size: "small")
 
     expect(second.query("Pizzas::Order.Available")).to eq([])
   end

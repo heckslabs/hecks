@@ -31,7 +31,7 @@ module Hecks
           settings = Settings.new(deploy_settings: deploy_settings, plan: plan,
                                   stack_name: stack_name, region: region)
           files.merge(
-            "Makefile"              => "#{files.fetch('Makefile')}\ninclude hosting.mk\n",
+            "Makefile"              => "#{files.fetch("Makefile")}\ninclude hosting.mk\n",
             "hosting.mk"            => hosting_mk(settings),
             "deploy-service.sh"     => deploy_service_sh(settings),
             "smoke-after-deploy.sh" => smoke_after_deploy_sh(settings),
@@ -67,7 +67,7 @@ module Hecks
         # @return [String] the header comment followed by one era id per line
         def expected_era(settings)
           header = File.read(File.join(SCRIPT_DIR, "expected-era.header"))
-          "#{([header.chomp, ''] + settings.expected_eras).join("\n")}\n"
+          "#{([header.chomp, ""] + settings.expected_eras).join("\n")}\n"
         end
 
         # Renders `hosting.mk`.
@@ -88,13 +88,9 @@ module Hecks
         end
 
         def services_block(settings)
-          arms = settings.containers.map do |container|
-            repository = Shellwords.escape(container.repository_name)
-            parameter = Shellwords.escape(container.tag_parameter)
-            "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
-          end
+          arms = settings.containers.map { |container| service_arm(container) }
           <<~BASH.chomp
-            SERVICES='#{settings.containers.map(&:name).join(' ')}'
+            SERVICES='#{settings.containers.map(&:name).join(" ")}'
 
             # Sets ECR_REPOSITORY and CFN_PARAM_KEY for one service, or exits.
             resolve_service() {
@@ -106,12 +102,18 @@ module Hecks
           BASH
         end
 
+        def service_arm(container)
+          repository = Shellwords.escape(container.repository_name)
+          parameter = Shellwords.escape(container.tag_parameter)
+          "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
+        end
+
         def render(template, values)
           text = File.read(File.join(SCRIPT_DIR, template))
           values.reduce(text) { |out, (marker, value)| out.gsub(/#?@@#{marker}@@/) { value } }
         end
 
-        private_class_method :stack_constants, :services_block, :render
+        private_class_method :stack_constants, :services_block, :service_arm, :render
       end
     end
   end

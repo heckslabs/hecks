@@ -1,33 +1,10 @@
 require "spec_helper"
-require "tempfile"
+require_relative "support/inline_bluebook_boot"
 
 # Real dispatch coverage for the `clamp` mutation op: bounds the current value into
 # [min, max], with no "amount" to combine.
 RSpec.describe "mutation op clamp" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["mutation-clamp-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   MUTATION_CLAMP_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationClampGrowth" do
@@ -110,7 +87,7 @@ RSpec.describe "mutation op clamp" do
 
   # A never-set numeric field clamps as zero, like increment/decrement/multiply; clamping
   # 0.0 into [0.0, 1.0] leaves it unchanged.
-  it "treats a phantom (never-set) numeric field as zero rather than refusing TypeMismatch" do
+  it "treats a phantom (never-set) numeric field as zero rather than refusing TypeMismatch", :aggregate_failures do
     runtime = boot_mutation_clamp
     runtime.dispatch_flat("MutationClampGrowth::Organ.OpenBare", id: { value: "o4" })
 

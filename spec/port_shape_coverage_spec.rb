@@ -39,15 +39,16 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     expect(ir[:aggregates].any? { |a| a[:identified_by].to_a.size > 1 }).to be(true)
   end
 
-  it "declares a composite identity with a BARE component that IS a declared attribute" do
-    # The shape of Statement.account_id: read directly, no walk. The other bare shape
-    # (a component that is no declared attribute, like `owner_id`) is not required of Banking.
-    bare_declared = ir[:aggregates].any? do |agg|
-      agg[:identified_by].to_a.size > 1 && agg[:identified_by].any? do |path|
-        !path.include?(".") && agg[:attributes].any? { |a| a[:name].to_s == path }
-      end
+  # The shape of Statement.account_id: read directly, no walk. The other bare shape
+  # (a component that is no declared attribute, like `owner_id`) is not required of Banking.
+  def bare_declared_component?(agg)
+    agg[:identified_by].to_a.size > 1 && agg[:identified_by].any? do |path|
+      !path.include?(".") && agg[:attributes].any? { |a| a[:name].to_s == path }
     end
-    expect(bare_declared).to be(true)
+  end
+
+  it "declares a composite identity with a BARE component that IS a declared attribute" do
+    expect(ir[:aggregates].any? { |agg| bare_declared_component?(agg) }).to be(true)
   end
 
   it "declares a closed set with more than one field per member" do
@@ -69,7 +70,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     expect(ops).to include(:set, :append, :increment, :decrement)
   end
 
-  it "declares a given and an ensures" do
+  it "declares a given and an ensures", :aggregate_failures do
     expect(all_commands.flat_map { |c| c[:givens] }).not_to be_empty
     expect(all_commands.flat_map { |c| c[:ensures] }).not_to be_empty
   end
@@ -88,7 +89,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     expect(list_vo).to be(true)
   end
 
-  it "declares an optional attribute and a defaulted attribute" do
+  it "declares an optional attribute and a defaulted attribute", :aggregate_failures do
     expect(all_attributes.map { |a| a[:optional] }).to include(true)
     expect(all_attributes.map { |a| a[:default] }.compact).not_to be_empty
   end
@@ -101,7 +102,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     expect(all_attributes.map { |a| a[:admits] }.compact).not_to be_empty
   end
 
-  it "declares a read model, a policy, and a process manager" do
+  it "declares a read model, a policy, and a process manager", :aggregate_failures do
     expect(ir[:read_models]).not_to be_empty
     expect(ir[:policies]).not_to be_empty
     expect(ir[:process_managers]).not_to be_empty

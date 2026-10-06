@@ -24,17 +24,7 @@ module Hecks
     # @raise [Runtime::WiringError] if `registry` has no root, or no vendored
     #   package named `name` is checked out
     def self.load!(name, registry: Hecks.current_registry)
-      unless registry&.root
-        raise Runtime::WiringError,
-              "attaches(#{name.inspect}, from: :vendor) needs a registry with a root to vendor from"
-      end
-
-      unless name.to_s.match?(PACKAGE_NAME)
-        raise Runtime::WiringError,
-              "attaches(#{name.inspect}, from: :vendor) is not a package name — it must match " \
-              "[a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
-      end
-
+      check_loadable!(name, registry)
       return if registry.bluebook(Naming.pascal(name.to_s))
 
       dir   = File.join(registry.root, "vendor", "embryonaut_bluebooks", name.to_s, "bluebook")
@@ -50,6 +40,21 @@ module Hecks
       # files that reopen the same bluebook is named to rely on that.
       files.each { |file| Kernel.load(file) }
     end
+
+    # @raise [Runtime::WiringError] if `registry` has no root to vendor from, or `name` is not a
+    #   package name
+    def self.check_loadable!(name, registry)
+      unless registry&.root
+        raise Runtime::WiringError,
+              "attaches(#{name.inspect}, from: :vendor) needs a registry with a root to vendor from"
+      end
+      return if name.to_s.match?(PACKAGE_NAME)
+
+      raise Runtime::WiringError,
+            "attaches(#{name.inspect}, from: :vendor) is not a package name — it must match " \
+            "[a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
+    end
+    private_class_method :check_loadable!
 
     # Pins one package of the registry into a project's `vendor/` tree.
     #

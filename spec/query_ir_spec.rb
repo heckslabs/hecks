@@ -14,9 +14,33 @@ RSpec.describe Hecks::QueryIR do
   end
 
   describe ".duplicates" do
-    it "finds a real, known corpus duplication — Account's Money/PositiveMoney currency check" do
-      groups = described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
-      currency = groups.find { |g| g[:description] == "a currency is a three-letter code" }
+    def banking_duplicates
+      described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
+    end
+
+    def account_customer_active_rules
+      raw = described_class.send(:collect_rules, Hecks::Codemod.load_bluebook(InMemoryDomain::BANKING_BLUEBOOK_DIR))
+      raw.select do |r|
+        r.kind == "given" && r.description == "customer is active" &&
+          r.canonical == "customer_status == \"active\"" &&
+          (r.location == "Account (declared)" || r.location.start_with?("Account."))
+      end
+    end
+
+    def customer_active_group
+      banking_duplicates.find do |g|
+        g[:kind] == "given" && g[:description] == "customer is active" &&
+          g[:canonical] == "customer_status == \"active\"" &&
+          g[:locations].include?("Account (declared)")
+      end
+    end
+
+    def given_rule(location)
+      described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: location)
+    end
+
+    it "finds a real, known corpus duplication — Account's Money/PositiveMoney currency check", :aggregate_failures do
+      currency = banking_duplicates.find { |g| g[:description] == "a currency is a three-letter code" }
 
       expect(currency).not_to be_nil
       expect(currency[:kind]).to eq("invariant")
@@ -28,66 +52,46 @@ RSpec.describe Hecks::QueryIR do
     # by the time `collect_rules` reads them. Dedup must use the shared owner (`Account`).
     # Scoped to `Account` to isolate that from the real duplication in `SafeDepositBox` and
     # `OnboardingCase`.
-    it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates" do
-      raw = described_class.send(:collect_rules, Hecks::Codemod.load_bluebook(
-                                                   InMemoryDomain::BANKING_BLUEBOOK_DIR
-                                                 ))
-      account_given = raw.select do |r|
-        r.kind == "given" && r.description == "customer is active" &&
-          r.canonical == "customer_status == \"active\"" &&
-          (r.location == "Account (declared)" || r.location.start_with?("Account."))
-      end
-
+    it "reads an owner's own declaration plus every command referencing it as separate rules" do
       # Account's own declaration, plus every command that references it
-      expect(account_given.size).to be > 1
+      expect(account_customer_active_rules.size).to be > 1
+    end
 
-      groups = described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
-      customer_active = groups.find do |g|
-        g[:kind] == "given" && g[:description] == "customer is active" &&
-          g[:canonical] == "customer_status == \"active\"" &&
-          g[:locations].include?("Account (declared)")
-      end
+    it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates", :aggregate_failures do
+      customer_active = customer_active_group
 
       # SafeDepositBox/OnboardingCase declare the same given with identical canonical text, so one
       # merged group must still name every Account-scoped location.
       expect(customer_active).not_to be_nil
-      expect(account_given.map(&:location) - customer_active[:locations]).to be_empty
+      expect(account_customer_active_rules.map(&:location) - customer_active[:locations]).to be_empty
     end
 
     # Exercises the private `declaration_count` directly: an owner's declaration plus its own
     # commands' references is one declaration, not N.
     it "counts one owner's declaration plus its own commands' references as a single declaration" do
-      rules = [
-        described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Account (declared)"),
-        described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Account.Open"),
-        described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Account.Credit")
-      ]
+      rules = ["Account (declared)", "Account.Open", "Account.Credit"].map { |location| given_rule(location) }
 
       expect(described_class.send(:declaration_count, rules)).to eq(1)
     end
 
     it "counts two commands' own un-hoisted local givens, with no owner declaration, as two declarations" do
-      rules = [
-        described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Account.Open"),
-        described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Transfer.Send")
-      ]
+      rules = ["Account.Open", "Transfer.Send"].map { |location| given_rule(location) }
 
       expect(described_class.send(:declaration_count, rules)).to eq(2)
     end
   end
 
   describe ".impact_preview" do
-    it "reports a fully-propagated field's real touchpoints all present — Aggregate#preconditions" do
+    it "reports a fully-propagated field's real touchpoints all present — Aggregate#preconditions", :aggregate_failures do
       preview = described_class.impact_preview("Aggregate", "preconditions")
-
-      expect(preview[:name]).to eq("Aggregate")
-      expect(preview[:field]).to eq("preconditions")
       by_touchpoint = preview[:touchpoints].to_h { |t| [t[:touchpoint], t[:present]] }
+
+      expect([preview[:name], preview[:field]]).to eq(["Aggregate", "preconditions"])
       expect(by_touchpoint.values).to all(be(true))
       expect(by_touchpoint.keys).to include("meta-domain grammar declares it", "Reconstruction's hand-typed method reads it")
     end
 
-    it "reports a field that names nothing real as absent everywhere it applies" do
+    it "reports a field that names nothing real as absent everywhere it applies", :aggregate_failures do
       preview = described_class.impact_preview("Aggregate", "totally_unclaimed_field_name")
       applicable = preview[:touchpoints].reject { |t| t[:present].nil? }
 
@@ -109,7 +113,7 @@ RSpec.describe Hecks::QueryIR do
   end
 
   describe ".format_impact_preview" do
-    it "renders yes/NOT YET/n/a and a summary count of applicable touchpoints only" do
+    it "renders yes/NOT YET/n/a and a summary count of applicable touchpoints only", :aggregate_failures do
       text = described_class.format_impact_preview(described_class.impact_preview("Command", "givens"))
 
       expect(text).to include("== Command#givens ==")
@@ -120,7 +124,7 @@ RSpec.describe Hecks::QueryIR do
   end
 
   describe ".format_constructs" do
-    it "renders a clean diff without a MISSING/UNACCOUNTED line" do
+    it "renders a clean diff without a MISSING/UNACCOUNTED line", :aggregate_failures do
       text = described_class.format_constructs(described_class.constructs(["Entity"]))
       expect(text).to include("== Entity ==")
       expect(text).to include("clean")

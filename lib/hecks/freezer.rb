@@ -32,13 +32,22 @@ module Hecks
     # @return [String, nil] the dotted path (Hash keys, Array indices, or
     #   `"(the value itself)"`) to the first mutable value found, or nil if none
     def unfrozen_within(held, path = [])
-      return (path.empty? ? "(the value itself)" : path.join(".")) unless immune?(held) || held.frozen?
+      return mutable_path(path) unless immune?(held) || held.frozen?
 
+      first_unfrozen_child(held, path)
+    end
+
+    # @return [String, nil] the path to the first mutable value inside a Hash or Array, or nil
+    def first_unfrozen_child(held, path)
       case held
       when Hash  then held.lazy.filter_map { |key, inner| unfrozen_within(inner, path + [key.to_s]) }.first
       when Array then held.each_with_index.lazy.filter_map { |inner, i| unfrozen_within(inner, path + [i.to_s]) }.first
       end
     end
+
+    # @param path [Array<String>] the owner path walked so far
+    # @return [String] the path as dotted text, or `"(the value itself)"` for the root
+    def mutable_path(path) = path.empty? ? "(the value itself)" : path.join(".")
 
     # Explicit rather than trusting `frozen?` on immediates.
     #

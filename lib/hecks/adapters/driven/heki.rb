@@ -3,6 +3,7 @@ require "fileutils"
 require_relative "heki/snapshot"
 require_relative "heki/journal"
 require_relative "heki/saga_store"
+require_relative "heki/sagas"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../ports/query/in_memory"
 require_relative "in_memory_ordering"
@@ -17,6 +18,7 @@ module Hecks
     class Heki
       include Snapshot
       include Journal
+      include Sagas
 
       MAGIC = "HEKI".freeze
       HEADER_BYTES = 8
@@ -37,16 +39,7 @@ module Hecks
         @journal_path = "#{@path}.journal"
         @events = []
         # Saga scope; falls back to the aggregate's name for a directly built adapter.
-        @domain = (
-          if settings.key?(:domain)
-            settings[:domain]
-          elsif settings.key?("domain")
-            settings["domain"]
-          else
-            aggregate.name
-          end
-        ).to_s
-
+        @domain = setting(settings, :domain, aggregate.name).to_s
         FileUtils.mkdir_p(File.dirname(@path))
       end
 
@@ -116,13 +109,7 @@ module Hecks
       def project(entry)
         removed = entry.delete? ? store[entry.id] : nil
         current = read
-        if entry.save?
-          current[entry.id] = Ports::Persistence::StateCodec.encode(@aggregate, entry.state)
-          projected = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
-        else
-          current.delete(entry.id)
-          projected = removed && instance(entry.id, removed)
-        end
+        projected = entry.save? ? apply_save(current, entry) : apply_delete(current, entry, removed)
         write(current)
         @store = current
         projected
@@ -146,7 +133,7 @@ module Hecks
       # @param id [String, Object] the record's identity, compared as `id.to_s`
       # @return [Boolean] true when a record was found and deleted, false when there was none
       #   and nothing was journaled
-      def delete(id)
+      def delete(id) # rubocop:disable Naming/PredicateMethod -- the repository port's verb, answering whether a record existed
         return false unless find(id)
 
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
@@ -163,49 +150,16 @@ module Hecks
       # @return [Array<Runtime::Event>] the adapter's in-memory event log, including `event`
       def record_event(event) = @events << event
 
-      # Checkpoints one saga instance in a sibling file pair (`SagaStore`).
-      #
-      # @param process_manager [String, Symbol] the process manager's name, compared as
-      #   `.to_s`
-      # @param correlation [String, Symbol, Object] the instance's correlation value, compared
-      #   as `.to_s`
-      # @param state [String, Symbol] the saga's current state name, compared as `.to_s`
-      # @param memory [Hash] the saga's working memory to persist
-      # @param completed_compensations [Array] the ledger of completed compensable legs;
-      #   `[]` when none
-      # @return [Hash{String => Hash}] `SagaStore`'s internal records Hash after the write;
-      #   callers ignore it
-      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
-        saga_store.save_saga(@domain, process_manager.to_s, correlation.to_s, state.to_s, memory, completed_compensations)
-      end
-
-      # Removes a finished saga instance's checkpoint; a missing one is not an error.
-      #
-      # @param process_manager [String, Symbol] the process manager's name, compared as
-      #   `.to_s`
-      # @param correlation [String, Symbol, Object] the instance's correlation value, compared
-      #   as `.to_s`
-      # @return [Hash{String => Hash}] `SagaStore`'s internal records Hash after the delete;
-      #   callers ignore it
-      def delete_saga(process_manager:, correlation:)
-        saga_store.delete_saga(@domain, process_manager.to_s, correlation.to_s)
-      end
-
-      # Yields every checkpointed saga instance of this domain, for boot-time rehydration.
-      #
-      # @yieldparam process_manager [String] the process manager's name
-      # @yieldparam correlation [String] the instance's correlation value
-      # @yieldparam state [String] the saga's state name
-      # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every
-      #   depth
-      # @yieldparam completed_compensations [Array] the completed-compensation ledger
-      # @return [Enumerator, Hash{String => Hash}] an enumerator when no block is given
-      def each_saga(&) = saga_store.each_saga(@domain, &)
-
       private
 
-      def saga_store
-        @saga_store ||= SagaStore.new(File.dirname(@path))
+      def apply_save(current, entry)
+        current[entry.id] = Ports::Persistence::StateCodec.encode(@aggregate, entry.state)
+        Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
+      end
+
+      def apply_delete(current, entry, removed)
+        current.delete(entry.id)
+        removed && instance(entry.id, removed)
       end
 
       def instance(id, record)
@@ -227,18 +181,19 @@ module Hecks
 
       # `dir: :default` means no setting; a Symbol would make `File.join` raise TypeError.
       def resolve_path(settings, root)
-        declared =
-          if settings.key?(:dir)
-            settings[:dir]
-          elsif settings.key?("dir")
-            settings["dir"]
-          else
-            "data"
-          end
+        declared = setting(settings, :dir, "data")
         declared = "data" if declared == :default
         dir      = declared.start_with?("/") ? declared : File.join(root || Dir.pwd, declared)
 
         File.join(dir, "#{@aggregate.storage_name}.heki")
+      end
+
+      # A setting read under its Symbol key, then its String key, then `default`.
+      def setting(settings, key, default)
+        return settings[key] if settings.key?(key)
+        return settings[key.to_s] if settings.key?(key.to_s)
+
+        default
       end
     end
   end

@@ -17,9 +17,7 @@ RSpec.describe "a construct's identity" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -39,7 +37,7 @@ RSpec.describe "a construct's identity" do
   def pizza = aggregate_ir(pizzas, "Pizzas", "Order")
 
   describe "the name it is declared by" do
-    it "spells an aggregate one way, from the owner chain alone" do
+    it "spells an aggregate one way, from the owner chain alone", :aggregate_failures do
       expect(pizza.hecks_name).to eq("Order")
       expect(pizza.hecks_fqn).to eq("Pizzas::Order")
     end
@@ -50,21 +48,26 @@ RSpec.describe "a construct's identity" do
       expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
     end
 
-    it "reaches a value object through the head that declares it" do
+    it "reaches a value object through the head that declares it", :aggregate_failures do
       price = pizza.value_object("Price")
 
       expect(price.hecks_name).to eq("Price")
       expect(price.attributes.map(&:name)).to eq([:cents])
     end
 
-    it "keeps three same-named value objects distinguishable" do
-      shapes = %w[Account ATMCard Transfer].map do |owner|
-        aggregate_ir(banking, "Banking", owner).value_object("Narrative")
-      end
+    def narrative_shapes
+      %w[Account ATMCard Transfer].map { |owner| aggregate_ir(banking, "Banking", owner).value_object("Narrative") }
+    end
+
+    it "keeps three same-named value objects distinguishable", :aggregate_failures do
+      shapes = narrative_shapes
 
       expect(shapes.uniq.size).to eq(3)
       expect(shapes.map(&:hecks_name)).to eq(%w[Narrative Narrative Narrative])
-      expect(shapes.map(&:hecks_fqn)).to eq(
+    end
+
+    it "spells three same-named value objects with their owners" do
+      expect(narrative_shapes.map(&:hecks_fqn)).to eq(
         ["Banking::Account.Narrative", "Banking::ATMCard.Narrative", "Banking::Transfer.Narrative"]
       )
     end
@@ -81,32 +84,41 @@ RSpec.describe "a construct's identity" do
       end
     end
 
+    def expect_resolved(owner, attribute)
+      resolved = attribute.type.resolve
+
+      expect(resolved).to be_a(Hecks::Bluebook::Aggregate),
+                          "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
+      expect_declared_by_banking(resolved, attribute.type.target_name)
+    end
+
+    def expect_declared_by_banking(resolved, target_name)
+      expect(resolved.hecks_name).to eq(target_name)
+      expect(resolved.hecks_owner.hecks_name).to eq("Banking")
+    end
+
     # `resolve_references` skips a nil target (a cross-domain one may be unloaded), so a
     # `resolve` that answered nil for everything would leave the suite green.
-    it "resolves every reference in banking to a head in its own chapter" do
+    it "resolves every reference in banking to a head in its own chapter", :aggregate_failures do
       found = references_in(banking, "Banking")
 
       # 22 compiled references; SafeDepositBox.Rent's `customer` counts only because
       # `sets :customer` imports the aggregate's own Reference-
       # typed attribute instead of shadowing it. `21 + 1 = 22`.
       expect(found.size).to eq(22)
-      found.each do |owner, attribute|
-        resolved = attribute.type.resolve
+      found.each { |owner, attribute| expect_resolved(owner, attribute) }
+    end
 
-        expect(resolved).to be_a(Hecks::Bluebook::Aggregate),
-                            "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
-        expect(resolved.hecks_name).to eq(attribute.type.target_name)
-        expect(resolved.hecks_owner.hecks_name).to eq("Banking")
-      end
+    def open_account_for(customer)
+      banking.dispatch_flat("Banking::Account.Open", customer:    customer,
+                                                     number:      { value: "ACC-1" },
+                                                     kind:        { name: "current" },
+                                                     daily_limit: { cents: 100 })
     end
 
     it "still refuses a reference that points at nothing" do
-      expect do
-        banking.dispatch_flat("Banking::Account.Open", customer:    "nobody-registered-this",
-                                                       number:      { value: "ACC-1" },
-                                                       kind:        { name: "current" },
-                                                       daily_limit: { cents: 100 })
-      end.to raise_error(Hecks::Runtime::NotFound, /no Customer with/)
+      expect { open_account_for("nobody-registered-this") }
+        .to raise_error(Hecks::Runtime::NotFound, /no Customer with/)
     end
 
     it "refuses to resolve at all when it cannot say who declares it" do
@@ -118,7 +130,7 @@ RSpec.describe "a construct's identity" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
     end
 
-    it "keeps spelling the old reference string in the export, whose spelling is contract" do
+    it "keeps spelling the old reference string in the export, whose spelling is contract", :aggregate_failures do
       account = banking.registry.bluebook("Banking").aggregate("Account")
       customer = account.attribute(:customer)
 
@@ -131,13 +143,13 @@ RSpec.describe "a construct's identity" do
     def add_topping = pizzas.registry.bluebook("Pizzas").aggregate("Order").command("AddTopping")
     def create      = pizzas.registry.bluebook("Pizzas").aggregate("Order").command("CreatePizza")
 
-    it "acts on the aggregate itself, not the name of one" do
+    it "acts on the aggregate itself, not the name of one", :aggregate_failures do
       expect(add_topping).to be_a(Class)
       expect(add_topping.hecks_name).to eq("AddTopping")
       expect(add_topping.acts_on).to be(pizzas.registry.bluebook("Pizzas").aggregate("Order"))
     end
 
-    it "acts on nothing when it is the command that creates" do
+    it "acts on nothing when it is the command that creates", :aggregate_failures do
       expect(create.creates?).to be(true)
       expect(create.acts_on).to be_nil
     end
@@ -146,13 +158,15 @@ RSpec.describe "a construct's identity" do
       expect(add_topping.to_h[:name]).to eq("AddTopping")
     end
 
+    def argument_verb_and_shape
+      command = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook").aggregate("Command")
+      [command, command.command("Argument"), command.value_object("Argument")]
+    end
+
     # Commands are not nested as constants: a command and a value object may share a name inside
     # one aggregate (the language does it six times), so identity is (kind, FQN).
-    it "shares its name with a value object, which is why it is not a constant" do
-      meta     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-      command  = meta.aggregate("Command")
-      verb     = command.command("Argument")
-      shape    = command.value_object("Argument")
+    it "shares its name with a value object, which is why it is not a constant", :aggregate_failures do
+      command, verb, shape = argument_verb_and_shape
 
       expect(verb).not_to be(shape)
       expect(verb.hecks_name).to eq(shape.hecks_name)
@@ -161,7 +175,7 @@ RSpec.describe "a construct's identity" do
       expect(command.value_object("Argument")).to be(shape)
     end
 
-    it "refuses to state an identity it was never given" do
+    it "refuses to state an identity it was never given", :aggregate_failures do
       # A construct built by hand, or one a builder forgets to stamp, must go red rather than
       # answer a bare name.
       orphan = Hecks::Bluebook::Command.declare(name: "Unstamped")
@@ -173,51 +187,61 @@ RSpec.describe "a construct's identity" do
   end
 
   describe "the chapter, and why one table survives" do
-    it "is a root, so it is the one construct with no owner to name" do
+    it "is a root, so it is the one construct with no owner to name", :aggregate_failures do
       chapter = banking.registry.bluebook("Banking")
 
       expect(chapter.hecks_root?).to be(true)
       expect(chapter.hecks_fqn).to eq("Banking")
     end
 
-    it "answers hecks_name from every construct, crossed over or not" do
-      # If one stops answering, consumers that cannot tell a class from an IR object read nil.
-      bank    = banking.registry.bluebook("Banking")
-      account = bank.aggregate("Account")
+    def chapter_constructs(bank)
+      [bank, bank.read_models.first, bank.policies.first, bank.process_managers.first]
+    end
 
-      [bank, account, account.command("Open"), account.query("Open"),
-       account.entities.first, account.entities.first.commands.first,
-       account.value_objects.first, bank.read_models.first,
-       bank.policies.first, bank.process_managers.first].each do |construct|
+    def account_constructs(account)
+      piece = account.entities.first
+      [account, account.command("Open"), account.query("Open"), piece, piece.commands.first, account.value_objects.first]
+    end
+
+    it "answers hecks_name from every construct, crossed over or not", :aggregate_failures do
+      # If one stops answering, consumers that cannot tell a class from an IR object read nil.
+      bank = banking.registry.bluebook("Banking")
+
+      (chapter_constructs(bank) + account_constructs(bank.aggregate("Account"))).each do |construct|
         expect(construct.hecks_name).to be_a(String), "#{construct.inspect} answers no hecks_name"
         expect(construct.hecks_name).not_to be_empty
       end
     end
 
+    def set_chapter
+      proc do
+        vision "a domain whose name Ruby already uses"
+        supporting
+        aggregate("Thing") do
+          identified_by :id
+          description "a thing"
+          attribute :label, Label
+          value_object("Label") { attribute :value, String }
+        end
+      end
+    end
+
+    def load_and_bind(registry, chapter)
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Set", &chapter)
+      end
+      # Installation happens at bind, not at load.
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    end
+
     # The registry keeps a chapter table because the top-level door cannot install over names
     # Ruby already owns: `Namespace.install` warns and keeps the existing constant.
-    it "cannot be indexed by Ruby's constants, because top-level names are not ours" do
+    it "cannot be indexed by Ruby's constants, because top-level names are not ours", :aggregate_failures do
       registry = Hecks::Runtime::Registry.new
 
-      expect do
-        Hecks.with_registry(registry) do
-          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          Hecks.bluebook("Set") do
-            vision "a domain whose name Ruby already uses"
-            supporting
-            aggregate("Thing") do
-              identified_by :id
-              description "a thing"
-              attribute :label, Label
-              value_object("Label") { attribute :value, String }
-            end
-          end
-        end
-        # Installation happens at bind, not at load.
-        Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
-      end.to output(/Set is already defined — leaving it alone/).to_stderr
-
+      expect { load_and_bind(registry, set_chapter) }.to output(/Set is already defined — leaving it alone/).to_stderr
       expect(registry.bluebook("Set").hecks_fqn).to eq("Set")
       expect(Object.const_get(:Set)).not_to be(registry.bluebook("Set"))
     end
@@ -226,7 +250,7 @@ RSpec.describe "a construct's identity" do
   describe "an ask, which stays an instance" do
     def bank = banking.registry.bluebook("Banking")
 
-    it "hangs a query off whatever declares it" do
+    it "hangs a query off whatever declares it", :aggregate_failures do
       account = bank.aggregate("Account")
 
       expect(account.queries.map(&:hecks_fqn))
@@ -235,15 +259,17 @@ RSpec.describe "a construct's identity" do
         .to eq(["Banking::Account.LedgerEntry.Reversed"])
     end
 
+    def banking_read_models
+      ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
+       "Banking.DisputedPaymentMedian", "Banking.DisputedPaymentTotal", "Banking.DisputedPaymentAverage",
+       "Banking.DisputedPaymentSmallest", "Banking.DisputedPaymentLargest", "Banking.DisputedPaymentP95",
+       "Banking.AccountsByKind"]
+    end
+
     it "hangs a read model off the CHAPTER, since no one head declares it" do
       # A read model gathers heads from several aggregates. Hanging it off one of
       # them would name the wrong owner.
-      expect(bank.read_models.map(&:hecks_fqn)).to eq(
-        ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
-         "Banking.DisputedPaymentMedian", "Banking.DisputedPaymentTotal", "Banking.DisputedPaymentAverage",
-         "Banking.DisputedPaymentSmallest", "Banking.DisputedPaymentLargest", "Banking.DisputedPaymentP95",
-         "Banking.AccountsByKind"]
-      )
+      expect(bank.read_models.map(&:hecks_fqn)).to eq(banking_read_models)
     end
 
     it "keeps the name it always had, because only a class had a rival answer" do
@@ -263,7 +289,7 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    it "collides with a command of the same name, in a real domain this time" do
+    it "collides with a command of the same name, in a real domain this time", :aggregate_failures do
       # banking declares both a command and a query called Open on Account, so the kind
       # ambiguity is not a quirk of the language describing itself.
       account = bank.aggregate("Account")
@@ -278,14 +304,14 @@ RSpec.describe "a construct's identity" do
     def account      = banking.registry.bluebook("Banking").aggregate("Account")
     def ledger_entry = account.entities.first
 
-    it "closes the owner chain, so a piece's verb can say what it is" do
+    it "closes the owner chain, so a piece's verb can say what it is", :aggregate_failures do
       # chapter -> aggregate -> entity -> command, which is the id the judge mints.
       expect(ledger_entry.hecks_fqn).to eq("Banking::Account.LedgerEntry")
       expect(ledger_entry.commands.map(&:hecks_fqn))
         .to eq(["Banking::Account.LedgerEntry.Amend", "Banking::Account.LedgerEntry.Reverse"])
     end
 
-    it "has its verbs act on the PIECE, not on nothing" do
+    it "has its verbs act on the PIECE, not on nothing", :aggregate_failures do
       # An element is addressed through its parent, so an entity's command never self-references
       # and `creates?` is true; `acts_on` must still name the piece.
       amend = ledger_entry.command("Amend")
@@ -302,7 +328,7 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    it "keeps NOT answering value_object, which is how a piece is told from a head" do
+    it "keeps NOT answering value_object, which is how a piece is told from a head", :aggregate_failures do
       # `Value.for_attribute` sniffs for this method to tell a head from a piece.
       expect(ledger_entry).not_to respond_to(:value_object)
       expect(account).to respond_to(:value_object)

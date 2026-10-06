@@ -1,0 +1,8 @@
+# mint-era isn't automated yet for a Shared-mode domain (database
+# "Shared") — see @@owner_domain_name@@'s own deploy directory for
+# the manual tunnel path. Exits 0 (not 1) so a genuinely successful
+# `make deploy` still reports success.
+.PHONY: mint-era
+mint-era:
+	@echo "mint-era isn't automated yet for a Shared-mode domain (database \"Shared\") -- see @@owner_domain_name@@'s own deploy directory's tunnel path. This is NOT a failure."; \
+	exit 0

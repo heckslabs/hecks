@@ -125,26 +125,30 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   def self.ruby_ir_json(stem, chapter_name, paths)
     # `bluebook_language` must go through `grammar_registry`: loading `aggregate.bluebook` the
     # ordinary way fails validation, since it references types declared in later files.
-    registry =
-      if stem == "bluebook_language"
-        Hecks::Bluebook::MetaValidator.grammar_registry
-      else
-        bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
-        # `root:` is needed for members declaring `attaches ... from: :vendor`; a bluebook's
-        # grandparent is the domain root.
-        fresh = Hecks::Runtime::Registry.new(root: File.dirname(bluebooks.first, 2))
-        Hecks.with_registry(fresh) do
-          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          InMemoryDomain.load_bluebook_files(bluebooks)
-          companions.each { |path| Kernel.load(path) }
-        end
-        fresh
-      end
+    registry = stem == "bluebook_language" ? Hecks::Bluebook::MetaValidator.grammar_registry : loaded_registry(paths)
     ir = Hecks::Projector::Exporter.call(registry).fetch(chapter_name)
     "#{JSON.pretty_generate(strip_invariant_ast(ir))}\n"
+  end
+
+  def self.load_oracle_ports
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
+  # A fresh registry holding the ports, the bluebooks among `paths` and then their companions.
+  def self.loaded_registry(paths)
+    bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
+    # `root:` is needed for members declaring `attaches ... from: :vendor`; a bluebook's
+    # grandparent is the domain root.
+    fresh = Hecks::Runtime::Registry.new(root: File.dirname(bluebooks.first, 2))
+    Hecks.with_registry(fresh) do
+      load_oracle_ports
+      InMemoryDomain.load_bluebook_files(bluebooks)
+      companions.each { |path| Kernel.load(path) }
+    end
+    fresh
   end
 
   # Identity seam: rule `ast` and `where_ast` are emitted by `hecks-parse` and compared as-is.
@@ -180,50 +184,69 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
                            "byte-match assertion below — a member must be one or the other: #{unaccounted.inspect}"
   end
 
+  # The chapter name a pending member is parsed under; skips a member that is not marked pending.
+  def pending_chapter_name(stem, bluebook)
+    unless PENDING_MEMBERS[stem]
+      skip "#{stem} is not marked pending, but no real byte-match assertion exists for it yet — " \
+           "add one or restore the pending entry"
+    end
+
+    self.class.chapter_name_of(bluebook) ||
+      raise("#{bluebook} has no 'Hecks.bluebook \"Name\"' header this spec could find — " \
+            "either the file's shape changed or the header-reading regex needs updating")
+  end
+
+  def exit_code_problem(bluebook, stdout, stderr, status)
+    return if status.exitstatus == 1
+
+    "#{bluebook}: expected a Stage 1 'not yet built' exit code (1), " \
+      "got #{status.exitstatus}. stdout:\n#{stdout}\nstderr:\n#{stderr}"
+  end
+
+  def stdout_problem(bluebook, stdout)
+    return if stdout.empty?
+
+    "#{bluebook}: stdout must stay empty on a pending failure — a non-empty " \
+      "stdout here would mean this parser fabricated partial ir.json. stdout:\n#{stdout}"
+  end
+
+  def diagnostic_problem(bluebook, stem, stderr)
+    diagnostic = PENDING_MEMBERS_DIAGNOSTIC[stem]
+    return if stderr.include?(diagnostic)
+
+    "#{bluebook}: expected '#{diagnostic}' on stderr, got something else — this may be a REAL grammar bug " \
+      "(a genuine parse error unrelated to staging), which is a spec FAILURE, not a skip. Full stderr:\n#{stderr}"
+  end
+
   PARITY_CORPUS_MEMBERS.each do |stem, bluebook|
     next if REAL_PARITY_MEMBERS.key?(stem)
 
     it "#{stem}: still Stage 1 pending, and fails the honest way (not yet implemented, not a crash)" do
-      pending_reason = PENDING_MEMBERS[stem]
-      unless pending_reason
-        skip "#{stem} is not marked pending, but no real byte-match assertion exists for it yet — " \
-             "add one or restore the pending entry"
-      end
-
-      chapter_name = self.class.chapter_name_of(bluebook)
-      unless chapter_name
-        raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header this spec could find — " \
-              "either the file's shape changed or the header-reading regex needs updating"
-      end
-
+      chapter_name = pending_chapter_name(stem, bluebook)
       stdout, stderr, status = self.class.run_chapter(chapter_name, *Array(bluebook))
-      expected_diagnostic = PENDING_MEMBERS_DIAGNOSTIC[stem]
+      problems = [exit_code_problem(bluebook, stdout, stderr, status), stdout_problem(bluebook, stdout),
+                  diagnostic_problem(bluebook, stem, stderr)]
 
-      expect(status.exitstatus).to eq(1),
-                                   "#{bluebook}: expected a Stage 1 'not yet built' exit code (1), " \
-                                   "got #{status.exitstatus}. stdout:\n#{stdout}\nstderr:\n#{stderr}"
-      expect(stdout).to eq(""),
-                        "#{bluebook}: stdout must stay empty on a pending failure — a non-empty " \
-                        "stdout here would mean this parser fabricated partial ir.json. stdout:\n#{stdout}"
-      expect(stderr).to include(expected_diagnostic),
-                        "#{bluebook}: expected '#{expected_diagnostic}' on stderr, got something " \
-                        "else — this may be a REAL grammar bug (a genuine parse error unrelated to " \
-                        "staging), which is a spec FAILURE, not a skip. Full stderr:\n#{stderr}"
+      expect(problems.compact).to be_empty
     end
   end
 
+  def parse_failure_message(stem, stdout, stderr)
+    "#{stem}: hecks-parse failed to parse a REAL corpus member — this is a genuine " \
+      "parser bug, not staging. stdout:\n#{stdout}\nstderr:\n#{stderr}"
+  end
+
+  def byte_mismatch_message(stem)
+    "#{stem}: hecks-parse's ir.json does not byte-match Ruby's own " \
+      "JSON.pretty_generate(Exporter.call(...)) for the same files"
+  end
+
   REAL_PARITY_MEMBERS.each do |stem, (chapter_name, paths)|
-    it "#{stem}: hecks-parse's own ir.json is byte-identical to Ruby's" do
+    it "#{stem}: hecks-parse's own ir.json is byte-identical to Ruby's", :aggregate_failures do
       stdout, stderr, status = self.class.run_chapter(chapter_name, *paths)
 
-      expect(status.exitstatus).to eq(0),
-                                   "#{stem}: hecks-parse failed to parse a REAL corpus member — this is a genuine " \
-                                   "parser bug, not staging. stdout:\n#{stdout}\nstderr:\n#{stderr}"
-
-      expected = self.class.ruby_ir_json(stem, chapter_name, paths)
-      expect(stdout).to eq(expected),
-                        "#{stem}: hecks-parse's ir.json does not byte-match Ruby's own " \
-                        "JSON.pretty_generate(Exporter.call(...)) for the same files"
+      expect(status.exitstatus).to eq(0), parse_failure_message(stem, stdout, stderr)
+      expect(stdout).to eq(self.class.ruby_ir_json(stem, chapter_name, paths)), byte_mismatch_message(stem)
     end
   end
 end

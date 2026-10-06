@@ -57,17 +57,20 @@ module Hecks
       # @raise [Runtime::WiringError] if none, or more than one, implements this port
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
+        return registry.adapter_class(implementations.first.name) if implementations.size == 1
 
-        case implementations.size
-        when 1 then registry.adapter_class(implementations.first.name)
-        when 0
-          raise Runtime::WiringError,
-                "no adapter implements the #{NAME} port — nothing can answer a role check"
-        else
-          raise Runtime::WiringError,
-                "#{implementations.size} adapters implement the #{NAME} port " \
-                "(#{implementations.map(&:name).sort.join(', ')}) — the runtime will not choose for you"
-        end
+        raise Runtime::WiringError, wiring_refusal(implementations)
+      end
+
+      # Words the refusal for a port that resolves to no adapter or to several.
+      #
+      # @param implementations [Array] the adapters bound to this port
+      # @return [String] the error message
+      def wiring_refusal(implementations)
+        return "no adapter implements the #{NAME} port — nothing can answer a role check" if implementations.empty?
+
+        names = implementations.map(&:name).sort.join(", ")
+        "#{implementations.size} adapters implement the #{NAME} port (#{names}) — the runtime will not choose for you"
       end
     end
   end

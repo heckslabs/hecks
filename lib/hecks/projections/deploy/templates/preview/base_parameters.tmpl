@@ -1,0 +1,24 @@
+EnvName:
+  Type: String
+  AllowedPattern: '^[a-z0-9]([a-z0-9-]{0,18}[a-z0-9])?$'
+  ConstraintDescription: lowercase letters, digits and hyphens, at most 20 characters, not ending in a hyphen (the ALB name limit is 32).
+DbName:
+  Type: String
+  AllowedPattern: '^[a-z][a-z0-9_]{0,62}$'
+  Description: This preview's own database on the shared instance, created by the one-shot DbInit task before the service starts.
+OwningVpcId:
+  Type: AWS::EC2::VPC::Id
+OwningSubnetAId:
+  Type: AWS::EC2::Subnet::Id
+OwningSubnetBId:
+  Type: AWS::EC2::Subnet::Id
+OwningPublicSubnetAId:
+  Type: AWS::EC2::Subnet::Id
+OwningPublicSubnetBId:
+  Type: AWS::EC2::Subnet::Id
+OwningSecurityGroupId:
+  Type: AWS::EC2::SecurityGroup::Id
+OwningDatabaseEndpoint:
+  Type: String
+OwningDatabaseSecretArn:
+  Type: String

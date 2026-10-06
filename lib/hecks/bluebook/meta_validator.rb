@@ -1,12 +1,15 @@
 require "digest"
 require "json"
 require_relative "meta_validator/verdict_cache"
+require_relative "meta_validator/modes"
 
 module Hecks
   module Bluebook
     # Judges a bluebook by dispatching it into the language declared in itself.
     # Refusals become `DSL::Malformed`; the meta-domain does the judging, not a builder.
     module MetaValidator
+      extend Modes
+
       # Deterministic file order becomes the source order exported to IR.
       GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
       GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).freeze
@@ -27,127 +30,6 @@ module Hecks
       # and replaced by their own self-assembled graphs.
       LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
 
-      # Whether the language's own grammar is still loading raw, unjudged.
-      # Judging it while it loads would recurse, so the bootstrap sets this
-      # and the fixpoint clears it once every grammar file is merged.
-      #
-      # @return [Boolean]
-      def self.bootstrapping? = @bootstrapping
-
-      # Whether `call` is queuing chapters instead of judging them, while a
-      # chapter's own files are still being merged (see `defer`).
-      #
-      # @return [Boolean]
-      def self.deferring? = @deferring
-
-      # Queues every chapter `call` sees while the block runs, instead of
-      # judging them immediately (see `deferred_chapters`).
-      #
-      # @yield the caller's own load of every file in one chapter window
-      # @return [Object] the block's own return value
-      def self.defer
-        previous   = @deferring
-        @deferring = true
-        yield
-      ensure
-        @deferring = previous
-      end
-
-      # The chapters queued while `defer`'s block ran, awaiting
-      # `judge_deferred!`.
-      #
-      # @return [Array<String>] each deferred chapter's own `hecks_name`,
-      #   queued during the current or most recent `defer` window
-      def self.deferred_chapters = @deferred_chapters ||= []
-
-      # Judges every chapter queued by `defer`, once each, then clears the
-      # queue.
-      #
-      # @param registry [Runtime::Registry, nil] the registry to judge
-      #   against; a no-op if `nil`
-      # @return [void]
-      # @raise [DSL::Malformed] if a chapter's own whole-chapter battery
-      #   (`BluebookBuilder.validate_assembled!`) or the meta-domain itself
-      #   (`call`) refuses it
-      def self.judge_deferred!(registry)
-        pending = deferred_chapters.uniq
-        @deferred_chapters = []
-        return unless registry
-
-        pending.each do |name|
-          chapter = registry.bluebook(name)
-          next unless chapter
-
-          # Bare chapter-level givens must resolve before anything below
-          # reads a `Given`'s fields. The `raise` block never runs — this
-          # chapter's builder is always already open by the time `chapter` exists.
-          builder = registry.bluebook_builder(name) { raise "internal: no open builder for #{name}" }
-          builder.resolve_pending_chapter_givens!
-          # Same, one level down: entity-scoped pending givens.
-          builder.resolve_pending_chapter_entity_givens!
-
-          # Whole-chapter checks (hops, projected fields, event shapes) were
-          # skipped per file while deferring; `chapter` now holds every
-          # file's declarations, so they run once here instead of per file.
-          DSL::BluebookBuilder.validate_assembled!(chapter)
-          registry.add_bluebook(call(chapter))
-        end
-      end
-
-      # Whether meta-domain judging is off (ignored while a fixpoint build
-      # is forced).
-      # Stack-restored, not a bare flag, so a disabled window can never
-      # leak past its own scope.
-      #
-      # @return [Boolean]
-      def self.disabled? = @disabled && !@forcing_fixpoint
-
-      # Runs `block` with `disabled?` true, restoring it afterward — for a
-      # growth spec that boots a scratch bluebook without validation overhead.
-      #
-      # @yield the caller's own boot, with `disabled?` true throughout
-      # @return [Object] the block's own return value
-      def self.while_disabled
-        previous  = @disabled
-        @disabled = true
-        yield
-      ensure
-        @disabled = previous
-      end
-
-      # (ADR 0025) Whether frozen era text is currently being shadow-parsed
-      # by `EraGuard`. Judging it again here would refuse history whenever a
-      # spelling it used gets removed from the live grammar.
-      #
-      # @return [Boolean]
-      def self.shadow_parsing? = @shadow_parsing
-
-      # Wraps `block` with `shadow_parsing?` true, restoring it afterward.
-      #
-      # @yield the caller's own shadow-parse of one piece of frozen era text
-      # @return [Object] the block's own return value
-      def self.while_shadow_parsing
-        previous        = @shadow_parsing
-        @shadow_parsing = true
-        yield
-      ensure
-        @shadow_parsing = previous
-      end
-
-      # Wraps `block` with `disabled?` forced false, restoring it afterward.
-      # Only `grammar_registry`'s one-time fixpoint build uses this.
-      #
-      # @yield the one-time fixpoint build, with `disabled?` forced false
-      #   throughout
-      # @return [Object] the block's own return value
-      def self.while_forcing_fixpoint
-        previous          = @forcing_fixpoint
-        @forcing_fixpoint = true
-        yield
-      ensure
-        @forcing_fixpoint = previous
-      end
-
       # Process-wide judging cache, keyed on a SHA-256 digest of the judged
       # artifact so a changed bluebook is always re-judged.
       #
@@ -166,14 +48,9 @@ module Hecks
       #   while disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `WorldJudge` finds `world` malformed
       def self.call_world(world)
-        return world if disabled? || bootstrapping? || shadow_parsing?
-
-        key = Digest::SHA256.hexdigest(JSON.generate([world.domain, world.realm, world.latest, world.settings]))
-        refusals = verdicts[key] ||= WorldJudge.new(world).refusals
-        return world if refusals.empty?
-
-        raise DSL::Malformed,
-              "#{world.domain}'s world is not well formed; #{refusals.join('; ')}"
+        judge_door(world, WorldJudge, "#{world.domain}'s world") do
+          JSON.generate([world.domain, world.realm, world.latest, world.settings])
+        end
       end
 
       # Judges `port` through the meta-domain's own `PortJudge` door.
@@ -183,14 +60,7 @@ module Hecks
       #   disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `PortJudge` finds `port` malformed
       def self.call_port(port)
-        return port if disabled? || bootstrapping? || shadow_parsing?
-
-        key = Digest::SHA256.hexdigest(JSON.generate([port.name, port.verb, port.signal]))
-        refusals = verdicts[key] ||= PortJudge.new(port).refusals
-        return port if refusals.empty?
-
-        raise DSL::Malformed,
-              "#{port.name}'s port is not well formed; #{refusals.join('; ')}"
+        judge_door(port, PortJudge, "#{port.name}'s port") { JSON.generate([port.name, port.verb, port.signal]) }
       end
 
       # Judges `adapter` through the meta-domain's own `AdapterJudge` door.
@@ -200,18 +70,17 @@ module Hecks
       #   while disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `AdapterJudge` finds `adapter` malformed
       def self.call_adapter(adapter)
-        return adapter if disabled? || bootstrapping? || shadow_parsing?
-
-        key = Digest::SHA256.hexdigest(JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets]))
-        refusals = verdicts[key] ||= AdapterJudge.new(adapter).refusals
-        return adapter if refusals.empty?
-
-        raise DSL::Malformed,
-              "#{adapter.name}'s adapter is not well formed; #{refusals.join('; ')}"
+        judge_door(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
+          JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets])
+        end
       end
 
       # Judges `translation` through the meta-domain's own `TranslationJudge`
       # door, walking every nested aggregate's own rule table in one pass.
+      #
+      # `Translation` has no `.to_h`; `.inspect` embeds an object-id, so
+      # structurally-identical translations never cache-hit here (a lost
+      # optimization, not a correctness issue).
       #
       # @param translation [Bluebook::Translation] the translation to judge
       # @return [Bluebook::Translation] `translation` unchanged, if well
@@ -219,17 +88,26 @@ module Hecks
       # @raise [DSL::Malformed] if `TranslationJudge` finds `translation`
       #   malformed
       def self.call_translation(translation)
-        return translation if disabled? || bootstrapping? || shadow_parsing?
+        judge_door(translation, TranslationJudge, "#{translation.domain}'s translation") { translation.inspect }
+      end
 
-        # `Translation` has no `.to_h`; `.inspect` embeds an object-id, so
-        # structurally-identical translations never cache-hit here (a lost
-        # optimization, not a correctness issue).
-        key = Digest::SHA256.hexdigest(translation.inspect)
-        refusals = verdicts[key] ||= TranslationJudge.new(translation).refusals
-        return translation if refusals.empty?
+      # The one door every artifact but a chapter goes through: skip while judging is off,
+      # else judge once per distinct `key_text` and refuse a malformed artifact.
+      #
+      # @param subject [Object] the artifact to judge
+      # @param judge [Class] the judge to build over `subject`; it answers `refusals`
+      # @param label [String] how the refusal names `subject`
+      # @yieldreturn [String] the text whose SHA-256 digest keys the verdict
+      # @return [Object] `subject` unchanged, if well formed or while judging is off
+      # @raise [DSL::Malformed] if `judge` finds `subject` malformed
+      def self.judge_door(subject, judge, label)
+        return subject if disabled? || bootstrapping? || shadow_parsing?
 
-        raise DSL::Malformed,
-              "#{translation.domain}'s translation is not well formed; #{refusals.join('; ')}"
+        key = Digest::SHA256.hexdigest(yield)
+        refusals = verdicts[key] ||= judge.new(subject).refusals
+        return subject if refusals.empty?
+
+        raise DSL::Malformed, "#{label} is not well formed; #{refusals.join("; ")}"
       end
 
       # Dispatches `bluebook` into the language and returns the graph the
@@ -247,20 +125,29 @@ module Hecks
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping? || shadow_parsing?
 
-        if deferring?
-          deferred_chapters << bluebook.hecks_name
-          return bluebook
-        end
+        return defer_chapter(bluebook) if deferring?
 
-        key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
-        held = verdicts[key] || (verdicts[key] = hold(bluebook).tap { |fresh| VerdictCache.record(key, fresh) })
-
+        held = held_verdict(bluebook)
         unless held[:refusals].empty?
           raise DSL::Malformed,
-                "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join('; ')}"
+                "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join("; ")}"
         end
 
         Assembly.call(held[:declaration])
+      end
+
+      # @param bluebook [Object] a built bluebook chapter graph
+      # @return [Object] `bluebook`, queued for `judge_deferred!`
+      def self.defer_chapter(bluebook)
+        deferred_chapters << bluebook.hecks_name
+        bluebook
+      end
+
+      # @param bluebook [Object] a built bluebook chapter graph
+      # @return [Hash{Symbol => Object}] the verdict `hold` produced for it, cached by digest
+      def self.held_verdict(bluebook)
+        key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
+        verdicts[key] || (verdicts[key] = hold(bluebook).tap { |fresh| VerdictCache.record(key, fresh) })
       end
 
       # Dispatches `bluebook` into the meta-domain and reads the result back.
@@ -341,21 +228,18 @@ module Hecks
       # @return [Runtime::Registry] `registry`, unchanged in identity
       def self.load_grammar_into(registry)
         @bootstrapping = true
-        Hecks.with_registry(registry) do
-          Kernel.load(File.expand_path("../ports/persistence.port", __dir__))
-          Kernel.load(File.expand_path("../ports/extraction.port", __dir__))
-          Kernel.load(File.expand_path("../adapters/driven/memory.adapter", __dir__))
-          Kernel.load(File.expand_path("../adapters/driven/prism.adapter", __dir__))
-          GRAMMAR_FILES.each { |file| Kernel.load(file) }
-          WORLD_GRAMMAR.each { |file| Kernel.load(file) }
-          HECKSAGON_GRAMMAR.each { |file| Kernel.load(file) }
-          Kernel.load(PORT_GRAMMAR)
-          Kernel.load(ADAPTER_GRAMMAR)
-          TRANSLATION_GRAMMAR.each { |file| Kernel.load(file) }
-        end
+        Hecks.with_registry(registry) { grammar_files.each { |file| Kernel.load(file) } }
         registry
       ensure
         @bootstrapping = false
+      end
+
+      # @return [Array<String>] every file `load_grammar_into` loads, in load order
+      def self.grammar_files
+        preamble = ["../ports/persistence.port", "../ports/extraction.port",
+                    "../adapters/driven/memory.adapter", "../adapters/driven/prism.adapter"]
+        preamble.map { |path| File.expand_path(path, __dir__) } +
+          GRAMMAR_FILES + WORLD_GRAMMAR + HECKSAGON_GRAMMAR + [PORT_GRAMMAR, ADAPTER_GRAMMAR] + TRANSLATION_GRAMMAR
       end
 
       # A dispatcher over the shared grammar registry with its records

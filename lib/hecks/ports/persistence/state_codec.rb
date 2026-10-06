@@ -226,6 +226,16 @@ module Hecks
 
           return true unless value.is_a?(Array)
 
+          list_decoded?(aggregate, attribute, value)
+        end
+
+        # Checks every Hash element of a stored list, the mirror of `decode_field` for a list.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct
+        # @param attribute [Bluebook::Attribute] the list field's declaration
+        # @param value [Array] the stored list
+        # @return [Boolean] true when every Hash element is decoded
+        def list_decoded?(aggregate, attribute, value)
           # The element type resolves once per list, not once per element.
           fields = :unresolved
           value.all? do |element|

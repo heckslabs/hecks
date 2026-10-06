@@ -26,7 +26,7 @@ RSpec.describe "the QA ledger's world files" do
   end
 
   postgres_era_domains.each do |domain|
-    it "declares a database for #{domain} in a world of the same name" do
+    it "declares a database for #{domain} in a world of the same name", :aggregate_failures do
       world = world_text_for(domain)
 
       expect(world).not_to be_nil

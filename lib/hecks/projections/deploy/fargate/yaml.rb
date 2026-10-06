@@ -30,7 +30,7 @@ module Hecks
           # Writes a list as a YAML flow sequence, rendering each item with `scalar`
           # unless it is a bare word, so a numeric-looking string stays quoted.
           def flow_list(values)
-            "[#{values.map { |value| plain_word?(value) ? value : scalar(value) }.join(', ')}]"
+            "[#{values.map { |value| plain_word?(value) ? value : scalar(value) }.join(", ")}]"
           end
 
           def plain_word?(value)

@@ -49,18 +49,20 @@ module RuboCop
           receiver = node.receiver
           return unless receiver
 
-          # `@ivar << x` has the ivar as receiver; `@ivar[k] = v` has it one `send` deeper.
-          ivar_node = if receiver.ivar_type?
-                        receiver
-                      elsif receiver.send_type? && receiver.receiver&.ivar_type?
-                        receiver.receiver
-                      end
+          ivar_node = ivar_node_of(receiver)
           return unless ivar_node
 
           check(node, ivar_node.children.first)
         end
 
         private
+
+        # `@ivar << x` has the ivar as receiver; `@ivar[k] = v` has it one `send` deeper.
+        def ivar_node_of(receiver)
+          return receiver if receiver.ivar_type?
+
+          receiver.receiver if receiver.send_type? && receiver.receiver&.ivar_type?
+        end
 
         def check(node, ivar_name)
           return unless inside_thread_shared_class?(node)

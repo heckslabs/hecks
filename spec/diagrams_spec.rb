@@ -16,57 +16,159 @@ RSpec.describe "the generated diagrams" do
     registry
   end
 
+  def scratch_payment_types
+    proc do
+      value_object("PaymentReference") { attribute :value, String }
+      value_object("Channel") { attribute :value, String }
+    end
+  end
+
+  def scratch_create_command
+    proc do
+      command "Create" do
+        attribute :reference, PaymentReference
+        sets :reference
+        # **A literal source** — the diagram spells it quoted, distinct
+        # from an argument source (the diagram spec below reads it).
+        sets :channel, to: "online"
+        emits "PaymentCreated"
+      end
+    end
+  end
+
+  def scratch_payment_aggregate
+    parts = [scratch_payment_types, scratch_create_command]
+    proc do
+      aggregate "Payment" do
+        identified_by :reference
+        attribute :reference, PaymentReference
+        attribute :channel,   Channel
+        parts.each { |part| instance_eval(&part) }
+      end
+    end
+  end
+
+  def scratch_port_wiring
+    proc do
+      Scratch::Payment.port "PaymentGateway" do
+        operation "Succeeded", to: Payment do
+          attribute :reference, PaymentReference
+          emits "PaymentSucceeded"
+        end
+      end
+    end
+  end
+
   # A `to:`-declaring port, in memory — no domain in the real corpus uses
   # `to:` yet, so this covers the grammar the shipped corpus hasn't reached.
   def boot_scratch_with_port_routing
     registry = Hecks::Runtime::Registry.new
+    aggregate = scratch_payment_aggregate
+    wiring = scratch_port_wiring
     Hecks.with_registry(registry) do
-      Hecks.bluebook "Scratch" do
-        aggregate "Payment" do
-          identified_by :reference
-          attribute :reference, PaymentReference
-          attribute :channel,   Channel
-          value_object "PaymentReference" do
-            attribute :value, String
-          end
-          value_object "Channel" do
-            attribute :value, String
-          end
-          command "Create" do
-            attribute :reference, PaymentReference
-            sets :reference
-            # **A literal source** — the diagram spells it quoted, distinct
-            # from an argument source (the diagram spec below reads it).
-            sets :channel, to: "online"
-            emits "PaymentCreated"
-          end
-        end
-      end
-      Hecks.hecksagon "Scratch" do
-        Scratch::Payment.port "PaymentGateway" do
-          operation "Succeeded", to: Payment do
-            attribute :reference, PaymentReference
-            emits "PaymentSucceeded"
-          end
-        end
-      end
+      Hecks.bluebook("Scratch", &aggregate)
+      Hecks.hecksagon("Scratch", &wiring)
     end
     registry
   end
 
   # A real file boot, not `boot_in_memory` — that fixture never loads
   # `pizzas.hecksagon`'s `port "PaymentGateway"` block, so ports.mmd needs the real tree.
-  let(:pizzas_registry)  { Hecks.boot(File.expand_path("../examples/pizzas", __dir__)).registry }
+  def pizzas_registry = @pizzas_registry ||= Hecks.boot(File.expand_path("../examples/pizzas", __dir__)).registry
+  def banking_registry = @banking_registry ||= boot_banking
+  def order = pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" }
+
   let(:pizzas_chapter)   { pizzas_registry.bluebook("Pizzas") }
   let(:pizzas_hecksagon) { pizzas_registry.hecksagon("Pizzas") }
-  let(:banking_registry) { boot_banking }
   let(:banking_chapter)  { banking_registry.bluebook("Banking") }
 
   # A separate real file boot, only for the hecksagon — `boot_banking` never loads
   # `banking.hecksagon`, so bluebook-shaped assertions stay on the fast in-memory chapter.
   let(:banking_hecksagon) { Hecks.boot(File.expand_path("../examples/banking", __dir__)).registry.hecksagon("Banking") }
   let(:scratch_chapter) { boot_scratch_with_port_routing.bluebook("Scratch") }
-  let(:order)           { pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" } }
+
+  MERMAID_FIRST_LINES = {
+    [:pizzas_chapter, "Order_lifecycle.mmd"]  => "stateDiagram-v2",
+    [:pizzas_chapter, "dispatch.mmd"]         => "flowchart LR",
+    [:pizzas_chapter, "roles.mmd"]            => "flowchart LR",
+    [:pizzas_chapter, "ports.mmd"]            => "flowchart LR",
+    [:pizzas_chapter, "Order_surface.mmd"]    => "flowchart LR",
+    [:pizzas_chapter, "frameworks.mmd"]       => "flowchart LR",
+    [:banking_chapter, "relationships.mmd"]   => "erDiagram",
+    [:banking_chapter, "dispatch.mmd"]        => "flowchart LR",
+    [:banking_chapter, "roles.mmd"]           => "flowchart LR",
+    [:banking_chapter, "read_models.mmd"]     => "flowchart LR",
+    [:banking_chapter, "Account_surface.mmd"] => "flowchart LR",
+    [:banking_chapter, "Settlement_saga.mmd"] => "stateDiagram-v2",
+    [:banking_chapter, "frameworks.mmd"]      => "flowchart LR",
+    [:scratch_chapter, "ports.mmd"]           => "flowchart LR"
+  }.freeze
+
+  def diagram_of(chapter, filename)
+    Hecks::Projector.call(:diagrams, bluebook: chapter)[filename]
+  end
+
+  def frameworks_diagram(chapter, hecksagon)
+    Hecks::Projector.call(:diagrams, bluebook: chapter, options: { hecksagon: hecksagon })["frameworks.mmd"]
+  end
+
+  def drawn_edges(diagram)
+    diagram.lines.map(&:strip).select { |line| line.include?("-->") && !line.start_with?("[*]") }
+  end
+
+  def declared_lifecycle_edges
+    order.lifecycle.transitions.flat_map do |command, transition|
+      Array(transition.from).map { |from| "#{from} --> #{transition.target}: #{command}" }
+    end
+  end
+
+  # The hecksagon each chapter is drawn with, when it has one.
+  def diagram_files(chapter_method)
+    hecksagon = { pizzas_chapter: :pizzas_hecksagon, banking_chapter: :banking_hecksagon }[chapter_method]
+    Hecks::Projector.call(:diagrams, bluebook: send(chapter_method), options: { hecksagon: hecksagon && send(hecksagon) })
+  end
+
+  def first_diagram_line(files, filename)
+    files.fetch(filename).lines.map(&:strip).reject(&:empty?).find { |line| !line.start_with?("%%") }
+  end
+
+  def ledger_create_command
+    proc do
+      command "Create" do
+        attribute :reference, LedgerReference
+        sets :reference
+        emits "LedgerCreated"
+      end
+    end
+  end
+
+  def ledger_acknowledge_command
+    proc do
+      command "Acknowledge" do
+        reference_to Ledger
+        emits "LedgerAcknowledged"
+      end
+    end
+  end
+
+  def ledger_aggregate
+    parts = [ledger_create_command, ledger_acknowledge_command]
+    proc do
+      aggregate "Ledger" do
+        identified_by :reference
+        attribute :reference, LedgerReference
+        value_object("LedgerReference") { attribute :value, String }
+        parts.each { |part| instance_eval(&part) }
+      end
+    end
+  end
+
+  def zero_mutation_chapter
+    ledger = ledger_aggregate
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) { Hecks.bluebook("ZeroMutation", &ledger) }
+    registry.bluebook("ZeroMutation")
+  end
 
   # `hecksagon:` is only needed for frameworks.mmd — `hecks project_diagrams` always has
   # one in hand, so drift detection must accept it too or frameworks.mmd never matches.
@@ -75,13 +177,18 @@ RSpec.describe "the generated diagrams" do
     regenerated = Hecks::Projector.call(:diagrams, bluebook: chapter, options: { hecksagon: hecksagon })
     expect(regenerated).not_to be_empty
 
-    regenerated.each do |relative, contents|
-      path = File.join(committed_dir, relative)
-      expect(File).to exist(path), "#{domain}/#{relative} is missing — run hecks project_diagrams"
-      expect(File.read(path)).to eq(contents),
-                                 "#{domain}/#{relative} is stale — run hecks project_diagrams and commit the result"
-    end
+    regenerated.each { |relative, contents| expect_committed_file(committed_dir, domain, relative, contents) }
+    expect_no_stray_files(committed_dir, domain, regenerated)
+  end
 
+  def expect_committed_file(committed_dir, domain, relative, contents)
+    path = File.join(committed_dir, relative)
+    expect(File).to exist(path), "#{domain}/#{relative} is missing — run hecks project_diagrams"
+    expect(File.read(path)).to eq(contents),
+                               "#{domain}/#{relative} is stale — run hecks project_diagrams and commit the result"
+  end
+
+  def expect_no_stray_files(committed_dir, domain, regenerated)
     expect(Dir.children(committed_dir).sort).to eq(regenerated.keys.sort),
                                                 "docs/generated/diagrams/#{domain}/ holds a file the projection no " \
                                                 "longer generates, or is missing one it does — run hecks project_diagrams"
@@ -95,17 +202,12 @@ RSpec.describe "the generated diagrams" do
     assert_undrifted("banking", banking_chapter, hecksagon: banking_hecksagon)
   end
 
-  it "draws exactly the edges Order's own lifecycle declares, no more and no fewer", :io do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_lifecycle.mmd"]
-    lifecycle = order.lifecycle
+  it "draws exactly the edges Order's own lifecycle declares, no more and no fewer", :aggregate_failures, :io do
+    declared_edges = declared_lifecycle_edges
+    drawn = drawn_edges(diagram_of(pizzas_chapter, "Order_lifecycle.mmd"))
 
-    declared_edges = lifecycle.transitions.flat_map do |command, transition|
-      Array(transition.from).map { |from| "#{from} --> #{transition.target}: #{command}" }
-    end
-    drawn_edges = diagram.lines.map(&:strip).select { |line| line.include?("-->") && !line.start_with?("[*]") }
-
-    expect(drawn_edges.size).to eq(declared_edges.size)
-    declared_edges.each { |edge| expect(drawn_edges).to include(edge) }
+    expect(drawn.size).to eq(declared_edges.size)
+    declared_edges.each { |edge| expect(drawn).to include(edge) }
   end
 
   it "starts at the lifecycle's own declared default state", :io do
@@ -175,7 +277,8 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("role_Chef((Chef))")
   end
 
-  it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)", :io do
+  it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)",
+     :aggregate_failures, :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["ports.mmd"]
     expect(diagram).to include('Order[(Order)] -.->|exposes| op_Order_PaymentGateway_Receive[/"PaymentGateway.Receive"/]')
     expect(diagram).to include("op_Order_PaymentGateway_Receive[/\"PaymentGateway.Receive\"/] -->|emits| " \
@@ -209,7 +312,7 @@ RSpec.describe "the generated diagrams" do
     expect(account_edges).to eq(10)
   end
 
-  it "labels a count read_model and a median read_model with the shape of their own answer" do
+  it "labels a count read_model and a median read_model with the shape of their own answer", :aggregate_failures do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
     expect(diagram).to include('rm_DisputedPaymentCount[["DisputedPaymentCount (count)"]]')
     expect(diagram).to include('rm_DisputedPaymentMedian[["DisputedPaymentMedian (median: amount)"]]')
@@ -222,7 +325,7 @@ RSpec.describe "the generated diagrams" do
 
   # An unquoted many-label (`accounts[]`) breaks Mermaid's `|label|` parser — `[` reads
   # as a new node shape. Caught via mermaid.parse(), pinned here against regression.
-  it "quotes a many-side edge label so its own [] doesn't break Mermaid's edge-label syntax" do
+  it "quotes a many-side edge label so its own [] doesn't break Mermaid's edge-label syntax", :aggregate_failures do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
     expect(diagram).to include('Account[(Account)] -->|"accounts[]"| rm_AccountsByKind[["AccountsByKind"]]')
     expect(diagram).not_to include("-->|accounts[]|") # the unquoted form that actually broke
@@ -232,7 +335,7 @@ RSpec.describe "the generated diagrams" do
     expect(Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["read_models.mmd"]).to be_nil
   end
 
-  it "draws every one of Order's own real commands and queries in pizzas, no more and no fewer", :io do
+  it "draws every one of Order's own real commands and queries in pizzas, no more and no fewer", :aggregate_failures, :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     does = diagram.lines.count { |line| line.include?("|does|") }
     asks = diagram.lines.count { |line| line.include?("|asks|") }
@@ -240,7 +343,7 @@ RSpec.describe "the generated diagrams" do
     expect(asks).to eq(order.queries.size)
   end
 
-  it "draws a command edge solid and a query edge dotted", :io do
+  it "draws a command edge solid and a query edge dotted", :aggregate_failures, :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     expect(diagram).to include('Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])')
     expect(diagram).to include('Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}')
@@ -248,7 +351,7 @@ RSpec.describe "the generated diagrams" do
 
   # Banking's Account declares both a command and a query named "Open" — genuinely
   # different things sharing a name; the diamond/stadium split keeps them distinct nodes.
-  it "keeps a same-named command and query as two distinct nodes, distinguished by shape" do
+  it "keeps a same-named command and query as two distinct nodes, distinguished by shape", :aggregate_failures do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Account_surface.mmd"]
     expect(diagram).to include('cmd_Account_Open(["Account.Open"])')
     expect(diagram).to include('qry_Account_Open{"Account.Open"}')
@@ -317,30 +420,9 @@ RSpec.describe "the generated diagrams" do
 
   # A genuinely mutation-free command is real and legal (`Roster.Notice` is one live
   # example) — a small scratch fixture proves the generator draws no edge for one.
-  it "draws no mutation edges at all for a command that genuinely declares none" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      Hecks.bluebook "ZeroMutation" do
-        aggregate "Ledger" do
-          identified_by :reference
-          attribute :reference, LedgerReference
-          value_object "LedgerReference" do
-            attribute :value, String
-          end
-          command "Create" do
-            attribute :reference, LedgerReference
-            sets :reference
-            emits "LedgerCreated"
-          end
-          command "Acknowledge" do
-            reference_to Ledger
-            emits "LedgerAcknowledged"
-          end
-        end
-      end
-    end
+  it "draws no mutation edges at all for a command that genuinely declares none", :aggregate_failures do
+    diagram = diagram_of(zero_mutation_chapter, "Ledger_surface.mmd")
 
-    diagram = Hecks::Projector.call(:diagrams, bluebook: registry.bluebook("ZeroMutation"))["Ledger_surface.mmd"]
     expect(diagram).to include('Ledger[(Ledger)] -->|does| cmd_Ledger_Acknowledge(["Ledger.Acknowledge"])')
     expect(diagram).not_to include('cmd_Ledger_Acknowledge(["Ledger.Acknowledge"]) -->|"')
   end
@@ -375,7 +457,7 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("awaiting_credit --> reversed: refused / dispatches Account.Credit, Transfer.Reverse")
   end
 
-  it "appends no dispatches suffix when a handler dispatches nothing, in Onboarding" do
+  it "appends no dispatches suffix when a handler dispatches nothing, in Onboarding", :aggregate_failures do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Onboarding_saga.mmd"]
     expect(diagram).to include("screening --> declined: OnboardingDeclined")
     expect(diagram).not_to include("OnboardingDeclined /")
@@ -394,9 +476,9 @@ RSpec.describe "the generated diagrams" do
 
   # Banking attaches two frameworks and reaches into two more domains (Compliance twice,
   # plus Notifications, not a framework member) — proves every cross-domain edge is drawn.
-  it "draws exactly one edge per real attaches and one per distinct cross-domain policy target, in banking" do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter,
-                                               options:  { hecksagon: banking_hecksagon })["frameworks.mmd"]
+  it "draws exactly one edge per real attaches and one per distinct cross-domain policy target, in banking",
+     :aggregate_failures do
+    diagram = frameworks_diagram(banking_chapter, banking_hecksagon)
     attaches = diagram.lines.count { |line| line.include?("|attaches|") }
     reaches = diagram.lines.count { |line| line.include?("|reaches across|") }
 
@@ -404,22 +486,20 @@ RSpec.describe "the generated diagrams" do
     expect(reaches).to eq(banking_chapter.policies.filter_map(&:target_domain).uniq.size)
   end
 
-  it "draws attaches dotted and reaches across solid, and dedupes two policies reaching the same domain" do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter,
-                                               options:  { hecksagon: banking_hecksagon })["frameworks.mmd"]
+  it "draws attaches dotted and reaches across solid, and dedupes two policies reaching the same domain", :aggregate_failures do
+    diagram = frameworks_diagram(banking_chapter, banking_hecksagon)
+
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Governance[(Governance)]")
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Identity[(Identity)]")
     expect(diagram).to include("Banking[(Banking)] -->|reaches across| Compliance[(Compliance)]")
-    expect( # ReviewOnFreeze and ReviewOnBoxSurrender both target it
-      diagram.lines.count do |line|
-        line.include?("|reaches across| Compliance")
-      end
-    ).to eq(1)
+    # ReviewOnFreeze and ReviewOnBoxSurrender both target it
+    expect(diagram.lines.count { |line| line.include?("|reaches across| Compliance") }).to eq(1)
   end
 
-  it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing", :io do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter,
-                                               options:  { hecksagon: pizzas_hecksagon })["frameworks.mmd"]
+  it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing",
+     :aggregate_failures, :io do
+    diagram = frameworks_diagram(pizzas_chapter, pizzas_hecksagon)
+
     expect(diagram).to include("Pizzas[(Pizzas)] -.->|attaches| Governance[(Governance)]")
     expect(diagram).not_to include("reaches across")
   end
@@ -434,29 +514,9 @@ RSpec.describe "the generated diagrams" do
   # for that. Every diagram shape here was validated once by hand via mermaid.parse();
   # this guards the fact that made that valid: the diagram type declared first.
   it "is shaped like real Mermaid in every generated file — the diagram type declared first", :io do
-    expectations = {
-      [:pizzas_chapter, "Order_lifecycle.mmd"]  => "stateDiagram-v2",
-      [:pizzas_chapter, "dispatch.mmd"]         => "flowchart LR",
-      [:pizzas_chapter, "roles.mmd"]            => "flowchart LR",
-      [:pizzas_chapter, "ports.mmd"]            => "flowchart LR",
-      [:pizzas_chapter, "Order_surface.mmd"]    => "flowchart LR",
-      [:pizzas_chapter, "frameworks.mmd"]       => "flowchart LR",
-      [:banking_chapter, "relationships.mmd"]   => "erDiagram",
-      [:banking_chapter, "dispatch.mmd"]        => "flowchart LR",
-      [:banking_chapter, "roles.mmd"]           => "flowchart LR",
-      [:banking_chapter, "read_models.mmd"]     => "flowchart LR",
-      [:banking_chapter, "Account_surface.mmd"] => "flowchart LR",
-      [:banking_chapter, "Settlement_saga.mmd"] => "stateDiagram-v2",
-      [:banking_chapter, "frameworks.mmd"]      => "flowchart LR",
-      [:scratch_chapter, "ports.mmd"]           => "flowchart LR"
-    }
-    hecksagons = { pizzas_chapter: -> { pizzas_hecksagon }, banking_chapter: -> { banking_hecksagon } }
+    MERMAID_FIRST_LINES.each do |(chapter_method, filename), expected_first_line|
+      first_real_line = first_diagram_line(diagram_files(chapter_method), filename)
 
-    expectations.each do |(chapter_method, filename), expected_first_line|
-      hecksagon = hecksagons[chapter_method]&.call
-      files = Hecks::Projector.call(:diagrams, bluebook: send(chapter_method), options: { hecksagon: hecksagon })
-      lines = files.fetch(filename).lines.map(&:strip).reject(&:empty?)
-      first_real_line = lines.find { |line| !line.start_with?("%%") }
       expect(first_real_line).to eq(expected_first_line), "#{filename}: expected #{expected_first_line.inspect} first"
     end
   end

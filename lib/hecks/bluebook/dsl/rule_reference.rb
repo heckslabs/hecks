@@ -13,7 +13,15 @@ module Hecks
         #
         # extraction_failure is required, not hardcoded, since given/invariant/ensures
         # each need their own exact refusal wording.
-        def build_rule(struct_class, description, predicate, owner_name:, word:, extraction_failure:)
+        #
+        # @param struct_class [Class] the rule struct to build (Given or Invariant)
+        # @param description [String] the rule's description
+        # @param predicate [Proc] the rule's predicate block
+        # @param context [Hash] `owner_name:`, `word:` and `extraction_failure:`, all required
+        # @return [Object] an instance of `struct_class`
+        # @raise [Bluebook::DSL::Malformed] if the predicate's source could not be read
+        def build_rule(struct_class, description, predicate, **context)
+          owner_name, word, extraction_failure = context.fetch_values(:owner_name, :word, :extraction_failure)
           canonical = Ports::Extraction.canonical(predicate)
 
           if canonical.to_s.empty?
@@ -22,11 +30,16 @@ module Hecks
                   "extraction — #{extraction_failure}"
           end
 
-          rule_word = "#{word} #{description.inspect}"
+          ast = checked_ast(canonical, owner_name, "#{word} #{description.inspect}")
+          struct_class.new(description: description, canonical: canonical, predicate: predicate, ast: ast)
+        end
+
+        # Emits a predicate's AST and refuses the patterns and lookups the IR cannot share.
+        def checked_ast(canonical, owner_name, rule_word)
           ast = Expression::AstJson.emit_predicate(canonical)
           Expression::AstJson.refuse_unshared_patterns!(ast, owner: owner_name, word: rule_word)
           Expression::AstJson.refuse_unresolvable_lookups!(ast, owner: owner_name, word: rule_word)
-          struct_class.new(description: description, canonical: canonical, predicate: predicate, ast: ast)
+          ast
         end
 
         # Resolution primitive 1: first pool (in order) whose hash has this description wins.
@@ -61,16 +74,17 @@ module Hecks
         # Reads how a (word, context) pair resolves rule references, off the self-hosted
         # grammar table (or, during bootstrap, the projected fallback).
         def lookup(word, context)
-          if MetaValidator.bootstrapping?
-            BOOTSTRAP_FALLBACK[[word, context]] || {}
-          else
-            row = MetaValidator::SyntaxBoot.call[:keywords]
-                                           .find { |r| r[:word] == word && r[:context] == context }
-            return {} unless row
+          return BOOTSTRAP_FALLBACK[[word, context]] || {} if MetaValidator.bootstrapping?
 
-            { resolves_via: row[:resolves_via], disambiguator: row[:disambiguator] }
-              .transform_values { |value| value.to_s.empty? ? nil : value }
-          end
+          row = MetaValidator::SyntaxBoot.call[:keywords]
+                                         .find { |r| r[:word] == word && r[:context] == context }
+          row ? resolution_of(row) : {}
+        end
+
+        # The primitive and disambiguator a grammar-table row names, blank values as nil.
+        def resolution_of(row)
+          { resolves_via: row[:resolves_via], disambiguator: row[:disambiguator] }
+            .transform_values { |value| value.to_s.empty? ? nil : value }
         end
 
         # Raises if syntax.bluebook's own resolves_via for (word, context) disagrees with

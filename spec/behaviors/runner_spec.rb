@@ -44,7 +44,7 @@ RSpec.describe Hecks::Behaviors do
   end
 
   describe "persistence isolation" do
-    it "refuses a suite whose loads resolves to a non-Memory binding" do
+    it "refuses a suite whose loads resolves to a non-Memory binding", :aggregate_failures do
       result = described_class.run(fixture("sqlite_binding.behaviors"))
       expect(result.parse_error).to be_nil # the DSL itself is well-formed
       expect(result.runs.first.status).to eq(:error)
@@ -54,7 +54,7 @@ RSpec.describe Hecks::Behaviors do
   end
 
   describe "a sweep that never confuses a stale suite for a fresh one" do
-    it "does not let a no-op file after a real one reuse the prior suite" do
+    it "does not let a no-op file after a real one reuse the prior suite", :aggregate_failures do
       real  = described_class.run(fixture("pizzas_edge_cases.behaviors"))
       no_op = described_class.run(fixture("no_op.behaviors"))
 
@@ -68,7 +68,7 @@ RSpec.describe Hecks::Behaviors do
       described_class.run(fixture("pizzas_edge_cases.behaviors")).runs.to_h { |r| [r.description, r] }
     end
 
-    it "reports a setup refusal as an error, never a fail or a pass" do
+    it "reports a setup refusal as an error, never a fail or a pass", :aggregate_failures do
       run = runs.fetch("a setup refusal is an error, never a fail or a pass")
       expect(run.status).to eq(:error)
       expect(run.message).to include('setup "CreatePizza" refused')
@@ -79,7 +79,7 @@ RSpec.describe Hecks::Behaviors do
       expect(run.status).to eq(:pass)
     end
 
-    it "fails an unknown expect field, naming the five valid keys" do
+    it "fails an unknown expect field, naming the five valid keys", :aggregate_failures do
       run = runs.fetch("an unknown expect field fails, naming the five valid keys")
       expect(run.status).to eq(:fail)
       expect(run.message).to include("ok:, refused:, emits:, count:")
@@ -96,7 +96,7 @@ RSpec.describe Hecks::Behaviors do
   describe "a domain whose own command fact is named `to`" do
     let(:result) { described_class.run(fixture("board_moves.behaviors")) }
 
-    it "runs every test through the envelope — setups and the tested dispatch alike" do
+    it "runs every test through the envelope — setups and the tested dispatch alike", :aggregate_failures do
       expect(result.parse_error).to be_nil
       statuses = result.runs.to_h { |r| [r.description, [r.status, r.message]] }
       expect(statuses.values.map(&:first)).to all(eq(:pass)), statuses.inspect
@@ -104,7 +104,7 @@ RSpec.describe Hecks::Behaviors do
   end
 
   describe ".run_all" do
-    it "sweeps every .behaviors file under a directory and reports how many it found" do
+    it "sweeps every .behaviors file under a directory and reports how many it found", :aggregate_failures do
       sweep = described_class.run_all(File.expand_path("fixtures", __dir__))
 
       expect(sweep.files_swept).to eq(9)

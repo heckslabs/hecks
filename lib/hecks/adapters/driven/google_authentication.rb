@@ -69,16 +69,30 @@ module Hecks
 
         raise Ports::Authentication::ValidationError, "state mismatch" unless state && expected_state && state == expected_state
 
-        token = client.auth_code.get_token(code, redirect_uri: ENV.fetch("GOOGLE_REDIRECT_URI"))
-        id_token = token.params["id_token"] or raise Ports::Authentication::ValidationError, "no id_token in the response"
+        identity(GoogleIDToken::Validator.new.check(exchange(code), ENV.fetch("GOOGLE_CLIENT_ID")))
+      rescue OAuth2::Error, GoogleIDToken::ValidationError => e
+        raise Ports::Authentication::ValidationError, e.message
+      end
 
-        payload = GoogleIDToken::Validator.new.check(id_token, ENV.fetch("GOOGLE_CLIENT_ID"))
+      # Exchanges an authorization code for the provider's raw ID token.
+      #
+      # @param code [String] the authorization code the provider sent back
+      # @return [String] the unverified ID token
+      # @raise [Ports::Authentication::ValidationError] if the response carries no ID token
+      def exchange(code)
+        token = client.auth_code.get_token(code, redirect_uri: ENV.fetch("GOOGLE_REDIRECT_URI"))
+        token.params["id_token"] or raise Ports::Authentication::ValidationError, "no id_token in the response"
+      end
+
+      # Reads the identity claims out of a verified ID token payload.
+      #
+      # @param payload [Hash{String => Object}] the verified token claims
+      # @return [Hash{Symbol => Object}] the same shape `verify` returns
+      def identity(payload)
         {
           issuer: payload.fetch("iss"), subject: payload.fetch("sub"),
           email: payload["email"], email_verified: [true, "true"].include?(payload["email_verified"])
         }
-      rescue OAuth2::Error, GoogleIDToken::ValidationError => e
-        raise Ports::Authentication::ValidationError, e.message
       end
     end
   end

@@ -18,21 +18,22 @@ RSpec.describe Hecks::Adapters::GithubIssues do
     allow(Open3).to receive(:capture3).and_return(gh_result(stdout, **))
   end
 
-  it "files the ticket as an issue and answers with its number and URL" do
+  def gh_creates(body, stdout)
     allow(Open3).to receive(:capture3)
-      .with("gh", "issue", "create", "--repo", "heckslabs/other",
-            "--title", "a thing we could not fix", "--body", "it breaks")
-      .and_return(gh_result("https://github.com/heckslabs/other/issues/43\n"))
+      .with("gh", "issue", "create", "--repo", "heckslabs/other", "--title", "a thing we could not fix", "--body", body)
+      .and_return(gh_result(stdout))
+  end
+
+  it "files the ticket as an issue and answers with its number and URL" do
+    gh_creates("it breaks", "https://github.com/heckslabs/other/issues/43\n")
 
     expect(adapter.file(**ticket))
       .to eq(number: { value: 43 }, url: { value: "https://github.com/heckslabs/other/issues/43" })
   end
 
   it "points at a proposed fix in the body when the ticket carries one" do
-    allow(Open3).to receive(:capture3)
-      .with("gh", "issue", "create", "--repo", "heckslabs/other", "--title", "a thing we could not fix",
-            "--body", "it breaks\n\nA fix is proposed in https://github.com/heckslabs/hecks/pull/9")
-      .and_return(gh_result("https://github.com/heckslabs/other/issues/44"))
+    gh_creates("it breaks\n\nA fix is proposed in https://github.com/heckslabs/hecks/pull/9",
+               "https://github.com/heckslabs/other/issues/44")
 
     filed = adapter.file(**ticket, pull_request: { value: "https://github.com/heckslabs/hecks/pull/9" })
 

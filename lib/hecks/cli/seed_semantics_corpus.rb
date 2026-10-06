@@ -38,18 +38,24 @@ module Hecks
       # @return [Integer] the exit status, always 0
       def call(root:, env: ENV, out: $stdout)
         only = env.fetch("SEED", nil)
-        seeded = corpus_paths(root).filter_map do |path, domain, full|
-          fixture = JSON.parse(File.read(path))
-          name = File.basename(path, ".json")
-          next if only ? only != name : fixture.key?("expect")
-
-          fixture["domain"] ||= domain if domain
-          fixture["expect"] = expectation_for(root, fixture, full: full)
-          File.write(path, "#{JSON.pretty_generate(fixture)}\n")
-          name
-        end
+        seeded = corpus_paths(root).filter_map { |path, domain, full| seed_fixture(root, path, domain, full, only) }
         report(out, seeded)
         0
+      end
+
+      # Seeds one fixture unless it already carries an expect (or is not the one named).
+      #
+      # @api private
+      # @return [String, nil] the fixture's name when it was written
+      def seed_fixture(root, path, domain, full, only)
+        fixture = JSON.parse(File.read(path))
+        name = File.basename(path, ".json")
+        return if only ? only != name : fixture.key?("expect")
+
+        fixture["domain"] ||= domain if domain
+        fixture["expect"] = expectation_for(root, fixture, full: full)
+        File.write(path, "#{JSON.pretty_generate(fixture)}\n")
+        name
       end
 
       # @param root [String] the checkout
@@ -72,16 +78,30 @@ module Hecks
       def expectation_for(root, fixture, full: false)
         result = Hecks::Fuzzing::Replay.call(File.join(root, fixture["domain"]), fixture["steps"])
         expect = {
-          "refusals"  => JSON.parse(JSON.generate(result[:refusals])).each { |r| r["kind"] = r["kind"]&.split("::")&.last },
-          "instances" => JSON.parse(JSON.generate(result[:instances])),
-          "events"    => JSON.parse(JSON.generate(result[:events])).each { |e| e.delete("occurred_at") }
+          "refusals"  => kind_names(result[:refusals]),
+          "instances" => roundtrip(result[:instances]),
+          "events"    => without_timestamps(result[:events])
         }
-        return expect unless full
-
-        # instances_at is Replay's per-query snapshot for the property harness, not an outcome.
-        expect["queries"] = JSON.parse(JSON.generate(result[:queries].map { |q| q.except(:instances_at) }))
-        expect.merge!(CONFORMANCE_KEYS.drop(1).to_h { |k| [k, JSON.parse(JSON.generate(result[k.to_sym]))] })
+        full ? expect.merge!(conformance_expectation(result)) : expect
       end
+
+      # @api private
+      def kind_names(refusals) = roundtrip(refusals).each { |r| r["kind"] = r["kind"]&.split("::")&.last }
+
+      # @api private
+      def without_timestamps(events) = roundtrip(events).each { |e| e.delete("occurred_at") }
+
+      # @api private
+      # @return [Hash{String => Array}] the queries, sagas, dry runs and reactions a run froze
+      def conformance_expectation(result)
+        # instances_at is Replay's per-query snapshot for the property harness, not an outcome.
+        queries = roundtrip(result[:queries].map { |q| q.except(:instances_at) })
+        { "queries" => queries }.merge(CONFORMANCE_KEYS.drop(1).to_h { |k| [k, roundtrip(result[k.to_sym])] })
+      end
+
+      # @api private
+      # @return [Object] `value` as JSON would hand it back: String keys, plain collections
+      def roundtrip(value) = JSON.parse(JSON.generate(value))
 
       # @param out [IO] where the report goes
       # @param seeded [Array<String>] the fixtures written
@@ -90,7 +110,7 @@ module Hecks
         if seeded.empty?
           out.puts "nothing to seed — every fixture carries its expect (pass SEED=<name> to re-seed one deliberately)"
         else
-          out.puts "seeded: #{seeded.join(', ')}"
+          out.puts "seeded: #{seeded.join(", ")}"
           out.puts "review each expect against docs/semantics/bluebook-semantics.md before committing — " \
                    "it is the definition now"
         end

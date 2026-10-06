@@ -34,19 +34,25 @@ module Hecks
       #   round-trip; nil when the text declares no bluebook, or when parsing or projecting
       #   raises any `StandardError` or `SyntaxError`
       def project(text, _source_path = nil)
-        file = Tempfile.new(["hecks-tamper-", ".bluebook"])
-        begin
-          file.write(text)
-          file.flush
-          bluebook = EraGuard.shadow_parse(text, file.path)
-        ensure
-          file.close!
-        end
+        bluebook = parse_from_tempfile(text)
         return nil unless bluebook
 
         JSON.parse(JSON.generate(StorageShape.project(bluebook)))
       rescue StandardError, SyntaxError
         nil
+      end
+
+      # Parses the text from a tempfile that is removed afterwards.
+      #
+      # @param text [String] the bluebook source
+      # @return [Bluebook::Chapter, nil] the parsed bluebook; nil when the text declares none
+      def parse_from_tempfile(text)
+        file = Tempfile.new(["hecks-tamper-", ".bluebook"])
+        file.write(text)
+        file.flush
+        EraGuard.shadow_parse(text, file.path)
+      ensure
+        file&.close!
       end
     end
   end

@@ -32,7 +32,7 @@ RSpec.describe "dispatch takes no loose keyword facts" do
       .to raise_error(ArgumentError, /unknown keywords?: :name, :pizza/)
   end
 
-  it "still takes the facts in with:, and the receiver in to:" do
+  it "still takes the facts in with:, and the receiver in to:", :aggregate_failures do
     expect(runtime.dispatch("Pizzas::Order.CreatePizza", with: PIZZA_FACTS).id).to eq("Margherita")
     expect(runtime.dispatch("Pizzas::Order.AddTopping", to:   "Margherita",
                                                         with: { topping: { value: "Basil" },

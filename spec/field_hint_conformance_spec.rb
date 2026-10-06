@@ -13,7 +13,8 @@ RSpec.describe "the declared field hints" do
 
   DECLARED_FIELD_HINTS = declared_hints
 
-  it "resolves email/url/tel to html_type and textarea to kind — the two Field attributes text_field ever sets from a hint" do
+  it "resolves email/url/tel to html_type and textarea to kind — the two Field attributes text_field ever sets from a hint",
+     :aggregate_failures do
     %w[email url tel].each { |name| expect(DECLARED_FIELD_HINTS[name][:resolves_to]).to eq("html_type") }
     expect(DECLARED_FIELD_HINTS["textarea"][:resolves_to]).to eq("kind")
   end

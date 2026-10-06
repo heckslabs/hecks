@@ -24,7 +24,7 @@ RSpec.describe Hecks::QualityControlCli do
   end
 
   describe Hecks::QualityControlCli::Child do
-    it "starts a command from lib/ under Bundler, its arguments after `--`" do
+    it "starts a command from lib/ under Bundler, its arguments after `--`", :aggregate_failures do
       argv = described_class.argv("/repo", "qa_sweep", "--all", "--seeds", "2")
 
       expect(argv.first(3)).to eq(%w[bundle exec ruby])
@@ -33,7 +33,7 @@ RSpec.describe Hecks::QualityControlCli do
       expect(argv[argv.index("-e") + 1]).to include('require "hecks/quality_control/cli/qa_sweep"', "QaSweep.call")
     end
 
-    it "names a class and file that exist for every command" do
+    it "names a class and file that exist for every command", :aggregate_failures do
       described_class::COMMANDS.each do |command, (klass, _style)|
         expect(File).to exist(File.join(root, "lib/hecks/quality_control/cli/#{command}.rb")), command
         require "hecks/quality_control/cli/#{command}"
@@ -49,7 +49,7 @@ RSpec.describe Hecks::QualityControlCli do
   describe Hecks::QualityControlCli::QaSweep do
     def sweep(*argv) = described_class.call(argv, root: root)
 
-    it "prints its usage for --help" do
+    it "prints its usage for --help", :aggregate_failures do
       expect { expect(sweep("--help")).to eq(0) }.to output(/\Ausage: hecks quality_control ask run/).to_stdout
     end
 
@@ -78,12 +78,12 @@ RSpec.describe Hecks::QualityControlCli do
   describe Hecks::QualityControlCli::QaTick do
     let(:tick) { described_class.new(root: root) }
 
-    it "prints its usage for --help and refuses arguments" do
+    it "prints its usage for --help and refuses arguments", :aggregate_failures do
       expect { expect(tick.call(["--help"])).to eq(0) }.to output("usage: hecks quality_control tick\n").to_stdout
       expect_abort(/this script takes no arguments/) { tick.call(["now"]) }
     end
 
-    it "collapses runs of held-seed lines outside a finding, and counts them" do
+    it "collapses runs of held-seed lines outside a finding, and counts them", :aggregate_failures do
       raw = "sweeping x\n  seed 1: held (ruby_only)\n  seed 2: held (ruby_only)\nclean\n"
 
       condensed = tick.send(:condense_sweep_output, raw)
@@ -92,7 +92,7 @@ RSpec.describe Hecks::QualityControlCli do
       expect(condensed).not_to include("seed 1: held")
     end
 
-    it "copies a FOUND SOMETHING block verbatim, held lines inside it included" do
+    it "copies a FOUND SOMETHING block verbatim, held lines inside it included", :aggregate_failures do
       raw = "  seed 1: held (ruby_only)\nFOUND SOMETHING (1) — act\n  seed 2: held (ruby_only)\nbody\n"
 
       condensed = tick.send(:condense_sweep_output, raw)
@@ -101,7 +101,7 @@ RSpec.describe Hecks::QualityControlCli do
       expect(condensed).not_to include("seed 1: held")
     end
 
-    it "leaves QA_SWEEP_TRACE output to the log, naming that it did" do
+    it "leaves QA_SWEEP_TRACE output to the log, naming that it did", :aggregate_failures do
       raw = "FOUND SOMETHING (1)\nbody\nQA_SWEEP_TRACE output (by target)\n  x\n"
 
       condensed = tick.send(:condense_sweep_output, raw)
@@ -110,17 +110,22 @@ RSpec.describe Hecks::QualityControlCli do
       expect(condensed).not_to include("  x\n")
     end
 
-    it "re-execs on macOS through Child.argv, since $PROGRAM_NAME of a `ruby -e` child is not a script" do
+    def stub_macos_environment
       stub_const("RUBY_PLATFORM", "arm64-darwin23")
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("OBJC_DISABLE_INITIALIZE_FORK_SAFETY").and_return(nil)
       allow(ENV).to receive(:[]=)
-      expect(tick).to receive(:exec).with(*Hecks::QualityControlCli::Child.argv(root, "qa_tick"))
-
-      tick.send(:reexec_with_fork_safety)
     end
 
-    it "ends 2 if any step found something, 0 if all are clean, else 1" do
+    it "re-execs on macOS through Child.argv, since $PROGRAM_NAME of a `ruby -e` child is not a script" do
+      stub_macos_environment
+      allow(tick).to receive(:exec)
+      tick.send(:reexec_with_fork_safety)
+
+      expect(tick).to have_received(:exec).with(*Hecks::QualityControlCli::Child.argv(root, "qa_tick"))
+    end
+
+    it "ends 2 if any step found something, 0 if all are clean, else 1", :aggregate_failures do
       expect(tick.send(:verdict, 0)).to eq("clean")
       expect(tick.send(:verdict, 2)).to eq("FOUND SOMETHING")
       expect(tick.send(:verdict, 1)).to eq("operational error")
@@ -129,41 +134,51 @@ RSpec.describe Hecks::QualityControlCli do
   end
 
   describe "the scripts' argument rules" do
-    it "qa_log_bug refuses a missing flag, a bad triage and a bad reproduced value" do
-      expect_abort(/--title is required/) do
-        Hecks::QualityControlCli::QaLogBug.call(["--sweep", "s"], root: root)
-      end
-      full = %w[--sweep s --title t --demonstration d --symptom y --expectation e --submitter me]
-      expect_abort(/--triage must be one of self_contained\|bigger, got "maybe"/) do
-        Hecks::QualityControlCli::QaLogBug.call([*full, "--triage", "maybe"], root: root)
-      end
+    def log_bug(*argv) = Hecks::QualityControlCli::QaLogBug.call(argv, root: root)
+
+    def open_pr(*argv) = Hecks::QualityControlCli::QaOpenPr.call(argv, root: root)
+
+    LOG_BUG_FLAGS = %w[--sweep s --title t --demonstration d --symptom y --expectation e --submitter me].freeze
+
+    it "qa_log_bug refuses a missing flag" do
+      expect_abort(/--title is required/) { log_bug("--sweep", "s") }
+    end
+
+    it "qa_log_bug refuses a bad triage" do
+      expect_abort(/--triage must be one of self_contained\|bigger, got "maybe"/) { log_bug(*LOG_BUG_FLAGS, "--triage", "maybe") }
+    end
+
+    it "qa_log_bug refuses a bad reproduced value" do
       expect_abort(/--reproduced must be one of yes\|no, got "sometimes"/) do
-        Hecks::QualityControlCli::QaLogBug.call([*full, "--triage", "bigger", "--reproduced", "sometimes"], root: root)
+        log_bug(*LOG_BUG_FLAGS, "--triage", "bigger", "--reproduced", "sometimes")
       end
     end
 
-    it "qa_open_pr refuses a bug and an improvement together, and an angle without an improvement" do
-      expect_abort(/give --bug BUG#n OR --improvement, not both/) do
-        Hecks::QualityControlCli::QaOpenPr.call(%w[--bug B --improvement --title t], root: root)
-      end
-      expect_abort(/--angle only means something with --improvement/) do
-        Hecks::QualityControlCli::QaOpenPr.call(%w[--bug B --angle A --title t], root: root)
-      end
+    it "qa_open_pr refuses a bug and an improvement together" do
+      expect_abort(/give --bug BUG#n OR --improvement, not both/) { open_pr("--bug", "B", "--improvement", "--title", "t") }
     end
 
-    it "qa_pr_check and qa_tick print a usage line for --help, and take nothing else" do
+    it "qa_open_pr refuses an angle without an improvement" do
+      expect_abort(/--angle only means something with --improvement/) { open_pr("--bug", "B", "--angle", "A", "--title", "t") }
+    end
+
+    it "qa_pr_check and qa_tick print a usage line for --help, and take nothing else", :aggregate_failures do
       expect { expect(Hecks::QualityControlCli::QaPrCheck.call(["--help"], root: root)).to eq(0) }
         .to output("usage: hecks quality_control check_pull_requests\n").to_stdout
       expect_abort(/takes no arguments/) { Hecks::QualityControlCli::QaPrCheck.call(["x"], root: root) }
     end
 
-    it "qa_postgres_role and qa_postgres_migrate answer usage errors with status 1, touching nothing" do
+    it "qa_postgres_role answers a usage error with status 1, touching nothing", :aggregate_failures do
       err = StringIO.new
 
       expect(Hecks::QualityControlCli::QaPostgresRole.call([], err: err, out: StringIO.new)).to eq(1)
       expect(err.string).to include("no database named", "usage: hecks quality_control create_ledger_role")
+    end
+
+    it "qa_postgres_migrate answers a usage error with status 1, touching nothing", :aggregate_failures do
       err = StringIO.new
       absent = Dir.mktmpdir { |scratch| File.join(scratch, "no/such") }
+
       expect(Hecks::QualityControlCli::QaPostgresMigrate.call([absent], err: err, out: StringIO.new)).to eq(1)
       expect(err.string).to include("no such domain directory #{absent.inspect}")
     end
@@ -172,7 +187,7 @@ RSpec.describe Hecks::QualityControlCli do
       expect_abort(/usage: hecks quality_control race/) { Hecks::QualityControlCli::QaConcurrencyRacer.call(%w[a b]) }
     end
 
-    it "compares migrated states without regard to key type or hash order" do
+    it "compares migrated states without regard to key type or hash order", :aggregate_failures do
       canonical = Hecks::QualityControlCli::QaPostgresMigrate.method(:canonical)
 
       expect(canonical.call({ a: 1, "b" => [{ d: 1, c: 2 }] })).to eq(canonical.call({ "b" => [{ "c" => 2, "d" => 1 }],

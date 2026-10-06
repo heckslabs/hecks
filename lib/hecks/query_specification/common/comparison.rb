@@ -57,24 +57,44 @@ module Hecks
         # @param registry [Runtime::Registry, nil] used only by `none_in_state`
         # @return [Boolean] whether the comparison holds
         # @raise [Runtime::WiringError] if `operation` names no comparator in this table
-        # rubocop:disable-next Metrics/CyclomaticComplexity
         def holds?(operation, held, want, registry: nil)
           # A NULL satisfies no comparison (`none_in_state` is exempt); see NullPolicy.
           return false if NullPolicy.unmatchable?(operation, held, want)
 
-          case operation.to_s
-          when "eq"       then held == want
-          when "ne"       then held != want
+          name = operation.to_s
+          return lower_bound_holds?(name, held, want) if %w[lt lte].include?(name)
+          return upper_bound_holds?(name, held, want) if %w[gt gte].include?(name)
+
+          other_holds?(name, held, want, registry)
+        end
+
+        # The `lt` and `lte` cases of `holds?`.
+        def lower_bound_holds?(name, held, want)
+          case name
           when "lt"       then ordered?(held, want) && held < want
           when "lte"      then ordered?(held, want) && held <= want
+          end
+        end
+
+        # The `gt` and `gte` cases of `holds?`.
+        def upper_bound_holds?(name, held, want)
+          case name
           when "gt"       then ordered?(held, want) && held > want
           when "gte"      then ordered?(held, want) && held >= want
+          end
+        end
+
+        # The remaining cases of `holds?`.
+        def other_holds?(name, held, want, registry)
+          case name
+          when "eq"       then held == want
+          when "ne"       then held != want
           when "in"       then any_member_in?(held, want)
           when "contains" then contains?(held, want)
           when "none_in_state" then none_in_state?(held, want, registry)
           else
             # Backstop: an unrecognized comparator must refuse, never read as `eq`.
-            raise Runtime::WiringError, "no comparator handles #{operation.to_s.inspect} — add one before declaring it"
+            raise Runtime::WiringError, "no comparator handles #{name.inspect} — add one before declaring it"
           end
         end
 

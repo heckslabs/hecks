@@ -145,23 +145,30 @@ RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
     QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
   end
 
-  it "folds into the ordinary sweep as its own adapter_parity_sqlite Check, on a plain, non-PostgresEra-bound target" do
-    identify_target!("sqlite-parity", @target_domain_relpath)
+  PARITY_SWEEP_LINES = ["resolved modes: ruby_only,adapter_parity_sqlite (capabilities=sqlite)",
+                        "active modes ruby_only,adapter_parity_sqlite",
+                        "seed 1: held (ruby_only, adapter_parity_sqlite)",
+                        "clean — sqlite-parity concluded and released."].freeze
 
-    stdout, stderr, status = run_qa_sweep("sqlite-parity", "--modes", "ruby_only,adapter_parity_sqlite", "--seeds", "1")
+  context "when a plain, non-PostgresEra-bound target is swept in both modes" do
+    before do
+      identify_target!("sqlite-parity", @target_domain_relpath)
+      @stdout, @stderr, @status = run_qa_sweep("sqlite-parity", "--modes", "ruby_only,adapter_parity_sqlite", "--seeds", "1")
+    end
 
-    expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
-    expect(stdout).to include("resolved modes: ruby_only,adapter_parity_sqlite (capabilities=sqlite)")
-    expect(stdout).to include("active modes ruby_only,adapter_parity_sqlite")
-    expect(stdout).to include("seed 1: held (ruby_only, adapter_parity_sqlite)")
-    expect(stdout).to include("clean — sqlite-parity concluded and released.")
+    it "folds into the ordinary sweep as its own adapter_parity_sqlite Check", :aggregate_failures do
+      expect(@status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{@stdout}\nSTDERR:\n#{@stderr}"
+      expect(@stdout).to include(*PARITY_SWEEP_LINES)
+    end
 
     # `check_for`'s `[mode]`-prefixed subject tells this axis from `ruby_only` in the ledger,
     # so read the `Sweep` record back instead of trusting stdout.
-    Hecks.boot(@fixture_dir)
-    sweep = QualityControl::Sweep.all.first
-    expect(sweep).not_to be_nil
-    subjects = sweep.checks.map { |c| c[:subject][:value] }
-    expect(subjects).to include(a_string_starting_with("[adapter_parity_sqlite]"))
+    it "records that axis in the ledger, apart from ruby_only", :aggregate_failures do
+      Hecks.boot(@fixture_dir)
+      sweep = QualityControl::Sweep.all.first
+
+      expect(sweep).not_to be_nil
+      expect(sweep.checks.map { |c| c[:subject][:value] }).to include(a_string_starting_with("[adapter_parity_sqlite]"))
+    end
   end
 end

@@ -1,0 +1,15 @@
+	# TWO SEPARATE builds, not one `--use-container` run -- that flag is
+	# global to `sam build`, but @@logical_id@@ deliberately builds on
+	# THIS machine's own toolchain (cargo-lambda already cross-compiles
+	# to arm64 without a container -- build-@@logical_id@@'s own comment
+	# on why), which a generic provided.al2023 container doesn't have
+	# at all (a real, live "Make Failed" caught this). Only @@web_logical_id@@
+	# needs the container, to cross-compile pg's native extension for
+	# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before
+	# building just the one named, so @@logical_id@@'s own build gets
+	# restored below (restore-@@logical_id@@-build's own comment on why).
+	sam build @@logical_id@@
+	sam build --use-container @@web_logical_id@@
+	$(MAKE) restore-@@logical_id@@-build
+	$(MAKE) patch-pg-native
+	$(MAKE) verify-parity-@@logical_id@@

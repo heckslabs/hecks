@@ -1,5 +1,6 @@
 require "json"
 require_relative "../../vocabulary"
+require_relative "evaluator/parser"
 
 module Hecks
   module Bluebook
@@ -93,36 +94,21 @@ module Hecks
         end
 
         # Parses `expr`'s boolean/comparison grammar into an AST; leaves go to `Resolver.parse`.
-        def parse(expr)
-          expr = strip_parens(expr.to_s.strip)
-
-          left, right = split_top_level(expr, "||")
-          return Or.new(left: parse(left), right: parse(right)) if left
-
-          left, right = split_top_level(expr, "&&")
-          return And.new(left: parse(left), right: parse(right)) if left
-
-          # `!` binds the whole remainder, so strip it before `match_include` runs;
-          # otherwise `!names.include?(x)` would swallow the `!` into the haystack text.
-          return Not.new(node: parse(Regexp.last_match(1))) if expr =~ /\A!(.+)\z/
-
-          membership = match_include(expr)
-          return Include.new(haystack: Resolver.parse(membership[0]), needle: Resolver.parse(membership[1])) if membership
-
-          OPERATORS.each do |op|
-            left, right = split_comparison(expr, op.symbol)
-            return Compare.new(operator: op, left: Resolver.parse(left), right: Resolver.parse(right)) if left
-          end
-
-          Resolve.new(expr: Resolver.parse(expr))
-        end
+        def parse(expr) = Parser.parse(expr)
 
         # Interprets a parsed boolean/comparison node against `state`/`attrs`.
         def interpret(node, state, attrs)
           case node
-          when Or      then interpret(node.left, state, attrs) || interpret(node.right, state, attrs)
-          when And     then interpret(node.left, state, attrs) && interpret(node.right, state, attrs)
-          when Not     then !interpret(node.node, state, attrs)
+          when Or  then interpret(node.left, state, attrs) || interpret(node.right, state, attrs)
+          when And then interpret(node.left, state, attrs) && interpret(node.right, state, attrs)
+          when Not then !interpret(node.node, state, attrs)
+          else interpret_test(node, state, attrs)
+          end
+        end
+
+        # Interprets a comparison, membership or bare-resolver node.
+        def interpret_test(node, state, attrs)
+          case node
           when Compare then compare(node.operator, node.left, node.right, state, attrs)
           when Include then includes?([node.haystack, node.needle], state, attrs)
           when Resolve then truthy?(Resolver.interpret(node.expr, state, attrs))
@@ -178,21 +164,6 @@ module Hecks
           value.nil? ? "nil" : value.class.name
         end
 
-        # Splits `expr` at its outermost `.include?(...)` call, if any.
-        # `rindex` would find an innermost call inside the needle, so try each occurrence left to
-        # right and keep the first whose matching paren reaches the last character.
-        def match_include(expr)
-          start = 0
-          marker = ".include?("
-          while (index = expr.index(marker, start))
-            close = Resolver.matching_paren(expr, index + marker.length)
-            return [expr[0...index], expr[(index + marker.length)...close]] if close == expr.length - 1
-
-            start = index + 1
-          end
-          nil
-        end
-
         # Held equal to Vocabulary::IncludeHaystack by spec/vocabulary_conformance_spec.
         INCLUDE_HAYSTACKS = Hecks::Vocabulary.fetch("IncludeHaystack")
 
@@ -209,77 +180,6 @@ module Hecks
             found.include?(wanted)
           else false
           end
-        end
-
-        # Strips redundant outer parens, recursively.
-        def strip_parens(expr)
-          return expr unless expr.start_with?("(") && expr.end_with?(")")
-
-          depth = 0
-          expr.each_char.with_index do |char, index|
-            depth += 1 if char == "("
-            depth -= 1 if char == ")"
-            return expr if depth.zero? && index < expr.length - 1
-          end
-          strip_parens(expr[1..-2].strip)
-        end
-
-        # Splits `expr` at its first top-level `operator`.
-        def split_top_level(expr, operator)
-          index = top_level_index(expr, operator)
-          return nil unless index
-
-          [expr[0...index].strip, expr[(index + operator.length)..].strip]
-        end
-
-        # Splits `expr` at its first top-level `operator` that is not part of a longer one
-        # (`==` inside `===`, `<` in `<=`).
-        def split_comparison(expr, operator)
-          index = top_level_index(expr, operator) { |at| !part_of_longer?(expr, at, operator) }
-          return nil unless index
-
-          [expr[0...index].strip, expr[(index + operator.length)..].strip]
-        end
-
-        # Whether the `operator` at `index` is part of a longer operator's spelling.
-        def part_of_longer?(expr, index, operator)
-          after  = expr[index + operator.length]
-          before = index.positive? ? expr[index - 1] : nil
-
-          return true if after == "=" && !operator.end_with?("=")
-          return true if ["<", ">", "!", "="].include?(before) && operator.start_with?("=")
-
-          false
-        end
-
-        # Finds the first top-level occurrence of `operator`, tracking quotes and all bracket
-        # kinds so an operator inside a call, block predicate or array literal is skipped.
-        def top_level_index(expr, operator)
-          depth = 0
-          quote = nil
-          index = 0
-
-          while index < expr.length
-            char = expr[index]
-
-            if quote
-              quote = nil if char == quote
-            elsif ['"', "'"].include?(char)
-              quote = char
-            # `{`/`}` and `[`/`]` count toward depth like parens: an operator inside a
-            # block predicate (`.all? { |s| s.length > 0 }`) or array literal (`[0, 0 + 0]`)
-            # must not read as a split point for the enclosing expression.
-            elsif ["(", "{", "["].include?(char)
-              depth += 1
-            elsif [")", "}", "]"].include?(char)
-              depth -= 1
-            elsif depth.zero? && expr[index, operator.length] == operator
-              return index if !block_given? || yield(index)
-            end
-
-            index += 1
-          end
-          nil
         end
       end
     end

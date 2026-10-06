@@ -59,21 +59,60 @@ RSpec.describe "the model checker's client profile" do
     end
   BLUEBOOK
 
+  SHOP_BINDS_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "ClientProfileShop" do
+      ClientProfileShop::Owner.persisted_by("Memory")
+      ClientProfileShop::Widget.persisted_by("Memory")
+    end
+  RUBY
+
+  SHOP_PROJECTION_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "ClientProfileShop" do
+      projected_by "SqliteProjection"
+    end
+  RUBY
+
+  def shop_wiring(projection)
+    proc do
+      ClientProfileShop::Owner.persisted_by("Memory")
+      ClientProfileShop::Widget.persisted_by("Memory")
+      projected_by(projection) if projection
+    end
+  end
+
   def build(projection: nil)
     registry = Hecks::Runtime::Registry.new
+    wiring = shop_wiring(projection)
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
       eval(SHOP, TOPLEVEL_BINDING, "client_profile_shop.bluebook")
-      Hecks.hecksagon("ClientProfileShop") do
-        ClientProfileShop::Owner.persisted_by("Memory")
-        ClientProfileShop::Widget.persisted_by("Memory")
-        projected_by(projection) if projection
-      end
+      Hecks.hecksagon("ClientProfileShop", &wiring)
     end
     registry
+  end
+
+  def write_shop_project(root)
+    chapters = File.join(root, "shop", "bluebook")
+    FileUtils.mkdir_p(chapters)
+    File.write(File.join(chapters, "shop.bluebook"), SHOP)
+    File.write(File.join(chapters, "a_wiring.hecksagon"), SHOP_BINDS_HECKSAGON)
+    File.write(File.join(chapters, "shop.hecksagon"), SHOP_PROJECTION_HECKSAGON)
+  end
+
+  # Runs `hecks model_check --profile client` over a project whose projected_by sits in the
+  # alphabetically later of two hecksagon files.
+  def model_check_later_hecksagon
+    Dir.mktmpdir do |root|
+      write_shop_project(root)
+      Open3.capture2e("bundle", "exec", "ruby", "exe/hecks", "model_check", "--profile", "client",
+                      File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
+    end
+  end
+
+  def unprofiled(registry)
+    chapter = registry.bluebooks.values.first
+    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name))
   end
 
   def profiled(registry, profile: :client)
@@ -84,15 +123,12 @@ RSpec.describe "the model checker's client profile" do
   def subjects_for(findings, kind) = findings.select { |finding| finding.kind == kind }.map(&:subject)
 
   describe "without the profile" do
-    it "adds no finding and leaves the others as they were" do
+    it "adds no finding and leaves the others as they were", :aggregate_failures do
       registry = build(projection: "SqliteProjection")
-
-      chapter = registry.bluebooks.values.first
       plain = profiled(registry, profile: nil)
-      bare = Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name))
 
       expect(plain.map(&:kind).grep(/\Aclient_/)).to be_empty
-      expect(plain.map(&:to_s)).to eq(bare.map(&:to_s))
+      expect(plain.map(&:to_s)).to eq(unprofiled(registry).map(&:to_s))
     end
 
     it "refuses a profile it does not know" do
@@ -101,7 +137,7 @@ RSpec.describe "the model checker's client profile" do
   end
 
   describe "native read model pushdown (docs/1.0-readiness.md, known gap 2)" do
-    it "refuses a rooted read model over an aggregate projected_by an adapter that answers natively" do
+    it "refuses a rooted read model over an aggregate projected_by an adapter that answers natively", :aggregate_failures do
       findings = profiled(build(projection: "SqliteProjection"))
 
       expect(subjects_for(findings, :client_native_read_model)).to eq(["OwnerWidgets"])
@@ -124,29 +160,11 @@ RSpec.describe "the model checker's client profile" do
 
     # Pins hecks model_check reading every *.hecksagon in a directory, not just the
     # alphabetically first, so a later file's projected_by is not invisible to this rule.
-    it "is reached from hecks model_check when the projected_by is in a later hecksagon file" do
-      Dir.mktmpdir do |root|
-        chapters = File.join(root, "shop", "bluebook")
-        FileUtils.mkdir_p(chapters)
-        File.write(File.join(chapters, "shop.bluebook"), SHOP)
-        File.write(File.join(chapters, "a_wiring.hecksagon"), <<~RUBY)
-          Hecks.hecksagon "ClientProfileShop" do
-            ClientProfileShop::Owner.persisted_by("Memory")
-            ClientProfileShop::Widget.persisted_by("Memory")
-          end
-        RUBY
-        File.write(File.join(chapters, "shop.hecksagon"), <<~RUBY)
-          Hecks.hecksagon "ClientProfileShop" do
-            projected_by "SqliteProjection"
-          end
-        RUBY
+    it "is reached from hecks model_check when the projected_by is in a later hecksagon file", :aggregate_failures do
+      output, status = model_check_later_hecksagon
 
-        output, status = Open3.capture2e("bundle", "exec", "ruby", "exe/hecks", "model_check", "--profile", "client",
-                                         File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
-
-        expect(output).to include("client_native_read_model", "OwnerWidgets")
-        expect(status.exitstatus).to eq(1)
-      end
+      expect(output).to include("client_native_read_model", "OwnerWidgets")
+      expect(status.exitstatus).to eq(1)
     end
 
     it "lists exactly the adapters whose Ruby class implements query_read_model" do

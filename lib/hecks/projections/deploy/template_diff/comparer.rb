@@ -1,3 +1,6 @@
+require_relative "normalizer"
+require_relative "value_diff"
+
 module Hecks
   module Projections
     module Deploy
@@ -14,13 +17,15 @@ module Hecks
           end
 
           ENTITY_SECTIONS = %w[Parameters Resources Outputs Conditions Mappings].freeze
-          IDENTITY_KEYS = %w[Name Id Key PolicyName PathPattern HeaderName ContainerName Sid Field].freeze
-          ORDERED_BY = %w[PathPattern].freeze
 
           # Diffs each entity section by name, with other top-level keys grouped under "Template".
+          #
+          # @param before [Hash] the template before, as loaded
+          # @param after [Hash] the template after, as loaded
+          # @return [Hash{String => SectionDiff, Array<Change>}] one diff per section present
           def compare(before, after)
-            before = normalize(before)
-            after = normalize(after)
+            before = Normalizer.normalize(before)
+            after = Normalizer.normalize(after)
             diff = ENTITY_SECTIONS.each_with_object({}) do |section, sections|
               next unless before.key?(section) || after.key?(section)
 
@@ -30,53 +35,20 @@ module Hecks
             diff
           end
 
-          def normalize(value)
-            case value
-            when Hash then normalize_hash(value)
-            when Array then value.map { |item| normalize(item) }
-            else value
-            end
-          end
-          private_class_method :normalize
-
-          def normalize_hash(hash)
-            result = hash.to_h { |key, item| [key, key == "DependsOn" ? depends_on(item) : normalize(item)] }
-            substitution?(result) ? simplify_sub(result) : result
-          end
-          private_class_method :normalize_hash
-
-          def depends_on(value)
-            Array(value).map(&:to_s).sort
-          end
-          private_class_method :depends_on
-
-          def substitution?(hash)
-            hash.size == 1 && hash["Fn::Sub"].is_a?(String)
-          end
-          private_class_method :substitution?
-
-          # `!Sub "${Name}"` is `!Ref Name`, `!Sub "${A.B}"` is `!GetAtt A.B`, and a `!Sub` with no
-          # variable is the plain string.
-          def simplify_sub(hash)
-            text = hash["Fn::Sub"]
-            return text unless text.include?("${")
-
-            match = text.match(/\A\$\{([^}!]+)\}\z/)
-            return hash unless match
-
-            name = match[1]
-            name.include?(".") && !name.start_with?("AWS::") ? { "Fn::GetAtt" => name.split(".", 2) } : { "Ref" => name }
-          end
-          private_class_method :simplify_sub
-
           def section_diff(section, before, after)
             SectionDiff.new(
-              added:   (after.keys - before.keys).sort.map { |name| [name, type_of(section, after[name])] },
-              removed: (before.keys - after.keys).sort.map { |name| [name, type_of(section, before[name])] },
+              added:   listed(section, after, before),
+              removed: listed(section, before, after),
               changed: (before.keys & after.keys).sort.filter_map { |name| entity_diff(section, name, before[name], after[name]) }
             )
           end
           private_class_method :section_diff
+
+          # The `[name, type]` of each entity in `side` that `other` lacks.
+          def listed(section, side, other)
+            (side.keys - other.keys).sort.map { |name| [name, type_of(section, side[name])] }
+          end
+          private_class_method :listed
 
           def type_of(section, entity)
             entity.is_a?(Hash) && %w[Resources Parameters].include?(section) ? entity["Type"] : nil
@@ -87,7 +59,7 @@ module Hecks
             return nil if before == after
 
             changes = []
-            diff_values("", before, after, changes)
+            ValueDiff.diff_values("", before, after, changes)
             return nil if changes.empty?
 
             replaced = section == "Resources" && before.is_a?(Hash) && after.is_a?(Hash) && before["Type"] != after["Type"]
@@ -98,110 +70,12 @@ module Hecks
           def template_changes(before, after)
             changes = []
             others = (before.keys | after.keys) - ENTITY_SECTIONS
-            others.sort.each { |key| diff_values(key, before[key], after[key], changes) unless before[key] == after[key] }
+            others.sort.each do |key|
+              ValueDiff.diff_values(key, before[key], after[key], changes) unless before[key] == after[key]
+            end
             changes
           end
           private_class_method :template_changes
-
-          def diff_values(path, before, after, changes)
-            return if before == after
-
-            if before.is_a?(Hash) && after.is_a?(Hash)
-              diff_hashes(path, before, after, changes)
-            elsif before.is_a?(Array) && after.is_a?(Array)
-              diff_arrays(path, before, after, changes)
-            else
-              changes << Change.new(path: path, kind: :changed, before: before, after: after, cosmetic: same_text?(before, after))
-            end
-          end
-          private_class_method :diff_values
-
-          def diff_hashes(path, before, after, changes)
-            (before.keys | after.keys).sort.each do |key|
-              child = path.empty? ? key : "#{path}.#{key}"
-              if !after.key?(key)
-                changes << Change.new(path: child, kind: :removed, before: before[key])
-              elsif !before.key?(key)
-                changes << Change.new(path: child, kind: :added, after: after[key])
-              else
-                diff_values(child, before[key], after[key], changes)
-              end
-            end
-          end
-          private_class_method :diff_hashes
-
-          def diff_arrays(path, before, after, changes)
-            key = identity_key(before, after)
-            return diff_keyed(path, key, before, after, changes) if key
-            if before.sort_by(&:to_s) == after.sort_by(&:to_s)
-              return changes << Change.new(path: path, kind: :reordered, before: before, after: after,
-                                           cosmetic: true)
-            end
-
-            (0...[before.size, after.size].max).each do |index|
-              child = "#{path}[#{index}]"
-              if index >= after.size then changes << Change.new(path: child, kind: :removed, before: before[index])
-              elsif index >= before.size then changes << Change.new(path: child, kind: :added, after: after[index])
-              else diff_values(child, before[index], after[index], changes)
-              end
-            end
-          end
-          private_class_method :diff_arrays
-
-          def diff_keyed(path, key, before, after, changes)
-            left = before.to_h { |item| [item[key].to_s, item] }
-            right = after.to_h { |item| [item[key].to_s, item] }
-            (left.keys | right.keys).each do |name|
-              child = "#{path}[#{key}=#{name}]"
-              if !right.key?(name) then changes << Change.new(path: child, kind: :removed, before: left[name])
-              elsif !left.key?(name) then changes << Change.new(path: child, kind: :added, after: right[name])
-              else diff_values(child, left[name], right[name], changes)
-              end
-            end
-            check_order(path, key, left.keys, right.keys, changes)
-          end
-          private_class_method :diff_keyed
-
-          def check_order(path, key, left, right, changes)
-            return unless ORDERED_BY.include?(key)
-
-            common = left & right
-            return if left.select { |name| common.include?(name) } == right.select { |name| common.include?(name) }
-
-            changes << Change.new(path: path, kind: :reordered, before: left, after: right, cosmetic: false)
-          end
-          private_class_method :check_order
-
-          # A list of mappings is matched by a field only when every entry in both lists has it and
-          # no two entries share its value, so a match is never ambiguous.
-          def identity_key(before, after)
-            lists = [before, after]
-            return nil if lists.any? { |list| list.empty? || !list.all?(Hash) }
-
-            IDENTITY_KEYS.find do |key|
-              lists.all? do |list|
-                list.all? { |item| scalar?(item[key]) } && list.map do |item|
-                  item[key].to_s
-                end.uniq.size == list.size
-              end
-            end
-          end
-          private_class_method :identity_key
-
-          def scalar?(value)
-            value.is_a?(String) || value.is_a?(Integer)
-          end
-          private_class_method :scalar?
-
-          def same_text?(before, after)
-            scalars = [before, after].all? do |value|
-              [String, Integer, Float, TrueClass, FalseClass].any? do |type|
-                value.is_a?(type)
-              end
-            end
-            scalars && before.to_s == after.to_s
-          end
-          private_class_method :same_text?
         end
       end
     end

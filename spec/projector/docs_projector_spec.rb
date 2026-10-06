@@ -23,7 +23,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   let(:banking)  { described_class.call(bluebook: registry.bluebook("Banking")) }
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
 
-  it "is registered under :docs, reachable the way every projector is" do
+  it "is registered under :docs, reachable the way every projector is", :aggregate_failures do
     expect(Hecks::Projector).to be_registered(:docs)
     expect(Hecks::Projector.call(:docs, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
@@ -43,7 +43,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "an aggregate" do
-    it "carries its own description and how it is identified" do
+    it "carries its own description and how it is identified", :aggregate_failures do
       expect(banking).to include(registry.bluebook("Banking").aggregate("Account").description)
       expect(banking).to include("Identified by `number`")
     end
@@ -51,7 +51,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     # The single most common mistake at this boundary is sending a bare scalar
     # where a value object is wanted, so the document shows the fields rather
     # than the type name.
-    it "expands a value object into the shape a caller actually sends" do
+    it "expands a value object into the shape a caller actually sends", :aggregate_failures do
       expect(banking).to include("{ cents: Integer }")
       expect(banking).not_to match(/^\| `daily_limit` \| Money \|/)
     end
@@ -60,7 +60,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(banking).to match(/one of `[a-z]+`(, `[a-z]+`)+/)
     end
 
-    it "carries a declared pattern and a declared default" do
+    it "carries a declared pattern and a declared default", :aggregate_failures do
       expect(banking).to match(/matches `\^?\[/)
       # banking is the domain that declares one; pizzas declares none, which is
       # why the assertion is not simply pointed at whichever is to hand.
@@ -69,14 +69,14 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "the lifecycle" do
-    it "is a table of verb, from and to, with the state it starts in" do
+    it "is a table of verb, from and to, with the state it starts in", :aggregate_failures do
       expect(banking).to include("Starts at `open`")
       expect(banking).to include("| `FreezeAccount` | `open` | `frozen` |")
     end
   end
 
   describe "a verb" do
-    it "carries its goal and the role that issues it" do
+    it "carries its goal and the role that issues it", :aggregate_failures do
       command = registry.bluebook("Banking").aggregate("Account").commands.find { |c| c.hecks_name == "FreezeAccount" }
       expect(banking).to include(command.goal)
       expect(banking).to include("Issued by: **#{command.role}**")
@@ -120,7 +120,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "an entity" do
-    it "says it is addressed through its holder, which is what a caller gets wrong" do
+    it "says it is addressed through its holder, which is what a caller gets wrong", :aggregate_failures do
       box = registry.bluebook("Banking").aggregates.find { |a| a.entities.any? }
       skip "banking declares no entities" unless box
 
@@ -132,12 +132,12 @@ RSpec.describe Hecks::Projector::DocsProjector do
 
   # What happens without anybody asking; no verb list shows it.
   describe "reactions" do
-    it "tabulates each policy as the dispatch it causes, and where it lands" do
+    it "tabulates each policy as the dispatch it causes, and where it lands", :aggregate_failures do
       expect(banking).to include("## Reactions")
       expect(banking).to include("| `Account.AccountFrozen` | `AccountFreezeReview.Open` | Compliance |")
     end
 
-    it "describes a saga by where it starts, ends and correlates" do
+    it "describes a saga by where it starts, ends and correlates", :aggregate_failures do
       skip "banking declares no saga" if registry.bluebook("Banking").process_managers.empty?
 
       saga = registry.bluebook("Banking").process_managers.first.to_h
@@ -154,7 +154,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "options" do
-    it "narrows to one aggregate, dropping the chapter frame" do
+    it "narrows to one aggregate, dropping the chapter frame", :aggregate_failures do
       only = described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Account" })
 
       expect(only).to start_with("# Account")
@@ -162,7 +162,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(only).not_to include("## Reactions")
     end
 
-    it "pushes the headings down so it can be spliced into a larger document" do
+    it "pushes the headings down so it can be spliced into a larger document", :aggregate_failures do
       nested = described_class.call(bluebook: registry.bluebook("Pizzas"), options: { heading: 2 })
 
       expect(nested).to start_with("## Pizzas")
@@ -171,14 +171,14 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "as a method on a booted domain" do
-    it "answers on the chapter, beside vision and aggregates" do
+    it "answers on the chapter, beside vision and aggregates", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas).to respond_to(:docs)
       expect(Pizzas.docs).to eq(pizzas)
     end
 
-    it "answers on an aggregate door, narrowed to that head" do
+    it "answers on an aggregate door, narrowed to that head", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas::Order.docs).to start_with("# Order")

@@ -22,7 +22,7 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
   def compare(config = live, **options) = described_class.new(edge, config, refs: refs, **options).call
   def behaviour(path) = items.find { |entry| entry["PathPattern"] == path }
 
-  it "finds a live distribution built from the edge to match it" do
+  it "finds a live distribution built from the edge to match it", :aggregate_failures do
     comparison = compare
 
     expect(comparison).to be_clean
@@ -41,7 +41,7 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
     "CachePolicyId"         => ["11111111-1111-4111-8111-111111111111", "cache"],
     "OriginRequestPolicyId" => ["11111111-1111-4111-8111-111111111111", "request"]
   }.each do |key, (value, field)|
-    it "names a behaviour that differs in #{field}" do
+    it "names a behaviour that differs in #{field}", :aggregate_failures do
       behaviour("/api/*")[key] = value
 
       differences = compare.differences
@@ -71,11 +71,16 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
     expect(compare.differences.first).to start_with("(default) differs in protocol:")
   end
 
-  it "reports a behaviour only the project has, unless it was expected" do
+  it "reports a behaviour only the project has" do
     items.reject! { |entry| entry["PathPattern"] == "/pay/*" }
 
     expect(compare.differences).to match([start_with("only in the project: /pay/*")])
+  end
+
+  it "accepts a behaviour only the project has when it was expected", :aggregate_failures do
+    items.reject! { |entry| entry["PathPattern"] == "/pay/*" }
     expected = compare(expect_new: ["/pay/*"])
+
     expect(expected).to be_clean
     expect(expected.expected).to match([start_with("only in the project: /pay/*")])
     expect(expected.to_s).to include("expected additions")
@@ -87,7 +92,7 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
     expect(compare(expect_new: ["/legacy/*"]).differences).to eq(["only live: /legacy/*"])
   end
 
-  it "reports behaviours the two order differently" do
+  it "reports behaviours the two order differently", :aggregate_failures do
     items.rotate!
 
     differences = compare.differences
@@ -96,7 +101,7 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
     expect(differences.first).to start_with("order differs among the behaviours both have:")
   end
 
-  it "leaves a policy reference with no refs entry unchecked, which is not clean" do
+  it "leaves a policy reference with no refs entry unchecked, which is not clean", :aggregate_failures do
     comparison = described_class.new(edge, live, refs: refs.except("!Ref SecurityHeaders")).call
 
     expect(comparison.unchecked).to eq(["!Ref SecurityHeaders"])
@@ -104,7 +109,7 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
     expect(comparison.to_s).to include("no refs entry")
   end
 
-  it "reads refs written as !Ref Name=id words" do
+  it "reads refs written as !Ref Name=id words", :aggregate_failures do
     expect(described_class.refs_from("!Ref A=1111, !Ref B=2222")).to eq("!Ref A" => "1111", "!Ref B" => "2222")
     expect(described_class.refs_from(nil)).to eq({})
   end

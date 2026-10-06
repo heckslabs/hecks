@@ -90,11 +90,18 @@ module Hecks
           held = @ports_by_name[port.name]
           return attach_port(port) unless held
 
-          operations = held.operations + port.operations.reject { |op| held.operation(op.hecks_name) }
-          answers    = held.answered_queries + port.answered_queries.reject { |a| held.answer_for(a.name) }
-          merged     = Bluebook::DomainPort.new(name: held.name, operations: operations, answered_queries: answers)
+          merged = merge_port(held, port)
           @ports[@ports.index(held)] = merged
           @ports_by_name[merged.name] = merged
+        end
+
+        # @param held [Bluebook::DomainPort] the port the aggregate already holds under the name
+        # @param port [Bluebook::DomainPort] the port declared again
+        # @return [Bluebook::DomainPort] `held` with whatever `port` adds to it
+        def merge_port(held, port)
+          operations = held.operations + port.operations.reject { |op| held.operation(op.hecks_name) }
+          answers    = held.answered_queries + port.answered_queries.reject { |a| held.answer_for(a.name) }
+          Bluebook::DomainPort.new(name: held.name, operations: operations, answered_queries: answers)
         end
 
         # @param port [Bluebook::DomainPort] a port under a name the aggregate does not hold

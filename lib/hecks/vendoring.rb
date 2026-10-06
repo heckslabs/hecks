@@ -30,25 +30,51 @@ module Hecks
     # @param ref [String] the commit-ish to export
     # @param subtree [String] repository-relative directory to export
     # @param into [String] the directory to replace with the export
-    # @param glob [String] pattern each exported file's name must match
-    # @param marker [String] name of the file recording the commit
+    # @param options [Hash] `glob:`, the pattern each exported file's name must match (`"*"`),
+    #   and `marker:`, the name of the file recording the commit (`MARKER`)
     # @return [Pin] the commit and where the files landed
     # @raise [Vendoring::Error] if the source or a matching file is missing
-    def self.pin(from:, ref:, subtree:, into:, glob: "*", marker: MARKER)
+    # @raise [ArgumentError] for any other keyword
+    def self.pin(from:, ref:, subtree:, into:, **options, &)
+      unknown = options.keys - %i[glob marker]
+      raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" unless unknown.empty?
+
+      request = request_for(from, ref, subtree, into, options)
+      Dir.mktmpdir("hecks-vendoring") do |stage|
+        request.source.export(request.commit, request.files, stage)
+        pinned(stage, request, &)
+      end
+    end
+
+    # What one pin exports, and where it goes.
+    Request = Struct.new(:source, :commit, :files, :subtree, :into, :marker) do
+      # @return [String] the directory the exported subtree lands in
+      def pin_dir = File.join(into, File.basename(subtree))
+
+      # @return [Array<String>] the exported files' names
+      def names = files.map { |file| File.basename(file) }
+    end
+
+    # @return [Request] the commit and files to export
+    # @raise [Vendoring::Error] if the source or a matching file is missing
+    def self.request_for(from, ref, subtree, into, options)
       source = GitSource.new(from)
       commit = source.commit(ref)
+      glob = options.fetch(:glob, "*")
       files = source.files(commit, subtree, glob)
       raise Error, "no #{glob} files in #{subtree} at #{ref} in #{source.path}" if files.empty?
 
-      Dir.mktmpdir("hecks-vendoring") do |stage|
-        source.export(commit, files, stage)
-        staged = File.join(stage, subtree)
-        extras = block_given? ? yield(staged, commit) : nil
-        install(staged, into, marker, commit, extras || {})
-        Pin.new(commit: commit, dir: File.join(into, File.basename(subtree)),
-                files: files.map { |file| File.basename(file) })
-      end
+      Request.new(source, commit, files, subtree, into, options.fetch(:marker, MARKER))
     end
+
+    # Runs the optional hook on the staged export, installs what it leaves, and describes it.
+    def self.pinned(stage, request)
+      staged = File.join(stage, request.subtree)
+      extras = block_given? ? yield(staged, request.commit) : nil
+      install(staged, request.into, request.marker, request.commit, extras || {})
+      Pin.new(commit: request.commit, dir: request.pin_dir, files: request.names)
+    end
+    private_class_method :request_for, :pinned
 
     # Replaces `into` with the staged files, the marker and any extras.
     def self.install(staged, into, marker, commit, extras)

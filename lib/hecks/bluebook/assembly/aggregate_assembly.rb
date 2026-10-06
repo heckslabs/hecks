@@ -15,24 +15,7 @@ module Hecks
         # @return [Bluebook::Aggregate] the built aggregate, with every reference stamped
         #   to resolve against it
         def aggregate
-          shapes   = Array(@row[:value_objects]).map { |shape| value_object(shape) }
-          commands = Array(@row[:commands]).map { |verb| Build.call("Command", verb) }
-          entities = Array(@row[:entities]).map { |piece| entity(piece) }
-          asks     = Array(@row[:queries]).map { |ask| Build.call("Query", ask) }
-
-          fields = Array(@row[:attributes]).map { |field| Marks.attribute(field) }
-
-          ir = Build.call(
-            "Aggregate", @row,
-            value_objects:     shapes,
-            commands:          commands,
-            entities:          entities,
-            queries:           asks,
-            lifecycle:         lifecycle_of(@row),
-            # Policies live on the chapter, which is what `PolicyInterpreter` reads.
-            policies:          [],
-            reference_targets: reference_targets(fields)
-          )
+          ir = Build.call("Aggregate", @row, **built_children)
 
           stamp_references(ir)
           ir
@@ -40,13 +23,27 @@ module Hecks
 
         private
 
+        # The children `Build` cannot derive from the row alone, already built.
+        def built_children
+          {
+            value_objects:     build_all("ValueObject", @row[:value_objects]),
+            commands:          build_all("Command", @row[:commands]),
+            entities:          Array(@row[:entities]).map { |piece| entity(piece) },
+            queries:           build_all("Query", @row[:queries]),
+            lifecycle:         lifecycle_of(@row),
+            # Policies live on the chapter, which is what `PolicyInterpreter` reads.
+            policies:          [],
+            reference_targets: reference_targets(Array(@row[:attributes]).map { |field| Marks.attribute(field) })
+          }
+        end
+
+        def build_all(category, rows)
+          Array(rows).map { |row| Build.call(category, row) }
+        end
+
         # Read from attributes, not commands: a command's self-references are not targets.
         def reference_targets(fields)
           fields.select(&:reference?).map { |field| field.type.target_name }
-        end
-
-        def value_object(row)
-          Build.call("ValueObject", row)
         end
 
         # Recurses, so entities nest to any depth (ADR 0026).

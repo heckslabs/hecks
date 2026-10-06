@@ -117,26 +117,27 @@ module InMemoryDomain
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(PERSISTENCE_PORT)
-      Kernel.load(EXTRACTION_PORT)
-      Kernel.load(MEMORY_ADAPTER)
-      Kernel.load(PRISM_ADAPTER)
-      Kernel.load(PIZZAS_BLUEBOOK)
-
-      # `::` on purpose — a real .hecksagon file loads at top level, where an
-      # unresolved constant reaches Object's const_missing. This block lives
-      # inside a module, so a bare `Pizzas` would resolve here first instead.
-      Hecks.hecksagon("Pizzas") do
-        attaches "Governance"
-        ::Pizzas::Order.persisted_by("Memory")
-      end
+      [PERSISTENCE_PORT, EXTRACTION_PORT, MEMORY_ADAPTER, PRISM_ADAPTER, PIZZAS_BLUEBOOK].each { |file| Kernel.load(file) }
+      attach_pizzas_to_governance
       sibling_governance!
     end
 
     registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  # Wires Pizzas' only aggregate to the Memory adapter, attaching the Governance chapter.
+  #
+  # `::` on purpose — a real .hecksagon file loads at top level, where an
+  # unresolved constant reaches Object's const_missing. This block lives
+  # inside a module, so a bare `Pizzas` would resolve here first instead.
+  #
+  # @return [void]
+  def attach_pizzas_to_governance
+    Hecks.hecksagon("Pizzas") do
+      attaches "Governance"
+      ::Pizzas::Order.persisted_by("Memory")
+    end
   end
 end
 

@@ -1,0 +1,4 @@
+It then sets the stack's matching image-tag parameter (UsePreviousValue for every other
+one, and it checks that only that one changed), reads the task definition the stack
+registers, refuses to roll it unless it carries the pushed image, and rolls it with
+deploy-box.sh.

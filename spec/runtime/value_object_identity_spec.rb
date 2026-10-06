@@ -1,6 +1,26 @@
 require "spec_helper"
 
 RSpec.describe "multi-field value-object identity at runtime" do
+  IDENTITY_RUNTIME_DOMAIN = proc do
+    vision "the whole declared value concept identifies a transfer"
+
+    aggregate "TransferInstruction" do
+      value_object "TransferIdentity" do
+        attribute :scheme, String, default: "ACH"
+        attribute :end_to_end_id, String
+        invariant("the end-to-end id is present") { end_to_end_id != "" }
+      end
+
+      identified_by TransferIdentity, as: :identity
+
+      command "Register" do
+        role "Operator"
+        goal "Register one transfer instruction"
+        attribute :identity, TransferIdentity
+      end
+    end
+  end
+
   def boot_identity_runtime
     registry = Hecks::Runtime::Registry.new
 
@@ -9,40 +29,23 @@ RSpec.describe "multi-field value-object identity at runtime" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook "IdentityRuntime" do
-        vision "the whole declared value concept identifies a transfer"
-
-        aggregate "TransferInstruction" do
-          value_object "TransferIdentity" do
-            attribute :scheme, String, default: "ACH"
-            attribute :end_to_end_id, String
-            invariant("the end-to-end id is present") { end_to_end_id != "" }
-          end
-
-          identified_by TransferIdentity, as: :identity
-
-          command "Register" do
-            role "Operator"
-            goal "Register one transfer instruction"
-            attribute :identity, TransferIdentity
-          end
-        end
-      end
+      Hecks.bluebook("IdentityRuntime", &IDENTITY_RUNTIME_DOMAIN)
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  it "coerces defaults and concatenates every member in declaration order" do
-    runtime = boot_identity_runtime
-    runtime.dispatch_flat(
-      "IdentityRuntime::TransferInstruction.Register",
-      identity: { end_to_end_id: "e2e-42" }
-    )
+  let(:runtime) { boot_identity_runtime }
+  let(:aggregate) { runtime.registry.bluebook("IdentityRuntime").aggregate("TransferInstruction") }
 
-    aggregate = runtime.registry.bluebook("IdentityRuntime").aggregate("TransferInstruction")
+  def register(identity)
+    runtime.dispatch_flat("IdentityRuntime::TransferInstruction.Register", identity: identity)
+  end
+
+  it "coerces defaults and concatenates every member in declaration order", :aggregate_failures do
+    register({ end_to_end_id: "e2e-42" })
+
     stored = runtime.registry.repository("IdentityRuntime", aggregate).find("ACH:e2e-42")
 
     expect(stored).not_to be_nil
@@ -50,22 +53,13 @@ RSpec.describe "multi-field value-object identity at runtime" do
   end
 
   it "does not reverse-split a joined identifier to invent structured state" do
-    runtime = boot_identity_runtime
-    aggregate = runtime.registry.bluebook("IdentityRuntime").aggregate("TransferInstruction")
-
     fresh = Hecks::Runtime::Instance.new(aggregate: aggregate, id: "ACH:e2e-42")
 
     expect(fresh[:identity]).to be_nil
   end
 
   it "refuses a blank required member before accepting the identity" do
-    runtime = boot_identity_runtime
-
-    expect do
-      runtime.dispatch_flat(
-        "IdentityRuntime::TransferInstruction.Register",
-        identity: { scheme: "ACH", end_to_end_id: "" }
-      )
-    end.to raise_error(Hecks::Runtime::InvariantViolation, /end-to-end id is present/)
+    expect { register({ scheme: "ACH", end_to_end_id: "" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /end-to-end id is present/)
   end
 end

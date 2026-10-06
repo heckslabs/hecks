@@ -11,20 +11,24 @@ RSpec.describe Hecks::Adapters::SourceTree do
     expect(adapter.examine).to eq(checkout: { value: true })
   end
 
-  it "reports that a tree without the gemspec is not one" do
-    Dir.mktmpdir do |dir|
-      Hecks::Adapters::Codebase::Tree.root = dir
+  context "without the gemspec in the tree" do
+    around do |example|
+      Dir.mktmpdir do |dir|
+        Hecks::Adapters::Codebase::Tree.root = dir
+        example.run
+      end
+    end
 
+    it "reports that it is not a checkout" do
       expect(adapter.examine).to eq(checkout: { value: false })
     end
-  end
 
-  it "refuses to carry anything out, and to answer a query, outside a checkout" do
-    Dir.mktmpdir do |dir|
-      Hecks::Adapters::Codebase::Tree.root = dir
-
+    it "refuses to carry anything out outside a checkout" do
       expect { adapter.perform(operation: { value: "project_model" }) }
         .to raise_error(Hecks::Runtime::GivenNotMet, /needs a hecks checkout/)
+    end
+
+    it "refuses to answer a query outside a checkout" do
       expect { adapter.word_status }.to raise_error(Hecks::Runtime::GivenNotMet, /needs a hecks checkout/)
     end
   end

@@ -1,0 +1,4 @@
+	@if [ -z "$$ALLOW_LOCAL_DB" ]; then \
+		echo "REFUSING: @@script@@ resolves its OWN database connection from @@domain@@'s .world file, NOT from DATABASE_URL/HECKS_SCHEMA -- opening a real tunnel to @@stack_name@@'s production RDS instance below would silently scaffold/audit the LOCAL dev database instead and report success (see this recipe's own comment, above, for the confirmed root cause). Set ALLOW_LOCAL_DB=1 to run @@verb@@ against @@domain@@'s local .world-declared database on purpose (e.g. to exercise the scaffold/audit logic itself); otherwise run this for real against production via the manual tunnel path mint-era's own comment describes."; \
+		exit 1; \
+	fi

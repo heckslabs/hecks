@@ -46,8 +46,13 @@ module Hecks
         return remembered if remembered
 
         answer = yield
-        remember(file, answer) if file && answer&.last&.zero?
+        remember(file, answer) if worth_keeping?(file, answer)
         answer
+      end
+
+      # Whether an answer that ended well can be written to the entry's file.
+      def worth_keeping?(file, answer)
+        file && answer&.last&.zero?
       end
 
       # @return [Boolean] whether the cache is on

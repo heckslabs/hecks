@@ -17,7 +17,7 @@ RSpec.describe Hecks::Forms::FieldRenderer do
       expect(described_class.dig({ flag: { active: false } }, "flag.active")).to be(false)
     end
 
-    it "still reads a stored true, flat or nested" do
+    it "still reads a stored true, flat or nested", :aggregate_failures do
       expect(described_class.dig({ "active" => true }, "active")).to be(true)
       expect(described_class.dig({ flag: { active: true } }, "flag.active")).to be(true)
     end
@@ -27,7 +27,7 @@ RSpec.describe Hecks::Forms::FieldRenderer do
         .to eq("1050")
     end
 
-    it "still reads a genuinely absent key as nil" do
+    it "still reads a genuinely absent key as nil", :aggregate_failures do
       expect(described_class.dig({}, "missing")).to be_nil
       expect(described_class.dig({ flag: {} }, "flag.active")).to be_nil
     end

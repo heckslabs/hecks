@@ -8,7 +8,7 @@ require "hecks/fuzzing"
 # which Ruby/Rust query divergences are declared, from the generator's own
 # manifest.json rather than Rust's refusal wording — plus the two
 # shrink-only checks on what the committed manifests declare.
-RSpec.describe Hecks::Fuzzing::RustGapManifest do
+RSpec.describe Hecks::Fuzzing::RustGapManifest, :aggregate_failures do
   GAP_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
   def write_module(root, name, entries, merged: true)
@@ -20,6 +20,35 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
 
   def gap(kind, id, construct = "reference_hop_where")
     { "kind" => kind, "id" => id, "generated" => false, "gap_class" => "per_instance", "construct" => construct }
+  end
+
+  # Every example works in its own scratch crate directory.
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @scratch = dir
+      example.run
+    end
+  end
+
+  def root = @scratch
+
+  def write_mixed_shop(root)
+    write_module(root, "shop", [
+                   gap("query", "Shop::Order.ByHop"),
+                   gap("command", "Shop::Order.Place", "optional_source"),
+                   { "kind" => "query", "id" => "Shop::Order.Open", "generated" => true }
+                 ])
+  end
+
+  def declared_families(committed)
+    committed.select { |e| described_class::TOLERABLE_KINDS.include?(e["kind"]) && e["generated"] == false }
+             .to_set { |e| e["construct"] }
+  end
+
+  def ratchet_message(stale, declared)
+    "qa/settings.yml structural_refusal_boundary names #{stale.inspect}, which no committed " \
+      "rust/src/generated/*/manifest.json declares — remove them " \
+      "(declared families: #{declared.to_a.sort.inspect})"
   end
 
   describe "the committed manifests" do
@@ -39,15 +68,11 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
     # declaring it and this fails until the family is removed from
     # qa/settings.yml — so the boundary can only shrink.
     it "admit no structural_refusal_boundary family that no committed manifest declares not generated" do
-      declared = committed.select { |e| described_class::TOLERABLE_KINDS.include?(e["kind"]) && e["generated"] == false }
-                          .to_set { |e| e["construct"] }
+      declared = declared_families(committed)
       boundary = Hecks::Fuzzing::QaSettings.load.structural_refusal_boundary.map(&:to_s)
+      stale = boundary - declared.to_a
 
-      expect(boundary - declared.to_a).to be_empty,
-                                          "qa/settings.yml structural_refusal_boundary names " \
-                                          "#{(boundary - declared.to_a).inspect}, which no committed " \
-                                          "rust/src/generated/*/manifest.json declares — remove them " \
-                                          "(declared families: #{declared.to_a.sort.inspect})"
+      expect(stale).to be_empty, ratchet_message(stale, declared)
     end
   end
 
@@ -56,13 +81,11 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
     # example could sample is already generated, and a fixture that
     # tracks real gaps goes stale each time one closes.
     it "reads the rust dir and feature off a pinned conformance binary path" do
-      Dir.mktmpdir do |root|
-        write_module(root, "shop", [gap("query", "Shop::Order.LineItem.Recent", "entity_query")])
-        gaps = described_class.for_binary(File.join(root, "target/debug/rust-shop"))
+      write_module(root, "shop", [gap("query", "Shop::Order.LineItem.Recent", "entity_query")])
+      gaps = described_class.for_binary(File.join(root, "target/debug/rust-shop"))
 
-        expect(gaps.feature).to eq("shop")
-        expect(gaps.not_generated("Shop::Order.LineItem.Recent")).to include("construct" => "entity_query")
-      end
+      expect(gaps.feature).to eq("shop")
+      expect(gaps.not_generated("Shop::Order.LineItem.Recent")).to include("construct" => "entity_query")
     end
 
     it "refuses a path that isn't a pinned binary rather than guess a manifest" do
@@ -72,45 +95,31 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
 
   describe "#not_generated" do
     it "declares only query and read-model verbs the manifest marks generated: false" do
-      Dir.mktmpdir do |root|
-        write_module(root, "shop", [
-                       gap("query", "Shop::Order.ByHop"),
-                       gap("command", "Shop::Order.Place", "optional_source"),
-                       { "kind" => "query", "id" => "Shop::Order.Open", "generated" => true }
-                     ])
-        gaps = described_class.new(rust_dir: root, feature: "shop")
+      write_mixed_shop(root)
+      gaps = described_class.new(rust_dir: root, feature: "shop")
+      verbs = ["Shop::Order.ByHop", "Shop::Order.Open", "Shop::Order.Place", { "aggregate" => "Shop::Order" }]
 
-        expect(gaps.not_generated?("Shop::Order.ByHop")).to be(true)
-        expect(gaps.not_generated?("Shop::Order.Open")).to be(false)
-        expect(gaps.not_generated?("Shop::Order.Place")).to be(false)
-        expect(gaps.not_generated?({ "aggregate" => "Shop::Order" })).to be(false)
-      end
+      expect(verbs.map { |verb| gaps.not_generated?(verb) }).to eq([true, false, false, false])
     end
 
     it "answers a read model under both wire spellings kernel::read_model::find accepts" do
-      Dir.mktmpdir do |root|
-        write_module(root, "shop", [gap("read_model", "Shop::FlaggedOrderCount", "rootless")])
-        gaps = described_class.new(rust_dir: root, feature: "shop")
+      write_module(root, "shop", [gap("read_model", "Shop::FlaggedOrderCount", "rootless")])
+      gaps = described_class.new(rust_dir: root, feature: "shop")
 
-        expect(gaps.not_generated_verbs).to eq(Set["Shop.FlaggedOrderCount", "Shop.flagged_order_count"])
-      end
+      expect(gaps.not_generated_verbs).to eq(Set["Shop.FlaggedOrderCount", "Shop.flagged_order_count"])
     end
 
     it "includes shared framework chapters but not another domain's own module" do
-      Dir.mktmpdir do |root|
-        write_module(root, "shop", [])
-        write_module(root, "governance", [gap("query", "Governance::Role.Hop")], merged: false)
-        write_module(root, "other", [gap("query", "Other::Thing.Hop")])
-        gaps = described_class.new(rust_dir: root, feature: "shop")
+      write_module(root, "shop", [])
+      write_module(root, "governance", [gap("query", "Governance::Role.Hop")], merged: false)
+      write_module(root, "other", [gap("query", "Other::Thing.Hop")])
+      gaps = described_class.new(rust_dir: root, feature: "shop")
 
-        expect(gaps.not_generated_verbs).to eq(Set["Governance::Role.Hop"])
-      end
+      expect(gaps.not_generated_verbs).to eq(Set["Governance::Role.Hop"])
     end
 
     it "tolerates nothing when the binary's crate carries no manifest at all" do
-      Dir.mktmpdir do |root|
-        expect(described_class.new(rust_dir: root, feature: "shop").not_generated_verbs).to be_empty
-      end
+      expect(described_class.new(rust_dir: root, feature: "shop").not_generated_verbs).to be_empty
     end
   end
 end

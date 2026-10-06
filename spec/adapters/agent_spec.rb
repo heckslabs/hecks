@@ -6,6 +6,37 @@ require_relative "../../lib/hecks/quality_control/adapters/agent"
 
 # The `Agent` adapter runs a real child process, so the agent here is a one-line Ruby script.
 RSpec.describe Hecks::Adapters::Agent do
+  # Ruby that answers "wrote" when the block it is given writes, and "denied" when the system
+  # refuses.
+  AGENT_TRY_SCRIPT = <<~RUBY.freeze
+    def try
+      yield
+      "wrote"
+    rescue SystemCallError
+      "denied"
+    end
+  RUBY
+
+  AGENT_SSH_PROBE = <<~RUBY.freeze
+    begin
+      Dir.children(File.join(Dir.home, ".ssh"))
+      puts "read"
+    rescue SystemCallError
+      puts "denied"
+    end
+  RUBY
+
+  # Ruby that dials a local port; `%<port>d` is the port.
+  AGENT_NETWORK_PROBE = <<~RUBY.freeze
+    require "socket"
+    begin
+      TCPSocket.new("127.0.0.1", %<port>d, connect_timeout: 3)
+      puts "connected"
+    rescue SystemCallError
+      puts "denied"
+    end
+  RUBY
+
   subject(:adapter) { described_class.new }
 
   around do |example|
@@ -28,7 +59,7 @@ RSpec.describe Hecks::Adapters::Agent do
       expect(adapter.command_for).to eq(described_class::DEFAULT_COMMAND)
     end
 
-    it "takes QA_MINER_AGENT over the default, and the caller's own over both" do
+    it "takes QA_MINER_AGENT over the default, and the caller's own over both", :aggregate_failures do
       allow(ENV).to receive(:fetch).with("QA_MINER_AGENT", nil).and_return("from-env --flag")
 
       expect(adapter.command_for).to eq(["from-env", "--flag"])
@@ -38,7 +69,7 @@ RSpec.describe Hecks::Adapters::Agent do
   end
 
   describe "asking" do
-    it "hands the prompt over on standard input, in the directory it is given, and logs the output" do
+    it "hands the prompt over on standard input, in the directory it is given, and logs the output", :aggregate_failures do
       log = File.join(@dir, "agent.log")
       command = agent_script("puts \"\#{Dir.pwd}: \#{$stdin.read}\"")
 
@@ -75,66 +106,55 @@ RSpec.describe Hecks::Adapters::Agent do
     # rather than skipped: CI has no such runner, and a skip there is a backstop failure.
     if Hecks::Adapters::AgentProfile.new.available?
       describe "confined by the sandbox" do
-        it "refuses writes outside the directories it names, and allows the ones inside" do
-          inside = File.join(@dir, "inside")
-          command = ruby_agent(<<~RUBY)
-            def try
-              yield
-              "wrote"
-            rescue SystemCallError
-              "denied"
-            end
-            puts try { File.write(#{marker.inspect}, "x") }
-            puts try { File.write(#{inside.inspect}, "x") }
-          RUBY
+        def confined_ask(command, with: profile)
+          adapter.ask(prompt: "p", command: command, chdir: @dir, profile: with).strip
+        end
 
-          output = adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile)
+        def with_env_vars(vars)
+          vars.each { |name, value| ENV[name] = value }
+          yield
+        ensure
+          vars.each_key { |name| ENV.delete(name) }
+        end
+
+        def with_listening_server
+          server = TCPServer.new("127.0.0.1", 0)
+          yield server
+        ensure
+          server&.close
+        end
+
+        def write_attempts(inside)
+          ruby_agent("#{AGENT_TRY_SCRIPT}puts try { File.write(#{marker.inspect}, \"x\") }\n" \
+                     "puts try { File.write(#{inside.inspect}, \"x\") }\n")
+        end
+
+        it "refuses writes outside the directories it names, and allows the ones inside", :aggregate_failures do
+          output = confined_ask(write_attempts(File.join(@dir, "inside")))
 
           expect(output.lines.map(&:strip)).to eq(%w[denied wrote])
           expect(File.exist?(marker)).to be(false)
         end
 
         it "refuses to read credentials" do
-          command = ruby_agent(<<~RUBY)
-            begin
-              Dir.children(File.join(Dir.home, ".ssh"))
-              puts "read"
-            rescue SystemCallError
-              puts "denied"
-            end
-          RUBY
-
-          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
+          expect(confined_ask(ruby_agent(AGENT_SSH_PROBE))).to eq("denied")
         end
 
         it "passes on only the environment variables the profile names" do
-          ENV["AGENT_SPEC_ALLOWED"] = "yes"
-          ENV["AGENT_SPEC_SECRET"] = "no"
-          command = ruby_agent('puts [ENV["AGENT_SPEC_ALLOWED"], ENV["AGENT_SPEC_SECRET"].inspect].join(" ")')
+          with_env_vars("AGENT_SPEC_ALLOWED" => "yes", "AGENT_SPEC_SECRET" => "no") do
+            command = ruby_agent('puts [ENV["AGENT_SPEC_ALLOWED"], ENV["AGENT_SPEC_SECRET"].inspect].join(" ")')
 
-          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("yes nil")
-        ensure
-          ENV.delete("AGENT_SPEC_ALLOWED")
-          ENV.delete("AGENT_SPEC_SECRET")
+            expect(confined_ask(command)).to eq("yes nil")
+          end
         end
 
-        it "keeps the network shut unless the profile opens it" do
-          server = TCPServer.new("127.0.0.1", 0)
-          command = ruby_agent(<<~RUBY)
-            require "socket"
-            begin
-              TCPSocket.new("127.0.0.1", #{server.addr[1]}, connect_timeout: 3)
-              puts "connected"
-            rescue SystemCallError
-              puts "denied"
-            end
-          RUBY
-          open_profile = Hecks::Adapters::AgentProfile.new(network: :any, timeout: 10)
+        it "keeps the network shut unless the profile opens it", :aggregate_failures do
+          with_listening_server do |server|
+            command = ruby_agent(format(AGENT_NETWORK_PROBE, port: server.addr[1]))
 
-          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: profile).strip).to eq("denied")
-          expect(adapter.ask(prompt: "p", command: command, chdir: @dir, profile: open_profile).strip).to eq("connected")
-        ensure
-          server&.close
+            expect(confined_ask(command)).to eq("denied")
+            expect(confined_ask(command, with: Hecks::Adapters::AgentProfile.new(network: :any, timeout: 10))).to eq("connected")
+          end
         end
 
         it "stops an agent that runs past its timeout" do
@@ -161,17 +181,27 @@ RSpec.describe Hecks::Adapters::Agent do
       )
     end
 
-    it "confines by the command's own permission rules when asked, with no sandbox in the way" do
-      allowed = Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: %w[Read Glob Write Edit],
-                                                  writable: [@dir], budget: 1.0)
+    context "with confinement by the command's own permission rules" do
+      let(:allowed) do
+        Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: %w[Read Glob Write Edit],
+                                          writable: [@dir], budget: 1.0)
+      end
 
-      expect(allowed.sandboxed?).to be(false)
-      expect(allowed.confine(%w[claude -p])).to eq(%w[claude -p])
-      expect(adapter.command_for(nil, allowed)).to eq(
-        ["claude", "-p", "--permission-mode", "dontAsk", "--tools", "Read,Glob,Write,Edit",
-         "--allowedTools", "Read", "Glob", "Edit(/#{File.realpath(@dir)}/**)", "--strict-mcp-config",
-         "--max-budget-usd", "1.0"]
-      )
+      it "has no sandbox in the way" do
+        expect(allowed.sandboxed?).to be(false)
+      end
+
+      it "leaves the command as it was" do
+        expect(allowed.confine(%w[claude -p])).to eq(%w[claude -p])
+      end
+
+      it "builds the default command from the profile's permission rules" do
+        expect(adapter.command_for(nil, allowed)).to eq(
+          ["claude", "-p", "--permission-mode", "dontAsk", "--tools", "Read,Glob,Write,Edit",
+           "--allowedTools", "Read", "Glob", "Edit(/#{File.realpath(@dir)}/**)", "--strict-mcp-config",
+           "--max-budget-usd", "1.0"]
+        )
+      end
     end
 
     it "refuses a command other than the default under permission confinement" do

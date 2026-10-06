@@ -60,20 +60,12 @@ module Hecks
           outbound = @direction == :outbound
           refuse_wrong_words!(outbound)
 
-          operation = PortOperation.new(
+          refuse_silent_inbound! unless outbound
+
+          PortOperation.new(
             name: @name, attributes: attributes, emits: @emits,
             direction: @direction, answers: @answers, refuses: @refuses, to: @to
           )
-
-          # Only inbound: an `asks` says it with `answers`/`refuses` instead, already enforced
-          # above.
-          if !outbound && @emits.empty?
-            raise Malformed,
-                  "#{@name} declares no emits — an operation with nothing to say " \
-                  "afterward is a call into nothing"
-          end
-
-          operation
         end
 
         private
@@ -88,25 +80,38 @@ module Hecks
         # Each direction refuses the other's words: `emits` on an `asks` names one ending and
         # leaves the other nowhere; `answers` on a `tells` promises a channel that never exists.
         def refuse_wrong_words!(outbound)
-          if outbound
-            unless @emits.empty?
-              raise Malformed, "#{@name} is an asks and declares emits — name its two endings with " \
-                               "answers and refuses instead"
-            end
-            unless @answers
-              raise Malformed, "#{@name} declares no answers — an ask with no word for what came " \
-                               "back cannot be reacted to"
-            end
-            unless @refuses
-              raise Malformed, "#{@name} declares no refuses — an ask that cannot fail is a call " \
-                               "into a system you do not control, pretending otherwise"
-            end
-          else
-            if @answers || @refuses
-              raise Malformed, "#{@name} is a tells and declares #{@answers ? 'answers' : 'refuses'} — " \
-                               "an inbound fact has no channel back to whoever sent it"
-            end
+          outbound ? refuse_outbound_gaps! : refuse_return_channel!
+        end
+
+        def refuse_outbound_gaps!
+          unless @emits.empty?
+            raise Malformed, "#{@name} is an asks and declares emits — name its two endings with " \
+                             "answers and refuses instead"
           end
+          refuse_missing_ending!(@answers, "answers", "an ask with no word for what came back cannot be reacted to")
+          refuse_missing_ending!(@refuses, "refuses",
+                                 "an ask that cannot fail is a call into a system you do not control, pretending otherwise")
+        end
+
+        def refuse_missing_ending!(ending, word, reason)
+          raise Malformed, "#{@name} declares no #{word} — #{reason}" unless ending
+        end
+
+        # Only inbound: an `asks` says it with `answers`/`refuses` instead, already enforced
+        # by `refuse_wrong_words!`.
+        def refuse_silent_inbound!
+          return unless @emits.empty?
+
+          raise Malformed,
+                "#{@name} declares no emits — an operation with nothing to say " \
+                "afterward is a call into nothing"
+        end
+
+        def refuse_return_channel!
+          return unless @answers || @refuses
+
+          raise Malformed, "#{@name} is a tells and declares #{@answers ? "answers" : "refuses"} — " \
+                           "an inbound fact has no channel back to whoever sent it"
         end
 
         # Evaluates one operation block against a fresh builder and returns what it built;

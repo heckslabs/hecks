@@ -76,12 +76,18 @@ module Hecks
 
         loop do
           events = repository.events
-          if events.size > seen
-            events[seen..].each { |event| puts JSON.generate(event.to_h) if matches?(event, options[:aggregate]) }
-            seen = events.size
-          end
+          seen = print_new(events, seen, options[:aggregate]) if events.size > seen
           sleep options[:interval]
         end
+      end
+
+      # Prints the events past `seen` that pass the filter.
+      #
+      # @api private
+      # @return [Integer] the new count of events seen
+      def print_new(events, seen, filter)
+        events[seen..].each { |event| puts JSON.generate(event.to_h) if matches?(event, filter) }
+        events.size
       end
     end
   end

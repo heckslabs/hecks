@@ -33,13 +33,28 @@ module Hecks
         # @raise [ConsoleCapture::Failure] with the difference, when a check finds drift, or with
         #   what the script printed when it ends badly
         def call(operation, held, tree, shell: nil)
-          flag = ->(name) { (held[name].is_a?(Hash) ? held[name][:value] : held[name]) == true }
-          check = flag.call(:check) || !flag.call(:confirm)
+          check = check_only?(held)
           child = RubyChild.new(tree)
-          return project_ci_gates(child, check) if operation == "project_ci_gates"
-          return project_tools_doc(child, check) if operation == "project_tools_doc"
-          return decide_ci_gate(child, held) if operation == "decide_ci_gate"
+          case operation
+          when "project_ci_gates" then project_ci_gates(child, check)
+          when "project_tools_doc" then project_tools_doc(child, check)
+          when "decide_ci_gate" then decide_ci_gate(child, held)
+          else regenerate(child, check)
+          end
+        end
 
+        # @param held [Hash] the record's fields: `check`, `confirm`
+        # @return [Boolean] whether the run only compares: asked for, or not confirmed
+        def check_only?(held)
+          flag = ->(name) { (held[name].is_a?(Hash) ? held[name][:value] : held[name]) == true }
+          flag.call(:check) || !flag.call(:confirm)
+        end
+
+        # @param child [RubyChild] the checkout's tool runner
+        # @param check [Boolean] whether to only compare
+        # @return [String] how many domains were checked or regenerated
+        # @raise [ConsoleCapture::Failure] with the difference, or with what the script printed
+        def regenerate(child, check)
           result = child.capture("regen_codegen_domains", *("--check" if check))
           raise ConsoleCapture::Failure, refusal(result) unless result.ok?
 

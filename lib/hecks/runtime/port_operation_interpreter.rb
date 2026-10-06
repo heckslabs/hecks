@@ -84,11 +84,14 @@ module Hecks
       # needs data that lives on the record, and an event payload carries only arguments.
       # Arguments win over state.
       def ask(ctx)
-        payload = held_state(ctx).merge(materialise(ctx.args))
-        answer  = adapter_for(ctx).public_send(Naming.snake(ctx.operation.hecks_name), **payload)
-        announce(ctx, ctx.operation.answers, ctx.args.merge(spread(answer)))
+        announce(ctx, ctx.operation.answers, ctx.args.merge(spread(adapter_answer(ctx))))
       rescue StandardError => e
         announce(ctx, ctx.operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
+      end
+
+      def adapter_answer(ctx)
+        payload = held_state(ctx).merge(materialise(ctx.args))
+        adapter_for(ctx).public_send(Naming.snake(ctx.operation.hecks_name), **payload)
       end
 
       # The answer is spread, not nested: a policy re-enters its target with the event
@@ -133,13 +136,7 @@ module Hecks
       def materialise(args) = Value.materialize(args)
 
       def announce(ctx, event_name, payload)
-        event = Event.new(
-          name:        event_name,
-          aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
-          id:          ctx.route.aggregate,
-          payload:     payload,
-          occurred_at: Time.now.utc.iso8601
-        )
+        event = event_for(ctx, event_name, payload)
         @registry.event_log << event
         [event]
       end
@@ -148,16 +145,20 @@ module Hecks
       # event is stamped with the coerced reference to the owning aggregate (already a plain id).
       def emit(ctx)
         ctx.operation.emits.map do |event_name|
-          event = Event.new(
-            name:        event_name,
-            aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
-            id:          ctx.route.aggregate,
-            payload:     ctx.args,
-            occurred_at: Time.now.utc.iso8601
-          )
+          event = event_for(ctx, event_name, ctx.args)
           @registry.event_log << event.emit!
           event
         end
+      end
+
+      def event_for(ctx, event_name, payload)
+        Event.new(
+          name:        event_name,
+          aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
+          id:          ctx.route.aggregate,
+          payload:     payload,
+          occurred_at: Time.now.utc.iso8601
+        )
       end
     end
   end

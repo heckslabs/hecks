@@ -24,22 +24,28 @@ module Hecks
         argv = argv.dup
         force = argv.delete("--force")
         domain = argv.shift
-        if domain.nil? || !Dir.exist?(domain)
-          warn "hecks compact: no such domain #{domain.inspect}"
-          warn "usage: hecks compact <domain> [aggregate_name ...] [--force]"
-          return 1
-        end
-        wanted = argv.dup
+        return refuse_domain(domain) if domain.nil? || !Dir.exist?(domain)
 
-        registry = Hecks.boot(domain).registry
-        candidates = candidates(registry, wanted)
-        if candidates.empty?
+        compact_domain(domain, argv.dup, force)
+      end
+
+      # @return [Integer] 1, after printing why and how to call it
+      def refuse_domain(domain)
+        warn "hecks compact: no such domain #{domain.inspect}"
+        warn "usage: hecks compact <domain> [aggregate_name ...] [--force]"
+        1
+      end
+
+      # @return [Integer] 0
+      def compact_domain(domain, wanted, force)
+        found = candidates(Hecks.boot(domain).registry, wanted)
+        if found.empty?
           puts "hecks compact: no Postgres/Sqlite-backed aggregate matched " \
-               "#{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
+               "#{wanted.empty? ? "(any)" : wanted.inspect} in #{domain}"
           return 0
         end
 
-        candidates.each { |candidate| compact_candidate(candidate, force: force) }
+        found.each { |candidate| compact_candidate(candidate, force: force) }
         0
       end
 
@@ -47,19 +53,24 @@ module Hecks
       # @param wanted [Array<String>] aggregate names, or empty for every aggregate
       # @return [Array<Hash>] each compactable aggregate and its adapter
       def candidates(registry, wanted)
-        registry.bluebooks.each_with_object([]) do |(domain_name, bluebook), all|
-          bluebook.aggregates.each do |aggregate|
-            next unless wanted.empty? || wanted.include?(aggregate.hecks_name) || wanted.include?(aggregate.storage_name)
-
-            repository = registry.repository(domain_name, aggregate)
-            next unless repository.is_a?(Hecks::Ports::Persistence::AppendOnly)
-
-            adapter = repository.adapter
-            next unless adapter.respond_to?(:compact_entries!) && adapter.respond_to?(:checkpoint)
-
-            all << { aggregate: aggregate, adapter: adapter }
-          end
+        registry.bluebooks.flat_map do |domain_name, bluebook|
+          bluebook.aggregates.filter_map { |aggregate| candidate_for(registry, domain_name, aggregate, wanted) }
         end
+      end
+
+      # @return [Hash, nil] the aggregate and its adapter, when it is wanted and compactable
+      def candidate_for(registry, domain_name, aggregate, wanted)
+        return unless wanted.empty? || wanted.include?(aggregate.hecks_name) || wanted.include?(aggregate.storage_name)
+
+        repository = registry.repository(domain_name, aggregate)
+        return unless repository.is_a?(Hecks::Ports::Persistence::AppendOnly)
+
+        adapter = repository.adapter
+        { aggregate: aggregate, adapter: adapter } if compactable?(adapter)
+      end
+
+      def compactable?(adapter)
+        adapter.respond_to?(:compact_entries!) && adapter.respond_to?(:checkpoint)
       end
 
       # @return [void]
@@ -67,22 +78,20 @@ module Hecks
         aggregate = candidate[:aggregate]
         adapter   = candidate[:adapter]
         through   = adapter.checkpoint
-
         if through <= adapter.compacted_through
-          puts "SKIP #{aggregate.storage_name}: nothing new to compact (already compacted through #{through})"
-          return
+          return puts("SKIP #{aggregate.storage_name}: nothing new to compact (already compacted through #{through})")
         end
-
-        unless force
-          puts "DRY RUN #{aggregate.storage_name}: would delete journal entries through sequence " \
-               "#{through} (compacted_through is currently #{adapter.compacted_through}); current " \
-               "state (#{adapter.count} records) is unaffected. Re-run with --force to apply."
-          return
-        end
+        return puts(dry_run_message(aggregate, adapter, through)) unless force
 
         removed = adapter.compact_entries!(through: through)
         puts "COMPACTED #{aggregate.storage_name}: deleted #{removed} journal entries through " \
              "sequence #{through}; #{adapter.count} records preserved"
+      end
+
+      def dry_run_message(aggregate, adapter, through)
+        "DRY RUN #{aggregate.storage_name}: would delete journal entries through sequence " \
+          "#{through} (compacted_through is currently #{adapter.compacted_through}); current " \
+          "state (#{adapter.count} records) is unaffected. Re-run with --force to apply."
       end
     end
   end

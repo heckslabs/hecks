@@ -25,33 +25,23 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
                      size: { value: "small" })
   end
 
-  it "refuses a visit whose own note is present but empty" do
-    runtime = boot
-    rent_box(runtime)
+  def rented_runtime = boot.tap { |runtime| rent_box(runtime) }
 
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
-                       date: { value: "2026-08-16" }, sequence: { value: 1 }, note: { text: "" })
-    end.to raise_error(Hecks::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
+  def log_visit(runtime, **note)
+    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
+                                                               date: { value: "2026-08-16" }, sequence: { value: 1 }, **note)
+  end
+
+  it "refuses a visit whose own note is present but empty" do
+    expect { log_visit(rented_runtime, note: { text: "" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
   end
 
   it "accepts a visit with no note at all — optional stays optional" do
-    runtime = boot
-    rent_box(runtime)
-
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
-                       date: { value: "2026-08-16" }, sequence: { value: 1 })
-    end.not_to raise_error
+    expect { log_visit(rented_runtime) }.not_to raise_error
   end
 
   it "accepts a visit with a genuine note" do
-    runtime = boot
-    rent_box(runtime)
-
-    expect do
-      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
-                       date: { value: "2026-08-16" }, sequence: { value: 1 }, note: { text: "Vault officer inspected the lock." })
-    end.not_to raise_error
+    expect { log_visit(rented_runtime, note: { text: "Vault officer inspected the lock." }) }.not_to raise_error
   end
 end

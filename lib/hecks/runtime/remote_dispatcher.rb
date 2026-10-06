@@ -82,39 +82,11 @@ module Hecks
       def dispatch_flat(verb, args = {})
         args = args.dup
         saga_correlation = args.delete(:saga_correlation)
-        domain, aggregate_name, = Naming.split_verb(verb) ||
-                                  raise(UnknownVerb,
-                                        RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
-        aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
-                    raise(UnknownVerb,
-                          RefusalWording.render_site("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name))
+        domain, aggregate = resolve_aggregate(verb)
 
-        # Not every aggregate in a routed domain is Lambda-bound (a `compute` rule can
-        # only run against Postgres). Test the adapter's capability, not its name.
-        adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
-        unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
-          return @local.dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
-        end
+        return @local.dispatch_flat(verb, args.merge(saga_correlation: saga_correlation)) unless remote_bound?(domain, aggregate)
 
-        response = @client.dispatch(verb, args)
-
-        refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
-        raise RemoteRefusal, "#{verb} refused: #{refusal['error']}" if refusal
-
-        # `mutations` has one entry per replayed step, so `.last` is this step. Match by
-        # aggregate name: a reaction can mutate other aggregates in the same step.
-        fqn = "#{domain}::#{aggregate.hecks_name}"
-        mutation = response.fetch("mutations", []).last&.find { |m| m["aggregate"] == fqn } ||
-                   raise(WiringError,
-                         "#{verb} was accepted but rust/host reported no mutation for #{fqn} — response: #{response.inspect}")
-
-        instance = Instance.new(aggregate: aggregate, id: mutation["id"],
-                                state: JSON.parse(JSON.generate(mutation["state"]), symbolize_names: true))
-
-        Result.new(verb: verb, instance: instance, events: step_events(response),
-                   refused_reactions: refused_reactions_of(response),
-                   blocking_reactions: ReactionOutcome.blocking(step_reactions(response)),
-                   reaction_defects: ReactionOutcome.defects(step_reactions(response)))
+        settle(verb, domain, aggregate, @client.dispatch(verb, args))
       end
 
       # Delegates to the local `Dispatcher`; see `Dispatcher#query`.
@@ -133,6 +105,50 @@ module Hecks
       end
 
       private
+
+      # The domain name and the aggregate a fully qualified verb names.
+      def resolve_aggregate(verb)
+        domain, aggregate_name, = Naming.split_verb(verb) ||
+                                  raise(UnknownVerb,
+                                        RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
+        aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
+                    raise(UnknownVerb,
+                          RefusalWording.render_site("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name))
+        [domain, aggregate]
+      end
+
+      # Not every aggregate in a routed domain is Lambda-bound (a `compute` rule can
+      # only run against Postgres). Test the adapter's capability, not its name.
+      def remote_bound?(domain, aggregate)
+        adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
+        @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
+      end
+
+      # The result of a remote dispatch: the record the host settled and what its step caused.
+      def settle(verb, domain, aggregate, response)
+        refuse_remote!(verb, response)
+        mutation = settled_mutation(verb, "#{domain}::#{aggregate.hecks_name}", response)
+        instance = Instance.new(aggregate: aggregate, id: mutation["id"],
+                                state: JSON.parse(JSON.generate(mutation["state"]), symbolize_names: true))
+
+        Result.new(verb: verb, instance: instance, events: step_events(response),
+                   refused_reactions: refused_reactions_of(response),
+                   blocking_reactions: ReactionOutcome.blocking(step_reactions(response)),
+                   reaction_defects: ReactionOutcome.defects(step_reactions(response)))
+      end
+
+      def refuse_remote!(verb, response)
+        refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
+        raise RemoteRefusal, "#{verb} refused: #{refusal["error"]}" if refusal
+      end
+
+      # `mutations` has one entry per replayed step, so `.last` is this step. Match by
+      # aggregate name: a reaction can mutate other aggregates in the same step.
+      def settled_mutation(verb, fqn, response)
+        response.fetch("mutations", []).last&.find { |m| m["aggregate"] == fqn } ||
+          raise(WiringError,
+                "#{verb} was accepted but rust/host reported no mutation for #{fqn} — response: #{response.inspect}")
+      end
 
       # The newest step's reactions the remote runtime refused, from its `reactions_per_step`
       # log (the whole-run `reactions` would also carry the replayed history's).

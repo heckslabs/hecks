@@ -1,0 +1,33 @@
+# THE STOREHOUSE — @@owner_domain_name@@'s own live stack Outputs,
+# looked up at deploy time (Makefile's own `deploy:`/`mint-era`
+# targets, below) via the SAME `aws cloudformation describe-stacks`
+# pattern `mint-era` already used for a bastion, one stack over
+# instead of one sibling stack over. Never a CloudFormation
+# Export/ImportValue -- this codebase uses none anywhere (hecks
+# deploy project's own header on why: a live shell lookup keeps
+# this stack independently deployable/deletable, never coupled to
+# @@owner_domain_name@@'s own stack through CloudFormation itself).
+OwningVpcId:
+  Type: AWS::EC2::VPC::Id
+OwningSubnetAId:
+  Type: AWS::EC2::Subnet::Id
+OwningSubnetBId:
+  Type: AWS::EC2::Subnet::Id
+# @@owner_domain_name@@'s own Lambda security group, NOT its
+# DB-facing one -- reused whole, not copied, the same shape
+# this codebase already trusts elsewhere (a WebFunction sharing
+# its own dispatch Lambda's security group rather than minting
+# a second one), one stack over instead of one resource over.
+# @@owner_domain_name@@'s own DB security group already permits
+# ingress FROM this group (every member of it, regardless of
+# which stack minted the member -- security group references
+# match on GROUP MEMBERSHIP, not resource identity), so joining
+# it is what actually grants this Lambda access, not a new
+# ingress rule @@owner_domain_name@@'s own stack would otherwise
+# need to add.
+OwningSecurityGroupId:
+  Type: AWS::EC2::SecurityGroup::Id
+OwningDatabaseEndpoint:
+  Type: String
+OwningDatabaseSecretArn:
+  Type: String

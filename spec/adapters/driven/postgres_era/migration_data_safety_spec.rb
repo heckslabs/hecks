@@ -1,8 +1,8 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
-require "tempfile"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
+require_relative "../../../support/era_registry_loading"
 
 # Three data-loss regressions in PostgresEra's migration path (H3-H5 below),
 # each pinned against a real Postgres so a fix that regresses fails loudly.
@@ -10,6 +10,8 @@ require_relative "../../../support/fenced_owner"
 # Listed in .github/postgres_io_spec_files.txt — moving this file must also
 # update that list, or a Postgres-provisioning CI leg stops running it.
 RSpec.describe "PostgresEra migration data safety", :io do
+  include EraRegistryLoading
+
   DATA_SAFETY_DB = "hecks_era_data_safety_spec".freeze
 
   before(:all) do
@@ -37,22 +39,6 @@ RSpec.describe "PostgresEra migration data safety", :io do
   end
 
   def lineage_manager = Hecks::Adapters::PostgresEra::LineageManager
-
-  def load_registry(source, translation_source: nil)
-    registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    file = Tempfile.new(["data-safety-", ".bluebook"])
-    file.write(source)
-    file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-      eval(translation_source) if translation_source
-    end
-    registry
-  ensure
-    file&.close!
-  end
 
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
@@ -150,32 +136,52 @@ RSpec.describe "PostgresEra migration data safety", :io do
       end
     end
 
-    it "keeps a record deleted in era 2 deleted in era 3, whose head is built on era 2's" do
+    # Seeds era 1, mints era 2, and deletes `gone` from era 2's head.
+    def delete_gone_in_era_two!
       seed_era_one!
-      registry2 = check!(second_era, translation_source: edges[0])
-      head2 = head_for(registry2, "Acct", "Ledger")
+      head2 = head_for(check!(second_era, translation_source: edges[0]), "Acct", "Ledger")
       expect(head2.find("gone")).not_to be_nil # carried across the first mint
       head2.delete("gone")
+    end
 
-      registry3 = check!(third_era, translation_source: edges.join("\n"))
-      head3 = head_for(registry3, "Acct", "Ledger")
+    it "keeps a record deleted in era 2 deleted in era 3, whose head is built on era 2's", :aggregate_failures do
+      delete_gone_in_era_two!
+      head3 = head_for(check!(third_era, translation_source: edges.join("\n")), "Acct", "Ledger")
 
       expect(head3.find("gone")).to be_nil
       expect(head3.all.map(&:id)).to eq(%w[keep])
       expect(head3.count).to eq(1)
     end
 
-    it "keeps a record deleted in era 3 deleted, though eras 1 and 2 still hold a save row for it" do
-      seed_era_one!
-      check!(second_era, translation_source: edges[0])
-      registry3 = check!(third_era, translation_source: edges.join("\n"))
-      head3 = head_for(registry3, "Acct", "Ledger")
-      expect(head3.find("gone")).not_to be_nil
-      head3.delete("gone")
+    context "with eras 1 and 2 still holding a save row for the record" do
+      let(:registry3) do
+        seed_era_one!
+        check!(second_era, translation_source: edges[0])
+        check!(third_era, translation_source: edges.join("\n"))
+      end
+      let(:head3) { head_for(registry3, "Acct", "Ledger") }
 
-      expect(head3.find("gone")).to be_nil
-      expect(head_for(registry3, "Acct", "Ledger").find("gone")).to be_nil # a fresh boot's own head
-      expect(head3.all.map(&:id)).to eq(%w[keep])
+      it "holds the record in era 3 until it is deleted" do
+        expect(head3.find("gone")).not_to be_nil
+      end
+
+      it "keeps a record deleted in era 3 deleted" do
+        head3.delete("gone")
+
+        expect(head3.find("gone")).to be_nil
+      end
+
+      it "keeps it deleted on a fresh boot's own head" do
+        head3.delete("gone")
+
+        expect(head_for(registry3, "Acct", "Ledger").find("gone")).to be_nil
+      end
+
+      it "leaves only the record that was kept" do
+        head3.delete("gone")
+
+        expect(head3.all.map(&:id)).to eq(%w[keep])
+      end
     end
   end
 
@@ -249,36 +255,38 @@ RSpec.describe "PostgresEra migration data safety", :io do
 
     def refusal = /this edge carries a compute or rekey rule, and the audit's human-approved sample is its only verification/
 
-    it "refuses a mint whose rekey SQL was edited after approval, and mints nothing" do
-      seed_roster!
-      approve!("Roster", load_registry(DATA_SAFETY_ROSTER_TWO, translation_source: roster_edge))
+    context "with the edge approved after the era 1 record is seeded" do
+      let(:approved) { roster_edge }
 
-      expect { mint_roster!(roster_edge(rekeyed_to: "someone-else@example.com")) }
-        .to raise_error(Hecks::Runtime::WiringError, refusal)
-      expect(era_count("Roster")).to eq(1)
-    end
+      before do
+        seed_roster!
+        approve!("Roster", load_registry(DATA_SAFETY_ROSTER_TWO, translation_source: approved))
+      end
 
-    it "refuses a mint whose backfill default was edited after approval, and mints nothing" do
-      seed_roster!
-      approve!("Roster", load_registry(DATA_SAFETY_ROSTER_TWO, translation_source: roster_edge))
+      it "refuses a mint whose rekey SQL was edited after approval, and mints nothing", :aggregate_failures do
+        expect { mint_roster!(roster_edge(rekeyed_to: "someone-else@example.com")) }
+          .to raise_error(Hecks::Runtime::WiringError, refusal)
+        expect(era_count("Roster")).to eq(1)
+      end
 
-      expect { mint_roster!(roster_edge(backfilled_to: "someone-else@example.com")) }
-        .to raise_error(Hecks::Runtime::WiringError, refusal)
-      expect(era_count("Roster")).to eq(1)
-    end
+      it "refuses a mint whose backfill default was edited after approval, and mints nothing", :aggregate_failures do
+        expect { mint_roster!(roster_edge(backfilled_to: "someone-else@example.com")) }
+          .to raise_error(Hecks::Runtime::WiringError, refusal)
+        expect(era_count("Roster")).to eq(1)
+      end
 
-    it "still mints the edge that was approved, and serves the record under the approved identity" do
-      seed_roster!
-      approved = roster_edge
-      approve!("Roster", load_registry(DATA_SAFETY_ROSTER_TWO, translation_source: approved))
-      expect { mint_roster!(roster_edge(rekeyed_to: "someone-else@example.com")) }
-        .to raise_error(Hecks::Runtime::WiringError, refusal)
+      it "still mints the edge that was approved" do
+        mint_roster!(approved)
 
-      registry = mint_roster!(approved)
+        expect(era_count("Roster")).to eq(2)
+      end
 
-      expect(era_count("Roster")).to eq(2)
-      expect(head_for(registry, "Person", "Roster").find(DATA_SAFETY_APPROVED_EMAIL)).not_to be_nil
-      expect(head_for(registry, "Person", "Roster").find("someone-else@example.com")).to be_nil
+      it "serves the record under the approved identity, and not under an edited one", :aggregate_failures do
+        head = head_for(mint_roster!(approved), "Person", "Roster")
+
+        expect(head.find(DATA_SAFETY_APPROVED_EMAIL)).not_to be_nil
+        expect(head.find("someone-else@example.com")).to be_nil
+      end
     end
   end
 
@@ -402,20 +410,27 @@ RSpec.describe "PostgresEra migration data safety", :io do
 
     # A compute whose source is the dotted member itself: the compiled SQL reads the source as a
     # path, so it fires and converts the member while keeping its sibling.
-    it "applies the SQL of a compute whose source is a dotted member" do
-      registry = check!(DATA_SAFETY_DOTTED_ONE)
-      head_for(registry, "Quote", "Pricing").save(
-        instance_of(registry, "Quote", "q1", sku: { "value" => "q1" }, price: { "cents" => 1250, "currency" => "USD" })
-      )
-      edge = <<~RUBY
+    def dotted_source_edge
+      <<~RUBY
         Hecks.data_translation("Pricing", from: #{label_of(DATA_SAFETY_DOTTED_ONE).inspect}, to: #{label_of(DATA_SAFETY_PRICING_TWO).inspect}) do
           aggregate("Quote") do
             compute "price.cents", to: "price.cents", sql: "(__s -> 'price' ->> 'cents')::numeric / 100"
           end
         end
       RUBY
-      approve!("Pricing", load_registry(DATA_SAFETY_PRICING_TWO, translation_source: edge))
+    end
 
+    def seed_dotted_quote!
+      registry = check!(DATA_SAFETY_DOTTED_ONE)
+      head_for(registry, "Quote", "Pricing").save(
+        instance_of(registry, "Quote", "q1", sku: { "value" => "q1" }, price: { "cents" => 1250, "currency" => "USD" })
+      )
+    end
+
+    it "applies the SQL of a compute whose source is a dotted member" do
+      seed_dotted_quote!
+      edge = dotted_source_edge
+      approve!("Pricing", load_registry(DATA_SAFETY_PRICING_TWO, translation_source: edge))
       minted = check!(DATA_SAFETY_PRICING_TWO, translation_source: edge)
 
       expect(head_for(minted, "Quote", "Pricing").find("q1").price.to_h).to eq(cents: 12.5, currency: "USD")

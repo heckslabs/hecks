@@ -42,7 +42,7 @@ RSpec.describe "an argument a command does not declare" do
       .to raise_error(Hecks::Runtime::UnknownArgument, /one.*two|two.*one/)
   end
 
-  it "leaves the identity keys alone" do
+  it "leaves the identity keys alone", :aggregate_failures do
     # `id` and a root's reference key address the aggregate and are not declared
     # attributes; refusing them would refuse every dispatch.
     runtime = boot_till

@@ -1,0 +1,8 @@
+PiiLambdaInvokePermission:
+  Type: AWS::Lambda::Permission
+  Properties:
+    Action: lambda:InvokeFunctionUrl
+    FunctionName: !Ref @@fronted_logical_id@@
+    Principal: cloudfront.amazonaws.com
+    SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${PiiDistribution}"
+    FunctionUrlAuthType: @@invoke_auth_type@@

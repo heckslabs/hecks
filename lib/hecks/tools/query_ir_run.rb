@@ -35,10 +35,14 @@ module Hecks
         when "constructs" then constructs(args)
         when "duplicates" then duplicates(args)
         when "impact"     then impact(args)
-        else
-          warn USAGE
-          1
+        else usage
         end
+      end
+
+      # @return [Integer] 1, after printing the usage
+      def usage
+        warn USAGE
+        1
       end
 
       # @param args [Array<String>] construct names, none for all

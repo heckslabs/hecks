@@ -46,13 +46,13 @@ RSpec.describe "a value object's list_of field" do
 
   def make(bag) = @runtime.dispatch("Shelving::Item.Make", with: { key: { value: rand.to_s }, bag: bag })
 
-  it "takes an Array of the element type, or nothing" do
+  it "takes an Array of the element type, or nothing", :aggregate_failures do
     expect { make(heard: "a", tags: %w[x y], counts: [1]) }.not_to raise_error
     expect { make(heard: "a") }.not_to raise_error
     expect { make(heard: "a", tags: nil) }.not_to raise_error
   end
 
-  it "refuses a lone scalar where a list is declared" do
+  it "refuses a lone scalar where a list is declared", :aggregate_failures do
     expect { make(heard: "a", tags: "x") }
       .to raise_error(Hecks::Runtime::TypeMismatch, /Bag\.tags expects list_of\(String\), got "x"/)
     expect { make(heard: "a", counts: 3) }
@@ -63,7 +63,7 @@ RSpec.describe "a value object's list_of field" do
     expect { make(heard: "a", tags: { a: 1 }) }.to raise_error(Hecks::Runtime::TypeMismatch, /Bag\.tags/)
   end
 
-  it "checks each element as the element type" do
+  it "checks each element as the element type", :aggregate_failures do
     expect { make(heard: "a", tags: [1]) }.to raise_error(Hecks::Runtime::TypeMismatch, /Bag\.tags expects String/)
     expect { make(heard: "a", counts: ["1"]) }.to raise_error(Hecks::Runtime::TypeMismatch, /Bag\.counts/)
   end

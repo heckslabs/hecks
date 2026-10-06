@@ -20,23 +20,35 @@ module Hecks
       #   ticket's `Filed` command takes
       # @raise [RuntimeError] when `gh` exits non-zero or prints no issue URL
       def file(**held)
-        repository = plain(held[:repository])
-        proposed   = plain(held[:pull_request]).to_s
-        body       = plain(held[:body]).to_s
-        body      += "\n\nA fix is proposed in #{proposed}" unless proposed.empty?
-
-        out, err, status = Open3.capture3("gh", "issue", "create", "--repo", repository,
-                                          "--title", plain(held[:title]).to_s, "--body", body)
-        raise "gh issue create failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
-
-        url    = out.strip.lines.last.to_s.strip
-        number = url[%r{/issues/(\d+)\z}, 1]
-        raise "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
+        out = create_issue(plain(held[:repository]), plain(held[:title]).to_s, issue_body(held))
+        url, number = issue_url_and_number(out)
 
         { number: { value: number.to_i }, url: { value: url } }
       end
 
       private
+
+      def issue_body(held)
+        proposed = plain(held[:pull_request]).to_s
+        body     = plain(held[:body]).to_s
+        proposed.empty? ? body : "#{body}\n\nA fix is proposed in #{proposed}"
+      end
+
+      def issue_url_and_number(out)
+        url = out.strip.lines.last.to_s.strip
+        number = url[%r{/issues/(\d+)\z}, 1]
+        raise "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
+
+        [url, number]
+      end
+
+      def create_issue(repository, title, body)
+        out, err, status = Open3.capture3("gh", "issue", "create", "--repo", repository,
+                                          "--title", title, "--body", body)
+        raise "gh issue create failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+
+        out
+      end
 
       # A materialized value object (`{value: x}`, symbol or string keys) or the value itself.
       def plain(field)

@@ -24,7 +24,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   def word(value) = { value: value }
 
   describe "a check" do
-    it "runs the Ruby linter in this process with --check on each path, from the checkout's root" do
+    it "runs the Ruby linter in this process with --check on each path, from the checkout's root", :aggregate_failures do
       shell = fake_tools
 
       expect(style("check_comments", { paths: word("lib/a.rb,lib/b") })).to eq("no comment violations")
@@ -58,7 +58,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "a fix" do
-    it "lists the fixable violations and rewrites nothing unless confirmed" do
+    it "lists the fixable violations and rewrites nothing unless confirmed", :aggregate_failures do
       shell = fake_tools(["lib/a.rb:3: [long_line] 101 characters\nlib/a.rb:9: [all_caps] SHOUT\n", 1])
 
       report = style("fix_comments", { paths: word("lib") })
@@ -74,7 +74,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
       expect(style("fix_rust_comments", { paths: word("rust") })).to eq("dry run: nothing a fix would rewrite")
     end
 
-    it "rewrites with --fix when confirmed" do
+    it "rewrites with --fix when confirmed", :aggregate_failures do
       shell = fake_tools("rewrote 2 files\n")
 
       report = style("fix_comments", { paths: word("lib"), confirm: word(true) })
@@ -85,7 +85,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "the baseline" do
-    it "lists the blocks it would record for lib/hecks, and writes nothing, unless confirmed" do
+    it "lists the blocks it would record for lib/hecks, and writes nothing, unless confirmed", :aggregate_failures do
       shell = fake_tools(["lib/hecks/a.rb:4: [long_block] 14 lines\n", 1])
 
       report = style("write_comment_baseline", {})
@@ -106,7 +106,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "a comment-only check" do
-    it "compares each file's code with the ref, for lib unless paths are named" do
+    it "compares each file's code with the ref, for lib unless paths are named", :aggregate_failures do
       shell = fake_tools("code unchanged\n")
 
       expect(style("check_comments_unchanged", { ref: word("main") })).to eq("code unchanged")
@@ -123,15 +123,20 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "a report" do
+    def run_report
+      @shell = fake_tools("summary\n")
+      described_class.report("report_comments", { paths: "lib,spec", only: "long_line", json: true, top: 5 }, tree)
+    end
+
+    it "answers the linter's summary" do
+      expect(run_report).to eq("summary")
+    end
+
     it "runs the linter's report with the options the query took" do
-      shell = fake_tools("summary\n")
+      run_report
 
-      report = described_class.report("report_comments", { paths: "lib,spec", only: "long_line", json: true, top: 5 },
-                                      tree)
-
-      expect(report).to eq("summary")
-      expect(shell.asked.first[:command]).to eq(["standardize_comments", "--report", "--only",
-                                                 "long_line", "--json", "--top", "5", "--", "lib", "spec"])
+      expect(@shell.asked.first[:command]).to eq(["standardize_comments", "--report", "--only",
+                                                  "long_line", "--json", "--top", "5", "--", "lib", "spec"])
     end
 
     it "runs the Rust linter for the Rust report" do
@@ -150,44 +155,63 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "canonicalise" do
-    it "writes a JSON document with every object's keys sorted, recursively" do
+    around do |example|
       Dir.mktmpdir do |dir|
-        file = File.join(dir, "doc.json")
-        File.write(file, '{"b":1,"a":{"d":[{"z":1,"y":2}],"c":3}}')
-
-        text = style("canonicalise", { file: word(file) })
-
-        expect(text).to eq(JSON.pretty_generate("a" => { "c" => 3, "d" => [{ "y" => 2, "z" => 1 }] }, "b" => 1))
-        expect(File.read(file)).to eq('{"b":1,"a":{"d":[{"z":1,"y":2}],"c":3}}')
+        @dir = dir
+        example.run
       end
     end
 
-    it "refuses a file that is not there, and a file that is not JSON" do
-      Dir.mktmpdir do |dir|
-        expect { style("canonicalise", { file: word(File.join(dir, "missing.json")) }) }
-          .to raise_error(failure, /no such file/)
-        File.write(File.join(dir, "bad.json"), "{")
-        expect { style("canonicalise", { file: word(File.join(dir, "bad.json")) }) }
-          .to raise_error(failure, /is not JSON/)
+    def canonicalise(path) = style("canonicalise", { file: word(path) })
+
+    def original_json = '{"b":1,"a":{"d":[{"z":1,"y":2}],"c":3}}'
+
+    context "with a document" do
+      let(:file) { File.join(@dir, "doc.json") }
+
+      before { File.write(file, original_json) }
+
+      it "writes a JSON document with every object's keys sorted, recursively" do
+        expect(canonicalise(file)).to eq(JSON.pretty_generate("a" => { "c" => 3, "d" => [{ "y" => 2, "z" => 1 }] }, "b" => 1))
       end
+
+      it "leaves the file as it was" do
+        canonicalise(file)
+
+        expect(File.read(file)).to eq(original_json)
+      end
+    end
+
+    it "refuses a file that is not there" do
+      expect { canonicalise(File.join(@dir, "missing.json")) }.to raise_error(failure, /no such file/)
+    end
+
+    it "refuses a file that is not JSON" do
+      File.write(File.join(@dir, "bad.json"), "{")
+
+      expect { canonicalise(File.join(@dir, "bad.json")) }.to raise_error(failure, /is not JSON/)
     end
   end
 
   describe "user-supplied paths and refs" do
-    it "puts `--` before the paths so none is read as a linter flag" do
+    def commands_for_a_check_and_a_fix
       shell = fake_tools
-
       style("check_comments", { paths: word("lib") })
       style("fix_comments", { paths: word("lib"), confirm: word(true) })
+      shell.asked.map { |ask| ask[:command] }
+    end
 
-      expect(shell.asked.map { |ask| ask[:command] }).to all(include("--", "lib"))
-      expect(shell.asked.map { |ask| ask[:command] }.map { |command| command.index("--") })
-        .to all(be < 4)
+    it "puts `--` before the paths so none is read as a linter flag" do
+      expect(commands_for_a_check_and_a_fix).to all(include("--", "lib"))
+    end
+
+    it "puts it among the leading arguments" do
+      expect(commands_for_a_check_and_a_fix.map { |command| command.index("--") }).to all(be < 4)
     end
 
     %w[check_comments fix_comments write_comment_baseline check_comments_unchanged
        check_rust_comments fix_rust_comments].each do |operation|
-      it "refuses a path beginning with '-' for #{operation}, running nothing" do
+      it "refuses a path beginning with '-' for #{operation}, running nothing", :aggregate_failures do
         shell = fake_tools
 
         expect { style(operation, { paths: word("--fix,lib"), ref: word("main"), confirm: word(true) }) }
@@ -203,7 +227,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
         .to raise_error(failure, /paths may not begin with '-'/)
     end
 
-    it "refuses an absent ref rather than comparing with the index" do
+    it "refuses an absent ref rather than comparing with the index", :aggregate_failures do
       shell = fake_tools
 
       expect { style("check_comments_unchanged", {}) }.to raise_error(failure, /ref .* required/)

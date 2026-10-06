@@ -15,14 +15,14 @@ RSpec.describe "docs/tools.md" do
     expect(tool.projection(text, root)).to eq(text)
   end
 
-  it "has a marked table for every section the rows name" do
+  it "has a marked table for every section the rows name", :aggregate_failures do
     sections = tool.rows.map { |row| row["section"] }.uniq
 
     expect(sections - tool::SECTIONS).to eq([])
     expect(tool::SECTIONS.reject { |section| text.include?("generated:begin tools section=#{section} -->") }).to eq([])
   end
 
-  it "lists every retired script, the qa_* ones included, once" do
+  it "lists every retired script, the qa_* ones included, once", :aggregate_failures do
     listed = text.lines.filter_map { |line| line[%r{\| `bin/([^`]+)` \|\s*\z}, 1] }
     scripts = tool.rows.map { |row| row["script"] }.uniq - ["(new)"]
 

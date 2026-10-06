@@ -1,4 +1,5 @@
 require_relative "../../storage_shape"
+require_relative "path_diff"
 
 module Hecks
   module Translation
@@ -6,6 +7,8 @@ module Hecks
       # Diffs two eras' storage shapes into the edge's declarations; rules are written only
       # for unique signature pairs, everything else is left unresolved.
       module Differ
+        include PathDiff
+
         # Diffs two bluebook IRs into the edge's declarations.
         #
         # @param held_bluebook [Bluebook::Chapter] the era being translated from
@@ -19,17 +22,22 @@ module Hecks
 
           matched = match_aggregates(held_shapes, current_shapes)
           aggregates = current_bluebook.aggregates.filter_map do |aggregate|
-            held_name = matched[:pairs][aggregate.name]
-            next unless held_name
-
-            rules = attribute_rules(held_shapes[held_name], current_shapes[aggregate.name])
-            was = held_name == aggregate.name ? nil : held_name
-            next if rules.empty? && was.nil?
-
-            ScaffoldedAggregate.new(name: aggregate.name, was: was, rules: rules)
+            scaffolded(aggregate, matched[:pairs], held_shapes, current_shapes)
           end
 
           { aggregates: aggregates, retired: matched[:retired], unclaimed: matched[:unclaimed] }
+        end
+
+        # One current aggregate's scaffolded rules, or nil when it is new or unchanged.
+        def scaffolded(aggregate, pairs, held_shapes, current_shapes)
+          held_name = pairs[aggregate.name]
+          return unless held_name
+
+          rules = attribute_rules(held_shapes[held_name], current_shapes[aggregate.name])
+          was = held_name == aggregate.name ? nil : held_name
+          return if rules.empty? && was.nil?
+
+          ScaffoldedAggregate.new(name: aggregate.name, was: was, rules: rules)
         end
 
         # Projects a bluebook's storage shape, indexing its aggregates by name.
@@ -46,25 +54,28 @@ module Hecks
         # @return [Hash{Symbol => Object}] `:pairs` (current name to held name, or nil),
         #   `:retired` (Array<String>), `:unclaimed` (Array<String>)
         def match_aggregates(held_shapes, current_shapes)
-          pairs = {}
-          current_shapes.each_key { |name| pairs[name] = held_shapes.key?(name) ? name : nil }
-
+          pairs = current_shapes.keys.to_h { |name| [name, held_shapes.key?(name) ? name : nil] }
           vanished = held_shapes.keys - current_shapes.keys
           appeared = current_shapes.keys.select { |name| pairs[name].nil? }
+          unclaimed = claim_renamed!(vanished, appeared, pairs, held_shapes, current_shapes)
+
+          retired = appeared.empty? ? unclaimed : []
+          { pairs: pairs, retired: retired, unclaimed: retired.empty? ? unclaimed : [] }
+        end
+
+        # Pairs each vanished aggregate with the one appeared aggregate sharing its full shape,
+        # mutating `pairs` and `appeared`; returns the vanished names left without a successor.
+        def claim_renamed!(vanished, appeared, pairs, held_shapes, current_shapes)
           unclaimed = []
           vanished.each do |old_name|
             old_shape = held_shapes[old_name].merge("name" => nil)
             candidates = appeared.select { |name| current_shapes[name].merge("name" => nil) == old_shape }
-            if candidates.size == 1
-              pairs[candidates.first] = old_name
-              appeared -= candidates
-            else
-              unclaimed << old_name
-            end
-          end
+            next unclaimed << old_name unless candidates.size == 1
 
-          retired = appeared.empty? ? unclaimed : []
-          { pairs: pairs, retired: retired, unclaimed: retired.empty? ? unclaimed : [] }
+            pairs[candidates.first] = old_name
+            appeared.delete(candidates.first)
+          end
+          unclaimed
         end
 
         # Resolves every changed path in one aggregate into rules by signature matching:
@@ -76,12 +87,9 @@ module Hecks
         # @return [Array<Hash{Symbol => Object}>] one rule per changed path (see
         #   `Renderer#render_rule`); `[]` when nothing changed
         def attribute_rules(held_shape, current_shape)
-          rules = []
-          rules << identity_hint(held_shape, current_shape)
-          rules.compact!
-          held_attrs = (held_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
-          current_attrs = (current_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
-
+          held_attrs = attributes_by_name(held_shape)
+          current_attrs = attributes_by_name(current_shape)
+          rules = [identity_hint(held_shape, current_shape)].compact
           rules.concat(retype_rules(held_attrs, current_attrs))
           retyped = rules.filter_map { |rule| rule[:from] if rule[:kind] == :retype }
 
@@ -94,79 +102,50 @@ module Hecks
           rules
         end
 
+        # A shape's attributes keyed by name.
+        def attributes_by_name(shape)
+          (shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
+        end
+
         # Retype rules for attributes whose members are unchanged but whose type name changed.
         def retype_rules(held_attrs, current_attrs)
           (held_attrs.keys & current_attrs.keys).filter_map do |name|
             held = held_attrs[name]
             current = current_attrs[name]
-            next if held == current
-            next unless container?(held) && container?(current)
-            next unless held["type"]["members"] == current["type"]["members"] && held["list"] == current["list"]
-
-            { kind: :retype, from: held["type"]["type"], to: current["type"]["type"] }
+            { kind: :retype, from: held["type"]["type"], to: current["type"]["type"] } if retyped?(held, current)
           end
+        end
+
+        # Whether two versions of an attribute differ only in the name of the same-shaped type.
+        def retyped?(held, current)
+          held != current && container?(held) && container?(current) &&
+            held["type"]["members"] == current["type"]["members"] && held["list"] == current["list"]
         end
 
         # Resolves each vanished path into a rename, move or unresolved rule appended to `rules`.
         def resolve_vanished_rules!(rules, vanished, appeared)
           vanished.each do |path, signature|
-            matches = appeared.select { |_, candidate| candidate == signature }.keys
-            taken = rules.filter_map { |rule| rule[:to] if %i[rename move].include?(rule[:kind]) }
-            matches -= taken
-            if matches.size == 1 && vanished.one? { |_, other| other == signature }
-              target = matches.first
-              kind = path.include?(".") || target.include?(".") ? :move : :rename
-              rules << { kind: kind, from: path, to: target }
-            else
-              candidates = matches.empty? ? compatible_candidates(appeared, signature) : matches
-              rules << { kind: :unresolved, from: path, candidates: candidates }
-            end
+            rules << rule_for(rules, path, signature, vanished, appeared)
           end
         end
 
-        # Held paths that need explaining: vanished attributes, and members that vanished or
-        # changed type inside a kept attribute — the set EraGuard demands coverage for.
-        # Returns each path (dotted for a member) valued by its type signature.
-        def vanished_paths(held_attrs, current_attrs, retyped)
-          paths = {}
-          held_attrs.each do |name, held|
-            next if retyped.include?(container?(held) ? held["type"]["type"] : nil)
-
-            current = current_attrs[name]
-            if current.nil?
-              paths[name] = held["type"]
-              next
-            end
-            next if held == current
-
-            held_members = members_of(held)
-            current_members = members_of(current)
-            held_members.each do |member, signature|
-              paths["#{name}.#{member}"] = signature if current_members[member] != signature
-            end
+        # The one rule a vanished path resolves to, given the targets earlier rules claimed.
+        def rule_for(rules, path, signature, vanished, appeared)
+          matches = appeared.select { |_, candidate| candidate == signature }.keys - claimed_targets(rules)
+          if matches.size == 1 && vanished.one? { |_, other| other == signature }
+            { kind: move_or_rename(path, matches.first), from: path, to: matches.first }
+          else
+            candidates = matches.empty? ? compatible_candidates(appeared, signature) : matches
+            { kind: :unresolved, from: path, candidates: candidates }
           end
-          paths
         end
 
-        # Current paths that need explaining; the mirror of `vanished_paths`.
-        def appeared_paths(held_attrs, current_attrs, retyped)
-          paths = {}
-          current_attrs.each do |name, current|
-            next if retyped.include?(container?(current) ? current["type"]["type"] : nil)
+        # A path crossing a value-object boundary on either end is a move; two bare names a rename.
+        def move_or_rename(path, target) = path.include?(".") || target.include?(".") ? :move : :rename
 
-            held = held_attrs[name]
-            if held.nil?
-              paths[name] = current["type"]
-              next
-            end
-            next if held == current
-
-            held_members = members_of(held)
-            members_of(current).each do |member, signature|
-              paths["#{name}.#{member}"] = signature if held_members[member] != signature
-            end
-          end
-          paths
+        # The destinations the rename and move rules so far already took.
+        def claimed_targets(rules)
+          rules.filter_map { |rule| rule[:to] if %i[rename move].include?(rule[:kind]) }
         end
 
         # An unresolved placeholder when the identity paths differ; nil when they match.
@@ -176,24 +155,6 @@ module Hecks
 
           { kind: :unresolved, from: :identity, candidates: [] }
         end
-
-        # Appeared paths type-compatible with a vanished path's signature.
-        def compatible_candidates(appeared, signature)
-          appeared.select { |_, candidate| scalar_of(candidate) == scalar_of(signature) }.keys
-        end
-
-        # Reduces a type signature to what `compatible_candidates` compares: members or the scalar.
-        def scalar_of(signature) = signature.is_a?(Hash) ? signature["members"] : signature
-
-        # A container attribute's members keyed by name; `{}` for a scalar.
-        def members_of(attribute)
-          return {} unless container?(attribute)
-
-          attribute["type"]["members"].to_h { |member| [member["name"], member["type"]] }
-        end
-
-        # Whether the attribute's type is a container (value object or entity), not a scalar.
-        def container?(attribute) = attribute["type"].is_a?(Hash)
       end
     end
   end

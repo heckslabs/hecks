@@ -1,0 +1,102 @@
+# Real Google OAuth token exchange needs real internet access --
+# see the enclosing template's own "NO NAT GATEWAY" comment for
+# why this is opt-in. One NAT Gateway, one public subnet, wired
+# only when google_oauth_present -- nothing else in this stack
+# pays for it.
+@@db_id@@PublicSubnet:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    CidrBlock: 10.0.3.0/24
+    AvailabilityZone: !Select [0, !GetAZs '']
+    MapPublicIpOnLaunch: true
+
+@@db_id@@InternetGateway:
+  Type: AWS::EC2::InternetGateway
+
+@@db_id@@InternetGatewayAttachment:
+  Type: AWS::EC2::VPCGatewayAttachment
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    InternetGatewayId: !Ref @@db_id@@InternetGateway
+
+@@db_id@@PublicRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+
+@@db_id@@PublicRoute:
+  Type: AWS::EC2::Route
+  DependsOn: @@db_id@@InternetGatewayAttachment
+  Properties:
+    RouteTableId: !Ref @@db_id@@PublicRouteTable
+    DestinationCidrBlock: 0.0.0.0/0
+    GatewayId: !Ref @@db_id@@InternetGateway
+
+@@db_id@@PublicSubnetRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+    SubnetId: !Ref @@db_id@@PublicSubnet
+    RouteTableId: !Ref @@db_id@@PublicRouteTable
+
+# A second public subnet, AZ index 1 -- not where NatGateway
+# lives (that's still @@db_id@@PublicSubnet, AZ index 0). Only
+# for bastion.yaml's own BastionInstance, a real EC2 instance
+# that a real, live CREATE_FAILED proved this account can't
+# launch in AZ index 0 at all. Same shared
+# @@db_id@@PublicRouteTable/@@db_id@@InternetGateway as
+# @@db_id@@PublicSubnet, not a second IGW -- a VPC accepts only one.
+@@db_id@@BastionPublicSubnet:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    CidrBlock: 10.0.4.0/24
+    AvailabilityZone: !Select [1, !GetAZs '']
+    MapPublicIpOnLaunch: true
+
+@@db_id@@BastionPublicSubnetRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+    SubnetId: !Ref @@db_id@@BastionPublicSubnet
+    RouteTableId: !Ref @@db_id@@PublicRouteTable
+
+@@db_id@@NatEip:
+  Type: AWS::EC2::EIP
+  Properties:
+    Domain: vpc
+
+@@db_id@@NatGateway:
+  Type: AWS::EC2::NatGateway
+  Properties:
+    SubnetId: !Ref @@db_id@@PublicSubnet
+    AllocationId: !GetAtt @@db_id@@NatEip.AllocationId
+
+# @@db_id@@SubnetA/B (private -- the compute and RDS live here)
+# have no route to the internet at all without this: routes
+# outbound through @@db_id@@NatGateway instead of an Internet
+# Gateway directly -- the whole reason a NAT (not just an IGW)
+# exists: outbound-only, no inbound path back into these subnets.
+@@db_id@@PrivateRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+
+@@db_id@@PrivateRoute:
+  Type: AWS::EC2::Route
+  Properties:
+    RouteTableId: !Ref @@db_id@@PrivateRouteTable
+    DestinationCidrBlock: 0.0.0.0/0
+    NatGatewayId: !Ref @@db_id@@NatGateway
+
+@@db_id@@SubnetARouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+    SubnetId: !Ref @@db_id@@SubnetA
+    RouteTableId: !Ref @@db_id@@PrivateRouteTable
+
+@@db_id@@SubnetBRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+    SubnetId: !Ref @@db_id@@SubnetB
+    RouteTableId: !Ref @@db_id@@PrivateRouteTable
+

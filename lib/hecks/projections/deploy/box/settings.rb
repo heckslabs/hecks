@@ -1,4 +1,9 @@
 require_relative "hosting_settings"
+require_relative "settings/patterns"
+require_relative "settings/types"
+require_relative "settings/checks"
+require_relative "settings/containers"
+require_relative "settings/origin"
 
 module Hecks
   module Projections
@@ -11,94 +16,11 @@ module Hecks
         # pattern first, so a world file cannot splice shell, YAML or Caddy syntax into the output.
         # A setting the world leaves out resolves to the default the golden stack was built with.
         module Settings
-          NAME        = /\A[a-z][a-z0-9-]{0,40}\z/
-          REPOSITORY  = %r{\A[a-z0-9][a-z0-9._/-]{1,100}\z}
-          URL_PATH    = %r{\A/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*\z}
-          SECRET_NAME = %r{\A[A-Za-z0-9/_+=.@-]{1,256}\*?\z}
-          ENV_KEY     = /\A[A-Za-z_][A-Za-z0-9_]*\z/
-          ENV_VALUE   = /\A[^\x00-\x1f\x7f]*\z/
-          HEADER      = /\A[A-Za-z][A-Za-z0-9-]{0,63}\z/
-          DB_NAME     = /\A[a-zA-Z][a-zA-Z0-9]{0,62}\z/
-          ENGINE      = /\A\d{2}(\.\d{1,2})?\z/
-          PREFIX      = /\A[a-z][a-z0-9-]{0,20}\z/
-          IMAGE       = %r{\A[a-z0-9][a-z0-9._/:@-]{1,200}\z}
-          TASKDEF     = /\A[a-zA-Z0-9_-]{1,255}\z/
-          SCHEMA      = /\A[a-z][a-z0-9_]{0,62}\z/
-          MIGRATION_SHAPE = "migration: a hash needs `schemas`, a list of the schema names to copy".freeze
-          S3_BUCKET   = /\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z/
-          S3_SHAPE    = "s3_access: a list of `{ bucket: \"name\", write: true }` hashes (write is optional)".freeze
-          FROM_TASKDEF = %i[env secrets repository].freeze
-          # Default images, each a version tag plus the digest of its multi-architecture index,
-          # so a rebuilt box pulls the same bytes.
-          TUNNEL_IMAGE = "cloudflare/cloudflared:2026.9.3" \
-                         "@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c".freeze
-          PROXY_IMAGE  = "public.ecr.aws/docker/library/caddy:2.8" \
-                         "@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f".freeze
-          TUNNEL_SHAPE = "tunnel: a hash needs `to` (the container it forwards to) and `token_secret` " \
-                         "(the secret holding the tunnel token)".freeze
-          ORIGIN_ENV_SHAPE = "origin_env: the container environment variable names that hold the origin secret " \
-                             "need an origin_secret and a task_definition to compare against".freeze
-          ORIGIN_PAIR = "origin_header and origin_secret go together: the header a CDN sends, " \
-                        "and the secret that holds its value".freeze
-
-          # One container the box runs: its image repository, its port and its settings.
-          #
-          # @!attribute [r] name [String] the compose service name
-          # @!attribute [r] repository [String] the ECR repository holding its images
-          # @!attribute [r] port [Integer] the port it listens on, on the box's own network
-          # @!attribute [r] env [Hash{String => String}] plain environment variables
-          # @!attribute [r] secrets [Hash{String => String}] environment variable => secret name,
-          #   resolved on the box at deploy time and never written into a template
-          # @!attribute [r] tag_parameter [String] the stack parameter that holds this container's
-          #   image tag, which a hosting `deploy-service.sh` sets
-          Container = Struct.new(:name, :repository, :port, :env, :secrets, :tag_parameter, keyword_init: true)
-
-          # A set of URL paths one container serves.
-          #
-          # @!attribute [r] container [String] the container's name
-          # @!attribute [r] paths [Array<String>] Caddy path patterns, such as "/cms/*"
-          Route = Struct.new(:container, :paths, keyword_init: true)
-
-          # A Cloudflare tunnel the box runs as a service, pointed at one container.
-          #
-          # @!attribute [r] container [String] the container the tunnel forwards to
-          # @!attribute [r] port [Integer] that container's port
-          # @!attribute [r] token_secret [String] the secret holding the tunnel token
-          # @!attribute [r] image [String] the cloudflared image
-          Tunnel = Struct.new(:container, :port, :token_secret, :image, keyword_init: true)
-
-          # The data a project moves from its old database into the new RDS instance.
-          #
-          # @!attribute [r] schemas [Array<String>] the schemas to copy
-          # @!attribute [r] database [String] the database holding them on the RDS instance
-          # @!attribute [r] source_database [String] the database holding them on the old server
-          Migration = Struct.new(:schemas, :database, :source_database, keyword_init: true)
-
-          # An S3 bucket the box's role may read, and in production write.
-          #
-          # @!attribute [r] name [String] the bucket's name
-          # @!attribute [r] write [Boolean] whether a production box may also write and delete
-          Bucket = Struct.new(:name, :write, keyword_init: true)
-
-          # Everything the generator reads, checked.
-          Plan = Struct.new(
-            :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
-            :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
-            :containers, :routes, :default_container, :origin_header, :origin_secret,
-            :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image, :task_definition,
-            :migration, :s3_buckets, :hosting, keyword_init: true
-          ) do
-            # @return [String] the CloudFormation stack that holds the database
-            def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
-
-            # @return [String] the CloudFormation stack that holds the box
-            def box_stack = "#{stack_prefix}-#{infra_name}-box"
-
-            # @return [Container] the container that answers every path no route claims
-            def default
-              containers.find { |c| c.name == default_container }
-            end
-          end
+          include Patterns
+          include Types
+          extend Checks
+          extend ContainerReaders
+          extend OriginReaders
 
           module_function
 
@@ -115,24 +37,44 @@ module Hecks
             listed = s.fetch(:containers) { raise ArgumentError, missing_containers }
             task_definition = read_task_definition(s[:task_definition], listed)
             containers = read_containers(listed, infra_name)
-            header, secret = read_origin(s)
-            origin_env = read_origin_env(s, secret, task_definition)
-            tunnel, tunnel_service = read_tunnel(s.fetch(:tunnel, false), containers)
+            edge = edge_fields(s, containers, task_definition)
+            Plan.new(**plan_fields(s, target, infra_name, database_name, containers), **edge,
+                     **extra_fields(s, task_definition, database_name))
+          end
 
-            Plan.new(
-              infra_name: infra_name, stack_prefix: check(:stack_prefix, s.fetch(:stack_prefix, "hecks"), PREFIX),
-              **declared_sizes(target), **read_sizes(s), database_name: database_name,
-              engine_version: check(:engine_version, s.fetch(:engine_version, "16").to_s, ENGINE),
-              containers: containers, routes: read_routes(s.fetch(:routes, []), containers),
-              default_container: read_default(s[:default_container], containers), origin_header: header,
-              origin_secret: secret, origin_env: origin_env, secret_prefixes: read_prefixes(s, infra_name),
-              writable_secrets: read_writable_secrets(s),
-              tunnel: tunnel, tunnel_service: tunnel_service,
-              proxy_image: check(:proxy_image, s.fetch(:proxy_image, PROXY_IMAGE), IMAGE),
-              task_definition: task_definition, migration: read_migration(s[:migration], database_name),
-              s3_buckets: read_s3_access(s.fetch(:s3_access, [])),
-              hosting: HostingSettings.read(s, task_definition)
-            )
+          # @return [Hash{Symbol => Object}] the task definition, the migration, S3 access and
+          #   hosting
+          def extra_fields(settings, task_definition, database_name)
+            {
+              task_definition: task_definition, migration: read_migration(settings[:migration], database_name),
+              s3_buckets: read_s3_access(settings.fetch(:s3_access, [])),
+              hosting: HostingSettings.read(settings, task_definition)
+            }
+          end
+
+          # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
+          # @param containers [Array<Container>] the declared containers
+          # @param task_definition [String, nil] the declared task definition family
+          # @return [Hash{Symbol => Object}] the origin guard and the tunnel
+          def edge_fields(settings, containers, task_definition)
+            header, secret = read_origin(settings)
+            origin_env = read_origin_env(settings, secret, task_definition)
+            tunnel, tunnel_service = read_tunnel(settings.fetch(:tunnel, false), containers)
+            { origin_header: header, origin_secret: secret, origin_env: origin_env,
+              tunnel: tunnel, tunnel_service: tunnel_service }
+          end
+
+          # @return [Hash{Symbol => Object}] the plan's names, sizes, routes and secret scopes
+          def plan_fields(settings, target, infra_name, database_name, containers)
+            {
+              infra_name: infra_name, stack_prefix: check(:stack_prefix, settings.fetch(:stack_prefix, "hecks"), PREFIX),
+              **declared_sizes(target), **read_sizes(settings), database_name: database_name,
+              engine_version: check(:engine_version, settings.fetch(:engine_version, "16").to_s, ENGINE),
+              containers: containers, routes: read_routes(settings.fetch(:routes, []), containers),
+              default_container: read_default(settings[:default_container], containers),
+              secret_prefixes: read_prefixes(settings, infra_name), writable_secrets: read_writable_secrets(settings),
+              proxy_image: check(:proxy_image, settings.fetch(:proxy_image, PROXY_IMAGE), IMAGE)
+            }
           end
 
           # @param target [Object] the declared `BoxTarget`
@@ -157,14 +99,20 @@ module Hecks
           # @raise [ArgumentError] when the setting is not a hash with a non-empty list of schemas
           def read_migration(value, database_name)
             return nil if value.nil?
+
+            listed = migration_schemas(value)
+            database = check(:migration_database, value.fetch(:database, database_name), DB_NAME)
+            Migration.new(schemas: listed.map { |name| check(:migration_schemas, name, SCHEMA) }.uniq, database: database,
+                          source_database: check(:migration_source_database, value.fetch(:source_database, database), DB_NAME))
+          end
+
+          def migration_schemas(value)
             raise ArgumentError, MIGRATION_SHAPE unless value.is_a?(Hash)
 
             listed = value.fetch(:schemas) { raise ArgumentError, MIGRATION_SHAPE }
             raise ArgumentError, MIGRATION_SHAPE unless listed.is_a?(Array) && !listed.empty?
 
-            database = check(:migration_database, value.fetch(:database, database_name), DB_NAME)
-            Migration.new(schemas: listed.map { |name| check(:migration_schemas, name, SCHEMA) }.uniq, database: database,
-                          source_database: check(:migration_source_database, value.fetch(:source_database, database), DB_NAME))
+            listed
           end
 
           # @param list [Array<Hash>] the world's `s3_access` setting
@@ -200,163 +148,10 @@ module Hecks
               clash = spec.is_a?(Hash) ? FROM_TASKDEF & spec.keys : []
               next if clash.empty?
 
-              raise ArgumentError, "containers: #{spec[:name]} sets #{clash.join(', ')}, which the task definition " \
-                                   "#{family} supplies; drop #{clash.size == 1 ? 'it' : 'them'} or drop task_definition"
+              raise ArgumentError, "containers: #{spec[:name]} sets #{clash.join(", ")}, which the task definition " \
+                                   "#{family} supplies; drop #{clash.size == 1 ? "it" : "them"} or drop task_definition"
             end
             family
-          end
-
-          def read_containers(list, infra_name)
-            raise ArgumentError, missing_containers unless list.is_a?(Array) && !list.empty?
-
-            containers = list.map { |c| read_container(c, infra_name) }
-            names = containers.map(&:name)
-            dup = names.find { |n| names.count(n) > 1 }
-            raise ArgumentError, "containers: two containers are named #{dup.inspect}" if dup
-
-            ports = containers.map(&:port)
-            clash = ports.find { |p| ports.count(p) > 1 }
-            raise ArgumentError, "containers: two containers listen on port #{clash}; they share the box's network" if clash
-
-            containers
-          end
-
-          def read_container(spec, infra_name)
-            raise ArgumentError, "containers: each container is a hash, got #{spec.inspect}" unless spec.is_a?(Hash)
-
-            name = check(:container_name, spec.fetch(:name) { raise ArgumentError, "containers: a container has no name" }, NAME)
-            Container.new(
-              name: name, repository: check(:repository, spec.fetch(:repository, "#{infra_name}-#{name}"), REPOSITORY),
-              port: integer(:port, spec.fetch(:port) { raise ArgumentError, "containers: #{name} has no port" }, 1, 65_535),
-              env: string_map(:env, spec.fetch(:env, {}), ENV_KEY, ENV_VALUE),
-              secrets: string_map(:secrets, spec.fetch(:secrets, {}), ENV_KEY, SECRET_NAME),
-              tag_parameter: check(:tag_parameter, spec.fetch(:tag_parameter, default_tag_parameter(name)),
-                                   HostingSettings::PARAMETER)
-            )
-          end
-
-          # @param name [String] a container name such as `web-app`
-          # @return [String] the image-tag parameter a stack names it by, such as `WebAppImageTag`
-          def default_tag_parameter(name)
-            "#{name.split('-').map(&:capitalize).join}ImageTag"
-          end
-
-          def read_routes(list, containers)
-            raise ArgumentError, "routes: expected a list" unless list.is_a?(Array)
-
-            list.map { |spec| read_route(spec, containers) }
-          end
-
-          def read_route(spec, containers)
-            container = spec.fetch(:container) { raise ArgumentError, "routes: a route has no container" }
-            name = check(:route_container, container, NAME)
-            known_container!(:routes, name, containers)
-            paths = Array(spec.fetch(:paths) { raise ArgumentError, "routes: the route for #{name} has no paths" })
-            raise ArgumentError, "routes: the route for #{name} has no paths" if paths.empty?
-
-            Route.new(container: name, paths: paths.map { |p| check(:path, p, URL_PATH) })
-          end
-
-          def read_default(name, containers)
-            return containers.first.name if name.nil? && containers.size == 1
-            raise ArgumentError, "default_container: name the container that answers every other path" if name.nil?
-
-            known_container!(:default_container, check(:default_container, name, NAME), containers)
-          end
-
-          def known_container!(key, name, containers)
-            return name if containers.any? { |c| c.name == name }
-
-            raise ArgumentError, "#{key}: #{name.inspect} is not a declared container"
-          end
-
-          def read_origin(settings)
-            header = settings[:origin_header]
-            secret = settings[:origin_secret]
-            return [nil, nil] if header.nil? && secret.nil?
-            raise ArgumentError, ORIGIN_PAIR if header.nil? || secret.nil?
-
-            [check(:origin_header, header, HEADER), check(:origin_secret, secret, SECRET_NAME)]
-          end
-
-          # The container environment variables that hold the origin secret in the task
-          # definition. Only Caddy reads the named secret; the containers keep the task
-          # definition's copy, so a copy that differs makes every request through the CDN
-          # fail. Naming them lets deploy refuse a mismatch.
-          #
-          # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
-          # @param secret [String, nil] the declared origin secret
-          # @param task_definition [String, nil] the declared task definition family
-          # @return [Array<String>] the variable names, empty when none are declared
-          # @raise [ArgumentError] when named without an origin secret and a task definition
-          def read_origin_env(settings, secret, task_definition)
-            names = Array(settings.fetch(:origin_env, []))
-            return [] if names.empty?
-            raise ArgumentError, ORIGIN_ENV_SHAPE if secret.nil? || task_definition.nil?
-
-            names.map { |name| check(:origin_env, name, ENV_KEY) }.uniq
-          end
-
-          # `tunnel true` only opens the outbound port; a hash also runs cloudflared as a service.
-          #
-          # @param value [Boolean, Hash{Symbol => Object}] the world's `tunnel` setting
-          # @param containers [Array<Container>] the declared containers
-          # @return [Array(Boolean, Tunnel)] whether the egress opens, and the service if one runs
-          def read_tunnel(value, containers)
-            return [boolean(:tunnel, value), nil] unless value.is_a?(Hash)
-
-            to = value.fetch(:to) { raise ArgumentError, TUNNEL_SHAPE }
-            target = known_container!(:tunnel, check(:tunnel_to, to, NAME), containers)
-            token = check(:tunnel_token_secret, value.fetch(:token_secret) { raise ArgumentError, TUNNEL_SHAPE }, SECRET_NAME)
-            image = check(:tunnel_image, value.fetch(:image, TUNNEL_IMAGE), IMAGE)
-            port = containers.find { |c| c.name == target }.port
-            [true, Tunnel.new(container: target, port: port, token_secret: token, image: image)]
-          end
-
-          def read_prefixes(settings, infra_name)
-            list = Array(settings.fetch(:secret_prefixes, ["#{infra_name}/*"]))
-            list.map { |p| check(:secret_prefixes, p, SECRET_NAME) }
-          end
-
-          # Secrets the box may overwrite, such as one an admin page stores a key in. Production
-          # only: a rehearsal box never changes a secret.
-          def read_writable_secrets(settings)
-            Array(settings.fetch(:writable_secrets, [])).map { |name| check(:writable_secrets, name, SECRET_NAME) }
-          end
-
-          def string_map(key, value, key_pattern, value_pattern)
-            raise ArgumentError, "#{key}: expected a hash" unless value.is_a?(Hash)
-
-            value.to_h { |k, v| [check(key, k.to_s, key_pattern), check(key, v.to_s, value_pattern)] }
-          end
-
-          def check(key, value, pattern)
-            return value if value.is_a?(String) && value.match?(pattern)
-
-            raise ArgumentError, "#{key}: #{value.inspect} does not match #{pattern.inspect}"
-          end
-
-          def integer(key, value, low, high)
-            return value if value.is_a?(Integer) && value.between?(low, high)
-
-            raise ArgumentError, "#{key}: #{value.inspect} must be an integer from #{low} to #{high}"
-          end
-
-          def boolean(key, value)
-            return value if [true, false].include?(value)
-
-            raise ArgumentError, "#{key}: #{value.inspect} must be true or false"
-          end
-
-          def missing_containers
-            <<~MSG
-              deployed_to("AwsBox") needs at least one container. Add one, e.g.:
-
-                  deployed_to("AwsBox") do
-                    region "us-east-1"
-                    containers [{ name: "web", port: 8080 }]
-                  end
-            MSG
           end
         end
       end

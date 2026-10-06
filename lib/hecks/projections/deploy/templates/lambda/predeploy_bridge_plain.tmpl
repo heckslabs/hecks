@@ -1,0 +1,7 @@
+@echo "Checking whether $(STACK) already exists, to decide whether this deploy needs to bridge era history before it flips the stack over..."
+@if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \
+	echo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \
+	$(MAKE) mint-era || exit 1; \
+else \
+	echo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \
+fi

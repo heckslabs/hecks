@@ -3,6 +3,7 @@ require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
 require_relative "../../runtime/value"
+require_relative "sql_value_members"
 
 module Hecks
   module Adapters
@@ -11,6 +12,8 @@ module Hecks
     # comparable_expression, plain_column, nested_expression, order_clause, execute_query
     # and dialect_name.
     module SqlQueryBuilder
+      include SqlValueMembers
+
       COMPARATORS = {
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
       }.freeze
@@ -31,16 +34,27 @@ module Hecks
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
         clauses = where_clauses(declared, args, binds)
-        sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
+        sql << " WHERE #{clauses.join(" AND ")}" unless clauses.empty?
         sql << order_by_sql(declared)
-        sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
-        # SQLite refuses a bare OFFSET, so the dialect spells its own unbounded limit.
-        sql << unbounded_limit if !declared.limit && declared.offset
-        sql << " OFFSET #{placeholder(binds, query_value(declared.offset.value, args).to_i)}" if declared.offset
+        sql << paging_sql(declared, args, binds)
         execute_query(sql, binds)
       end
 
       private
+
+      # The LIMIT and OFFSET text, with their placeholders bound after the where binds.
+      def paging_sql(declared, args, binds)
+        sql = +""
+        sql << bound_paging(" LIMIT", declared.limit, args, binds) if declared.limit
+        # SQLite refuses a bare OFFSET, so the dialect spells its own unbounded limit.
+        sql << unbounded_limit if !declared.limit && declared.offset
+        sql << bound_paging(" OFFSET", declared.offset, args, binds) if declared.offset
+        sql
+      end
+
+      def bound_paging(keyword, clause, args, binds)
+        "#{keyword} #{placeholder(binds, query_value(clause.value, args).to_i)}"
+      end
 
       # `binds` is filled in place so LIMIT/OFFSET placeholders follow the where binds.
       def where_clauses(declared, args, binds)
@@ -65,23 +79,29 @@ module Hecks
         case oper
         when "eq", "ne", "gt", "gte", "lt", "lte"
           "#{comparable_expression(expression, value)} #{COMPARATORS.fetch(oper)} #{placeholder(binds, value)}"
-        when "contains"
-          member = field && list_member(field)
-          if member
-            list_contains_clause(field.to_s, member, placeholder(binds, value.to_s))
-          else
-            contains_clause(expression, placeholder(binds, value.to_s))
-          end
-        when "in"
-          members = in_members(value)
-          return empty_in_clause if members.empty?
-
-          # `in` reads as text everywhere: casting the column keeps a numeric field
-          # matching the stringified members (SQLite's json_extract carries no affinity).
-          "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(', ')})"
+        when "contains" then contains_sql(expression, value, binds, field)
+        when "in" then in_sql(expression, value, binds)
         else
           raise ArgumentError, "#{dialect_name} query adapter does not support #{oper.inspect}"
         end
+      end
+
+      def contains_sql(expression, value, binds, field)
+        member = field && list_member(field)
+        if member
+          list_contains_clause(field.to_s, member, placeholder(binds, value.to_s))
+        else
+          contains_clause(expression, placeholder(binds, value.to_s))
+        end
+      end
+
+      def in_sql(expression, value, binds)
+        members = in_members(value)
+        return empty_in_clause if members.empty?
+
+        # `in` reads as text everywhere: casting the column keeps a numeric field
+        # matching the stringified members (SQLite's json_extract carries no affinity).
+        "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(", ")})"
       end
 
       # A real array is not re-split on commas: an id is a domain value and may hold one.
@@ -95,46 +115,18 @@ module Hecks
       # Compiles a declared field into an expression over the stored shape. A value-object
       # field compares through its numeric member, else its sole attribute, else `value`.
       # A reference is a bare id, so it takes the plain-column path.
-      # The two member fallbacks stay in one method so their order is visible.
-      # rubocop:disable-next Metrics/CyclomaticComplexity
-      # rubocop:disable-next Metrics/PerceivedComplexity
       def query_expression(field, value: nil)
         name, *path = field.to_s.split(".")
         attribute = @aggregate.attribute(name)
 
-        return plain_column(name) if path.empty? && @aggregate.lifecycle&.field.to_s == name
-        return plain_column(name) if path.empty? && attribute && !value_object?(attribute)
+        return plain_column(name) if path.empty? && plain_field?(name, attribute)
 
-        member = if path.empty? && value
-                   hash = value.is_a?(Runtime::Value) ? value.to_h : value
-                   numeric = hash.is_a?(Hash) && hash.find { |_key, item| item.is_a?(Numeric) }
-                   # `numeric` can be false, which `&.` does not guard.
-                   # rubocop:disable-next Style/SafeNavigation
-                   numeric ? numeric.first : nil
-                 end
-        member ||= if path.empty? && attribute && value_object?(attribute)
-                     object = Runtime::Value.value_object_for(@aggregate, attribute.type)
-                     # A single-attribute value object is its one field, whatever it is named.
-                     (Forms::ValueObjectShape.numeric_member(object) || object.sole_attribute)&.name
-                   end
-        nested_expression(name, path, member)
+        nested_expression(name, path, path.empty? ? expression_member(attribute, value) : nil)
       end
 
-      # Picks the same member `query_expression` does, so both sides of a comparison
-      # agree on which field they mean.
-      def query_value(value, args)
-        value = args[value] if value.is_a?(Symbol)
-        hash = value.is_a?(Runtime::Value) ? value.to_h : value
-        if hash.is_a?(Hash)
-          numeric = hash.find { |_key, item| item.is_a?(Numeric) }
-          return numeric.last if numeric
-          return hash[:value] if hash.key?(:value)
-          return hash.values.first if hash.size == 1
-        end
-
-        Runtime::Value.scalar(value)
-      rescue Runtime::TypeMismatch
-        value.is_a?(Hash) && value.size == 1 ? value.values.first : value
+      # Whether a bare field name reads as one plain column: the lifecycle field, or a scalar.
+      def plain_field?(name, attribute)
+        @aggregate.lifecycle&.field.to_s == name || (attribute && !value_object?(attribute))
       end
 
       def value_object?(attr)

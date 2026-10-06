@@ -6,7 +6,7 @@ require "hecks/fuzzing/invalid_value_generator"
 # that quietly produced a valid value would look like it was widening coverage
 # while changing nothing, which is the failure mode a fuzzer cannot report on
 # itself — a sequence full of accidentally-valid payloads still agrees.
-RSpec.describe Hecks::Fuzzing::InvalidValueGenerator do
+RSpec.describe Hecks::Fuzzing::InvalidValueGenerator, :aggregate_failures do
   # Booted once per file — every example below only reads the loaded
   # aggregate's IR back out (`described_class.corrupt`/`.kinds_for` never
   # dispatch), so a shared boot is safe.

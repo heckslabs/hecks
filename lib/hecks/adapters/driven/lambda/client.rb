@@ -64,7 +64,7 @@ module Hecks
 
           if response.function_error
             raise Runtime::WiringError,
-                  "Lambda #{@function_name} (#{response.function_error}): #{body['errorMessage'] || body}"
+                  "Lambda #{@function_name} (#{response.function_error}): #{body["errorMessage"] || body}"
           end
 
           body

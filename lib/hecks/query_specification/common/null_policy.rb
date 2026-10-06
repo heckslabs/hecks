@@ -20,17 +20,20 @@ module Hecks
         # @return [Array<Object>] a new Array in the requested order
         def order(records, direction:, policy: nil, &key)
           descending = direction.to_s.downcase == "desc"
-          null_rows, valued_rows = records.partition { |record| key.call(record).nil? }
-          sorted = valued_rows.each_with_index.sort_by { |record, index| [key.call(record), index] }.map(&:first)
-          if descending
-            sorted.reverse!
-            null_rows.reverse!
-          end
+          null_rows, sorted = null_and_sorted(records, descending, &key)
           case policy&.mode.to_s
           when "first" then null_rows + sorted
           when "last" then sorted + null_rows
           else descending ? sorted + null_rows : null_rows + sorted
           end
+        end
+
+        # @return [Array(Array, Array)] the null-keyed rows and the valued rows in key order, each
+        #   in the order the direction asks for
+        def null_and_sorted(records, descending, &key)
+          null_rows, valued_rows = records.partition { |record| key.call(record).nil? }
+          sorted = valued_rows.each_with_index.sort_by { |record, index| [key.call(record), index] }.map(&:first)
+          descending ? [null_rows.reverse, sorted.reverse] : [null_rows, sorted]
         end
 
         # Renders the `ORDER BY` terms for one expression, with an explicit

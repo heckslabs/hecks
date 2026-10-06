@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "../support/memory_ports"
 
 # The runner behind a projected CLI: returns text plus a status, printing and exiting
 # nothing. Run against pizzas so nothing passes by knowing its own chapter.
@@ -16,33 +17,48 @@ RSpec.describe Hecks::Doors::CliRunner do
   def banking_runtime
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
-      Hecks.hecksagon("Banking") do
-        attaches "Governance"
-        Banking::Customer.persisted_by("Memory")
-        Banking::SafeDepositBox.persisted_by("Memory")
-      end
-      Hecks.hecksagon("Governance") do
-        Governance::RoleAssignment.persisted_by("Memory")
-        Governance::RoleTransition.persisted_by("Memory")
-      end
+      bind_banking_to_memory
     end
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  def bind_banking_to_memory
+    Hecks.hecksagon("Banking") do
+      attaches "Governance"
+      Banking::Customer.persisted_by("Memory")
+      Banking::SafeDepositBox.persisted_by("Memory")
+    end
+    Hecks.hecksagon("Governance") do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+  end
+
+  def seed_banking(banking)
+    banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
+                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+    banking.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+                                                     box_number: { value: 12 }, size: { value: "medium" })
+    banking.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
+                                                         box_number: { value: 12 },
+                                                         date: { value: "2026-01-05" }, sequence: { value: 1 })
+  end
+
+  def annotate_argv
+    ["safe_deposit_box.visit.annotate", "to.aggregate=DOWNTOWN:12", "to.entity=2026-01-05:1", "note.text=Flagged"]
+  end
+
   describe "the usage" do
-    it "answers with the projected surface when asked for nothing" do
+    it "answers with the projected surface when asked for nothing", :aggregate_failures do
       expect(text).to include("Pizzas —")
       expect(text).to include("create_pizza")
       expect(status).to eq(0)
     end
 
-    it "answers `--all` with the surface and without the hint that offers it" do
+    it "answers `--all` with the surface and without the hint that offers it", :aggregate_failures do
       everything = text("--all")
 
       expect(everything).to include("Pizzas —", "create_pizza")
@@ -50,7 +66,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(everything).not_to include("--all                  also list")
     end
 
-    it "answers one command's help without dispatching it" do
+    it "answers one command's help without dispatching it", :aggregate_failures do
       expect(text("order.create_pizza", "--help")).to include("dispatches Pizzas::Order.CreatePizza")
       expect(runtime.events).to be_empty
     end
@@ -58,7 +74,7 @@ RSpec.describe Hecks::Doors::CliRunner do
 
   # Both spellings reach the same command.
   describe "routing to another chapter" do
-    it "speaks to a chapter the domain attaches when the first word names it" do
+    it "speaks to a chapter the domain attaches when the first word names it", :aggregate_failures do
       output, code = run("governance")
 
       expect(code).to eq(0)
@@ -72,7 +88,7 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "naming" do
-    it "refuses a bare command name, pointing at the one qualified by its aggregate" do
+    it "refuses a bare command name, pointing at the one qualified by its aggregate", :aggregate_failures do
       output, code = run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small")
 
       expect(code).to eq(1)
@@ -94,17 +110,16 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "dispatching" do
-    it "answers the record it made, with the events it emitted" do
+    it "answers the record it made, with the events it emitted", :aggregate_failures do
       output, code = a_pizza
 
       expect(code).to eq(0)
       answer = JSON.parse(output)
-      expect(answer["id"]).to eq("Margherita")
-      expect(answer["events"]).to eq(["PizzaCreated"])
+      expect(answer.values_at("id", "events")).to eq(["Margherita", ["PizzaCreated"]])
       expect(answer.dig("state", "pizza", "price_cents", "cents")).to eq(1200)
     end
 
-    it "reaches an existing record through a bare word, the command's first argument" do
+    it "reaches an existing record through a bare word, the command's first argument", :aggregate_failures do
       a_pizza
       output, code = run("order.add_topping", "Margherita", "topping=Basil", "amount=3")
 
@@ -112,7 +127,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
     end
 
-    it "reaches an existing record through id" do
+    it "reaches an existing record through id", :aggregate_failures do
       a_pizza
       output, code = run("order.add_topping", "id=Margherita", "topping=Basil", "amount=3")
 
@@ -120,22 +135,11 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
     end
 
-    it "routes SafeDepositBox.Visit.Annotate with aggregate and entity receivers outside its facts" do
+    it "routes SafeDepositBox.Visit.Annotate with aggregate and entity receivers outside its facts", :aggregate_failures do
       banking = banking_runtime
-      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      banking.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
-                                                       box_number: { value: 12 }, size: { value: "medium" })
-      banking.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
-                                                           box_number: { value: 12 },
-                                                           date: { value: "2026-01-05" }, sequence: { value: 1 })
+      seed_banking(banking)
 
-      output, code = described_class.call(
-        runtime: banking,
-        argv:    ["safe_deposit_box.visit.annotate", "to.aggregate=DOWNTOWN:12",
-                  "to.entity=2026-01-05:1", "note.text=Flagged"],
-        program: "hecks run"
-      )
+      output, code = described_class.call(runtime: banking, argv: annotate_argv, program: "hecks run")
 
       expect(code).to eq(0), output
       expect(Banking::SafeDepositBox.find("DOWNTOWN:12").visits.first[:note].to_h).to eq(text: "Flagged")
@@ -155,41 +159,51 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(described_class.refused_answer(result_with(refused))).to eq(refused_reactions: refused)
     end
 
-    it "adds nothing when every reaction was delivered, or the result carries no reaction log" do
+    it "adds nothing when every reaction was delivered, or the result carries no reaction log", :aggregate_failures do
       expect(described_class.refused_answer(result_with([]))).to eq({})
       expect(described_class.refused_answer(Struct.new(:events).new([]))).to eq({})
     end
 
-    it "blocks --wait on a refusal with no alternative, not on a given-gated pair's declined half" do
-      delivered = { policy: "Match", on: "Answered", trigger: "D::Cmp.Match", delivered: true }
-      declined  = { policy: "Drift", on: "Answered", trigger: "D::Cmp.Drift", delivered: false, reason: "no" }
-      alone     = { policy: "Accept", on: "Examined", trigger: "D::Run.Accept", delivered: false, reason: "no" }
-      defect    = alone.merge(defect: true)
-      blocking  = ->(entries) { Hecks::Runtime::ReactionOutcome.blocking(entries).map { |r| r[:trigger] } }
+    def delivered = { policy: "Match", on: "Answered", trigger: "D::Cmp.Match", delivered: true }
+    def declined = { policy: "Drift", on: "Answered", trigger: "D::Cmp.Drift", delivered: false, reason: "no" }
+    def alone = { policy: "Accept", on: "Examined", trigger: "D::Run.Accept", delivered: false, reason: "no" }
 
-      expect(blocking.call([delivered, declined])).to eq([])
-      expect(blocking.call([delivered, declined, alone])).to eq(["D::Run.Accept"])
-      expect(blocking.call([defect])).to eq([])
-      exists = alone.merge(trigger: "D::Tenant.Register",
-                           reason:  "Register creates a Tenant that already exists — slug.value \"a\"")
-      expect(blocking.call([exists])).to eq([])
-      expect(blocking.call([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
+    def exists
+      alone.merge(trigger: "D::Tenant.Register",
+                  reason:  "Register creates a Tenant that already exists — slug.value \"a\"")
     end
 
-    it "fails --wait on a reaction that crashed, and shows the defect" do
-      defect = { policy: "Boom", on: "Went", trigger: "D::A.Next", delivered: false,
-                 reason: "undefined method", defect: true, error_class: "NoMethodError" }
-      shown  = defect.slice(:policy, :trigger, :reason, :error_class)
-      found  = Hecks::Runtime::ReactionOutcome.defects([defect])
+    def blocking(entries) = Hecks::Runtime::ReactionOutcome.blocking(entries).map { |r| r[:trigger] }
+
+    it "blocks --wait on a refusal with no alternative, not on a given-gated pair's declined half", :aggregate_failures do
+      expect(blocking([delivered, declined])).to eq([])
+      expect(blocking([delivered, declined, alone])).to eq(["D::Run.Accept"])
+      expect(blocking([alone.merge(defect: true)])).to eq([])
+      expect(blocking([exists])).to eq([])
+      expect(blocking([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
+    end
+
+    def crashed
+      { policy: "Boom", on: "Went", trigger: "D::A.Next", delivered: false,
+        reason: "undefined method", defect: true, error_class: "NoMethodError" }
+    end
+
+    def shown(entry) = entry.slice(:policy, :trigger, :reason, :error_class)
+
+    def settled_after(defect)
+      found = Hecks::Runtime::ReactionOutcome.defects([defect])
       handle = Hecks::Runtime::Dispatcher::Result.new(verb: "D::A.Go", instance: nil, events: [],
                                                       reaction_defects: found)
-      text, status, reason = described_class.settled(nil, { verb: "D::A.Go" }, handle, nil, nil,
-                                                     described_class.refused_answer(handle))
+      described_class.settled(nil, { verb: "D::A.Go" }, handle, nil, nil, described_class.refused_answer(handle))
+    end
 
-      expect(Hecks::Runtime::ReactionOutcome.blocking([defect])).to eq([])
+    it "fails --wait on a reaction that crashed, and shows the defect", :aggregate_failures do
+      text, status, reason = settled_after(crashed)
+
+      expect(Hecks::Runtime::ReactionOutcome.blocking([crashed])).to eq([])
       expect(status).to eq(1)
       expect(reason).to eq("reaction Boom crashed (NoMethodError): undefined method")
-      expect(JSON.parse(text)["reaction_defects"]).to eq([JSON.parse(JSON.generate(shown))])
+      expect(JSON.parse(text)["reaction_defects"]).to eq([JSON.parse(JSON.generate(shown(crashed)))])
     end
 
     it "leaves a dispatch that caused no refusal answered exactly as before" do
@@ -198,7 +212,7 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "text_answer" do
-    it "prints one row raw only for a query declared to return a Document" do
+    it "prints one row raw only for a query declared to return a Document", :aggregate_failures do
       expect(described_class.text_answer({ returns: "Document" }, [{ text: "# Title" }])).to eq("# Title")
       expect(described_class.text_answer({ returns: "Note" }, [{ text: "one" }])).to be_nil
       expect(described_class.text_answer({ returns: "Note" }, [{ text: "one" }, { text: "two" }])).to be_nil
@@ -207,7 +221,7 @@ RSpec.describe Hecks::Doors::CliRunner do
   end
 
   describe "asking" do
-    it "answers rows, materialised out of their value objects" do
+    it "answers rows, materialised out of their value objects", :aggregate_failures do
       a_pizza("Bare")
       output, code = run("ask", "order.available")
 
@@ -215,7 +229,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
     end
 
-    it "answers through `query`, the word `ask` used to be" do
+    it "answers through `query`, the word `ask` used to be", :aggregate_failures do
       a_pizza("Bare")
       output, code = run("query", "order.available")
 
@@ -223,7 +237,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
     end
 
-    it "refuses a question by its bare name" do
+    it "refuses a question by its bare name", :aggregate_failures do
       output, code = run("available")
 
       expect(code).to eq(1)
@@ -241,7 +255,7 @@ RSpec.describe Hecks::Doors::CliRunner do
 
   # A refusal carries the chapter's own sentence and a status a script can branch on.
   describe "refusing" do
-    it "hands back the domain's own wording, and a non-zero status" do
+    it "hands back the domain's own wording, and a non-zero status", :aggregate_failures do
       a_pizza
       output, code = run("order.purchase", "id=Margherita", "customer_name=Chris", "amount.cents=1200")
 
@@ -249,7 +263,7 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(output).to match(/topping/i)
     end
 
-    it "names an argument the command does not take, and points at its help" do
+    it "names an argument the command does not take, and points at its help", :aggregate_failures do
       output, code = run("order.create_pizza", "nmae=Margherita")
 
       expect(code).to eq(1)
@@ -257,14 +271,14 @@ RSpec.describe Hecks::Doors::CliRunner do
       expect(output).to include("hecks run order.create_pizza --help")
     end
 
-    it "refuses a value the declared type cannot hold" do
+    it "refuses a value the declared type cannot hold", :aggregate_failures do
       output, code = run("order.create_pizza", "name=X", "pizza.price_cents.cents=lots", "pizza.size.value=large")
 
       expect(code).to eq(1)
       expect(output).to include("is not Integer")
     end
 
-    it "suggests what a misspelling nearly named" do
+    it "suggests what a misspelling nearly named", :aggregate_failures do
       output, code = run("order.create_piza")
 
       expect(code).to eq(1)

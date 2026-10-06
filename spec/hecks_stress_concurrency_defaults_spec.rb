@@ -13,17 +13,17 @@ RSpec.describe "stress_concurrency's declared defaults" do
 
   def default_of(name) = command.attributes.find { |attribute| attribute.name == name }.default
 
-  it "declares thirty runs and a first seed of one" do
+  it "declares thirty runs and a first seed of one", :aggregate_failures do
     expect(default_of(:runs)).to eq(30)
     expect(default_of(:seed_start)).to eq(1)
   end
 
-  it "leaves the parallelism to the machine, which no fixed default can say" do
+  it "leaves the parallelism to the machine, which no fixed default can say", :aggregate_failures do
     expect(default_of(:parallel)).to be_nil
     expect(command.attributes.find { |attribute| attribute.name == :parallel }).to be_optional
   end
 
-  it "shows the defaults in the command's own help" do
+  it "shows the defaults in the command's own help", :aggregate_failures do
     help = Hecks::Doors::CliRunner.call(runtime: @runtime, argv: %w[test_suite_run.stress_concurrency --help],
                                         program: "hecks").first
 

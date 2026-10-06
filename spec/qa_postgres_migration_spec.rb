@@ -182,46 +182,64 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     FileUtils.remove_entry(@tmp) if @tmp
   end
 
+  # Restore: other examples share the scratch database and run in random order.
+  after do
+    next unless @conflict
+
+    repo, aggregate, original = @conflict
+    repo.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "pizzas", state: original.state))
+  end
+
   QUERIES = %w[Target.All Sweep.All Bug.All Angle.All Clearance.All Ticket.All
                Angle.Backlog Target.Rotation Sweep.Waived Sweep.Check.Surprising].freeze
 
-  it "dry-runs without writing anything, and reports every id it would migrate" do
+  it "dry-runs without writing anything, and reports every id it would migrate", :aggregate_failures do
     expect(@dry_run_status.exitstatus).to eq(0)
     expect(@dry_run_stderr).to eq("")
-    expect(@dry_run_stdout).to include("WOULD MIGRATE target/banking")
-    expect(@dry_run_stdout).to include("WOULD MIGRATE sweep/SW-1")
-    expect(@dry_run_stdout).to include("would migrate 12, skipped 0")
+    expect(@dry_run_stdout).to include("WOULD MIGRATE target/banking", "WOULD MIGRATE sweep/SW-1", "would migrate 12, skipped 0")
 
     expect(@dry_run_pg_rows).to be_empty
   end
 
-  it "migrates every record faithfully with --force, byte-for-byte equal to the Heki source" do
+  # Migrates with --force and returns the exit status and a runtime booted on the migrated Postgres.
+  def forced_migration
     _out, _err, status = run_migrate("--force")
+    [status, Hecks.boot(@pg_dir)]
+  end
+
+  def expect_query_migrated(query, pg_runtime)
+    heki_rows = @heki_runtime.query("QualityControl::#{query}")
+    pg_rows   = pg_runtime.query("QualityControl::#{query}")
+
+    expect(pg_rows.map { |r| canonical(r) }).to eq(heki_rows.map { |r| canonical(r) }), "#{query} diverged"
+    expect(pg_rows).not_to be_empty
+  end
+
+  it "migrates every record faithfully with --force, byte-for-byte equal to the Heki source", :aggregate_failures do
+    status, pg_runtime = forced_migration
+
     expect(status.exitstatus).to eq(0)
+    QUERIES.each { |query| expect_query_migrated(query, pg_runtime) }
+  end
 
-    pg_runtime = Hecks.boot(@pg_dir)
-
-    QUERIES.each do |query|
-      heki_rows = @heki_runtime.query("QualityControl::#{query}")
-      pg_rows   = pg_runtime.query("QualityControl::#{query}")
-
-      expect(pg_rows.map { |r| canonical(r) }).to eq(heki_rows.map { |r| canonical(r) }), "#{query} diverged"
-      expect(pg_rows).not_to be_empty
-    end
-
-    # All 25 checks come back, in the order they were made.
+  it "brings all 25 checks of a sweep back, in the order they were made", :aggregate_failures do
+    _status, pg_runtime = forced_migration
     sweep_row = pg_runtime.query("QualityControl::Sweep.All").find { |r| r[:reference][:value] == "SW-1" }
+
     expect(sweep_row[:checks].length).to eq(25)
     expect(sweep_row[:checks].map { |c| c[:sequence][:value] }).to eq((1..25).to_a)
+  end
 
+  it "brings a bug's tags back, and its status as verified", :aggregate_failures do
+    _status, pg_runtime = forced_migration
     bug_row = pg_runtime.query("QualityControl::Bug.All").find { |r| r[:reference][:value] == "BUG#1" }
-    expect(bug_row[:tags].map { |t| t[:value] }.sort).to eq(%w[as-alias framework silent-divergence])
 
+    expect(bug_row[:tags].map { |t| t[:value] }.sort).to eq(%w[as-alias framework silent-divergence])
     # Logged, Investigated, Fixed, then Verified must not regress to the initial state.
     expect(bug_row[:status]).to eq("verified")
   end
 
-  it "is idempotent — a second --force run skips everything already caught up, writes nothing new" do
+  it "is idempotent — a second --force run skips everything already caught up, writes nothing new", :aggregate_failures do
     run_migrate("--force")
     out, _err, status = run_migrate("--force")
 
@@ -229,34 +247,34 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     expect(out).to include("migrated 0, skipped 12 (already caught up), refused 0")
   end
 
-  it "refuses (never overwrites) an id whose destination state genuinely conflicts" do
+  # Migrates, then mutates the "pizzas" Target in Postgres so its state conflicts with the source;
+  # remembers what it needs to put the row back, since examples share the scratch database.
+  def mutated_pizzas_target
     run_migrate("--force")
-
-    pg_runtime = Hecks.boot(@pg_dir)
-    registry   = pg_runtime.registry
-    aggregate  = registry.bluebook("QualityControl").aggregate("Target")
-    repo       = registry.repository("QualityControl", aggregate)
-
+    registry = Hecks.boot(@pg_dir).registry
+    aggregate = registry.bluebook("QualityControl").aggregate("Target")
+    repo = registry.repository("QualityControl", aggregate)
     original = repo.find("pizzas")
-    mutated_state = original.state.dup
-    mutated_state[:reason] = { value: "DELIBERATELY MUTATED FOR CONFLICT TEST" }
-    repo.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "pizzas", state: mutated_state))
+    mutated = original.state.merge(reason: { value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })
+    repo.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "pizzas", state: mutated))
+    @conflict = [repo, aggregate, original]
+  end
 
+  it "refuses (never overwrites) an id whose destination state genuinely conflicts", :aggregate_failures do
+    mutated_pizzas_target
     out, err, status = run_migrate("--force")
 
     expect(status.exitstatus).to eq(1)
     # The refusal goes to stderr, the summary to stdout.
     expect(err).to include("REFUSED target/pizzas")
     expect(out).to include("refused 1 (conflicting data)")
+  end
 
-    # The mutation must survive: refusing means not overwriting.
-    still_mutated = repo.find("pizzas")
-    expect(still_mutated.state[:reason].to_h).to eq({ value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })
-  ensure
-    # Restore: other examples share the scratch database and run in random order.
-    if defined?(repo) && repo && defined?(original) && original
-      repo.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "pizzas", state: original.state))
-    end
+  it "keeps the conflicting mutation, since refusing means not overwriting" do
+    repo, = mutated_pizzas_target
+    run_migrate("--force")
+
+    expect(repo.find("pizzas").state[:reason].to_h).to eq({ value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })
   end
 
   it "never touches the source Heki files" do

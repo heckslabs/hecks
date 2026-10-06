@@ -11,6 +11,9 @@ require_relative "read_model_interpreter"
 require_relative "policy_interpreter"
 require_relative "saga_interpreter"
 require_relative "outbox"
+require_relative "dispatcher/result"
+require_relative "dispatcher/routing"
+require_relative "dispatcher/queries"
 require_relative "../naming"
 
 module Hecks
@@ -18,55 +21,10 @@ module Hecks
     # Routes a "Domain::Aggregate.Command" verb to its interpreter, then runs the policy
     # and saga reactions its events trigger; tracks reaction depth to bound cascades.
     class Dispatcher
+      include Routing
+      include Queries
+
       MAX_REACTION_DEPTH = 5
-
-      Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome,
-                          :refused_reactions, :blocking_reactions, :reaction_defects,
-                          keyword_init: true) do
-        # Lists the policy reactions this dispatch caused that the domain refused.
-        #
-        # A policy's trigger that a `given` or invariant refuses does not undo the command that
-        # fired it, which has already persisted, so the outcome above stays a success. The
-        # refusal is recorded here instead of vanishing into the reaction log.
-        #
-        # @return [Array<Hash{Symbol => Object}>] one `{ policy:, trigger:, reason: }` per refused
-        #   reaction, oldest first; empty when every reaction was delivered
-        def refused_reactions = self[:refused_reactions] || []
-
-        # Lists the refused reactions that block the run, as opposed to a benign non-match.
-        #
-        # See `ReactionOutcome`: a refusal is benign when a sibling reaction to the same event
-        # delivered another command on the same aggregate. `--wait` exits 1 on any that remain.
-        #
-        # @return [Array<Hash{Symbol => Object}>] the subset of `refused_reactions` that blocks
-        def blocking_reactions = self[:blocking_reactions] || []
-
-        # Lists the reactions that crashed, as opposed to being refused by the domain.
-        #
-        # A crash is warned and never re-raised, since the emitting command has persisted; it is
-        # recorded here so `--wait` can fail on a chain that stopped halfway.
-        #
-        # @return [Array<Hash{Symbol => Object}>] `{ policy:, trigger:, reason:, error_class: }`
-        #   per crashed reaction; empty when none crashed
-        def reaction_defects = self[:reaction_defects] || []
-
-        # Reads the identity of the record the dispatch settled on.
-        #
-        # @return [String, nil] the record's identity; nil for a port operation (no record)
-        def id    = instance&.id
-
-        # Reads the settled record's attributes as one Hash.
-        #
-        # @return [Hash{Symbol => Object}, nil] the record's state; nil for a port operation
-        def state = instance&.to_h
-
-        def to_s
-          announced = events.empty? ? "no events" : events.map(&:name).join(", ")
-          "#{verb} → #{instance.inspect} | #{announced}"
-        end
-
-        def inspect = "#<Result #{self}>"
-      end
 
       attr_reader :registry
 
@@ -134,7 +92,7 @@ module Hecks
       # @raise [StandardError] a `Runtime::DOMAIN_REFUSALS` class when the domain refuses
       # @raise [Runtime::StaleWrite] if concurrent writers win every retry
       def dispatch(verb, to: nil, with: nil, saga_correlation: nil)
-        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, flat: {})
+        dispatch_invocation(Call.new(verb: verb, to: to, with: with, saga_correlation: saga_correlation, flat: {}))
       end
 
       # Dispatches a verb whose receiver and facts arrive together in one flat Hash.
@@ -152,81 +110,8 @@ module Hecks
         to = facts.delete(:to)
         with = facts.delete(:with)
         saga_correlation = facts.delete(:saga_correlation)
-        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, flat: facts)
+        dispatch_invocation(Call.new(verb: verb, to: to, with: with, saga_correlation: saga_correlation, flat: facts))
       end
-
-      def dispatch_invocation(verb, to:, with:, saga_correlation:, flat:)
-        @registry.collecting_reactions do |reactions|
-          dispatch_collecting(verb, reactions, to: to, with: with, saga_correlation: saga_correlation, flat: flat)
-        end
-      end
-      private :dispatch_invocation
-
-      # One dispatch, with `reactions` receiving every reaction its events cause.
-      def dispatch_collecting(verb, reactions, to:, with:, saga_correlation:, flat:)
-        domain, aggregate_name, command_name = parse(verb)
-        aggregate = resolve_aggregate(domain, aggregate_name, verb)
-
-        instance, announced, execution_plan, persistence_outcome, outbox_rows =
-          if command_name.include?(".")
-            head, sub = command_name.split(".", 2)
-            port = aggregate.port(head)
-            # Ports are checked before entities, so a port wins a name an entity also declares.
-            # No instance comes back: a port operation hydrates and saves nothing.
-            if port
-              operation = port.operation(sub) ||
-                          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "port_no_operation",
-                                                                        port: head, operation: sub))
-              invocation = Invocation.from_call(verb, to: to, with: with, flat: flat,
-                                                      receiver: :port, aggregate: aggregate) { operation }
-              [nil, @port_ops.call(domain, aggregate, operation, invocation), nil, nil, :enqueue]
-            else
-              resolution = nil
-              invocation = Invocation.from_call(verb, to: to, with: with, flat: flat,
-                                                      receiver: :entity, entity_depth: command_name.count(".")) do
-                (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
-              end
-              @entities.call(domain, aggregate, resolution, invocation)
-            end
-          else
-            command = command_of(aggregate, aggregate_name, command_name)
-            invocation = Invocation.from_call(verb, to: to, with: with, flat: flat) { command }
-            @commands.call(domain, aggregate, command, invocation, saga_correlation)
-          end
-
-        # Correlation is stamped as each event is built, so emitted events are never mutated.
-
-        react(announced, domain, aggregate, outbox_rows)
-
-        Result.new(verb: verb, instance: instance, events: announced,
-                   execution_plan: execution_plan, persistence_outcome: persistence_outcome,
-                   refused_reactions: refused_from(reactions),
-                   blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)),
-                   reaction_defects: ReactionOutcome.defects(reactions))
-      end
-      private :dispatch_collecting
-
-      # The reactions among `logged` that the domain refused, as plain facts.
-      #
-      # A crash in a reaction is a defect, not a refusal, and is warned where it happens.
-      def refused_from(logged)
-        logged.select { |entry| entry[:delivered] == false && !entry[:defect] }
-              .map { |entry| entry.slice(:policy, :trigger, :reason) }
-      end
-      private :refused_from
-
-      # Runs the policy and saga reactions owed because `announced` committed.
-      #
-      # A port operation saves nothing, so its outbox rows are enqueued here (`:enqueue`);
-      # nil rows mean the repository has no outbox and reactions run directly.
-      def react(announced, domain, aggregate, outbox_rows)
-        return if announced.empty?
-
-        repository = @registry.repository(domain, aggregate)
-        outbox_rows = outbox.enqueue(repository, announced, domain) if outbox_rows == :enqueue
-        outbox.deliver(outbox_rows, announced, domain, repository)
-      end
-      private :react
 
       # Answers whether a command would succeed right now, without saving, emitting or reacting.
       #
@@ -243,25 +128,12 @@ module Hecks
       def dry_run?(verb, **args)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
+        call = Call.new(verb: verb, flat: args)
 
         if command_name.include?(".")
-          head, = command_name.split(".", 2)
-          if aggregate.port(head)
-            raise WiringError,
-                  "#{verb} names a port operation — dry_run? has no in-memory form for one, " \
-                  "only for aggregate and entity commands"
-          end
-
-          # `to:`/`with:` are not keywords here; a key named either is an ordinary fact.
-          resolution = nil
-          invocation = Invocation.from_call(verb, to: nil, with: nil, flat: args, receiver: :entity) do
-            (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
-          end
-          @entities.call(domain, aggregate, resolution, invocation, dry_run: true)
+          dry_run_entity(call, domain, aggregate, command_name)
         else
-          command = command_of(aggregate, aggregate_name, command_name)
-          invocation = Invocation.from_call(verb, to: nil, with: nil, flat: args) { command }
-          @commands.call(domain, aggregate, command, invocation, dry_run: true)
+          dry_run_aggregate(call, domain, aggregate, aggregate_name, command_name)
         end
 
         true
@@ -269,8 +141,7 @@ module Hecks
 
       # Runs one port operation named by its parts, then the reactions its events owe.
       #
-      # The door for an adapter outside the bluebook; the parts are separate arguments because
-      # no wire spelling for a packed port verb exists.
+      # The door for an adapter outside the bluebook; no wire spelling packs a port verb.
       #
       # @param to [String, Hash, nil] the receiver; when nil it is read from the facts
       # @param with [Hash, nil] the operation's facts, keyed by argument name
@@ -279,67 +150,17 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if the domain, aggregate, port or operation is undeclared
       # @raise [Runtime::TypeMismatch] if no receiving identity is found, or `to:`/`with:` is bad
       # @raise [Runtime::NotFound] if the receiving record does not exist
+      # rubocop:disable-next Metrics/ParameterLists -- the public door's parts, one argument per verb segment
       def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, flat: {})
-        aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
-        port = aggregate.port(port_name) ||
-               raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
-        operation = port.operation(operation_name) ||
-                    raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
+        verb = "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}"
+        aggregate = resolve_aggregate(domain, aggregate_name, verb)
+        operation = declared_operation(aggregate, aggregate_name, port_name, operation_name)
 
-        invocation = Invocation.from_call("#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}",
-                                          to: to, with: with, flat: flat,
-                                          receiver: :port, aggregate: aggregate) { operation }
-        announced = @port_ops.call(domain, aggregate, operation, invocation)
+        announced = run_port_operation(Call.new(verb: verb, to: to, with: with, flat: flat), domain, aggregate, operation)
 
         react(announced, domain, aggregate, :enqueue)
 
         announced
-      end
-
-      # Answers a declared query: an aggregate query, an entity query, or a read model.
-      #
-      # `"Domain.ReadModel"` (no `::`) is a read model; `"Domain::Aggregate.Query"` and
-      # `"Domain::Aggregate.Entity.Query"` are aggregate and entity queries.
-      #
-      # @param verb [String, Symbol] the query's verb, in one of the three shapes above
-      # @param args [Hash{Symbol => Object}] the query's declared arguments
-      # @return [Array<Hash>] one Hash per matching record or element; a read model returns a
-      #   one-element Array holding a Hash of head name to projected rows
-      # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
-      # @raise [Runtime::NotFound] if a read model's root reference names no record
-      # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
-      def query(verb, **args)
-        domain, query_name = verb.to_s.split(".", 2)
-        if query_name && !domain.include?("::")
-          bluebook = @registry.bluebook(domain) ||
-                     raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb))
-          model = bluebook.read_model(query_name) ||
-                  raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_read_model",
-                                                                domain: domain, query: query_name))
-          return @read_models.call(domain, model, args)
-        end
-
-        domain, aggregate_name, query_name = parse(verb)
-        aggregate = resolve_aggregate(domain, aggregate_name, verb)
-
-        @queries.call(domain, aggregate, query_name, args)
-      end
-
-      # Answers an aggregate or entity query through the reference interpreter alone.
-      #
-      # Never answered by the bound adapter's native hook; the fuzzer's query oracle diffs it
-      # against `#query`. Read models have no reference twin.
-      #
-      # @param verb [String] `"Domain::Aggregate.Query"` or `"Domain::Aggregate.Entity.Query"`
-      # @param args [Hash{Symbol => Object}] the query's declared arguments
-      # @return [Array<Hash>] one Hash per matching record or element
-      # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
-      # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
-      def reference_query(verb, **args)
-        domain, aggregate_name, query_name = parse(verb)
-        aggregate = resolve_aggregate(domain, aggregate_name, verb)
-
-        @queries.reference_call(domain, aggregate, query_name, args)
       end
 
       # Dispatches a reaction's command one level deeper in the cascade, as the system.
@@ -374,23 +195,57 @@ module Hecks
 
       private
 
-      def parse(verb)
-        Naming.split_verb(verb) ||
-          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
+      def dispatch_invocation(call)
+        @registry.collecting_reactions { |reactions| dispatch_collecting(call, reactions) }
       end
 
-      def command_of(aggregate, aggregate_name, command_name)
-        aggregate.command(command_name) ||
-          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "aggregate_no_command",
-                                                        aggregate: aggregate_name, command: command_name))
+      # One dispatch, with `reactions` receiving every reaction its events cause.
+      def dispatch_collecting(call, reactions)
+        domain, aggregate_name, command_name = parse(call.verb)
+        aggregate = resolve_aggregate(domain, aggregate_name, call.verb)
+        settled = route(call, domain, aggregate, aggregate_name, command_name)
+
+        # Correlation is stamped as each event is built, so emitted events are never mutated.
+
+        react(settled[1], domain, aggregate, settled[4])
+
+        result_of(call.verb, settled, reactions)
       end
 
-      def resolve_aggregate(domain, aggregate_name, verb)
-        bluebook = @registry.bluebook(domain) ||
-                   raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb))
-        bluebook.aggregate(aggregate_name) ||
-          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_aggregate",
-                                                        domain: domain, aggregate: aggregate_name))
+      def result_of(verb, settled, reactions)
+        instance, announced, execution_plan, persistence_outcome, = settled
+        Result.new(verb: verb, instance: instance, events: announced,
+                   execution_plan: execution_plan, persistence_outcome: persistence_outcome,
+                   refused_reactions: refused_from(reactions),
+                   blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)),
+                   reaction_defects: ReactionOutcome.defects(reactions))
+      end
+
+      # The reactions among `logged` that the domain refused, as plain facts.
+      #
+      # A crash in a reaction is a defect, not a refusal, and is warned where it happens.
+      def refused_from(logged)
+        logged.select { |entry| entry[:delivered] == false && !entry[:defect] }
+              .map { |entry| entry.slice(:policy, :trigger, :reason) }
+      end
+
+      # Runs the policy and saga reactions owed because `announced` committed.
+      #
+      # A port operation saves nothing, so its outbox rows are enqueued here (`:enqueue`);
+      # nil rows mean the repository has no outbox and reactions run directly.
+      def react(announced, domain, aggregate, outbox_rows)
+        return if announced.empty?
+
+        repository = @registry.repository(domain, aggregate)
+        outbox_rows = outbox.enqueue(repository, announced, domain) if outbox_rows == :enqueue
+        outbox.deliver(outbox_rows, announced, domain, repository)
+      end
+
+      def declared_operation(aggregate, aggregate_name, port_name, operation_name)
+        port = aggregate.port(port_name) ||
+               raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
+        port.operation(operation_name) ||
+          raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
       end
     end
   end

@@ -5,27 +5,32 @@ require "tempfile"
 # A creating command may receive the heads as addressing arguments without declaring or `sets`-ing
 # them; they must still be materialized, or the record is addressed but persists them as nil.
 RSpec.describe Hecks::Runtime::Instance do
+  def load_memory_stack
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
+  def declare_domain(registry, source, path, hecksagon_name, &binds)
+    Hecks::Bluebook::MetaValidator.while_disabled do
+      Hecks.with_registry(registry) do
+        load_memory_stack
+        Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+        Hecks.hecksagon(hecksagon_name, &binds)
+      end
+    end
+  end
+
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["instance-composite-identity-", ".bluebook"])
     file.write(source)
     file.flush
 
     registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
+    declare_domain(registry, source, file.path, hecksagon_name, &binds)
     registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   ensure
     file&.close!
   end
@@ -71,27 +76,24 @@ RSpec.describe Hecks::Runtime::Instance do
     end
   end
 
-  it "fills both composite identity heads from args, not nil, when the creating command never redeclares them" do
+  def planted_plot
     runtime = boot_composite_identity
-
     runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
                           row: { value: 3 }, column: { value: 5 }, crop: "wheat")
+    repository_for(runtime).all.first
+  end
 
-    plot = repository_for(runtime).all.first
+  it "fills both composite identity heads from args, not nil, when the creating command never redeclares them",
+     :aggregate_failures do
+    plot = planted_plot
+
     expect(plot).not_to be_nil
-    expect(plot[:row]).not_to be_nil
-    expect(plot[:column]).not_to be_nil
-    expect(plot[:row][:value]).to eq(3)
-    expect(plot[:column][:value]).to eq(5)
+    expect([plot[:row], plot[:column]]).not_to include(nil)
+    expect([plot[:row][:value], plot[:column][:value]]).to eq([3, 5])
     expect(plot[:crop]).to eq("wheat")
   end
 
   it "still lets a SECOND command address the same record by its composite identity" do
-    runtime = boot_composite_identity
-    runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
-                          row: { value: 3 }, column: { value: 5 }, crop: "wheat")
-
-    plot = repository_for(runtime).all.first
-    expect(plot.id).to include("3").and include("5")
+    expect(planted_plot.id).to include("3").and include("5")
   end
 end

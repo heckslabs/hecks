@@ -12,10 +12,50 @@ RSpec.describe "a policy" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(REFLEX_BLUEBOOK)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
+  end
+
+  def flip(runtime, name = "light-1")
+    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: name }, id: name)
+  end
+
+  def light_condition(name) = Reflex::Light.find(name).condition.to_h
+
+  def logged_flip_reaction
+    hash_including(policy: "LogOnFlip", on: "Flipped", trigger: "Reflex::Light.Log", delivered: true)
+  end
+
+  def defect_reaction
+    hash_including(policy: "LogOnFlip", on: "Flipped", trigger: "Reflex::Light.Log",
+                   delivered: false, defect: true, error_class: "NoMethodError")
+  end
+
+  def undeliverable_reaction
+    hash_including(policy: "NotifyOnRaise", on: "Raised", trigger: "Notifications::Notifications.Send", delivered: false)
+  end
+
+  def ringing_runtime
+    runtime = boot_reflex
+    runtime.dispatch_flat("Reflex::Echo.Install", name: { value: "bell-1" })
+    runtime.dispatch_flat("Reflex::Echo.Ring", name: { value: "bell-1" })
+    runtime
+  end
+
+  # Makes only `Reflex::Light.Log` a defect; every other verb runs the real dispatch.
+  def break_log_reaction(runtime)
+    real_reenter = runtime.method(:reenter)
+    runtime.define_singleton_method(:reenter) do |verb, **args|
+      raise NoMethodError, "undefined method `boom' for nil" if verb == "Reflex::Light.Log"
+
+      real_reenter.call(verb, **args)
+    end
+  end
+
+  def flip_with_defect_report(runtime)
+    result = nil
+    expect { result = flip(runtime) }.to output(/LogOnFlip.*Flipped.*Reflex::Light\.Log.*boom/m).to_stderr
+    result
   end
 
   def topped_pizza(runtime)
@@ -25,32 +65,26 @@ RSpec.describe "a policy" do
     pizza
   end
 
-  it "fires the command its event names, and the reaction lands" do
+  it "fires the command its event names, and the reaction lands", :aggregate_failures do
     runtime = boot_reflex
-    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
+    flip(runtime)
 
-    expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "logged")
-
-    expect(runtime.reactions).to contain_exactly(
-      hash_including(policy: "LogOnFlip", on: "Flipped",
-                     trigger: "Reflex::Light.Log", delivered: true)
-    )
+    expect(light_condition("light-1")).to eq(value: "logged")
+    expect(runtime.reactions).to contain_exactly(logged_flip_reaction)
   end
 
   it "fires once per matching event, not once per declaration site" do
     runtime = boot_reflex
     # Two distinct lights: `name:` is the identity, `id:` an unread decoy. Reusing a
     # name would overwrite silently and still pass, but AlreadyExists catches it.
-    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
-    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
+    flip(runtime, "light-1")
+    flip(runtime, "light-2")
 
     expect(runtime.reactions.size).to eq(2)
   end
 
-  it "stops a reaction that feeds itself, and says so" do
-    runtime = boot_reflex
-    runtime.dispatch_flat("Reflex::Echo.Install", name: { value: "bell-1" })
-    runtime.dispatch_flat("Reflex::Echo.Ring", name: { value: "bell-1" })
+  it "stops a reaction that feeds itself, and says so", :aggregate_failures do
+    runtime = ringing_runtime
 
     expect(runtime.reactions.size).to eq(Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)
 
@@ -59,18 +93,11 @@ RSpec.describe "a policy" do
     expect(stopped.first[:reason]).to match(/reaction depth \d+ reached/)
   end
 
-  it "records a reaction it cannot deliver rather than swallowing it" do
+  it "records a reaction it cannot deliver rather than swallowing it", :aggregate_failures do
     runtime = boot_reflex
     runtime.dispatch_flat("Reflex::Beacon.Raise", signal: { value: "beacon-1" })
 
-    expect(runtime.reactions).to contain_exactly(
-      hash_including(
-        policy:    "NotifyOnRaise",
-        on:        "Raised",
-        trigger:   "Notifications::Notifications.Send",
-        delivered: false
-      )
-    )
+    expect(runtime.reactions).to contain_exactly(undeliverable_reaction)
     expect(runtime.reactions.first[:reason]).to include('no domain "Notifications" loaded')
   end
 
@@ -87,26 +114,14 @@ RSpec.describe "a policy" do
   #
   # `reenter` is overridden on this one runtime rather than stubbed; only
   # `Reflex::Light.Log` is broken and every other verb runs the real dispatch.
-  it "keeps the triggering command's own success when the reaction it fires is a defect, not a refusal" do
+  it "keeps the triggering command's own success when the reaction it fires is a defect, not a refusal", :aggregate_failures do
     runtime = boot_reflex
-    real_reenter = runtime.method(:reenter)
-    runtime.define_singleton_method(:reenter) do |verb, **args|
-      raise NoMethodError, "undefined method `boom' for nil" if verb == "Reflex::Light.Log"
+    break_log_reaction(runtime)
 
-      real_reenter.call(verb, **args)
-    end
+    result = flip_with_defect_report(runtime)
 
-    result = nil
-    expect { result = runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1") }
-      .to output(/LogOnFlip.*Flipped.*Reflex::Light\.Log.*boom/m).to_stderr
-
-    expect(result.events.map(&:name)).to eq(["Flipped"])
-    expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "on")
-
-    expect(runtime.reactions).to contain_exactly(
-      hash_including(policy: "LogOnFlip", on: "Flipped", trigger: "Reflex::Light.Log",
-                     delivered: false, defect: true, error_class: "NoMethodError")
-    )
+    expect([result.events.map(&:name), light_condition("light-1")]).to eq([["Flipped"], { value: "on" }])
+    expect(runtime.reactions).to contain_exactly(defect_reaction)
   end
 
   # `where` guards whether a policy fires; `for_each` dispatches the trigger once per row a
@@ -226,61 +241,50 @@ RSpec.describe "a policy" do
                                                     customer_id: { value: customer_id })
     end
 
-    it "dispatches when the where clause holds" do
-      runtime = boot_fanout
-      open_two_accounts_for(runtime, "c1")
+    let(:runtime) { boot_fanout.tap { |booted| open_two_accounts_for(booted, "c1") } }
 
-      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+    def flag(runtime, risk)
+      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: risk })
+    end
+
+    def review_reactions(runtime) = runtime.reactions.select { |r| r[:policy] == "ReviewOnFlag" }
+
+    def account_status(id) = Fanout::Account.find(id).status[:value]
+
+    it "dispatches when the where clause holds", :aggregate_failures do
+      flag(runtime, "high")
 
       expect(runtime.reactions).to include(
-        hash_including(policy: "NotifyOnFlag", on: "Flagged", trigger: "Fanout::Customer.Acknowledge",
-                       delivered: true)
+        hash_including(policy: "NotifyOnFlag", on: "Flagged", trigger: "Fanout::Customer.Acknowledge", delivered: true)
       )
       expect(Fanout::Customer.find("c1").risk[:value]).to eq("acknowledged")
     end
 
-    it "skips silently — no reaction_log entry at all — when the where clause does not hold" do
-      runtime = boot_fanout
-      open_two_accounts_for(runtime, "c1")
-
-      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "low" })
+    it "skips silently — no reaction_log entry at all — when the where clause does not hold", :aggregate_failures do
+      flag(runtime, "low")
 
       expect(runtime.reactions).to be_empty
       expect(Fanout::Customer.find("c1").risk[:value]).to eq("low")
     end
 
-    it "fans a for_each policy out once per row a query answers, not once for the event" do
-      runtime = boot_fanout
-      open_two_accounts_for(runtime, "c1")
+    it "fans a for_each policy out once per row a query answers, not once for the event", :aggregate_failures do
       # A different customer's account proves the fan-out is scoped by the query's `where`.
       runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+      flag(runtime, "high")
 
-      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
-
-      review_reactions = runtime.reactions.select { |r| r[:policy] == "ReviewOnFlag" }
-      expect(review_reactions.size).to eq(2)
-      expect(review_reactions.map { |r| r[:for_row] }).to contain_exactly("c1-a1", "c1-a2")
-      expect(review_reactions).to all(include(trigger: "Fanout::Account.Review", delivered: true))
-
-      expect(Fanout::Account.find("c1-a1").status[:value]).to eq("reviewing")
-      expect(Fanout::Account.find("c1-a2").status[:value]).to eq("reviewing")
-      expect(Fanout::Account.find("c2-a1").status[:value]).to eq("open")
+      expect(review_reactions(runtime).map { |r| r[:for_row] }).to contain_exactly("c1-a1", "c1-a2")
+      expect(review_reactions(runtime)).to all(include(trigger: "Fanout::Account.Review", delivered: true))
+      expect(["c1-a1", "c1-a2", "c2-a1"].map { |id| account_status(id) }).to eq(["reviewing", "reviewing", "open"])
     end
 
-    it "records a for_each row it cannot deliver as a refusal, and still delivers the rest" do
-      runtime = boot_fanout
-      open_two_accounts_for(runtime, "c1")
+    it "records a for_each row it cannot deliver as a refusal, and still delivers the rest", :aggregate_failures do
       # Naming a query the aggregate lacks forces an ordinary UnknownVerb refusal,
       # which must be recorded and not fatal.
-      registry = runtime.registry
-      registry.bluebook("Fanout").policies.find { |p| p.name == "ReviewOnFlag" }
-              .instance_variable_set(:@for_each, "Account.NoSuchQuery")
+      runtime.registry.bluebook("Fanout").policies.find { |p| p.name == "ReviewOnFlag" }
+             .instance_variable_set(:@for_each, "Account.NoSuchQuery")
+      flag(runtime, "high")
 
-      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
-
-      review = runtime.reactions.find { |r| r[:policy] == "ReviewOnFlag" }
-      expect(review).to include(delivered: false)
-      expect(review[:reason]).to include("no query")
+      expect(review_reactions(runtime).first).to include(delivered: false, reason: a_string_including("no query"))
     end
   end
 end

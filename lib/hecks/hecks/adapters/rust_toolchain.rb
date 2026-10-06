@@ -139,10 +139,8 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `report:` what the benchmark printed
       # @raise [ConsoleCapture::Failure] when it could not run, or the install has no Rust workspace
       def measure(**held)
-        flags = BENCH_FLAGS.filter_map { |flag, key| [flag, plain(held[key]).to_s] unless plain(held[key]).nil? }
-        env = (self.class.workspace || RustWorkspace.new).environment.merge("HECKS_NO_3_0_NOTICE" => "1")
-        command = [RbConfig.ruby, "-I", LIB, "-e", BENCH, "--", *flags.flatten]
-        finished = (self.class.pool || ProcessPool.new).run(command, env: env)
+        command = [RbConfig.ruby, "-I", LIB, "-e", BENCH, "--", *bench_flags(held)]
+        finished = (self.class.pool || ProcessPool.new).run(command, env: bench_environment)
         raise ConsoleCapture::Failure, finished.output.strip unless finished.ok?
 
         { report: { value: finished.output } }
@@ -167,6 +165,16 @@ module Hecks
       end
 
       private
+
+      # The environment the benchmark runs in: the Rust workspace's, without the 3.0 notice.
+      def bench_environment
+        (self.class.workspace || RustWorkspace.new).environment.merge("HECKS_NO_3_0_NOTICE" => "1")
+      end
+
+      # The benchmark's flags, each with its value, for those the record names.
+      def bench_flags(held)
+        BENCH_FLAGS.filter_map { |flag, key| [flag, plain(held[key]).to_s] unless plain(held[key]).nil? }.flatten
+      end
 
       def child(ask, argv)
         result = run(ask, argv)

@@ -45,16 +45,24 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
   def differences(source, back, path = "")
     return [] if source == back
+    return hash_differences(source, back, path) if source.is_a?(Hash) && back.is_a?(Hash)
+    return array_differences(source, back, path) if same_size_arrays?(source, back)
 
-    if source.is_a?(Hash) && back.is_a?(Hash)
-      # Source keys only: the language may hold more than `to_h` spells, but everything
-      # the contract spells must come back identically. Contract removals are spec/golden/ir's job.
-      source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
-    elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
-      source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }
-    else
-      ["#{path}: declared #{source.inspect[0, 60]}, read back #{back.inspect[0, 60]}"]
-    end
+    ["#{path}: declared #{source.inspect[0, 60]}, read back #{back.inspect[0, 60]}"]
+  end
+
+  # Source keys only: the language may hold more than `to_h` spells, but everything
+  # the contract spells must come back identically. Contract removals are spec/golden/ir's job.
+  def hash_differences(source, back, path)
+    source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
+  end
+
+  def array_differences(source, back, path)
+    source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }
+  end
+
+  def same_size_arrays?(source, back)
+    source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
   end
 
   # Hecksagon-level `port`/`operation` declarations have no self-hosted grammar
@@ -81,7 +89,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     context name do
       let(:bluebook) { load_corpus(file).bluebook(name) }
 
-      it "comes back exactly as the builder made it" do
+      it "comes back exactly as the builder made it", :aggregate_failures do
         back, refusals = read_back(bluebook)
 
         expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
@@ -91,7 +99,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  it "compares every part of the IR the builder produces, not a convenient subset" do
+  it "compares every part of the IR the builder produces, not a convenient subset", :aggregate_failures do
     # The comparison slices the source by the reconstruction's keys, so a key it never
     # attempted would vanish silently; naming them here makes dropping one a failure.
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
@@ -108,24 +116,24 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # `:ports` is the known exception (see `strip_ports`).
   RECONSTRUCTION_KNOWN_GAPS = %i[ports].freeze
 
-  it "hand-typed reconstruction methods return every key their construct's own IR declares" do
-    walk = lambda do |rows, construct, chapter|
-      rows.each do |row|
-        missing = construct.ir_spec.keys - row.keys - RECONSTRUCTION_KNOWN_GAPS
-        expect(missing).to be_empty,
-                           "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(', ')} " \
-                           "(row #{row[:name].inspect})"
-        walk.call(row[:entities] || [], Hecks::Bluebook::Entity, chapter)
-      end
-    end
-
-    ROUND_TRIP_CORPUS.each_key do |name|
-      back, = read_back(load_corpus(ROUND_TRIP_CORPUS[name]).bluebook(name))
-      walk.call(back[:aggregates] || [], Hecks::Bluebook::Aggregate, name)
+  def expect_rows_complete(rows, construct, chapter)
+    rows.each do |row|
+      missing = construct.ir_spec.keys - row.keys - RECONSTRUCTION_KNOWN_GAPS
+      expect(missing).to be_empty,
+                         "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(", ")} " \
+                         "(row #{row[:name].inspect})"
+      expect_rows_complete(row[:entities] || [], Hecks::Bluebook::Entity, chapter)
     end
   end
 
-  it "carries a chapter's version, which banking pins for real" do
+  it "hand-typed reconstruction methods return every key their construct's own IR declares" do
+    ROUND_TRIP_CORPUS.each_key do |name|
+      back, = read_back(load_corpus(ROUND_TRIP_CORPUS[name]).bluebook(name))
+      expect_rows_complete(back[:aggregates] || [], Hecks::Bluebook::Aggregate, name)
+    end
+  end
+
+  it "carries a chapter's version, which banking pins for real", :aggregate_failures do
     back, refusals = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(refusals).to be_empty

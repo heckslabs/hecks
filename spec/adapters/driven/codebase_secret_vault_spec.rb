@@ -6,7 +6,7 @@ RSpec.describe Hecks::Adapters::Codebase::SecretVault do
   let(:commands) { ReleaseSpecSupport::RecordingCommands.new(sha: "a" * 40, version: "1.0.0") }
   let(:vault) { described_class.new(commands: commands) }
 
-  it "runs a program under `op run` with the env file, showing its output" do
+  it "runs a program under `op run` with the env file, showing its output", :aggregate_failures do
     vault.run!("release/x.env", "gem", "push", "a.gem", chdir: "/work")
 
     call = commands.runs.first
@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::Codebase::SecretVault do
     expect(call.chdir).to eq("/work")
   end
 
-  it "says whether the 1Password CLI is installed" do
+  it "says whether the 1Password CLI is installed", :aggregate_failures do
     expect(vault).to be_installed
 
     commands.answer("op", "--version", success: false, stderr: "No such file or directory - op")

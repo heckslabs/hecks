@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require_relative "../../cache_dir"
 require_relative "../../version"
+require_relative "verdict_cache/tagging"
 
 module Hecks
   module Bluebook
@@ -20,6 +21,8 @@ module Hecks
       #   VerdictCache.record(key, held)
       #   VerdictCache.flush  # also runs at process exit
       module VerdictCache
+        extend Tagging
+
         module_function
 
         # Bumped when the encoding or the entry shape changes.
@@ -190,44 +193,6 @@ module Hecks
             File.delete(file)
           rescue StandardError
             next
-          end
-        end
-
-        # Encodes plain data as JSON-safe data, tagging what JSON would lose:
-        # a symbol is `{"$s" => name}`, a hash is `{"$h" => [[key, value], ...]}`
-        # (pair order is hash order).
-        #
-        # @param obj [Object] Hash, Array, String, Symbol, Integer, nil, true or false
-        # @return [Object] the tagged form
-        # @raise [ArgumentError] for any other class
-        def encode(obj)
-          case obj
-          when Symbol then { "$s" => obj.to_s }
-          when Hash then { "$h" => obj.map { |key, value| [encode(key), encode(value)] } }
-          when Array then obj.map { |item| encode(item) }
-          when String
-            plain = obj.valid_encoding? && (obj.ascii_only? || obj.encoding == Encoding::UTF_8)
-            raise ArgumentError, "unencodable string" unless plain
-
-            obj
-          when Integer, nil, true, false then obj
-          else raise ArgumentError, "unencodable #{obj.class}"
-          end
-        end
-
-        # The inverse of `encode`.
-        #
-        # @param obj [Object] the tagged form
-        # @return [Object] the original data
-        def decode(obj)
-          case obj
-          when Array then obj.map { |item| decode(item) }
-          when Hash
-            if obj.size == 1 && obj.key?("$s") then obj["$s"].to_sym
-            elsif obj.size == 1 && obj.key?("$h") then obj["$h"].to_h { |key, value| [decode(key), decode(value)] }
-            else raise ArgumentError, "untagged hash"
-            end
-          else obj
           end
         end
 

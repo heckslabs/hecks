@@ -71,16 +71,27 @@ module Hecks
         # @raise [Unreachable] if the request fails or the status is not `200`
         # @raise [BadResponse] if the body is not JSON or its `era` is not a non-empty string
         def fetch_version(url, timeout:)
-          response = get(version_url(url), timeout)
-          raise Unreachable, "#{version_url(url)} answered #{response.code}" unless response.code == "200"
+          target = version_url(url)
+          response = get(target, timeout)
+          raise Unreachable, "#{target} answered #{response.code}" unless response.code == "200"
 
           document = JSON.parse(response.body)
-          era = document["era"]
-          raise BadResponse, "#{version_url(url)} carries no era" unless era.is_a?(String) && !era.empty?
-
-          { "era" => era, "version" => document["version"].to_s }
+          { "era" => era_in(document, target), "version" => document["version"].to_s }
         rescue JSON::ParserError, TypeError
           raise BadResponse, "#{version_url(url)} did not answer a JSON version document"
+        end
+
+        # Reads the era out of a parsed `/version` document.
+        #
+        # @param document [Hash] the parsed document
+        # @param target [String] the URL it came from, named in the refusal
+        # @return [String] the non-empty era
+        # @raise [BadResponse] if the era is not a non-empty string
+        def era_in(document, target)
+          era = document["era"]
+          raise BadResponse, "#{target} carries no era" unless era.is_a?(String) && !era.empty?
+
+          era
         end
 
         # Compares a reported era with an allow-list.

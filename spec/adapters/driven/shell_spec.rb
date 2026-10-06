@@ -6,7 +6,7 @@ require_relative "../../../lib/hecks/hecks/adapters/shell"
 RSpec.describe Hecks::Adapters::Shell do
   let(:shell) { described_class.new }
 
-  it "answers a program's stdout, stderr and status" do
+  it "answers a program's stdout, stderr and status", :aggregate_failures do
     result = shell.capture("sh", "-c", "echo out; echo err >&2; exit 3")
 
     expect(result.out).to eq("out\n")
@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::Shell do
     expect(shell.capture("echo", "a; echo b").out).to eq("a; echo b\n")
   end
 
-  it "sets and unsets environment variables for the program only" do
+  it "sets and unsets environment variables for the program only", :aggregate_failures do
     result = shell.capture("sh", "-c", "echo $SHELL_SPEC_SET-${SHELL_SPEC_UNSET:-none}",
                            env: { "SHELL_SPEC_SET" => "x", "SHELL_SPEC_UNSET" => nil })
 
@@ -36,7 +36,7 @@ RSpec.describe Hecks::Adapters::Shell do
     end
   end
 
-  it "answers a program that is not installed as a failure with a reason, not a raise" do
+  it "answers a program that is not installed as a failure with a reason, not a raise", :aggregate_failures do
     result = shell.capture("no-such-program-anywhere")
 
     expect(result).not_to be_ok

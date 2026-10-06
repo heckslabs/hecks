@@ -50,18 +50,24 @@ module Hecks
         head = head.to_sym
         return nil unless args.key?(head)
 
-        unless rest.empty?
-          held = args[head]
-          held = held.to_h if held.respond_to?(:to_h)
-          # An ID is always a scalar: a caller may pass the carrying field's value directly.
-          return held.to_s unless held.is_a?(Hash)
+        return dotted_scalar(args[head], rest) unless rest.empty?
 
-          return rest.reduce(held) { |h, f| h.is_a?(Hash) ? hash_lookup(h, f) : nil }&.to_s
-        end
+        bare_head(construct, head, args[head], value_owner)
+      end
 
-        # Coerce only when the caller named the attribute; a saga's key is already resolved.
+      # The scalar a dotted path names inside the held value object (or its hash).
+      def dotted_scalar(held, rest)
+        held = held.to_h if held.respond_to?(:to_h)
+        # An ID is always a scalar: a caller may pass the carrying field's value directly.
+        return held.to_s unless held.is_a?(Hash)
+
+        rest.reduce(held) { |h, f| h.is_a?(Hash) ? hash_lookup(h, f) : nil }&.to_s
+      end
+
+      # A bare head's value, coerced only when the caller named the attribute; a saga's key is
+      # already resolved.
+      def bare_head(construct, head, raw, value_owner)
         attribute = construct.identity_heads.include?(head) ? construct.attribute(head) : nil
-        raw       = args[head]
         return raw unless attribute
 
         # Unwrap the coerced value object so `to_s` never leaks an object address into an id.

@@ -6,6 +6,9 @@ module Hecks
       # The attribute set every query-shaped construct shares, plus `options_to_h` and
       # `extra_options_to_h` for serializing it.
       class Options
+        # The options besides `wheres`, in the order `options_to_h` writes them.
+        SPEC_OPTIONS = %i[order_by limit offset cursor authorization null_semantics inspection].freeze
+
         attr_reader :wheres, :order_by, :limit, :offset, :cursor,
                     :authorization, :null_semantics, :inspection
 
@@ -21,17 +24,16 @@ module Hecks
         # @param null_semantics [NullSemantics, nil] where nulls sort; stored as given, so
         #   an explicit `nil` (what `ReadModelBuilder` passes when `nulls` was never
         #   written) stays `nil` rather than becoming the `native` default
-        def initialize(wheres: [], order_by: nil, limit: nil, offset: nil, cursor: nil,
-                       authorization: nil,
-                       inspection: nil, null_semantics: NullSemantics.default)
-          @wheres = wheres
-          @order_by = order_by
-          @limit = limit
-          @offset = offset
-          @cursor = cursor
-          @authorization = authorization
-          @null_semantics = null_semantics
-          @inspection = inspection
+        def initialize(**options)
+          refuse_unknown!(options)
+          @wheres = options.fetch(:wheres, [])
+          @order_by = options[:order_by]
+          @limit = options[:limit]
+          @offset = options[:offset]
+          @cursor = options[:cursor]
+          @authorization = options[:authorization]
+          @null_semantics = options.fetch(:null_semantics) { NullSemantics.default }
+          @inspection = options[:inspection]
         end
 
         # Serializes every shared option, declared or not, so a subclass's `to_h`
@@ -42,9 +44,7 @@ module Hecks
         #   `:authorization`, `:null_semantics` and `:inspection`, each that spec's own
         #   `to_h` or `nil` when undeclared
         def options_to_h
-          { wheres: @wheres.map(&:to_h), order_by: @order_by&.to_h, limit: @limit&.to_h,
-            offset: @offset&.to_h, cursor: @cursor&.to_h, authorization: @authorization&.to_h,
-            null_semantics: @null_semantics&.to_h, inspection: @inspection&.to_h }
+          { wheres: @wheres.map(&:to_h) }.merge(SPEC_OPTIONS.to_h { |name| [name, public_send(name)&.to_h] })
         end
 
         # Serializes only the declared options beyond the settled three, so a
@@ -58,6 +58,13 @@ module Hecks
             value.nil? || value == [] || (key == :null_semantics && value == { mode: "native" })
           end
                       .except(:wheres, :order_by, :limit)
+        end
+
+        private
+
+        def refuse_unknown!(options)
+          unknown = options.keys - SPEC_OPTIONS - [:wheres]
+          raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" unless unknown.empty?
         end
       end
     end

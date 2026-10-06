@@ -16,7 +16,7 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
     Hecks::Doors::CliRunner.call(runtime: @runtime, argv: [*verb, "--help"], program: "hecks").first
   end
 
-  it "gives CheckEra and Recheck a timeout of ten seconds" do
+  it "gives CheckEra and Recheck a timeout of ten seconds", :aggregate_failures do
     expect(default_of(command("Host", "CheckEra"), :timeout)).to eq(10)
     expect(default_of(command("Host", "Recheck"), :timeout)).to eq(10)
   end
@@ -25,13 +25,13 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
     expect(default_of(command("TestSuiteRun", "RefreshRuntimeBaseline"), :workers)).to eq(6)
   end
 
-  it "shows each default in the command's own help" do
+  it "shows each default in the command's own help", :aggregate_failures do
     expect(help("host.check_era")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
     expect(help("host.recheck")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
     expect(help("test_suite_run.refresh_runtime_baseline")).to match(/workers\.value\s+Integer; defaults to 6/)
   end
 
-  it "has the baseline launcher refuse a local run it was not told the worker count for" do
+  it "has the baseline launcher refuse a local run it was not told the worker count for", :aggregate_failures do
     expect { Hecks::CLI::RefreshRspecRuntimeBaseline.call([], root: Dir.pwd, out: StringIO.new) }
       .to raise_error(SystemExit) { |error| expect(error.status).to eq(1) }
   end

@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "console_capture"
+require_relative "in_process_operations/tailing"
 require "hecks/cli/run"
 require "hecks/cli/model_check"
 require "hecks/cli/smoke_test"
@@ -19,6 +20,8 @@ module Hecks
     # it printed. An answer records a success; a raise records a refusal, so a check that finds
     # something, or a run that fails, is refused with the report as its reason.
     module InProcessOperations
+      include Tailing
+
       # The chapters `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
       CHECKOUT_MARKER = "hecks.gemspec"
@@ -37,12 +40,7 @@ module Hecks
       #   domains it headed
       # @raise [ConsoleCapture::Failure] when a finding was left, or the analysis could not run
       def check(**held)
-        argv = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
-        missing = argv.reject { |domain| File.exist?(domain) }
-        raise Runtime::NotFound, "no such domain #{missing.first.inspect}" if missing.any?
-
-        argv.unshift("--strict") if plain(held[:strict])
-        argv.unshift("--profile", plain(held[:profile]).to_s) if present?(held[:profile])
+        argv = check_argv(held)
 
         text = ConsoleCapture.answer do
           CLI::ModelCheck.call(argv, program: "hecks model_check", root: checkout_root)
@@ -97,6 +95,8 @@ module Hecks
         output(ConsoleCapture.answer { CLI::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
       end
 
+      # rubocop:disable Metrics/ParameterLists -- the keywords are the `Follow` query's declared arguments
+
       # A domain's event log past a cursor, answered once: what the stream yielded before it
       # ended. Pass the answered `cursor` back as `since` to keep tailing. `wait` bounds the stream
       # and it ends at the first entries, so a call returns as soon as there is something to say.
@@ -110,6 +110,7 @@ module Hecks
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
+        # rubocop:enable Metrics/ParameterLists
         registry = boot(domain).registry
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
@@ -120,6 +121,8 @@ module Hecks
         end
         { cursor: cursor, events: entries, taken_at: Time.at(Ports::Clock.now(registry)).utc.iso8601 }
       end
+
+      # rubocop:disable Metrics/ParameterLists -- the keywords are the caller-facing shape of a tail
 
       # Tails a domain's event log, handing each entry to the block as the log shows it, until
       # the block returns `:stop` (or `:batch`: after this check's entries), `limit` entries were
@@ -134,43 +137,38 @@ module Hecks
       # @return [Integer] the count of log entries seen, to pass back as `since`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil,
-                 registry: nil, &block)
+                 registry: nil, &)
+        # rubocop:enable Metrics/ParameterLists
         repository = event_repository(domain, registry)
         tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
-        cap = plain(limit)&.to_i
-        deadline = plain(timeout) && (monotonic + plain(timeout).to_f)
-
-        loop do
-          verdict = drain(repository, tail, plain(aggregate), cap, &block)
-          return tail.seen if verdict == :stop || tail.batch_done || (deadline && monotonic >= deadline)
-
-          sleep((plain(interval) || 0.5).to_f)
-        end
+        bounds = Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval))
+        watch(repository, tail, bounds, &)
       rescue Errno::EPIPE, Interrupt
         tail.seen
       end
 
       private
 
-      # Where a stream stands: log entries seen, entries handed over, whether a batch ended it.
-      Tail = Struct.new(:seen, :handed, :batch_done)
+      # The words `hecks model_check` is run with: the named domains, behind `--strict` and
+      # `--profile` when asked for.
+      #
+      # @raise [Runtime::NotFound] if a named domain does not exist
+      def check_argv(held)
+        argv = named_domains(held)
+        argv.unshift("--strict") if plain(held[:strict])
+        argv.unshift("--profile", plain(held[:profile]).to_s) if present?(held[:profile])
+        argv
+      end
 
-      # Hands over what the log holds past the tail, one entry at a time; answers `:stop` when the
-      # block or the limit ends the stream, so the tail's `seen` stays just past the last entry
-      # handed over.
-      def drain(repository, tail, filter, cap)
-        events = repository.events
-        while tail.seen < events.size
-          event = events[tail.seen]
-          tail.seen += 1
-          next unless followed?(event, filter)
+      # The domain paths the record names, each of which must exist.
+      #
+      # @raise [Runtime::NotFound] if one does not
+      def named_domains(held)
+        argv = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
+        missing = argv.reject { |domain| File.exist?(domain) }
+        raise Runtime::NotFound, "no such domain #{missing.first.inspect}" if missing.any?
 
-          verdict = yield JSON.parse(JSON.generate(event.to_h))
-          tail.handed += 1
-          tail.batch_done ||= verdict == :batch
-          return :stop if verdict == :stop || (cap && tail.handed >= cap)
-        end
-        nil
+        argv
       end
 
       def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)

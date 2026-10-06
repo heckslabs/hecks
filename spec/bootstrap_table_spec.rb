@@ -5,22 +5,19 @@ require "spec_helper"
 RSpec.describe "the generated bootstrap table" do
   let(:table) { Hecks::Bluebook::DSL::BootstrapTable }
 
+  def committed_table = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook/dsl/bootstrap_table.rb"))
+
+  def projected_table
+    Hecks::Projector.call(:bootstrap_table, bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook"))
+  end
+
   it "is exactly what hecks project_bootstrap_table would regenerate right now" do
-    committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook/dsl/bootstrap_table.rb"))
-
-    projected = Hecks::Projector.call(
-      :bootstrap_table,
-      bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-    )
-
-    expect(projected).to eq(committed),
-                         "bootstrap_table.rb has drifted from the Keyword rows — run hecks project_bootstrap_table"
+    expect(projected_table).to eq(committed_table),
+                               "bootstrap_table.rb has drifted from the Keyword rows — run hecks project_bootstrap_table"
   end
 
   it "needs no part of the framework loaded to be read" do
-    source = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook/dsl/bootstrap_table.rb"))
-
-    expect(source).not_to match(/^\s*require/)
+    expect(committed_table).not_to match(/^\s*require/)
   end
 
   describe "the fallbacks read the table rather than repeating it" do
@@ -35,12 +32,15 @@ RSpec.describe "the generated bootstrap table" do
 
   # A `calls:` typo in a KeywordSeed row would otherwise surface only as a
   # NoMethodError the first time a bootstrap chapter used that word.
-  it "names, in every calls row, a method some DSL module really defines" do
-    # `Module#name` bound directly: some loaded modules (rubocop-ast's NodePattern
-    # sets) override `name` to take an argument.
+  # `Module#name` bound directly: some loaded modules (rubocop-ast's NodePattern
+  # sets) override `name` to take an argument.
+  def hecks_modules
     module_name = Module.instance_method(:name)
-    modules = ObjectSpace.each_object(Module).select { |mod| module_name.bind_call(mod)&.start_with?("Hecks::") }
+    ObjectSpace.each_object(Module).select { |mod| module_name.bind_call(mod)&.start_with?("Hecks::") }
+  end
 
+  it "names, in every calls row, a method some DSL module really defines" do
+    modules = hecks_modules
     unanswered = table::CALLS.values.uniq.reject do |target|
       modules.any? { |mod| mod.method_defined?(target) || mod.private_method_defined?(target) }
     end
@@ -57,13 +57,13 @@ RSpec.describe "the generated bootstrap table" do
     expect(table::CALLS.keys).to match_array(live.map { |row| [row[:context], row[:word]] }.uniq)
   end
 
-  it "refuses two rows for one word that name different methods, rather than keeping whichever came last" do
-    rows = [
-      { context: "Aggregate", word: "given", calls: "given_impl", status: "admitted" },
-      { context: "Aggregate", word: "given", calls: "other_impl", status: "admitted" }
-    ]
+  CONFLICTING_ROWS = [
+    { context: "Aggregate", word: "given", calls: "given_impl", status: "admitted" },
+    { context: "Aggregate", word: "given", calls: "other_impl", status: "admitted" }
+  ].freeze
 
-    expect { Hecks::Projections::BootstrapTable.calls(rows) }
+  it "refuses two rows for one word that name different methods, rather than keeping whichever came last" do
+    expect { Hecks::Projections::BootstrapTable.calls(CONFLICTING_ROWS) }
       .to raise_error(Hecks::Projections::BootstrapTable::Conflict, /Aggregate.*given.*given_impl.*other_impl/)
   end
 end

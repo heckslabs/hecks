@@ -39,21 +39,7 @@ module Hecks
           # @raise [PG::Error] if Postgres refuses the DDL, a source read, or an upsert
           def ensure_field_cache!(storage_name, era, field, value_expression)
             name = field_cache(storage_name, era, field)
-            unless table_exists?(name)
-              nested_transaction("hecks_field_cache_create") do
-                @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_field_cache:' || $1))", [name])
-                next if table_exists?(name)
-
-                @db.exec(<<~SQL)
-                  CREATE TABLE #{quote(name)} (
-                    id      text PRIMARY KEY,
-                    ordinal bigint NOT NULL,
-                    value   text
-                  )
-                SQL
-                @db.exec("CREATE INDEX IF NOT EXISTS #{quote("#{name}_value_idx")} ON #{quote(name)} (value)")
-              end
-            end
+            create_field_cache_table!(name) unless table_exists?(name)
             backfill_field_cache!(name, storage_name, era, value_expression)
             name
           end
@@ -70,16 +56,8 @@ module Hecks
           def backfill_field_cache!(name, storage_name, era, value_expression)
             chunked_backfill!(
               name,
-              source_sql: lambda do |cursor|
-                <<~SQL
-                  SELECT id, ordinal, value FROM (#{field_cache_source_sql(storage_name, era, value_expression)}) reduced
-                  #{"WHERE id > #{text_literal(cursor)}" if cursor}
-                  ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
-                SQL
-              end,
-              upsert:     lambda do |rows|
-                upsert_field_cache_rows!(name, rows)
-              end
+              source_sql: ->(cursor) { cache_backfill_page_sql(cursor, storage_name, era, value_expression) },
+              upsert:     ->(rows) { upsert_field_cache_rows!(name, rows) }
             )
           end
 
@@ -117,35 +95,73 @@ module Hecks
 
           private
 
+          # Creates the cache table under a short advisory lock, unless a racing boot made it first.
+          def create_field_cache_table!(name)
+            nested_transaction("hecks_field_cache_create") do
+              @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_field_cache:' || $1))", [name])
+              next if table_exists?(name)
+
+              @db.exec(field_cache_ddl(name))
+              @db.exec("CREATE INDEX IF NOT EXISTS #{quote("#{name}_value_idx")} ON #{quote(name)} (value)")
+            end
+          end
+
+          def field_cache_ddl(name)
+            <<~SQL
+              CREATE TABLE #{quote(name)} (
+                id      text PRIMARY KEY,
+                ordinal bigint NOT NULL,
+                value   text
+              )
+            SQL
+          end
+
+          # One chunk of the reduced head, after `cursor` when the backfill resumes.
+          def cache_backfill_page_sql(cursor, storage_name, era, value_expression)
+            <<~SQL
+              SELECT id, ordinal, value FROM (#{field_cache_source_sql(storage_name, era, value_expression)}) reduced
+              #{"WHERE id > #{text_literal(cursor)}" if cursor}
+              ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
+            SQL
+          end
+
           # The reduced (id, ordinal, state) source a cache backfills from. Unlike the head
           # snapshot's source it reduces the ancestor tail too (era N > 1 mirrors `compile_head!`)
           # with ordinal kept; ordinals share one sequence per domain, so `ordinal <` holds.
           def field_cache_source_sql(storage_name, era, value_expression)
             era = era.to_i
-            if era == 1
-              return "SELECT id, ordinal, #{value_expression} AS value " \
-                     "FROM #{quote(head_snapshot(storage_name, era))}"
-            end
+            return era_one_cache_source_sql(storage_name, era, value_expression) if era == 1
 
-            held = eras.find { |candidate| candidate[:ordinal] == era }
-            view = held && held[:label] && matview(storage_name, era, held[:label])
-            ancestor_side =
-              if view && view_exists?(view)
-                "SELECT ordinal, aggregate_id AS id, state FROM #{quote(view)} WHERE operation = 'save'"
-              else
-                # No compiled ancestor matview yet (era just minted): snapshot side only.
-                "SELECT NULL::bigint AS ordinal, NULL::text AS id, NULL::jsonb AS state WHERE FALSE"
-              end
+            merged_cache_source_sql(storage_name, era, value_expression)
+          end
 
+          def era_one_cache_source_sql(storage_name, era, value_expression)
+            "SELECT id, ordinal, #{value_expression} AS value " \
+              "FROM #{quote(head_snapshot(storage_name, era))}"
+          end
+
+          def merged_cache_source_sql(storage_name, era, value_expression)
             <<~SQL
               SELECT id, ordinal, #{value_expression} AS value FROM (
                 SELECT DISTINCT ON (id) id, ordinal, state FROM (
-                  #{ancestor_side}
+                  #{ancestor_side_sql(storage_name, era)}
                   UNION ALL
                   SELECT ordinal, id, state FROM #{quote(head_snapshot(storage_name, era))}
                 ) merged ORDER BY id, ordinal DESC
               ) reduced
             SQL
+          end
+
+          # The ancestor era's saved rows from its compiled matview, or an empty relation.
+          def ancestor_side_sql(storage_name, era)
+            held = eras.find { |candidate| candidate[:ordinal] == era }
+            view = held && held[:label] && matview(storage_name, era, held[:label])
+            if view && view_exists?(view)
+              return "SELECT ordinal, aggregate_id AS id, state FROM #{quote(view)} WHERE operation = 'save'"
+            end
+
+            # No compiled ancestor matview yet (era just minted): snapshot side only.
+            "SELECT NULL::bigint AS ordinal, NULL::text AS id, NULL::jsonb AS state WHERE FALSE"
           end
 
           def upsert_field_cache_rows!(name, rows)

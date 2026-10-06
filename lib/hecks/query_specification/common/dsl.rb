@@ -93,7 +93,7 @@ module Hecks
           op, operand = value.first
           unless value.size == 1 && COMPARATORS.include?(op.to_sym)
             raise ArgumentError,
-                  "unknown comparator #{value.inspect} — expected one of #{COMPARATORS.join(', ')}"
+                  "unknown comparator #{value.inspect} — expected one of #{COMPARATORS.join(", ")}"
           end
           [op.to_sym, operand]
         end

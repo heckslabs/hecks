@@ -23,14 +23,17 @@ module Hecks
         spec = parse(argv, options)
         return usage(err) unless spec && options[:from]
 
-        name, _, ref = spec.partition("@")
-        result = Vendor.new(name, from: options[:from], root: options[:root], ref: ref.empty? ? nil : ref,
-                                  allow_downgrade: env["ALLOW_DOWNGRADE"] == "1").call
-        report(result, options[:from], out)
+        report(vendor(spec, options, env), options[:from], out)
         0
       rescue Vendoring::Error, OptionParser::ParseError => e
         err.puts(e.message)
         1
+      end
+
+      def self.vendor(spec, options, env)
+        name, _, ref = spec.partition("@")
+        Vendor.new(name, from: options[:from], root: options[:root], ref: ref.empty? ? nil : ref,
+                         allow_downgrade: env["ALLOW_DOWNGRADE"] == "1").call
       end
 
       # nil unless argv held exactly one positional argument.
@@ -61,13 +64,13 @@ module Hecks
           "Shape: #{now} (no earlier vendored copy to compare against)"
         elsif result.shape_changed?
           "SHAPE CHANGED: the next deploy mints a new era; add its translation edge first.\n  " \
-            "before: #{result.previous_shape.join(' ')}\n  after:  #{now}"
+            "before: #{result.previous_shape.join(" ")}\n  after:  #{now}"
         else
           "Shape unchanged: #{now}. No new era on deploy."
         end
       end
 
-      private_class_method :parse, :usage, :report, :shape_line
+      private_class_method :vendor, :parse, :usage, :report, :shape_line
     end
   end
 end

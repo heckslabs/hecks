@@ -3,52 +3,51 @@ require "spec_helper"
 # Limit and offset together answer the same on every engine: skip m rows, then take n,
 # as SQL's LIMIT n OFFSET m reads. Stated as arithmetic so it holds for any new engine.
 RSpec.describe "limit and offset on one query" do
+  PAGING_BLUEBOOK = proc do
+    aggregate "Ticket" do
+      attribute :number, Number
+
+      identified_by :number
+
+      value_object("Number") { attribute :value, String }
+
+      command "Draw" do
+        attribute :number, Number
+        sets :number
+        emits "TicketDrawn"
+      end
+
+      query "All" do
+        order_by :number
+      end
+
+      query "SecondPage" do
+        order_by :number
+        limit 2
+        offset 2
+      end
+
+      query "AfterFirst" do
+        order_by :number
+        limit 2
+        offset 1
+      end
+
+      query "SkipTwo" do
+        order_by :number
+        offset 2
+      end
+    end
+  end
+
   def boot_pages
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+       InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
 
-      Hecks.bluebook "Paging" do
-        aggregate "Ticket" do
-          attribute :number, Number
-
-          identified_by :number
-
-          value_object("Number") { attribute :value, String }
-
-          command "Draw" do
-            attribute :number, Number
-            sets :number
-            emits "TicketDrawn"
-          end
-
-          query "All" do
-            order_by :number
-          end
-
-          query "SecondPage" do
-            order_by :number
-            limit 2
-            offset 2
-          end
-
-          query "AfterFirst" do
-            order_by :number
-            limit 2
-            offset 1
-          end
-
-          query "SkipTwo" do
-            order_by :number
-            offset 2
-          end
-        end
-      end
-
+      Hecks.bluebook("Paging", &PAGING_BLUEBOOK)
       Hecks.hecksagon("Paging") { Paging::Ticket.persisted_by("Memory") }
     end
 
@@ -79,7 +78,7 @@ RSpec.describe "limit and offset on one query" do
   end
 
   # Pages must reassemble into the whole, in order, with nothing dropped or repeated.
-  it "reassembles every row exactly once across consecutive pages" do
+  it "reassembles every row exactly once across consecutive pages", :aggregate_failures do
     all = numbers("All")
     # AfterFirst is rows 2-3; SkipTwo starts at row 3, so one row of it
     # is the overlap and the rest is the tail.

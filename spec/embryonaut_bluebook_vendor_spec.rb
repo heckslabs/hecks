@@ -6,9 +6,17 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
   let(:scratch) { Dir.mktmpdir("hecks-vendor-spec") }
   let(:repo) { RegistryRepo.new(File.join(scratch, "registry")) }
   let(:root) { File.join(scratch, "project") }
-  let(:package_dir) { File.join(root, "vendor", "embryonaut_bluebooks", "widgets") }
 
   after { FileUtils.remove_entry(scratch) }
+
+  def package_dir = File.join(root, "vendor", "embryonaut_bluebooks", "widgets")
+
+  # Releases `older` and then `newer` (with the given bluebook changes) and vendors `vendored`.
+  def vendored_after_releasing(vendored, older, newer, **bluebook)
+    release(older)
+    release(newer, **bluebook)
+    vendor(ref: vendored)
+  end
 
   # Commits a state of the `widgets` package and tags it as a release.
   def release(version, **bluebook)
@@ -43,14 +51,14 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
   describe "a release" do
     let!(:commit) { release("1.0.0") }
 
-    it "vendors the bluebook files where load! looks for them, and only those" do
+    it "vendors the bluebook files where load! looks for them, and only those", :aggregate_failures do
       vendor(ref: "1.0.0")
 
       expect(Dir.children(File.join(package_dir, "bluebook"))).to eq(["widgets.bluebook"])
       expect(File.read(File.join(package_dir, "bluebook", "widgets.bluebook"))).to eq(RegistryRepo.widgets_bluebook)
     end
 
-    it "writes the commit marker and a lock naming the release" do
+    it "writes the commit marker and a lock naming the release", :aggregate_failures do
       result = vendor(ref: "1.0.0")
 
       expect(File.read(File.join(package_dir, "VENDORED_COMMIT"))).to eq("#{commit}\n")
@@ -84,16 +92,19 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(vendor(ref: "widgets-v1.0.0").version).to eq("1.0.0")
     end
 
+    def loaded_registry
+      Hecks::Runtime::Registry.new(root: root).tap do |registry|
+        Hecks.with_registry(registry) do
+          Hecks::Ports::Loading.bootstrap.load_library
+          described_class.load!("widgets", registry: registry)
+        end
+      end
+    end
+
     it "loads through load! afterwards" do
       vendor(ref: "1.0.0")
-      registry = Hecks::Runtime::Registry.new(root: root)
 
-      Hecks.with_registry(registry) do
-        Hecks::Ports::Loading.bootstrap.load_library
-        described_class.load!("widgets", registry: registry)
-      end
-
-      expect(registry.bluebook("Widgets")).not_to be_nil
+      expect(loaded_registry.bluebook("Widgets")).not_to be_nil
     end
 
     it "refuses a release the source does not have, naming the ones it does" do
@@ -120,11 +131,22 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
   end
 
   describe "a bare commit" do
-    it "pins that commit with the marker alone: no lock, no version checks" do
+    def commit_unreleased
       release("1.0.0")
       repo.write("widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(description: "Newer."))
-      newer = repo.commit("unreleased")
+      repo.commit("unreleased")
+    end
 
+    def commit_twice
+      write_package("0.0.0")
+      first = repo.commit("first")
+      repo.write("widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(description: "Later."))
+      repo.commit("second")
+      first
+    end
+
+    it "pins that commit with the marker alone: no lock, no version checks", :aggregate_failures do
+      newer = commit_unreleased
       result = vendor(ref: newer)
 
       expect(result).not_to be_release
@@ -133,32 +155,23 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
     end
 
     it "exports the named commit when a later one exists" do
-      write_package("0.0.0")
-      first = repo.commit("first")
-      repo.write("widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(description: "Later."))
-      repo.commit("second")
-
-      vendor(ref: first)
+      vendor(ref: commit_twice)
 
       expect(File.read(File.join(package_dir, "bluebook", "widgets.bluebook"))).to eq(RegistryRepo.widgets_bluebook)
     end
   end
 
   describe "version policy" do
-    it "refuses a release older than the vendored one, unless allowed" do
-      release("1.0.0")
-      release("1.1.0", description: "Reworded.")
-      vendor(ref: "1.1.0")
+    it "refuses a release older than the vendored one, unless allowed", :aggregate_failures do
+      vendored_after_releasing("1.1.0", "1.0.0", "1.1.0", description: "Reworded.")
 
       expect { vendor(ref: "1.0.0") }.to raise_error(Hecks::Vendoring::Error, /1\.1\.0 is vendored; 1\.0\.0 is older/)
       expect(lock.version).to eq("1.1.0")
       expect(vendor(ref: "1.0.0", allow_downgrade: true).version).to eq("1.0.0")
     end
 
-    it "allows a patch release that leaves the storage shape alone" do
-      release("1.0.0")
-      release("1.0.1", description: "Reworded.")
-      vendor(ref: "1.0.0")
+    it "allows a patch release that leaves the storage shape alone", :aggregate_failures do
+      vendored_after_releasing("1.0.0", "1.0.0", "1.0.1", description: "Reworded.")
 
       result = vendor(ref: "1.0.1")
 
@@ -166,20 +179,16 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(result).not_to be_shape_changed
     end
 
-    it "refuses a patch release that changes the storage shape, and changes nothing" do
-      release("1.0.0")
-      release("1.0.1", extra_attribute: true)
-      vendor(ref: "1.0.0")
+    it "refuses a patch release that changes the storage shape, and changes nothing", :aggregate_failures do
+      vendored_after_releasing("1.0.0", "1.0.0", "1.0.1", extra_attribute: true)
 
       expect { vendor(ref: "1.0.1") }
         .to raise_error(Hecks::Vendoring::Error, /changes the storage shape but is only a patch bump/)
       expect(lock.version).to eq("1.0.0")
     end
 
-    it "allows a minor release that changes the storage shape and reports the change" do
-      release("1.0.0")
-      release("1.1.0", extra_attribute: true)
-      vendor(ref: "1.0.0")
+    it "allows a minor release that changes the storage shape and reports the change", :aggregate_failures do
+      vendored_after_releasing("1.0.0", "1.0.0", "1.1.0", extra_attribute: true)
 
       result = vendor(ref: "1.1.0")
 
@@ -187,10 +196,8 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(result.previous_shape).not_to eq(result.shape)
     end
 
-    it "measures the earlier copy from its files when it predates locks" do
-      release("1.0.0")
-      release("1.0.1", extra_attribute: true)
-      vendor(ref: "1.0.0")
+    it "measures the earlier copy from its files when it predates locks", :aggregate_failures do
+      vendored_after_releasing("1.0.0", "1.0.0", "1.0.1", extra_attribute: true)
       File.delete(File.join(package_dir, "bluebook.lock"))
 
       result = vendor(ref: "1.0.1")
@@ -201,13 +208,17 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
   end
 
   describe "files that do not load" do
-    it "refuse the pin and leave what was vendored untouched" do
-      release("1.0.0")
-      vendor(ref: "1.0.0")
+    def commit_broken_release
       repo.write("widgets/bluebook.yml"              => "name: widgets\nversion: 1.1.0\n",
                  "widgets/bluebook/widgets.bluebook" => "raise 'broken'\n")
       repo.commit("broken")
       repo.tag("widgets-v1.1.0")
+    end
+
+    it "refuse the pin and leave what was vendored untouched", :aggregate_failures do
+      release("1.0.0")
+      vendor(ref: "1.0.0")
+      commit_broken_release
 
       expect { vendor(ref: "1.1.0") }.to raise_error(Hecks::Vendoring::Error, /do not load: RuntimeError: broken/)
       expect(lock.version).to eq("1.0.0")
@@ -242,7 +253,7 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
 
     before { release("1.0.0") }
 
-    it "vendors package@version from --from and reports the shape" do
+    it "vendors package@version from --from and reports the shape", :aggregate_failures do
       status = run("widgets@1.0.0", "--from", repo.path)
 
       expect(status).to eq(0)
@@ -251,7 +262,7 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(File).to exist(File.join(package_dir, "bluebook.lock"))
     end
 
-    it "takes the source from EMBRYONAUT_BLUEBOOKS_SRC and the newest release without a version" do
+    it "takes the source from EMBRYONAUT_BLUEBOOKS_SRC and the newest release without a version", :aggregate_failures do
       expect(run("widgets", env: { "EMBRYONAUT_BLUEBOOKS_SRC" => repo.path })).to eq(0)
       expect(lock.version).to eq("1.0.0")
     end
@@ -263,12 +274,12 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(out.string).to include("Shape unchanged: Widgets")
     end
 
-    it "prints the refusal and exits 1" do
+    it "prints the refusal and exits 1", :aggregate_failures do
       expect(run("widgets@9.9.9", "--from", repo.path)).to eq(1)
       expect(err.string).to include("no release widgets-v9.9.9")
     end
 
-    it "prints usage and exits 2 without a source or a package" do
+    it "prints usage and exits 2 without a source or a package", :aggregate_failures do
       expect(run("widgets")).to eq(2)
       expect(run("--from", repo.path)).to eq(2)
       expect(err.string).to include("usage: vendor_bluebook")

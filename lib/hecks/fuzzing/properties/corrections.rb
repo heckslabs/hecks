@@ -19,26 +19,25 @@ module Hecks
 
           (history[:bluebooks] || {}).each do |domain, bluebook|
             bluebook.aggregates.each do |aggregate|
-              aggregate_key = "#{domain}::#{aggregate.hecks_name}"
-
-              each_command_including_entities(aggregate) do |command|
-                corrects_mutations = command.mutations.select { |mutation| mutation.op == :corrects }
-                next if corrects_mutations.empty?
-
-                corrects_mutations.each do |mutation|
-                  corrected_event = mutation.target.to_s
-
-                  command.emits.each do |produced_event_name|
-                    violations.concat(unmatched_corrections(history[:events], aggregate_key,
-                                                            produced_event_name.to_s, corrected_event,
-                                                            command.hecks_name))
-                  end
-                end
-              end
+              violations.concat(aggregate_corrections(history[:events], "#{domain}::#{aggregate.hecks_name}", aggregate))
             end
           end
 
           violations.empty? || violations.uniq.join("; ")
+        end
+
+        # Every unmatched correction among the commands of `aggregate` and its entities.
+        def aggregate_corrections(events, aggregate_key, aggregate)
+          found = []
+          each_command_including_entities(aggregate) do |command|
+            command.mutations.select { |mutation| mutation.op == :corrects }.each do |mutation|
+              command.emits.each do |produced_event_name|
+                found.concat(unmatched_corrections(events, aggregate_key, produced_event_name.to_s,
+                                                   mutation.target.to_s, command.hecks_name))
+              end
+            end
+          end
+          found
         end
 
         # Finds every occurrence of `produced_event_name`, on `aggregate_key`, with no
@@ -58,15 +57,19 @@ module Hecks
           end
 
           own_events.filter_map do |event, index|
-            preceding = events.first(index)
-            next if preceding.any? do |earlier|
-              earlier[:name] == corrected_event && earlier[:aggregate] == aggregate_key &&
-              earlier[:id].to_s == event[:id].to_s
-            end
+            next if corrected_earlier?(events.first(index), aggregate_key, corrected_event, event)
 
             "#{command_name} (#{aggregate_key}##{event[:id]}) emitted #{produced_event_name}, claiming to " \
               "correct #{corrected_event}, but no #{corrected_event} for the same aggregate/id appears " \
               "earlier in this history"
+          end
+        end
+
+        # Whether `preceding` holds the corrected event for `event`'s aggregate and id.
+        def corrected_earlier?(preceding, aggregate_key, corrected_event, event)
+          preceding.any? do |earlier|
+            earlier[:name] == corrected_event && earlier[:aggregate] == aggregate_key &&
+              earlier[:id].to_s == event[:id].to_s
           end
         end
 

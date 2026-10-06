@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../edge/pattern"
+require_relative "navigation_checks"
 
 module Hecks
   module Projections
@@ -12,8 +13,6 @@ module Hecks
         # prefix that is not.
         class Checks
           SWITCH_ID = /\A[a-z][a-z0-9_]*\z/
-          FRAGMENT = /\A[A-Za-z0-9][\w:.-]*\z/
-          PUBLIC_MENUS = %w[desktop mobile footer].freeze
 
           # The navigation slots a row sits in.
           #
@@ -31,6 +30,7 @@ module Hecks
             @rows = rows
             @links = links
             @problems = problems
+            @navigation = NavigationChecks.new(problems)
           end
 
           # @return [void]
@@ -38,7 +38,7 @@ module Hecks
             check_duplicate_paths
             check_switches
             @rows.each { |row| check_row(row) }
-            @links.each { |link| check_link(link) }
+            @links.each { |link| @navigation.check_link(link) }
             check_unique((@rows + @links).filter_map(&:admin_key), "admin key")
             check_unique(@rows.map(&:source).grep(/\Aglobal:/), "source")
           end
@@ -47,20 +47,24 @@ module Hecks
 
           def check_duplicate_paths
             seen = Hash.new { |hash, path| hash[path] = [] }
-            @rows.each do |row|
-              [row.path, *row.aliases].compact.each do |path|
-                problem(path, "is declared twice") if seen[path].any? { |other| other.verbs.intersect?(row.verbs) }
-                seen[path] << row
-              end
-            end
+            @rows.each { |row| [row.path, *row.aliases].compact.each { |path| claim(seen, row, path) } }
+          end
+
+          def claim(seen, row, path)
+            problem(path, "is declared twice") if seen[path].any? { |other| other.verbs.intersect?(row.verbs) }
+            seen[path] << row
           end
 
           def check_switches
             @rows.reject { |row| row.switch.empty? }.group_by(&:switch).each do |id, rows|
-              next if rows.map(&:off).uniq.size == 1
-
-              problem("switch #{id}", "is on for #{rows.reject(&:off).map(&:path).join(', ')} and off for the rest")
+              check_switch_agreement(id, rows)
             end
+          end
+
+          def check_switch_agreement(id, rows)
+            return if rows.map(&:off).uniq.size == 1
+
+            problem("switch #{id}", "is on for #{rows.reject(&:off).map(&:path).join(", ")} and off for the rest")
           end
 
           def check_row(row)
@@ -68,7 +72,8 @@ module Hecks
             problem(path, "must start with /") unless path.start_with?("/")
             check_switch(row, path)
             check_redirect(row, path)
-            check_navigation(row, path)
+            check_aliases(row, path)
+            @navigation.check_row(row, path)
             check_indexing(row, path)
             check_beneath_prefix(row, path)
             return unless row.preview == "draft" && row.source == "none"
@@ -86,45 +91,15 @@ module Hecks
           def check_redirect(row, path)
             targeted = %w[redirect rewrite].include?(row.kind)
             problem(path, "is a #{row.kind} and needs redirect_to") if targeted && row.redirect_to.to_s.empty?
-            if !targeted && row.redirect_to
-              problem(path, "has redirect_to but is a #{row.kind}; only a redirect or rewrite has a target")
-            end
+            return unless !targeted && row.redirect_to
+
+            problem(path, "has redirect_to but is a #{row.kind}; only a redirect or rewrite has a target")
+          end
+
+          def check_aliases(row, path)
             return if row.aliases.empty? || row.kind == "page"
 
             problem(path, "has aliases but is a #{row.kind}; aliases redirect to a page")
-          end
-
-          def check_navigation(row, path)
-            slots = self.class.navigation(row)
-            return if slots.empty?
-
-            unless row.verbs.include?("GET")
-              problem(path, "sits in the navigation but answers #{row.verbs.join(',')}; a link is a GET")
-            end
-            problem(path, "sits in the navigation and has a parameter") if path.match?(/[:*]/)
-            problem(path, "sits in the navigation and has no label") if row.label.to_s.empty?
-            check_heading(row, path)
-            check_menu_audience(row, path, slots)
-          end
-
-          def check_heading(item, path)
-            return unless item.mobile_heading
-            return problem(path, "has a mobile_heading but no mobile_order") if item.mobile_order.nil?
-
-            problem(path, "has an empty mobile_heading") if item.mobile_heading.strip.empty?
-          end
-
-          def check_link(link)
-            path = "NavLink #{link.path}"
-            slots = self.class.navigation(link)
-            problem(path, "sits in no navigation; give it nav_order, mobile_order, footer_column or admin_key") if slots.empty?
-            problem(path, "has a parameter; a link is to one page") if link.path.to_s.match?(/[:*]/)
-            problem(path, "has no label") if link.label.to_s.empty?
-            if link.fragment && !link.fragment.match?(FRAGMENT)
-              problem(path, "has fragment #{link.fragment.inspect}; a fragment is an element id, written without #")
-            end
-            check_heading(link, path)
-            check_menu_audience(link, path, slots)
           end
 
           # A public route under a prefix that is not public (the sign-in page beside the admin
@@ -133,22 +108,18 @@ module Hecks
           def check_beneath_prefix(row, path)
             return if row.auth != "public" || row.explicit_cache || row.path.nil?
 
-            pattern = Edge::Pattern.edge(row.path)
-            prefix = @rows.find do |other|
-              other.auth != "public" && other.path && Edge::Pattern.strictly_covers?(Edge::Pattern.edge(other.path), pattern)
-            end
+            prefix = non_public_prefix(row)
             return unless prefix
 
             problem(path, "is public but sits beneath #{prefix.path}, which is #{prefix.auth}; " \
                           "name its cache class (cache: \"no_store\" for a sign-in page) to say that is meant")
           end
 
-          def check_menu_audience(row, path, slots)
-            public_slots = slots & PUBLIC_MENUS
-            if row.auth != "public" && public_slots.any?
-              problem(path, "is an admin page in the #{public_slots.join(' and ')} navigation")
+          def non_public_prefix(row)
+            pattern = Edge::Pattern.edge(row.path)
+            @rows.find do |other|
+              other.auth != "public" && other.path && Edge::Pattern.strictly_covers?(Edge::Pattern.edge(other.path), pattern)
             end
-            problem(path, "is public and sits in the admin navigation") if row.auth == "public" && slots.include?("admin")
           end
 
           def check_indexing(row, path)

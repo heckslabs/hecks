@@ -17,20 +17,42 @@ module FacadeConstantIsolation
   # @param before [Hash{Array => Module}] a value from `snapshot`
   # @return [void]
   def self.restore(before)
+    uninstall_added(before)
+    reinstall_missing(before)
+  end
+
+  # @param before [Hash{Array => Module}] a value from `snapshot`
+  # @return [void]
+  def self.uninstall_added(before)
     Hecks::Namespace::GENERATED.to_a.each do |(container, name), value|
       next if before[[container, name]].equal?(value)
 
-      container.send(:remove_const, name) if container.const_defined?(name, false) # rubocop:disable RSpec/RemoveConst
+      remove_constant(container, name)
       Hecks::Namespace::GENERATED.delete([container, name])
     end
+  end
+  private_class_method :uninstall_added
+
+  # @param before [Hash{Array => Module}] a value from `snapshot`
+  # @return [void]
+  def self.reinstall_missing(before)
     before.each do |(container, name), value|
       next if Hecks::Namespace::GENERATED[[container, name]].equal?(value)
 
-      container.send(:remove_const, name) if container.const_defined?(name, false) # rubocop:disable RSpec/RemoveConst
+      remove_constant(container, name)
       container.const_set(name, value)
       Hecks::Namespace::GENERATED[[container, name]] = value
     end
   end
+  private_class_method :reinstall_missing
+
+  # @param container [Module] the module holding the constant
+  # @param name [Symbol] the constant's name
+  # @return [void]
+  def self.remove_constant(container, name)
+    container.send(:remove_const, name) if container.const_defined?(name, false) # rubocop:disable RSpec/RemoveConst
+  end
+  private_class_method :remove_constant
 end
 
 RSpec.configure do |config|

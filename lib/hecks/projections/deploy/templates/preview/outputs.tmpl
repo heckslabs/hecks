@@ -1,0 +1,14 @@
+Outputs:
+  PreviewUrl:
+    Value: !Sub "https://${PreviewDistribution.DomainName}"
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !GetAtt Service.Name
+  DbInitTaskDefinition:
+    Value: !Ref DbInitTaskDefinition
+  # The ARN only, so preview.sh can fetch the secret to mint signup and session tokens.
+  SessionSecretArn:
+    Value: !Ref SessionSecret
+  DatabaseName:
+    Value: !Ref DbName

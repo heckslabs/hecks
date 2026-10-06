@@ -1,0 +1,67 @@
+@@db_id@@Vpc:
+  Type: AWS::EC2::VPC
+  Properties:
+    CidrBlock: 10.0.0.0/16
+    EnableDnsSupport: true
+    EnableDnsHostnames: true
+
+@@db_id@@SubnetA:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    CidrBlock: 10.0.1.0/24
+    AvailabilityZone: !Select [0, !GetAZs '']
+
+@@db_id@@SubnetB:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    CidrBlock: 10.0.2.0/24
+    AvailabilityZone: !Select [1, !GetAZs '']
+
+@@nat_gateway@@
+@@db_id@@SubnetGroup:
+  Type: AWS::RDS::DBSubnetGroup
+  Properties:
+    DBSubnetGroupDescription: !Sub "${AWS::StackName} - private subnets for @@infra_name@@'s own RDS instance"
+    SubnetIds: [!Ref @@db_id@@SubnetA, !Ref @@db_id@@SubnetB]
+
+# No inline SecurityGroupEgress/Ingress on either group -- each
+# would need to reference the other's id from inside its own
+# Properties, a genuine circular create-order dependency
+# CloudFormation refuses outright (cfn-lint E3004). Standard
+# fix: create both groups empty, then wire the cross-reference
+# through two standalone rule resources below, each of which
+# can legitimately depend on both groups already existing.
+@@compute_id@@SecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    GroupDescription: @@compute_description@@
+
+@@db_id@@SecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    VpcId: !Ref @@db_id@@Vpc
+    GroupDescription: @@db_id@@ - ingress rule attached separately below, from @@compute_id@@ only
+
+@@compute_id@@EgressToDb:
+  Type: AWS::EC2::SecurityGroupEgress
+  Properties:
+    GroupId: !Ref @@compute_id@@SecurityGroup
+    IpProtocol: tcp
+    FromPort: 5432
+    ToPort: 5432
+    DestinationSecurityGroupId: !Ref @@db_id@@SecurityGroup
+
+@@oauth_egress@@
+@@db_id@@IngressFromFunction:
+  Type: AWS::EC2::SecurityGroupIngress
+  Properties:
+    GroupId: !Ref @@db_id@@SecurityGroup
+    IpProtocol: tcp
+    FromPort: 5432
+    ToPort: 5432
+    SourceSecurityGroupId: !Ref @@compute_id@@SecurityGroup
+
+@@database@@

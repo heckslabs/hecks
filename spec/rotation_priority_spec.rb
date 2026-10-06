@@ -12,19 +12,24 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
   # `state` maps a reference to `{ last_swept:, yield_score: }` and is mutated, so pass a
   # fresh Hash per call. Returns every `[now, picked_reference]` pair in tick order.
   def simulate_ticks(state, weight_seconds:, floor_seconds:)
-    now = 0
-    picks = []
-
-    200.times do
-      now += 17 # irregular tick length — nothing here should depend on a round number
+    (1..200).map do |tick|
+      now = tick * 17 # irregular tick length — nothing here should depend on a round number
       rows = state.map { |ref, a| row(ref, last_swept: a[:last_swept], yield_score: a[:yield_score]) }
       picked_ref = described_class.pick(rows, now: now, weight_seconds: weight_seconds,
                                                floor_seconds: floor_seconds)[:reference][:value]
       state[picked_ref][:last_swept] = now
-      picks << [now, picked_ref]
+      [now, picked_ref]
     end
+  end
 
-    picks
+  def trio_state
+    { "hot"       => { last_swept: 0, yield_score: 10 },
+      "warm"      => { last_swept: 0, yield_score: 3 },
+      "exhausted" => { last_swept: 0, yield_score: 0 } }
+  end
+
+  def hot_and_exhausted_state
+    { "hot" => { last_swept: 0, yield_score: 10 }, "exhausted" => { last_swept: 0, yield_score: 0 } }
   end
 
   describe ".next_yield_score" do
@@ -105,33 +110,25 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
     # The no-starvation guarantee: two targets that always out-yield a third that never finds
     # anything. Asserts only the bound (no wait past `floor_seconds`), not that the floor forces
     # the pick; plain staleness can out-race a competitor's ceiling before the floor is crossed.
-    it "never leaves a waiting target unswept for longer than the floor, whatever its yield" do
-      floor_seconds  = 1_000
-      weight_seconds = 50
-
-      state = {
-        "hot"       => { last_swept: 0, yield_score: 10 },
-        "warm"      => { last_swept: 0, yield_score: 3 },
-        "exhausted" => { last_swept: 0, yield_score: 0 }
-      }
-
-      picks = simulate_ticks(state, weight_seconds: weight_seconds, floor_seconds: floor_seconds)
+    it "never leaves a waiting target unswept for longer than the floor, whatever its yield", :aggregate_failures do
+      picks = simulate_ticks(trio_state, weight_seconds: 50, floor_seconds: 1_000)
       first_exhausted_pick = picks.find { |_now, ref| ref == "exhausted" }
 
       expect(first_exhausted_pick).not_to be_nil
-      expect(first_exhausted_pick.first).to be <= floor_seconds
+      expect(first_exhausted_pick.first).to be <= 1_000
     end
 
-    # Isolates the floor: with a weight this large, no floor leaves the exhausted target
-    # unswept for the whole window, and the floor alone still bounds the wait.
-    it "bounds the wait on the floor alone, even when the weight dial would otherwise starve a target for a very long time" do
-      weight_seconds = 100_000 # one point of yield now outweighs a huge amount of plain staleness
-      fresh_state = -> { { "hot" => { last_swept: 0, yield_score: 10 }, "exhausted" => { last_swept: 0, yield_score: 0 } } }
+    # Isolates the floor: with a weight this large (one point of yield outweighs a huge amount of
+    # plain staleness), no floor leaves the exhausted target unswept for the whole window, and the
+    # floor alone still bounds the wait.
+    it "lets a weight dial this large starve a target for the whole window when there is no floor" do
+      without_floor = simulate_ticks(hot_and_exhausted_state, weight_seconds: 100_000, floor_seconds: Float::INFINITY)
 
-      without_floor = simulate_ticks(fresh_state.call, weight_seconds: weight_seconds, floor_seconds: Float::INFINITY)
       expect(without_floor.map(&:last)).not_to include("exhausted")
+    end
 
-      with_floor = simulate_ticks(fresh_state.call, weight_seconds: weight_seconds, floor_seconds: 1_000)
+    it "bounds the wait on the floor alone, even when the weight dial would otherwise starve a target", :aggregate_failures do
+      with_floor = simulate_ticks(hot_and_exhausted_state, weight_seconds: 100_000, floor_seconds: 1_000)
       first_exhausted_pick = with_floor.find { |_now, ref| ref == "exhausted" }
 
       expect(first_exhausted_pick).not_to be_nil

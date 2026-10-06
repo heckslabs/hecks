@@ -183,15 +183,18 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "spec/vocabulary_conformance_spec.rb, never dispatched with a blank name"]
   ].to_h.freeze
 
+  def unaccounted_message(unaccounted)
+    "the meta-domain declares #{unaccounted.size} rule(s) with no proof of firing and no " \
+    "named META_RULE_KNOWN_GAPS entry — a given/invariant/ensures just joined the language " \
+    "with nothing deciding, on purpose, whether it can ever be seen refusing:\n  " +
+      unaccounted.map(&:inspect).join("\n  ")
+  end
+
   it "proves, or names a gap for, every given/invariant/ensures the language declares" do
     accounted = META_RULE_PROVEN.keys.to_set | META_RULE_KNOWN_GAPS.keys.to_set
     unaccounted = ALL_META_RULES - accounted.to_a
 
-    expect(unaccounted).to be_empty,
-                           "the meta-domain declares #{unaccounted.size} rule(s) with no proof of firing and no " \
-                           "named META_RULE_KNOWN_GAPS entry — a given/invariant/ensures just joined the language " \
-                           "with nothing deciding, on purpose, whether it can ever be seen refusing:\n  " +
-                           unaccounted.map(&:inspect).join("\n  ")
+    expect(unaccounted).to be_empty, unaccounted_message(unaccounted)
   end
 
   it "never lets a proof rot — every META_RULE_PROVEN entry names a rule the language still declares" do

@@ -31,28 +31,34 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
     scrub.close
   end
 
+  # Commands declare `role`; without `attaches "Governance"` the builder refuses
+  # ungoverned roles (refuse_ungoverned_roles!).
+  def bind_wire_hecksagons
+    Hecks.hecksagon("Wire") do
+      attaches "Governance"
+      persisted_by "PostgresEra"
+    end
+    Hecks.hecksagon("Governance") do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+    Hecks.world("Wire") { persisted_by("PostgresEra") { database(SAGA_DURABILITY_SPEC_DB) } }
+  end
+
+  def declare_wire
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(POSTGRES_ERA_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    Kernel.load(WIRE_BLUEBOOK)
+    bind_wire_hecksagons
+  end
+
   def boot_wire
     registry = Hecks::Runtime::Registry.new
 
-    Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(POSTGRES_ERA_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(WIRE_BLUEBOOK)
-      # Commands declare `role`; without `attaches "Governance"` the builder refuses
-      # ungoverned roles (refuse_ungoverned_roles!).
-      Hecks.hecksagon("Wire") do
-        attaches "Governance"
-        persisted_by "PostgresEra"
-      end
-      Hecks.hecksagon("Governance") do
-        Governance::RoleAssignment.persisted_by("Memory")
-        Governance::RoleTransition.persisted_by("Memory")
-      end
-      Hecks.world("Wire") { persisted_by("PostgresEra") { database(SAGA_DURABILITY_SPEC_DB) } }
-    end
+    Hecks.with_registry(registry) { declare_wire }
 
     registry.verify!
     registry.rehydrate_sagas!
@@ -69,7 +75,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
     runtime
   end
 
-  it "writes a saga checkpoint through Postgres as the saga advances" do
+  it "writes a saga checkpoint through Postgres as the saga advances", :aggregate_failures do
     runtime = stuck_wire(boot_wire)
 
     expect(runtime.registry.saga_instances["Carry"]["wire-1"]).to include(state: "returned")

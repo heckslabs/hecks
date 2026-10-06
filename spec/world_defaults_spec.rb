@@ -7,21 +7,25 @@ RSpec.describe "a world's project-wide defaults" do
 
   def chapters = { "Alpha" => %w[Order Invoice], "Beta" => %w[Ticket], "Gamma" => %w[Note] }
 
+  # The body of an aggregate named `name`: a label identity and an Open command.
+  def opening_aggregate(name)
+    proc do
+      identified_by :label
+      attribute :label, Label
+      value_object("Label") { attribute :value, String }
+      command "Open" do
+        attribute :label, Label
+        emits "#{name}Opened"
+      end
+    end
+  end
+
   def declare_chapters
     chapters.each do |chapter, aggregates|
+      bodies = aggregates.map { |name| [name, opening_aggregate(name)] }
       Hecks.bluebook(chapter) do
         supporting
-        aggregates.each do |name|
-          aggregate name do
-            identified_by :label
-            attribute :label, Label
-            value_object("Label") { attribute :value, String }
-            command "Open" do
-              attribute :label, Label
-              emits "#{name}Opened"
-            end
-          end
-        end
+        bodies.each { |name, body| aggregate(name, &body) }
       end
     end
   end

@@ -50,7 +50,7 @@ RSpec.describe "hecks introspection through the launcher" do
     Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
-  it "answers a document as its own text, not as a JSON string inside JSON" do
+  it "answers a document as its own text, not as a JSON string inside JSON", :aggregate_failures do
     out, status = run_verb("introspection.statements", @dir, "chapter=Shelf")
 
     expect(status).to eq(0)
@@ -58,14 +58,14 @@ RSpec.describe "hecks introspection through the launcher" do
     expect(out).not_to start_with("[")
   end
 
-  it "answers a JSON document as that JSON, byte for byte what the adapter returns" do
+  it "answers a JSON document as that JSON, byte for byte what the adapter returns", :aggregate_failures do
     out, status = run_verb("introspection.stores", @dir)
 
     expect(status).to eq(0)
     expect(out).to eq(Hecks::Adapters::InProcessBoot.new.stores(domain: @dir).fetch(:text))
   end
 
-  it "answers files as rows of name and text, and writes none" do
+  it "answers files as rows of name and text, and writes none", :aggregate_failures do
     before = Dir.glob(File.join(@dir, "**/*"))
     out, status = run_verb("introspection.glossary", @dir, "chapter=Shelf")
 
@@ -74,7 +74,7 @@ RSpec.describe "hecks introspection through the launcher" do
     expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
   end
 
-  it "words a missing domain as a refusal, not a backtrace" do
+  it "words a missing domain as a refusal, not a backtrace", :aggregate_failures do
     out, status = Dir.mktmpdir { |scratch| run_verb("introspection.stores", File.join(scratch, "no/such/domain")) }
 
     expect(status).to eq(1)

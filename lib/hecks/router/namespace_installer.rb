@@ -1,48 +1,12 @@
 require_relative "../fqn"
-require_relative "../doors/handle"
+require_relative "options_proxy"
+require_relative "door"
 
 module Hecks
   class Router
     # Installs optional Ruby syntax over an already-loaded router; FQN
     # resolution stays in Router, this only adapts it to constants and methods.
     class NamespaceInstaller
-      # Returned by `.options(version:)`; forwards command/query verbs to the
-      # router, pinned to this FQN version rather than the router's default.
-      class OptionsProxy
-        # Only the `:version` keyword is accepted; any other key raises `ArgumentError`.
-        def initialize(router:, realm:, domain:, aggregate:, options:)
-          unknown = options.keys - [:version]
-          raise ArgumentError, "unknown router options: #{unknown.join(', ')}" unless unknown.empty?
-
-          @router = router
-          @realm = realm
-          @domain = domain
-          @aggregate = aggregate
-          @version = options[:version]&.to_s
-        end
-
-        def method_missing(verb, **args)
-          fqn = fqn_for(verb)
-          fqn.command? ? @router.dispatch(fqn.to_s, **args) : @router.query(fqn.to_s, **args)
-        end
-
-        def respond_to_missing?(verb, include_private = false)
-          Fqn.command_name?(verb) || Fqn.query_name?(verb) || super
-        end
-
-        private
-
-        def fqn_for(verb)
-          if Fqn.command_name?(verb)
-            Fqn.command(realm: @realm, domain: @domain, version: @version, aggregate: @aggregate, command: verb)
-          elsif Fqn.query_name?(verb)
-            Fqn.query(realm: @realm, domain: @domain, version: @version, aggregate: @aggregate, query: verb)
-          else
-            raise NoMethodError, "#{verb.inspect} is not a Bluebook command or query"
-          end
-        end
-      end
-
       def initialize(router)
         @router = router
       end
@@ -63,18 +27,24 @@ module Hecks
       def current_entries = router.available.reject { |entry| entry.fqn.version }
 
       def install_namespace_entry(entry)
-        target  = namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate)
-        address = entry.fqn.to_s
+        target = namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate)
+        define_options(target, entry.fqn)
+        define_verb(target, entry)
+      end
+
+      def define_options(target, fqn)
         active_router = router
         target.define_singleton_method(:options) do |**options|
-          OptionsProxy.new(router: active_router, realm: entry.fqn.realm, domain: entry.fqn.domain,
-                           aggregate: entry.fqn.aggregate, options: options)
+          OptionsProxy.new(router: active_router, realm: fqn.realm, domain: fqn.domain,
+                           aggregate: fqn.aggregate, options: options)
         end
-        if entry.command?
-          target.define_singleton_method(entry.fqn.verb) { |**args| active_router.dispatch(address, **args) }
-        else
-          target.define_singleton_method(entry.fqn.verb) { |**args| active_router.query(address, **args) }
-        end
+      end
+
+      def define_verb(target, entry)
+        active_router = router
+        address = entry.fqn.to_s
+        route = entry.command? ? :dispatch : :query
+        target.define_singleton_method(entry.fqn.verb) { |**args| active_router.public_send(route, address, **args) }
       end
 
       # `.find`/`.all`/`.count`/`.events`/`.repository`, matching `Hecks.boot`'s
@@ -86,43 +56,35 @@ module Hecks
       end
 
       def install_aggregate_door(entry)
-        dispatcher = entry.dispatcher
-        domain     = entry.fqn.domain
-        ir         = dispatcher.registry.bluebook(domain)&.aggregate(entry.fqn.aggregate)
-        return unless ir # a query/command-only entry whose owner isn't a real aggregate root
+        door = Door.for(entry)
+        return unless door
 
-        fqn    = "#{domain}::#{ir.hecks_name}"
-        target = namespace_for(entry.fqn.realm, domain, entry.fqn.aggregate)
+        define_door_methods(namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate), door)
+      end
 
-        target.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
-        target.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }
-        target.define_singleton_method(:events)     { dispatcher.events.select { |event| event.aggregate == fqn } }
-
-        target.define_singleton_method(:find) do |id|
-          found = dispatcher.registry.repository(domain, ir).find(id)
-          found && Doors::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: found)
-        end
-
-        target.define_singleton_method(:all) do
-          dispatcher.registry.repository(domain, ir).all.map do |instance|
-            Doors::Handle.new(dispatcher: dispatcher, domain: domain, aggregate: ir, instance: instance)
-          end
-        end
+      def define_door_methods(target, door)
+        target.define_singleton_method(:repository) { door.repository }
+        target.define_singleton_method(:count)      { door.repository.count }
+        target.define_singleton_method(:events)     { door.events }
+        target.define_singleton_method(:find)       { |id| door.find(id) }
+        target.define_singleton_method(:all)        { door.all }
       end
 
       def install_shortcuts!
-        installer = self
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
-                       .each do |(aggregate, verb), candidates|
-          # Bounded chapters wrap in their own module (`Domain::Aggregate`) so two
-          # BCs can both declare `Person` without colliding on `Object::Person`.
-          # Folder-spread files of the same chapter aren't BCs, so they still get it.
-          next if bounded_chapter?(candidates)
+                       .each { |(aggregate, verb), candidates| install_shortcut(aggregate, verb, candidates) }
+      end
 
-          shortcut_target(aggregate).define_singleton_method(verb) do |**args|
-            installer.send(:dispatch_short, candidates, **args)
-          end
+      def install_shortcut(aggregate, verb, candidates)
+        # Bounded chapters wrap in their own module (`Domain::Aggregate`) so two
+        # BCs can both declare `Person` without colliding on `Object::Person`.
+        # Folder-spread files of the same chapter aren't BCs, so they still get it.
+        return if bounded_chapter?(candidates)
+
+        installer = self
+        shortcut_target(aggregate).define_singleton_method(verb) do |**args|
+          installer.send(:dispatch_short, candidates, **args)
         end
       end
 
@@ -131,15 +93,15 @@ module Hecks
       end
 
       def dispatch_short(candidates, **args)
-        if candidates.length > 1
-          shown = candidates.map { |entry| entry.fqn.to_s }.sort.join(", ")
-          aggregate = candidates.first.fqn.aggregate
-          verb = candidates.first.fqn.verb
-          raise AmbiguousShortRoute, "#{aggregate}.#{verb} is ambiguous — choose one of: #{shown}"
-        end
+        raise AmbiguousShortRoute, ambiguity_message(candidates) if candidates.length > 1
 
         entry = candidates.fetch(0)
         entry.command? ? router.dispatch(entry.fqn.to_s, **args) : router.query(entry.fqn.to_s, **args)
+      end
+
+      def ambiguity_message(candidates)
+        shown = candidates.map { |entry| entry.fqn.to_s }.sort.join(", ")
+        "#{candidates.first.fqn.aggregate}.#{candidates.first.fqn.verb} is ambiguous — choose one of: #{shown}"
       end
 
       def shortcut_target(aggregate)

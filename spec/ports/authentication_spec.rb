@@ -1,13 +1,15 @@
 require "hecks"
 
 RSpec.describe Hecks::Ports::Authentication do
+  def load_in_memory_ports
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |path| Kernel.load(path) }
+  end
+
   def registry_with(*adapter_paths, &extra)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_in_memory_ports
       Kernel.load(File.expand_path("../../lib/hecks/ports/authentication.port", __dir__))
       adapter_paths.each { |path| Kernel.load(path) }
       extra&.call
@@ -48,15 +50,34 @@ RSpec.describe Hecks::Ports::Authentication do
       %w[GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI].each { |key| ENV[key] = original[key] }
     end
 
-    it "builds a real Google authorization URL, carrying a fresh state" do
-      url, state = described_class.authorization_url(registry)
+    describe "builds a real Google authorization URL, carrying a fresh state" do
+      let(:authorization) { described_class.authorization_url(registry) }
+      let(:url)           { authorization.first }
+      let(:state)         { authorization.last }
 
-      expect(url).to start_with("https://accounts.google.com/o/oauth2/v2/auth?")
-      expect(url).to include("client_id=test-client-id")
-      expect(url).to include("redirect_uri=#{ERB::Util.url_encode('http://localhost:4567/auth/google/callback')}")
-      expect(url).to include("scope=openid%20email%20profile")
-      expect(url).to include("state=#{state}")
-      expect(state).to match(/\A[0-9a-f]{48}\z/)
+      it "points at Google's authorization endpoint" do
+        expect(url).to start_with("https://accounts.google.com/o/oauth2/v2/auth?")
+      end
+
+      it "names the client" do
+        expect(url).to include("client_id=test-client-id")
+      end
+
+      it "names the redirect URI" do
+        expect(url).to include("redirect_uri=#{ERB::Util.url_encode("http://localhost:4567/auth/google/callback")}")
+      end
+
+      it "asks for the openid, email and profile scopes" do
+        expect(url).to include("scope=openid%20email%20profile")
+      end
+
+      it "carries the state" do
+        expect(url).to include("state=#{state}")
+      end
+
+      it "mints the state as 48 hex characters" do
+        expect(state).to match(/\A[0-9a-f]{48}\z/)
+      end
     end
 
     it "refuses a state mismatch before ever reaching Google, with no network call" do

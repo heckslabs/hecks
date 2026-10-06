@@ -28,8 +28,7 @@ module Hecks
         stages = YAML.load_file(STAGES_FILE, aliases: true)
         return list(stages) if argv == ["--list"]
 
-        name = argv.find { |arg| !arg.include?("=") && !arg.start_with?("--") }
-        only = argv.filter_map { |arg| arg.delete_prefix("only=").split(",") if arg.start_with?("only=") }.flatten
+        name, only = parse(argv)
         stage = stages[name]
         return usage(stages, name) unless stage
 
@@ -37,6 +36,14 @@ module Hecks
         return unknown(stage, only) if checks.nil?
 
         report(name, checks, run_all(stage, checks, root))
+      end
+
+      # @param argv [Array<String>] the command line words
+      # @return [Array(String, Array<String>)] the stage name and the check ids named by `only=`
+      def parse(argv)
+        name = argv.find { |arg| !arg.include?("=") && !arg.start_with?("--") }
+        only = argv.filter_map { |arg| arg.delete_prefix("only=").split(",") if arg.start_with?("only=") }.flatten
+        [name, only]
       end
 
       # @param checks [Array<Hash>] a stage's checks
@@ -79,37 +86,45 @@ module Hecks
         [Etc.nprocessors / 2, 1].max
       end
 
+      # @param name [String] the stage name
+      # @param checks [Array<Hash>] the checks that ran
+      # @param results [Hash{String => Array}] each check's output and whether it passed
+      # @return [Integer] 0 when every check passed, 1 otherwise
       def report(name, checks, results)
         failed = checks.reject { |check| results.fetch(check["id"]).last }
-        failed.each do |check|
-          output, = results.fetch(check["id"])
-          puts "\n[gate #{name}] #{check['title']}\n\n#{output}"
-          puts "\n[gate #{name}] BLOCKED: #{check['blocked']}\n"
-        end
-        if failed.empty?
-          puts "[gate #{name}] green: #{checks.map { |check| check['id'] }.join(', ')}"
-          return 0
-        end
+        failed.each { |check| print_failure(name, check, results.fetch(check["id"]).first) }
+        return summary(name, "red", failed, 1) unless failed.empty?
 
-        puts "[gate #{name}] red: #{failed.map { |check| check['id'] }.join(', ')}"
-        1
+        summary(name, "green", checks, 0)
+      end
+
+      # @return [Integer] the given status, after printing the stage's verdict and its check ids
+      def summary(name, verdict, checks, status)
+        puts "[gate #{name}] #{verdict}: #{checks.map { |check| check["id"] }.join(", ")}"
+        status
+      end
+
+      # @return [void] prints a failing check's output and what its failure means
+      def print_failure(name, check, output)
+        puts "\n[gate #{name}] #{check["title"]}\n\n#{output}"
+        puts "\n[gate #{name}] BLOCKED: #{check["blocked"]}\n"
       end
 
       def list(stages)
         stages.each do |name, stage|
-          puts "#{name}: #{stage.fetch('checks').map { |check| check['id'] }.join(', ')}"
+          puts "#{name}: #{stage.fetch("checks").map { |check| check["id"] }.join(", ")}"
         end
         0
       end
 
       def unknown(stage, only)
         known = stage.fetch("checks").map { |check| check["id"] }
-        warn "no such check: #{(only - known).join(', ')} (checks: #{known.join(', ')})"
+        warn "no such check: #{(only - known).join(", ")} (checks: #{known.join(", ")})"
         2
       end
 
       def usage(stages, name)
-        warn(name ? "no such stage: #{name} (stages: #{stages.keys.join(', ')})" : USAGE)
+        warn(name ? "no such stage: #{name} (stages: #{stages.keys.join(", ")})" : USAGE)
         2
       end
     end

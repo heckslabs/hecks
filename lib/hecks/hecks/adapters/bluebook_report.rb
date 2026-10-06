@@ -50,21 +50,21 @@ module Hecks
       end
 
       def row(name, old, new)
-        return mark(name, "ADDED #{new['version']}") if old.nil?
-        return mark(name, "REMOVED (was #{old['version']})") if new.nil?
+        return mark(name, "ADDED #{new["version"]}") if old.nil?
+        return mark(name, "REMOVED (was #{old["version"]})") if new.nil?
         return reversioned(name, old, new) if old["version"] != new["version"]
         return same_version_changed(name, old, new) if old["digest"] != new["digest"]
 
-        format(ROW, name, "#{new['version']}   unchanged")
+        format(ROW, name, "#{new["version"]}   unchanged")
       end
 
       def same_version_changed(name, old, new)
-        mark(name, "#{new['version']}   SAME VERSION, DIFFERENT CONTENT (digest #{old['digest'][0, 8]} -> " \
-                   "#{new['digest'][0, 8]}); a vendored copy was edited or re-tagged")
+        mark(name, "#{new["version"]}   SAME VERSION, DIFFERENT CONTENT (digest #{old["digest"][0, 8]} -> " \
+                   "#{new["digest"][0, 8]}); a vendored copy was edited or re-tagged")
       end
 
       def reversioned(name, old, new)
-        line = "#{old['version']} -> #{new['version']}"
+        line = "#{old["version"]} -> #{new["version"]}"
         if old["shape"] != new["shape"]
           line += "   shape #{shape(old)} -> #{shape(new)}   NEW ERA (its translation edge must already be in " \
                   "bluebook/translations/)"

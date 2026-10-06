@@ -64,21 +64,31 @@ module Hecks
       # @return [Hash, Object] `{field name => value, ...}`, or the lone value when the
       #   value object has one field and the bare-scalar draw hits
       def object_for(value_object, aggregate, random:, known_ids:)
-        fields =
-          if value_object.closed_set? && !value_object.members.empty?
-            return invalid_member(value_object, random: random) if random.rand < INVALID_MEMBER_PROBABILITY
+        if value_object.closed_set? && !value_object.members.empty?
+          return invalid_member(value_object, random: random) if random.rand < INVALID_MEMBER_PROBABILITY
 
-            member = value_object.members.sample(random: random)
-            member.to_h { |field, value| [field.to_s, value] }
-          else
-            value_object.attributes.to_h do |field|
-              [field.name.to_s,
-               value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
-            end
-          end
+          return bare_or_hash(admitted_member(value_object, random), random)
+        end
 
-        # Unwrap only a genuinely single-field value object, never `invalid_member`: a wrong
-        # combination stays a Hash so its wrongness is what gets exercised.
+        bare_or_hash(attribute_fields(value_object, aggregate, random: random, known_ids: known_ids), random)
+      end
+
+      # One admitted row of a closed set, keyed by field name.
+      def admitted_member(value_object, random)
+        value_object.members.sample(random: random).to_h { |field, value| [field.to_s, value] }
+      end
+
+      # A value per declared attribute, keyed by attribute name.
+      def attribute_fields(value_object, aggregate, random:, known_ids:)
+        value_object.attributes.to_h do |field|
+          [field.name.to_s,
+           value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
+        end
+      end
+
+      # Unwrap only a genuinely single-field value object, never `invalid_member`: a wrong
+      # combination stays a Hash so its wrongness is what gets exercised.
+      def bare_or_hash(fields, random)
         return fields.values.first if fields.size == 1 && random.rand < BARE_SCALAR_PROBABILITY
 
         fields
@@ -110,7 +120,7 @@ module Hecks
       #   draw hits
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []
-        return "missing-#{random.bytes(4).unpack1('H*')}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
+        return "missing-#{random.bytes(4).unpack1("H*")}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
 
         pool.sample(random: random)
       end
@@ -209,7 +219,7 @@ module Hecks
       # @param random [Random] the RNG driving every draw this call makes
       # @return [String] a `"gen-"`-prefixed id with 8 random hex characters
       def random_id(random)
-        "gen-#{random.bytes(4).unpack1('H*')}"
+        "gen-#{random.bytes(4).unpack1("H*")}"
       end
     end
   end

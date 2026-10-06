@@ -1,0 +1,11 @@
+	# TWO SEPARATE builds -- @@web_logical_id@@ has no native extension to
+	# cross-compile (no `pg` in @@domain@@/Gemfile.lock), so a plain `sam
+	# build` targets it fine; @@logical_id@@ still gets its own `sam build
+	# <resource>` first, then restored below -- `sam build <resource>`
+	# WIPES .aws-sam/build/ before building just the one named, so the
+	# second call here would otherwise erase @@logical_id@@'s own build
+	# (restore-@@logical_id@@-build's own comment on why).
+	sam build @@logical_id@@
+	sam build @@web_logical_id@@
+	$(MAKE) restore-@@logical_id@@-build
+	$(MAKE) verify-parity-@@logical_id@@

@@ -15,9 +15,11 @@ RSpec.describe "Hecks.boot_described" do
 
   it "does not read the domain again" do
     described = Hecks.describe(domain)
-    expect(Hecks::Ports::Loading).not_to receive(:bootstrap)
+    allow(Hecks::Ports::Loading).to receive(:bootstrap)
 
     Hecks.boot_described(described, install_doors: false)
+
+    expect(Hecks::Ports::Loading).not_to have_received(:bootstrap)
   end
 
   it "keeps the directory describe resolved, for the boot gates" do

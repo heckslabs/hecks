@@ -5,16 +5,16 @@ require "spec_helper"
 # The table is checked in, not built at boot, because sets like `Attribute::PRIMITIVES` are read
 # while a bluebook is parsed, before the framework could load.
 RSpec.describe "the generated vocabulary table" do
+  def projected_vocabulary
+    bluebook = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    Hecks::Projector.call(:vocabulary, bluebook: bluebook)
+  end
+
   it "is exactly what hecks project_vocabulary would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/vocabulary.rb"))
 
-    projected = Hecks::Projector.call(
-      :vocabulary,
-      bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-    )
-
-    expect(projected).to eq(committed),
-                         "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run hecks project_vocabulary"
+    expect(projected_vocabulary).to eq(committed),
+                                    "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run hecks project_vocabulary"
   end
 
   # With the regeneration check above, this holds each Ruby constant equal to the language:

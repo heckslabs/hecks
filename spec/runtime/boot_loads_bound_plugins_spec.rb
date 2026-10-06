@@ -16,43 +16,51 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
 
   after { FileUtils.remove_entry(scratch) }
 
-  def write_domain(adapter:, database: nil)
-    FileUtils.mkdir_p(File.join(scratch, "bluebook"))
-    File.write(File.join(scratch, "bluebook", "target.bluebook"), <<~BLUEBOOK)
-      Hecks.bluebook "Target" do
-        vision "a domain bound to a persistence adapter"
-        core
+  BOUND_PLUGIN_TARGET_BLUEBOOK = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Target" do
+      vision "a domain bound to a persistence adapter"
+      core
 
-        aggregate "Widget" do
-          description "a widget"
-          identified_by :ref
+      aggregate "Widget" do
+        description "a widget"
+        identified_by :ref
 
-          value_object "Ref" do
-            attribute :value, String
-            invariant("a widget has a ref") { !value.to_s.empty? }
-          end
+        value_object "Ref" do
+          attribute :value, String
+          invariant("a widget has a ref") { !value.to_s.empty? }
+        end
 
+        attribute :ref, Ref
+
+        command "Make" do
+          goal "make a widget"
           attribute :ref, Ref
+          emits "WidgetMade"
+        end
 
-          command "Make" do
-            goal "make a widget"
-            attribute :ref, Ref
-            emits "WidgetMade"
-          end
-
-          query "All" do
-          end
+        query "All" do
         end
       end
-    BLUEBOOK
-    File.write(File.join(scratch, "bluebook", "target.hecksagon"), <<~HECKSAGON)
+    end
+  BLUEBOOK
+
+  def write_domain_file(extension, content)
+    File.write(File.join(scratch, "bluebook", "target.#{extension}"), content)
+  end
+
+  def write_domain(adapter:, database: nil)
+    FileUtils.mkdir_p(File.join(scratch, "bluebook"))
+    write_domain_file("bluebook", BOUND_PLUGIN_TARGET_BLUEBOOK)
+    write_domain_file("hecksagon", <<~HECKSAGON)
       Hecks.hecksagon "Target" do
         persisted_by "#{adapter}"
       end
     HECKSAGON
-    return unless database
+    write_domain_file("world", world_for(adapter, database)) if database
+  end
 
-    File.write(File.join(scratch, "bluebook", "target.world"), <<~WORLD)
+  def world_for(adapter, database)
+    <<~WORLD
       Hecks.world "Target" do
         persisted_by("#{adapter}") do
           database "#{database}"
@@ -83,41 +91,41 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     RUBY
   end
 
+  ERA_PLUGIN_PROBE = <<~RUBY.freeze
+    before = Hecks::Ports::Persistence.plugin?(:era)
+    Hecks::Runtime::Loader.load_bound_adapters!(registry)
+    puts JSON.generate(before: before, after: Hecks::Ports::Persistence.plugin?(:era))
+  RUBY
+
+  MEMORY_ONLY_PROBE = <<~RUBY.freeze
+    Hecks::Runtime::Loader.load_bound_adapters!(registry)
+    puts JSON.generate(after: Hecks::Ports::Persistence.plugins_loaded?)
+  RUBY
+
+  UNIMPLEMENTED_ADAPTER_PROBE = <<~RUBY.freeze
+    Hecks::Runtime::Loader.load_bound_adapters!(registry)
+    puts JSON.generate(loaded: true)
+  RUBY
+
+  # Runs a probe in a fresh Ruby process after the domain is loaded the way a boot does.
+  def run_after_load(probe) = run_fresh("#{loaded_registry_script}\n#{probe}")
+
   it "loads the era plugin when a hecksagon binds PostgresEra" do
     write_domain(adapter: "PostgresEra", database: "postgres:///never_connected")
 
-    seen = run_fresh(<<~RUBY)
-      #{loaded_registry_script}
-      before = Hecks::Ports::Persistence.plugin?(:era)
-      Hecks::Runtime::Loader.load_bound_adapters!(registry)
-      puts JSON.generate(before: before, after: Hecks::Ports::Persistence.plugin?(:era))
-    RUBY
-
-    expect(seen).to eq("before" => false, "after" => true)
+    expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => true)
   end
 
   it "loads nothing when the domain binds only Memory" do
     write_domain(adapter: "Memory")
 
-    seen = run_fresh(<<~RUBY)
-      #{loaded_registry_script}
-      Hecks::Runtime::Loader.load_bound_adapters!(registry)
-      puts JSON.generate(after: Hecks::Ports::Persistence.plugins_loaded?)
-    RUBY
-
-    expect(seen).to eq("after" => false)
+    expect(run_after_load(MEMORY_ONLY_PROBE)).to eq("after" => false)
   end
 
   it "leaves an adapter with no Ruby implementation for verify! to refuse" do
     write_domain(adapter: "Nonesuch")
 
-    seen = run_fresh(<<~RUBY)
-      #{loaded_registry_script}
-      Hecks::Runtime::Loader.load_bound_adapters!(registry)
-      puts JSON.generate(loaded: true)
-    RUBY
-
-    expect(seen).to eq("loaded" => true)
+    expect(run_after_load(UNIMPLEMENTED_ADAPTER_PROBE)).to eq("loaded" => true)
   end
 
   describe "a full boot", :io do
@@ -138,20 +146,28 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
       admin.close
     end
 
-    it "registers the era gates and boots without the application requiring the plugin" do
-      write_domain(adapter: "PostgresEra", database: FencedOwner.url(database))
+    GATE_RECORDER = <<~RUBY.freeze
+      registered = []
+      Hecks::Runtime::BootGates.prepend(Module.new do
+        define_method(:register) do |name, gate, phase:|
+          registered << name
+          super(name, gate, phase: phase)
+        end
+      end)
+    RUBY
 
-      seen = run_fresh(<<~RUBY)
-        registered = []
-        Hecks::Runtime::BootGates.prepend(Module.new do
-          define_method(:register) do |name, gate, phase:|
-            registered << name
-            super(name, gate, phase: phase)
-          end
-        end)
+    def full_boot_script
+      <<~RUBY
+        #{GATE_RECORDER}
         Hecks.boot(#{scratch.inspect})
         puts JSON.generate(plugin: Hecks::Ports::Persistence.plugin?(:era), gates: registered)
       RUBY
+    end
+
+    it "registers the era gates and boots without the application requiring the plugin", :aggregate_failures do
+      write_domain(adapter: "PostgresEra", database: FencedOwner.url(database))
+
+      seen = run_fresh(full_boot_script)
 
       expect(seen).to include("plugin" => true)
       expect(seen["gates"]).to include("era_compute_rules", "era_check")

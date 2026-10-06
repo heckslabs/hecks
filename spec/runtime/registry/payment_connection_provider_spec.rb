@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "../../support/memory_ports"
 
 # rust/host's payments-connection routes read ir.json's `payment_connection`
 # key instead of naming PaymentConnection's commands. That key is only as
@@ -9,43 +10,53 @@ RSpec.describe "payment_connection capability" do
   VERBS = { connect: "Connect", reconnect: "Reconnect", disconnect: "Disconnect", suspend: "Suspend",
             resume: "Resume", enable: "EnablePayments", disable: "DisablePayments" }.freeze
 
-  def connection_body
-    proc do
-      identified_by :slug
+  PAYMENT_CONNECTION_BODY = proc do
+    identified_by :slug
+    attribute :slug, Slug
+    value_object "Slug" do
+      attribute :value, String
+    end
+    command "Connect" do
+      goal "connect"
       attribute :slug, Slug
-      value_object "Slug" do
-        attribute :value, String
-      end
-      command "Connect" do
-        goal "connect"
-        attribute :slug, Slug
-        sets :slug
-      end
-      %w[Reconnect Disconnect Suspend Resume EnablePayments DisablePayments].each do |name|
-        command name do
-          goal name.downcase
-          reference_to PaymentConnection
-        end
+      sets :slug
+    end
+    %w[Reconnect Disconnect Suspend Resume EnablePayments DisablePayments].each do |name|
+      command name do
+        goal name.downcase
+        reference_to PaymentConnection
       end
     end
   end
 
-  def registry_with_connection(provides: nil)
-    provides ||= VERBS.transform_values { |command| "PaymentConnection.#{command}" }
-    connection = connection_body
+  def full_row = VERBS.transform_values { |command| "PaymentConnection.#{command}" }
+
+  PAYMENT_CONNECTION_EXPORT = {
+    provider:   "Billing",
+    connect:    "Billing::PaymentConnection.Connect",
+    reconnect:  "Billing::PaymentConnection.Reconnect",
+    disconnect: "Billing::PaymentConnection.Disconnect",
+    suspend:    "Billing::PaymentConnection.Suspend",
+    resume:     "Billing::PaymentConnection.Resume",
+    enable:     "Billing::PaymentConnection.EnablePayments",
+    disable:    "Billing::PaymentConnection.DisablePayments",
+    aggregate:  "Billing::PaymentConnection"
+  }.freeze
+
+  def billing_chapter(provides)
+    Hecks.bluebook "Billing" do
+      vision "probe"
+      supporting
+      provides "payment_connection", **provides
+      aggregate "PaymentConnection", &PAYMENT_CONNECTION_BODY
+    end
+  end
+
+  def registry_with_connection(provides: full_row)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook "Billing" do
-        vision "probe"
-        supporting
-        provides "payment_connection", **provides
-        aggregate "PaymentConnection", &connection
-      end
+      MemoryPorts.load!
+      billing_chapter(provides)
     end
     registry
   end
@@ -57,19 +68,9 @@ RSpec.describe "payment_connection capability" do
   end
 
   it "exports every declared verb qualified, with the connection aggregate named off connect" do
-    registry = registry_with_connection
+    exported = Hecks::Projector::Exporter.payment_connection(registry_with_connection, "Billing")
 
-    expect(Hecks::Projector::Exporter.payment_connection(registry, "Billing")).to eq(
-      provider:   "Billing",
-      connect:    "Billing::PaymentConnection.Connect",
-      reconnect:  "Billing::PaymentConnection.Reconnect",
-      disconnect: "Billing::PaymentConnection.Disconnect",
-      suspend:    "Billing::PaymentConnection.Suspend",
-      resume:     "Billing::PaymentConnection.Resume",
-      enable:     "Billing::PaymentConnection.EnablePayments",
-      disable:    "Billing::PaymentConnection.DisablePayments",
-      aggregate:  "Billing::PaymentConnection"
-    )
+    expect(exported).to eq(PAYMENT_CONNECTION_EXPORT)
   end
 
   it "exports nothing for a domain that attaches no payment-connection provider" do
@@ -84,7 +85,7 @@ RSpec.describe "payment_connection capability" do
   end
 
   it "refuses a provides row whose verb names no command the chapter declares" do
-    provides = VERBS.transform_values { |command| "PaymentConnection.#{command}" }.merge(suspend: "PaymentConnection.Pause")
+    provides = full_row.merge(suspend: "PaymentConnection.Pause")
 
     expect { registry_with_connection(provides: provides) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /PaymentConnection\.Pause/)

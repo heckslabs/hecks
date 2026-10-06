@@ -87,27 +87,38 @@ RSpec.describe Hecks::Projector::Exporter do
 
   # Pizzas' hecksagon attaches Governance, which `provides "authorization"`; the bare
   # bluebook attaches nothing.
+  def load_core_ports
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+     InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+  end
+
   def pizzas_registry(with_hecksagon:)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_core_ports
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon")) if with_hecksagon
     end
     registry
   end
 
+  EXPORTER_AUTHORIZATION = {
+    provider:             "Governance",
+    grant:                "Governance::RoleAssignment.Assign",
+    assignments:          "Governance::RoleAssignment.AssignmentsForActor",
+    assignment_aggregate: "Governance::RoleAssignment"
+  }.freeze
+
+  EXPORTER_IDENTITY = {
+    provider: "Identity",
+    register: "Identity::Identity.Register",
+    link:     "Identity::ExternalIdentifier.Link",
+    resolve:  "Identity::ExternalIdentifier.ResolvedBy"
+  }.freeze
+
   describe ".authorization" do
     it "names the attached chapter that provides authorization, with its declared verbs qualified" do
-      expect(described_class.authorization(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq(
-        provider:             "Governance",
-        grant:                "Governance::RoleAssignment.Assign",
-        assignments:          "Governance::RoleAssignment.AssignmentsForActor",
-        assignment_aggregate: "Governance::RoleAssignment"
-      )
+      expect(described_class.authorization(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq(EXPORTER_AUTHORIZATION)
     end
 
     it "answers empty for a domain that attaches no authorization provider" do
@@ -126,33 +137,33 @@ RSpec.describe Hecks::Projector::Exporter do
       expect(described_class.identity(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq({})
     end
 
-    it "names the attached chapter that provides identity, with its declared verbs qualified" do
+    def declare_identity_hexagons
+      Hecks.hecksagon("Probe") do
+        attaches "Identity"
+        attaches "Governance"
+      end
+      Hecks.hecksagon("Identity") do
+        attaches "Governance"
+        Identity::Identity.persisted_by("Memory")
+        Identity::ExternalIdentifier.persisted_by("Memory")
+      end
+    end
+
+    def identity_registry
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
-        Hecks.hecksagon("Probe") do
-          attaches "Identity"
-          attaches "Governance"
+        load_core_ports
+        ["identity", "governance"].each do |name|
+          Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/#{name}.bluebook"))
         end
-        Hecks.hecksagon("Identity") do
-          attaches "Governance"
-          Identity::Identity.persisted_by("Memory")
-          Identity::ExternalIdentifier.persisted_by("Memory")
-        end
+        declare_identity_hexagons
         sibling_governance!
       end
+      registry
+    end
 
-      expect(described_class.identity(registry, "Probe")).to eq(
-        provider: "Identity",
-        register: "Identity::Identity.Register",
-        link:     "Identity::ExternalIdentifier.Link",
-        resolve:  "Identity::ExternalIdentifier.ResolvedBy"
-      )
+    it "names the attached chapter that provides identity, with its declared verbs qualified" do
+      expect(described_class.identity(identity_registry, "Probe")).to eq(EXPORTER_IDENTITY)
     end
   end
 
@@ -163,10 +174,7 @@ RSpec.describe Hecks::Projector::Exporter do
       require InMemoryDomain::ERA_PLUGIN
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        load_core_ports
         Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
@@ -187,7 +195,7 @@ RSpec.describe Hecks::Projector::Exporter do
       expect(described_class.lineage(registry, "Pizzas")).to eq(capable_aggregates: [])
     end
 
-    it "agrees with Runtime::EraCheck's own capability predicates, not a re-derived rule" do
+    it "agrees with Runtime::EraCheck's own capability predicates, not a re-derived rule", :aggregate_failures do
       registry = registry_with_directory_bound_to_postgres
       member = registry.bluebooks.fetch("Directory").aggregate("Member")
       adapter = Hecks::Runtime::EraCheck.adapter_for(registry, "Directory", member)

@@ -14,6 +14,32 @@ RSpec.describe "the language's own rules" do
   # The id of what was just declared; ids derive from declared facts, so read it off the result.
   def id_of(verb, **args) = @runtime.dispatch_flat(verb, **args).instance.id
 
+  def add_attribute(name:, type:, to: @aggregate_id)
+    @runtime.dispatch("Bluebook::Aggregate.Attribute", to: to, with: { name: v(name), type: type, list: v("false") })
+  end
+
+  def declare_command(name:, role:, goal:)
+    id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
+                                       name: v(name), role: v(role), goal: v(goal))
+  end
+
+  # A mutation of the command `to` on `target` with the operation `op`.
+  def change_command(command_id, target:, operation:)
+    with = { target: v(target), op: v(operation), field: v(""), kind: v("literal"), source: v('"x"') }
+    @runtime.dispatch("Bluebook::Command.Change", to: command_id, with: with)
+  end
+
+  def reference_head(command_id, points_at)
+    with = { points_at: points_at, name: v("customer_id"), list: v("false"), default: v("") }
+    @runtime.dispatch("Bluebook::Command.Reference", to: command_id, with: with)
+  end
+
+  # A value object `X` of the aggregate with one admitted row, not yet bound to a field.
+  def declare_value_object_with_row
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
+    @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
+  end
+
   before do
     @runtime = boot_meta
     # A bluebook is reached by its own name (identified_by { name.value }); a minted id would
@@ -40,18 +66,13 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an attribute that is not named" do
-    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", to: @aggregate_id, with: { name: v(""), type: "T", list: v("false") }) }
+    expect { add_attribute(name: "", type: "T") }
       .to raise_error(Hecks::Runtime::InvariantViolation, /an attribute is named/)
   end
 
   # The type is a reference to the value object, so an undeclared one cannot resolve.
   it "refuses an attribute whose type is not a declared value object" do
-    expect do
-      @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
-                                                         with: { name: v("x"),
-                                                                 type: "#{@aggregate_id}.Nonexistent",
-                                                                 list: v("false") })
-    end
+    expect { add_attribute(name: "x", type: "#{@aggregate_id}.Nonexistent") }
       .to raise_error(Hecks::Runtime::NotFound, /no ValueObject with/)
   end
 
@@ -65,8 +86,7 @@ RSpec.describe "the language's own rules" do
   context "with a command declared" do
     before do
       # Owned directly by the aggregate, so owner_id is the aggregate's own id.
-      @command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
-                          name: v("C"), role: v("Someone"), goal: v("do a thing"))
+      @command_id = declare_command(name: "C", role: "Someone", goal: "do a thing")
     end
 
     it "refuses a given with no description" do
@@ -80,28 +100,14 @@ RSpec.describe "the language's own rules" do
     end
 
     it "refuses a mutation with no target" do
-      expect do
-        @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
-                                                      with: { target: v(""),
-                                                              op:     v("set"),
-                                                              field:  v(""),
-                                                              kind:   v("literal"),
-                                                              source: v('"x"') })
-      end
+      expect { change_command(@command_id, target: "", operation: "set") }
         .to raise_error(Hecks::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
     # `op` admits Vocabulary::MutationOp rather than restating the set in an invariant, so the
     # refusal names the set and there is no second copy to drift.
     it "refuses a mutation whose op the runtime does not apply" do
-      expect do
-        @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
-                                                      with: { target: v("x"),
-                                                              op:     v("frobnicate"),
-                                                              field:  v(""),
-                                                              kind:   v("literal"),
-                                                              source: v('"x"') })
-      end
+      expect { change_command(@command_id, target: "x", operation: "frobnicate") }
         .to raise_error(Hecks::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 
@@ -195,33 +201,26 @@ RSpec.describe "the language's own rules" do
 
   # A command's reference_to is offered as the head's own id, so no predicate checks it exists.
   it "refuses an argument that references a head nobody declared" do
-    command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
-                       name: v("C"), role: v("Clerk"), goal: v("do a thing"))
+    command_id = declare_command(name: "C", role: "Clerk", goal: "do a thing")
 
-    expect do
-      @runtime.dispatch("Bluebook::Command.Reference", to:   command_id,
-                                                       with: { points_at: "#{@bluebook_id}::Nonexistent",
-                                name: v("customer_id"), list: v("false"), default: v("") })
-    end.to raise_error(Hecks::Runtime::NotFound, /no Aggregate with/)
+    expect { reference_head(command_id, "#{@bluebook_id}::Nonexistent") }
+      .to raise_error(Hecks::Runtime::NotFound, /no Aggregate with/)
   end
 
   # ValueObject.Member appends the row; the dotted ValueObject.Member.Pair fills it in (ADR 0026).
   it "refuses an admitted row that binds no named field" do
-    name = v("X")
-    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: name)
-    @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
+    declare_value_object_with_row
 
     expect do
-      @runtime.dispatch_flat("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
-                        position: { value: 0 }, key: v(""), value: v("q"))
+      @runtime.dispatch_flat("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: v("X"),
+                                                                  position: { value: 0 }, key: v(""), value: v("q"))
     end.to raise_error(Hecks::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end
 
   # Seal has no "at least one attribute" rule: a lifecycle-only aggregate declares none.
   it "seals an aggregate that is fully declared" do
     value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
-    @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
-                                                       with: { name: v("x"), type: value_object_id, list: v("false") })
+    add_attribute(name: "x", type: value_object_id)
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Seal", to: @aggregate_id) }.not_to raise_error
   end

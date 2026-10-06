@@ -1,0 +1,46 @@
+@@db_env_guard@@
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	@@eval_lines@@
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides @@parameter_overrides@@ \
+		--capabilities CAPABILITY_IAM
+# DB_PASS_URLENC -- same percent-encoding fix as mint_era_recipe's
+# own comment above the equivalent line in that recipe (libpq's URI
+# parser rejects a bare `%`, which a generated RDS password isn't
+# guaranteed to be free of); this recipe's DATABASE_URL below uses
+# the encoded form for the same reason, even though the script it
+# feeds doesn't currently read it (see db_env_blind above).
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	DB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' "$$DB_PASS"); \
+	RUN_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and running @@verb@@ (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd @@cwd@@ && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/@@db_name@@" HECKS_SCHEMA="@@hecks_schema@@" @@run_prefix@@ @@script@@ @@domain_arg_part@@@@extra_args@@&& { RUN_STATUS=0; break; }; \
+		RUN_STATUS=$$?; \
+		echo "@@verb@@ attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted."; \
+	exit $$RUN_STATUS

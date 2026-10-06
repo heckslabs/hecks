@@ -53,17 +53,20 @@ module Hecks
 
     # @return [Hecks::Bluebook::Structure::Domain] banking's bluebook, loaded once
     def bluebook
-      @bluebook ||= begin
-        registry = Hecks::Runtime::Registry.new
-        Hecks.with_registry(registry) do
-          Kernel.load(File.join(ROOT, "lib/hecks/ports/persistence.port"))
-          Kernel.load(File.join(ROOT, "lib/hecks/ports/extraction.port"))
-          Kernel.load(File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter"))
-          folder = Hecks::Adapters::Folder.new
-          folder.load_bluebooks(folder.bluebook_directory(File.join(ROOT, "examples/banking/bluebook")))
-        end
-        registry.bluebook("Banking")
+      @bluebook ||= load_banking.bluebook("Banking")
+    end
+
+    # @return [Hecks::Runtime::Registry] a registry holding the banking example's bluebooks
+    def load_banking
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(File.join(ROOT, "lib/hecks/ports/persistence.port"))
+        Kernel.load(File.join(ROOT, "lib/hecks/ports/extraction.port"))
+        Kernel.load(File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter"))
+        folder = Hecks::Adapters::Folder.new
+        folder.load_bluebooks(folder.bluebook_directory(File.join(ROOT, "examples/banking/bluebook")))
       end
+      registry
     end
 
     # @param name [String] an aggregate of banking

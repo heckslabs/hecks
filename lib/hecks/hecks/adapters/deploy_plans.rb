@@ -14,7 +14,7 @@ module Hecks
       # @param branch [String, nil] the branch named, or nil for the checked-out one
       # @return [String]
       def preview(text, action, branch)
-        stack = "#{variable(text, 'PREFIX') || '<prefix>'}-<name derived from #{branch || 'the checked-out branch'}>"
+        stack = "#{variable(text, "PREFIX") || "<prefix>"}-<name derived from #{branch || "the checked-out branch"}>"
         region = variable(text, "REGION")
         where = region ? " in #{region}" : ""
         case action
@@ -38,7 +38,7 @@ module Hecks
         directory = text[%r{mkdir -p (/\S+)}, 1]
         place = directory ? " in #{directory}" : String.new
         "roll #{companion} (Compose project #{project}#{place}) from task definition " \
-          "#{taskdef} onto the box of stack #{stack || '<box stack>'} over SSM, beside the app's project, " \
+          "#{taskdef} onto the box of stack #{stack || "<box stack>"} over SSM, beside the app's project, " \
           "then check it on the box"
       end
 

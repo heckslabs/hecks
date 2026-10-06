@@ -32,18 +32,10 @@ module Hecks
 
           return hydrate_entity_identity(aggregate, entity, value) unless value.is_a?(Array)
 
-          hydrated = value.map do |element|
-            next element unless element.is_a?(Hash)
-
-            element.each_with_object({}) do |(name, field_value), acc|
-              key = name.to_sym
-              field = entity.attribute(key)
-              acc[key] = field ? for_attribute(aggregate, field, field_value) : field_value
-            end
-          end
+          hydrated = value.map { |element| hydrate_entity_element(aggregate, entity, element) }
           # Only a genuine whole-list offering names every element's own
           # identity at once; a single `remove:` target never reaches this.
-          check_entity_list_identities(aggregate, entity, hydrated) if value.is_a?(Array)
+          check_entity_list_identities(aggregate, entity, hydrated)
           Freezer.deep(hydrated)
         end
 
@@ -56,26 +48,11 @@ module Hecks
           return unless identity
           return if trusting_stored_state?
 
-          field = entity.attribute(identity)
-          seen  = []
-          elements.each do |fields|
-            next unless fields.is_a?(Hash)
-
+          seen = []
+          elements.grep(Hash).each do |fields|
             offered = fields[identity]
-            if offered.nil?
-              raise TypeMismatch,
-                    RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                               type: entity.hecks_name, field: identity,
-                                               expected: field&.type, offered: "nil")
-            end
-
-            if seen.include?(offered)
-              raise AlreadyExists,
-                    RefusalWording.render_site("AlreadyExists", "entity_duplicate",
-                                               entity: entity.hecks_name, aggregate: aggregate.hecks_name,
-                                               identity: entity.identity_paths.join(", "),
-                                               offered: [Rendering.describe(offered)])
-            end
+            numeric_field_mismatch!(entity.hecks_name, identity, entity.attribute(identity)&.type, "nil") if offered.nil?
+            refuse_duplicate_identity!(aggregate, entity, offered) if seen.include?(offered)
             seen << offered
           end
         end
@@ -120,6 +97,27 @@ module Hecks
           return element if element.is_a?(self) && element.type_name == value_object.hecks_name
 
           build(value_object, fields_for(value_object, attribute.name, element), aggregate)
+        end
+
+        private
+
+        # One element of an entity list, each field coerced through its declared attribute.
+        def hydrate_entity_element(aggregate, entity, element)
+          return element unless element.is_a?(Hash)
+
+          element.each_with_object({}) do |(name, field_value), acc|
+            key = name.to_sym
+            field = entity.attribute(key)
+            acc[key] = field ? for_attribute(aggregate, field, field_value) : field_value
+          end
+        end
+
+        def refuse_duplicate_identity!(aggregate, entity, offered)
+          raise AlreadyExists,
+                RefusalWording.render_site("AlreadyExists", "entity_duplicate",
+                                           entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                           identity: entity.identity_paths.join(", "),
+                                           offered: [Rendering.describe(offered)])
         end
       end
     end

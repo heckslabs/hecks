@@ -9,6 +9,7 @@ require_relative "sequence_generator/step_builder"
 require_relative "sequence_generator/outcome_tracker"
 require_relative "sequence_generator/query_binding"
 require_relative "sequence_generator/adversary"
+require_relative "sequence_generator/prefixing"
 
 module Hecks
   module Fuzzing
@@ -22,6 +23,7 @@ module Hecks
       include OutcomeTracker
       include QueryBinding
       include Adversary
+      include Prefixing
 
       # Creating commands are always eligible; weighting them up reaches an actionable
       # state sooner without starving domains that have few aggregates.
@@ -76,42 +78,24 @@ module Hecks
       # script's `expectations.events` claim. Zero means no interesting state was reached.
       attr_reader :event_count
 
+      # The keywords `.new` takes beyond `seed:` and `steps:`, with their defaults.
+      OPTION_DEFAULTS = { adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0,
+                          prefix: nil, favor: [] }.freeze
+
       # Takes the same keywords as `.generate`, plus `adapter:` (default `:memory`).
       #
       # @raise [ArgumentError] if `adversarial`, `role_draw`, or `dry_run` is not a
-      #   Numeric between 0.0 and 1.0
-      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0,
-                     prefix: nil, favor: [])
-        { adversarial: adversarial, role_draw: role_draw, dry_run: dry_run }.each do |name, fraction|
-          next if fraction.is_a?(Numeric) && fraction.between?(0, 1)
+      #   Numeric between 0.0 and 1.0, or a keyword is not one `.new` takes
+      def initialize(domain_path, seed:, steps:, **options)
+        settings = OPTION_DEFAULTS.merge(options)
+        validate_options!(settings)
 
-          raise ArgumentError, "#{name}: must be a fraction between 0.0 and 1.0, got #{fraction.inspect}"
-        end
-
-        @domain_path         = domain_path
-        @seed                = seed
-        @step_count          = steps
-        @adapter             = adapter
-        @adversarial         = adversarial.to_f
-        @role_draw           = role_draw.to_f
-        @dry_run             = dry_run.to_f
+        @domain_path = domain_path
+        @seed        = seed
+        @step_count  = steps
+        configure(settings)
         restart_random(seed)
-        @known_ids           = Hash.new { |h, k| h[k] = [] }
-        @entity_known_ids    = Hash.new { |h, k| h[k] = [] }
-        @appended_identities = Hash.new { |h, k| h[k] = [] }
-        # "Domain::Aggregate" => stored rows a query filters on (query_binding.rb).
-        @written_rows        = Hash.new { |h, k| h[k] = [] }
-        # Role => actor ids granted by this sequence's own `RoleAssignment.Assign` steps.
-        @granted             = Hash.new { |h, k| h[k] = [] }
-        @precedence_caller   = nil
-        @exercised           = Set.new
-        @event_count         = 0
-        @prefix              = prefix
-        @favor               = Array(favor)
-        @own_favor           = @favor
-        @coverage            = []
-        @verbs               = []
-        @attempt             = 0
+        reset_run_state
       end
 
       # Runs the generation against a fresh, isolated boot of the domain.
@@ -125,41 +109,56 @@ module Hecks
           catalog = build_catalog(runtime)
           @verbs  = catalog.values_at(:creating, :instance, :entity_commands, :queries, :entity_queries, :read_models)
                            .flatten.map { |entry| entry[:verb] }.uniq
-
-          steps = []
-          if @prefix
-            realize_prefix(runtime, catalog, @prefix, prefix_limit(@prefix), steps)
-            restart_random(@seed)
-            @favor = @own_favor
-          end
-          @step_count.times { steps << attempt_step(runtime, catalog) }
-          steps.compact
+          generate_steps(runtime, catalog)
         end
       end
 
       private
 
-      # Re-runs the first `limit` attempts of another seed's generation (its own prefix
-      # first), carrying its known ids and exercised verbs into this seed. The prefix is
-      # on top of this seed's budget: taking it out of the budget left too little to explore.
-      def realize_prefix(runtime, catalog, spec, limit, steps)
-        return 0 unless limit.positive?
+      def validate_options!(settings)
+        unknown = settings.keys - OPTION_DEFAULTS.keys
+        raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" if unknown.any?
 
-        inner = spec["prefix"]
-        used  = inner ? realize_prefix(runtime, catalog, inner, [prefix_limit(inner), limit].min, steps) : 0
-        restart_random(Integer(spec.fetch("seed")))
-        @favor = Array(spec["favor"])
-        (limit - used).times { steps << attempt_step(runtime, catalog) }
-        limit
+        settings.slice(:adversarial, :role_draw, :dry_run).each do |name, fraction|
+          next if fraction.is_a?(Numeric) && fraction.between?(0, 1)
+
+          raise ArgumentError, "#{name}: must be a fraction between 0.0 and 1.0, got #{fraction.inspect}"
+        end
       end
 
-      # Both streams restart together so a prefix replay draws the same query bindings.
-      def restart_random(seed)
-        @random         = Random.new(seed)
-        @binding_random = Random.new(seed + QueryBinding::BINDING_SEED_OFFSET)
+      def configure(settings)
+        @adapter     = settings[:adapter]
+        @adversarial = settings[:adversarial].to_f
+        @role_draw   = settings[:role_draw].to_f
+        @dry_run     = settings[:dry_run].to_f
+        @prefix      = settings[:prefix]
+        @favor       = Array(settings[:favor])
+        @own_favor   = @favor
       end
 
-      def prefix_limit(spec) = Integer(spec.fetch("steps")).clamp(0, @step_count)
+      # Everything a run accumulates: the ids it has seen, the rows it has written, what it has
+      # exercised, and the coverage it has reached.
+      def reset_run_state
+        @known_ids           = new_pool
+        @entity_known_ids    = new_pool
+        @appended_identities = new_pool
+        # "Domain::Aggregate" => stored rows a query filters on (query_binding.rb).
+        @written_rows        = new_pool
+        # Role => actor ids granted by this sequence's own `RoleAssignment.Assign` steps.
+        @granted             = new_pool
+        reset_progress
+      end
+
+      def reset_progress
+        @precedence_caller = nil
+        @exercised         = Set.new
+        @event_count       = 0
+        @coverage          = []
+        @verbs             = []
+        @attempt           = 0
+      end
+
+      def new_pool = Hash.new { |h, k| h[k] = [] }
 
       def attempt_step(runtime, catalog)
         index = @attempt
@@ -169,13 +168,16 @@ module Hecks
 
         @exercised << entry[:verb]
         @state_before = "-"
-        step =
-          if entry[:query]    then build_query_step(runtime, entry)
-          elsif entry[:model] then build_read_model_step(runtime, entry)
-          else                     build_command_step(runtime, catalog, entry)
-          end
+        step = build_step(runtime, catalog, entry)
         @coverage << [index, coverage_tuple(entry, step)]
         step
+      end
+
+      def build_step(runtime, catalog, entry)
+        if entry[:query]    then build_query_step(runtime, entry)
+        elsif entry[:model] then build_read_model_step(runtime, entry)
+        else                     build_command_step(runtime, catalog, entry)
+        end
       end
 
       # `verb | kind | state before | mutation | outcome`; see CoverageCampaign.

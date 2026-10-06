@@ -1,0 +1,52 @@
+# Aurora Serverless v2, Postgres-compatible -- the split
+# shape Aurora needs (a DBCluster carrying the managed
+# password/endpoint/subnet-group/security-group, plus at
+# least one DBInstance inside it) is the only thing
+# different from the plain-RDS path below;
+# Adapters::PostgresEra/tokio_postgres speak the identical
+# wire protocol against either endpoint.
+# Self-managed, not ManageMasterUserPassword: true --
+# CloudFormation's `{{resolve:secretsmanager:...}}` only
+# resolves an auto-rotating managed secret fresh at the
+# compute resource's own creation, and RDS's managed-
+# password feature rotates the password itself shortly
+# after standing up the cluster -- every subsequent
+# invocation would keep authenticating with the now-stale
+# original value. A self-managed secret (generated once,
+# here, never auto-rotated) has nothing to go stale.
+@@db_id@@Secret:
+  Type: AWS::SecretsManager::Secret
+  Properties:
+    GenerateSecretString:
+      SecretStringTemplate: '{"username":"postgres"}'
+      GenerateStringKey: password
+      PasswordLength: 32
+      ExcludeCharacters: '"@/'
+
+@@db_id@@Cluster:
+  Type: AWS::RDS::DBCluster
+  DeletionPolicy: Snapshot
+  UpdateReplacePolicy: Snapshot
+  DependsOn: @@db_id@@Secret
+  Properties:
+    Engine: aurora-postgresql
+    EngineVersion: "16.14"
+    DatabaseName: @@db_name@@
+    MasterUsername: postgres
+    MasterUserPassword: !Sub "{{resolve:secretsmanager:${@@db_id@@Secret}:SecretString:password}}"
+    StorageEncrypted: true
+    DBSubnetGroupName: !Ref @@db_id@@SubnetGroup
+    VpcSecurityGroupIds: [!Ref @@db_id@@SecurityGroup]
+    ServerlessV2ScalingConfiguration:
+      MinCapacity: 0.5
+      MaxCapacity: 1
+
+@@db_id@@Instance:
+  Type: AWS::RDS::DBInstance
+  DeletionPolicy: Snapshot
+  UpdateReplacePolicy: Snapshot
+  Properties:
+    Engine: aurora-postgresql
+    DBInstanceClass: db.serverless
+    DBClusterIdentifier: !Ref @@db_id@@Cluster
+    PubliclyAccessible: false

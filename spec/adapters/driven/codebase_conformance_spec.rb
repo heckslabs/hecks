@@ -9,6 +9,13 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @dir = dir
+      example.run
+    end
+  end
+
   # Answers the matrix's report with a fixed status, and remembers what the tool was asked. The
   # matrix runs in this process, so what is stubbed is `Hecks::Tools.run`.
   def fake_matrix(status = 0)
@@ -28,30 +35,26 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
   end
 
   describe "check_engine_agreement" do
+    let!(:other) { scratch_checkout(@dir) }
+
     it "finds the engines agreeing, in this checkout" do
       expect(described_class.call("check_engine_agreement", {}, tree))
         .to match(/declared comparator\(s\).*0 problems\./)
     end
 
     it "refuses with the engine that grew its own case" do
-      Dir.mktmpdir do |dir|
-        other = scratch_checkout(dir)
-        engine = File.join(dir, Hecks::EngineAgreement::ENGINE_FILES.values.first)
-        File.write(engine, "#{File.read(engine)}\nCase = ->(x) { case x when \"eq\" then 1 end }\n")
+      engine = File.join(@dir, Hecks::EngineAgreement::ENGINE_FILES.values.first)
+      File.write(engine, "#{File.read(engine)}\nCase = ->(x) { case x when \"eq\" then 1 end }\n")
 
-        expect { described_class.call("check_engine_agreement", {}, other) }
-          .to raise_error(failure, /1 problem\(s\) found.*has its own `when "eq"`/m)
-      end
+      expect { described_class.call("check_engine_agreement", {}, other) }
+        .to raise_error(failure, /1 problem\(s\) found.*has its own `when "eq"`/m)
     end
 
     it "refuses a comparator no agreement spec exercises" do
-      Dir.mktmpdir do |dir|
-        other = scratch_checkout(dir)
-        Hecks::EngineAgreement::AGREEMENT_SPEC_FILES.each { |relative| File.write(File.join(dir, relative), "") }
+      Hecks::EngineAgreement::AGREEMENT_SPEC_FILES.each { |relative| File.write(File.join(@dir, relative), "") }
 
-        expect { described_class.call("check_engine_agreement", {}, other) }
-          .to raise_error(failure, /no example in .* exercises/m)
-      end
+      expect { described_class.call("check_engine_agreement", {}, other) }
+        .to raise_error(failure, /no example in .* exercises/m)
     end
   end
 
@@ -62,17 +65,15 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
     end
 
     it "refuses with the words that owe each, in a tree with no reference pages" do
-      Dir.mktmpdir do |dir|
-        other = Hecks::Adapters::Codebase::Tree.new(root: dir)
+      other = Hecks::Adapters::Codebase::Tree.new(root: @dir)
 
-        expect { described_class.call("measure_doc_coverage", {}, other) }
-          .to raise_error(failure, /live words carry no prose — write their sections:.*no running example/m)
-      end
+      expect { described_class.call("measure_doc_coverage", {}, other) }
+        .to raise_error(failure, /live words carry no prose — write their sections:.*no running example/m)
     end
   end
 
   describe "argument_gate_matrix" do
-    it "only reports, running the tool without --write, unless confirmed" do
+    it "only reports, running the tool without --write, unless confirmed", :aggregate_failures do
       shell = fake_matrix
 
       report = described_class.call("argument_gate_matrix", {}, tree)

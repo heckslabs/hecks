@@ -1,0 +1,14 @@
+  #
+  # @@web_logical_id@@ is the ONE exception -- real Google OAuth token
+  # exchange (hecks's own GoogleAuthentication adapter posting to
+  # https://oauth2.googleapis.com/token) is a genuine third-party HTTPS
+  # call with no AWS PrivateLink/VPC Endpoint option (unlike
+  # lambda:InvokeFunction, above), and @@web_logical_id@@ is ALSO
+  # VPC-attached (Member's own permanent Postgres binding needs the
+  # private RDS instance directly). A real, live 15-second Lambda
+  # timeout caught this -- the token-exchange POST had nowhere to
+  # route to and just hung. @@db_id@@NatGateway below is the real,
+  # ongoing-cost fix (one NAT Gateway, one public subnet) -- opt-in,
+  # the SAME google_oauth_present signal that wires
+  # GOOGLE_CLIENT_ID/SECRET, since nothing else in this stack needs
+  # outbound internet at all.

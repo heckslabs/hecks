@@ -15,7 +15,7 @@ RSpec.describe Hecks::Doors::LauncherOptions do
   end
 
   describe ".maintainer?" do
-    it "is true in a hecks checkout, and in any directory below one" do
+    it "is true in a hecks checkout, and in any directory below one", :aggregate_failures do
       checkout
       deep = File.join(root, "lib", "hecks", "doors")
       FileUtils.mkdir_p(deep)
@@ -35,7 +35,7 @@ RSpec.describe Hecks::Doors::LauncherOptions do
       expect(described_class.maintainer?(root, {})).to be(false)
     end
 
-    it "takes HECKS_MAINTAINER as the answer, either way" do
+    it "takes HECKS_MAINTAINER as the answer, either way", :aggregate_failures do
       checkout
 
       expect(described_class.maintainer?(root, "HECKS_MAINTAINER" => "0")).to be(false)
@@ -60,12 +60,15 @@ RSpec.describe Hecks::Doors::LauncherOptions do
   end
 
   describe "the Hecks chapter's own setting" do
-    it "hides exactly the Codebase aggregates and the release ones, nothing a project runs" do
-      codebase = File.read(File.expand_path("../../lib/hecks/hecks/codebase.bluebook", __dir__))
-                     .scan(/^  aggregate "(\w+)"/).flatten
+    let(:codebase) do
+      File.read(File.expand_path("../../lib/hecks/hecks/codebase.bluebook", __dir__)).scan(/^  aggregate "(\w+)"/).flatten
+    end
+    let(:hidden) do
       world = File.read(File.expand_path("../../lib/hecks/hecks/hecks.world", __dir__))
-      hidden = world[/maintainer: %w\[(.*?)\]/m, 1].split
+      world[/maintainer: %w\[(.*?)\]/m, 1].split
+    end
 
+    it "hides exactly the Codebase aggregates and the release ones, nothing a project runs", :aggregate_failures do
       expect(hidden).to include(*codebase)
       expect(hidden - codebase).to contain_exactly("Release", "SyntaxBootCache")
     end

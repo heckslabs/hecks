@@ -53,38 +53,46 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
 
   # Two explicitly requested domains cannot both own `generated::active`: expect our named
   # compile_error!, not a bare "defined multiple times".
-  it "two explicitly-requested, non-default domain features fail with a clear, named compile_error!" do
+  it "two explicitly-requested, non-default domain features fail with a clear, named compile_error!", :aggregate_failures do
     domain_a, domain_b = two_non_default_domains
     ok, output = cargo_build("--features", "#{domain_a},#{domain_b}")
     expect(ok).to be(false), "expected --features #{domain_a},#{domain_b} to fail (both are real, non-default domains)"
-    expect(output).to include("domain features are mutually exclusive")
-    expect(output).to include(domain_a)
-    expect(output).to include(domain_b)
+    expect(output).to include("domain features are mutually exclusive", domain_a, domain_b)
+  end
+
+  # The first aggregate file under a domain's generated directory, which breaking cannot be
+  # mistaken for breaking the module's own wiring.
+  def aggregate_file_of(domain)
+    file = Dir.glob(File.join(DFE_RUST_DIR, "src", "generated", domain, "*.rs"))
+              .find { |path| !%w[mod.rs merged.rs metadata.rs registry.rs].include?(File.basename(path)) }
+    file or raise "no aggregate .rs file found under rust/src/generated/#{domain} to break"
   end
 
   # Root mod.rs gates each domain module behind its own Cargo feature, so a domain whose generated
   # code does not compile cannot break another feature's build. Breaks one domain's file and
-  # checks the other; `ensure` restores it.
-  it "a deliberately-broken generated module under feature A does not break feature B's build" do
-    domain_a, domain_b = two_non_default_domains
-    broken_file = Dir.glob(File.join(DFE_RUST_DIR, "src", "generated", domain_a, "*.rs"))
-                     .find { |path| !%w[mod.rs merged.rs metadata.rs registry.rs].include?(File.basename(path)) }
-    raise "no aggregate .rs file found under rust/src/generated/#{domain_a} to break" unless broken_file
-
+  # builds both features; `ensure` restores it.
+  #
+  # @return [Array<Array(Boolean, String)>] the build results for `domain_a`, then `domain_b`
+  def build_with_module_broken(domain_a, domain_b)
+    broken_file = aggregate_file_of(domain_a)
     original = File.read(broken_file)
-    begin
-      marker = "compile_error!(\"BUG#25 regression spec — deliberately broken, should never reach feature #{domain_b}\");\n"
-      File.write(broken_file, "#{original}\n#{marker}")
+    marker = "compile_error!(\"BUG#25 regression spec — deliberately broken, should never reach feature #{domain_b}\");\n"
+    File.write(broken_file, "#{original}\n#{marker}")
+    [cargo_build("--features", domain_a), cargo_build("--features", domain_b)]
+  ensure
+    File.write(broken_file, original) if original
+  end
 
-      ok_a, = cargo_build("--features", domain_a)
-      expect(ok_a).to be(false), "expected --features #{domain_a} to fail against its own deliberately-broken module"
+  def sibling_build_failure(domain_a, domain_b, output)
+    "cargo build --features #{domain_b} failed even though only #{domain_a}'s own module was broken " \
+      "— a broken/absent domain must never break a different feature's build (BUG#25):\n#{output}"
+  end
 
-      ok_b, output_b = cargo_build("--features", domain_b)
-      expect(ok_b).to be(true),
-                      "cargo build --features #{domain_b} failed even though only #{domain_a}'s own module was broken " \
-                      "— a broken/absent domain must never break a different feature's build (BUG#25):\n#{output_b}"
-    ensure
-      File.write(broken_file, original)
-    end
+  it "a deliberately-broken generated module under feature A does not break feature B's build", :aggregate_failures do
+    domain_a, domain_b = two_non_default_domains
+    (ok_a,), (ok_b, output_b) = build_with_module_broken(domain_a, domain_b)
+
+    expect(ok_a).to be(false), "expected --features #{domain_a} to fail against its own deliberately-broken module"
+    expect(ok_b).to be(true), sibling_build_failure(domain_a, domain_b, output_b)
   end
 end

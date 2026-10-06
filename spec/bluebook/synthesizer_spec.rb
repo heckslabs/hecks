@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/bluebook/synthesizer"
 require "tmpdir"
+require_relative "../support/memory_ports"
 
 RSpec.describe Hecks::Bluebook::Synthesizer do
   # Real IR from pizzas.bluebook: a closed set (`Size`), a multi-field value object (`Topping`),
@@ -8,10 +9,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
   let(:chapter) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
     end
     registry.bluebook("Pizzas")
@@ -27,7 +25,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       expect(described_class.scalar_for("Float")).to eq(0.0)
     end
 
-    it "gives a boolean type false" do
+    it "gives a boolean type false", :aggregate_failures do
       expect(described_class.scalar_for("TrueClass")).to be(false)
       expect(described_class.scalar_for("FalseClass")).to be(false)
     end
@@ -73,51 +71,49 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       FileUtils.remove_entry(@root) if @root
     end
 
+    WIDGET_SOURCE = <<~RUBY.freeze
+      Hecks.bluebook "Widget" do
+        aggregate "Item" do
+          identified_by :name
+          attribute :name, Name
+          value_object "Name" do
+            attribute :value, String
+          end
+          command "Add" do
+            attribute :name, Name
+          end
+        end
+
+        aggregate "Tag" do
+          reference_to Item
+
+          identified_by :item
+          command "Attach" do
+            reference_to Item
+          end
+        end
+      end
+    RUBY
+
     it "synthesizes every declared argument for a real command, respecting each field's own type, nested or not" do
-      command = order.command("CreatePizza")
+      args = described_class.args_for(chapter, order, order.command("CreatePizza"))
 
-      args = described_class.args_for(chapter, order, command)
+      expect(args).to eq(name: { value: "smoke-test" }, pizza: { price_cents: { cents: 0 }, size: { value: "small" } })
+    end
 
-      expect(args).to eq(
-        name:  { value: "smoke-test" },
-        pizza: { price_cents: { cents: 0 }, size: { value: "small" } }
-      )
+    # Writes the hand-built domain to the scratch directory and returns its bluebook's path.
+    def write_widget_bluebook
+      directory = File.join(@root, "widget", "bluebook")
+      FileUtils.mkdir_p(directory)
+      File.join(directory, "widget.bluebook").tap { |path| File.write(path, WIDGET_SOURCE) }
     end
 
     def referencing_command
-      directory = File.join(@root, "widget", "bluebook")
-      FileUtils.mkdir_p(directory)
-      File.write(File.join(directory, "widget.bluebook"), <<~RUBY)
-        Hecks.bluebook "Widget" do
-          aggregate "Item" do
-            identified_by :name
-            attribute :name, Name
-            value_object "Name" do
-              attribute :value, String
-            end
-            command "Add" do
-              attribute :name, Name
-            end
-          end
-
-          aggregate "Tag" do
-            reference_to Item
-
-            identified_by :item
-            command "Attach" do
-              reference_to Item
-            end
-          end
-        end
-      RUBY
-
+      path = write_widget_bluebook
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(directory, "widget.bluebook"))
+        MemoryPorts.load!
+        Kernel.load(path)
       end
       widget = registry.bluebook("Widget")
       [widget, widget.aggregate("Tag")]

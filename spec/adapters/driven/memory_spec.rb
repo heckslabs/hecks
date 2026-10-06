@@ -14,22 +14,31 @@ RSpec.describe Hecks::Adapters::Memory do
                           name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
   end
 
-  it "clears saved records, the append log, and recorded events back to empty" do
-    create(name: "Margherita")
-    create(name: "Diavola")
+  context "with two pizzas saved" do
+    before do
+      create(name: "Margherita")
+      create(name: "Diavola")
+    end
 
-    expect(repository.count).to eq(2)
-    expect(repository.entries).not_to be_empty
+    it "holds the records and the append log until reset", :aggregate_failures do
+      expect(repository.count).to eq(2)
+      expect(repository.entries).not_to be_empty
+    end
 
-    repository.reset!
+    it "clears the saved records on reset" do
+      repository.reset!
 
-    expect(repository.count).to eq(0)
-    expect(repository.all).to eq([])
-    expect(repository.entries).to eq([])
-    expect(repository.events).to eq([])
+      expect([repository.count, repository.all]).to eq([0, []])
+    end
+
+    it "clears the append log and the recorded events on reset" do
+      repository.reset!
+
+      expect([repository.entries, repository.events]).to eq([[], []])
+    end
   end
 
-  it "leaves the adapter fully usable afterward — not just empty, but able to save and find again" do
+  it "leaves the adapter fully usable afterward — not just empty, but able to save and find again", :aggregate_failures do
     create(name: "Margherita")
     repository.reset!
     pizza = create(name: "Diavola")
@@ -40,7 +49,7 @@ RSpec.describe Hecks::Adapters::Memory do
 
   # `registry.repository` returns an `AppendOnly` wrapper, so the examples above go through its
   # forwarding; this one checks the raw adapter.
-  it "responds to reset! on the raw adapter, not only through AppendOnly's wrapper" do
+  it "responds to reset! on the raw adapter, not only through AppendOnly's wrapper", :aggregate_failures do
     memory = described_class.new(aggregate: runtime.registry.bluebook("Pizzas").aggregate("Order"))
     memory.save(Struct.new(:id, :state).new("1", { name: { value: "Margherita" } }))
 

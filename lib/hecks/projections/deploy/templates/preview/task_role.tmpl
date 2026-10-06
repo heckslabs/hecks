@@ -1,0 +1,22 @@
+# Reads the shared database secret (it connects with it and creates its database) and
+# this preview's own secrets; nothing owned by the main stack.
+TaskRole:
+  Type: AWS::IAM::Role
+  Properties:
+@@assume@@
+    Policies:
+      - PolicyName: SharedDatabaseSecretRead
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref OwningDatabaseSecretArn
+      - PolicyName: PreviewSecretRead
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource:
+@@readable@@

@@ -1,0 +1,7 @@
+# Same chicken-egg as Lambda's WebRedirectBaseUrl — CloudFront's
+# hostname does not exist until this stack does. Empty on a true
+# first deploy; `make deploy` looks up Outputs.CloudFrontDomain
+# after and self-heals.
+WebRedirectBaseUrl:
+  Type: String
+  Default: ""

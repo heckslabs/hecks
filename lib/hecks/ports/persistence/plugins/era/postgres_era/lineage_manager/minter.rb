@@ -3,6 +3,8 @@ require_relative "../../storage_shape"
 require_relative "../../translation/audit"
 require_relative "../../translation/scaffold"
 require_relative "../../translation/approval_file"
+require_relative "context"
+require_relative "refusals"
 
 module Hecks
   module Adapters
@@ -11,48 +13,32 @@ module Hecks
         # Names the source era, resolves its one outgoing translation edge, and mints the
         # next era once approval, coverage and the audited chain all check out.
         module Minter
+          include Refusals
+
           # Mints the next era for a drifted shape in one transaction.
-          def mint!(registry, bluebook, current_text, lineage, latest, role: nil, directory: nil)
-            ensure_named!(lineage, latest)
-            latest = lineage.eras.last
-
-            hash = Runtime::StorageShape.mint_hash(bluebook)
-            label = hash[0, Runtime::StorageShape::LABEL_LENGTH]
-            ordinal = latest[:ordinal] + 1
-
-            edge = resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
-            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: directory)
-            check_coverage!(registry, bluebook, shadow(latest[:held_text]), edge)
-
-            chain = edge_chain(registry, bluebook, lineage.eras, label)
-            audit!(bluebook, lineage, chain, ordinal, edge)
-            lineage.mint_era!(
-              ordinal: ordinal, hash: hash, label: label, held_text: current_text,
-              aggregates: bluebook.aggregates, edges: chain, role: role,
-              projection: Runtime::StorageShape.project(bluebook)
-            )
-            ordinal
+          #
+          # @param context [Context] the era check so far; `latest` is the latest held era, named
+          #   here if it has no name yet
+          # @return [Integer] the ordinal of the era minted
+          # @raise [Runtime::WiringError] if the edge, its approval, its coverage or its audit
+          #   refuses
+          def mint!(context)
+            ensure_named!(context.lineage, context.latest)
+            context = context.with(latest: context.lineage.eras.last)
+            edge = verified_edge!(context)
+            chain = audited_chain!(context, edge)
+            commit_era!(context, chain)
           end
 
           # Finds the one translation edge leaving the held era and targeting the current
           # shape's label; a second edge from the same source is a wiring mistake, not a
           # merge to resolve automatically.
-          def resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
-            edges = registry.translations.select { |t| t.domain == bluebook.name && t.from == latest[:label] }
-            refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory) if edges.empty?
-            if edges.size > 1
-              raise Runtime::WiringError,
-                    "cannot boot #{bluebook.name}: #{edges.size} translation edges leave era #{latest[:ordinal]} " \
-                    "(#{latest[:label]}) — eras fork mechanically; keep one edge per source shape"
-            end
-
-            edge = edges.first
-            unless edge.to == label
-              raise Runtime::WiringError,
-                    "cannot boot #{bluebook.name}: the translation edge from #{latest[:label]} targets " \
-                    "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run hecks scaffold_translation"
-            end
-            edge
+          def resolve_edge!(context)
+            edges = edges_leaving(context)
+            refuse_toward_the_scaffold!(context) if edges.empty?
+            refuse_forked_eras!(context, edges) if edges.size > 1
+            refuse_stale_edge!(context, edges.first)
+            edges.first
           end
 
           # Refuses a mint whose edge carries a compute or rekey rule without an approval.
@@ -62,52 +48,20 @@ module Hecks
           # tip, or a committed `translations/<edge>.approval` that matches the edge's digest and
           # records a passed rehearsal on a compatible host release. A committed approval that
           # applies is written into the journal, so the journal stays the single history.
-          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: nil)
+          def ensure_compute_rekey_approved!(context, edge)
             return unless Translation::ApprovalFile.needs_rehearsal?(edge)
 
-            approval = lineage.approval_for(from: edge.from, to: edge.to)
+            approval = context.lineage.approval_for(from: edge.from, to: edge.to)
             digest = Translation::Audit.edge_digest(edge)
-            tip = lineage.last_ordinal
-            return if approval && approval[:edge_digest] == digest && approval[:reviewed_ordinal] == tip
+            tip = context.lineage.last_ordinal
+            return if approved_at_tip?(approval, digest, tip)
 
-            if Translation::ApprovalFile.applicable(directory, edge)
-              lineage.record_approval!(from: edge.from, to: edge.to, edge_digest: digest)
+            if Translation::ApprovalFile.applicable(context.directory, edge)
+              context.lineage.record_approval!(from: edge.from, to: edge.to, edge_digest: digest)
               return
             end
 
-            unless approval && approval[:edge_digest] == digest
-              if (mismatch = Translation::ApprovalFile.host_mismatch(directory, edge))
-                raise Runtime::WiringError,
-                      "cannot mint era #{ordinal} of #{bluebook.name}: the committed approval does not " \
-                      "apply — #{mismatch}"
-              end
-
-              raise Runtime::WiringError,
-                    "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
-                    "rule, and the audit's human-approved sample is its only verification — run " \
-                    "hecks audit_translation with --approve, then boot again"
-            end
-
-            raise Runtime::WiringError,
-                  "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \
-                  "review (ordinal #{approval[:reviewed_ordinal]} reviewed, #{tip} now) — the samples a " \
-                  "human approved no longer cover the data; re-run hecks audit_translation with --approve"
-          end
-
-          # Refuses toward the authoring loop, or, under HECKS_SCAFFOLD=1, scaffolds the
-          # missing edge first and names the file it wrote.
-          def refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory)
-            if ENV["HECKS_SCAFFOLD"] == "1" && directory
-              path = scaffold!(registry, bluebook, lineage, latest, directory)
-              raise Runtime::WiringError,
-                    "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) — wrote #{path}; " \
-                    "review it (resolve every unresolved), check it with hecks audit_translation, then boot again"
-            end
-
-            raise Runtime::WiringError,
-                  "cannot boot #{bluebook.name}: the shape changed (era #{ordinal}) and no translation edge " \
-                  "covers it — run hecks scaffold_translation to write the edge, " \
-                  "check it with hecks audit_translation, then boot again"
+            refuse_unapproved!(context, edge, approval, tip)
           end
 
           # Diffs the held era against the current shape and writes the edge file —
@@ -115,18 +69,11 @@ module Hecks
           def scaffold!(_registry, bluebook, lineage, latest, directory)
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
-
-            hash = Runtime::StorageShape.mint_hash(bluebook)
-            held_bluebook = shadow(latest[:held_text])
-            diffed = Translation::Scaffold.diff(held_bluebook, bluebook)
+            label = Runtime::StorageShape.mint_hash(bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
+            diffed = Translation::Scaffold.diff(shadow(latest[:held_text]), bluebook)
             edge = Translation::Scaffold::Edge.new(
-              domain:     bluebook.name,
-              from:       latest[:label],
-              to:         hash[0, Runtime::StorageShape::LABEL_LENGTH],
-              ordinal:    latest[:ordinal] + 1,
-              label:      hash[0, Runtime::StorageShape::LABEL_LENGTH],
-              aggregates: diffed[:aggregates],
-              retired:    diffed[:retired]
+              domain: bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
+              label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
             )
             Translation::Scaffold.write!(directory, edge)
           end
@@ -140,6 +87,39 @@ module Hecks
             held_bluebook = shadow(era[:held_text])
             hash = Runtime::StorageShape.mint_hash(held_bluebook)
             lineage.mint_name!(era[:ordinal], hash, hash[0, Runtime::StorageShape::LABEL_LENGTH])
+          end
+
+          private
+
+          def edges_leaving(context)
+            context.registry.translations.select do |t|
+              t.domain == context.bluebook.name && t.from == context.latest[:label]
+            end
+          end
+
+          # The edge chain to the current shape, after its audit passes.
+          def audited_chain!(context, edge)
+            chain = edge_chain(context.registry, context.bluebook, context.lineage.eras, context.label)
+            audit!(context.bluebook, context.lineage, chain, context.ordinal, edge)
+            chain
+          end
+
+          # The edge leaving the held era, once resolved, approved and found to cover the diff.
+          def verified_edge!(context)
+            edge = resolve_edge!(context)
+            ensure_compute_rekey_approved!(context, edge)
+            check_coverage!(context.registry, context.bluebook, shadow(context.latest[:held_text]), edge)
+            edge
+          end
+
+          def commit_era!(context, chain)
+            hash = context.shape_hash
+            context.lineage.mint_era!(
+              ordinal: context.ordinal, hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH],
+              held_text: context.current_text, aggregates: context.bluebook.aggregates, edges: chain,
+              role: context.role, projection: Runtime::StorageShape.project(context.bluebook)
+            )
+            context.ordinal
           end
         end
       end

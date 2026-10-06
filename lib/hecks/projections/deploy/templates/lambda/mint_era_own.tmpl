@@ -1,0 +1,122 @@
+	@echo "Looking up $(STACK)'s VPC/security group..."
+# stack_outputs/bastion_parameters (hecks deploy project) are the ONE
+# place these OutputKey strings and parameter names live — this eval
+# chain and the --parameter-overrides line just below are both
+# generated from the SAME table template.yaml's Outputs and
+# bastion.yaml's Parameters already read from.
+	@@eval_lines@@
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides @@parameter_overrides@@ \
+		--capabilities CAPABILITY_IAM
+# ONE continuous shell invocation from here on (every line ends in
+# \, joining it to the next) — INSTANCE_ID is a SHELL variable, not
+# a Make one: a Make-level $$(eval $$(shell ...)) expands at parse
+# time, BEFORE the `aws cloudformation deploy` line above ever runs,
+# which would make INSTANCE_ID permanently empty. It can only be
+# computed here, after the bastion stack genuinely exists.
+#
+# A COMMENT LINE MUST NEVER SIT BETWEEN TWO \-CONTINUED RECIPE
+# LINES — confirmed live, the hard way: a `#`-prefixed line inserted
+# between `DB_PASS=...; \` and the line that used it silently
+# corrupted Make's own assembly of this whole block into one shell
+# script, and `DB_PASS` came out empty on the far side despite
+# printing correctly one line earlier. Every explanatory comment for
+# this whole chain belongs HERE, before it starts, same as this one —
+# never spliced into the middle of it.
+#
+# BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
+# a prior version of this recipe ended at `exit $$BOOT_STATUS` with
+# no trailing `\`, which made Make treat the delete-stack lines
+# after it as a SEPARATE recipe line, reached only on a zero exit.
+# A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
+# the bastion stack standing forever — including a live 5432 ingress
+# rule punched into the PRODUCTION RDS security group. Teardown now
+# runs unconditionally, with BOOT_STATUS captured up front and
+# returned last, so `make mint-era`'s own exit code still reflects
+# whether era 1 actually got minted.
+#
+# `LineageManager.check!` directly below, NOT `Hecks.boot` — also
+# confirmed live (the very first real invoke: "relation
+# \"hecks_eras\" does not exist", despite this step itself
+# reporting success): `Hecks.boot` always dispatches persistence
+# through whatever the domain's OWN .world file declares
+# (`persisted_by("Heki")` for a domain that hasn't opted into
+# Postgres for local dev), by EXPLICIT design — loader.rb's own
+# comment: "persisted_by(\"PostgresEra\") is never inferred from
+# anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
+# itself adapter-capability-gated on that same declaration and simply
+# no-ops for a non-lineage-capable adapter — it never touches
+# hecks_eras at all. The fix reuses the SAME loading pipeline
+# `Loader.boot` itself does (`Ports::Loading.bootstrap`/
+# `load_library`/`load_project`/`load_domain`) to build a real,
+# fully-loaded registry (bluebook + any attaches attachments),
+# then calls straight into PostgresEra's own `LineageManager.check!`
+# with THIS deploy's actual `DATABASE_URL` — bypassing the world
+# file's own adapter choice entirely, the same targeted pattern
+# spec/adapters/driven/postgres_era/lineage_spec.rb's own `check!` helper
+# already uses.
+#
+# THE WHOLE TUNNEL IS RESTARTED PER ATTEMPT, not just the boot
+# check retried through one long-lived tunnel — confirmed live,
+# the hard way: an SSM port-forwarding session can start and then
+# exit again within the first few seconds (visible in its own log
+# as a session ID that both starts AND exits before the retries
+# even finish), not merely "slow to become ready". Retrying a
+# Postgres connection five times against a tunnel process that has
+# already died is retrying against a corpse — it fails identically
+# every time, for a different reason than the one the retry was
+# built for. Each attempt below kills whatever tunnel the LAST
+# attempt opened (a no-op the first time) and opens a fresh one,
+# so a dead session gets a real replacement, not just more patience.
+#
+# DB_PASS_URLENC, DERIVED RIGHT AFTER DB_PASS BELOW, IS WHAT ACTUALLY
+# GOES INTO THE `postgres://` URL FURTHER DOWN — not DB_PASS itself.
+# RDS/Secrets-Manager-generated passwords are not guaranteed free of
+# `%`, and libpq's own connection-URI parser treats a bare `%` as an
+# invalid token (percent-encoding is the one escape libpq's URI form
+# actually documents and decodes; a raw `%` is not) -- roughly 29% of
+# 32-char generated passwords contain at least one `%`, so this was
+# silently unreachable until it wasn't. `ERB::Util.url_encode`
+# percent-encodes everything outside RFC 3986's unreserved set,
+# exactly what a URI password component needs -- a strict superset
+# of the ExcludeCharacters the Aurora path below already excludes
+# (a no-op there), and the actual fix for the plain-RDS
+# ManageMasterUserPassword path, whose generated character set this
+# template has no control over at all. This comment sits HERE,
+# before the chain starts, on purpose -- see the note further below
+# on why a comment line can never be spliced between two
+# ``-continued recipe lines.
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	DB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' "$$DB_PASS"); \
+	BOOT_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1 (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/@@db_name@@" ruby -Ilib -e 'require "hecks"; require "hecks/ports/persistence/plugins/era"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[@@declared_domain_literal@@] or abort "no @@declared_domain_name@@ bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]@@schema_setting@@ }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]@@schema_setting@@ }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \
+		BOOT_STATUS=$$?; \
+		echo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with hecks console or a Postgres query against hecks_eras."; \
+	exit $$BOOT_STATUS

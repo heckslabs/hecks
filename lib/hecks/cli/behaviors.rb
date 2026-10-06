@@ -19,22 +19,29 @@ module Hecks
         target = argv.first or abort "usage: #{program} <file.behaviors | directory>"
         abort "no such file or directory: #{target}" unless File.exist?(target)
 
-        if File.directory?(target)
-          sweep = Hecks::Behaviors.run_all(target)
-          abort "no .behaviors files under #{target}" if sweep.files_swept.zero?
-
-          sweep.files.each { |file| report_file(file) }
-          summary = sweep.summary
-          puts
-          puts "#{sweep.files_swept} file(s) swept — #{summary[:total]} test(s): " \
-               "#{summary[:passed]} passed, #{summary[:failed]} failed, #{summary[:errored]} errored, " \
-               "#{summary[:parse_errors]} file(s) failed to parse"
-        else
-          result = Hecks::Behaviors.run(target)
-          report_file(result)
-          summary = Hecks::Behaviors.summarize([result])
-        end
+        summary = File.directory?(target) ? sweep_directory(target) : run_file(target)
         exit(bad?(summary) ? 1 : 0)
+      end
+
+      # @api private
+      def sweep_directory(target)
+        sweep = Hecks::Behaviors.run_all(target)
+        abort "no .behaviors files under #{target}" if sweep.files_swept.zero?
+
+        sweep.files.each { |file| report_file(file) }
+        summary = sweep.summary
+        puts
+        puts "#{sweep.files_swept} file(s) swept — #{summary[:total]} test(s): " \
+             "#{summary[:passed]} passed, #{summary[:failed]} failed, #{summary[:errored]} errored, " \
+             "#{summary[:parse_errors]} file(s) failed to parse"
+        summary
+      end
+
+      # @api private
+      def run_file(target)
+        result = Hecks::Behaviors.run(target)
+        report_file(result)
+        Hecks::Behaviors.summarize([result])
       end
 
       # @api private

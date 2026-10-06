@@ -91,7 +91,7 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
   # Runs `git` in the throwaway `@repo` checkout.
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
-           out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
+           out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
   # Zero generated domains per tick: a throwaway tick must not spend minutes building them.

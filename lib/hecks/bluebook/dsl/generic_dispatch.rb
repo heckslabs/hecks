@@ -31,10 +31,17 @@ module Hecks
 
         # Executes a table-admitted word via the shape `shape_for` found for it, or returns
         # NOT_HANDLED so the caller can fall back to its own "not yet implemented" refusal.
+        # The seven-argument form is the entry point `WordGate` and the dispatch specs call.
+        # rubocop:disable-next Metrics/ParameterLists
         def try(builder, context, word, args, kwargs, block, rows)
           shape = shape_for(context, word, rows)
           return NOT_HANDLED unless shape
 
+          run_shape(shape, builder, args, kwargs, block)
+        end
+
+        # Runs the dispatcher the shape's kind names.
+        def run_shape(shape, builder, args, kwargs, block)
           case shape[:kind]
           when :calls_through then try_calls_through(builder, shape[:calls], args, kwargs, block)
           when :opens_block   then try_opens_block(builder, shape[:keyword], args, kwargs, block)
@@ -51,9 +58,6 @@ module Hecks
         # Classifies a (context, word) pair into one of the four table-executable shapes, or
         # nil when it falls outside this module's verified scope.
         #
-        # Early-return chain: each check depends on locals from the ones before it, read once
-        # top-to-bottom; splitting per shape would just re-thread the same locals across methods.
-        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def shape_for(context, word, rows)
           keyword = rows[:keywords].find { |k| k[:context] == context && k[:word] == word && k[:status] != "retired" }
           return nil unless keyword
@@ -63,19 +67,32 @@ module Hecks
 
           return { kind: :opens_block, keyword: keyword } if SAFE_OPENS_BLOCK.key?([context, word])
 
+          fill_shape(keyword, rows[:arguments])
+        end
+
+        # The `fills:`-driven shapes: a zero-argument word, or one plain positional argument.
+        def fill_shape(keyword, argument_rows)
           fills = keyword[:fills].to_s
           return nil if fills.empty?
 
-          arguments = rows[:arguments].select { |a| a[:context] == context && a[:keyword] == word && a[:status] != "retired" }
+          arguments = word_arguments(keyword, argument_rows)
           return { kind: :zero_arg, keyword: keyword } if arguments.empty?
+          return nil unless arguments.size == 1 && plain_positional?(arguments.first)
 
-          return nil unless arguments.size == 1
+          { kind: :single_fill, fills: fills, argument: arguments.first }
+        end
 
-          arg = arguments.first
-          return nil if arg[:variadic] == "true" || arg[:at] != "1" || !arg[:named].to_s.empty?
-          return nil unless COERCE_BY_KIND.key?(arg[:kind])
+        def word_arguments(keyword, argument_rows)
+          argument_rows.select do |a|
+            a[:context] == keyword[:context] && a[:keyword] == keyword[:word] && a[:status] != "retired"
+          end
+        end
 
-          { kind: :single_fill, fills: fills, argument: arg }
+        # One positional argument at place 1, unnamed, of a kind `COERCE_BY_KIND` can coerce.
+        def plain_positional?(arg)
+          return false if arg[:variadic] == "true" || arg[:at] != "1" || !arg[:named].to_s.empty?
+
+          COERCE_BY_KIND.key?(arg[:kind])
         end
 
         # Forwards a word's whole call, unchanged, to the builder method its row's `calls:`
@@ -105,13 +122,16 @@ module Hecks
         def try_zero_arg(builder, keyword, args)
           raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 0)" unless args.empty?
 
-          rows = MetaValidator::SyntaxBoot.call[:keywords]
-          siblings = rows.count do |k|
-            k[:context] == keyword[:context] && k[:fills] == keyword[:fills] && k[:status] != "retired"
-          end
-          value = siblings > 1 ? keyword[:word].to_sym : true
+          value = fill_siblings(keyword) > 1 ? keyword[:word].to_sym : true
 
           builder.instance_variable_set(:"@#{keyword[:fills]}", value)
+        end
+
+        # How many live words in the keyword's context fill the same instance variable.
+        def fill_siblings(keyword)
+          MetaValidator::SyntaxBoot.call[:keywords].count do |k|
+            k[:context] == keyword[:context] && k[:fills] == keyword[:fills] && k[:status] != "retired"
+          end
         end
 
         # Coerces a word's one positional argument and stores it, appending when the target
@@ -119,23 +139,32 @@ module Hecks
         def try_single_fill(builder, fills, arg, args, kwargs)
           return NOT_HANDLED unless kwargs.empty?
 
-          coerce = COERCE_BY_KIND.fetch(arg[:kind])
+          store_fill(builder, :"@#{fills}", fill_value(arg, args))
+        end
 
-          raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 1)" unless args.size == 1
-
-          value = arg[:coerce] == "false" ? args.first : args.first.public_send(coerce)
+        # The word's one argument, coerced as its row says and refused when blank.
+        def fill_value(arg, args)
+          value = coerced_argument(arg, args)
 
           message = arg[:blank_message].to_s
           raise Malformed, message if !message.empty? && value.to_s.empty?
 
-          ivar = :"@#{fills}"
-          current = builder.instance_variable_get(ivar)
+          value
+        end
 
-          if current.is_a?(Array)
-            current << value
-          else
-            builder.instance_variable_set(ivar, value)
-          end
+        def coerced_argument(arg, args)
+          coerce = COERCE_BY_KIND.fetch(arg[:kind])
+
+          raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 1)" unless args.size == 1
+
+          arg[:coerce] == "false" ? args.first : args.first.public_send(coerce)
+        end
+
+        def store_fill(builder, ivar, value)
+          current = builder.instance_variable_get(ivar)
+          return current << value if current.is_a?(Array)
+
+          builder.instance_variable_set(ivar, value)
         end
       end
     end

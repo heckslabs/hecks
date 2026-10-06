@@ -85,9 +85,12 @@ module Hecks
         leaf = leaf_attribute(attribute, segments, &)
         return false if leaf.nil? || leaf.list? || leaf.reference?
         return true if primitives.include?(leaf.type.to_s)
-        return false unless segments.empty?
 
-        shape = yield(leaf.type.to_s)
+        segments.empty? && member_typed_as?(yield(leaf.type.to_s), primitives)
+      end
+
+      # @return [Boolean] whether a value object shape has a member typed as one of `primitives`
+      def member_typed_as?(shape, primitives)
         !shape.nil? && shape.attributes.any? { |member| primitives.include?(member.type.to_s) }
       end
 

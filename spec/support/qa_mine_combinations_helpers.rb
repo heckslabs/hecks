@@ -8,7 +8,7 @@ module QaMineCombinationsHelpers
   CORPUS = File.join(InMemoryDomain::ROOT, "qa/stress_domains/case_escalation").freeze
 
   def run_miner(*, mode: "valid")
-    env = { "FAKE_AGENT_MODE" => mode, "QA_MINER_AGENT" => "ruby #{File.join(FIXTURES, 'fake_agent')}" }
+    env = { "FAKE_AGENT_MODE" => mode, "QA_MINER_AGENT" => "ruby #{File.join(FIXTURES, "fake_agent")}" }
     QaLibCli.capture2e("qa_mine_combinations", "--against", CORPUS, *, env: env)
   end
 end

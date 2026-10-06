@@ -1,6 +1,24 @@
 require "spec_helper"
 
 RSpec.describe "Memory execution-plan capabilities" do
+  INVENTORY_DOMAIN = proc do
+    vision "complete facts can be put without first loading a record"
+
+    aggregate "Item" do
+      value_object("Sku") { attribute :value, String }
+      value_object("Label") { attribute :value, String }
+      identified_by Sku, as: :sku
+      attribute :label, Label
+
+      command "Register" do
+        attribute :sku, Sku
+        attribute :label, Label
+        sets :sku
+        sets :label
+      end
+    end
+  end
+
   def boot_inventory
     registry = Hecks::Runtime::Registry.new
 
@@ -9,70 +27,59 @@ RSpec.describe "Memory execution-plan capabilities" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook "Inventory" do
-        vision "complete facts can be put without first loading a record"
-
-        aggregate "Item" do
-          value_object("Sku") { attribute :value, String }
-          value_object("Label") { attribute :value, String }
-          identified_by Sku, as: :sku
-          attribute :label, Label
-
-          command "Register" do
-            attribute :sku, Sku
-            attribute :label, Label
-            sets :sku
-            sets :label
-          end
-        end
-      end
+      Hecks.bluebook("Inventory", &INVENTORY_DOMAIN)
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # One shared `finds` counter across three dispatches proves atomic put never falls back to a
-  # read; splitting the example would lose the counter's continuity.
-  # rubocop:disable-next RSpec/ExampleLength
-  it "uses atomic put only after a complete-state proof and reports its outcome" do
-    runtime = boot_inventory
-    item = runtime.registry.bluebook("Inventory").aggregate("Item")
-    repository = runtime.registry.repository("Inventory", item)
-    finds = 0
-    original_find = repository.method(:find)
-    repository.define_singleton_method(:find) do |id|
-      finds += 1
+  let(:runtime) { boot_inventory }
+  let(:finds) { [] }
+
+  # One shared `finds` log across the dispatches proves atomic put never falls back to a read.
+  let(:repository) do
+    repo = runtime.registry.repository("Inventory", runtime.registry.bluebook("Inventory").aggregate("Item"))
+    original_find = repo.method(:find)
+    log = finds
+    repo.define_singleton_method(:find) do |id|
+      log << id
       original_find.call(id)
     end
+    repo
+  end
 
-    inserted = runtime.dispatch(
-      "Inventory::Item.Register",
-      with: { sku: "sku-1", label: { value: "First" } }
-    )
+  def register(sku, label, **route)
+    repository
+    runtime.dispatch("Inventory::Item.Register", with: { sku: sku, label: { value: label } }, **route)
+  end
 
-    expect(finds).to eq(0)
+  it "uses atomic put only after a complete-state proof, without ever reading", :aggregate_failures do
+    inserted = register("sku-1", "First")
+
+    expect(finds).to be_empty
     expect(inserted.execution_plan).to be_state_independent
-    expect(inserted.persistence_outcome.status).to eq(:inserted)
+  end
 
-    # A second creation at the same identity refuses instead of replacing; the adapter's
-    # `insert_only:` check decides it atomically, so `find` stays at zero.
-    expect do
-      runtime.dispatch(
-        "Inventory::Item.Register",
-        with: { sku: "sku-1", label: { value: "Second" } }
-      )
-    end.to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
-    expect(finds).to eq(0)
+  it "reports the outcome of an atomic put as an insert" do
+    expect(register("sku-1", "First").persistence_outcome.status).to eq(:inserted)
+  end
+
+  # A second creation at the same identity refuses instead of replacing; the adapter's
+  # `insert_only:` check decides it atomically, so `find` stays at zero.
+  it "refuses a second creation at the same identity, leaving the first untouched", :aggregate_failures do
+    register("sku-1", "First")
+
+    expect { register("sku-1", "Second") }
+      .to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
+    expect(finds).to be_empty
     expect(repository.find("sku-1").state[:label].to_h).to eq(value: "First")
+  end
 
-    expect do
-      runtime.dispatch(
-        "Inventory::Item.Register",
-        to:   "sku-1",
-        with: { sku: "sku-2", label: { value: "Wrong receiver" } }
-      )
-    end.to raise_error(Hecks::Runtime::TypeMismatch, /routes to "sku-1".*identity facts name "sku-2"/)
+  it "refuses a creation routed to a different identity than its own facts name" do
+    register("sku-1", "First")
+
+    expect { register("sku-2", "Wrong receiver", to: "sku-1") }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /routes to "sku-1".*identity facts name "sku-2"/)
   end
 end

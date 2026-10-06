@@ -99,23 +99,31 @@ RSpec.describe "remove: on an entity-typed list" do
     end
   BLUEBOOK
 
+  def bind_hecksagons
+    Hecks.hecksagon("EntityListRemove") do
+      attaches "Governance"
+      EntityListRemove::Ledger.persisted_by("Memory")
+    end
+    Hecks.hecksagon("Governance") do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+  end
+
+  def load_memory_stack
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
   def boot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_memory_stack
       Kernel.eval(ENTITY_LIST_REMOVE_SOURCE, TOPLEVEL_BINDING, "entity_list_remove.bluebook", 1)
-      Hecks.hecksagon("EntityListRemove") do
-        attaches "Governance"
-        EntityListRemove::Ledger.persisted_by("Memory")
-      end
-      Hecks.hecksagon("Governance") do
-        Governance::RoleAssignment.persisted_by("Memory")
-        Governance::RoleTransition.persisted_by("Memory")
-      end
+      bind_hecksagons
     end
 
     registry.verify!
@@ -126,63 +134,66 @@ RSpec.describe "remove: on an entity-typed list" do
     dispatcher.registry.repository("EntityListRemove", dispatcher.registry.bluebook("EntityListRemove").aggregate("Ledger"))
   end
 
-  it "removes an entity element from an aggregate-owned list by its own identity, not value equality" do
+  def entries_of(dispatcher, reference) = ledger_repository(dispatcher).find(reference)[:entries]
+
+  def sequence_and_cents(entries) = entries.map { |e| [e[:sequence].value, e[:amount].cents] }
+
+  def tag_labels(entry) = entry[:tags].map { |t| t[:label].value }
+
+  def ledger(dispatcher, verb, **args) = dispatcher.dispatch_flat("EntityListRemove::Ledger.#{verb}", **args)
+
+  def record(dispatcher, reference, cents) = ledger(dispatcher, "Record", reference: reference, amount: { cents: cents })
+
+  def void(dispatcher, reference, sequence) = ledger(dispatcher, "Void", reference: reference, sequence: { value: sequence })
+
+  # A ledger holding entries of 500 and 200 cents (sequences 1 and 2).
+  def ledger_with_two_entries(reference)
     dispatcher = boot
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l1" })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 500 })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 200 })
+    ledger(dispatcher, "Open", reference: { value: reference })
+    record(dispatcher, reference, 500)
+    record(dispatcher, reference, 200)
+    dispatcher
+  end
 
-    entries = ledger_repository(dispatcher).find("l1")[:entries]
-    expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500], [2, 200]])
+  def add_tag(dispatcher, reference, label)
+    ledger(dispatcher, "Entry.AddTag", reference: reference, sequence: { value: 1 }, label: { value: label })
+  end
 
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l1", sequence: { value: 2 })
+  it "removes an entity element from an aggregate-owned list by its own identity, not value equality", :aggregate_failures do
+    dispatcher = ledger_with_two_entries("l1")
+    expect(sequence_and_cents(entries_of(dispatcher, "l1"))).to eq([[1, 500], [2, 200]])
 
-    entries = ledger_repository(dispatcher).find("l1")[:entries]
-    expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500]])
+    void(dispatcher, "l1", 2)
+
+    expect(sequence_and_cents(entries_of(dispatcher, "l1"))).to eq([[1, 500]])
   end
 
   it "is a no-op, not an error, voiding a sequence that was never recorded" do
-    dispatcher = boot
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l2" })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l2", amount: { cents: 100 })
+    dispatcher = ledger_with_two_entries("l2")
 
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l2", sequence: { value: 999 })
+    void(dispatcher, "l2", 999)
 
-    entries = ledger_repository(dispatcher).find("l2")[:entries]
-    expect(entries.map { |e| e[:sequence].value }).to eq([1])
+    expect(entries_of(dispatcher, "l2").map { |e| e[:sequence].value }).to eq([1, 2])
   end
 
   # GUARANTEED_BY_CONSTRUCTION (lib/hecks/fuzzing/properties.rb): an auto-minted identity is one
   # past the highest held (`MutationApplier#next_identity`), so a freed identity is safe to reuse.
   it "reuses a freed identity on the next auto-mint (one past the highest HELD, not size + 1)" do
-    dispatcher = boot
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l3" })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 500 })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 200 })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l3", sequence: { value: 2 })
+    dispatcher = ledger_with_two_entries("l3")
+    void(dispatcher, "l3", 2)
 
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 999 })
+    record(dispatcher, "l3", 999)
 
-    entries = ledger_repository(dispatcher).find("l3")[:entries]
-    expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500], [2, 999]])
+    expect(sequence_and_cents(entries_of(dispatcher, "l3"))).to eq([[1, 500], [2, 999]])
   end
 
-  it "removes an element from an ENTITY-OWNED list (an entity's own list of another entity) by identity" do
-    dispatcher = boot
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l4" })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l4", amount: { cents: 500 })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
-                        label: { value: "urgent" })
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
-                        label: { value: "reviewed" })
+  it "removes an element from an ENTITY-OWNED list (an entity's own list of another entity) by identity", :aggregate_failures do
+    dispatcher = ledger_with_two_entries("l4")
+    %w[urgent reviewed].each { |label| add_tag(dispatcher, "l4", label) }
+    expect(tag_labels(entries_of(dispatcher, "l4").first)).to eq(%w[urgent reviewed])
 
-    entry = ledger_repository(dispatcher).find("l4")[:entries].first
-    expect(entry[:tags].map { |t| t[:label].value }).to eq(%w[urgent reviewed])
+    ledger(dispatcher, "Entry.RemoveTag", reference: "l4", sequence: { value: 1 }, label: { value: "urgent" })
 
-    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.RemoveTag", reference: "l4", sequence: { value: 1 },
-                        label: { value: "urgent" })
-
-    entry = ledger_repository(dispatcher).find("l4")[:entries].first
-    expect(entry[:tags].map { |t| t[:label].value }).to eq(["reviewed"])
+    expect(tag_labels(entries_of(dispatcher, "l4").first)).to eq(["reviewed"])
   end
 end

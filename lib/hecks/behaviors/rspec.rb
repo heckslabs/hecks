@@ -19,19 +19,19 @@ module Hecks
       #
       # A parse error surfaces as a failing "loads without a parse error" example.
       def describe_file(path)
-        parsed = Behaviors.parse(path)
+        ::RSpec.describe(File.basename(path), &examples_for(Behaviors.parse(path)))
+      end
 
-        ::RSpec.describe(File.basename(path)) do
-          if parsed.parse_error
-            it "loads without a parse error" do
-              raise parsed.parse_error
-            end
-          else
-            parsed.suite.tests.each do |test|
-              it(test.description) do
-                run = Expectations.run_one(test, parsed.suite)
-                raise run.message if run.status != :pass
-              end
+      # @param parsed [Behaviors::ParseResult] the parsed `.behaviors` file
+      # @return [Proc] the body of the example group: one `it` per test, or the parse failure
+      def examples_for(parsed)
+        return proc { it("loads without a parse error") { raise parsed.parse_error } } if parsed.parse_error
+
+        proc do
+          parsed.suite.tests.each do |test|
+            it(test.description) do
+              run = Expectations.run_one(test, parsed.suite)
+              raise run.message if run.status != :pass
             end
           end
         end

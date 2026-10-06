@@ -1,0 +1,23 @@
+set -eu
+case "$TARGET_DB" in
+  ""|*[!a-z0-9_]*) echo "refusing TARGET_DB '$TARGET_DB': lowercase letters, digits and underscores only" >&2; exit 1 ;;
+esac
+[ "${#TARGET_DB}" -le 63 ] || { echo "refusing TARGET_DB '$TARGET_DB': longer than 63 characters" >&2; exit 1; }
+for protected in $PROTECTED_DATABASES; do
+  [ "$TARGET_DB" != "$protected" ] || { echo "refusing to manage the protected database '$protected'" >&2; exit 1; }
+done
+export PGSSLMODE=require PGCONNECT_TIMEOUT=10
+found=$(psql -h "$DB_HOST" -U "$PGUSER" -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '$TARGET_DB'")
+if [ "${ACTION:-create}" = "drop" ]; then
+  if [ "$found" = "1" ]; then
+    psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -U "$PGUSER" -d postgres -c "DROP DATABASE \"$TARGET_DB\" WITH (FORCE)"
+    echo "dropped database $TARGET_DB"
+  else
+    echo "database $TARGET_DB does not exist"
+  fi
+elif [ "$found" = "1" ]; then
+  echo "database $TARGET_DB already exists"
+else
+  psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -U "$PGUSER" -d postgres -c "CREATE DATABASE \"$TARGET_DB\""
+  echo "created database $TARGET_DB"
+fi

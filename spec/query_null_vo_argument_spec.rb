@@ -6,18 +6,20 @@ require "hecks/fuzzing"
 RSpec.describe "a null required value-object-typed query argument (QualityControl BUG#36)" do
   describe "LeaseClock::Lease.Expired (single-field value object, WITH a default)" do
     let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }
+    let(:result) do
+      Hecks::Fuzzing::Replay.call(domain, [{ "query" => "LeaseClock::Lease.Expired", "args" => { "now" => nil } }])
+    end
 
     it "refuses TypeMismatch instead of silently answering an empty list" do
-      steps = [{ "query" => "LeaseClock::Lease.Expired", "args" => { "now" => nil } }]
-      result = Hecks::Fuzzing::Replay.call(domain, steps)
-
       refusal = result[:refusals].find { |r| r[:verb] == "LeaseClock::Lease.Expired" }
-      expect(refusal).not_to be_nil
-      expect(refusal[:kind]).to eq("Hecks::Runtime::TypeMismatch")
-      expect(refusal[:error]).to eq("LeaseInstant.value expects Integer, got nil")
 
-      # The query log entry carries the same refusal, not an empty row set.
+      expect(refusal).to include(kind: "Hecks::Runtime::TypeMismatch", error: "LeaseInstant.value expects Integer, got nil")
+    end
+
+    # The query log entry carries the same refusal, not an empty row set.
+    it "carries the same refusal on the query log entry" do
       query_entry = result[:queries].find { |q| q[:query] == "LeaseClock::Lease.Expired" }
+
       expect(query_entry[:error]).to eq("LeaseInstant.value expects Integer, got nil")
     end
   end

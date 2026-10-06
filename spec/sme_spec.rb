@@ -69,13 +69,13 @@ RSpec.describe "the SME chapter" do
     out.lines.to_h { |line| line.chomp.split("=", 2) }
   end
 
-  it "keeps an interview to one sitting: planned, then underway, then concluded" do
+  it "keeps an interview to one sitting: planned, then underway, then concluded", :aggregate_failures do
     expect(outcome.values_at("planned", "status")).to eq(%w[planned concluded])
     expect(outcome["record_before_begin"]).to match(/REFUSED:GivenNotMet:.*only while the interview is underway/)
     expect(outcome["record_after_conclude"]).to match(/REFUSED:GivenNotMet:.*only while the interview is underway/)
   end
 
-  it "keeps each exchange in order, with an optional topic" do
+  it "keeps each exchange in order, with an optional topic", :aggregate_failures do
     expect(outcome["exchanges"]).to eq("2")
     expect(outcome["first_topic"]).to eq("catalogue")
   end
@@ -84,20 +84,20 @@ RSpec.describe "the SME chapter" do
     expect(outcome["cite_unrecorded_exchange"]).to match(/REFUSED:GivenNotMet:.*cites an exchange that was recorded/)
   end
 
-  it "ends only with an exchange recorded and a thing and an action accepted" do
+  it "ends only with an exchange recorded and a thing and an action accepted", :aggregate_failures do
     expect(outcome["conclude_empty"]).to match(/REFUSED:GivenNotMet:.*recorded nothing/)
     expect(outcome["conclude_nothing_accepted"]).to match(/REFUSED:GivenNotMet:.*a thing must be accepted/)
     expect(outcome["conclude_without_action"]).to match(/REFUSED:GivenNotMet:.*an action must be accepted/)
     expect(outcome["tallies"]).to eq("1,1")
   end
 
-  it "decides a finding once: accepting twice is refused, and a rule can be rejected" do
+  it "decides a finding once: accepting twice is refused, and a rule can be rejected", :aggregate_failures do
     expect(outcome["accept_thing"]).to eq("ok")
     expect(outcome["accept_action_twice"]).to match(/REFUSED:LifecycleRefused:.*moves it only from "proposed"/)
     expect(outcome["rule_status"]).to eq("rejected")
   end
 
-  it "keeps what a thing has and how it changes state as findings decided the same way" do
+  it "keeps what a thing has and how it changes state as findings decided the same way", :aggregate_failures do
     expect(outcome["accept_field"]).to eq("ok")
     expect(outcome["accept_field_twice"]).to match(/REFUSED:LifecycleRefused:.*moves it only from "proposed"/)
     expect(outcome.values_at("field_status", "transition_status")).to eq(%w[accepted rejected])
@@ -107,7 +107,7 @@ RSpec.describe "the SME chapter" do
     expect(outcome.values_at("field_without_values", "transition_without_from")).to eq(%w[ok ok])
   end
 
-  it "keeps what an action takes and who does it" do
+  it "keeps what an action takes and who does it", :aggregate_failures do
     expect(outcome["action_takes"]).to include("borrower")
     expect(outcome["action_by"]).to include("a librarian")
   end

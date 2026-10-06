@@ -195,16 +195,18 @@ RSpec.describe "the declared syntax" do
   RESERVED_KEY = { %w[transition Lifecycle] => %w[from], %w[transition ProcessManager] => %w[from] }.freeze
 
   def self.words_answered_by(context)
-    builder = BUILDER.fetch(context)
-    listed  = if builder.is_a?(Module) && !builder.is_a?(Class) && builder.equal?(Hecks)
-                builder.methods - Module.methods
-              elsif builder.is_a?(Class)
-                builder.public_instance_methods - Object.public_instance_methods
-              else
-                builder.public_instance_methods(false)
-              end
+    listed = public_methods_of(BUILDER.fetch(context))
     listed - NOT_A_WORD.fetch("*").keys - NOT_A_WORD.fetch(context, {}).keys
   end
+
+  def self.public_methods_of(builder)
+    return builder.methods - Module.methods if builder.equal?(Hecks)
+    return builder.public_instance_methods - Object.public_instance_methods if builder.is_a?(Class)
+
+    builder.public_instance_methods(false)
+  end
+
+  def self.contexts_of(builder) = BUILDER.select { |_, candidate| candidate == builder }.keys
 
   def method_for(word, context)
     builder = BUILDER.fetch(context)
@@ -224,7 +226,7 @@ RSpec.describe "the declared syntax" do
 
   def declared_in(context) = LIVE_KEYWORDS.select { |row| row[:context] == context }
 
-  it "spells every cell with a word the language admits" do
+  it "spells every cell with a word the language admits", :aggregate_failures do
     expect(KEYWORDS.map { |row| row[:context] }.uniq - CONTEXTS).to be_empty
     expect(KEYWORDS.map { |row| row[:body] }.uniq - BODIES).to be_empty
     expect(ARGUMENTS.map { |row| row[:kind] }.uniq - ARGUMENT_KIND).to be_empty
@@ -234,105 +236,115 @@ RSpec.describe "the declared syntax" do
   # `admits:` is a link the language can make and a closed set is not a root, so
   # nothing resolves it for a value object nobody instantiates. Checked here
   # instead, or the three `admits:` in syntax.bluebook would be decoration.
-  it "holds every admits-bearing column to the set it names" do
-    # Keyword/Argument are entities of Syntax, reached through `.entities`
-    # the same way `syntax` reaches every other real entity.
-    shape = ->(name) { self.class.syntax.entities.find { |e| e.hecks_name == name } }
+  # Keyword/Argument are entities of Syntax, reached through `.entities` the same way `syntax`
+  # reaches every other real entity. Each triple is an entity, its column and the set it admits.
+  ADMITS_LINKS = [%w[Keyword context Context], %w[Keyword body Body],
+                  %w[Argument context Context], %w[Argument kind ArgumentKind]].freeze
 
-    { "Keyword"  => { context: "Context", body: "Body" },
-      "Argument" => { context: "Context", kind: "ArgumentKind" } }.each do |vo, links|
-      links.each do |field, set|
-        declared = shape.call(vo).attributes.find { |a| a.name.to_s == field.to_s }
-        expect(declared.admits).to eq("Syntax::#{set}"),
-                                   "#{vo}.#{field} should admit Syntax::#{set}"
-      end
+  def admitting_attribute(entity_name, field)
+    entity = self.class.syntax.entities.find { |e| e.hecks_name == entity_name }
+    entity.attributes.find { |a| a.name.to_s == field }
+  end
+
+  it "holds every admits-bearing column to the set it names", :aggregate_failures do
+    ADMITS_LINKS.each do |entity_name, field, set|
+      expect(admitting_attribute(entity_name, field).admits).to eq("Syntax::#{set}"),
+                                                                "#{entity_name}.#{field} should admit Syntax::#{set}"
     end
   end
 
-  it "enters every context it declares, and declares words for every context it enters" do
-    entered = KEYWORDS.map { |row| row[:inner] }.reject(&:empty?).uniq
-    spoken  = KEYWORDS.map { |row| row[:context] }.uniq
+  ENTERED_CONTEXTS = KEYWORDS.map { |row| row[:inner] }.reject(&:empty?).uniq
+  SPOKEN_CONTEXTS  = KEYWORDS.map { |row| row[:context] }.uniq
 
+  it "enters every context it declares, and declares words for every context it enters", :aggregate_failures do
     # `File` is the outside of every body, so nothing opens it; `Type` is the
     # second argument of `attribute`, entered by position, never by a `do`.
-    expect((spoken - entered).sort).to eq(%w[File Type]),
-                                       "a context is spoken in but nothing opens it"
-    expect(entered - spoken).to be_empty,
-                                "a word opens a body no word may be typed in"
+    expect((SPOKEN_CONTEXTS - ENTERED_CONTEXTS).sort).to eq(%w[File Type]), "a context is spoken in but nothing opens it"
+    expect(ENTERED_CONTEXTS - SPOKEN_CONTEXTS).to be_empty, "a word opens a body no word may be typed in"
+  end
+
+  def answers?(builder, word, context)
+    return Hecks.respond_to?(word) if builder.equal?(Hecks)
+
+    builder.method_defined?(word) || generically_dispatched?(word, context)
+  end
+
+  def unanswered_words(context)
+    builder = BUILDER.fetch(context)
+    declared_in(context).map { |row| row[:word].to_sym }.uniq.reject { |word| answers?(builder, word, context) }
   end
 
   CONTEXTS.each do |context|
     describe context do
       it "declares only words the builder answers" do
-        undeclared = declared_in(context).map { |row| row[:word].to_sym }.uniq
-                                         .reject do |word|
-                                           if BUILDER.fetch(context).equal?(Hecks)
-                                             Hecks.respond_to?(word)
-                                           else
-                                             BUILDER.fetch(context).method_defined?(word) ||
-                                               generically_dispatched?(word, context)
-                                           end
-                                         end
+        undeclared = unanswered_words(context)
 
         expect(undeclared).to be_empty,
-                              "#{context} declares #{undeclared.inspect}, which " \
-                              "#{BUILDER.fetch(context)} does not answer"
+                              "#{context} declares #{undeclared.inspect}, which #{BUILDER.fetch(context)} does not answer"
       end
     end
+  end
+
+  def declared_words(contexts)
+    contexts.flat_map { |ctx| declared_in(ctx).flat_map { |row| [row[:word], row[:was].to_s].reject(&:empty?) } }
+            .map(&:to_sym).uniq
+  end
+
+  # A Type-position word (`list_of`/`one_of`) counts as declared here
+  # unless the builder's own context already has a row of that name —
+  # the same "own context first, Type second" order WordGate's dispatch fallback checks.
+  def type_position_words(contexts)
+    own_words = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word] } }.uniq
+    LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
+                 .map { |row| row[:word] }
+                 .reject { |word| own_words.include?(word) }
+                 .map(&:to_sym)
+  end
+
+  def undeclared_words(builder, contexts)
+    declared = declared_words(contexts)
+    declared += type_position_words(contexts) if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
+    answered = contexts.flat_map { |ctx| self.class.words_answered_by(ctx) }.uniq
+    (answered - declared).sort
   end
 
   # Grouped by `BUILDER` since ValueObject/OneOf share one and AttributeCollector
   # mixes into five. A builder's own `one_of(&block)` shadows AttributeCollector's
   # `one_of(*values)`, so a mixed-in word counts as declared only while unshadowed.
-  BUILDER.group_by { |_, builder| builder }.each do |builder, pairs|
-    contexts = pairs.map(&:first)
+  BUILDER.values.uniq.each do |builder|
     next if builder.equal?(D::AttributeCollector)
 
-    it "declares every word #{builder} answers (#{contexts.join(', ')})" do
-      own_words = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word] } }.uniq
-      declared = contexts.flat_map { |ctx| declared_in(ctx).flat_map { |row| [row[:word], row[:was].to_s].reject(&:empty?) } }
-                         .map(&:to_sym).uniq
+    it "declares every word #{builder} answers (#{contexts_of(builder).join(", ")})" do
+      message = "#{builder} answers words the language does not declare — a bluebook could use them " \
+                "and nothing projected from the language would know they exist"
 
-      if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
-        # A Type-position word (`list_of`/`one_of`) counts as declared here
-        # unless the builder's own context already has a row of that name —
-        # the same "own context first, Type second" order WordGate's dispatch fallback checks.
-        declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
-                                 .map { |row| row[:word] }
-                                 .reject { |word| own_words.include?(word) }
-                                 .map(&:to_sym)
-      end
-
-      answered = contexts.flat_map { |ctx| self.class.words_answered_by(ctx) }.uniq
-
-      expect((answered - declared).sort).to be_empty,
-                                            "#{builder} answers words the language does not declare — " \
-                                            "a bluebook could use them and nothing projected from the " \
-                                            "language would know they exist"
+      expect(undeclared_words(builder, self.class.contexts_of(builder))).to be_empty, message
     end
+  end
+
+  # The new spelling may answer through GenericDispatch's `calls:` rather
+  # than a literal method (`generically_dispatched?` below); the previous
+  # spelling must stay literal — `WordGate` matches `was:` by exact lookup.
+  def new_spelling_answered?(row, answered)
+    answered.include?(row[:word].to_sym) || generically_dispatched?(row[:word], row[:context])
+  end
+
+  def rename_problems(row)
+    name = "#{row[:context]}.#{row[:word]}"
+    answered = self.class.words_answered_by(row[:context])
+    stranded = "#{name} was #{row[:was]}, and the old spelling stopped parsing — a rename never strands the old era"
+    [("#{name} — the new spelling has no builder" unless new_spelling_answered?(row, answered)),
+     (stranded unless answered.include?(row[:was].to_sym)),
+     ("#{name} renames itself" if row[:was] == row[:word])].compact
   end
 
   # A live row carrying `was:` is a word the language respelled: the builder
   # must answer both spellings, the previous spelling isn't smuggled back in
   # as its own row, and nothing renames a word to itself.
   it "answers every renamed word in both its spellings" do
-    LIVE_KEYWORDS.reject { |row| row[:was].to_s.empty? }.each do |row|
-      answered = self.class.words_answered_by(row[:context])
-      # The new spelling may answer through GenericDispatch's `calls:` rather
-      # than a literal method (`generically_dispatched?` below); the previous
-      # spelling must stay literal — `WordGate` matches `was:` by exact lookup.
-      expect(
-        answered.include?(row[:word].to_sym) || generically_dispatched?(row[:word], row[:context])
-      ).to(
-        be(true), "#{row[:context]}.#{row[:word]} — the new spelling has no builder"
-      )
-      expect(answered).to(
-        include(row[:was].to_sym),
-        "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old spelling stopped parsing — a rename never " \
-        "strands the old era"
-      )
-      expect(row[:was]).not_to eq(row[:word]), "#{row[:context]}.#{row[:word]} renames itself"
-    end
+    renamed = LIVE_KEYWORDS.reject { |row| row[:was].to_s.empty? }
+
+    expect(renamed.flat_map { |row| rename_problems(row) }).to be_empty
   end
 
   it "keeps no renamed-away spelling as a row of its own" do
@@ -352,7 +364,7 @@ RSpec.describe "the declared syntax" do
                     .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(early).to be_empty,
-                     "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                     "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ")} " \
                      "— proposed, but the builder already answers; run hecks admit"
   end
 
@@ -361,7 +373,7 @@ RSpec.describe "the declared syntax" do
                         .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(lingering).to be_empty,
-                         "#{lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                         "#{lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ")} " \
                          "— retired, but the builder still answers"
   end
 
@@ -372,48 +384,81 @@ RSpec.describe "the declared syntax" do
     expect(widowed).to be_empty, "argument rows joining to no keyword: #{widowed.inspect}"
   end
 
+  # Each live word whose builder has a real method to introspect, with the argument rows it
+  # declares.
+  def introspectable_arguments
+    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }
+                  .reject { |(word, context), _| generically_dispatched?(word, context) }
+  end
+
+  # The keyword names of a `Method#parameters` list, an Array of [kind, name] pairs.
+  def keyword_names(params) = params.filter_map { |kind, name| name.to_s if %i[key keyreq].include?(kind) }
+
+  def spelled_keywords(args) = args.reject { |row| row[:named].empty? }.map { |row| row[:named] }.uniq
+
+  def keyword_gap_problems(name, undeclared, unspelled)
+    [("#{name} declares #{undeclared.sort.inspect}, which its builder does not take" unless undeclared.empty?),
+     ("#{name}'s builder takes #{unspelled.sort.inspect}, which the language does not declare" unless unspelled.empty?)].compact
+  end
+
+  def keyword_argument_problems(word, context, args)
+    taken = keyword_names(method_for(word, context).parameters)
+    spelled = spelled_keywords(args)
+    undeclared = spelled - taken - RESERVED_KEY.fetch([word, context], [])
+    keyword_gap_problems("#{context}.#{word}", undeclared, taken - spelled)
+  end
+
   it "declares every keyword argument each word's builder takes, and no other" do
-    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
-      next if generically_dispatched?(word, context)
+    problems = introspectable_arguments.flat_map { |(word, context), args| keyword_argument_problems(word, context, args) }
 
-      params  = method_for(word, context).parameters
-      # `params` is Method#parameters — an Array of [kind, name] pairs, not a
-      # Hash. False positive from Style/HashSlice's block-shape matching.
-      # rubocop:disable-next Style/HashSlice
-      taken   = params.select { |kind, _| %i[key keyreq].include?(kind) }.map { |_, name| name.to_s }
-      spelled = args.reject { |row| row[:named].empty? }.map { |row| row[:named] }.uniq
-      allowed = taken + RESERVED_KEY.fetch([word, context], [])
+    expect(problems).to be_empty
+  end
 
-      expect((spelled - allowed).sort).to be_empty,
-                                          "#{context}.#{word} declares #{(spelled - allowed).inspect}, " \
-                                          "which its builder does not take"
-      expect((taken - spelled).sort).to be_empty,
-                                        "#{context}.#{word}'s builder takes #{(taken - spelled).inspect}, " \
-                                        "which the language does not declare"
-    end
+  # An inline hash at a call site binds to a positional Hash parameter or to
+  # a **keyrest, and the spelling does not distinguish them — `where(a: 1)`
+  # and `member a: 1` are typed identically and land differently.
+  def positional_room(positional, params)
+    room = params.count { |kind, _| %i[req opt].include?(kind) }
+    room += 1 if positional.any? { |row| row[:kind] == "pairs" } && params.any? { |kind, _| kind == :keyrest }
+    room
+  end
+
+  def too_many_positionals?(positional, params)
+    return false if params.any? { |kind, _| kind == :rest } # `one_of("small", "large")` is variadic
+
+    positional.map { |row| row[:at] }.map(&:to_i).max > positional_room(positional, params)
+  end
+
+  def positional_problem(word, context, args)
+    positional = args.reject { |row| row[:at].empty? }
+    return if positional.empty?
+    return unless too_many_positionals?(positional, method_for(word, context).parameters)
+
+    "#{context}.#{word} declares more positionals than its builder takes"
   end
 
   it "declares no more positionals than each word's builder takes" do
-    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
-      next if generically_dispatched?(word, context)
+    problems = introspectable_arguments.filter_map { |(word, context), args| positional_problem(word, context, args) }
 
-      positional = args.reject { |row| row[:at].empty? }
-      next if positional.empty?
+    expect(problems).to be_empty
+  end
 
-      params = method_for(word, context).parameters
-      next if params.any? { |kind, _| kind == :rest } # `one_of("small", "large")` is variadic
+  # The arguments a builder demands, each paired with the row declaring it (nil when none does).
+  def demanded_positionals(params, args)
+    params.each_with_index.filter_map do |(kind, name), index|
+      [name.to_s, args.find { |row| row[:at] == (index + 1).to_s }] if kind == :req
+    end
+  end
 
-      room = params.count { |kind, _| %i[req opt].include?(kind) }
-      # An inline hash at a call site binds to a positional Hash parameter or to
-      # a **keyrest, and the spelling does not distinguish them — `where(a: 1)`
-      # and `member a: 1` are typed identically and land differently.
-      room += 1 if positional.any? { |row| row[:kind] == "pairs" } &&
-                   params.any? { |kind, _| kind == :keyrest }
+  def demanded_keywords(params, args)
+    params.filter_map { |kind, name| ["#{name}:", args.find { |row| row[:named] == name.to_s }] if kind == :keyreq }
+  end
 
-      expect(positional.map { |row| row[:at] }.map(&:to_i).max).to(
-        be <= room,
-        "#{context}.#{word} declares more positionals than its builder takes"
-      )
+  def demanded_arguments(params, args) = demanded_positionals(params, args) + demanded_keywords(params, args)
+
+  def demanded_but_optional(word, context, args)
+    demanded_arguments(method_for(word, context).parameters, args).filter_map do |label, row|
+      "#{context}.#{word}'s #{label} is required by the builder and declared optional" if row && row[:required] != "true"
     end
   end
 
@@ -421,51 +466,32 @@ RSpec.describe "the declared syntax" do
   # that parses everywhere and loads nowhere — checked one way on purpose:
   # optional may be declared required, but required may never be declared optional.
   it "never calls an argument optional that the builder demands" do
-    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
-      next if generically_dispatched?(word, context)
+    problems = introspectable_arguments.flat_map { |(word, context), args| demanded_but_optional(word, context, args) }
 
-      params = method_for(word, context).parameters
+    expect(problems).to be_empty
+  end
 
-      params.each_with_index do |(kind, name), index|
-        next unless kind == :req
+  def sets_rows
+    ARGUMENTS.select { |row| row[:keyword] == "sets" && row[:context] == "Command" && !row[:selects].empty? }
+  end
 
-        row = args.find { |candidate| candidate[:at] == (index + 1).to_s }
-        next if row.nil?
+  def live_kwarg_ops = D::CommandBuilder::KWARG_TO_OP.transform_keys(&:to_s).transform_values(&:to_s)
 
-        expect(row[:required]).to eq("true"),
-                                  "#{context}.#{word}'s #{name} is required by the builder and " \
-                                  "declared optional"
-      end
+  def op_mismatch(row)
+    declared_op = row[:selects].delete_prefix("op=")
+    return if live_kwarg_ops[row[:named]] == declared_op
 
-      # Same false positive as above: `params` is an Array, not a Hash.
-      # rubocop:disable-next Style/HashSlice, Style/HashEachMethods
-      params.select { |kind, _| kind == :keyreq }.each do |_, name|
-        row = args.find { |candidate| candidate[:named] == name.to_s }
-        next if row.nil?
-
-        expect(row[:required]).to eq("true"),
-                                  "#{context}.#{word}'s #{name}: is required by the builder and " \
-                                  "declared optional"
-      end
-    end
+    "sets' #{row[:named]}: selects op=#{declared_op} in the language, " \
+      "but CommandBuilder::KWARG_TO_OP maps it to #{live_kwarg_ops[row[:named]].inspect}"
   end
 
   # `selects` mirrors rust/parser/src/keywords.rs's `ArgumentRow.selects` field.
   # `to:` is the one kwarg whose name differs from the op it selects, so this
   # checks what "declares every keyword argument..." above cannot catch.
-  it "selects the same op CommandBuilder::KWARG_TO_OP maps each named argument to" do
-    sets_rows = ARGUMENTS.select { |row| row[:keyword] == "sets" && row[:context] == "Command" && !row[:selects].empty? }
+  it "selects the same op CommandBuilder::KWARG_TO_OP maps each named argument to", :aggregate_failures do
     expect(sets_rows).not_to be_empty
-
-    live = D::CommandBuilder::KWARG_TO_OP.transform_keys(&:to_s).transform_values(&:to_s)
-
-    sets_rows.each do |row|
-      declared_op = row[:selects].delete_prefix("op=")
-      expect(live[row[:named]]).to eq(declared_op),
-                                   "sets' #{row[:named]}: selects op=#{declared_op} in the language, " \
-                                   "but CommandBuilder::KWARG_TO_OP maps it to #{live[row[:named]].inspect}"
-    end
-    expect(sets_rows.map { |row| row[:named] }).to match_array(live.keys)
+    expect(sets_rows.filter_map { |row| op_mismatch(row) }).to be_empty
+    expect(sets_rows.map { |row| row[:named] }).to match_array(live_kwarg_ops.keys)
   end
 
   # A context's category is where its `fills` must land. `Lifecycle` folds onto
@@ -518,27 +544,28 @@ RSpec.describe "the declared syntax" do
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
 
+  def fill_problem(row, fields)
+    landing = CATEGORY_OF.fetch(row[:context])
+    name = "#{row[:context]}.#{row[:word]}"
+    return "#{name} claims to fill #{row[:fills]}, but #{row[:context]} is a position and holds no record" if landing.empty?
+    return if landing.any? { |category| fields.fetch(category).include?(row[:fills]) }
+
+    "#{name} fills #{row[:fills]}, which #{landing.join("/")} does not declare"
+  end
+
   it "fills only fields the language declares" do
     fields = self.class.all_meta_aggregates.to_h { |a| [a.hecks_name, a.attributes.map { |at| at.name.to_s }] }
+    filling = KEYWORDS.reject { |row| row[:fills].empty? }
 
-    KEYWORDS.reject { |row| row[:fills].empty? }.each do |row|
-      landing = CATEGORY_OF.fetch(row[:context])
-      expect(landing).not_to be_empty,
-                             "#{row[:context]}.#{row[:word]} claims to fill #{row[:fills]}, but " \
-                             "#{row[:context]} is a position and holds no record"
-      expect(landing.any? { |category| fields.fetch(category).include?(row[:fills]) }).to(
-        be(true),
-        "#{row[:context]}.#{row[:word]} fills #{row[:fills]}, which " \
-        "#{landing.join('/')} does not declare"
-      )
-    end
+    expect(filling.filter_map { |row| fill_problem(row, fields) }).to be_empty
   end
+
+  def opened_categories = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
 
   it "opens only categories the language declares" do
     declared = self.class.all_meta_aggregates.map(&:hecks_name)
-    opened   = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
 
-    expect(opened - declared).to be_empty
+    expect(opened_categories - declared).to be_empty
   end
 
   # No real bluebook (Banking, Pizzas) ever opens a Vocabulary/Syntax/Keyword/
@@ -546,33 +573,34 @@ RSpec.describe "the declared syntax" do
   # internally instead, so these are excluded from "every dispatched category has a word".
   META_ONLY_CATEGORIES = %w[Vocabulary Syntax Keyword Argument].freeze
 
-  it "opens every category the judge dispatches" do
-    plan = Hecks::Bluebook::MetaValidator::Plan.for(
-      Hecks::Bluebook::MetaValidator.grammar_registry
-    ).names - META_ONLY_CATEGORIES
-    opened = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
+  def dispatched_categories
+    Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry).names - META_ONLY_CATEGORIES
+  end
 
-    expect((plan - opened).sort).to be_empty,
-                                    "the judge dispatches categories no word opens — a bluebook " \
-                                    "could not declare them"
+  it "opens every category the judge dispatches" do
+    expect((dispatched_categories - opened_categories).sort).to be_empty,
+                                                                "the judge dispatches categories no word opens — a bluebook " \
+                                                                "could not declare them"
   end
 
   # A `pairs` argument can name one field only when its own result (not each
   # pair) lands on a single field — true for the `verbatim`/`elements` shapes,
   # not for `fields`/`sibling`. A `Type` argument fills no field at all.
-  it "names what each argument fills, except where nothing can" do
-    ARGUMENTS.each do |row|
-      pairs_names_its_result = row[:kind] == "pairs" && %w[verbatim elements].include?(row[:pairs_shape].to_s)
-      unnameable = (row[:kind] == "pairs" && !pairs_names_its_result) || row[:context] == "Type"
+  def unnameable_fill?(row)
+    pairs_names_its_result = row[:kind] == "pairs" && %w[verbatim elements].include?(row[:pairs_shape].to_s)
+    (row[:kind] == "pairs" && !pairs_names_its_result) || row[:context] == "Type"
+  end
 
-      if unnameable
-        expect(row[:fills]).to eq(""),
-                               "#{row[:context]}.#{row[:keyword]}'s #{row[:kind]} argument names a " \
-                               "single field, which it cannot fill"
-      else
-        expect(row[:fills]).not_to be_empty,
-                                   "#{row[:context]}.#{row[:keyword]} takes an argument that fills nothing"
-      end
+  def fill_naming_problem(row)
+    name = "#{row[:context]}.#{row[:keyword]}"
+    if !unnameable_fill?(row)
+      "#{name} takes an argument that fills nothing" if row[:fills].empty?
+    elsif row[:fills] != ""
+      "#{name}'s #{row[:kind]} argument names a single field, which it cannot fill"
     end
+  end
+
+  it "names what each argument fills, except where nothing can" do
+    expect(ARGUMENTS.filter_map { |row| fill_naming_problem(row) }).to be_empty
   end
 end

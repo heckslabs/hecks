@@ -44,7 +44,7 @@ module Hecks
             return ignored("passing check_suite from app #{app.inspect}, not #{CI_APP_SLUG.inspect}")
           end
 
-          summary = "check_suite #{suite['id']} conclusion=#{conclusion} for #{sha[0, 7]} — via webhook"
+          summary = "check_suite #{suite["id"]} conclusion=#{conclusion} for #{sha[0, 7]} — via webhook"
 
           cleared = Hecks::QA::ClearanceRecorder.record(commit: sha, passed: passed, summary: summary)
 

@@ -23,18 +23,29 @@ module Hecks
           # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
           def check_coverage!(registry, bluebook, held_bluebook, edge)
             bluebook.aggregates.each do |aggregate|
-              rules = Ports::Persistence::Lineage.from_declared(edge.for_aggregate(aggregate.name), aggregate.name)
-              held_aggregate = held_bluebook.aggregate(rules&.ancestor_name || aggregate.name)
-              next unless held_aggregate
-
-              check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
-              uncovered = Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, rules)
-              Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
-
-              unsafe = Runtime::EraGuard.unsafe_additions(aggregate, held_aggregate, rules)
-              Runtime::EraGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
+              check_aggregate_coverage!(bluebook, aggregate, held_bluebook, edge)
             end
             Runtime::EraGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
+          end
+
+          # Refuses an identity change, an uncovered path or an unsafe addition in one aggregate.
+          #
+          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param aggregate [Bluebook::Aggregate] the aggregate as currently declared
+          # @param held_bluebook [Bluebook::Chapter] the domain as the latest held era declares it
+          # @param edge [Bluebook::Translation] the one edge leaving the latest held era
+          # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
+          def check_aggregate_coverage!(bluebook, aggregate, held_bluebook, edge)
+            rules = Ports::Persistence::Lineage.from_declared(edge.for_aggregate(aggregate.name), aggregate.name)
+            held_aggregate = held_bluebook.aggregate(rules&.ancestor_name || aggregate.name)
+            return unless held_aggregate
+
+            check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
+            uncovered = Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, rules)
+            Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
+
+            unsafe = Runtime::EraGuard.unsafe_additions(aggregate, held_aggregate, rules)
+            Runtime::EraGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
           end
 
           # Refuses a mint that changes an aggregate's identity paths without declaring a `rekey`.
@@ -74,26 +85,33 @@ module Hecks
           # @raise [Runtime::WiringError] if a preview query fails or the audit reports a violation
           # @raise [PG::Error] if Postgres refuses the "before" query
           def audit!(bluebook, lineage, chain, ordinal, edge)
-            violations = []
-            bluebook.aggregates.each do |aggregate|
-              declared = edge.for_aggregate(aggregate.name)
-              after = begin
-                lineage.translated_latest(aggregate, ordinal, chain)
-              rescue PG::Error => e
-                raise Runtime::WiringError, "cannot mint era #{ordinal} of #{bluebook.name}: #{e.message.strip}"
-              end
-              before = if chain.size > 1
-                         lineage.translated_latest(aggregate, ordinal, chain[0..-2])
-                       else
-                         lineage.ancestor_latest(aggregate, ordinal, chain)
-                       end
-              verdict = Translation::Audit.check(aggregate: aggregate, declared: declared, before: before, after: after)
-              violations.concat(verdict.violations)
+            violations = bluebook.aggregates.flat_map do |aggregate|
+              after = translated_after(bluebook, lineage, aggregate, ordinal, chain)
+              before = translated_before(lineage, aggregate, ordinal, chain)
+              verdict = Translation::Audit.check(aggregate: aggregate, declared: edge.for_aggregate(aggregate.name),
+                                                 before: before, after: after)
+              verdict.violations
             end
             return if violations.empty?
 
             raise Runtime::WiringError,
                   "cannot mint era #{ordinal} of #{bluebook.name}: the audit refused —\n  - #{violations.join("\n  - ")}"
+          end
+
+          private
+
+          # The aggregate's head translated through the whole chain, as the mint would write it.
+          def translated_after(bluebook, lineage, aggregate, ordinal, chain)
+            lineage.translated_latest(aggregate, ordinal, chain)
+          rescue PG::Error => e
+            raise Runtime::WiringError, "cannot mint era #{ordinal} of #{bluebook.name}: #{e.message.strip}"
+          end
+
+          # The aggregate's head as the chain's last step receives it.
+          def translated_before(lineage, aggregate, ordinal, chain)
+            return lineage.ancestor_latest(aggregate, ordinal, chain) unless chain.size > 1
+
+            lineage.translated_latest(aggregate, ordinal, chain[0..-2])
           end
         end
       end

@@ -1,33 +1,10 @@
 require "spec_helper"
-require "tempfile"
+require_relative "support/inline_bluebook_boot"
 
 # none_in_state against a `lifecycle :status` target, not a plain `state` attribute.
 # meta_validation is off so the comparator/interpreter pair is tested, not grammar admission.
 RSpec.describe "none_in_state against a lifecycle-backed target" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["anti-join-lifecycle-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   NONE_IN_STATE_LIFECYCLE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "AntiJoinLifecycle" do
@@ -97,18 +74,22 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
     end
   end
 
-  it "reads the target's own declared lifecycle field, not a hardcoded :state key" do
+  def dispatch(runtime, verb, **args) = runtime.dispatch_flat("AntiJoinLifecycle::#{verb}", **args)
+
+  # Two claims are filed and the second is released (so only c1 stays "held"); a board is then
+  # assigned both claims and one that does not exist.
+  def runtime_with_assigned_claims
     runtime = boot_anti_join_lifecycle
-    runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c1" })  # stays "held"
-    runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c2" })
-    runtime.dispatch_flat("AntiJoinLifecycle::Claim.Release", id: "c2")          # leaves "held"
+    dispatch(runtime, "Claim.File", id: { value: "c1" })  # stays "held"
+    dispatch(runtime, "Claim.File", id: { value: "c2" })
+    dispatch(runtime, "Claim.Release", id: "c2")          # leaves "held"
+    dispatch(runtime, "Board.Open", id: { value: "b1" })
+    %w[c1 c2 nonexistent].each { |claim_id| dispatch(runtime, "Board.Assign", id: "b1", claim_id: claim_id) }
+    runtime
+  end
 
-    runtime.dispatch_flat("AntiJoinLifecycle::Board.Open", id: { value: "b1" })
-    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c1")
-    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c2")
-    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "nonexistent")
-
-    rows = runtime.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
+  it "reads the target's own declared lifecycle field, not a hardcoded :state key" do
+    rows = runtime_with_assigned_claims.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
 
     # The target has no `:state` attribute, only `:status` via `lifecycle`; a bare
     # `record.state[:state]` read would wrongly include c1 (still held).

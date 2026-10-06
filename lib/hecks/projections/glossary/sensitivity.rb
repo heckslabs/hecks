@@ -17,10 +17,13 @@ module Hecks
         def for_value_object(marked, aggregate, value_object)
           holders = aggregate.attributes.select { |attribute| attribute.type.to_s == value_object.hecks_name }
           holder_names = holders.map { |attribute| attribute.name.to_s }
-          marked.each_with_object({}) do |marking, tagged|
-            head, field, *deeper = marking[:attribute_path].to_s.split(".")
-            tagged[field] = marking if field && deeper.empty? && holder_names.include?(head)
-          end
+          marked.each_with_object({}) { |marking, tagged| tag_field(tagged, marking, holder_names) }
+        end
+
+        # Records `marking` under its field when its path is `<holder>.<field>` for a holder name.
+        def tag_field(tagged, marking, holder_names)
+          head, field, *deeper = marking[:attribute_path].to_s.split(".")
+          tagged[field] = marking if field && deeper.empty? && holder_names.include?(head)
         end
 
         # Uppercased, never otherwise reworded — the category vocabulary is the deployment's own.

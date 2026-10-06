@@ -1,5 +1,6 @@
 require "hecks"
 require "tmpdir"
+require_relative "../../support/concurrency_gap_domain"
 
 # Heki/Memory counterpart of postgres_concurrent_dispatch_spec.rb: two concurrent $6,000 debits
 # against $10,000 must not both succeed. Threads share one Registry, hence one adapter.
@@ -7,83 +8,32 @@ require "tmpdir"
 # The mechanism under test is `Runtime::AggregateLock`'s per-key Mutex, not CAS+retry, so the
 # spec proves the two `find` calls cannot overlap rather than that a retry recovers.
 RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Memory)" do
-  # The bluebook is one DSL block read top to bottom as the fixture; splitting it would scatter it.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
+  VISION = "The smallest domain that reproduces a lost-update race for a state-dependent command, in one process.".freeze
+
   def boot_for(adapter_name, dir: nil)
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      # Memory is always loaded: `registry.verify!` needs a usable default adapter.
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      unless adapter_name == "Memory"
-        Kernel.load(File.join(InMemoryDomain::ROOT,
-                              "lib/hecks/adapters/driven/#{adapter_name.downcase}.adapter"))
-      end
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook("ConcurrencyGap") do
-        vision "The smallest domain that reproduces a lost-update race for a state-dependent command, in one process."
-
-        aggregate "Account" do
-          description "One numbered account and its own balance in cents."
-
-          identified_by :number
-
-          attribute :number,  AccountNumber
-          attribute :balance, Money, default: { cents: 0 }
-
-          value_object "AccountNumber" do
-            attribute :value, String
-          end
-
-          value_object "Money" do
-            attribute :cents, Integer
-            invariant("a balance is never negative") { cents >= 0 }
-          end
-
-          command "Open" do
-            goal "Start a fresh account with an opening balance"
-
-            attribute :number,  AccountNumber
-            attribute :balance, Money
-
-            sets :number
-            sets :balance
-
-            emits "AccountOpened"
-          end
-
-          command "Debit" do
-            goal "Take cents out of the account, if the balance covers it"
-
-            reference_to Account
-            attribute :amount, Money
-
-            given("the balance covers it") { balance.cents >= amount.cents }
-
-            sets :balance, decrement: :amount
-
-            emits "AccountDebited"
-          end
-        end
-      end
-
-      Hecks.hecksagon("ConcurrencyGap") do
-        ConcurrencyGap::Account.persisted_by(adapter_name)
-      end
+      load_ports(adapter_name)
+      ConcurrencyGapDomain.declare("ConcurrencyGap", vision: VISION)
+      Hecks.hecksagon("ConcurrencyGap") { ConcurrencyGap::Account.persisted_by(adapter_name) }
       # Memory declares no settings, so no `Hecks.world`; Heki needs its own tmpdir per example.
-      if adapter_name == "Heki"
-        Hecks.world("ConcurrencyGap") do
-          persisted_by("Heki") { dir(dir) }
-        end
-      end
+      Hecks.world("ConcurrencyGap") { persisted_by("Heki") { dir(dir) } } if adapter_name == "Heki"
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  def load_ports(adapter_name)
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    # Memory is always loaded: `registry.verify!` needs a usable default adapter.
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    unless adapter_name == "Memory"
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/#{adapter_name.downcase}.adapter"))
+    end
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
   end
 
   def account_repository(dispatcher)
@@ -106,33 +56,39 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     end
   end
 
+  # Dispatches two $6,000 Debits at once and answers how each ended (:succeeded or :refused).
+  def race_two_debits(dispatcher)
+    outcomes = Queue.new
+    Array.new(2) { debit_in_thread(dispatcher, outcomes) }.each(&:join)
+    Array.new(2) { outcomes.pop }
+  end
+
+  def debit_in_thread(dispatcher, outcomes)
+    Thread.new do
+      dispatcher.dispatch_flat("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
+      outcomes << :succeeded
+    rescue Hecks::Runtime::GivenNotMet
+      outcomes << :refused
+    end
+  end
+
   shared_examples "serializes two concurrent Debits" do |adapter_name|
-    it "admits exactly one of two concurrent Debits that together overdraw the account (#{adapter_name})" do
-      dir = adapter_name == "Heki" ? Dir.mktmpdir("hecks-heki-concurrency-") : nil
-      dispatcher = boot_for(adapter_name, dir: dir)
+    let(:dir) { adapter_name == "Heki" ? Dir.mktmpdir("hecks-heki-concurrency-") : nil }
+    let(:dispatcher) { boot_for(adapter_name, dir: dir) }
+
+    before do
       dispatcher.dispatch_flat("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
-
       install_race_window(account_repository(dispatcher).adapter)
+    end
 
-      outcomes = Queue.new
-      threads = Array.new(2) do
-        Thread.new do
-          dispatcher.dispatch_flat("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
-          outcomes << :succeeded
-        rescue Hecks::Runtime::GivenNotMet
-          outcomes << :refused
-        end
-      end
-      threads.each(&:join)
+    after { FileUtils.remove_entry(dir) if dir }
 
-      results = Array.new(2) { outcomes.pop }
-
-      # A $10,000 account never honors two $6,000 debits: the second `given` sees the committed
-      # balance and refuses via `GivenNotMet`.
-      expect(results).to contain_exactly(:succeeded, :refused)
+    # A $10,000 account never honors two $6,000 debits: the second `given` sees the committed
+    # balance and refuses via `GivenNotMet`.
+    it "admits exactly one of two concurrent Debits that together overdraw the account (#{adapter_name})",
+       :aggregate_failures do
+      expect(race_two_debits(dispatcher)).to contain_exactly(:succeeded, :refused)
       expect(account_repository(dispatcher).find("a")[:balance].to_h[:cents]).to eq(4_000)
-    ensure
-      FileUtils.remove_entry(dir) if dir
     end
   end
 

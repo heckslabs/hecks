@@ -4,6 +4,9 @@ module Hecks
       # Structural signature and diff of aggregate shapes, computed from the IR alone
       # (no file I/O), so the Postgres mint path can call it too.
       module ShapeDiff
+        # The held and current aggregates being compared, with the lineage that may explain drift.
+        Sides = Struct.new(:held_aggregate, :aggregate, :lineage)
+
         # Structural signature of an aggregate: sorted `[name, signature]` pairs per attribute.
         def shape(aggregate)
           aggregate.attributes.map do |attribute|
@@ -42,15 +45,13 @@ module Hecks
 
         # True when a new attribute could be genuinely absent from an existing record (ADR 0025).
         def possibly_absent?(aggregate, attribute)
-          return false if attribute.optional?
-          return false unless attribute.default.nil?
-          return false if attribute.list?
+          return false if attribute.optional? || !attribute.default.nil? || attribute.list?
 
-          value_object = aggregate.value_object(attribute.type)
-          return false if value_object&.attributes&.all? { |field| !field.default.nil? }
-
-          true
+          !fully_defaulted?(aggregate.value_object(attribute.type))
         end
+
+        # True when a value object exists and every member of it carries a default.
+        def fully_defaulted?(value_object) = value_object&.attributes&.all? { |field| !field.default.nil? }
 
         # Held attribute paths that vanished or changed type with no rule explaining them,
         # recursing into value objects as dotted paths ("price.currency"). Additions never count.
@@ -59,7 +60,8 @@ module Hecks
             current_attribute = aggregate.attribute(held_attribute.name)
             next [held_attribute.name.to_s] unless current_attribute
 
-            diff_type(held_attribute.name.to_s, held_attribute.type, current_attribute.type, held_aggregate, aggregate, lineage)
+            sides = Sides.new(held_aggregate, aggregate, lineage)
+            diff_type(held_attribute.name.to_s, held_attribute.type, current_attribute.type, sides)
           end
 
           return paths unless lineage
@@ -70,24 +72,31 @@ module Hecks
         # Compares one path's held and current types, recursing into shared members.
         # A `list_of` entity is diffed only for member drift; no per-element translation exists, so
         # only a top-level `drop` of the whole list satisfies it.
-        def diff_type(path, held_type, current_type, held_aggregate, aggregate, lineage, seen = [])
-          if held_type != current_type
-            # A declared retype accepts the pair but members are still compared, so drift
-            # hidden under the rename is caught.
-            return [path] unless lineage&.retype?(held_type, current_type)
-          end
+        def diff_type(path, held_type, current_type, sides, seen = [])
+          return [path] if retype_drift?(held_type, current_type, sides.lineage)
           return [] if seen.include?(current_type)
 
-          held_container = nested_type(held_aggregate, held_type)
-          current_container = nested_type(aggregate, current_type)
+          held_container = nested_type(sides.held_aggregate, held_type)
+          current_container = nested_type(sides.aggregate, current_type)
           return [] unless held_container && current_container
 
+          diff_members(path, [held_container, current_container], sides, seen + [current_type])
+        end
+
+        # A declared retype accepts the pair but members are still compared, so drift
+        # hidden under the rename is caught.
+        def retype_drift?(held_type, current_type, lineage)
+          held_type != current_type && !lineage&.retype?(held_type, current_type)
+        end
+
+        # Diffs each member of the held container against the same-named current member.
+        def diff_members(path, containers, sides, seen)
+          held_container, current_container = containers
           held_container.attributes.flat_map do |held_member|
             current_member = current_container.attribute(held_member.name)
             next ["#{path}.#{held_member.name}"] unless current_member
 
-            diff_type("#{path}.#{held_member.name}", held_member.type, current_member.type, held_aggregate, aggregate, lineage,
-                      seen + [current_type])
+            diff_type("#{path}.#{held_member.name}", held_member.type, current_member.type, sides, seen)
           end
         end
       end

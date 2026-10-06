@@ -27,7 +27,7 @@ module Hecks
       def clipped(text, limit = 96)
         return text if text.length <= limit
 
-        "#{text[0, limit].sub(/\s+\S*\z/, '')}…"
+        "#{text[0, limit].sub(/\s+\S*\z/, "")}…"
       end
 
       # The line saying the commands for working on hecks itself were left out and how to list

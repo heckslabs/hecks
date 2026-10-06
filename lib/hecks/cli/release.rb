@@ -15,6 +15,16 @@ module Hecks
       DEFAULT_FLAGS = { dry_run: false, gem_only: false, npm_only: false, npm_local: false,
                         no_wait: false, yes: false }.freeze
 
+      # Each flag's switch and its help line, in the order the usage lists them.
+      FLAG_HELP = {
+        dry_run:   ["--dry-run", "run every check and build; tag, push and publish nothing"],
+        gem_only:  ["--gem-only", "publish the gem only"],
+        npm_only:  ["--npm-only", "skip the gem: wait for CI's publish, or with --npm-local publish from here"],
+        npm_local: ["--npm-local", "publish @hecks/client from this machine (first publish, or CI is down)"],
+        no_wait:   ["--no-wait", "do not wait for CI's publish to reach npm"],
+        yes:       ["--yes", "answer the confirmations yes"]
+      }.freeze
+
       module_function
 
       # Parses the flags and runs the release.
@@ -25,21 +35,27 @@ module Hecks
       def call(argv, root:)
         argv = argv.dup
         flags = DEFAULT_FLAGS.dup
-        parser = parser_for(flags)
-        begin
-          parser.parse!(argv)
-          raise OptionParser::InvalidArgument, argv.join(" ") unless argv.empty?
-
-          return 0 if flags.delete(:help)
-
-          options = Hecks::Release::Runner::Options.new(**flags)
-        rescue OptionParser::ParseError, ArgumentError => e
-          warn "hecks publish: #{e.message}"
-          warn parser
-          return 2
-        end
+        options, status = parse_flags(parser_for(flags), argv, flags)
+        return status unless options
 
         Hecks::Release::Runner.new(root: root, options: options).call
+      end
+
+      # Reads the flags into the run's options.
+      #
+      # @api private
+      # @return [Array(Hecks::Release::Runner::Options, nil), Array(nil, Integer)] the options
+      #   to run with, or no options and the exit status to stop with (0 for help, 2 for a bad flag)
+      def parse_flags(parser, argv, flags)
+        parser.parse!(argv)
+        raise OptionParser::InvalidArgument, argv.join(" ") unless argv.empty?
+        return [nil, 0] if flags.delete(:help)
+
+        [Hecks::Release::Runner::Options.new(**flags), nil]
+      rescue OptionParser::ParseError, ArgumentError => e
+        warn "hecks publish: #{e.message}"
+        warn parser
+        [nil, 2]
       end
 
       # @param flags [Hash{Symbol => Boolean}] filled in as the parser reads each flag
@@ -49,16 +65,7 @@ module Hecks
           opts.banner = "Usage: hecks publish [--dry-run] [--gem-only | --npm-only] [--npm-local | --no-wait] [--yes]"
           opts.separator("Tags the merged release commit, publishes the gem, and gets @hecks/client published.")
           opts.separator("By default CI publishes the client from the tag and this waits for it.")
-          opts.on("--dry-run", "run every check and build; tag, push and publish nothing") { flags[:dry_run] = true }
-          opts.on("--gem-only", "publish the gem only") { flags[:gem_only] = true }
-          opts.on("--npm-only", "skip the gem: wait for CI's publish, or with --npm-local publish from here") do
-            flags[:npm_only] = true
-          end
-          opts.on("--npm-local", "publish @hecks/client from this machine (first publish, or CI is down)") do
-            flags[:npm_local] = true
-          end
-          opts.on("--no-wait", "do not wait for CI's publish to reach npm") { flags[:no_wait] = true }
-          opts.on("--yes", "answer the confirmations yes") { flags[:yes] = true }
+          FLAG_HELP.each { |key, (switch, help)| opts.on(switch, help) { flags[key] = true } }
           opts.on("--help", "print this usage") do
             puts opts
             flags[:help] = true

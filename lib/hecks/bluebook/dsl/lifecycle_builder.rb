@@ -69,15 +69,19 @@ module Hecks
           return if MetaValidator.shadow_parsing? # frozen era text is exempt
 
           @transitions.each_with_index do |(command, transition), index|
-            earlier = @transitions[0...index].find do |other_command, other|
-              other_command == command && overlap?(other, transition)
-            end
+            earlier = earlier_overlap(command, transition, index)
             next unless earlier
 
             raise Malformed,
                   "lifecycle :#{@field} declares two transitions for #{command.inspect} from the same state " \
                   "(=> #{earlier.last.target.inspect} and => #{transition.target.inspect}) — which one fires " \
                   "would be declaration order; give them disjoint from: states"
+          end
+        end
+
+        def earlier_overlap(command, transition, index)
+          @transitions[0...index].find do |other_command, other|
+            other_command == command && overlap?(other, transition)
           end
         end
 

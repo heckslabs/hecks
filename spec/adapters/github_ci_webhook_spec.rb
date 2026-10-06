@@ -43,32 +43,43 @@ RSpec.describe "GitHub CI webhook, end to end" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.bluebook"))
+      load_quality_control_domain
       bind_stub_adapters!
-
-      Hecks.hecksagon "QualityControl" do
-        attaches "Governance"
-
-        QualityControl::Target.persisted_by("Memory")
-        QualityControl::Sweep.persisted_by("Memory")
-        QualityControl::Bug.persisted_by("Memory")
-        QualityControl::Angle.persisted_by("Memory")
-        QualityControl::Ticket.persisted_by("Memory")
-        QualityControl::Clearance.persisted_by("Memory")
-      end
-      # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
-      # and tool-query bindings are the real ones.
-      Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.ports.hecksagon"))
-      Dir[File.join(WEBHOOK_QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
+      declare_quality_control_hecksagon
+      load_quality_control_ports_and_tools
       sibling_governance!
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  def load_quality_control_domain
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.bluebook"))
+  end
+
+  def declare_quality_control_hecksagon
+    Hecks.hecksagon "QualityControl" do
+      attaches "Governance"
+
+      QualityControl::Target.persisted_by("Memory")
+      QualityControl::Sweep.persisted_by("Memory")
+      QualityControl::Bug.persisted_by("Memory")
+      QualityControl::Angle.persisted_by("Memory")
+      QualityControl::Ticket.persisted_by("Memory")
+      QualityControl::Clearance.persisted_by("Memory")
+    end
+  end
+
+  # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+  # and tool-query bindings are the real ones.
+  def load_quality_control_ports_and_tools
+    Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.ports.hecksagon"))
+    Dir[File.join(WEBHOOK_QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
   end
 
   let!(:runtime) { boot_quality_control }
@@ -103,34 +114,46 @@ RSpec.describe "GitHub CI webhook, end to end" do
   def check_suite_payload(sha, conclusion:, action: "completed", status: "completed")
     {
       "action"      => action,
-      "check_suite" => {
-        "id"                      => 118_578_147,
-        "head_branch"             => "loop-parity/example",
-        "head_sha"                => sha,
-        "status"                  => status,
-        "conclusion"              => conclusion,
-        "url"                     => "https://api.github.com/repos/octocat/hecks/check-suites/118578147",
-        "before"                  => "0" * 40,
-        "after"                   => sha,
-        "pull_requests"           => [],
-        "app"                     => { "id" => 15_368, "slug" => "github-actions", "name" => "GitHub Actions" },
-        "created_at"              => "2026-09-10T00:00:00Z",
-        "updated_at"              => "2026-09-10T00:05:00Z",
-        "latest_check_runs_count" => 3,
-        "check_runs_url"          => "https://api.github.com/repos/octocat/hecks/commits/#{sha}/check-runs",
-        "head_commit"             => {
-          "id" => sha, "tree_id" => "f" * 40, "message" => "qa: example commit",
-          "timestamp" => "2026-09-10T00:00:00Z",
-          "author" => { "name" => "Example Author", "email" => "author@example.com" },
-          "committer" => { "name" => "Example Author", "email" => "author@example.com" }
-        }
-      },
+      "check_suite" => suite_identity(sha, conclusion, status).merge(suite_history(sha), "head_commit" => head_commit(sha)),
       "repository"  => { "id" => 1_296_269, "name" => "hecks", "full_name" => "octocat/hecks" },
       "sender"      => { "login" => "octocat", "id" => 1 }
     }
   end
 
-  def sign(body) = "sha256=#{OpenSSL::HMAC.hexdigest('sha256', SECRET, body)}"
+  def suite_identity(sha, conclusion, status)
+    {
+      "id"          => 118_578_147,
+      "head_branch" => "loop-parity/example",
+      "head_sha"    => sha,
+      "status"      => status,
+      "conclusion"  => conclusion,
+      "url"         => "https://api.github.com/repos/octocat/hecks/check-suites/118578147"
+    }
+  end
+
+  def suite_history(sha)
+    {
+      "before"                  => "0" * 40,
+      "after"                   => sha,
+      "pull_requests"           => [],
+      "app"                     => { "id" => 15_368, "slug" => "github-actions", "name" => "GitHub Actions" },
+      "created_at"              => "2026-09-10T00:00:00Z",
+      "updated_at"              => "2026-09-10T00:05:00Z",
+      "latest_check_runs_count" => 3,
+      "check_runs_url"          => "https://api.github.com/repos/octocat/hecks/commits/#{sha}/check-runs"
+    }
+  end
+
+  def head_commit(sha)
+    {
+      "id" => sha, "tree_id" => "f" * 40, "message" => "qa: example commit",
+      "timestamp" => "2026-09-10T00:00:00Z",
+      "author" => { "name" => "Example Author", "email" => "author@example.com" },
+      "committer" => { "name" => "Example Author", "email" => "author@example.com" }
+    }
+  end
+
+  def sign(body) = "sha256=#{OpenSSL::HMAC.hexdigest("sha256", SECRET, body)}"
 
   def post_webhook(payload, event: "check_suite", signature: nil, event_header: true)
     body = JSON.generate(payload)
@@ -140,34 +163,52 @@ RSpec.describe "GitHub CI webhook, end to end" do
     post "/", body, headers
   end
 
+  # Posts `body` signed with the right secret, as GitHub event `event`.
+  def post_signed(body, event)
+    post "/", body, { "CONTENT_TYPE" => "application/json",
+                      "HTTP_X_HUB_SIGNATURE_256" => sign(body), "HTTP_X_GITHUB_EVENT" => event }
+  end
+
+  def response_body = JSON.parse(last_response.body)
+
   describe "a completed check_suite that passed" do
-    it "settles the exact commit green, and never touches the bug" do
-      bug = a_fixed_bug(a_sweep(a_target), "e1dd034bd8340fc53aa931933cb6587288698f5")
+    let(:bug) { a_fixed_bug(a_sweep(a_target), "e1dd034bd8340fc53aa931933cb6587288698f5") }
 
-      post_webhook(check_suite_payload(bug.commit.to_h[:value], conclusion: "success"))
+    before { post_webhook(check_suite_payload(bug.commit.to_h[:value], conclusion: "success")) }
 
+    it "answers 200, ok, and green", :aggregate_failures do
       expect(last_response.status).to eq(200)
-      body = JSON.parse(last_response.body)
-      expect(body["ok"]).to be(true)
-      expect(body["status"]).to eq("green")
+      expect(response_body["ok"]).to be(true)
+      expect(response_body["status"]).to eq("green")
+    end
 
+    it "settles the exact commit green" do
       expect(runtime.query("QualityControl::Clearance.For", commit: { value: bug.commit.to_h[:value] }).length).to eq(1)
+    end
+
+    it "never touches the bug" do
       expect(QualityControl::Bug.find("BUG#1").status).to eq("fixed")
     end
   end
 
   describe "a completed check_suite that failed" do
-    it "settles the commit red and lets BugCiWatch put the bug back, for real" do
-      a_fixed_bug(a_sweep(a_target), "4f2a19c8340fc53aa931933cb6587288698f51d")
+    let(:sha) { "4f2a19c8340fc53aa931933cb6587288698f51d" }
 
-      post_webhook(check_suite_payload("4f2a19c8340fc53aa931933cb6587288698f51d", conclusion: "failure"))
+    before do
+      a_fixed_bug(a_sweep(a_target), sha)
+      post_webhook(check_suite_payload(sha, conclusion: "failure"))
+    end
 
+    it "answers 200 and red", :aggregate_failures do
       expect(last_response.status).to eq(200)
-      body = JSON.parse(last_response.body)
-      expect(body["status"]).to eq("red")
+      expect(response_body["status"]).to eq("red")
+    end
 
-      expect(runtime.query("QualityControl::Clearance.Red").first[:commit][:value])
-        .to eq("4f2a19c8340fc53aa931933cb6587288698f51d")
+    it "settles the commit red" do
+      expect(runtime.query("QualityControl::Clearance.Red").first[:commit][:value]).to eq(sha)
+    end
+
+    it "lets BugCiWatch put the bug back, for real", :aggregate_failures do
       expect(QualityControl::Bug.find("BUG#1").status).to eq("investigating")
       expect(runtime.sagas).to include(hash_including(process_manager: "BugCiWatch", dispatch: "Bug.Regress", delivered: true))
     end
@@ -200,7 +241,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
       payload
     end
 
-    it "does not clear the commit on a passing suite from another app" do
+    it "does not clear the commit on a passing suite from another app", :aggregate_failures do
       a_fixed_bug(a_sweep(a_target), "8888888")
 
       post_webhook(with_app(check_suite_payload("8888888", conclusion: "success"), "some-other-app"))
@@ -229,7 +270,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "a badly-signed payload" do
-    it "is refused, loudly, and dispatches nothing" do
+    it "is refused, loudly, and dispatches nothing", :aggregate_failures do
       payload = check_suite_payload("3333333", conclusion: "success")
 
       post_webhook(payload, signature: "sha256=0000000000000000000000000000000000000000000000000000000000000000")
@@ -239,7 +280,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
       expect(runtime.query("QualityControl::Clearance.All")).to be_empty
     end
 
-    it "is refused when there is no signature header at all" do
+    it "is refused when there is no signature header at all", :aggregate_failures do
       body = JSON.generate(check_suite_payload("4444444", conclusion: "success"))
       post "/", body, { "CONTENT_TYPE" => "application/json", "HTTP_X_GITHUB_EVENT" => "check_suite" }
 
@@ -249,10 +290,8 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "a payload that does not even parse as JSON" do
-    it "answers 400, distinct from a signature refusal" do
-      body = "not json at all"
-      post "/", body, { "CONTENT_TYPE" => "application/json",
-                        "HTTP_X_HUB_SIGNATURE_256" => sign(body), "HTTP_X_GITHUB_EVENT" => "check_suite" }
+    it "answers 400, distinct from a signature refusal", :aggregate_failures do
+      post_signed("not json at all", "check_suite")
 
       expect(last_response.status).to eq(400)
       expect(JSON.parse(last_response.body)["error"]).to eq("MalformedPayload")
@@ -260,7 +299,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "a commit that does not look like a sha" do
-    it "refuses rather than settle a clearance nobody could ever look up" do
+    it "refuses rather than settle a clearance nobody could ever look up", :aggregate_failures do
       payload = check_suite_payload("not-a-sha", conclusion: "success")
 
       post_webhook(payload)
@@ -271,10 +310,8 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "GitHub's own connectivity check" do
-    it "answers ping without touching the domain at all" do
-      body = JSON.generate({ "zen" => "Design for failure." })
-      post "/", body, { "CONTENT_TYPE" => "application/json",
-                        "HTTP_X_HUB_SIGNATURE_256" => sign(body), "HTTP_X_GITHUB_EVENT" => "ping" }
+    it "answers ping without touching the domain at all", :aggregate_failures do
+      post_signed(JSON.generate({ "zen" => "Design for failure." }), "ping")
 
       expect(last_response.status).to eq(200)
       expect(JSON.parse(last_response.body)).to eq("ok" => true, "event" => "ping")
@@ -282,18 +319,16 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "an event this adapter does not act on" do
-    it "acknowledges a check_run event without settling anything — it is not the whole suite" do
+    it "acknowledges a check_run event without settling anything — it is not the whole suite", :aggregate_failures do
       payload = { "action" => "completed", "check_run" => { "head_sha" => "5555555", "conclusion" => "success" } }
-      body = JSON.generate(payload)
-      post "/", body, { "CONTENT_TYPE" => "application/json",
-                        "HTTP_X_HUB_SIGNATURE_256" => sign(body), "HTTP_X_GITHUB_EVENT" => "check_run" }
+      post_signed(JSON.generate(payload), "check_run")
 
       expect(last_response.status).to eq(200)
       expect(JSON.parse(last_response.body)["ignored"]).to include("not a check_suite event")
       expect(runtime.query("QualityControl::Clearance.All")).to be_empty
     end
 
-    it "acknowledges a check_suite still in progress without settling anything" do
+    it "acknowledges a check_suite still in progress without settling anything", :aggregate_failures do
       payload = check_suite_payload("6666666", conclusion: nil, action: "requested", status: "in_progress")
 
       post_webhook(payload)
@@ -313,18 +348,22 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   describe "the same delivery arriving twice" do
-    it "settles once and answers the same way the second time, rather than raising" do
-      a_fixed_bug(a_sweep(a_target), "7777777")
-      payload = check_suite_payload("7777777", conclusion: "success")
+    let(:payload) { check_suite_payload("7777777", conclusion: "success") }
 
+    before { a_fixed_bug(a_sweep(a_target), "7777777") }
+
+    it "settles once, rather than raising" do
+      2.times { post_webhook(payload) }
+
+      expect(runtime.query("QualityControl::Clearance.All").length).to eq(1)
+    end
+
+    it "answers the same way the second time" do
       post_webhook(payload)
       first_status = last_response.status
-
       post_webhook(payload)
 
-      expect(first_status).to eq(200)
-      expect(last_response.status).to eq(200)
-      expect(runtime.query("QualityControl::Clearance.All").length).to eq(1)
+      expect([first_status, last_response.status]).to eq([200, 200])
     end
   end
 
@@ -332,21 +371,21 @@ RSpec.describe "GitHub CI webhook, end to end" do
   # JSON parsing) directly, independent of QualityControl. Nested rather
   # than a second top-level describe, to keep one example group per file.
   describe Hecks::Adapters::Driving::GithubWebhook do
-    it "refuses to be constructed with no secret at all" do
+    it "refuses to be constructed with no secret at all", :aggregate_failures do
       expect { described_class.new(secret: "") }.to raise_error(ArgumentError, /no webhook secret/)
       expect { described_class.new(secret: nil) }.to raise_error(ArgumentError, /no webhook secret/)
     end
 
-    it "refuses a subclass that never implements handle_event" do
-      app = described_class.new(secret: "s")
-      body = JSON.generate({ "action" => "completed" })
-      signature = "sha256=#{OpenSSL::HMAC.hexdigest('sha256', 's', body)}"
-      env = Rack::MockRequest.env_for("/", method: "POST", input: body,
-                                      "CONTENT_TYPE" => "application/json",
-                                      "HTTP_X_HUB_SIGNATURE_256" => signature,
-                                      "HTTP_X_GITHUB_EVENT" => "check_suite")
+    def signed_env(body, secret)
+      signature = "sha256=#{OpenSSL::HMAC.hexdigest("sha256", secret, body)}"
+      Rack::MockRequest.env_for("/", method: "POST", input: body, "CONTENT_TYPE" => "application/json",
+                                     "HTTP_X_HUB_SIGNATURE_256" => signature, "HTTP_X_GITHUB_EVENT" => "check_suite")
+    end
 
-      expect { app.call(env) }.to raise_error(NotImplementedError, /must implement #handle_event/)
+    it "refuses a subclass that never implements handle_event" do
+      env = signed_env(JSON.generate({ "action" => "completed" }), "s")
+
+      expect { described_class.new(secret: "s").call(env) }.to raise_error(NotImplementedError, /must implement #handle_event/)
     end
   end
 end

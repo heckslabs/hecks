@@ -25,7 +25,7 @@ RSpec.describe Hecks::Runtime::BootGates do
       expect(ran).to be false
     end
 
-    it "answers registered? for a gate that was registered, regardless of phase" do
+    it "answers registered? for a gate that was registered, regardless of phase", :aggregate_failures do
       gates = described_class.new
       gates.register(:probe, ->(*) {}, phase: :post_verify)
 
@@ -48,50 +48,64 @@ RSpec.describe Hecks::Runtime::BootGates do
       registry
     end
 
-    it "registers neither gate for a domain with nothing lineage- or saga-capable bound" do
-      registry = boot_registry do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Hecks.bluebook("Plain") do
-          aggregate("Thing") do
-            identified_by :name
-            attribute :name, Name
-            value_object("Name") { attribute :value, String }
-          end
+    def load_memory_ports
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    end
+
+    def declare_thing(domain)
+      Hecks.bluebook(domain) do
+        aggregate("Thing") do
+          identified_by :name
+          attribute :name, Name
+          value_object("Name") { attribute :value, String }
         end
+      end
+    end
+
+    def plain_registry
+      boot_registry do
+        load_memory_ports
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        declare_thing("Plain")
         Hecks.hecksagon("Plain") { persisted_by "Memory" }
       end
+    end
 
-      gates = Hecks::Runtime::Loader.run_boot_gates!(registry, @dir)
+    def sqlite_registry
+      sqlite_adapter = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
+      db_path = File.join(@dir, "saved.db")
+      boot_registry do
+        load_memory_ports
+        Kernel.load(sqlite_adapter)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        declare_thing("Saved")
+        Hecks.hecksagon("Saved") { persisted_by "SqlitePersistence" }
+        Hecks.world("Saved") { persisted_by("SqlitePersistence") { database(db_path) } }
+      end
+    end
+
+    def postgres_era_registry
+      boot_registry do
+        load_memory_ports
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
+      end
+    end
+
+    it "registers neither gate for a domain with nothing lineage- or saga-capable bound", :aggregate_failures do
+      gates = Hecks::Runtime::Loader.run_boot_gates!(plain_registry, @dir)
 
       expect(gates.registered?(:era_check)).to be false
       expect(gates.registered?(:saga_rehydration)).to be false
     end
 
     it "registers :saga_rehydration, but not :era_check, for a domain bound to an adapter that supports sagas " \
-       "but carries no eras" do
-      sqlite_adapter = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
-      dir = @dir
-      registry = boot_registry do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(sqlite_adapter)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Hecks.bluebook("Saved") do
-          aggregate("Thing") do
-            identified_by :name
-            attribute :name, Name
-            value_object("Name") { attribute :value, String }
-          end
-        end
-        Hecks.hecksagon("Saved") { persisted_by "SqlitePersistence" }
-        Hecks.world("Saved") { persisted_by("SqlitePersistence") { database(File.join(dir, "saved.db")) } }
-      end
-
-      gates = Hecks::Runtime::Loader.run_boot_gates!(registry, @dir)
+       "but carries no eras", :aggregate_failures do
+      gates = Hecks::Runtime::Loader.run_boot_gates!(sqlite_registry, @dir)
 
       expect(gates.registered?(:saga_rehydration)).to be true
       expect(gates.registered?(:era_check)).to be false
@@ -101,17 +115,8 @@ RSpec.describe Hecks::Runtime::BootGates do
        "needing no live database" do
       # `lineage_capable?` keeps `require "pg"` lazy, so no live Postgres is needed here.
       require InMemoryDomain::ERA_PLUGIN
-      registry = boot_registry do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
-      end
 
-      expect(Hecks::Runtime::EraCheck.lineage_capable_registry?(registry)).to be true
+      expect(Hecks::Runtime::EraCheck.lineage_capable_registry?(postgres_era_registry)).to be true
     end
   end
 end

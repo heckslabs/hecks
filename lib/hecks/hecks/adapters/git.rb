@@ -50,14 +50,24 @@ module Hecks
         root = plain(held[:root]) || Dir.pwd
         require_repository!(from)
 
-        argv = [plain(held[:package])]
-        argv += ["--from", from] if from
+        { report: { value: vendored(held[:package], from, root) } }
+      end
+
+      # What the vendor command printed, once it ended well.
+      def vendored(package, from, root)
         out = StringIO.new
         err = StringIO.new
-        status = EmbryonautBluebook::VendorCli.run(argv + ["--root", root], out: out, err: err, root: root)
+        status = EmbryonautBluebook::VendorCli.run(vendor_argv(package, from, root), out: out, err: err, root: root)
         raise ConsoleCapture::Failure, err.string.strip unless status.zero?
 
-        { report: { value: out.string } }
+        out.string
+      end
+
+      # The words the vendor command takes: the package, where from when named, and the project.
+      def vendor_argv(package, from, root)
+        argv = [plain(package)]
+        argv += ["--from", from] if from
+        argv + ["--root", root]
       end
 
       # Checks a project's vendored packages against their `bluebook.lock` files and describes
@@ -162,7 +172,7 @@ module Hecks
         places = [File.join(name, "bluebook"), File.join("vendor", "embryonaut_bluebooks", name, "bluebook")]
         found = places.map { |place| File.join(root, place) }.find { |dir| File.directory?(dir) }
         found or raise Runtime::NotFound,
-                       "#{name} has no bluebook/ directory in #{root} (looked in #{places.join(' and ')})"
+                       "#{name} has no bluebook/ directory in #{root} (looked in #{places.join(" and ")})"
       end
 
       def registry(held)

@@ -28,11 +28,8 @@ module Hecks
       # @raise [ArgumentError] if the path or the secret is missing, or the scheme is unknown
       # @raise [ConsoleCapture::Failure] when any check failed
       def probe(**held)
-        options = %i[url path header scheme payload health_path state_path].to_h { |name| [name, plain(held[name])] }
-        options[:payload] ||= File.read(plain(held[:payload_file])) if plain(held[:payload_file])
-
         out = StringIO.new
-        status = CLI::SmokeHttp.new(CLI::SmokeHttp.resolve(options.compact, ENV), out: out).run
+        status = CLI::SmokeHttp.new(CLI::SmokeHttp.resolve(probe_options(held).compact, ENV), out: out).run
         raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
         { output: { value: out.string } }
@@ -50,8 +47,8 @@ module Hecks
       # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached
       # @raise [Runtime::EraCheck::ExpectedEra::BadResponse] if it answers no era
       def fetch(**held)
-        file = plain(held[:expected]) or raise ArgumentError, "no allow-list file to compare the era with"
-        timeout = plain(held[:timeout]) or raise ArgumentError, "no timeout to wait for the host with"
+        file = required(held[:expected], "no allow-list file to compare the era with")
+        timeout = required(held[:timeout], "no timeout to wait for the host with")
         finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: timeout.to_f)
 
         { era: { value: finding.verdict.era }, version: { value: finding.version },
@@ -59,6 +56,19 @@ module Hecks
       end
 
       private
+
+      # The options the smoke check reads, from the record's fields; the payload file stands in
+      # for a payload that was not given.
+      def probe_options(held)
+        options = %i[url path header scheme payload health_path state_path].to_h { |name| [name, plain(held[name])] }
+        options[:payload] ||= File.read(plain(held[:payload_file])) if plain(held[:payload_file])
+        options
+      end
+
+      # The field's value, or an `ArgumentError` saying what is missing.
+      def required(argument, message)
+        plain(argument) or raise ArgumentError, message
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

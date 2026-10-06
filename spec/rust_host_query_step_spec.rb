@@ -9,7 +9,7 @@ require "open3"
 RSpec.describe "Rust host query step", :io do
   QUERY_STEP_HOST_DIR = File.expand_path("../rust/host", __dir__)
 
-  it "words an undeclared query exactly as the Ruby runtime does" do
+  it "words an undeclared query exactly as the Ruby runtime does", :aggregate_failures do
     ruby = Hecks::Runtime::RefusalWording.render_site("UnknownVerb", "no_query",
                                                       aggregate: "Ledger", query: "Nope")
 
@@ -17,19 +17,21 @@ RSpec.describe "Rust host query step", :io do
     expect(File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))).to include('Ledger has no query \"Nope\"')
   end
 
-  it "refuses an outside-answered query with the tail Ruby's adapter lookup ends on" do
-    ruby = begin
-      Hecks::Runtime::AdapterLookup.adapter_class(Struct.new(:adapters).new({}), "Echoer", asked: "Note.Echo")
-    rescue Hecks::Runtime::WiringError => e
-      e.message
-    end
+  # The refusal Ruby's adapter lookup gives for a query nothing can answer.
+  def adapter_lookup_refusal
+    Hecks::Runtime::AdapterLookup.adapter_class(Struct.new(:adapters).new({}), "Echoer", asked: "Note.Echo")
+  rescue Hecks::Runtime::WiringError => e
+    e.message
+  end
 
-    expect(ruby).to end_with("nothing can answer Note.Echo")
+  it "refuses an outside-answered query with the tail Ruby's adapter lookup ends on", :aggregate_failures do
     source = File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))
+
+    expect(adapter_lookup_refusal).to end_with("nothing can answer Note.Echo")
     expect(source).to include("answered outside the domain").and include("nothing can answer {short}")
   end
 
-  it "routes derivable queries to the kernel and refuses outside-answered ones (cargo unit tests)" do
+  it "routes derivable queries to the kernel and refuses outside-answered ones (cargo unit tests)", :aggregate_failures do
     stdout, stderr, status = Open3.capture3("cargo", "test", "--bin", "bootstrap", "query_step", chdir: QUERY_STEP_HOST_DIR)
 
     expect(status).to be_success, "cargo test failed:\n#{stdout}\n#{stderr}"

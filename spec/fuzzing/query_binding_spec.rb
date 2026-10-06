@@ -6,7 +6,7 @@ require "hecks/fuzzing"
 # A query step tests an adapter only when its arguments name a row the sequence stored.
 # Pins that some query steps draw arguments from stored rows, the rest still ask about
 # unstored values, and the choice moves no other step.
-RSpec.describe Hecks::Fuzzing::SequenceGenerator, ".generate" do
+RSpec.describe Hecks::Fuzzing::SequenceGenerator, ".generate", :aggregate_failures do
   # A value object declared on one aggregate (`SiteRef` on `Site`) typing an attribute of a
   # composite-identity aggregate (`Deployment`) that is queried by it.
   ROLLOUT_BLUEBOOK = <<~BLUEBOOK.freeze
@@ -90,6 +90,13 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, ".generate" do
 
   def query?(step, name) = step["query"].to_s.end_with?(".#{name}")
 
+  def generated_by_seed(**options) = seeds.to_h { |seed| [seed, generate(seed, **options)] }
+
+  # Each seed's steps with the query steps taken out.
+  def non_query_steps(by_seed)
+    by_seed.transform_values { |steps| steps.reject { |step| step.key?("query") } }
+  end
+
   # Every query step of `name` across `seeds`, with the rows Memory answered.
   def answered(name, **options)
     seeds.flat_map do |seed|
@@ -118,14 +125,11 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, ".generate" do
   end
 
   it "changes the arguments of query steps and no other step" do
-    with_binding = seeds.to_h { |seed| [seed, generate(seed, adversarial: 0.3)] }
+    with_binding = generated_by_seed(adversarial: 0.3)
     stub_const("Hecks::Fuzzing::SequenceGenerator::QueryBinding::BOUND_QUERY_PROBABILITY", 0.0)
-    without_binding = seeds.to_h { |seed| [seed, generate(seed, adversarial: 0.3)] }
+    without_binding = generated_by_seed(adversarial: 0.3)
 
-    seeds.each do |seed|
-      expect(with_binding[seed].reject { |step| step.key?("query") })
-        .to eq(without_binding[seed].reject { |step| step.key?("query") })
-    end
+    expect(non_query_steps(with_binding)).to eq(non_query_steps(without_binding))
     expect(with_binding).not_to eq(without_binding)
   end
 

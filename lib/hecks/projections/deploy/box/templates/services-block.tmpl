@@ -1,0 +1,9 @@
+SERVICES='@@NAMES@@'
+
+# Sets the container's settings for one service, or exits.
+resolve_service() {
+  case "$1" in
+@@ARMS@@
+    *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 2 ;;
+  esac
+}

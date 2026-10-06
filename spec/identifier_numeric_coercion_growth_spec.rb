@@ -4,27 +4,31 @@ require "tempfile"
 # Value::Coercion#coerce_identifier on a numeric identified_by: re-seeding identity from its string
 # must not trip check_numeric_fields, which would block every command on such an aggregate.
 RSpec.describe "identity coercion on a numeric identified_by field" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["identifier-numeric-coercion-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
+  def write_bluebook(source)
+    Tempfile.new(["identifier-numeric-coercion-growth-", ".bluebook"]).tap do |file|
+      file.write(source)
+      file.flush
+    end
+  end
 
-    registry = Hecks::Runtime::Registry.new
+  def declare_in(registry, file, source, hecksagon_name, &binds)
     Hecks::Bluebook::MetaValidator.while_disabled do
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+         InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
         Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
         Hecks.hecksagon(hecksagon_name, &binds)
       end
     end
+  end
+
+  def boot(source, hecksagon_name, &binds)
+    file = write_bluebook(source)
+    registry = Hecks::Runtime::Registry.new
+    declare_in(registry, file, source, hecksagon_name, &binds)
 
     registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   ensure
     file&.close!
   end
@@ -64,7 +68,7 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
     end
   end
 
-  it "creates a record whose identity field is genuinely numeric, not a type mismatch" do
+  it "creates a record whose identity field is genuinely numeric, not a type mismatch", :aggregate_failures do
     runtime = boot_numeric_identity
 
     expect { runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 }) }

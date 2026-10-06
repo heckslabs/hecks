@@ -50,7 +50,7 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
       expect(long_block_violations(source_with_block(limit))).to be_empty
     end
 
-    it "fails a new block one line over the threshold" do
+    it "fails a new block one line over the threshold", :aggregate_failures do
       found = long_block_violations(source_with_block(limit + 1))
 
       expect(found.map(&:category)).to eq(["long_block"])
@@ -70,7 +70,7 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
       expect(long_block_violations(source_with_block(limit + 5), baseline: baseline)).to be_empty
     end
 
-    it "fails a baselined block that has grown" do
+    it "fails a baselined block that has grown", :aggregate_failures do
       baseline = { path => { "Explains the example at length." => limit + 5 } }
       found = long_block_violations(source_with_block(limit + 6), baseline: baseline)
 
@@ -128,18 +128,37 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         FileUtils.remove_entry(@dir) if @dir
       end
 
-      it "round-trips in a stable, sorted order" do
+      HELD_BASELINE = { "lib/b.rb" => { "z" => 60, "a" => 55 }, "lib/a.rb" => { "m" => 70 } }.freeze
+
+      def write_example(lines)
+        file = File.join(@dir, "example.rb")
+        File.write(file, source_with_block(lines))
+        file
+      end
+
+      def recorded_baseline(file) = Hecks::Tools::CommentStyle::Run.new([file], baseline: {}).long_block_baseline
+
+      def long_block_run(file, baseline)
+        Hecks::Tools::CommentStyle::Run.new([file], only: ["long_block"], baseline: baseline)
+      end
+
+      # Runs `standardize_comments --check` on one file as a child process.
+      def check_long_block(file)
+        entry = 'require "hecks/tools"; Hecks::Tools.script("standardize_comments", ARGV)'
+        script = [RbConfig.ruby, "-I", File.join(InMemoryDomain::ROOT, "lib"), "-e", entry, "--"]
+        Open3.capture2e(*script, "--check", "--only", "long_block", file)
+      end
+
+      it "round-trips in a stable, sorted order", :aggregate_failures do
         file = File.join(@dir, "baseline.json")
-        held = { "lib/b.rb" => { "z" => 60, "a" => 55 }, "lib/a.rb" => { "m" => 70 } }
+        Hecks::Tools::CommentStyle::Baseline.dump(HELD_BASELINE, file)
 
-        Hecks::Tools::CommentStyle::Baseline.dump(held, file)
-
-        expect(Hecks::Tools::CommentStyle::Baseline.load(file)).to eq(held)
+        expect(Hecks::Tools::CommentStyle::Baseline.load(file)).to eq(HELD_BASELINE)
         expect(JSON.parse(File.read(file)).keys).to eq(["lib/a.rb", "lib/b.rb"])
         expect(JSON.parse(File.read(file))["lib/b.rb"].keys).to eq(%w[a z])
       end
 
-      it "lives at the checkout's root, where the committed file is" do
+      it "lives at the checkout's root, where the committed file is", :aggregate_failures do
         root = File.expand_path("..", __dir__)
 
         expect(Hecks::Tools::CommentStyle::Baseline::PATH).to eq(File.join(root, ".standardize_comments_baseline.json"))
@@ -147,7 +166,7 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         expect(Hecks::Tools::CommentStyle::Baseline.load).not_to be_empty
       end
 
-      it "is written inside the root the tool is given" do
+      it "is written inside the root the tool is given", :aggregate_failures do
         file = File.join(@dir, "example.rb")
         File.write(file, source_with_block(limit + 3))
 
@@ -169,35 +188,36 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         expect(Hecks::Tools::CommentStyle::Baseline.load(File.join(@dir, "missing.json"))).to eq({})
       end
 
-      it "is recorded from a run and then tolerates exactly what it recorded" do
-        file = File.join(@dir, "example.rb")
-        File.write(file, source_with_block(limit + 3))
+      it "is recorded from a run" do
+        file = write_example(limit + 3)
 
-        held = Hecks::Tools::CommentStyle::Run.new([file], baseline: {}).long_block_baseline
-        expect(held).to eq(file => { "Explains the example at length." => limit + 3 })
-
-        tolerated = Hecks::Tools::CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
-        expect(tolerated.violations).to be_empty
-
-        File.write(file, source_with_block(limit + 4))
-        grown = Hecks::Tools::CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
-        expect(grown.violations.map(&:category)).to eq(["long_block"])
+        expect(recorded_baseline(file)).to eq(file => { "Explains the example at length." => limit + 3 })
       end
 
-      it "makes --check exit non-zero for a new long block and zero for a short one" do
-        lib = File.join(InMemoryDomain::ROOT, "lib")
-        entry = 'require "hecks/tools"; Hecks::Tools.script("standardize_comments", ARGV)'
-        script = [RbConfig.ruby, "-I", lib, "-e", entry, "--"]
-        long = File.join(@dir, "long.rb")
-        short = File.join(@dir, "short.rb")
-        File.write(long, source_with_block(limit + 1))
-        File.write(short, source_with_block(limit))
+      it "tolerates exactly what it recorded" do
+        file = write_example(limit + 3)
 
-        output, status = Open3.capture2e(*script, "--check", "--only", "long_block", long)
+        expect(long_block_run(file, recorded_baseline(file)).violations).to be_empty
+      end
+
+      it "stops tolerating what it recorded once the block grows" do
+        file = write_example(limit + 3)
+        held = recorded_baseline(file)
+        write_example(limit + 4)
+
+        expect(long_block_run(file, held).violations.map(&:category)).to eq(["long_block"])
+      end
+
+      it "makes --check exit non-zero for a new long block", :aggregate_failures do
+        output, status = check_long_block(write_example(limit + 1))
+
         expect(status.exitstatus).to eq(1)
         expect(output).to include("[long_block]")
+      end
 
-        _, status = Open3.capture2e(*script, "--check", "--only", "long_block", short)
+      it "makes --check exit zero for a short block" do
+        _, status = check_long_block(write_example(limit))
+
         expect(status.exitstatus).to eq(0)
       end
     end

@@ -8,7 +8,7 @@ require "hecks/hecks/adapters/codebase/source_tree"
 RSpec.describe Hecks::Tools do
   let(:root) { InMemoryDomain::ROOT }
 
-  it "names a tool for every script it replaced, each answering `main` and defined in the library" do
+  it "names a tool for every script it replaced, each answering `main` and defined in the library", :aggregate_failures do
     described_class::REGISTRY.each_key do |name|
       tool = described_class.fetch(name)
 
@@ -25,14 +25,14 @@ RSpec.describe Hecks::Tools do
   end
 
   describe ".run" do
-    it "answers the exit status of a tool that refuses, without raising" do
+    it "answers the exit status of a tool that refuses, without raising", :aggregate_failures do
       status = nil
       expect { status = described_class.run("standardize_comments", ["--only", "no_such_category", "lib"]) }
         .to output(/unknown categories: no_such_category/).to_stderr
       expect(status).to eq(1)
     end
 
-    it "runs a tool from the root it is given, so relative paths are read there" do
+    it "runs a tool from the root it is given, so relative paths are read there", :aggregate_failures do
       Dir.mktmpdir do |dir|
         File.write(File.join(dir, "a.rb"), "# Says what it is.\nclass A\nend\n")
 
@@ -47,7 +47,7 @@ RSpec.describe Hecks::Tools do
 
     before { allow(described_class).to receive(:fetch).with("crashing").and_return(crashing) }
 
-    it "answers status 1 with the error on stderr, without raising" do
+    it "answers status 1 with the error on stderr, without raising", :aggregate_failures do
       status = nil
 
       expect { status = described_class.run("crashing", []) }.to output("crashing: ArgumentError: bad flag\n").to_stderr
@@ -66,13 +66,14 @@ RSpec.describe Hecks::Tools do
   describe "run through the Codebase adapters' `RubyChild`" do
     let(:child) { Hecks::Adapters::Codebase::RubyChild.new(Hecks::Adapters::Codebase::Tree.new(root: root)) }
 
-    it "captures a tool's report and status in this process, with no child started" do
-      expect(Process).not_to receive(:spawn)
+    it "captures a tool's report and status in this process, with no child started", :aggregate_failures do
+      allow(Process).to receive(:spawn)
 
       result = child.capture("standardize_comments", "--check", "lib/hecks/tools.rb")
 
       expect(result.ok?).to be(true)
       expect(result.out).to eq("")
+      expect(Process).not_to have_received(:spawn)
     end
 
     it "answers a tool's refusal as the failure it printed" do
@@ -95,7 +96,7 @@ RSpec.describe Hecks::Tools do
         .grep(String)
     end
 
-    it "names only tools that live in Hecks::Tools, and runs each in this process" do
+    it "names only tools that live in Hecks::Tools, and runs each in this process", :aggregate_failures do
       expect(named).not_to be_empty
       expect(named.reject { |name| described_class.tool?(name) }).to eq([])
       allow(described_class).to receive(:run).and_return(0)
@@ -105,12 +106,16 @@ RSpec.describe Hecks::Tools do
   end
 
   describe "the `project_*` generators over `ProjectionFiles`" do
-    it "prints what a projection wrote, and aborts with the reason when it is refused" do
+    it "prints what a projection wrote" do
       allow(Hecks::ProjectionFiles).to receive(:write).with(:vocabulary, root: Hecks::ProjectionFiles::ROOT)
                                                       .and_return(["wrote a"])
-      expect { Hecks::ProjectionFiles.run(:vocabulary) }.to output("wrote a\n").to_stdout
 
+      expect { Hecks::ProjectionFiles.run(:vocabulary) }.to output("wrote a\n").to_stdout
+    end
+
+    it "aborts with the reason when it is refused" do
       allow(Hecks::ProjectionFiles).to receive(:write).and_raise(Hecks::ProjectionFiles::Refused, "cannot boot")
+
       expect { Hecks::ProjectionFiles.run(:vocabulary) }
         .to raise_error(SystemExit).and output("cannot boot\n").to_stderr
     end

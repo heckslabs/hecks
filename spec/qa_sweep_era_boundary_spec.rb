@@ -164,22 +164,34 @@ RSpec.describe "qa_sweep era_boundary", :io do
     QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
   end
 
-  it "runs once per sweep, never per seed, and reports clean on a target with no diverged writes" do
+  # Sweeps the era-boundary target, expecting a clean exit, and answers what the sweep printed.
+  def era_boundary_sweep
     identify_target!("era-boundary", @target_domain_relpath)
-
     stdout, stderr, status = run_qa_sweep("era-boundary", "--modes", "era_boundary")
-
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
+    stdout
+  end
+
+  it "runs once per sweep, never per seed", :aggregate_failures do
+    stdout = era_boundary_sweep
+
     expect(stdout).to include("resolved modes: era_boundary (capabilities=postgres_era,sqlite,translations)")
     # Seedless: no "seed N: held" line.
     expect(stdout).not_to match(/seed \d+:/)
+  end
+
+  it "reports clean on a target with no diverged writes", :aggregate_failures do
+    stdout = era_boundary_sweep
+
     expect(stdout).to include("era boundary: no ancestor era holds an unmerged write")
     expect(stdout).to include("clean — era-boundary concluded and released.")
+  end
 
+  it "records an era_boundary check on the sweep" do
+    era_boundary_sweep
     Hecks.boot(@fixture_dir)
-    sweep = QualityControl::Sweep.all.first
-    expect(sweep).not_to be_nil
-    subjects = sweep.checks.map { |c| c[:subject][:value] }
+    subjects = QualityControl::Sweep.all.first.checks.map { |c| c[:subject][:value] }
+
     expect(subjects).to include(a_string_starting_with("[era_boundary]"))
   end
 end

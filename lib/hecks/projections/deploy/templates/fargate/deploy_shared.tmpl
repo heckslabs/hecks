@@ -1,0 +1,11 @@
+	@echo "Looking up @@owner_stack_name@@'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/PublicSubnetId/BastionSubnetId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters..."
+	OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
+		OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
+		OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
+		OWNER_PUBLIC_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text); \
+		OWNER_PUBLIC_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue" --output text); \
+		OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
+		OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
+		OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name @@owner_stack_name@@ --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
+		aws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM \
+			--parameter-overrides @@tag_parameter@@=$(IMAGE_TAG) OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningPublicSubnetAId=$$OWNER_PUBLIC_SUBNET_A_ID OwningPublicSubnetBId=$$OWNER_PUBLIC_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN

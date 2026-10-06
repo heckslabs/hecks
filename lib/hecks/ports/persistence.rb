@@ -1,13 +1,4 @@
-module Hecks
-  module Ports
-    module Persistence
-      NAME = "persistence".freeze
-      VERB = "persisted_by".freeze
-      DEFAULT_ADAPTER = "Memory".freeze
-    end
-  end
-end
-
+require_relative "persistence/constants"
 require_relative "persistence/binding_policy"
 require_relative "persistence/plugin"
 require_relative "persistence/repository_factory"

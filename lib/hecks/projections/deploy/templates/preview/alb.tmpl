@@ -1,0 +1,8 @@
+Alb:
+  Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  Properties:
+    Name: !Sub "@@alb_prefix@@-${EnvName}"
+    Scheme: internet-facing
+    Type: application
+    SecurityGroups: [!Ref AlbSecurityGroup]
+    Subnets: [!Ref OwningPublicSubnetAId, !Ref OwningPublicSubnetBId]

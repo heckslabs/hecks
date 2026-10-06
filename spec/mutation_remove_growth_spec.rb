@@ -1,35 +1,12 @@
 require "spec_helper"
-require "tempfile"
+require_relative "support/inline_bluebook_boot"
 
 # Real dispatch coverage for the `remove` mutation op: the list-removal
 # counterpart to `append`, matching an element by value equality, no
 # read-modify-write (plan.bluebook's RemoveDependency/DeactivateSprint --
 # "a concurrent Add can never be lost").
 RSpec.describe "mutation op remove" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["mutation-remove-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   MUTATION_REMOVE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationRemoveGrowth" do
@@ -82,26 +59,31 @@ RSpec.describe "mutation op remove" do
     end
   end
 
-  it "removes a matching element by value equality" do
+  def dispatch_sprint(runtime, command, **arguments)
+    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.#{command}", **arguments)
+  end
+
+  # Boots, opens sprint `id`, and adds each named dependency to it.
+  def boot_sprint_with(id, *dependencies)
     runtime = boot_mutation_remove
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.Open", id: { value: "s1" })
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.AddDependency", id: "s1", dependency: { value: "db" })
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.AddDependency", id: "s1", dependency: { value: "api" })
+    dispatch_sprint(runtime, "Open", id: { value: id })
+    dependencies.each { |name| dispatch_sprint(runtime, "AddDependency", id: id, dependency: { value: name }) }
+    runtime
+  end
 
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.RemoveDependency", id: "s1", dependency: { value: "db" })
+  def dependencies_of(runtime, id) = sprint_repository(runtime).find(id)[:dependencies].map { |d| d[:value] }
 
-    sprint = sprint_repository(runtime).find("s1")
-    expect(sprint[:dependencies].map { |d| d[:value] }).to eq(["api"])
+  it "removes a matching element by value equality" do
+    runtime = boot_sprint_with("s1", "db", "api")
+    dispatch_sprint(runtime, "RemoveDependency", id: "s1", dependency: { value: "db" })
+
+    expect(dependencies_of(runtime, "s1")).to eq(["api"])
   end
 
   it "is a no-op, not an error, removing a value that was never added" do
-    runtime = boot_mutation_remove
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.Open", id: { value: "s2" })
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.AddDependency", id: "s2", dependency: { value: "db" })
+    runtime = boot_sprint_with("s2", "db")
+    dispatch_sprint(runtime, "RemoveDependency", id: "s2", dependency: { value: "nope" })
 
-    runtime.dispatch_flat("MutationRemoveGrowth::Sprint.RemoveDependency", id: "s2", dependency: { value: "nope" })
-
-    sprint = sprint_repository(runtime).find("s2")
-    expect(sprint[:dependencies].map { |d| d[:value] }).to eq(["db"])
+    expect(dependencies_of(runtime, "s2")).to eq(["db"])
   end
 end

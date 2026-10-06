@@ -61,15 +61,21 @@ module Hecks
         pairs.each_with_object({}) do |(path, value), result|
           segments = path.to_s.split(".").map(&:to_sym)
           leaf = segments.pop
-          node = segments.reduce(result) do |acc, segment|
-            existing = acc[segment]
-            raise nesting_collision(path) if existing && !existing.is_a?(Hash)
-
-            acc[segment] ||= {}
-          end
+          node = descend(result, segments, path)
           raise nesting_collision(path) if node[leaf].is_a?(Hash)
 
           node[leaf] = value
+        end
+      end
+
+      # @return [Hash] the group `segments` names under `result`, created as needed
+      # @raise [ArgumentError] if a plain value already sits at one of the segments
+      def self.descend(result, segments, path)
+        segments.reduce(result) do |acc, segment|
+          existing = acc[segment]
+          raise nesting_collision(path) if existing && !existing.is_a?(Hash)
+
+          acc[segment] ||= {}
         end
       end
 
@@ -118,7 +124,7 @@ module Hecks
       # @raise [ArgumentError] if a number field's text is not numeric
       # @raise [TypeError] if a required number field is missing from `raw`
       def self.extract_leaf(field, raw)
-        return checkbox(raw[field.path]) if field.kind == :boolean
+        return checkbox?(raw[field.path]) if field.kind == :boolean
 
         text = raw[field.path]
         return SKIP if (text.nil? || text.empty?) && field.optional?
@@ -131,9 +137,12 @@ module Hecks
       # @param raw_value [String, nil] the submitted text; nil when the field was not posted
       # @return [Boolean] true for `"on"`, `"1"` or `"true"` in any letter case, false for
       #   anything else
-      def self.checkbox(raw_value)
+      def self.checkbox?(raw_value)
         %w[on 1 true].include?(raw_value.to_s.downcase)
       end
+
+      # The name callers know `checkbox?` by.
+      singleton_class.alias_method :checkbox, :checkbox?
 
       # Casts a leaf's submitted text to the Ruby type the runtime's numeric check requires,
       # which accepts an actual `Integer` or `Float` and never a numeric-looking String.

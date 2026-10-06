@@ -31,17 +31,17 @@ RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
     built
   end
 
+  def pragma_names(sql) = db.execute(sql).map { |row| row["name"] }
+
   # `status` is the lifecycle field; it resolves as a plain column like any scalar.
   it "creates a real btree index for a plain scalar where field" do
-    sql = index_sql("idx_order_status")
+    expect(index_sql("idx_order_status")).to eq(%(CREATE INDEX "idx_order_status" ON "order"("status")))
+  end
 
-    expect(sql).to eq(%(CREATE INDEX "idx_order_status" ON "order"("status")))
-
-    # The PRAGMA check confirms SQLite itself sees a real index, not just the sqlite_master text.
-    names = db.execute('PRAGMA index_list("order")').map { |row| row["name"] }
-    expect(names).to include("idx_order_status")
-    columns = db.execute('PRAGMA index_info("idx_order_status")').map { |row| row["name"] }
-    expect(columns).to eq(["status"])
+  # The PRAGMA check confirms SQLite itself sees a real index, not just the sqlite_master text.
+  it "makes the plain scalar's index visible to SQLite's own PRAGMAs", :aggregate_failures do
+    expect(pragma_names('PRAGMA index_list("order")')).to include("idx_order_status")
+    expect(pragma_names('PRAGMA index_info("idx_order_status")')).to eq(["status"])
   end
 
   # PizzaName has no numeric member, so the expression falls back to the "value" convention.
@@ -69,40 +69,51 @@ RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
     expect(names.grep(/topping/i)).to eq([])
   end
 
-  it "is idempotent — booting the same database twice creates no duplicate and does not error" do
-    adapter
-    before_count = db.execute("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index'").first["n"]
-
-    expect do
-      Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
-    end.not_to raise_error
-
-    reopened_db = SQLite3::Database.new(File.join(@dir, "pizzas.db"))
-    after_count = reopened_db.get_first_value("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index'")
-    expect(after_count).to eq(before_count)
+  def reopen_adapter
+    Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
   end
 
-  it "still returns correct results for the queries these indexes were derived from" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } },
-status: "available"))
-    adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 }, size: { value: "small" } },
-status: "sold"))
-    adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 500 }, size: { value: "small" } },
-status: "available"))
+  def index_count(database)
+    database.get_first_value("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index'")
+  end
 
-    available = Hecks::Bluebook::Query.new(
-      name:     "Available",
-      wheres:   [Hecks::QuerySpecification::Common::WhereClause.new(field: "status", op: :eq, value: "available")],
+  it "is idempotent — booting the same database twice creates no duplicate and does not error", :aggregate_failures do
+    adapter
+    before_count = index_count(db)
+
+    expect { reopen_adapter }.not_to raise_error
+    expect(index_count(SQLite3::Database.new(File.join(@dir, "pizzas.db")))).to eq(before_count)
+  end
+
+  def pizza(ref, name, cents, status)
+    instance(ref, name: { value: name }, pizza: { price_cents: { cents: cents }, size: { value: "small" } }, status: status)
+  end
+
+  # A query over `field`, ordered by name.
+  def pizza_query(name, field, operator, value)
+    Hecks::Bluebook::Query.new(
+      name:     name,
+      wheres:   [Hecks::QuerySpecification::Common::WhereClause.new(field: field, op: operator, value: value)],
       order_by: Hecks::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
     )
-    expect(adapter.query(available, {}).map(&:id)).to eq(%w[p3 p1])
+  end
 
-    costing_less_than = Hecks::Bluebook::Query.new(
-      name:     "CostingLessThan",
-      wheres:   [Hecks::QuerySpecification::Common::WhereClause.new(field: "pizza.price_cents.cents", op: :lt, value: 1000)],
-      order_by: Hecks::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
-    )
-    expect(adapter.query(costing_less_than, {}).map(&:id)).to eq(%w[p3 p1])
+  context "with three pizzas saved" do
+    before do
+      adapter.save(pizza("p1", "Margherita", 900, "available"))
+      adapter.save(pizza("p2", "Diavola", 1500, "sold"))
+      adapter.save(pizza("p3", "Bare", 500, "available"))
+    end
+
+    it "still returns correct results for the query an index was derived from on status" do
+      expect(adapter.query(pizza_query("Available", "status", :eq, "available"), {}).map(&:id)).to eq(%w[p3 p1])
+    end
+
+    it "still returns correct results for the query an index was derived from on a nested member" do
+      costing_less_than = pizza_query("CostingLessThan", "pizza.price_cents.cents", :lt, 1000)
+
+      expect(adapter.query(costing_less_than, {}).map(&:id)).to eq(%w[p3 p1])
+    end
   end
 
   describe "a list-typed field (Banking::CardPayment's `tags`, the corpus's one `contains`-on-a-list query)" do
@@ -120,22 +131,28 @@ status: "available"))
       end
     end
 
-    it "attempts no index at all, and boots clean" do
+    let(:card_payment_adapter) do
       card_payment = boot_banking.registry.bluebook("Banking").aggregate("CardPayment")
+      Hecks::Adapters::Sqlite.new(aggregate: card_payment, settings: { database: "card_payment.db" }, root: @dir)
+    end
 
-      card_payment_adapter = nil
-      expect do
-        card_payment_adapter = Hecks::Adapters::Sqlite.new(
-          aggregate: card_payment, settings: { database: "card_payment.db" }, root: @dir
-        )
-      end.not_to raise_error
+    def index_names
+      card_payment_adapter.instance_variable_get(:@db)
+                          .execute("SELECT name FROM sqlite_master WHERE type = 'index'")
+                          .map { |row| row["name"] }
+    end
 
-      names = card_payment_adapter.instance_variable_get(:@db)
-                                  .execute("SELECT name FROM sqlite_master WHERE type = 'index'")
-                                  .map { |row| row["name"] }
-      expect(names.grep(/tag/i)).to eq([])
-      # The lifecycle field gets its own plain index, as on Order.
-      expect(names).to include("idx_card_payment_status")
+    it "attempts no index at all, and boots clean" do
+      expect { card_payment_adapter }.not_to raise_error
+    end
+
+    it "indexes nothing for the list" do
+      expect(index_names.grep(/tag/i)).to eq([])
+    end
+
+    # The lifecycle field gets its own plain index, as on Order.
+    it "gives the lifecycle field its own plain index" do
+      expect(index_names).to include("idx_card_payment_status")
     end
   end
 end

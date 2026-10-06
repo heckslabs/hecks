@@ -3,7 +3,7 @@ require "hecks/fuzzing"
 
 # Fails when FEATURE_COVERAGE and the language's own grammar drift apart: a claimed feature
 # the grammar dropped, or a grammar feature with no claim, exemption, guarantee or named gap.
-RSpec.describe "the fuzzer's declared properties, against the language's own grammar" do
+RSpec.describe "the fuzzer's declared properties, against the language's own grammar", :aggregate_failures do
   META_DOMAIN_GRAMMAR = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
   META_DOMAIN_PROPERTY_COVERAGE = Hecks::Fuzzing::Properties::FEATURE_COVERAGE
   META_DOMAIN_GUARANTEED_BY_CONSTRUCTION = Hecks::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION
@@ -154,24 +154,34 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Argument#blank_message"            => "same as Syntax#arguments, one level in"
   }.freeze
 
+  def claimed_features = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
+
+  def exempted_features
+    META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set |
+      META_DOMAIN_KNOWN_GAPS.keys.to_set
+  end
+
+  def unaccounted_message(unaccounted)
+    "the language declares #{unaccounted.join(", ")} with no property claiming it, no structural " \
+      "exemption, no construction guarantee, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just " \
+      "joined the language with nothing deciding, on purpose, whether a fuzzer property should exist for it"
+  end
+
+  # The property names `Properties.check` runs, read off the catalog it iterates because
+  # calling it needs a real history.
+  def checked_properties = Hecks::Fuzzing::Properties::PROPERTY_NAMES.map(&:to_sym).uniq
+
   it "claims, exempts, guarantees, or names a gap for every feature the language's own grammar declares" do
-    claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
-    accounted = claimed | META_DOMAIN_STRUCTURAL_FEATURES.to_set |
-                META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set
+    unaccounted = META_DOMAIN_ALL_FEATURES - (claimed_features | exempted_features).to_a
 
-    unaccounted = META_DOMAIN_ALL_FEATURES - accounted.to_a
-
-    expect(unaccounted).to be_empty,
-                           "the language declares #{unaccounted.join(', ')} with no property claiming it, no structural " \
-                           "exemption, no construction guarantee, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just " \
-                           "joined the language with nothing deciding, on purpose, whether a fuzzer property should exist for it"
+    expect(unaccounted).to be_empty, unaccounted_message(unaccounted)
   end
 
   it "never lets a claim rot — every FEATURE_COVERAGE entry names a feature the live grammar still declares" do
     stale = META_DOMAIN_PROPERTY_COVERAGE.values.flatten - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "FEATURE_COVERAGE claims #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "FEATURE_COVERAGE claims #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
@@ -180,40 +190,38 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     stale = META_DOMAIN_KNOWN_GAPS.keys - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "META_DOMAIN_KNOWN_GAPS names #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "META_DOMAIN_KNOWN_GAPS names #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — delete the entry, or fix the name it was meant to point at"
   end
 
-  # Walks property -> claim (the other tests walk grammar -> claim). Reads the source of
-  # `Properties.check` because calling it needs a real history.
+  # Walks property -> claim (the other tests walk grammar -> claim).
   it "lets no property run unclaimed — every property in Properties.check appears in FEATURE_COVERAGE" do
-    source = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/fuzzing/properties.rb"))
-    body = source[/def check\(history\)(.*?)\n      end/m, 1].to_s
-    checked = body.scan(/([a-z_]+):/).flatten.map(&:to_sym).uniq
+    checked = checked_properties
     unclaimed = checked - META_DOMAIN_PROPERTY_COVERAGE.keys
-    retired = META_DOMAIN_PROPERTY_COVERAGE.keys - checked
 
     expect(checked).not_to be_empty, "could not read Properties.check's own property list from the source"
-    expect(unclaimed).to be_empty, "these properties run but claim no feature: #{unclaimed.join(', ')}"
-    expect(retired).to be_empty, "these claim a feature but no longer run: #{retired.join(', ')}"
+    expect(unclaimed).to be_empty, "these properties run but claim no feature: #{unclaimed.join(", ")}"
+  end
+
+  it "lets no claim outlive its property — every FEATURE_COVERAGE key still runs in Properties.check" do
+    retired = META_DOMAIN_PROPERTY_COVERAGE.keys - checked_properties
+
+    expect(retired).to be_empty, "these claim a feature but no longer run: #{retired.join(", ")}"
   end
 
   it "never lets a construction guarantee rot either — the same drift check, aimed at GUARANTEED_BY_CONSTRUCTION" do
     stale = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys - META_DOMAIN_ALL_FEATURES
 
     expect(stale).to be_empty,
-                     "GUARANTEED_BY_CONSTRUCTION claims #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "GUARANTEED_BY_CONSTRUCTION claims #{stale.join(", ")}, which the language's own grammar no longer " \
                      "declares — a rename or removal left a guarantee pointing at nothing"
   end
 
   it "keeps every exemption category from double-counting a feature some property already claims" do
-    claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
-    exempted = META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set |
-               META_DOMAIN_KNOWN_GAPS.keys.to_set
-    overlap = exempted & claimed
+    overlap = exempted_features & claimed_features
 
     expect(overlap).to be_empty,
-                       "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked " \
+                       "#{overlap.to_a.join(", ")} is both CLAIMED by a property and marked " \
                        "structural/guaranteed/a known gap — pick one: a real property makes the exemption a lie"
   end
 
@@ -221,7 +229,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     overlap = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set & META_DOMAIN_KNOWN_GAPS.keys.to_set
 
     expect(overlap).to be_empty,
-                       "#{overlap.to_a.join(', ')} is claimed BOTH as guaranteed-by-construction and as an open gap — " \
+                       "#{overlap.to_a.join(", ")} is claimed BOTH as guaranteed-by-construction and as an open gap — " \
                        "one of the two entries is wrong; a feature is either provably true by construction or it isn't"
   end
 end

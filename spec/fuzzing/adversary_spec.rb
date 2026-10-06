@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 
 # The adversarial layer: deterministic per seed, opt-in (off is byte-identical), and every
 # mutation kind shows its documented shape in the step's own args, on real generated sequences.
-RSpec.describe Hecks::Fuzzing::SequenceGenerator do
+RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
   PIZZAS            = File.join(InMemoryDomain::ROOT, "examples/pizzas")
   ADVERSARY_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
   CHESS             = File.join(InMemoryDomain::ROOT, "examples/chess")
@@ -19,6 +19,23 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       generated.flat_map { |step| (step["adversarial"] || []).map { |mutation| [step, mutation] } }
     end
     pairs.group_by { |_, mutation| mutation["mutation"] }
+  end
+
+  # The unknown/absent parts of a precedence mutation, as the step's own args show them.
+  def expect_precedence_args(args, mutation)
+    expect(args).to have_key(mutation["unknown"]) if mutation["unknown"]
+    expect(args).not_to have_key(mutation["absent"]) if mutation["absent"]
+  end
+
+  # One mutation's fingerprint in the step's args.
+  def expect_fingerprint(step, mutation)
+    args = step["args"]
+    case mutation["mutation"]
+    when "routing_key" then expect(args).to have_key(mutation["key"])
+    when "blank_identity", "null_value_object" then expect(args).to have_key(mutation["argument"])
+    when "omit_mapped_argument" then expect(args).not_to have_key(mutation["argument"])
+    when "refusal_precedence" then expect_precedence_args(args, mutation)
+    end
   end
 
   describe "the seed contract" do
@@ -54,39 +71,90 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   end
 
   describe "both replay paths receive the same bytes" do
+    before do
+      @steps = described_class.generate(PIZZAS, seed: 5, steps: 25, adversarial: 1.0)
+      @mutated = @steps.select { |step| step.key?("adversarial") }
+    end
+
     # `Replay.call` and the Rust bridge both read the same `args` the generator dispatched,
     # so the fingerprint must be in `args`, and the step must survive a JSON round-trip.
-    it "puts every mutation's fingerprint in the step's own args, and the step round-trips through JSON" do
-      steps = described_class.generate(PIZZAS, seed: 5, steps: 25, adversarial: 1.0)
-      mutated = steps.select { |step| step.key?("adversarial") }
-      expect(mutated).not_to be_empty
+    it "puts every mutation's fingerprint in the step's own args" do
+      expect(@mutated).not_to be_empty
+      @mutated.each { |step| step["adversarial"].each { |mutation| expect_fingerprint(step, mutation) } }
+    end
 
-      expect(JSON.parse(JSON.generate({ "steps" => steps }))["steps"]).to eq(steps)
-
-      mutated.each do |step|
-        step["adversarial"].each do |mutation|
-          case mutation["mutation"]
-          when "routing_key" then expect(step["args"]).to have_key(mutation["key"])
-          when "blank_identity", "null_value_object" then expect(step["args"]).to have_key(mutation["argument"])
-          when "omit_mapped_argument" then expect(step["args"]).not_to have_key(mutation["argument"])
-          when "refusal_precedence"
-            expect(step["args"]).to have_key(mutation["unknown"]) if mutation["unknown"]
-            expect(step["args"]).not_to have_key(mutation["absent"]) if mutation["absent"]
-          end
-        end
-      end
+    it "round-trips the steps through JSON" do
+      expect(JSON.parse(JSON.generate({ "steps" => @steps }))["steps"]).to eq(@steps)
     end
 
     it "replays as domain refusals or successes, never a crash — a mutated step is data, not a defect" do
-      steps   = described_class.generate(PIZZAS, seed: 5, steps: 25, adversarial: 1.0)
-      history = Hecks::Fuzzing::Replay.call(PIZZAS, steps)
+      history = Hecks::Fuzzing::Replay.call(PIZZAS, @steps)
 
-      mutated_verbs = steps.select { |step| step.key?("adversarial") }.map { |step| step["verb"] }
+      mutated_verbs = @mutated.map { |step| step["verb"] }
       expect(history[:refusals].map { |r| r[:verb] } & mutated_verbs).not_to be_empty
     end
   end
 
   describe "each mutation kind produces its documented shape" do
+    def expect_route_value(value)
+      expect(value).to be_a(Hash)
+      expect(value.keys).to match_array(%w[aggregate entities])
+      expect(value["entities"]).to be_an(Array)
+    end
+
+    def expect_routing_shape(value, shape)
+      case shape
+      when "null"   then expect(value).to be_nil
+      when "scalar" then expect(value).to be_a(String).or be_a(Integer)
+      when "route"  then expect_route_value(value)
+      end
+    end
+
+    def expect_blank(value, shape)
+      return expect(value).to be_nil if shape == "null"
+
+      blank = shape == "empty" ? "" : "   "
+      expect(value.is_a?(Hash) ? value.values.uniq : [value]).to eq([blank])
+    end
+
+    def expect_applied_precedence(step, mutation)
+      applied = mutation["shape"].split("+")
+      { "unknown" => "unknown", "absent" => "absent", "mismatched" => "mismatch" }.each do |key, part|
+        expect(applied.include?(part)).to eq(mutation.key?(key))
+      end
+      expect_precedence_args(step["args"], mutation)
+    end
+
+    def expect_duplicate_identity(step, mutation)
+      expect(step["verb"]).to end_with("Folder.AddSlip")
+      expect(mutation).to include("entity" => "Slip", "composite" => false)
+      mutation["identity"].each { |name, value| expect(step["args"][name]).to eq(value) }
+    end
+
+    def expect_routed_args(args)
+      expect(args["to"]).to match("aggregate" => be_a(String), "entities" => [be_a(String), be_a(String)])
+      expect(args.keys).not_to include("reference", "number")
+    end
+
+    def expect_deep_entity(step, mutation)
+      expect(step["verb"]).to match(/\ANestedPieces::Workspace\.Board\.Card\.\w+\z/)
+      expect(mutation["depth"]).to eq(2)
+      if mutation["addressing"] == "routed"
+        expect_routed_args(step["args"])
+      else
+        expect(step["args"].keys).to include("reference", "number", "sequence")
+      end
+    end
+
+    # Lower fraction on purpose: this needs an earlier append to have succeeded under the
+    # same parent, and at 1.0 nearly every append is mutated and refused first. 0.3 is the
+    # `hecks quality_control ask run` dial; the seed walk stops at the first sequence that
+    # carries one.
+    def duplicate_identity_pairs
+      (1..40).lazy.map { |seed| mutations_over(LEDGER_ORDERING, seeds: seed, fraction: 0.3)["duplicate_entity_identity"] }
+             .find { |found| found&.any? }
+    end
+
     before(:all) do
       @by_kind = mutations_over(PIZZAS, seeds: 6)
       mutations_over(ADVERSARY_BANKING, seeds: 3).each { |kind, pairs| (@by_kind[kind] ||= []).concat(pairs) }
@@ -97,42 +165,25 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       expect(pairs.map { |_, m| m["key"] }.uniq).to match_array(%w[to with id])
       expect(pairs.map { |_, m| m["shape"] }.uniq).to match_array(%w[null scalar route])
 
-      pairs.each do |step, mutation|
-        value = step["args"][mutation["key"]]
-        case mutation["shape"]
-        when "null"   then expect(value).to be_nil
-        when "scalar" then expect(value).to be_a(String).or be_a(Integer)
-        when "route"
-          expect(value).to be_a(Hash)
-          expect(value.keys).to match_array(%w[aggregate entities])
-          expect(value["entities"]).to be_an(Array)
-        end
-      end
+      pairs.each { |step, mutation| expect_routing_shape(step["args"][mutation["key"]], mutation["shape"]) }
     end
 
     it "blank_identity — a creating identity part as \"\", whitespace, or null (BUG#15)" do
       pairs = @by_kind.fetch("blank_identity")
       expect(pairs.map { |_, m| m["shape"] }.uniq).to match_array(%w[empty whitespace null])
 
-      pairs.each do |step, mutation|
-        value = step["args"][mutation["argument"]]
-        blank = mutation["shape"] == "empty" ? "" : "   "
-        case mutation["shape"]
-        when "null" then expect(value).to be_nil
-        else
-          expect(value.is_a?(Hash) ? value.values.uniq : [value]).to eq([blank])
-        end
-      end
+      pairs.each { |step, mutation| expect_blank(step["args"][mutation["argument"]], mutation["shape"]) }
     end
 
     it "null_value_object — a single-field value object as bare null or {} (BUG#14)" do
       pairs = @by_kind.fetch("null_value_object")
       expect(pairs.map { |_, m| m["shape"] }.uniq).to match_array(%w[null empty_object])
 
-      pairs.each do |step, mutation|
-        expect(step["args"][mutation["argument"]]).to eq(mutation["shape"] == "null" ? nil : {})
-        expect(mutation).to include("value_object", "closed_set")
-      end
+      pairs.each { |step, m| expect(step["args"][m["argument"]]).to eq(m["shape"] == "null" ? nil : {}) }
+    end
+
+    it "null_value_object names its value object and whether it is a closed set" do
+      expect(@by_kind.fetch("null_value_object").map(&:last)).to all(include("value_object", "closed_set"))
     end
 
     it "null_value_object prefers a closed-set value object when the command declares one" do
@@ -154,52 +205,21 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       pairs = @by_kind.fetch("refusal_precedence")
       expect(pairs.map { |_, m| m["shape"] }).to include("absent+mismatch+unknown")
 
-      pairs.each do |step, mutation|
-        applied = mutation["shape"].split("+")
-        expect(applied.include?("unknown")).to eq(mutation.key?("unknown"))
-        expect(applied.include?("absent")).to eq(mutation.key?("absent"))
-        expect(applied.include?("mismatch")).to eq(mutation.key?("mismatched"))
-        expect(step["args"]).to have_key(mutation["unknown"]) if mutation["unknown"]
-        expect(step["args"]).not_to have_key(mutation["absent"]) if mutation["absent"]
-      end
+      pairs.each { |step, mutation| expect_applied_precedence(step, mutation) }
     end
 
-    # Lower fraction on purpose: this needs an earlier append to have succeeded under the
-    # same parent, and at 1.0 nearly every append is mutated and refused first. 0.3 is the
-    # `hecks quality_control ask run` dial; the seed walk stops at the first sequence that
-    # carries one.
     it "duplicate_entity_identity — reuses an identity the same sequence already appended under that parent (BUG#13)" do
-      pairs = (1..40).lazy.map { |seed| mutations_over(LEDGER_ORDERING, seeds: seed, fraction: 0.3)["duplicate_entity_identity"] }
-                     .find { |found| found&.any? }
+      pairs = duplicate_identity_pairs
       expect(pairs).not_to be_nil
 
-      pairs.each do |step, mutation|
-        expect(step["verb"]).to end_with("Folder.AddSlip")
-        expect(mutation["entity"]).to eq("Slip")
-        expect(mutation["composite"]).to be(false)
-        mutation["identity"].each { |name, value| expect(step["args"][name]).to eq(value) }
-      end
+      pairs.each { |step, mutation| expect_duplicate_identity(step, mutation) }
     end
 
     it "deep_entity — entity commands two hops deep are generated, flat and routed, with the depth reported (BUG#11)" do
       pairs = mutations_over(NESTED_PIECES, seeds: 4).fetch("deep_entity")
       expect(pairs.map { |_, m| m["addressing"] }.uniq).to match_array(%w[flat routed])
 
-      pairs.each do |step, mutation|
-        expect(step["verb"]).to match(/\ANestedPieces::Workspace\.Board\.Card\.\w+\z/)
-        expect(mutation["depth"]).to eq(2)
-        if mutation["addressing"] == "routed"
-          route = step["args"]["to"]
-          expect(route.keys).to match_array(%w[aggregate entities])
-          expect(route["aggregate"]).to be_a(String)
-          expect(route["entities"].size).to eq(2)
-          expect(route["entities"]).to all(be_a(String))
-          expect(step["args"]).not_to have_key("reference")
-          expect(step["args"]).not_to have_key("number")
-        else
-          expect(step["args"].keys).to include("reference", "number", "sequence")
-        end
-      end
+      pairs.each { |step, mutation| expect_deep_entity(step, mutation) }
     end
   end
 

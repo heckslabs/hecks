@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/fuzzing/properties"
 
 # A policy's `with:` may read the emitting record's own identity, offered by
 # `PolicyInterpreter#emitter_identity` as `Event#id` under the emitter's identity heads.
@@ -110,33 +111,36 @@ RSpec.describe "a policy projecting its emitter's identity" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  it "addresses another aggregate by the identity of the record that emitted the event" do
-    runtime = boot_board({ label: :label, id: :id })
+  # A board "g" whose piece "p1" was placed and then captured, under the given trigger projection.
+  def captured_board(with_spec)
+    runtime = boot_board(with_spec)
     runtime.dispatch_flat("Boards::Board.Create", label: { value: "g" })
     runtime.dispatch("Boards::Board.Place", to: "g", with: { id: "p1" })
     runtime.dispatch("Boards::Board.CapturePiece", to: "g", with: { id: "p1" })
-
-    burial = runtime.reactions.find { |row| row[:policy] == "BuryOnCapture" }
-    expect(burial).to include(delivered: true)
-    expect(runtime.registry.event_log.map(&:name).last(2)).to eq(%w[PieceCaptured PieceBuried])
-    fallen = Boards::Graveyard.find("g").fallen.map { |f| Hecks::Runtime::Value.materialize(f) }
-    expect(fallen).to eq([{ id: { value: "p1" } }])
+    runtime
   end
 
-  it "never lets the identity shadow a field the payload itself carries" do
-    runtime = boot_board({ label: :label, id: :id })
-    runtime.dispatch_flat("Boards::Board.Create", label: { value: "g" })
-    runtime.dispatch("Boards::Board.Place", to: "g", with: { id: "p1" })
-    runtime.dispatch("Boards::Board.CapturePiece", to: "g", with: { id: "p1" })
+  def buried_pieces
+    Boards::Graveyard.find("g").fallen.map { |f| Hecks::Runtime::Value.materialize(f) }
+  end
+
+  it "addresses another aggregate by the identity of the record that emitted the event", :aggregate_failures do
+    runtime = captured_board({ label: :label, id: :id })
+
+    expect(runtime.reactions.find { |row| row[:policy] == "BuryOnCapture" }).to include(delivered: true)
+    expect(runtime.registry.event_log.map(&:name).last(2)).to eq(%w[PieceCaptured PieceBuried])
+    expect(buried_pieces).to eq([{ id: { value: "p1" } }])
+  end
+
+  it "never lets the identity shadow a field the payload itself carries", :aggregate_failures do
+    runtime = captured_board({ label: :label, id: :id })
 
     bound = runtime.registry.policy_dispatch_log.find { |row| row[:policy] == "BuryOnCapture" }
     expect(bound[:payload]).to include(label: "g", id: Hecks::Runtime::Value)
     # The fuzzer's independent re-derivation of the binding reads the
     # same merged source, so the two never disagree.
-    require "hecks/fuzzing/properties"
-    expect(Hecks::Fuzzing::Properties.dispatch_binding_fidelity(
-             policy_dispatches: runtime.registry.policy_dispatch_log
-           )).to be(true)
+    expect(Hecks::Fuzzing::Properties.dispatch_binding_fidelity(policy_dispatches: runtime.registry.policy_dispatch_log))
+      .to be(true)
   end
 
   it "still refuses a source the event neither declares nor identifies" do

@@ -83,13 +83,17 @@ module SiblingValueObjectDomain
       path = File.join(dir, "sibling_value_object.bluebook")
       File.write(path, SOURCE)
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        load_ports_and_adapters
         Kernel.load(path)
       end
     end
     registry.bluebook("SiblingValueObject")
   end
+
+  # Loads the persistence and extraction ports and their in-memory and Prism adapters.
+  def self.load_ports_and_adapters
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+  end
+  private_class_method :load_ports_and_adapters
 end

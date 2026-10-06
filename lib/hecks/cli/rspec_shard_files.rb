@@ -25,6 +25,20 @@ module Hecks
       # @return [Integer] the exit status, 0 once printed
       # @raise [SystemExit] on missing or out-of-range arguments, or when there are no spec files
       def call(argv, root: Dir.pwd, out: $stdout, err: $stderr)
+        group, num_groups, runtime_log = parse_group(argv)
+        files = spec_files(root)
+
+        groups = Dir.chdir(root) { groups_of(files, num_groups, runtime_log && File.expand_path(runtime_log, root)) }
+        selected = groups[group - 1] || []
+        err.puts "hecks shard_specs: group #{group}/#{num_groups} has #{selected.size} of #{files.size} files"
+        out.puts selected
+        0
+      end
+
+      # @param argv [Array<String>] the group, the number of groups, and optionally a runtime log
+      # @return [Array(Integer, Integer, String)] the group, the number of groups, the log path
+      # @raise [SystemExit] on missing or out-of-range arguments
+      def parse_group(argv)
         group_arg, num_groups_arg, runtime_log = argv
         abort USAGE unless group_arg && num_groups_arg
 
@@ -32,17 +46,18 @@ module Hecks
         num_groups = Integer(num_groups_arg)
         abort "group must be between 1 and #{num_groups}, got #{group}" unless (1..num_groups).cover?(group)
 
-        files = Dir.glob("spec/**/*_spec.rb", base: root)
-        if files.empty?
-          abort "hecks shard_specs: found ZERO spec files under spec/ — " \
-                "refusing to hand parallel_rspec nothing to run"
-        end
+        [group, num_groups, runtime_log]
+      end
 
-        groups = Dir.chdir(root) { groups_of(files, num_groups, runtime_log && File.expand_path(runtime_log, root)) }
-        selected = groups[group - 1] || []
-        err.puts "hecks shard_specs: group #{group}/#{num_groups} has #{selected.size} of #{files.size} files"
-        out.puts selected
-        0
+      # @param root [String] the checkout whose `spec/` is split
+      # @return [Array<String>] the spec files, relative to the checkout
+      # @raise [SystemExit] when there are none
+      def spec_files(root)
+        files = Dir.glob("spec/**/*_spec.rb", base: root)
+        return files unless files.empty?
+
+        abort "hecks shard_specs: found ZERO spec files under spec/ — " \
+              "refusing to hand parallel_rspec nothing to run"
       end
 
       # Splits the files by recorded runtime, falling back to file size on a cold cache.

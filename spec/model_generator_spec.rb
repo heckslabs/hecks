@@ -22,7 +22,7 @@ RSpec.describe "the generated model" do
   # **The property the split exists for**. A generated holding half is only
   # safe to overwrite because nothing survives in it that the language
   # cannot say — everything else is behind `settle` in Behaviour::X.
-  it "renders only the holding half, never behaviour" do
+  it "renders only the holding half, never behaviour", :aggregate_failures do
     expect(projected.fetch("policy.rb")).to include("include Behaviour::Policy")
     expect(projected.fetch("policy.rb")).not_to match(/def (?!initialize)\w+/)
   end

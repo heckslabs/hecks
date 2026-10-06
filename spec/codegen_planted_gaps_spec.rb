@@ -36,12 +36,16 @@ RSpec.describe "hecks-codegen manifest for every planted construct family", :io 
     end
   end
 
-  it "records every planted family with the frozen reason" do
+  def rewrite_golden(manifest)
+    return unless ENV["GOLDEN"] == "rewrite"
+
+    FileUtils.mkdir_p(File.dirname(PLANTED_GOLDEN))
+    File.write(PLANTED_GOLDEN, manifest)
+  end
+
+  it "records every planted family with the frozen reason", :aggregate_failures do
     manifest = planted_manifest
-    if ENV["GOLDEN"] == "rewrite"
-      FileUtils.mkdir_p(File.dirname(PLANTED_GOLDEN))
-      File.write(PLANTED_GOLDEN, manifest)
-    end
+    rewrite_golden(manifest)
 
     expect(File.exist?(PLANTED_GOLDEN)).to be(true), "no frozen manifest — run GOLDEN=rewrite to record it"
     expect(manifest).to eq(File.read(PLANTED_GOLDEN, encoding: Encoding::UTF_8)),

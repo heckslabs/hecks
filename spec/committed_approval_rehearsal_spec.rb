@@ -62,15 +62,22 @@ RSpec.describe "Committed approval rehearsal", :io do
   # Loads a bluebook, and optionally a translation edge, into a fresh registry.
   def load_registry(source, translation_source: nil)
     registry = Hecks::Runtime::Registry.new
+    with_source_file(source) do |path|
+      Hecks.with_registry(registry) do
+        Hecks::Ports::Loading.bootstrap.load_library
+        Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+        eval(translation_source) if translation_source
+      end
+    end
+    registry
+  end
+
+  # Yields the path of a temporary .bluebook file holding `source`.
+  def with_source_file(source)
     file = Tempfile.new(["committed-approval-", ".bluebook"])
     file.write(source)
     file.flush
-    Hecks.with_registry(registry) do
-      Hecks::Ports::Loading.bootstrap.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-      eval(translation_source) if translation_source
-    end
-    registry
+    yield file.path
   ensure
     file&.close!
   end
@@ -99,6 +106,10 @@ RSpec.describe "Committed approval rehearsal", :io do
     admin.exec("CREATE ROLE #{@owner} LOGIN PASSWORD '#{SCRATCH_PASSWORD}'")
     admin.exec("CREATE DATABASE #{@db}")
     admin.close
+    grant_scratch_owner!
+  end
+
+  def grant_scratch_owner!
     conn = PG.connect(dbname: @db)
     conn.exec("GRANT CONNECT ON DATABASE #{@db} TO #{@owner}")
     conn.exec("GRANT USAGE, CREATE ON SCHEMA public TO #{@owner}")
@@ -168,38 +179,39 @@ RSpec.describe "Committed approval rehearsal", :io do
 
     def boot_v2! = ruby_boot!(BLUEBOOK_V2, translation_source: translation_source, directory: @dir)
 
-    it "refuses a compute edge with no approval at all" do
+    it "refuses a compute edge with no approval at all", :aggregate_failures do
       expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /compute or rekey/)
       expect(journal_approvals).to eq(0)
     end
 
-    it "refuses a committed approval whose digest is not the edge's" do
+    it "refuses a committed approval whose digest is not the edge's", :aggregate_failures do
       commit_approval(@dir, edge, digest: bad_digest)
 
       expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /compute or rekey/)
       expect(journal_approvals).to eq(0)
     end
 
-    it "refuses a committed approval with no rehearsal that passed" do
-      Hecks::Translation::ApprovalFile.write!(
-        @dir, edge,
-        "edge" => Hecks::Translation::ApprovalFile.edge_name(edge),
+    def failed_rehearsal_approval
+      { "edge" => Hecks::Translation::ApprovalFile.edge_name(edge),
         "edge_digest" => Hecks::Translation::Audit.edge_digest(edge),
         "approved_by" => "Ada", "approved_at" => "2026-09-28T12:30:00Z",
-        "rehearsal" => REHEARSAL_BLOCK.merge("result" => "fail")
-      )
+        "rehearsal" => REHEARSAL_BLOCK.merge("result" => "fail") }
+    end
+
+    it "refuses a committed approval with no rehearsal that passed" do
+      Hecks::Translation::ApprovalFile.write!(@dir, edge, failed_rehearsal_approval)
 
       expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /compute or rekey/)
     end
 
-    it "refuses a committed approval rehearsed on another host release, naming both versions" do
+    it "refuses a committed approval rehearsed on another host release, naming both versions", :aggregate_failures do
       commit_approval(@dir, edge, rehearsal: REHEARSAL_BLOCK.merge("host_version" => "1.0.0"))
 
       expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /Hecks 1\.0\.0.*Hecks #{Regexp.escape(Hecks::VERSION)}/)
       expect(journal_approvals).to eq(0)
     end
 
-    it "boots on a committed approval, applies it to the journal, and mints era 2" do
+    it "boots on a committed approval, applies it to the journal, and mints era 2", :aggregate_failures do
       commit_approval(@dir, edge)
 
       expect(boot_v2!).to eq(2)
@@ -258,14 +270,14 @@ RSpec.describe "Committed approval rehearsal", :io do
 
     def v2_ir = export_ir(BLUEBOOK_V2, translation_source: translation_source, directory: @dir)
 
-    it "refuses a compute edge with no approval" do
+    it "refuses a compute edge with no approval", :aggregate_failures do
       _out, err, status = mint(v2_ir)
 
       expect(status).not_to be_success
       expect(err).to include("compute or rekey")
     end
 
-    it "refuses a committed approval whose digest is not the edge's" do
+    it "refuses a committed approval whose digest is not the edge's", :aggregate_failures do
       commit_approval(@dir, edge, digest: bad_digest)
 
       _out, err, status = mint(v2_ir)
@@ -275,7 +287,7 @@ RSpec.describe "Committed approval rehearsal", :io do
       expect(journal_approvals).to eq(0)
     end
 
-    it "refuses a committed approval rehearsed on another host release, naming both versions" do
+    it "refuses a committed approval rehearsed on another host release, naming both versions", :aggregate_failures do
       commit_approval(@dir, edge, rehearsal: REHEARSAL_BLOCK.merge("host_version" => "1.0.0"))
 
       _out, err, status = mint(v2_ir)
@@ -285,7 +297,7 @@ RSpec.describe "Committed approval rehearsal", :io do
       expect(journal_approvals).to eq(0)
     end
 
-    it "mints on a committed approval Ruby wrote and applies it to the journal" do
+    it "mints on a committed approval Ruby wrote and applies it to the journal", :aggregate_failures do
       commit_approval(@dir, edge)
 
       out, err, status = mint(v2_ir)

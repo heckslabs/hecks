@@ -115,16 +115,15 @@ RSpec.describe "a policy's trigger projection" do
                      holder: { value: holder }, summary: { text: "took the van" })
   end
 
-  it "gives a fan-out's trigger the row and nothing else" do
+  def first_policy = runtime.registry.bluebook("Projecting").policies.first
+
+  it "gives a fan-out's trigger the row and nothing else", :aggregate_failures do
     report
 
     fan = runtime.reactions.select { |row| row[:policy] == "RevokeOnBreach" }
     expect(fan.map { |row| row[:for_row] }).to contain_exactly("p-1", "p-2")
     expect(fan).to all(include(delivered: true))
-
-    expect(Projecting::Permit.find("p-1").status).to eq("revoked")
-    expect(Projecting::Permit.find("p-2").status).to eq("revoked")
-    expect(Projecting::Permit.find("p-3").status).to eq("valid")
+    expect(["p-1", "p-2", "p-3"].map { |code| Projecting::Permit.find(code).status }).to eq(["revoked", "revoked", "valid"])
   end
 
   # Pins the regression: if the event's fields reached `Revoke` the refusal would be
@@ -136,10 +135,8 @@ RSpec.describe "a policy's trigger projection" do
   end
 
   it "renames a field on the way through" do
-    runtime.registry.bluebook("Projecting").policies.first
-           .instance_variable_set(:@trigger_command, "Permit.Annotate")
-    runtime.registry.bluebook("Projecting").policies.first
-           .instance_variable_set(:@with_spec, [[:permit, :permit], [:note, :summary]])
+    first_policy.instance_variable_set(:@trigger_command, "Permit.Annotate")
+    first_policy.instance_variable_set(:@with_spec, [[:permit, :permit], [:note, :summary]])
 
     report
 
@@ -148,8 +145,7 @@ RSpec.describe "a policy's trigger projection" do
   end
 
   it "still forwards the whole payload when no projection is declared" do
-    runtime.registry.bluebook("Projecting").policies.first
-           .instance_variable_set(:@with_spec, [])
+    first_policy.instance_variable_set(:@with_spec, [])
 
     report
 

@@ -1,6 +1,9 @@
 require_relative "check"
 require_relative "yaml"
 require_relative "cdn_default"
+require_relative "cdn/options"
+require_relative "cdn/behaviors"
+require_relative "cdn/lines"
 
 module Hecks
   module Projections
@@ -9,8 +12,6 @@ module Hecks
         # The CloudFront distribution in front of the load balancer.
         # With no `cdn` setting the stack gets `default_yaml`; settings are in the DSL reference.
         module Cdn
-          module_function
-
           MANAGED_POLICIES = {
             "caching_disabled"       => ["4135ea2d-6df8-44a3-9df3-4b5a84be39ad", "Managed-CachingDisabled"],
             "caching_optimized"      => ["658327ea-f89d-4fab-a63d-7e88639e58f6", "Managed-CachingOptimized"],
@@ -32,6 +33,12 @@ module Hecks
           ACM_ARN = %r{\Aarn:aws:acm:us-east-1:\d{12}:certificate/[A-Za-z0-9-]+\z}
           HOSTNAME = /\A(\*\.)?([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}\z/
 
+          extend Options
+          extend Behaviors
+          extend Lines
+
+          module_function
+
           # Reads and checks the `cdn` setting.
           def normalize(setting, default_origin_id:)
             return nil if setting.nil?
@@ -39,12 +46,9 @@ module Hecks
             given = Check.hash!(setting, "cdn", allowed: KEYS)
             options = base_options(given, default_origin_id)
             options[:extra_origins] = extra_origins(given.fetch(:extra_origins, []))
-            origins = [options[:origin_id], *options[:extra_origins].map { |origin| origin[:id] }]
+            origins = origin_ids(options)
             check_unique!(origins, "cdn origin ids")
-            options[:default_behavior] =
-              behavior(given.fetch(:default_behavior, {}), "cdn default_behavior", options, origins, path: false)
-            options[:behaviors] = behaviors(given.fetch(:behaviors, []), options, origins)
-            options
+            with_behaviors(options, given, origins)
           end
 
           # Lists the template parameters the options need.
@@ -62,220 +66,24 @@ module Hecks
 
           # Renders the distribution for a set of checked options.
           def yaml(options, distribution_id:, alb_id:)
-            lines = ["#{distribution_id}:", "  Type: AWS::CloudFront::Distribution"]
-            lines.push("  DeletionPolicy: Retain", "  UpdateReplacePolicy: Retain") if options[:retain]
-            lines.push("  Properties:", "    DistributionConfig:", "      Enabled: true", "      HttpVersion: http2")
-            lines.concat(alias_lines(options), certificate_lines(options), origin_lines(options, alb_id))
-            lines.concat(behavior_lines("DefaultCacheBehavior", options[:default_behavior], "      "))
-            lines << "      CacheBehaviors:" unless options[:behaviors].empty?
-            options[:behaviors].each { |entry| lines.concat(behavior_lines(nil, entry, "        ")) }
+            lines = distribution_head(options, distribution_id)
+            lines.concat(alias_lines(options), certificate_lines(options), origin_lines(options, alb_id),
+                         behavior_section(options))
             "#{lines.join("\n")}\n"
           end
 
-          def behaviors(entries, options, origins)
-            Check.hashes!(entries, "cdn behaviors", allowed: BEHAVIOR_KEYS + [:path], required: [:path]).map do |entry|
-              behavior(entry, "cdn behaviors[#{entry[:path]}]", options, origins, path: true)
-            end
+          def origin_ids(options)
+            [options[:origin_id], *options[:extra_origins].map { |origin| origin[:id] }]
           end
-          private_class_method :behaviors
+          private_class_method :origin_ids
 
-          def base_options(given, default_origin_id)
-            aliases = Check.strings!(given.fetch(:aliases, []), "cdn aliases")
-            bad = aliases.grep_v(HOSTNAME)
-            raise ArgumentError, "cdn aliases must be hostnames, got #{bad.join(', ')}" unless bad.empty?
-
-            certificate = given[:certificate_arn]&.to_s
-            if !aliases.empty? && certificate.nil?
-              raise ArgumentError,
-                    "cdn aliases need a certificate_arn, since CloudFront serves an alias only over a certificate"
-            end
-
-            {
-              aliases: aliases, certificate_arn: certificate_arn(certificate),
-              minimum_protocol: given.fetch(:minimum_protocol, "TLSv1.2_2021").to_s,
-              origin_id: Check.logical_id!(given.fetch(:origin_id, default_origin_id), "cdn origin_id"),
-              origin_ssl_protocols: Check.strings!(given.fetch(:origin_ssl_protocols, []), "cdn origin_ssl_protocols"),
-              explicit_origin_ports: Check.boolean!(given.fetch(:explicit_origin_ports, true), "cdn explicit_origin_ports"),
-              origin_secret: origin_secret(given[:origin_secret]),
-              retain: Check.boolean!(given.fetch(:retain, false), "cdn retain")
-            }
+          def with_behaviors(options, given, origins)
+            options[:default_behavior] =
+              behavior(given.fetch(:default_behavior, {}), "cdn default_behavior", options, origins, path: false)
+            options[:behaviors] = behaviors(given.fetch(:behaviors, []), options, origins)
+            options
           end
-          private_class_method :base_options
-
-          def certificate_arn(value)
-            return nil if value.nil?
-            return value if value.start_with?("!") || ACM_ARN.match?(value)
-
-            raise ArgumentError,
-                  "cdn certificate_arn must be an ACM certificate ARN in us-east-1 (CloudFront reads no other region) " \
-                  "or an intrinsic, got #{value.inspect}"
-          end
-          private_class_method :certificate_arn
-
-          def origin_secret(value)
-            return nil if value.nil?
-
-            secret = Check.hash!(value, "cdn origin_secret", allowed: [:header, :parameter], required: [:header, :parameter])
-            unless secret[:header].to_s.match?(/\A[A-Za-z0-9-]+\z/)
-              raise ArgumentError,
-                    "cdn origin_secret header must be an HTTP header name, got #{secret[:header].inspect}"
-            end
-
-            { header: secret[:header].to_s, parameter: Check.logical_id!(secret[:parameter], "cdn origin_secret parameter") }
-          end
-          private_class_method :origin_secret
-
-          def extra_origins(entries)
-            Check.hashes!(entries, "cdn extra_origins", allowed:  [:id, :domain_name, :origin_access_control_id],
-                                                        required: [:id, :domain_name]).map do |entry|
-              { id: Check.logical_id!(entry[:id], "cdn extra_origins id"), domain_name: entry[:domain_name].to_s,
-                origin_access_control_id: entry[:origin_access_control_id]&.to_s }
-            end
-          end
-          private_class_method :extra_origins
-
-          def check_unique!(values, what)
-            repeated = values.tally.select { |_value, count| count > 1 }.keys
-            raise ArgumentError, "#{what} must be unique; repeated: #{repeated.join(', ')}" unless repeated.empty?
-          end
-          private_class_method :check_unique!
-
-          def behavior(entry, where, options, origins, path:)
-            given = Check.hash!(entry, where, allowed: BEHAVIOR_KEYS + (path ? [:path] : []))
-            origin = given.fetch(:origin, options[:origin_id]).to_s
-            unless origins.include?(origin)
-              raise ArgumentError,
-                    "#{where} origin #{origin.inspect} is not one of #{origins.join(', ')}"
-            end
-
-            balanced = origin == options[:origin_id]
-            result = {
-              origin: origin, methods: allowed_methods(given.fetch(:methods, path ? "read" : "all"), where),
-              viewer_protocol: Check.one_of!(given.fetch(:viewer_protocol, "redirect-to-https"), "#{where} viewer_protocol",
-                                             PROTOCOLS),
-              cache_policy: policy(given.fetch(:cache_policy, "caching_disabled"), "#{where} cache_policy"),
-              origin_request_policy: policy(given.fetch(:origin_request_policy, balanced ? "all_viewer" : "none"),
-                                            "#{where} origin_request_policy", none: true)
-            }
-            result[:compress] = Check.boolean!(given[:compress], "#{where} compress") if given.key?(:compress)
-            result[:compress] = true if !path && !given.key?(:compress)
-            result[:path] = path_pattern(given[:path], where) if path
-            result
-          end
-          private_class_method :behavior
-
-          def path_pattern(value, where)
-            text = value.to_s
-            raise ArgumentError, "#{where} path must start with / or *, got #{text.inspect}" unless text.start_with?("/", "*")
-
-            text
-          end
-          private_class_method :path_pattern
-
-          def allowed_methods(value, where)
-            return Check.strings!(value, "#{where} methods", min: 1) if value.is_a?(Array)
-            return METHODS.fetch(value.to_s) if METHODS.key?(value.to_s)
-
-            raise ArgumentError,
-                  "#{where} methods must be #{METHODS.keys.join(', ')} or a list of HTTP methods, got #{value.inspect}"
-          end
-          private_class_method :allowed_methods
-
-          def policy(value, where, none: false)
-            text = value.to_s
-            return nil if none && text == "none"
-            return MANAGED_POLICIES.fetch(text) if MANAGED_POLICIES.key?(text)
-            return [text, nil] if UUID.match?(text)
-
-            raise ArgumentError,
-                  "#{where} must be #{MANAGED_POLICIES.keys.join(', ')}#{', none' if none}, or a policy id, got #{value.inspect}"
-          end
-          private_class_method :policy
-
-          def alias_lines(options)
-            return [] if options[:aliases].empty?
-
-            ["      Aliases:"] + options[:aliases].map { |name| "        - #{name}" }
-          end
-          private_class_method :alias_lines
-
-          def certificate_lines(options)
-            return ["      ViewerCertificate:", "        CloudFrontDefaultCertificate: true"] unless options[:certificate_arn]
-
-            ["      ViewerCertificate:", "        AcmCertificateArn: #{options[:certificate_arn]}",
-             "        SslSupportMethod: sni-only", "        MinimumProtocolVersion: #{options[:minimum_protocol]}"]
-          end
-          private_class_method :certificate_lines
-
-          def origin_lines(options, alb_id)
-            ["      Origins:"] + alb_origin_lines(options, alb_id) + options[:extra_origins].flat_map do |origin|
-              s3_origin_lines(origin)
-            end
-          end
-          private_class_method :origin_lines
-
-          def alb_origin_lines(options, alb_id)
-            lines = ["        - Id: #{options[:origin_id]}", "          DomainName: !GetAtt #{alb_id}.DNSName"]
-            secret = options[:origin_secret]
-            if secret
-              lines.push("          OriginCustomHeaders:", "            - HeaderName: #{secret[:header]}",
-                         "              HeaderValue: !Ref #{secret[:parameter]}")
-            end
-            lines << "          CustomOriginConfig:"
-            lines << "            OriginProtocolPolicy: http-only"
-            lines.push("            HTTPPort: 80", "            HTTPSPort: 443") if options[:explicit_origin_ports]
-            unless options[:origin_ssl_protocols].empty?
-              lines << "            OriginSSLProtocols: #{Yaml.flow_list(options[:origin_ssl_protocols])}"
-            end
-            lines
-          end
-          private_class_method :alb_origin_lines
-
-          def s3_origin_lines(origin)
-            lines = ["        - Id: #{origin[:id]}", "          DomainName: #{Yaml.string(origin[:domain_name])}"]
-            if origin[:origin_access_control_id]
-              lines << "          OriginAccessControlId: #{Yaml.string(origin[:origin_access_control_id])}"
-            end
-            lines << "          S3OriginConfig: { OriginAccessIdentity: \"\" }"
-            lines
-          end
-          private_class_method :s3_origin_lines
-
-          # Renders one cache behaviour: the default one under `key`, or a list item led by its
-          # path.
-          #
-          # @param key [String, nil] `"DefaultCacheBehavior"`, or nil for a `CacheBehaviors` item
-          # @param entry [Hash{Symbol => Object}] the behaviour as `normalize` checks it (`:origin`,
-          #   `:path` for an item, `:viewer_protocol`, `:methods`, `:compress`, `:cache_policy`,
-          #   `:origin_request_policy`), and optionally `:response_headers_policy`, each policy as
-          #   `[id_or_intrinsic, comment_or_nil]`
-          # @param base [String] the indentation of `key`, or of the list item's dash
-          # @return [Array<String>] the lines
-          def behavior_lines(key, entry, base)
-            pad = "#{base}  "
-            head = key ? "#{base}#{key}:" : "#{base}- PathPattern: #{Yaml.string(entry[:path])}"
-            [head, "#{pad}TargetOriginId: #{entry[:origin]}", *behavior_property_lines(entry, pad)]
-          end
-
-          def behavior_property_lines(entry, pad)
-            lines = ["#{pad}ViewerProtocolPolicy: #{entry[:viewer_protocol]}",
-                     "#{pad}AllowedMethods: #{Yaml.flow_list(entry[:methods])}",
-                     "#{pad}CachedMethods: [GET, HEAD]"]
-            lines << "#{pad}Compress: #{entry[:compress]}" if entry.key?(:compress)
-            lines << policy_line(pad, "CachePolicyId", entry[:cache_policy])
-            lines << policy_line(pad, "OriginRequestPolicyId", entry[:origin_request_policy]) if entry[:origin_request_policy]
-            if entry[:response_headers_policy]
-              lines << policy_line(pad, "ResponseHeadersPolicyId", entry[:response_headers_policy])
-            end
-            lines
-          end
-          private_class_method :behavior_property_lines
-
-          def policy_line(pad, key, policy)
-            id, label = policy
-            label ? "#{pad}#{key}: #{id} # #{label}" : "#{pad}#{key}: #{id}"
-          end
-          private_class_method :policy_line
+          private_class_method :with_behaviors
         end
       end
     end

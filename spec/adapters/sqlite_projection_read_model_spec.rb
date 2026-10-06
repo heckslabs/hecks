@@ -70,89 +70,102 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
     file = Tempfile.new(["chain-projection-growth-", ".bluebook"])
     file.write(SOURCE)
     file.flush
+    register_and_bind(dir, file.path)
+  ensure
+    file&.close!
+  end
 
+  def register_and_bind(dir, source_path)
     registry = Hecks::Runtime::Registry.new(root: dir)
     Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(SOURCE, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon("ChainProjectionGrowth") do
-          ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
-          ChainProjectionGrowth::Root.projected_by("SqliteProjection")
-          ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
-          ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
-          ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
-          ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
-        end
-        Hecks.world("ChainProjectionGrowth") do
-          persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }
-          projected_by("SqliteProjection") { database(File.join(dir, "chain-projection.db")) }
-        end
-      end
+      Hecks.with_registry(registry) { declare_chain(source_path, dir) }
     end
-
     registry.verify!
     runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    catch_up_projections(registry)
+    runtime
+  end
 
-    # The command-side write path never advances a projection; only a worker does.
+  def declare_chain(source_path, dir)
+    load_chain_ports
+    Kernel.eval(SOURCE, TOPLEVEL_BINDING, source_path, 1)
+    declare_chain_bindings
+    Hecks.world("ChainProjectionGrowth") do
+      persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }
+      projected_by("SqliteProjection") { database(File.join(dir, "chain-projection.db")) }
+    end
+  end
+
+  def load_chain_ports
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
+  def declare_chain_bindings
+    Hecks.hecksagon("ChainProjectionGrowth") do
+      ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
+      ChainProjectionGrowth::Root.projected_by("SqliteProjection")
+      ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
+      ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
+      ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
+      ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
+    end
+  end
+
+  # The command-side write path never advances a projection; only a worker does.
+  def catch_up_projections(registry)
     %w[Root Mid Leaf].each do |name|
       aggregate = registry.bluebook("ChainProjectionGrowth").aggregate(name)
       Hecks::Ports::Projection.worker(registry, "ChainProjectionGrowth", aggregate)&.catch_up!
     end
-
-    runtime
-  ensure
-    file&.close!
   end
 
   # Guards against a false pass: without a `projected_by` binding the read model silently
   # falls back to the in-process loop.
   def assert_native_path!(runtime)
     root = runtime.registry.bluebook("ChainProjectionGrowth").aggregate("Root")
-    repository = runtime.registry.read_repository("ChainProjectionGrowth", root)
-    unless repository.adapter.is_a?(Hecks::Adapters::SqliteProjection)
-      raise "expected the native SqliteProjection path, got #{repository.adapter.class}"
+    adapter = runtime.registry.read_repository("ChainProjectionGrowth", root).adapter
+    return if adapter.is_a?(Hecks::Adapters::SqliteProjection)
+
+    raise "expected the native SqliteProjection path, got #{adapter.class}"
+  end
+
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @dir = dir
+      example.run
     end
   end
 
-  it "joins a chained (non-root) include the same way the in-process path does" do
-    Dir.mktmpdir do |dir|
-      runtime = boot(dir)
-      assert_native_path!(runtime)
+  let(:runtime) { boot(@dir) }
 
-      ChainProjectionGrowth::Root.make!(ref: { value: "r1" })
-      ChainProjectionGrowth::Mid.make!(ref: { value: "m1" }, root: "r1")
-      ChainProjectionGrowth::Leaf.make!(ref: { value: "l1" }, mid: "m1")
+  before { assert_native_path!(runtime) }
 
-      # A second, unrelated chain proves the join is scoped to this root's descendants.
-      ChainProjectionGrowth::Root.make!(ref: { value: "r2" })
-      ChainProjectionGrowth::Mid.make!(ref: { value: "m2" }, root: "r2")
-      ChainProjectionGrowth::Leaf.make!(ref: { value: "l2" }, mid: "m2")
+  # Two chains, so the join can be shown scoped to one root's descendants.
+  def make_two_chains
+    ChainProjectionGrowth::Root.make!(ref: { value: "r1" })
+    ChainProjectionGrowth::Mid.make!(ref: { value: "m1" }, root: "r1")
+    ChainProjectionGrowth::Leaf.make!(ref: { value: "l1" }, mid: "m1")
+    ChainProjectionGrowth::Root.make!(ref: { value: "r2" })
+    ChainProjectionGrowth::Mid.make!(ref: { value: "m2" }, root: "r2")
+    ChainProjectionGrowth::Leaf.make!(ref: { value: "l2" }, mid: "m2")
+  end
 
-      %w[Root Mid Leaf].each do |name|
-        aggregate = runtime.registry.bluebook("ChainProjectionGrowth").aggregate(name)
-        Hecks::Ports::Projection.worker(runtime.registry, "ChainProjectionGrowth", aggregate)&.catch_up!
-      end
+  it "joins a chained (non-root) include the same way the in-process path does", :aggregate_failures do
+    make_two_chains
+    catch_up_projections(runtime.registry)
+    rows = runtime.query("ChainProjectionGrowth.chain", root: "r1")
 
-      rows = runtime.query("ChainProjectionGrowth.chain", root: "r1")
-
-      expect(rows.first[:mids].map { |m| m[:id] }).to eq(["m1"])
-      expect(rows.first[:leafs].map { |l| l[:id] }).to eq(["l1"])
-    end
+    expect(rows.first[:mids].map { |m| m[:id] }).to eq(["m1"])
+    expect(rows.first[:leafs].map { |l| l[:id] }).to eq(["l1"])
   end
 
   it "refuses a missing root reference with NotFound, the same as the in-process path" do
-    Dir.mktmpdir do |dir|
-      runtime = boot(dir)
-      assert_native_path!(runtime)
-
-      expect { runtime.query("ChainProjectionGrowth.chain", root: "no-such-root") }
-        .to raise_error(Hecks::Runtime::NotFound, /no Root with reference "no-such-root"/)
-    end
+    expect { runtime.query("ChainProjectionGrowth.chain", root: "no-such-root") }
+      .to raise_error(Hecks::Runtime::NotFound, /no Root with reference "no-such-root"/)
   end
 end

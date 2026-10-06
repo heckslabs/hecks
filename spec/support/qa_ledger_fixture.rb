@@ -42,22 +42,8 @@ module QaLedgerFixture
       @root = Dir.mktmpdir("qa_ledger_fixture")
       @dir  = File.join(@root, "bluebook")
       FileUtils.mkdir_p(@dir)
-      File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
-      File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-      # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
-      url = QaLedgerRole.url(@database)
-      File.write(File.join(@dir, "quality_control.world"), <<~RUBY)
-        Hecks.world "QualityControl" do
-          realm "QA"
-          persisted_by("PostgresEra") { database "#{url}" }
-        end
-      RUBY
-      File.write(File.join(@dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
-
-      admin = PG.connect(dbname: "postgres")
-      admin.exec("DROP DATABASE IF EXISTS #{@database} WITH (FORCE)")
-      admin.exec("CREATE DATABASE #{@database}")
-      admin.close
+      write_fixture_files
+      create_database
       QaLedgerRole.provision!(@database)
       self
     end
@@ -103,6 +89,29 @@ module QaLedgerFixture
     def run(script, *, env: {}, chdir: InMemoryDomain::ROOT)
       Open3.capture3(self.env(env), *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, script, *),
                      chdir: chdir)
+    end
+
+    private
+
+    def write_fixture_files
+      File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
+      File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+      # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
+      url = QaLedgerRole.url(@database)
+      File.write(File.join(@dir, "quality_control.world"), <<~RUBY)
+        Hecks.world "QualityControl" do
+          realm "QA"
+          persisted_by("PostgresEra") { database "#{url}" }
+        end
+      RUBY
+      File.write(File.join(@dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    end
+
+    def create_database
+      admin = PG.connect(dbname: "postgres")
+      admin.exec("DROP DATABASE IF EXISTS #{@database} WITH (FORCE)")
+      admin.exec("CREATE DATABASE #{@database}")
+      admin.close
     end
   end
 end

@@ -1,0 +1,44 @@
+# `make mint-era` — the same bastion/tunnel/retry/teardown chain
+# `Lambda`'s own generated Makefile uses (this directory's own
+# bastion.yaml, stood up and torn down for the one boot that mints
+# era 1), against this stack's own VPC/RDS instead of a Lambda's.
+.PHONY: mint-era
+mint-era:
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	@@eval_lines@@
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides @@parameter_overrides@@ \
+		--capabilities CAPABILITY_IAM
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+		echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+		for i in $$(seq 1 30); do \
+			STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+			if [ "$$STATUS" = "Online" ]; then break; fi; \
+			sleep 5; \
+		done; \
+		DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+		DB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' "$$DB_PASS"); \
+		BOOT_STATUS=1; \
+		for attempt in 1 2 3 4 5; do \
+			kill $$TUNNEL_PID 2>/dev/null; \
+			echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1 (attempt $$attempt/5)..."; \
+			aws ssm start-session --target $$INSTANCE_ID \
+				--document-name AWS-StartPortForwardingSessionToRemoteHost \
+				--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+				>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+			TUNNEL_PID=$$!; \
+			for i in $$(seq 1 15); do \
+				nc -z localhost 15432 2>/dev/null && break; \
+				sleep 1; \
+			done; \
+			cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/@@db_name@@" ruby -Ilib -e 'require "hecks"; require "hecks/ports/persistence/plugins/era"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[@@declared_domain_literal@@] or abort "no @@declared_domain_name@@ bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]@@schema_setting@@ }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]@@schema_setting@@ }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK -- era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \
+			BOOT_STATUS=$$?; \
+			echo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+			sleep 3; \
+		done; \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Tearing down the temporary bastion stack..."; \
+		aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+		aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+		exit $$BOOT_STATUS

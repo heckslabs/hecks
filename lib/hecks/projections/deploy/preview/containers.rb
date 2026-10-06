@@ -44,13 +44,21 @@ module Hecks
 
             item = item.transform_keys(&:to_sym)
             name = matching(item[:name], NAME_PATTERN, "preview container name")
-            Entry.new(
-              name: name, port: port_of(item, name), health_check_path: path_of(item[:health_check_path] || "/"),
-              paths: Array(item[:paths]).map { |path| path_of(path) }, default: item[:default] == true,
-              host: item[:host] == true, database: item[:database] == true,
-              environment: environment_of(item[:environment]), secrets: Array(item[:secrets]).map(&:to_s),
-              image: matching(item[:image] || "#{name}:latest", IMAGE_PATTERN, "preview container #{name} image")
-            )
+            Entry.new(name: name, port: port_of(item, name), **routes_of(item), **flags_of(item), **contents_of(item, name))
+          end
+
+          def routes_of(item)
+            { health_check_path: path_of(item[:health_check_path] || "/"),
+              paths:             Array(item[:paths]).map { |path| path_of(path) } }
+          end
+
+          def flags_of(item)
+            { default: item[:default] == true, host: item[:host] == true, database: item[:database] == true }
+          end
+
+          def contents_of(item, name)
+            { environment: environment_of(item[:environment]), secrets: Array(item[:secrets]).map(&:to_s),
+              image: matching(item[:image] || "#{name}:latest", IMAGE_PATTERN, "preview container #{name} image") }
           end
 
           def matching(value, pattern, label)
@@ -81,12 +89,15 @@ module Hecks
               raise ArgumentError, "preview containers repeat the #{field} #{dup.first.inspect}" if dup
             end
             check_roles!(entries)
+            check_secret_names!(entries)
           end
 
           def check_roles!(entries)
             raise ArgumentError, "at most one preview container may be the default" if entries.count(&:default) > 1
             raise ArgumentError, "at most one preview container may be the host" if entries.count(&:host) > 1
+          end
 
+          def check_secret_names!(entries)
             bad = entries.flat_map(&:secrets).find { |secret| !secret.match?(ENV_NAME_PATTERN) }
             raise ArgumentError, "preview secret name #{bad.inspect} must be an environment variable name" if bad
           end

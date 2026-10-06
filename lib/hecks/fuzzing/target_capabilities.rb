@@ -64,10 +64,16 @@ module Hecks
         capabilities << "postgres_era" if postgres_era_bound?(domain_path)
         capabilities << "translations" if Dir.glob(File.join(domain_path, "**", "translations", "*.bluebook")).any?
         capabilities << "governance" if authorization_attached?(domain_path)
-        capabilities << "role_gated" if any_file?(domain_path, "*.bluebook", ROLE_GATED)
-        capabilities << "tenant" if any_file?(domain_path, "*.bluebook", TENANT_SCOPED)
-        capabilities << "sagas" if any_file?(domain_path, "*.bluebook", PROCESS_MANAGER)
-        capabilities.sort
+        capabilities.concat(declared_capabilities(domain_path)).sort
+      end
+
+      # The capabilities a target's own bluebooks declare, by the construct each one spells.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @return [Array<String>] `role_gated`, `tenant` and `sagas`, for those the bluebooks declare
+      def declared_capabilities(domain_path)
+        { "role_gated" => ROLE_GATED, "tenant" => TENANT_SCOPED, "sagas" => PROCESS_MANAGER }
+          .select { |_, pattern| any_file?(domain_path, "*.bluebook", pattern) }.keys
       end
 
       # Answers whether `mode` can run against a target with `capabilities`.

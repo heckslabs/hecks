@@ -36,9 +36,15 @@ module Hecks
     def self.chapter(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
+              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(", ")}"
       end
 
+      scratch_registry(path).bluebook(name.to_s)
+    end
+
+    # @param path [String] a member's bluebook file
+    # @return [Runtime::Registry] a fresh registry holding only that member's chapter
+    def self.scratch_registry(path)
       lib = File.expand_path("..", __dir__)
       registry = Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -49,8 +55,9 @@ module Hecks
         Kernel.load(File.join(lib, "hecks/adapters/driven/prism.adapter"))
         Kernel.load(path)
       end
-      registry.bluebook(name.to_s)
+      registry
     end
+    private_class_method :scratch_registry
 
     # Loads a member's bluebook unless this registry already holds it.
     #
@@ -64,7 +71,7 @@ module Hecks
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
+              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(", ")}"
       end
 
       return if Hecks.current_registry.bluebook(name.to_s)

@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "../../support/memory_ports"
 
 # rust/host's issue-send route reads ir.json's `newsletter_issues` key instead
 # of naming Newsletter::Issue.Send and Newsletter::Delivery.Record. That key is
@@ -6,58 +7,59 @@ require "spec_helper"
 # the row is held to its contract (every key, each naming a real command) and
 # the exporter answers nothing for a domain that attaches no such chapter.
 RSpec.describe "newsletter_issues capability" do
-  def issue_body
-    proc do
-      identified_by :slug
+  NEWSLETTER_ISSUES_ISSUE_BODY = proc do
+    identified_by :slug
+    attribute :slug, Slug
+    value_object "Slug" do
+      attribute :value, String
+    end
+    command "Draft" do
+      goal "draft"
       attribute :slug, Slug
-      value_object "Slug" do
-        attribute :value, String
-      end
-      command "Draft" do
-        goal "draft"
-        attribute :slug, Slug
-        sets :slug
-      end
-      command "Send" do
-        goal "send"
-        reference_to Issue
-      end
+      sets :slug
+    end
+    command "Send" do
+      goal "send"
+      reference_to Issue
     end
   end
 
-  def delivery_body
-    proc do
-      identified_by :delivery_id
+  NEWSLETTER_ISSUES_DELIVERY_BODY = proc do
+    identified_by :delivery_id
+    attribute :delivery_id, DeliveryId
+    value_object "DeliveryId" do
+      attribute :value, String
+    end
+    command "Record" do
+      goal "record"
       attribute :delivery_id, DeliveryId
-      value_object "DeliveryId" do
-        attribute :value, String
-      end
-      command "Record" do
-        goal "record"
-        attribute :delivery_id, DeliveryId
-        sets :delivery_id
-      end
+      sets :delivery_id
     end
   end
 
-  def registry_with_issues(provides: nil)
-    provides ||= { send_issue: "Issue.Send", record_delivery: "Delivery.Record" }
-    issue = issue_body
-    delivery = delivery_body
+  NEWSLETTER_ISSUES_EXPORT = {
+    provider:           "Newsletter",
+    send_issue:         "Newsletter::Issue.Send",
+    record_delivery:    "Newsletter::Delivery.Record",
+    issue_aggregate:    "Newsletter::Issue",
+    delivery_aggregate: "Newsletter::Delivery"
+  }.freeze
+
+  def newsletter_chapter(provides)
+    Hecks.bluebook "Newsletter" do
+      vision "probe"
+      supporting
+      provides "newsletter_issues", **provides
+      aggregate "Issue", &NEWSLETTER_ISSUES_ISSUE_BODY
+      aggregate "Delivery", &NEWSLETTER_ISSUES_DELIVERY_BODY
+    end
+  end
+
+  def registry_with_issues(provides: { send_issue: "Issue.Send", record_delivery: "Delivery.Record" })
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook "Newsletter" do
-        vision "probe"
-        supporting
-        provides "newsletter_issues", **provides
-        aggregate "Issue", &issue
-        aggregate "Delivery", &delivery
-      end
+      MemoryPorts.load!
+      newsletter_chapter(provides)
     end
     registry
   end
@@ -69,15 +71,9 @@ RSpec.describe "newsletter_issues capability" do
   end
 
   it "exports the declared verbs qualified, with the issue and delivery aggregates named off them" do
-    registry = registry_with_issues
+    exported = Hecks::Projector::Exporter.newsletter_issues(registry_with_issues, "Newsletter")
 
-    expect(Hecks::Projector::Exporter.newsletter_issues(registry, "Newsletter")).to eq(
-      provider:           "Newsletter",
-      send_issue:         "Newsletter::Issue.Send",
-      record_delivery:    "Newsletter::Delivery.Record",
-      issue_aggregate:    "Newsletter::Issue",
-      delivery_aggregate: "Newsletter::Delivery"
-    )
+    expect(exported).to eq(NEWSLETTER_ISSUES_EXPORT)
   end
 
   it "exports nothing for a domain that attaches no issue-sending provider" do

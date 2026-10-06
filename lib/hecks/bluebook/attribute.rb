@@ -1,4 +1,5 @@
 require_relative "behaviour/attribute"
+require_relative "keyword_fields"
 require_relative "../ir"
 require_relative "../vocabulary"
 require_relative "../naming"
@@ -24,6 +25,12 @@ module Hecks
 
       attr_reader :name, :type, :default, :pattern, :admits, :relationship
 
+      # The optional fields (`list`, `default`, `optional`, `pattern`, `admits`, `relationship`)
+      # and what each holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        list: false, default: nil, optional: false, pattern: nil, admits: nil, relationship: nil
+      }.freeze
+
       # A Reference is kept as itself; every other type is a name.
       #
       # @param name [Symbol, String] the attribute's name
@@ -35,16 +42,12 @@ module Hecks
       # @param pattern [String, nil] a regex source the value must match (`PatternSubset`)
       # @param admits [String, nil] an aggregate-qualified closed-set name for the value
       # @param relationship [Symbol, nil] the DSL word that minted this attribute, or `nil`
-      def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil,
-                     admits: nil, relationship: nil)
-        @name     = name.to_sym
-        @type     = spell(type)
-        @list     = list
-        @default  = default
-        @optional = optional
-        @pattern  = pattern
-        @admits   = admits&.to_s
-        @relationship = relationship&.to_s
+      def initialize(name:, type:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
+        @name         = name.to_sym
+        @type         = spell(type)
+        @admits       = @admits&.to_s
+        @relationship = @relationship&.to_s
       end
 
       # A bare constant in a bluebook is a name, even when Ruby has heard of it.

@@ -53,10 +53,11 @@ RSpec.describe Hecks::Adapters::Codebase::Tree do
 
   describe "#apply" do
     let(:tree) { described_class.new(root: dir) }
-    let(:same)  { File.join(dir, "same.txt") }
-    let(:other) { File.join(dir, "other.txt") }
-    let(:stale) { File.join(dir, "stale.txt") }
     let(:files) { { same => "one\n", other => "new\n", File.join(dir, "fresh/new.txt") => "made\n" } }
+
+    def same = File.join(dir, "same.txt")
+    def other = File.join(dir, "other.txt")
+    def stale = File.join(dir, "stale.txt")
 
     before do
       File.write(same, "one\n")
@@ -64,18 +65,27 @@ RSpec.describe Hecks::Adapters::Codebase::Tree do
       File.write(stale, "gone\n")
     end
 
-    it "reports the drift and writes nothing unless confirmed" do
-      report = tree.apply(files, stale: [stale])
+    context "when not confirmed" do
+      let(:report) { tree.apply(files, stale: [stale]) }
 
-      expect(report).to include("dry run, 3 files differ (add --confirm to write)")
-      expect(report).to include("changed other.txt", "new fresh/new.txt", "removed stale.txt")
-      expect(report).not_to include("same.txt")
-      expect(File.read(other)).to eq("old\n")
-      expect(File.exist?(stale)).to be(true)
-      expect(File.exist?(File.join(dir, "fresh/new.txt"))).to be(false)
+      it "reports the drift" do
+        expect(report).to include("dry run, 3 files differ (add --confirm to write)",
+                                  "changed other.txt", "new fresh/new.txt", "removed stale.txt")
+      end
+
+      it "leaves out what already holds its content" do
+        expect(report).not_to include("same.txt")
+      end
+
+      it "writes nothing" do
+        report
+
+        expect([File.read(other), File.exist?(stale), File.exist?(File.join(dir, "fresh/new.txt"))])
+          .to eq(["old\n", true, false])
+      end
     end
 
-    it "writes the differences, makes the directories and removes what is stale when confirmed" do
+    it "writes the differences, makes the directories and removes what is stale when confirmed", :aggregate_failures do
       report = tree.apply(files, stale: [stale], confirm: true)
 
       expect(report).to start_with("wrote 3 files:")

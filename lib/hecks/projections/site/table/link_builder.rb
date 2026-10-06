@@ -33,18 +33,27 @@ module Hecks
             fields = checked_fields(member, label)
             target = @rows.find { |row| row.path == fields[:path] && row.verbs.include?("GET") }
             problem(label, "points at no route that answers GET; declare the route first") unless target
-            link = Link.new(**fields, off: target ? target.off : false, switch: target ? target.switch : "",
-                                      auth: target ? target.auth : "public")
+            fill_orders(Link.new(**fields, **route_facts(target)))
+          end
+
+          private
+
+          # What a link copies from the route it points at; a link to no route is on and public.
+          def route_facts(target)
+            return { off: false, switch: "", auth: "public" } unless target
+
+            { off: target.off, switch: target.switch, auth: target.auth }
+          end
+
+          def fill_orders(link)
             link.footer_order ||= 0 if link.footer_column
             link.admin_order ||= 0 if link.admin_key
             link
           end
 
-          private
-
           def checked_fields(member, label)
             member.each_key do |key|
-              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(', ')}") unless FIELDS.key?(key)
+              problem(label, "has no field #{key}; fields are #{FIELDS.keys.join(", ")}") unless FIELDS.key?(key)
             end
             known = member.slice(*FIELDS.keys)
             known.each do |key, value|

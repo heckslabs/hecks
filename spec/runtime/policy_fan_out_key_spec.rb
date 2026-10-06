@@ -107,29 +107,33 @@ RSpec.describe "a for_each policy's row id" do
     runtime.dispatch_flat("FanKey::Chit.Issue", serial: { value: serial }, holder: { value: holder })
   end
 
-  it "reaches a trigger that acts on the fanned aggregate, by its bare reference key" do
-    runtime = boot_keys
-    issue(runtime, "chit-1", "h1")
-    issue(runtime, "chit-2", "h1")
-    issue(runtime, "chit-3", "h2")
+  def raise_alarm(runtime, holder)
+    runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: holder })
+  end
 
-    runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
+  # Two chits held by h1 and one by h2, then an alarm raised against h1.
+  def alarmed_chits
+    runtime = boot_keys
+    [["chit-1", "h1"], ["chit-2", "h1"], ["chit-3", "h2"]].each { |serial, holder| issue(runtime, serial, holder) }
+    raise_alarm(runtime, "h1")
+    runtime
+  end
+
+  it "reaches a trigger that acts on the fanned aggregate, by its bare reference key", :aggregate_failures do
+    runtime = alarmed_chits
 
     fan = runtime.reactions.select { |row| row[:policy] == "VoidChitsOnAlarm" }
     expect(fan.map { |row| row[:for_row] }).to contain_exactly("chit-1", "chit-2")
     expect(fan).to all(include(delivered: true))
-
-    expect(FanKey::Chit.find("chit-1").condition[:value]).to eq("void")
-    expect(FanKey::Chit.find("chit-2").condition[:value]).to eq("void")
     # A different holder's chit is outside the query's answer.
-    expect(FanKey::Chit.find("chit-3").condition[:value]).to eq("live")
+    expect(["chit-1", "chit-2", "chit-3"].map { |id| FanKey::Chit.find(id).condition[:value] }).to eq(["void", "void", "live"])
   end
 
   it "names the row id for the trigger, not for the aggregate it came from" do
     runtime = boot_keys
     issue(runtime, "chit-1", "h1")
 
-    runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
+    raise_alarm(runtime, "h1")
 
     # Pins against the refusal `Void does not declare chit_id — it takes `.
     reasons = runtime.reactions.filter_map { |row| row[:reason] }

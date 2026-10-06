@@ -47,7 +47,7 @@ module Hecks
         return said("no kind or severity to label") if labels.empty?
 
         gh("issue", "edit", issue(held), "--add-label", labels.join(","))
-        said("labelled #{labels.join(', ')}")
+        said("labelled #{labels.join(", ")}")
       end
 
       # Comments on the issue with the pull request that fixes the finding.
@@ -82,7 +82,7 @@ module Hecks
 
       def gh(*arguments)
         out, err, status = Open3.capture3("gh", *arguments, "--repo", repository)
-        raise "gh #{arguments.first(2).join(' ')} failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+        raise "gh #{arguments.first(2).join(" ")} failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
 
         out
       end

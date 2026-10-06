@@ -5,34 +5,24 @@ require "spec_helper"
 RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
   def build_world(&block) = Hecks::Bluebook::DSL::WorldBuilder.build("AggregateQualifiedGrowth", &block)
 
-  it "writes into the exact same @settings path a bare top-level call does" do
-    qualified = build_world do
+  # A world with the realm and version every example here shares, then `body`'s own declarations.
+  def build_examples_world(&body)
+    build_world do
       realm "Examples"
       latest "v1"
-      WorldGrowthProbe::Thing.persisted_by("Heki") do
-        dir "data"
-      end
+      instance_eval(&body)
     end
+  end
 
-    bare = build_world do
-      realm "Examples"
-      latest "v1"
-      persisted_by("Heki") do
-        dir "data"
-      end
-    end
+  it "writes into the exact same @settings path a bare top-level call does" do
+    qualified = build_examples_world { WorldGrowthProbe::Thing.persisted_by("Heki") { dir "data" } }
+    bare = build_examples_world { persisted_by("Heki") { dir "data" } }
 
     expect(qualified.settings).to eq(bare.settings)
   end
 
-  it "the bare top-level and aggregate-qualified spellings produce identical settings" do
-    world = build_world do
-      realm "Examples"
-      latest "v1"
-      WorldGrowthProbe::Thing.projected_by("SqliteProjection") do
-        database "data/thing.sqlite3"
-      end
-    end
+  it "the bare top-level and aggregate-qualified spellings produce identical settings", :aggregate_failures do
+    world = build_examples_world { WorldGrowthProbe::Thing.projected_by("SqliteProjection") { database "data/thing.sqlite3" } }
 
     expect(world.settings["projected_by"]).to eq(adapter: "SqliteProjection", database: "data/thing.sqlite3")
     expect(world.settings["projected_by:sqliteprojection"]).to eq(world.settings["projected_by"])
@@ -64,21 +54,13 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
     before { stub_const("Widgets", chapter) }
 
     it "records a bind on an aggregate the chapter does not declare" do
-      world = build_world do
-        realm "Examples"
-        latest "v1"
-        Widgets::Gadget.persisted_by("Heki") { dir "data" }
-      end
+      world = build_examples_world { Widgets::Gadget.persisted_by("Heki") { dir "data" } }
 
       expect(world.settings["persisted_by"]).to eq(adapter: "Heki", dir: "data")
     end
 
     it "records a bind on an aggregate the chapter declares" do
-      world = build_world do
-        realm "Examples"
-        latest "v1"
-        Widgets::Thing.persisted_by("Heki") { dir "data" }
-      end
+      world = build_examples_world { Widgets::Thing.persisted_by("Heki") { dir "data" } }
 
       expect(world.settings["persisted_by:heki"]).to eq(adapter: "Heki", dir: "data")
     end

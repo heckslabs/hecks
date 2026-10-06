@@ -11,50 +11,70 @@ RSpec.describe "a command that needs :now" do
     def now = 5_000
   end
 
-  def boot_pilot
-    registry = Hecks::Runtime::Registry.new
+  def link_value_objects
+    proc do
+      value_object("Ref")     { attribute :value, String }
+      value_object("Instant") { attribute :value, Integer }
+    end
+  end
 
-    Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  def issue_body
+    proc do
+      attribute :ref, Ref
+      attribute :now, Instant
+      needs :now
+      given("the link is issued at or after the epoch") { now.value >= 0 }
+      sets :ref
+      sets :issued_at, to: :now
+      emits Issued
+    end
+  end
 
-      Hecks.bluebook "NeedsPilot" do
-        aggregate "Link" do
-          attribute :ref, Ref
-          attribute :issued_at, Instant, optional: true
-          identified_by :ref
+  def issue_command
+    body = issue_body
+    proc { command("Issue", &body) }
+  end
 
-          value_object("Ref")     { attribute :value, String }
-          value_object("Instant") { attribute :value, Integer }
-
-          command "Issue" do
-            attribute :ref, Ref
-            attribute :now, Instant
-            needs :now
-            given("the link is issued at or after the epoch") { now.value >= 0 }
-            sets :ref
-            sets :issued_at, to: :now
-            emits Issued
-          end
-
-          # No `needs`: the caller must name the time, as before.
-          command "Stamp" do
-            attribute :ref, Ref
-            attribute :now, Instant
-            sets :ref
-            sets :issued_at, to: :now
-            emits Stamped
-          end
-        end
+  # No `needs`: the caller must name the time, as before.
+  def stamp_command
+    proc do
+      command "Stamp" do
+        attribute :ref, Ref
+        attribute :now, Instant
+        sets :ref
+        sets :issued_at, to: :now
+        emits Stamped
       end
+    end
+  end
 
+  def link_aggregate
+    parts = [link_value_objects, issue_command, stamp_command]
+    proc do
+      aggregate "Link" do
+        attribute :ref, Ref
+        attribute :issued_at, Instant, optional: true
+        identified_by :ref
+        parts.each { |part| instance_eval(&part) }
+      end
+    end
+  end
+
+  def load_needs_pilot(registry)
+    link = link_aggregate
+    Hecks.with_registry(registry) do
+      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      Hecks.bluebook("NeedsPilot", &link)
       stub_const("Hecks::Adapters::NeedsClock", NeedsFixedClock)
       Hecks.adapter("NeedsClock") { port "clock" }
       Hecks.hecksagon("NeedsPilot") { NeedsPilot::Link.persisted_by("Memory") }
     end
+  end
 
+  def boot_pilot
+    registry = Hecks::Runtime::Registry.new
+    load_needs_pilot(registry)
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end

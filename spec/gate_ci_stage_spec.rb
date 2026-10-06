@@ -51,7 +51,7 @@ RSpec.describe "the ci and post_commit gate stages" do
       end
     end
 
-    it "runs only checks the stage holds, and every check of the stage exactly once" do
+    it "runs only checks the stage holds, and every check of the stage exactly once", :aggregate_failures do
       ids = launched.flat_map(&:last)
 
       expect(ids - ci_ids).to be_empty
@@ -73,38 +73,50 @@ RSpec.describe "the ci and post_commit gate stages" do
   end
 
   describe "every hecks command a stage's check names" do
-    it "resolves through the launcher" do
+    def launcher_calls
       checks = stages.values_at("ci", "post_commit").flat_map { |stage| stage.fetch("checks") }
-      calls = checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
+      checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
+    end
+
+    def resolves?(hecks, kind, verb)
+      _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: [kind, verb, "--help"].reject(&:empty?), program: "hecks")
+      status.zero?
+    end
+
+    it "resolves through the launcher", :aggregate_failures do
+      calls = launcher_calls
       hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+      unresolved = calls.reject { |kind, verb| resolves?(hecks, kind, verb) }
 
       expect(calls).not_to be_empty
-      calls.each do |kind, verb|
-        _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: [kind, verb, "--help"].reject(&:empty?), program: "hecks")
-        expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(' ')} does not resolve"
-      end
+      expect(unresolved).to be_empty, "hecks commands that do not resolve: #{unresolved.map { |call| call.join(" ").strip }}"
     end
   end
 
   describe ".githooks/post-commit" do
-    let(:hook) { File.join(root, ".githooks/post-commit") }
     let(:work) { Dir.mktmpdir("post_commit_hook") }
 
     after { FileUtils.rm_rf(work) }
 
+    def hook = File.join(root, ".githooks/post-commit")
+
+    # A `bundle` in the scratch directory that answers `status`.
+    def stub_bundle(status)
+      FileUtils.mkdir_p(File.join(work, "bin"))
+      File.write(File.join(work, "bin/bundle"), "#!/bin/sh\necho \"bundle $*\"\nexit #{status}\n")
+      FileUtils.chmod(0o755, File.join(work, "bin/bundle"))
+    end
+
     # Runs the hook in a fresh repository whose `bundle` is a stub answering `status`.
     def run_hook(status:, env: {})
-      FileUtils.mkdir_p(File.join(work, "bin"))
-      stub = File.join(work, "bin/bundle")
-      File.write(stub, "#!/bin/sh\necho \"bundle $*\"\nexit #{status}\n")
-      FileUtils.chmod(0o755, stub)
+      stub_bundle(status)
       system("git", "init", "-q", work, exception: true)
-      out, result = Open3.capture2e({ "PATH" => "#{File.join(work, 'bin')}:#{ENV.fetch('PATH', nil)}" }.merge(env), hook,
+      out, result = Open3.capture2e({ "PATH" => "#{File.join(work, "bin")}:#{ENV.fetch("PATH", nil)}" }.merge(env), hook,
                                     chdir: work)
       [out, result.exitstatus]
     end
 
-    it "is a shim over the post_commit stage and lists no check of its own" do
+    it "is a shim over the post_commit stage and lists no check of its own", :aggregate_failures do
       text = File.read(hook)
 
       expect(text).to include('Hecks::Tools.script("gate", ARGV)', "post_commit")
@@ -117,7 +129,7 @@ RSpec.describe "the ci and post_commit gate stages" do
       expect([status, out]).to match([0, a_string_including("post_commit", "ruby -Ilib", "green")])
     end
 
-    it "reports a red stage and still exits 0, since the commit is already made" do
+    it "reports a red stage and still exits 0, since the commit is already made", :aggregate_failures do
       out, status = run_hook(status: 1)
 
       expect(status).to eq(0)

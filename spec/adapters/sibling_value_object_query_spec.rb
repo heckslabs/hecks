@@ -45,22 +45,22 @@ RSpec.describe "a query over a value object a sibling aggregate declares", :io d
   end
 
   let(:aggregate) { SiblingValueObjectDomain.chapter.aggregate("Booking") }
-  let(:memory)    { Hecks::Adapters::Memory.new(aggregate: aggregate) }
-  let(:sqlite) do
-    Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "sibling.db" }, root: @dir)
-  end
-  let(:postgres_era) do
-    Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: SIBLING_VO_DB })
-  end
-  let(:postgres) do
-    Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: SIBLING_VO_PLAIN_DB })
-  end
 
   # Every engine that can run here, by name, so a failure says which one.
   let(:engines) do
-    engines = { "Memory" => memory, "Sqlite" => sqlite }
-    engines.merge!("PostgresEra" => postgres_era, "Postgres" => postgres) if postgres_available?
+    engines = {
+      "Memory" => Hecks::Adapters::Memory.new(aggregate: aggregate),
+      "Sqlite" => Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "sibling.db" }, root: @dir)
+    }
+    engines.merge!(postgres_engines) if postgres_available?
     engines
+  end
+
+  def postgres_engines
+    {
+      "PostgresEra" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: SIBLING_VO_DB }),
+      "Postgres"    => Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: SIBLING_VO_PLAIN_DB })
+    }
   end
 
   before do

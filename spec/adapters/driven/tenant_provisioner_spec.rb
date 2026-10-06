@@ -11,29 +11,41 @@ RSpec.describe Hecks::Adapters::TenantProvisioner do
       schema: { value: "acme" }, database: { value: "hecks_tenants" } }
   end
 
-  it "writes environments/<slug>.world under the directory, and says where" do
+  around do |example|
     Dir.mktmpdir("provisioner") do |dir|
-      answer = adapter.write_overlay(**tenant, adapter: { value: "Sqlite" }, directory: { value: dir })
+      @dir = dir
+      example.run
+    end
+  end
 
-      path = File.join(dir, "environments/acme.world")
-      expect(answer.dig(:output, :value)).to eq("wrote #{path}\n")
+  def overlay_path = File.join(@dir, "environments/acme.world")
+
+  context "with Sqlite named" do
+    let(:answer) { adapter.write_overlay(**tenant, adapter: { value: "Sqlite" }, directory: { value: @dir }) }
+
+    it "writes environments/<slug>.world under the directory, and says where" do
+      expect(answer.dig(:output, :value)).to eq("wrote #{overlay_path}\n")
+    end
+
+    it "answers the slug it provisioned" do
       expect(answer.fetch(:slug)).to eq(value: "acme")
-      expect(File.read(path)).to include('realm "Acme"', 'persisted_by("Sqlite")', 'schema   "acme"')
+    end
+
+    it "binds the named adapter, realm and schema in the world" do
+      answer
+
+      expect(File.read(overlay_path)).to include('realm "Acme"', 'persisted_by("Sqlite")', 'schema   "acme"')
     end
   end
 
   it "binds PostgresEra when the record names no adapter" do
-    Dir.mktmpdir("provisioner") do |dir|
-      adapter.write_overlay(**tenant, adapter: nil, directory: { value: dir })
+    adapter.write_overlay(**tenant, adapter: nil, directory: { value: @dir })
 
-      expect(File.read(File.join(dir, "environments/acme.world"))).to include('persisted_by("PostgresEra")')
-    end
+    expect(File.read(overlay_path)).to include('persisted_by("PostgresEra")')
   end
 
   it "ignores the record's other fields" do
-    Dir.mktmpdir("provisioner") do |dir|
-      expect { adapter.write_overlay(**tenant, directory: { value: dir }, status: "requested", output: nil, refusal: nil) }
-        .not_to raise_error
-    end
+    expect { adapter.write_overlay(**tenant, directory: { value: @dir }, status: "requested", output: nil, refusal: nil) }
+      .not_to raise_error
   end
 end

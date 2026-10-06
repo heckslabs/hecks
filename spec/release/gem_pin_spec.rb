@@ -94,7 +94,7 @@ RSpec.describe Hecks::Release::GemPin do
     expect { pin.resolve(root) }.to raise_error(described_class::Error, /no published hecks release satisfies/)
   end
 
-  it "lets Gemfiles pin different published versions, reporting the newest and every pin" do
+  it "lets Gemfiles pin different published versions, reporting the newest and every pin", :aggregate_failures do
     tree("a/Gemfile" => %(gem "hecks", "~> 2.1"\n), "a/Gemfile.lock" => lock("2.1.0"),
          "b/Gemfile" => %(gem "hecks", "~> 3.0"\n))
 
@@ -127,13 +127,26 @@ RSpec.describe Hecks::Release::GemPin do
       end
     end
 
-    it "lists what RubyGems answers and asks only once" do
-      listing = JSON.generate([{ "number" => "2.3.0" }, { "number" => "3.1.0.pre" }])
-      expect(Net::HTTP).to receive(:start).once.and_return(response_for(listing))
+    context "when RubyGems lists a release and a prerelease" do
+      before do
+        listing = JSON.generate([{ "number" => "2.3.0" }, { "number" => "3.1.0.pre" }])
+        allow(Net::HTTP).to receive(:start).and_return(response_for(listing))
+      end
 
-      expect(versions.include?("2.3.0")).to be(true)
-      expect(versions.include?("9.9.9")).to be(false)
-      expect(versions.newest_satisfying(Gem::Requirement.new(">= 2"))).to eq(Gem::Version.new("2.3.0"))
+      it "answers from the listing" do
+        expect([versions.include?("2.3.0"), versions.include?("9.9.9")]).to eq([true, false])
+      end
+
+      it "picks the newest release a requirement allows" do
+        expect(versions.newest_satisfying(Gem::Requirement.new(">= 2"))).to eq(Gem::Version.new("2.3.0"))
+      end
+
+      it "asks only once" do
+        versions.include?("2.3.0")
+        versions.newest_satisfying(Gem::Requirement.new(">= 2"))
+
+        expect(Net::HTTP).to have_received(:start).once
+      end
     end
 
     it "reports a refusal from RubyGems" do

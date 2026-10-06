@@ -31,6 +31,21 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
   RUBY
 
+  # A behaviors file for the Shelf domain; `%<name>s` titles its one test, `%<emits>s` is what it
+  # expects.
+  OPERATIONS_BEHAVIORS = <<~RUBY.freeze
+    Hecks.behaviors "Shelf" do
+      vision "Books are shelved."
+      loads "shelf.bluebook", "shelf.hecksagon"
+
+      test "%<name>s" do
+        tests "Shelve", on: "Book"
+        input title: { value: "Dune" }
+        expect emits: ["%<emits>s"]
+      end
+    end
+  RUBY
+
   around do |example|
     @dir = Dir.mktmpdir("operations")
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
@@ -46,20 +61,26 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
   def held(**fields) = fields.transform_values { |value| { value: value } }
 
   describe "#check" do
+    after { FileUtils.rm_rf(@other) if @other }
+
     it "answers the report when the model is clean" do
       answer = adapter.check(**held(domains: @dir))
 
       expect(answer.dig(:report, :value)).to include("clean")
     end
 
-    it "counts the domains the report headed, so a reader need not" do
-      other = Dir.mktmpdir("operations-other")
-      FileUtils.cp_r(File.join(@dir, "bluebook"), other)
+    # A second domain, copied from the first; removed after the example.
+    def other_domain
+      @other = Dir.mktmpdir("operations-other")
+      FileUtils.cp_r(File.join(@dir, "bluebook"), @other)
+      @other
+    end
+
+    it "counts the domains the report headed, so a reader need not", :aggregate_failures do
+      other = other_domain
 
       expect(adapter.check(**held(domains: @dir)).dig(:checked, :value)).to eq(1)
       expect(adapter.check(**held(domains: "#{@dir},#{other}")).dig(:checked, :value)).to eq(2)
-    ensure
-      FileUtils.rm_rf(other)
     end
 
     it "passes --strict and --profile through to the analysis" do
@@ -69,13 +90,9 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
 
     it "splits a comma separated list of domains" do
-      other = Dir.mktmpdir("operations-other")
-      FileUtils.cp_r(File.join(@dir, "bluebook"), other)
-      answer = adapter.check(**held(domains: "#{@dir},#{other}"))
+      answer = adapter.check(**held(domains: "#{@dir},#{other_domain}"))
 
       expect(answer.dig(:report, :value).scan("clean").size).to be >= 2
-    ensure
-      FileUtils.rm_rf(other)
     end
 
     it "refuses a domain that is not there" do
@@ -121,40 +138,24 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
   end
 
   describe "#verify" do
+    def behaviors_path = File.join(@dir, "bluebook/shelf.behaviors")
+
+    def write_behaviors(name, emits)
+      File.write(behaviors_path, format(OPERATIONS_BEHAVIORS, name: name, emits: emits))
+    end
+
     it "answers the per-test report of a behaviors file" do
-      File.write(File.join(@dir, "bluebook/shelf.behaviors"), <<~RUBY)
-        Hecks.behaviors "Shelf" do
-          vision "Books are shelved."
-          loads "shelf.bluebook", "shelf.hecksagon"
+      write_behaviors("Shelve records a book", "Shelved")
 
-          test "Shelve records a book" do
-            tests "Shelve", on: "Book"
-            input title: { value: "Dune" }
-            expect emits: ["Shelved"]
-          end
-        end
-      RUBY
-
-      answer = adapter.verify(**held(subject: File.join(@dir, "bluebook/shelf.behaviors")))
+      answer = adapter.verify(**held(subject: behaviors_path))
 
       expect(answer.dig(:output, :value)).to include("ok    Shelve records a book")
     end
 
     it "refuses when a test fails" do
-      File.write(File.join(@dir, "bluebook/shelf.behaviors"), <<~RUBY)
-        Hecks.behaviors "Shelf" do
-          vision "Books are shelved."
-          loads "shelf.bluebook", "shelf.hecksagon"
+      write_behaviors("Shelve emits something else", "Lent")
 
-          test "Shelve emits something else" do
-            tests "Shelve", on: "Book"
-            input title: { value: "Dune" }
-            expect emits: ["Lent"]
-          end
-        end
-      RUBY
-
-      expect { adapter.verify(**held(subject: File.join(@dir, "bluebook/shelf.behaviors"))) }
+      expect { adapter.verify(**held(subject: behaviors_path)) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /FAIL/)
     end
   end
@@ -173,7 +174,7 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
 
     before { allow(adapter).to receive(:event_repository).and_return(double(events: entries)) }
 
-    it "answers every entry and a cursor at the end" do
+    it "answers every entry and a cursor at the end", :aggregate_failures do
       answer = adapter.follow(domain: @dir)
 
       expect(answer[:cursor]).to eq(2)
@@ -198,7 +199,7 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(answer).to include(cursor: 2, events: [])
     end
 
-    it "waits no longer than asked for a first entry, then answers the same cursor" do
+    it "waits no longer than asked for a first entry, then answers the same cursor", :aggregate_failures do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       answer = adapter.follow(domain: @dir, since: 2, wait: 1, interval: 0.1)
 
@@ -216,25 +217,35 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
 
     def appended(name) = Hecks::Runtime::Event.new(name: name, aggregate: "Shelf::Book", id: "x", payload: {}, occurred_at: "now")
 
-    it "hands over each entry the moment the log shows it, not when the read ends" do
-      seen = []
-      writer = Thread.new do
-        sleep 0.15
-        entries << appended("Lent")
-        sleep 0.15
-        entries << appended("Returned")
+    def append_later(*names)
+      Thread.new do
+        names.each do |name|
+          sleep 0.15
+          entries << appended(name)
+        end
       end
+    end
 
+    # Appends two entries to the log while a stream is reading it; answers the stream's cursor and
+    # what it saw, as each entry's name with the log's size at the moment it was handed over.
+    def stream_while_appending(seen)
+      writer = append_later("Lent", "Returned")
       cursor = adapter.stream(domain: @dir, from_now: true, limit: 2, timeout: 5, interval: 0.02) do |entry|
         seen << [entry["name"], entries.size]
       end
       writer.join
+      cursor
+    end
+
+    it "hands over each entry the moment the log shows it, not when the read ends", :aggregate_failures do
+      seen = []
+      cursor = stream_while_appending(seen)
 
       expect(seen).to eq([["Lent", 2], ["Returned", 3]])
       expect(cursor).to eq(3)
     end
 
-    it "stops at the limit and answers a cursor just past the last entry handed over" do
+    it "stops at the limit and answers a cursor just past the last entry handed over", :aggregate_failures do
       entries.push(appended("Lent"), appended("Returned"))
       names = []
 
@@ -244,17 +255,21 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(cursor).to eq(2)
     end
 
-    it "stops when the block says so, and resumes from the cursor it answered" do
+    # Streams until the block says stop, then streams again from the cursor it answered.
+    def stream_first_then_rest
       entries.push(appended("Lent"))
       first = []
       cursor = adapter.stream(domain: @dir) { |entry| first << entry["name"] and :stop }
       rest = []
       adapter.stream(domain: @dir, since: cursor, timeout: 0) { |entry| rest << entry["name"] }
-
-      expect([first, rest]).to eq([["Shelved"], ["Lent"]])
+      [first, rest]
     end
 
-    it "ends at its timeout when nothing arrives" do
+    it "stops when the block says so, and resumes from the cursor it answered" do
+      expect(stream_first_then_rest).to eq([["Shelved"], ["Lent"]])
+    end
+
+    it "ends at its timeout when nothing arrives", :aggregate_failures do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       cursor = adapter.stream(domain: @dir, since: 1, timeout: 0.3, interval: 0.05) { raise "no entry expected" }
 

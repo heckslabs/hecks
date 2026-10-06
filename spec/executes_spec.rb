@@ -3,39 +3,61 @@ require "spec_helper"
 # The meta-domain holds a bluebook and reads it back through its own queries.
 # Covers the chapter and its aggregates, not yet equality with the builder's `to_h`.
 RSpec.describe "the language holds a bluebook, and gives it back" do
+  # The keys one read of the whole bluebook answers, in order.
+  WHOLE_BLUEBOOK_KEYS = %i[bluebook aggregates commands value_objects queries entities members
+                           policies process_managers handlers dispatches read_models].freeze
+
+  ENGLISH_PLURALS = {
+    "query" => "queries", "entity" => "entities", "policy" => "policies", "dispatch" => "dispatches",
+    "value_object" => "value_objects",
+    # a vowel before the y is not a plural rule — day, not daies
+    "day" => "days"
+  }.freeze
+
+  def load_meta_adapters
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
+  # Loads the meta-domain's adapters and then whatever the block loads into a fresh registry,
+  # and answers the bluebook of that name.
+  def loaded_bluebook(name)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      load_meta_adapters
+      yield
+    end
+    registry.bluebook(name)
+  end
+
   def pizzas
-    @pizzas ||= begin
-      registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
-      end
-      registry.bluebook("Pizzas")
+    @pizzas ||= loaded_bluebook("Pizzas") do
+      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
     end
   end
 
-  # Dispatches a real bluebook into the meta-domain and keeps the runtime.
-  # `pizzas` must load first: loading judges into the shared grammar_registry, and
-  # `fresh_runtime` then resets it so the manual `judge!` declares into a clean store.
-  def held
-    @held ||= begin
-      pizzas
-      runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
-      judge   = Hecks::Bluebook::MetaValidator::Judge.allocate
-      judge.instance_variable_set(:@bluebook, pizzas)
-      judge.instance_variable_set(:@refusals, [])
-      judge.instance_variable_set(:@runtime, runtime)
-      judge.instance_variable_set(
-        :@plan,
-        Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
-      )
-      judge.send(:judge!)
-      [runtime, judge.instance_variable_get(:@refusals)]
-    end
+  # Dispatches a bluebook into the meta-domain by judging it by hand; answers the runtime and the
+  # refusals. The bluebook must be loaded before this runs: loading judges into the shared
+  # grammar_registry, and `fresh_runtime` then resets it so the manual `judge!` declares into a
+  # clean store.
+  def judged(bluebook)
+    runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
+    judge = Hecks::Bluebook::MetaValidator::Judge.allocate
+    plan = Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
+    { bluebook: bluebook, refusals: [], runtime: runtime, plan: plan }
+      .each { |name, value| judge.instance_variable_set(:"@#{name}", value) }
+    judge.send(:judge!)
+    [runtime, judge.instance_variable_get(:@refusals)]
   end
+
+  # Dispatches a real bluebook into the meta-domain and keeps the runtime.
+  def held
+    @held ||= judged(pizzas)
+  end
+
+  def whole_pizzas = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
 
   def runtime  = held.first
   def refusals = held.last
@@ -48,7 +70,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     cell
   end
 
-  it "gives back the bluebook called Pizzas" do
+  it "gives back the bluebook called Pizzas", :aggregate_failures do
     rows = runtime.query("Bluebook::Bluebook.Called", name: { value: "Pizzas" })
 
     expect(rows.size).to eq(1)
@@ -64,13 +86,12 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "hands back the whole bluebook in one read" do
-    rows = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas")
-    whole = rows.first
+    expect(whole_pizzas.keys).to eq(WHOLE_BLUEBOOK_KEYS)
+  end
 
-    expect(whole.keys).to eq(
-      %i[bluebook aggregates commands value_objects queries entities members
-         policies process_managers handlers dispatches read_models]
-    )
+  it "hands back every aggregate and command in that one read", :aggregate_failures do
+    whole = whole_pizzas
+
     expect(whole[:aggregates].map { |a| text(a[:name]) }).to eq(pizzas.aggregates.map(&:name))
     expect(whole[:commands].map { |c| text(c[:name]) })
       .to match_array(pizzas.aggregates.flat_map { |a| a.commands.map(&:hecks_name) })
@@ -85,11 +106,10 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
       .to eq(pizzas.aggregate("Order").commands.map(&:hecks_name))
   end
 
-  it "keeps the order that changes behaviour" do
+  it "keeps the order that changes behaviour", :aggregate_failures do
     # Behaviour-bearing order must survive a round trip: mutations apply in sequence,
     # a lifecycle takes the first matching transition, a compensation credits first.
-    whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
-    purchase = whole[:commands].find { |c| text(c[:name]) == "Purchase" }
+    purchase = whole_pizzas[:commands].find { |c| text(c[:name]) == "Purchase" }
     source   = pizzas.aggregate("Order").command("Purchase")
 
     expect(purchase[:mutations].map { |m| text(m[:target]) })
@@ -100,61 +120,37 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   it "normalises the order that does not" do
     # Command listing order is presentation only (lookup is by name), and stores do
     # not iterate stably, so head lists are compared sorted.
-    whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     declared = pizzas.aggregate("Order").commands.map(&:hecks_name)
 
-    expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
+    expect(whole_pizzas[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
   end
 
   it "names a gathered collection the way English does" do
-    expect(Hecks::Naming.plural("query")).to eq("queries")
-    expect(Hecks::Naming.plural("entity")).to eq("entities")
-    expect(Hecks::Naming.plural("policy")).to eq("policies")
-    expect(Hecks::Naming.plural("dispatch")).to eq("dispatches")
-    expect(Hecks::Naming.plural("value_object")).to eq("value_objects")
-    # a vowel before the y is not a plural rule — day, not daies
-    expect(Hecks::Naming.plural("day")).to eq("days")
+    expect(ENGLISH_PLURALS.keys.map { |word| Hecks::Naming.plural(word) }).to eq(ENGLISH_PLURALS.values)
   end
 
   # Banking is the only corpus member with a cross-aggregate reference.
   def banking
-    @banking ||= begin
-      registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
-      end
-      registry.bluebook("Banking")
-    end
+    @banking ||= loaded_bluebook("Banking") { load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR) }
+  end
+
+  def account_attributes(runtime)
+    account = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook: { value: "Banking" })
+                     .find { |row| text(row[:name]) == "Account" }
+    account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
   end
 
   # `banking` loads first, for the same reason as in `held`.
   def held_account_attributes
     @held_account_attributes ||= begin
-      banking
-      runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
-      judge   = Hecks::Bluebook::MetaValidator::Judge.allocate
-      judge.instance_variable_set(:@bluebook, banking)
-      judge.instance_variable_set(:@refusals, [])
-      judge.instance_variable_set(:@runtime, runtime)
-      judge.instance_variable_set(
-        :@plan,
-        Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
-      )
-      judge.send(:judge!)
-      raise "banking refused: #{judge.instance_variable_get(:@refusals).inspect}" unless
-        judge.instance_variable_get(:@refusals).empty?
+      runtime, refusals = judged(banking)
+      raise "banking refused: #{refusals.inspect}" unless refusals.empty?
 
-      account = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook: { value: "Banking" })
-                       .find { |row| text(row[:name]) == "Account" }
-      account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
+      account_attributes(runtime)
     end
   end
 
-  it "holds an attribute as the ID of whatever its type names" do
+  it "holds an attribute as the ID of whatever its type names", :aggregate_failures do
     # Ids join with ":", not the "::" constant path; "::" survives only in the wire
     # format ("Reference<Customer>"), produced on the way out (see the next test).
     held = held_account_attributes
@@ -164,7 +160,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(held["ledger"]).to eq("Banking:Account:LedgerEntry") # a piece it holds
   end
 
-  it "re-encodes a reference into the type the IR spells" do
+  it "re-encodes a reference into the type the IR spells", :aggregate_failures do
     # The meta-domain holds the head; Readings derives the `Reference<Customer>` spelling.
     reader = Object.new.extend(Hecks::Bluebook::MetaValidator::Readings)
 

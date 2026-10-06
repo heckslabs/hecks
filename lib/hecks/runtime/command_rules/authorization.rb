@@ -26,15 +26,7 @@ module Hecks
           return unless caller
           return if command.role.to_s.empty?
 
-          authorized =
-            if caller.actor_id && governance_attached?(domain)
-              Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role,
-                                                          as_of: caller.as_of, scope: caller.scope)
-            else
-              caller.role == command.role
-            end
-
-          return if authorized
+          return if role_held?(caller, command, domain)
 
           raise Unauthorized, RefusalWording.render_site("Unauthorized", "role_mismatch",
                                                          command: command.hecks_name, role: command.role,
@@ -42,6 +34,14 @@ module Hecks
         end
 
         private
+
+        # An identified caller holds the role by a live grant; an unidentified one by its string.
+        def role_held?(caller, command, domain)
+          return caller.role == command.role unless caller.actor_id && governance_attached?(domain)
+
+          Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role,
+                                                     as_of: caller.as_of, scope: caller.scope)
+        end
 
         # The provider's own commands are checked too, so the first administrator grant must
         # come from a caller with no `actor_id` (the string-compared path).

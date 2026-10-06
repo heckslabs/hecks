@@ -7,7 +7,7 @@ RSpec.describe Hecks::Projections::OIDC do
   let(:pizzas)   { runtime.registry.bluebook("Pizzas") }
   let(:manifest) { described_class.call(bluebook: pizzas) }
 
-  it "registers itself under :oidc as it loads" do
+  it "registers itself under :oidc as it loads", :aggregate_failures do
     expect(Hecks::Projector.registered?(:oidc)).to be true
     expect(described_class.projection_key).to eq(:oidc)
   end
@@ -43,8 +43,10 @@ RSpec.describe Hecks::Projections::OIDC do
   describe "entity-owned commands" do
     let(:banking) { Hecks.boot("examples/banking", install_doors: false).registry.bluebook("Banking") }
     let(:banking_manifest) { described_class.call(bluebook: banking) }
-    let(:verbs) { banking_manifest["scopes"].map { |scope| scope["verb"] } }
-    let(:scopes) { banking_manifest["scopes"].map { |scope| scope["scope"] } }
+
+    def verbs = banking_manifest["scopes"].map { |scope| scope["verb"] }
+
+    def scopes = banking_manifest["scopes"].map { |scope| scope["scope"] }
 
     it "names a one-level-nested entity command as a dotted verb" do
       expect(verbs).to include("Banking::SafeDepositBox.Visit.Annotate",
@@ -81,14 +83,14 @@ RSpec.describe Hecks::Projections::OIDC do
     end
 
     # The string Ports::Authorization.holds_role? compares against a Governance::RoleAssignment.
-    it "rolls the declared roles up, de-duplicated and sorted" do
+    it "rolls the declared roles up, de-duplicated and sorted", :aggregate_failures do
       expect(banking_manifest["roles"]).to include("Compliance officer")
       expect(banking_manifest["roles"]).to eq(banking_manifest["roles"].uniq.sort)
     end
 
     # Banking again: Pizzas commands all declare a role. An omitted scope would read as
     # "no such command" rather than "this command asks for no role".
-    it "keeps an unguarded command with a nil role rather than dropping it" do
+    it "keeps an unguarded command with a nil role rather than dropping it", :aggregate_failures do
       unguarded = banking_manifest["scopes"].select { |scope| scope["role"].nil? }
 
       expect(unguarded).not_to be_empty
@@ -113,6 +115,8 @@ RSpec.describe Hecks::Projections::OIDC do
   end
 
   it "is deterministic — the same bluebook projects identically every time" do
-    expect(described_class.call(bluebook: pizzas)).to eq(described_class.call(bluebook: pizzas))
+    first = described_class.call(bluebook: pizzas)
+
+    expect(described_class.call(bluebook: pizzas)).to eq(first)
   end
 end

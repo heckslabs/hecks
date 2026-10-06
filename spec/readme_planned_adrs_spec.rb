@@ -16,14 +16,18 @@ RSpec.describe "README's planned-or-research-only list" do
     expect(planned).not_to be_nil, "README no longer has a 'Planned or research only' list"
   end
 
-  it "links no ADR whose own status says it is implemented" do
-    contradicted = adr_paths.select do |file|
+  def contradicted_adrs
+    adr_paths.select do |file|
       status = File.read(File.join(root, "docs/decisions", file))[/^\*\*Status:\*\*[^\n]*/]
       status.to_s =~ /\bimplemented\b/i && status !~ /\b(not|partially)\s+(yet\s+)?implemented\b/i
     end
+  end
+
+  it "links no ADR whose own status says it is implemented" do
+    contradicted = contradicted_adrs
 
     expect(contradicted).to be_empty,
-                            "README lists #{contradicted.join(', ')} as planned, but the ADR's " \
+                            "README lists #{contradicted.join(", ")} as planned, but the ADR's " \
                             "own Status line says it is implemented — drop it from the list"
   end
 end

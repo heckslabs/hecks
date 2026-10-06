@@ -34,18 +34,7 @@ module Hecks
       end
 
       def split(request, receiver:, legacy_receiver:)
-        if request.key?(:with)
-          loose = request.keys - [:to, :with]
-          unless loose.empty?
-            raise Runtime::TypeMismatch,
-                  "an explicit command envelope takes routing in to: and facts in with:, not loose #{loose.sort.join(', ')}"
-          end
-
-          facts = request[:with]
-          raise Runtime::TypeMismatch, "with: must be a hash of command facts" unless facts.is_a?(Hash)
-
-          return [request[:to], facts]
-        end
+        return split_envelope(request) if request.key?(:with)
 
         flat  = request.dup
         route = flat.delete(:to)
@@ -53,6 +42,20 @@ module Hecks
         [route, flat]
       end
       private_class_method :split
+
+      def split_envelope(request)
+        loose = request.keys - [:to, :with]
+        unless loose.empty?
+          raise Runtime::TypeMismatch,
+                "an explicit command envelope takes routing in to: and facts in with:, not loose #{loose.sort.join(", ")}"
+        end
+
+        facts = request[:with]
+        raise Runtime::TypeMismatch, "with: must be a hash of command facts" unless facts.is_a?(Hash)
+
+        [request[:to], facts]
+      end
+      private_class_method :split_envelope
 
       def take_legacy_route(flat, receiver, legacy_receiver)
         return unless legacy_receiver
@@ -70,30 +73,38 @@ module Hecks
       private_class_method :take_legacy_route
 
       # One self-contained check per closed receiver kind, plus a backstop.
-      # rubocop:disable-next Metrics/CyclomaticComplexity
       def validate_route!(route, receiver)
         case receiver
-        when nil
-          raise Runtime::TypeMismatch, "this command does not take a receiver in to:" unless route.nil?
-        when :aggregate
-          if route.nil? || route.to_s.empty? || route.is_a?(Hash)
-            raise Runtime::TypeMismatch,
-                  "to: must name the receiving aggregate identity"
-          end
-        when :entity
-          raise Runtime::TypeMismatch, "to: for an entity command must contain aggregate: and entity:" unless route.is_a?(Hash)
-
-          extra = route.keys - [:aggregate, :entity]
-          missing = [:aggregate, :entity].select { |key| route[key].nil? || route[key].to_s.empty? }
-          unless extra.empty? && missing.empty?
-            raise Runtime::TypeMismatch,
-                  "to: for an entity command must contain only aggregate: and entity:"
-          end
-        else
-          raise ArgumentError, "unknown receiver kind #{receiver.inspect}"
+        when nil then refuse_receiver(route)
+        when :aggregate then require_identity(route)
+        when :entity then require_entity_route(route)
+        else raise ArgumentError, "unknown receiver kind #{receiver.inspect}"
         end
       end
       private_class_method :validate_route!
+
+      def refuse_receiver(route)
+        raise Runtime::TypeMismatch, "this command does not take a receiver in to:" unless route.nil?
+      end
+      private_class_method :refuse_receiver
+
+      def require_identity(route)
+        return unless route.nil? || route.to_s.empty? || route.is_a?(Hash)
+
+        raise Runtime::TypeMismatch, "to: must name the receiving aggregate identity"
+      end
+      private_class_method :require_identity
+
+      def require_entity_route(route)
+        raise Runtime::TypeMismatch, "to: for an entity command must contain aggregate: and entity:" unless route.is_a?(Hash)
+
+        extra = route.keys - [:aggregate, :entity]
+        missing = [:aggregate, :entity].select { |key| route[key].nil? || route[key].to_s.empty? }
+        return if extra.empty? && missing.empty?
+
+        raise Runtime::TypeMismatch, "to: for an entity command must contain only aggregate: and entity:"
+      end
+      private_class_method :require_entity_route
 
       def symbolize(value)
         case value

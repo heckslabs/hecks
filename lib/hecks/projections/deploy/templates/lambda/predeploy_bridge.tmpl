@@ -1,0 +1,30 @@
+# THE TRANSACTION-SAFETY GAP, closed for the case that actually
+# matters: `sam deploy` below is what flips this Lambda's own
+# HECKS_DOMAIN/HECKS_SCHEMA env vars live — the INSTANT it
+# completes, real traffic can hit a domain/schema combination
+# whose era history hasn't been bridged yet if THIS domain was
+# just renamed (formerly_known_as) or its schema just moved.
+# `mint-era` already bridges that (era_resolver.rb's own
+# rename_domain! path, idempotent either way) — it only ran
+# AFTER `sam deploy` before this existed, which is exactly the
+# order that left a real live window open the one time this was
+# actually run in anger (an SSM tunnel flaked mid-bridge, after
+# the Lambda had already flipped over).
+#
+# STILL RUNS AFTER TOO (unchanged, below) — this pre-check
+# cannot replace that: a domain's VERY FIRST deploy has no
+# stack, hence no RDS, hence nothing to tunnel to yet, so
+# mint-era's real first run has to stay where it always was,
+# once `sam deploy` has just created that RDS instance. This
+# only ADDS a second, EARLIER run for a domain that already has
+# a live stack (a rename or an ordinary redeploy) — cheap and
+# safe either way, since mint-era's own quiet-reboot path is a
+# no-op the moment nothing has actually changed.
+#
+# See predeploy_bridge_shell's own comment (hecks deploy project,
+# above, right before deploy_recipe_lines) for why this branches
+# on google_oauth_present at all -- the short version: adding
+# Google OAuth to an EXISTING stack would otherwise deadlock this
+# exact pre-check against outputs the upcoming sam deploy (not
+# yet run) hasn't created.
+@@predeploy_bridge_shell@@

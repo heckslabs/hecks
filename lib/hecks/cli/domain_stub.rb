@@ -77,7 +77,7 @@ module Hecks
         end
         return if ADAPTERS.key?(adapter)
 
-        raise ArgumentError, "unknown adapter #{adapter.inspect}; choose one of #{adapters.join(', ')}"
+        raise ArgumentError, "unknown adapter #{adapter.inspect}; choose one of #{adapters.join(", ")}"
       end
 
       # @api private

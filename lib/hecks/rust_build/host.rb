@@ -40,12 +40,13 @@ module Hecks
         require_buildable!(target)
         stage = flag(argv, "stage") || File.join(Dir.pwd, ".hecks", "host", target)
 
-        status = Wasm.call([domain])
-        raise Failure, "project_wasm failed for #{domain}" unless status.zero?
-
-        binary = compile(target)
-        publish(binary, File.basename(domain.chomp("/")), stage)
+        build_module(domain)
+        publish(compile(target), File.basename(domain.chomp("/")), stage)
         0
+      end
+
+      def build_module(domain)
+        raise Failure, "project_wasm failed for #{domain}" unless Wasm.call([domain]).zero?
       end
 
       # @param argv [Array<String>] a tool's arguments
@@ -72,6 +73,10 @@ module Hecks
                          "build.build_wasm, or name a native target"
         end
 
+        require_installed!(target)
+      end
+
+      def require_installed!(target)
         require_rustup!
         installed = query("rustup", "target", "list", "--installed", "--toolchain", TOOLCHAIN).to_s.split
         return if installed.include?(target) || target == host_triple
@@ -107,10 +112,10 @@ module Hecks
       end
 
       def linker_for(target)
-        variable = "CARGO_TARGET_#{target.upcase.tr('-.', '__')}_LINKER"
+        variable = "CARGO_TARGET_#{target.upcase.tr("-.", "__")}_LINKER"
         return {} if ENV.key?(variable) || target == host_triple
 
-        candidate = "#{target.split('-').first}-linux-gnu-gcc"
+        candidate = "#{target.split("-").first}-linux-gnu-gcc"
         target.end_with?("linux-gnu") && query(candidate, "--version") ? { variable => candidate } : {}
       end
 
@@ -118,21 +123,26 @@ module Hecks
         return "" if target == host_triple
 
         "\n#{target} differs from this machine's #{host_triple}, so linking needs a linker for it: " \
-          "put a cross compiler such as #{target.split('-').first}-linux-gnu-gcc on PATH, or set " \
-          "CARGO_TARGET_#{target.upcase.tr('-.', '__')}_LINKER"
+          "put a cross compiler such as #{target.split("-").first}-linux-gnu-gcc on PATH, or set " \
+          "CARGO_TARGET_#{target.upcase.tr("-.", "__")}_LINKER"
       end
 
       def publish(binary, name, stage)
-        dist = File.join(RustBuild.rust_dir, "dist")
-        files = { binary => "#{name}-host", File.join(dist, "#{name}.wasm") => "#{name}.wasm",
-                  File.join(dist, "#{name}.ir.json") => "#{name}.ir.json" }
+        files = staged_files(binary, name)
         files.each_key do |path|
           raise Failure, "the build left no #{path}" unless File.file?(path)
         end
         FileUtils.mkdir_p(stage)
         files.each { |from, to| FileUtils.cp(from, File.join(stage, to)) }
         File.chmod(0o755, File.join(stage, "#{name}-host"))
-        puts "staged in #{stage}: #{files.values.join(', ')}"
+        puts "staged in #{stage}: #{files.values.join(", ")}"
+      end
+
+      # @return [Hash{String => String}] each built file's path, to the name it is staged under
+      def staged_files(binary, name)
+        dist = File.join(RustBuild.rust_dir, "dist")
+        { binary => "#{name}-host", File.join(dist, "#{name}.wasm") => "#{name}.wasm",
+          File.join(dist, "#{name}.ir.json") => "#{name}.ir.json" }
       end
 
       # @return [String, nil] a program's combined output, nil when it is missing or fails

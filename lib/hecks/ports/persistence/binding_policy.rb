@@ -24,15 +24,39 @@ module Hecks
           declared = registry.default_adapter_for(domain)
           return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hexagon
 
-          bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
-          bindings = [default_binding(aggregate, declared)] if bindings.empty? && declared
+          bindings = declared_bindings(hexagon, aggregate, declared)
           raise missing_binding(domain, aggregate) if bindings.empty?
 
+          authoritative_among(bindings, domain, aggregate)
+        end
+
+        # Picks the single roleless bind, refusing any other count and any bind with a role.
+        #
+        # @param bindings [Array<Bluebook::Bind>] the aggregate's binds; not empty
+        # @param domain [String, Symbol] name of the domain, used in refusal messages
+        # @param aggregate [Bluebook::Aggregate] the aggregate the binds belong to
+        # @return [Bluebook::Bind] the authoritative bind
+        # @raise [Runtime::WiringError] if the roleless count is not one, or a role is present
+        def authoritative_among(bindings, domain, aggregate)
           authoritative = bindings.select { |bind| bind.role.nil? || bind.role.empty? }
           raise ambiguous_binding(domain, aggregate, authoritative) unless authoritative.size == 1
-          raise unsupported_roles(domain, aggregate, bindings - authoritative) unless (bindings - authoritative).empty?
+
+          roled = bindings - authoritative
+          raise unsupported_roles(domain, aggregate, roled) unless roled.empty?
 
           authoritative.first
+        end
+
+        # Lists the hecksagon's `persisted_by` binds for an aggregate, or the world's default
+        # adapter bind when the hecksagon declares none.
+        #
+        # @param hexagon [Bluebook::Hexagon] the domain's hecksagon
+        # @param aggregate [Bluebook::Aggregate] the aggregate whose binds are wanted
+        # @param declared [String, nil] the world's default adapter, if any
+        # @return [Array<Bluebook::Bind>] the binds; empty when none and no default exists
+        def declared_bindings(hexagon, aggregate, declared)
+          bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
+          bindings.empty? && declared ? [default_binding(aggregate, declared)] : bindings
         end
 
         # Builds the bind an aggregate gets when its domain declares no hecksagon.
@@ -81,8 +105,8 @@ module Hecks
         # @return [Runtime::WiringError] an error whose message lists each role
         def unsupported_roles(domain, aggregate, bindings)
           Runtime::WiringError.new(
-            "#{domain}::#{aggregate.hecks_name} uses persistence role#{'s' unless bindings.size == 1} " \
-            "#{bindings.map(&:role).map(&:inspect).join(', ')}. Only persisted_by is supported."
+            "#{domain}::#{aggregate.hecks_name} uses persistence role#{"s" unless bindings.size == 1} " \
+            "#{bindings.map(&:role).map(&:inspect).join(", ")}. Only persisted_by is supported."
           )
         end
       end

@@ -9,7 +9,7 @@ require "json"
 
 # `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
 # `BindingPolicy` resolution and `.world` settings reach the answer `hecks merge_tail` reports.
-RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
+RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
   ERA_BOUNDARY_SPEC_DATABASE = "hecks_era_boundary_spec".freeze
 
   # Prefixed names: constants assigned inside `RSpec.describe` land on `Object`, so a
@@ -82,23 +82,27 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
   # Setup, not the thing under test: an in-memory registry minted/verified against the database.
   def check!(source, translation_source: nil)
     registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    file = Tempfile.new(["era-boundary-", ".bluebook"])
-    file.write(source)
-    file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-      Kernel.eval(translation_source, TOPLEVEL_BINDING) if translation_source
-    end
-    bluebook = registry.bluebooks.values.first
+    load_bluebook(registry, source, translation_source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source,
+      registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: database_url, allow_superuser: true }
     )
     registry
-  ensure
-    file&.close!
+  end
+
+  def load_bluebook(registry, source, translation_source)
+    loading = Hecks::Ports::Loading.bootstrap
+    Tempfile.create(["era-boundary-", ".bluebook"]) do |file|
+      file.write(source)
+      file.flush
+      Hecks.with_registry(registry) { evaluate_fixture(loading, source, file.path, translation_source) }
+    end
+  end
+
+  def evaluate_fixture(loading, source, path, translation_source)
+    loading.load_library
+    Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+    Kernel.eval(translation_source, TOPLEVEL_BINDING) if translation_source
   end
 
   def hash_of(source)
@@ -128,12 +132,20 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
   # need not match the current era: the module reads `hecks_eras`/the journal, never a shape hash.
   def write_fixture_files!(root, bluebook_source)
     File.write(File.join(root, "fixture.bluebook"), bluebook_source)
-    File.write(File.join(root, "fixture.hecksagon"), <<~RUBY)
+    File.write(File.join(root, "fixture.hecksagon"), hecksagon_source("PostgresEra"))
+    File.write(File.join(root, "fixture.world"), world_source)
+  end
+
+  def hecksagon_source(adapter)
+    <<~RUBY
       Hecks.hecksagon "EraBoundaryFixture" do
-        EraBoundaryFixture::Widget.persisted_by("PostgresEra")
+        EraBoundaryFixture::Widget.persisted_by("#{adapter}")
       end
     RUBY
-    File.write(File.join(root, "fixture.world"), <<~RUBY)
+  end
+
+  def world_source
+    <<~RUBY
       Hecks.world "EraBoundaryFixture" do
         persisted_by("PostgresEra") do
           database "#{database_url}"
@@ -141,6 +153,36 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
         end
       end
     RUBY
+  end
+
+  # A write the ancestor era's journal and head snapshot hold, made after the cut to the next era.
+  def write_post_cut_record!
+    db = PG.connect(dbname: ERA_BOUNDARY_SPEC_DATABASE)
+    state = JSON.generate(cost: { "cents" => 5 }, kind: { "label" => "biz" })
+    ordinal = db.exec_params(
+      "INSERT INTO hecks_journal_era_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
+      "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
+      ["w9", state]
+    )[0]["ordinal"]
+    # Domain-qualified table name (ADR 0059).
+    db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+                   ["w9", ordinal, state])
+    db.close
+  end
+
+  # Mints era 1, then era 2 across a `rename :cost, to: :amount` edge.
+  def mint_second_era!
+    from = label_of(ERA_BOUNDARY_V1_SOURCE)
+    to = label_of(ERA_BOUNDARY_V2_SOURCE)
+    edge = ERA_BOUNDARY_EDGE_SOURCE.sub("FROM_LABEL", from.inspect).sub("TO_LABEL", to.inspect)
+    check!(ERA_BOUNDARY_V2_SOURCE, translation_source: edge)
+  end
+
+  def seed_diverged_history!
+    write_v1_record("w1")
+    mint_second_era!
+    write_post_cut_record!
+    write_fixture_files!(@fixture_root, ERA_BOUNDARY_V2_SOURCE)
   end
 
   around do |example|
@@ -159,19 +201,12 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
   end
 
   it "reports checked: false for a domain not bound to PostgresEra at all" do
-    write_fixture_files!(@fixture_root, ERA_BOUNDARY_V1_SOURCE)
-    File.delete(File.join(@fixture_root, "fixture.hecksagon"))
-    File.write(File.join(@fixture_root, "fixture.hecksagon"), <<~RUBY)
-      Hecks.hecksagon "EraBoundaryFixture" do
-        EraBoundaryFixture::Widget.persisted_by("Memory")
-      end
-    RUBY
-    File.delete(File.join(@fixture_root, "fixture.world"))
+    File.write(File.join(@fixture_root, "fixture.bluebook"), ERA_BOUNDARY_V1_SOURCE)
+    File.write(File.join(@fixture_root, "fixture.hecksagon"), hecksagon_source("Memory"))
 
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
-    expect(result[:checked]).to be(false)
-    expect(result[:kind]).to eq(:not_applicable)
+    expect(result.values_at(:checked, :kind)).to eq([false, :not_applicable])
     expect(result[:reason]).to include("not PostgresEra")
   end
 
@@ -195,30 +230,10 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
 
   # The finding this module exists to surface, read back through its public API.
   it "reports the finding: a real post-cut write an ancestor era still holds, nothing has merged forward" do
-    write_v1_record("w1")
-    from = label_of(ERA_BOUNDARY_V1_SOURCE)
-    to = label_of(ERA_BOUNDARY_V2_SOURCE)
-    edge = ERA_BOUNDARY_EDGE_SOURCE.sub("FROM_LABEL", from.inspect).sub("TO_LABEL", to.inspect)
-    check!(ERA_BOUNDARY_V2_SOURCE, translation_source: edge)
+    seed_diverged_history!
 
-    db = PG.connect(dbname: ERA_BOUNDARY_SPEC_DATABASE)
-    state = JSON.generate(cost: { "cents" => 5 }, kind: { "label" => "biz" })
-    ordinal = db.exec_params(
-      "INSERT INTO hecks_journal_era_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
-      "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
-      ["w9", state]
-    )[0]["ordinal"]
-    # Domain-qualified table name (ADR 0059).
-    db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
-                   ["w9", ordinal, state])
-    db.close
-
-    write_fixture_files!(@fixture_root, ERA_BOUNDARY_V2_SOURCE)
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
-    expect(result[:checked]).to be(true)
-    expect(result[:era_count]).to eq(2)
-    expect(result[:diverged_total]).to eq(1)
-    expect(result[:breakdown]).to eq([{ ordinal: 1, diverged: 1 }])
+    expect(result).to include(checked: true, era_count: 2, diverged_total: 1, breakdown: [{ ordinal: 1, diverged: 1 }])
   end
 end
