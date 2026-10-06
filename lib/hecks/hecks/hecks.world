@@ -41,7 +41,8 @@ Hecks.world "Hecks" do
                                           abandoned red needs_fix],
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
-                                  service_roll.run box_roll.run],
+                                  service_roll.run box_roll.run data_copy.restore
+                                  data_copy.verify],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
                                 "interview" => "door.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",

@@ -426,6 +426,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Deploy::DataCopy.port "DeployToolchain" do
+    asks "CopyData", to: DataCopy do
+      attribute :run, RunKey
+      answers "DataCopyAnswered"
+      refuses "DataCopyRefused"
+    end
+  end
+
+  Deploy::CopyVerification.port "DeployToolchain" do
+    asks "CompareCopy", to: CopyVerification do
+      attribute :run, RunKey
+      answers "CopyVerificationAnswered"
+      refuses "CopyVerificationRefused"
+    end
+  end
+
   Deploy::TemplateComparison.port "DeployToolchain" do
     asks "Compare", to: TemplateComparison do
       attribute :run, RunKey

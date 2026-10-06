@@ -1276,6 +1276,461 @@ Hecks.bluebook "Deploy" do
     trigger BoxRoll::FlagSmoke, with: { box_roll: :run, smoke: :refusal, refusal: :refusal }
   end
 
+  aggregate "DataCopy" do
+    description "One copy of a project's data from the old database into RDS: the generated restore-to-rds script run, and how it ended."
+
+    attribute :project,       Location
+    attribute :script,        Location, optional: true
+    attribute :run,           RunKey
+    attribute :bastion,       Bastion
+    attribute :source,        Host
+    attribute :source_secret, Secret
+    attribute :target,        Host
+    attribute :target_secret, Secret
+    attribute :source_db,     DatabaseName, default: { value: "" }
+    attribute :target_db,     DatabaseName, default: { value: "" }
+    attribute :force,         Switch, optional: true
+    attribute :confirm,       Switch, optional: true
+    attribute :dry_run,       Switch, optional: true
+    attribute :skip_verify,   Switch, optional: true
+    attribute :report,        Report, optional: true
+    attribute :verification,  Report, optional: true
+    attribute :refusal,       Report, optional: true
+
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # The bastion's EC2 instance id, which both databases are reached through.
+    value_object "Bastion" do
+      attribute :value, String, pattern: '^i-[0-9a-f]+$'
+    end
+
+    value_object "Host" do
+      attribute :value, String, pattern: '^[A-Za-z0-9][A-Za-z0-9.-]*$'
+    end
+
+    # A Secrets Manager id or ARN; the script reads the password from it, so no value travels here.
+    value_object "Secret" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    # A database's name; empty leaves it to the generated script's own default.
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_]*$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "restored", from: "requested"
+      transition "Plan" => "planned", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+      transition "Confirm" => "verified", from: ["requested", "restored"]
+      transition "Drift" => "drifted", from: ["requested", "restored"]
+      transition "FlagVerification" => "flagged", from: ["requested", "restored"]
+    end
+
+    # `hecks deploy data_copy.restore <project> bastion=<i-...> source=<host> source_secret=<id>
+    # target=<host> target_secret=<id> [source_db=] [target_db=] [force=true] [confirm=true]
+    # [dry_run=true] [skip_verify=true] [script=<path>]`. Runs the project's generated
+    # `restore-to-rds.sh`, which overwrites the target database's schemas, so it refuses unless
+    # `confirm=true` (the refusal names what would be overwritten); `dry_run=true` prints the plan
+    # and runs nothing. A policy then requests a `CopyVerification` under the same run key unless
+    # `skip_verify=true`. Exit 1 when flagged or drifted, with the script's status in the reason.
+    command "Restore" do
+      goal "Copy a project's schemas into RDS and record whether the copy matches (exit 1 when flagged or drifted: 60 old client, 61 target has the schema, 62 restore errors)"
+
+      attribute :project,       Location
+      attribute :script,        Location, optional: true
+      attribute :run,           RunKey
+      attribute :bastion,       Bastion
+      attribute :source,        Host
+      attribute :source_secret, Secret
+      attribute :target,        Host
+      attribute :target_secret, Secret
+      attribute :source_db,     DatabaseName, default: { value: "" }
+      attribute :target_db,     DatabaseName, default: { value: "" }
+      attribute :force,         Switch, optional: true
+      attribute :confirm,       Switch, optional: true
+      attribute :dry_run,       Switch, optional: true
+      attribute :skip_verify,   Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :bastion
+      sets :source
+      sets :source_secret
+      sets :target
+      sets :target_secret
+      sets :source_db
+      sets :target_db
+      sets :force
+      sets :confirm
+      sets :dry_run
+      sets :skip_verify
+
+      emits "DataCopyRequested"
+    end
+
+    # `hecks deploy data_copy.verify <project> bastion= source= source_secret= target= target_secret=
+    # [source_db=] [target_db=] [script=<path>]`. Compares the two databases with the project's
+    # generated `verify-copy.sh` (structure and exact row counts of every table, nothing unpopulated),
+    # read-only on both, without a restore. A policy requests the `CopyVerification` and its outcome
+    # lands here, the same way it does after a restore. Exit 1 when `drifted` or `flagged`.
+    command "Verify" do
+      goal "Compare two databases without a restore and record whether they match (exit 1 when drifted: 50, or flagged: could not compare)"
+
+      attribute :project,       Location
+      attribute :script,        Location, optional: true
+      attribute :run,           RunKey
+      attribute :bastion,       Bastion
+      attribute :source,        Host
+      attribute :source_secret, Secret
+      attribute :target,        Host
+      attribute :target_secret, Secret
+      attribute :source_db,     DatabaseName, default: { value: "" }
+      attribute :target_db,     DatabaseName, default: { value: "" }
+
+      sets :project
+      sets :script
+      sets :run
+      sets :bastion
+      sets :source
+      sets :source_secret
+      sets :target
+      sets :target_secret
+      sets :source_db
+      sets :target_db
+
+      emits "DataCopyVerifyRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the copy ran, and what the script said"
+
+      reference_to DataCopy
+      attribute :report, Report
+
+      sets :report
+
+      emits "DataCopyCompleted"
+    end
+
+    command "Plan" do
+      goal "Record the plan a dry run printed: what would be copied and overwritten, with nothing run"
+
+      reference_to DataCopy
+      attribute :report, Report
+
+      sets :report
+
+      emits "DataCopyPlanned"
+    end
+
+    command "Flag" do
+      goal "Record that the copy was refused or failed, with the script's status and what it said"
+
+      reference_to DataCopy
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "DataCopyFlagged"
+    end
+
+    command "Confirm" do
+      goal "Record that the verification the copy requested found both databases identical"
+
+      reference_to DataCopy
+      attribute :verification, Report
+
+      sets :verification
+
+      emits "DataCopyVerified"
+    end
+
+    command "Drift" do
+      goal "Record that the verification the copy requested found the databases differ, and where"
+
+      reference_to DataCopy
+      attribute :verification, Report
+      attribute :refusal,      Report
+
+      sets :verification
+      sets :refusal
+
+      emits "DataCopyDrifted"
+    end
+
+    command "FlagVerification" do
+      goal "Record that the copy ran but its verification could not be made, and why"
+
+      reference_to DataCopy
+      attribute :verification, Report
+      attribute :refusal,      Report
+
+      sets :verification
+      sets :refusal
+
+      emits "DataCopyVerificationFlagged"
+    end
+
+    query "Verdict" do
+      description "What one copy found: its status, the report, and the reason it was flagged or drifted."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every copy that was refused, failed or could not be verified."
+      where(status: "flagged")
+      order_by :run
+    end
+
+    query "Drifted" do
+      description "Every copy whose verification found the two databases differ."
+      where(status: "drifted")
+      order_by :run
+    end
+  end
+
+  policy "CopyDataWhenRequested" do
+    on      "DataCopy.DataCopyRequested"
+    trigger DataCopy::DeployToolchain::CopyData, with: { run: :run }
+  end
+
+  policy "RecordTheCopiedData" do
+    on      "DataCopy.DataCopyAnswered"
+    where   { !planned.value }
+    trigger DataCopy::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheCopyPlan" do
+    on      "DataCopy.DataCopyAnswered"
+    where   { planned.value }
+    trigger DataCopy::Plan, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedCopy" do
+    on      "DataCopy.DataCopyRefused"
+    trigger DataCopy::Flag, with: { refusal: :refusal }
+  end
+
+  # Declared after RecordTheCopiedData: the copy is recorded before its verification is requested,
+  # and the request comes from the answer itself because a reaction chain is bounded.
+  policy "VerifyAfterCopy" do
+    on      "DataCopy.DataCopyAnswered"
+    where   { run_verify.value }
+    trigger CopyVerification::Run,
+            with: { project: :project, run: :run, bastion: :bastion, source: :source,
+                    source_secret: :source_secret, target: :target, target_secret: :target_secret,
+                    source_db: :source_db, target_db: :target_db }
+  end
+
+  policy "VerifyWhenRequested" do
+    on      "DataCopy.DataCopyVerifyRequested"
+    trigger CopyVerification::Run,
+            with: { project: :project, run: :run, bastion: :bastion, source: :source,
+                    source_secret: :source_secret, target: :target, target_secret: :target_secret,
+                    source_db: :source_db, target_db: :target_db }
+  end
+
+  policy "VerifyDataCopyOnMatch" do
+    on      "CopyVerification.CopyMatched"
+    trigger DataCopy::Confirm, with: { data_copy: :run, verification: :report }
+  end
+
+  policy "DriftDataCopyOnDifference" do
+    on      "CopyVerification.CopyDrifted"
+    trigger DataCopy::Drift, with: { data_copy: :run, verification: :report, refusal: :report }
+  end
+
+  policy "FlagDataCopyOnUnverified" do
+    on      "CopyVerification.CopyUnverified"
+    trigger DataCopy::FlagVerification, with: { data_copy: :run, verification: :refusal, refusal: :refusal }
+  end
+
+  aggregate "CopyVerification" do
+    description "One comparison of two databases holding a project's schemas: the generated verify-copy script run, and what it found."
+
+    attribute :project,       Location
+    attribute :script,        Location, optional: true
+    attribute :run,           RunKey
+    attribute :bastion,       Bastion
+    attribute :source,        Host
+    attribute :source_secret, Secret
+    attribute :target,        Host
+    attribute :target_secret, Secret
+    attribute :source_db,     DatabaseName, default: { value: "" }
+    attribute :target_db,     DatabaseName, default: { value: "" }
+    attribute :report,        Report, optional: true
+    attribute :refusal,       Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "Bastion" do
+      attribute :value, String, pattern: '^i-[0-9a-f]+$'
+    end
+
+    value_object "Host" do
+      attribute :value, String, pattern: '^[A-Za-z0-9][A-Za-z0-9.-]*$'
+    end
+
+    value_object "Secret" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    # A database's name; empty leaves it to the generated script's own default.
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_]*$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Match" => "verified", from: "requested"
+      transition "Differ" => "drifted", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # Runs the project's generated `verify-copy.sh`: structure and exact row counts of every table,
+    # nothing unpopulated. Read-only on both databases. A `DataCopy` requests it, by `data_copy.verify`
+    # or after a restore, and takes its outcome by the shared run key.
+    command "Run" do
+      goal "Compare two databases and record whether they match (exit 1 when drifted: 50 differ, or flagged: could not compare)"
+
+      attribute :project,       Location
+      attribute :script,        Location, optional: true
+      attribute :run,           RunKey
+      attribute :bastion,       Bastion
+      attribute :source,        Host
+      attribute :source_secret, Secret
+      attribute :target,        Host
+      attribute :target_secret, Secret
+      attribute :source_db,     DatabaseName, default: { value: "" }
+      attribute :target_db,     DatabaseName, default: { value: "" }
+
+      sets :project
+      sets :script
+      sets :run
+      sets :bastion
+      sets :source
+      sets :source_secret
+      sets :target
+      sets :target_secret
+      sets :source_db
+      sets :target_db
+
+      emits "CopyVerificationRequested"
+    end
+
+    command "Match" do
+      goal "Record that both databases hold the same structure and row counts"
+
+      reference_to CopyVerification
+      attribute :report, Report
+
+      sets :report
+
+      emits "CopyMatched"
+    end
+
+    command "Differ" do
+      goal "Record that the databases differ, with what the script printed"
+
+      reference_to CopyVerification
+      attribute :report, Report
+
+      sets :report
+
+      emits "CopyDrifted"
+    end
+
+    command "Flag" do
+      goal "Record that the comparison could not be made, and why"
+
+      reference_to CopyVerification
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "CopyUnverified"
+    end
+
+    query "Verdict" do
+      description "What one comparison found: its status, and the report or the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Drifted" do
+      description "Every comparison that found the databases differ."
+      where(status: "drifted")
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every comparison that could not be made."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "CompareCopyWhenRequested" do
+    on      "CopyVerification.CopyVerificationRequested"
+    trigger CopyVerification::DeployToolchain::CompareCopy, with: { run: :run }
+  end
+
+  policy "RecordTheMatchingCopy" do
+    on      "CopyVerification.CopyVerificationAnswered"
+    where   { !drifted.value }
+    trigger CopyVerification::Match, with: { report: :report }
+  end
+
+  policy "RecordTheDriftedCopy" do
+    on      "CopyVerification.CopyVerificationAnswered"
+    where   { drifted.value }
+    trigger CopyVerification::Differ, with: { report: :report }
+  end
+
+  policy "RecordTheUnverifiedCopy" do
+    on      "CopyVerification.CopyVerificationRefused"
+    trigger CopyVerification::Flag, with: { refusal: :refusal }
+  end
+
   aggregate "TemplateComparison" do
     description "One offline comparison of two CloudFormation templates, by logical id."
 

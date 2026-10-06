@@ -9,6 +9,10 @@
 #             direction (swap the hosts and secrets, and SRC_DB and DST_DB)
 #   SRC_DB    the source database (default legacy)
 #   DST_DB    the target database (default widgetdb)
+#   VERIFY_BY_COMMAND=1   end after the copy and leave the comparison to `hecks deploy data_copy.restore`
+#
+# Ends 60 (a client older than 16), 61 (the target already has a schema), 62 (unexpected restore
+# errors), or, run by hand, verify-copy.sh's 50 (the databases differ).
 #
 # Schemas copied: widgets widgets_cms
 #
@@ -34,7 +38,7 @@ if [ "$(pg_major pg_dump || echo 0)" -lt 16 ] && [ -x /opt/homebrew/opt/postgres
   export PATH=/opt/homebrew/opt/postgresql@16/bin:$PATH
 fi
 for t in pg_dump pg_restore psql; do
-  [ "$(pg_major $t || echo 0)" -ge 16 ] || { echo "need $t 16 or newer on the PATH" >&2; exit 1; }
+  [ "$(pg_major $t || echo 0)" -ge 16 ] || { echo "need $t 16 or newer on the PATH" >&2; exit 60; }
 done
 
 WORK=$(mktemp -d)
@@ -66,7 +70,7 @@ echo "source $(SRC 'show server_version'), target $(DST 'show server_version')"
 for S in $SCHEMAS; do
   if [ "$(DST "select count(*) from pg_namespace where nspname='$S'")" != 0 ]; then
     if [ "${FORCE:-}" = 1 ]; then DST "drop schema \"$S\" cascade" >/dev/null; echo "dropped target schema $S"
-    else echo "target already has schema $S; re-run with FORCE=1 to replace it" >&2; exit 1; fi
+    else echo "target already has schema $S; re-run with FORCE=1 to replace it" >&2; exit 61; fi
   fi
 done
 
@@ -77,7 +81,7 @@ for S in $SCHEMAS; do
   TOTAL=$(grep -c 'error:' "$WORK/err_$S.txt" || true)
   UNEXPECTED=$(grep 'error:' "$WORK/err_$S.txt" | grep -vc 'hecks_tr_extract' || true)
   echo "   restore errors: $TOTAL (unexpected: $UNEXPECTED)"
-  if [ "$UNEXPECTED" != 0 ]; then grep 'error:' "$WORK/err_$S.txt" | grep -v 'hecks_tr_extract' | head -5 >&2; exit 1; fi
+  if [ "$UNEXPECTED" != 0 ]; then grep 'error:' "$WORK/err_$S.txt" | grep -v 'hecks_tr_extract' | head -5 >&2; exit 62; fi
 done
 
 # Refresh what pg_restore could not (with the schema on the search_path).
@@ -88,4 +92,5 @@ for S in $SCHEMAS; do
 done
 
 # Same structure, same exact row counts in every table, nothing unpopulated.
+[ -z "${VERIFY_BY_COMMAND:-}" ] || exit 0
 A_DB=$SRC_DB B_DB=$DST_DB bash "$HERE/verify-copy.sh" "$BASTION" "$SRC_HOST" "$SRC_SECRET" "$DST_HOST" "$DST_SECRET"
