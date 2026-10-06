@@ -5,8 +5,8 @@ require "json"
 require "open3"
 require "tmpdir"
 require_relative "../rust_build"
-require_relative "coverage/expected"
-require_relative "coverage/printer"
+require_relative "coverage_parts/expected"
+require_relative "coverage_parts/printer"
 
 module Hecks
   module RustBuild
