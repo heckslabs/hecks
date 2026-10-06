@@ -26,7 +26,9 @@ deploy:
 	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
-	  echo "    one-time setup on this machine: createdb hecks, or set HECKS_DATABASE to a Postgres URL" >&2; \
+	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
+	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then set" >&2; \
+	  echo "    HECKS_DATABASE=postgres://<role>@localhost/<db>" >&2; \
 	  echo "    deploying anyway so the deploy is not lost" >&2; \
 	  rm -f "$$err"; bash ./deploy-box.sh $(TAGS); rc=$$?; \
 	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \

@@ -316,7 +316,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
         err, status = make(runner, "deploy", env: { "FAKE_NO_DATABASE" => "1" })
 
         expect(status).not_to eq(0)
-        expect(err).to include("the deploy record was NOT written", "createdb hecks", "Error 24")
+        expect(err).to include("the deploy record was NOT written", "non-superuser role", "Error 24")
         expect(runner.calls.grep(/\Adeploy-box/).size).to eq(1)
         expect(smoke_dispatched?(runner)).to be(true)
       end
