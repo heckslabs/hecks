@@ -12,6 +12,9 @@ module Hecks
     # so a built binary is cached per `[rust_dir, feature, sources]`, where `sources` is a digest of
     # the workspace's Rust sources and manifests. Regenerating the domain changes the digest, so the
     # next call rebuilds instead of answering with a stale binary or a stale failure.
+    #
+    # A binary already pinned and newer than every source is used as it is, so a prebuild can have
+    # built every feature in parallel before the specs ask for them.
     module NativeBuild
       # Raised when a declared feature fails to build; nil is reserved for "feature not declared".
       class BuildFailed < StandardError; end
@@ -94,10 +97,35 @@ module Hecks
 
         File.open(lock_path, File::CREAT | File::RDWR) do |lock|
           lock.flock(File::LOCK_EX)
+          pinned = pinned_path(rust_dir, domain_feature)
+          next pinned if pinned_fresh?(pinned, rust_dir)
+
           command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
           cargo(command, rust_dir, domain_feature)
           pin(rust_dir, domain_feature, command)
         end
+      end
+
+      def pinned_path(rust_dir, domain_feature)
+        File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
+      end
+
+      # A binary pinned ahead of time, by a prebuild that ran its own `cargo build`s side by side, is
+      # current when no source is newer than it: the rule `make` applies to any target.
+      #
+      # @return [Boolean] whether `pinned` exists and every source predates it
+      def pinned_fresh?(pinned, rust_dir)
+        return false unless File.executable?(pinned)
+
+        built = File.mtime(pinned)
+        source_files(rust_dir).none? { |path| File.mtime(path) > built }
+      end
+
+      # @return [Array<String>] every `.rs` and `.toml` file and `Cargo.lock` outside `target/`
+      def source_files(rust_dir)
+        paths = Dir.glob(File.join(rust_dir, "**", "*.{rs,toml}"), File::FNM_DOTMATCH)
+        paths << File.join(rust_dir, "Cargo.lock")
+        paths.select { |path| File.file?(path) && !path.delete_prefix("#{rust_dir}/").start_with?("target/") }
       end
 
       def cargo(command, rust_dir, domain_feature)
@@ -118,7 +146,7 @@ module Hecks
           raise BuildFailed, "`#{command.join(" ")}` succeeded in #{rust_dir} but left no executable at #{binary}"
         end
 
-        pinned = File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
+        pinned = pinned_path(rust_dir, domain_feature)
         FileUtils.cp(binary, pinned)
         File.chmod(0o755, pinned)
         pinned

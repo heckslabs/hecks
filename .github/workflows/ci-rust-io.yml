@@ -87,6 +87,29 @@ jobs:
       - name: Build the Rust conformance binary
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
+      # The specs build one binary per domain feature, one after another, because cargo holds a lock
+      # on a target directory. Build every feature here instead, four at a time, each worker in its
+      # own target directory, and pin each binary where the specs look for it; a pinned binary newer
+      # than every source is used as it is (RustBuild::NativeBuild). Best effort: a feature that does
+      # not build here is built by the spec that needs it, with the real error.
+      - name: Prebuild every domain feature in parallel
+        run: |
+          cd rust
+          mkdir -p target/debug
+          grep -E '^[a-z0-9_]+ = \[\]$' Cargo.toml | sed 's/ = \[\]$//' | grep -vx default > "$RUNNER_TEMP/features"
+          split -n l/4 "$RUNNER_TEMP/features" "$RUNNER_TEMP/features."
+          for chunk in "$RUNNER_TEMP"/features.??; do
+            (
+              dir="$RUNNER_TEMP/prebuild-$(basename "$chunk")"
+              while read -r feature; do
+                CARGO_TARGET_DIR="$dir" cargo build --no-default-features --features "$feature" &&
+                  cp "$dir/debug/rust" "target/debug/rust-$feature" || true
+              done < "$chunk"
+            ) &
+          done
+          wait
+          echo "prebuilt $(find target/debug -maxdepth 1 -name 'rust-*' | wc -l) of $(wc -l < "$RUNNER_TEMP/features") features in ${SECONDS}s"
+
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.
       - name: Run the from_json round-trip test
