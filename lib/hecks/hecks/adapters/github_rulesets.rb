@@ -61,7 +61,9 @@ module Hecks
         found = COMPARED.reject { |key| projected[key] == live[key] }.map do |key|
           "#{projected["name"]}: #{key} is #{live[key].inspect} on GitHub, #{projected[key].inspect} in the model"
         end
-        found + compare_conditions(projected, live) + compare_bypass(projected, live) + compare_rules(projected, live)
+        found + %i[compare_conditions compare_bypass compare_rules compare_checks].flat_map do |part|
+          send(part, projected, live)
+        end
       end
 
       private
@@ -84,6 +86,20 @@ module Hecks
         mine = projected.fetch("rules").map { |rule| rule["type"] }.sort
         theirs = live.fetch("rules", []).map { |rule| rule["type"] }.sort
         mine == theirs ? [] : ["#{projected["name"]}: rules are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
+      end
+
+      def compare_checks(projected, live)
+        mine = contexts(projected)
+        theirs = contexts(live)
+        return [] if mine == theirs
+
+        ["#{projected["name"]}: required checks are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
+      end
+
+      # The check names a ruleset's `required_status_checks` rule demands, sorted.
+      def contexts(ruleset)
+        rule = Array(ruleset["rules"]).find { |candidate| candidate["type"] == "required_status_checks" }
+        Array(rule&.dig("parameters", "required_status_checks")).map { |check| check["context"] }.sort
       end
 
       def actors(ruleset)

@@ -1,13 +1,19 @@
 # frozen_string_literal: true
 
+require "hecks/vocabulary"
+
 module Hecks
   module Tools
     module Lanes
       # The ruleset GitHub is given for a guarded lane.
+      #
+      # A guarded lane cannot be deleted or rewound, and a `green` lane takes only a commit on
+      # which every `RequiredCheck` of the Vocabulary chapter has already passed. No actor is let
+      # past it: a push of a commit that passed is how a promotion moves the lane, and the GitHub
+      # Actions app cannot be named as a bypass actor.
       module Ruleset
-        # What a guarded lane forbids: deleting it, rewinding it, and updating it by anyone the
-        # ruleset does not let past.
-        RULES = [{ "type" => "deletion" }, { "type" => "non_fast_forward" }, { "type" => "update" }].freeze
+        # What every guarded lane forbids: deleting it and rewinding it.
+        FIXED = [{ "type" => "deletion" }, { "type" => "non_fast_forward" }].freeze
 
         module_function
 
@@ -16,15 +22,21 @@ module Hecks
         def build(lane)
           { "name" => "lane-#{lane["name"]}", "target" => "branch", "enforcement" => "active",
             "conditions" => { "ref_name" => { "include" => ["refs/heads/#{lane["name"]}"], "exclude" => [] } },
-            "bypass_actors" => bypass(lane), "rules" => RULES }
+            "bypass_actors" => [], "rules" => rules(lane) }
         end
 
         # @param lane [Hash{String => String}] a `Lane` row
-        # @return [Array<Hash>] who may push past the ruleset: the promotion app, or nobody
-        def bypass(lane)
-          return [] unless lane["pushers"] == "promotion"
+        # @return [Array<Hash>] the rules: the fixed ones, and the required checks of a `green` lane
+        def rules(lane)
+          lane["pushers"] == "green" ? [*FIXED, required_checks] : FIXED
+        end
 
-          [{ "actor_id" => Lanes::PROMOTION_APP_ID, "actor_type" => "Integration", "bypass_mode" => "always" }]
+        # @return [Hash] the rule that a pushed commit has already passed every `RequiredCheck`
+        def required_checks
+          contexts = Hecks::Vocabulary.rows("RequiredCheck").map { |check| { "context" => check["name"] } }
+          { "type"       => "required_status_checks",
+            "parameters" => { "strict_required_status_checks_policy" => false, "do_not_enforce_on_create" => false,
+                              "required_status_checks" => contexts } }
         end
       end
     end

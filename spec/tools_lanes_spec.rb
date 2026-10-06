@@ -28,14 +28,21 @@ RSpec.describe Hecks::Tools::Lanes do
       expect(described_class.leftover(root, described_class.projection(root))).to eq([])
     end
 
-    it "let nothing but the promotion app push to a guarded lane, and let it delete and rewind nothing",
+    it "let a guarded lane be neither deleted nor rewound, and name no actor that may bypass it",
        :aggregate_failures do
       stable = committed_ruleset
 
       expect(stable.dig("conditions", "ref_name", "include")).to eq(["refs/heads/stable"])
-      expect(stable["rules"].map { |rule| rule["type"] }).to contain_exactly("deletion", "non_fast_forward", "update")
-      expect(stable["bypass_actors"]).to eq([{ "actor_id" => 15_368, "actor_type" => "Integration",
-                                               "bypass_mode" => "always" }])
+      expect(stable["rules"].map { |rule| rule["type"] })
+        .to contain_exactly("deletion", "non_fast_forward", "required_status_checks")
+      expect(stable["bypass_actors"]).to eq([])
+    end
+
+    it "let a green lane take only a commit that passed every RequiredCheck", :aggregate_failures do
+      required = committed_ruleset["rules"].find { |rule| rule["type"] == "required_status_checks" }
+      contexts = required.dig("parameters", "required_status_checks").map { |check| check["context"] }
+
+      expect(contexts).to eq(Hecks::Vocabulary.rows("RequiredCheck").map { |check| check["name"] })
     end
 
     it "write no ruleset for a lane that takes pushes from anyone" do
@@ -78,7 +85,7 @@ RSpec.describe Hecks::Tools::Lanes do
     end
 
     it "names a file edited by hand and writes nothing under --check", :aggregate_failures do
-      File.write(ruleset_path, File.read(ruleset_path).sub('"always"', '"pull_request"'))
+      File.write(ruleset_path, File.read(ruleset_path).sub('"active"', '"disabled"'))
       edited = File.read(ruleset_path)
 
       expect { expect(main_in_work("--check")).to eq(1) }.to output(%r{out of date: \.github/rulesets/stable\.json}).to_stderr

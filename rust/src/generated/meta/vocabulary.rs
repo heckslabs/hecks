@@ -1658,7 +1658,7 @@ pub struct Lane {
 
 pub const LANE: &[Lane] = &[
     Lane { name: "main", guarded: "no", pushers: "anyone", feeds: "", follows: "" },
-    Lane { name: "stable", guarded: "yes", pushers: "promotion", feeds: "edge", follows: "main" },
+    Lane { name: "stable", guarded: "yes", pushers: "green", feeds: "edge", follows: "main" },
 ];
 
 impl Lane {

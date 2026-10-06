@@ -13,11 +13,7 @@
     }
   },
   "bypass_actors": [
-    {
-      "actor_id": 15368,
-      "actor_type": "Integration",
-      "bypass_mode": "always"
-    }
+
   ],
   "rules": [
     {
@@ -27,7 +23,40 @@
       "type": "non_fast_forward"
     },
     {
-      "type": "update"
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "rspec"
+          },
+          {
+            "context": "checks"
+          },
+          {
+            "context": "rspec_postgres_io"
+          },
+          {
+            "context": "rspec_postgres_io_parallel"
+          },
+          {
+            "context": "rspec_rust_io"
+          },
+          {
+            "context": "rspec_rust_parser"
+          },
+          {
+            "context": "rspec_rust_codegen"
+          },
+          {
+            "context": "rspec_rust_host"
+          },
+          {
+            "context": "rspec_fuzzing"
+          }
+        ]
+      }
     }
   ]
 }
