@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Behavior change: the host's `session` cookie now expires.** The host refuses a `session` cookie with no `exp` field or
+one in the past, the same as a forged one. Before, a validly signed cookie stayed good until `SESSION_SECRET` changed, so a
+stolen cookie never lapsed. The host never issues this cookie (an operator mints it with the secret), so nothing logs out
+by itself, but every cookie already minted stops working and must be minted again with an `exp` (Unix seconds); the recipe
+in `docs/running-a-rules-service.md` section 7.2 now includes it. The lifetime `session_cookie` stamps is
+`auth::SESSION_TTL_SECS` (14 days), the same constant the account cookie uses.
+
 **Added: `project_site root=<dir>` writes the files that let the content system drive the domain, read from the domain itself.** A `Payload` row names the domain and its chapter; for each aggregate with a lifecycle it writes the lifecycle module, a spec (input type, wire form, reader, creating command and lifecycle edges) and a catalogue of Payload fields with the reader that turns a saved document into the input. `PayloadField` rows carry what an editor needs that an attribute's shape cannot say (date pickers, choice lists, uploads, relations, labels). The domain is read, never annotated.
 
 **Added: `project_site root=<dir>` writes the project's root files from rows beside the route table.** `Secrets` and `Env` rows write `.env.tpl` (secrets as 1Password references, never values); a `Ci` row writes the workflow that runs `--check` and the project's test; `Cms` and `BootSecret` rows write the content system's `Dockerfile` and `deploy-aws/boot.mjs`, which resolves its secrets from Secrets Manager before the server starts. Each file is written only when its rows are declared, and `--check` covers them. `docs/site-routes.md` lists the rows.
