@@ -145,10 +145,10 @@ RSpec.describe "environment overlays and vendored bluebooks" do
       write_overlaid(GOVERNED_HECKSAGON)
       write(dir, "environments/production.hecksagon", SUBSCRIBE_OVERLAY)
 
-      hexagon = Hecks.boot(dir, environment: "production", install_doors: false).registry.hecksagon("Overlaid")
+      hecksagon = Hecks.boot(dir, environment: "production", install_doors: false).registry.hecksagon("Overlaid")
 
-      expect(hexagon.subscriptions).to eq(["SomeOutsideEvent"])
-      expect(hexagon.bind_for("Thing", "persisted_by").adapter).to eq("Memory")
+      expect(hecksagon.subscriptions).to eq(["SomeOutsideEvent"])
+      expect(hecksagon.bind_for("Thing", "persisted_by").adapter).to eq("Memory")
     end
 
     # Base declares no Governance — an overlay-only `attaches "Governance"` must still be enough.

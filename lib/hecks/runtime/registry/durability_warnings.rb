@@ -10,22 +10,22 @@ module Hecks
         # (`AppendOnly#outbox?`) runs reactions inline — lost on a crash between a
         # commit and its reaction. A warning, not a refusal: Memory has an in-process
         # outbox, so dev/test stays quiet, but file/remote adapters need this to be loud.
-        def warn_undurable_outbox!(hexagon)
-          bluebook_ir = bluebook(hexagon.domain)
+        def warn_undurable_outbox!(hecksagon)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir && reactions_declared?(bluebook_ir)
 
           anchor = bluebook_ir.aggregates.first or return
-          bind = Ports::Persistence::BindingPolicy.resolve(self, hexagon.domain, anchor)
+          bind = Ports::Persistence::BindingPolicy.resolve(self, hecksagon.domain, anchor)
           return if adapter_class(bind.adapter) <= Ports::Persistence::RemoteRuntime
-          return if repository(hexagon.domain, anchor).outbox?
+          return if repository(hecksagon.domain, anchor).outbox?
 
-          warn undurable_outbox_wording(hexagon, bind)
+          warn undurable_outbox_wording(hecksagon, bind)
         rescue WiringError
           nil
         end
 
-        def undurable_outbox_wording(hexagon, bind)
-          "[hecks] #{hexagon.domain} declares policies/process_managers but its persistence adapter " \
+        def undurable_outbox_wording(hecksagon, bind)
+          "[hecks] #{hecksagon.domain} declares policies/process_managers but its persistence adapter " \
             "(#{bind.adapter}) has no outbox — reactions run inline and a crash between a command's commit " \
             "and its reactions loses them silently. Bind SqlitePersistence or Postgres for a durable outbox " \
             "(see Runtime::Outbox), or accept in-process-only reactions on purpose."
@@ -52,14 +52,14 @@ module Hecks
 
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
-        def warn_undurable_sagas!(hexagon)
-          bluebook_ir = bluebook(hexagon.domain)
+        def warn_undurable_sagas!(hecksagon)
+          bluebook_ir = bluebook(hecksagon.domain)
           return unless bluebook_ir
           return if bluebook_ir.process_managers.empty?
-          return unless saga_persistence(hexagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
+          return unless saga_persistence(hecksagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
 
           names = bluebook_ir.process_managers.map(&:name).join(", ")
-          warn "[hecks] #{hexagon.domain} declares process_manager(s) #{names} but its resolved " \
+          warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
                "Bind this domain to an adapter that implements save_saga if this process_manager " \

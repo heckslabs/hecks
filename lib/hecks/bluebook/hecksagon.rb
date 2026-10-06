@@ -1,4 +1,4 @@
-require_relative "behaviour/hexagon"
+require_relative "behaviour/hecksagon"
 require_relative "keyword_fields"
 require_relative "../ir"
 

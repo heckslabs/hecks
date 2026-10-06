@@ -3,7 +3,7 @@ require_relative "../../bluebook/dsl/world_builder"
 require_relative "../../bluebook/dsl/domain_port_builder"
 require_relative "../../bluebook/dsl/const_shim"
 require_relative "../../bluebook/dsl/binding_proxy"
-require_relative "../../bluebook/hexagon"
+require_relative "../../bluebook/hecksagon"
 require_relative "../handle"
 require_relative "../../naming"
 

@@ -27,7 +27,7 @@ require_relative "bluebook/domain_port"
 require_relative "bluebook/policy"
 require_relative "bluebook/process_manager"
 require_relative "bluebook/aggregate"
-require_relative "bluebook/hexagon"
+require_relative "bluebook/hecksagon"
 require_relative "bluebook/translation"
 
 require_relative "bluebook/assembly/contract"

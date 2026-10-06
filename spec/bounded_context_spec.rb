@@ -157,10 +157,10 @@ RSpec.describe "bounded contexts" do
     expect_merged_hexagon(registry.hecksagon("BoundedEcho"))
   end
 
-  def expect_merged_hexagon(hexagon)
-    expect(hexagon.bounded?).to be true
-    expect(hexagon.member_chapters).to eq(["Governance"])
-    expect(hexagon.translates).to eq(["EchoOnThingFired"])
+  def expect_merged_hexagon(hecksagon)
+    expect(hecksagon.bounded?).to be true
+    expect(hecksagon.member_chapters).to eq(["Governance"])
+    expect(hecksagon.translates).to eq(["EchoOnThingFired"])
   end
 
   it "marks an attached member bounded without writing bounded in that bluebook", :aggregate_failures do

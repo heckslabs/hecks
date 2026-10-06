@@ -59,7 +59,7 @@ module Hecks
         # the app requiring them itself. A bind with no implementation is left
         # for `verify!` to refuse.
         def load_bound_adapters!(registry)
-          bound   = registry.hecksagons.each_value.flat_map { |hexagon| hexagon.binds.map(&:adapter) }
+          bound   = registry.hecksagons.each_value.flat_map { |hecksagon| hecksagon.binds.map(&:adapter) }
           default = registry.worlds.each_value.filter_map(&:default_adapter)
           (bound + default).each { |name| load_adapter(registry, name) }
         end

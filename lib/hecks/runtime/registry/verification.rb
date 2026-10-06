@@ -1,4 +1,4 @@
-require_relative "../../bluebook/hexagon"
+require_relative "../../bluebook/hecksagon"
 require_relative "hecksagon_rules"
 require_relative "query_verification"
 require_relative "chapter_verification"
@@ -15,7 +15,7 @@ module Hecks
         include ChapterVerification
         include DurabilityWarnings
 
-        # Runs every wiring check against this registry's loaded bluebooks, hexagons, ports
+        # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
         # and adapters.
         def verify!
           verify_default_adapter!
@@ -27,7 +27,7 @@ module Hecks
           refuse_unresolved_port_operations!
           refuse_unanswerable_queries!
 
-          @declared.hecksagons.each_value { |hexagon| verify_hecksagon!(hexagon) }
+          @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon) }
           self
         end
 
@@ -124,27 +124,27 @@ module Hecks
 
         # One hecksagon's checks: its roles, attachments and ACL, every bind, and the durability
         # warnings for its chapter.
-        def verify_hecksagon!(hexagon)
-          refuse_ungoverned_roles!(hexagon)
-          refuse_unwired_attachments!(hexagon)
-          refuse_bounded_without_acl!(hexagon)
-          hexagon.binds.each { |bind| verify_bind!(hexagon, bind) }
-          warn_undurable_sagas!(hexagon)
-          warn_undurable_outbox!(hexagon)
+        def verify_hecksagon!(hecksagon)
+          refuse_ungoverned_roles!(hecksagon)
+          refuse_unwired_attachments!(hecksagon)
+          refuse_bounded_without_acl!(hecksagon)
+          hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind) }
+          warn_undurable_sagas!(hecksagon)
+          warn_undurable_outbox!(hecksagon)
         end
 
-        def verify_bind!(hexagon, bind)
+        def verify_bind!(hecksagon, bind)
           # A domain-level default (§0) names no aggregate of its own; still validate its
           # adapter/verb shape. Real aggregates resolving through it are covered by their
           # own dispatch-time `BindingPolicy.resolve`, not required to be exhaustive here.
           return check_verb(bind) if bind.aggregate.nil?
 
-          aggregate = bluebook(hexagon.domain)&.aggregate(bind.aggregate_name)
+          aggregate = bluebook(hecksagon.domain)&.aggregate(bind.aggregate_name)
           raise WiringError, "#{bind.aggregate} is bound but not declared in the bluebook" unless aggregate
 
           check_verb(bind)
 
-          repository(hexagon.domain, aggregate)
+          repository(hecksagon.domain, aggregate)
         end
       end
     end
