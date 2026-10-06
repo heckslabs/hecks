@@ -1,70 +1,102 @@
 module Hecks
   module Doors
     module CliRunner
-      # Parses a command line against the projection: either the answer it gives without running
-      # anything, or the command it would run.
+      # Parses a command line against the projection. Extended into `CliRunner`.
       module Resolution
-        # What one command line is parsed against: its chapter, launcher setting, projection
-        # options, the projection itself and the program name.
-        Line = Struct.new(:bluebook, :launcher, :options, :cli, :program)
+        # The words that ask for the usage.
+        HELP_WORDS = ["--help", "-h", "help"].freeze
 
-        module_function
-
+        # Parses a command line against the projection: either the answer it gives without
+        # running anything, or the command it would run.
+        #
         # @return [Hash] `{answer: [text, status]}`, or `{spec:, name:, rest:, asking:, program:,
         #   bluebook:, launcher:}` for a command to dispatch
-        def call(runtime, argv, program)
+        def resolve(runtime, argv, program)
           bluebook, argv, program = chapter_for(runtime, argv, program)
           launcher = LauncherOptions.settings(runtime, bluebook.name)
           options  = LauncherOptions.projection(launcher, program)
-          cli      = Projector.call(:cli, bluebook: bluebook, options: options)
-          command_or_answer(Line.new(bluebook, launcher, options, cli, program), argv)
+          cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
+          scope = { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
+                    cli: cli, program: program }
+          usage_answer(scope, argv.first) || command_plan(scope, argv)
         end
 
-        # The answer the line gives, or the command it names.
-        def command_or_answer(line, argv)
-          usage = usage_answer(line, argv.first)
-          return { answer: usage } if usage
+        # The answer to a line that is only a request for usage, or nil.
+        def usage_answer(scope, name)
+          return { answer: [scope[:cli][:usage], 0] } if name.nil? || HELP_WORDS.include?(name)
+          return { answer: [all_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] } if name == "--all"
+          return unless name == "--maintainer"
 
-          asking, name, argv = entry_word(line.cli, argv)
-          return { answer: [line.cli[:usage], 1] } if name.nil?
-
-          named_command(line, asking, name, argv[1..])
+          { answer: [maintainer_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] }
         end
 
-        # The answer for a named command or question that is unknown or asks for help, else the
-        # command to dispatch.
-        def named_command(line, asking, name, rest)
-          spec = spec_for(line.cli, asking, name)
-          return { answer: [Suggestions.unknown(line.cli, name, asking, line.program), 1] } unless spec
-          return { answer: [help_for(line, name, asking), 0] } if rest.include?("--help")
+        # The command a line names, or the answer when it names none or asks for its help.
+        def command_plan(scope, argv)
+          cli = scope[:cli]
+          asking, name, argv = entry_word(cli, argv)
+          return { answer: [cli[:usage], 1] } if name.nil?
 
-          { spec: spec, name: name, rest: rest, asking: asking, program: line.program,
-            bluebook: line.bluebook, launcher: line.launcher }
+          spec = find_spec(cli, asking, name)
+          return { answer: [unknown(cli, name, asking, scope[:program]), 1] } unless spec
+
+          rest = argv[1..]
+          return { answer: [command_help(scope, name, asking), 0] } if rest.include?("--help")
+
+          { spec: spec, name: name, rest: rest, asking: asking, program: scope[:program],
+            bluebook: scope[:bluebook], launcher: scope[:launcher] }
         end
 
-        # The usage text a line asks for with no command, `--help` or `--all`, else nil.
-        def usage_answer(line, word)
-          return [line.cli[:usage], 0] if word.nil? || %w[--help -h help].include?(word)
-
-          [all_usage(line.bluebook, line.options), 0] if word == "--all"
-        end
-
-        # The projected spec the name stands for. The alias map lets `create_pizza` and
-        # `order.create_pizza` reach the same command.
-        def spec_for(cli, asking, name)
+        # The spec a name reaches; the alias map lets `create_pizza` and `order.create_pizza`
+        # reach the same command.
+        def find_spec(cli, asking, name)
           pool = asking ? cli[:questions] : cli[:commands]
           pool[cli[:names][asking ? :question : :command][name]]
         end
 
-        # The `--help` text of one command or question.
-        def help_for(line, name, asking)
-          Projector.call(:cli, bluebook: line.bluebook,
-                               options:  line.options.merge(command: name, ask: asking))[:usage]
+        # The usage of one command or question, which its `--help` asks for.
+        def command_help(scope, name, asking)
+          options = scope[:options].merge(command: name, ask: asking)
+          Projector.call(:cli, bluebook: scope[:bluebook], options: options)[:usage]
         end
 
-        # The usage with the internal commands and queries listed too, which `--all` asks for.
-        def all_usage(bluebook, options)
-          Projector.call(:cli, bluebook: bluebook, options: options.merge(all: true))[:usage]
+        # The usage with the internal commands and queries listed too, which `--all` asks for, and
+        # with the maintainer's too.
+        def all_usage(runtime, bluebook, launcher, options)
+          shown = options.merge(audience(runtime, launcher, maintainer: true))
+          Projector.call(:cli, bluebook: bluebook, options: shown.merge(all: true))[:usage]
+        end
+
+        # The usage a maintainer of the hecks checkout sees, which `--maintainer` asks for anywhere.
+        def maintainer_usage(runtime, bluebook, launcher, options)
+          shown = options.merge(audience(runtime, launcher, maintainer: true))
+          Projector.call(:cli, bluebook: bluebook, options: shown)[:usage]
+        end
+
+        # What the help leaves out and points at for whoever typed the line: the maintainer's
+        # aggregates only in a hecks checkout, and the chapters the chapter's launcher names, each
+        # with the first sentence of what it is for.
+        #
+        # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)
+        def audience(runtime, launcher, maintainer: LauncherOptions.maintainer?)
+          shown = LauncherOptions.audience(launcher, maintainer)
+          return shown unless shown[:chapters]
+
+          shown.merge(chapters: chapter_summaries(runtime, shown[:chapters]))
+        end
+
+        # Each named chapter the domain attaches, as its word and the first sentence of its vision.
+        def chapter_summaries(runtime, names)
+          known = attached_chapters(runtime)
+          names.filter_map do |name|
+            next unless known.include?(name)
+
+            [Naming.snake(name), Projector::CliProjector.first_sentence(runtime.registry.bluebook(name).vision)]
+          end
+        end
+
+        # Names who the help is for, so the help remembered for one is not given to the other.
+        def audience_key
+          LauncherOptions.maintainer? ? "maintainer" : "project"
         end
 
         # Reads the entry words of a line: whether it asks a query, the bare name, and the words
@@ -77,18 +109,18 @@ module Hecks
         #
         # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent), `argv`
         def entry_word(cli, argv)
-          asking = QUERY_WORDS.include?(argv.first)
+          asking = CliRunner::QUERY_WORDS.include?(argv.first)
           argv   = argv[1..] if asking
           name   = argv.first
           return [asking, nil, argv] if name.nil?
 
           bang = name.end_with?("!")
-          asking ||= !bang && question_only?(cli, name.chomp("!"))
-          [asking, name.chomp("!"), argv]
+          name = name.chomp("!")
+          [asking || (!bang && query_only?(cli, name)), name, argv]
         end
 
-        # Whether the name belongs to a question and to no command.
-        def question_only?(cli, name)
+        # Whether the name belongs to a query and to no command.
+        def query_only?(cli, name)
           !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
         end
 
@@ -96,12 +128,17 @@ module Hecks
         # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
         # `governance`), that chapter, with the word dropped and added to the program name.
         def chapter_for(runtime, argv, program)
-          own      = runtime.registry.bluebooks.values.first
-          attached = Array(runtime.registry.hecksagon(own.name)&.member_chapters)
-          target   = attached.find { |name| Naming.snake(name) == argv.first }
+          own    = runtime.registry.bluebooks.values.first
+          target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
           return [own, argv, program] unless target
 
           [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
+        end
+
+        # The chapters the booted domain's hecksagon attaches or uses as framework members.
+        def attached_chapters(runtime)
+          own = runtime.registry.bluebooks.values.first
+          Array(runtime.registry.hecksagon(own.name)&.member_chapters)
         end
       end
     end

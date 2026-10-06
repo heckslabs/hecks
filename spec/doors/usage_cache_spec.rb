@@ -34,10 +34,12 @@ RSpec.describe Hecks::Doors::UsageCache do
     [text, status]
   end
 
-  # Backdates an entry's access time past the span the cache keeps entries for.
-  def age_past_keep(path)
+  # Backdates the only entry past the sweep window and returns its path.
+  def age_first_entry
+    stale = Dir.glob(File.join(cache, "usage-*.json")).first
     long_ago = Time.now - (described_class::KEEP_SECONDS + 60)
-    File.utime(long_ago, long_ago, path)
+    File.utime(long_ago, long_ago, stale)
+    stale
   end
 
   it "works the help out once and answers the repeat from the file, without running the block", :aggregate_failures do
@@ -55,6 +57,15 @@ RSpec.describe Hecks::Doors::UsageCache do
     File.write(File.join(domain, "shop.bluebook"), "Hecks.bluebook \"Shop\" do\n  # edited\nend\n")
 
     expect(fetch { worked_out("new help") }).to eq(["new help", 0])
+  end
+
+  it "keeps a separate entry for each audience, since the same line reads differently to each", :aggregate_failures do
+    for_audience = ->(audience, &block) { described_class.fetch(runtime, [], "hecks", audience: audience, &block) }
+    for_audience.call("project") { worked_out("project help") }
+    for_audience.call("maintainer") { worked_out("maintainer help") }
+
+    expect(for_audience.call("project") { raise "read again" }).to eq(["project help", 0])
+    expect(for_audience.call("maintainer") { raise "read again" }).to eq(["maintainer help", 0])
   end
 
   it "keeps a separate entry for each command line", :aggregate_failures do
@@ -97,8 +108,7 @@ RSpec.describe Hecks::Doors::UsageCache do
 
   it "sweeps entries nobody has read for two weeks when it writes a new one" do
     fetch(["old"]) { worked_out("stale") }
-    stale = Dir.glob(File.join(cache, "usage-*.json")).first
-    age_past_keep(stale)
+    stale = age_first_entry
 
     fetch(["new"]) { worked_out("fresh") }
 

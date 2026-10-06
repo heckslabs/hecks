@@ -1,79 +1,60 @@
+require "json"
+
 module Hecks
   module Doors
     module CliRunner
-      # Tails a question: asks, prints each new entry as one JSON line, and asks again from the
-      # cursor the answer gave, until the reader interrupts.
+      # Tails a question: asks again from the cursor each answer gave, printing new entries as
+      # JSON lines. Extended into `CliRunner`, so its methods are the runner's own.
       module Streaming
-        # Where a stream writes and how long it runs.
+        # Tails a question: asks, prints each new entry as one JSON line, and asks again from the
+        # cursor the answer gave, until the reader interrupts. Only for a question the `launcher`
+        # setting lists under `streams`, given `--stream`; `from_now` applies to the first ask only.
         #
-        # @!attribute out [r] the IO each entry's line goes to
-        # @!attribute err [r] the IO a refusal goes to
-        # @!attribute max_polls [r] stop after this many asks; unbounded when nil
-        Sink = Struct.new(:out, :err, :max_polls)
-
-        module_function
-
-        # Streams the question a command line names, when it may be streamed.
-        #
-        # @param sink [Sink] where the stream writes
-        # @return [Integer, nil] 0 or 1 for a stream, nil when `CliRunner.call` should run the line
-        def run(runtime, argv, program, sink)
-          plan = CliRunner.resolve(runtime, argv, program)
+        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+        # @param argv [Array<String>] as for `call`, with `--stream`
+        # @param program [String] how the caller was invoked
+        # @param out [IO] where each entry's line goes
+        # @param err [IO] where a refusal goes
+        # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
+        # @return [Integer, nil] 0 or 1 for a stream, nil when `call` should run the line
+        def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil) # rubocop:disable Metrics/ParameterLists -- the keyword API is what callers pass
+          plan  = resolve(runtime, argv, program)
           words = stream_words(plan)
-          words && stream_to(runtime, plan, words, sink)
+          return unless words
+
+          run_stream(runtime, plan[:spec], words, out, max_polls)
         rescue Interrupt, Errno::EPIPE
           0
         rescue Runtime::NotFound, Runtime::TypeMismatch => e
-          refuse(sink, "#{e.message}\n\n  #{program} #{plan[:name]} --help")
+          refuse(err, "#{e.message}\n\n  #{program} #{plan[:name]} --help")
         rescue *Runtime::DOMAIN_REFUSALS => e
-          refuse(sink, e.message)
+          refuse(err, e.message)
         end
 
-        # Tails the question the plan names, answering 0 when the reader ends the stream.
-        def stream_to(runtime, plan, words, sink)
-          tail(runtime, plan[:spec], CliDoor.arguments(plan[:spec], words), sink)
+        # Tails the question the line names and answers 0, the status of a stream that ended.
+        def run_stream(runtime, spec, words, out, max_polls)
+          tail(runtime, spec, CliDoor.arguments(spec, words), out, max_polls)
           0
         end
 
-        # Writes a refusal to the error stream, answering status 1.
-        def refuse(sink, text)
-          sink.err.puts(text)
+        # Prints a refusal and answers status 1.
+        def refuse(err, text)
+          err.puts(text)
           1
         end
 
-        # The words after the command when it is a question the launcher lists under `streams` and
-        # `--stream` was given, else nil.
-        def stream_words(plan)
-          return if plan[:answer] || !LauncherOptions.streams?(plan[:launcher], plan[:spec])
-
-          words, streaming = LauncherOptions.take_stream(plan[:rest])
-          words if streaming
-        end
-
         # One ask after another, each from the cursor the last gave.
-        def tail(runtime, spec, args, sink)
+        def tail(runtime, spec, args, out, max_polls)
           args   = args.merge(wait: { value: 30 }) unless args.key?(:wait)
           polls  = 0
           cursor = nil
           loop do
-            row = ask(runtime, spec, args, cursor)
-            emit(row, sink.out)
+            row = runtime.query(spec[:command], **next_ask(args, cursor)).first || {}
+            print_entries(out, row[:events])
             cursor = row[:cursor]
             polls += 1
-            break if cursor.nil? || (sink.max_polls && polls >= sink.max_polls)
+            break if cursor.nil? || (max_polls && polls >= max_polls)
           end
-        end
-
-        # The first row an ask answers, asking from `cursor` when there is one.
-        def ask(runtime, spec, args, cursor)
-          asked = cursor ? args.except(:from_now).merge(since: { value: cursor }) : args
-          runtime.query(spec[:command], **asked).first || {}
-        end
-
-        # Prints each event of `row` as one JSON line.
-        def emit(row, out)
-          Array(row[:events]).each { |event| out.puts(JSON.generate(entry_line(JsonDoor.materialize(event)))) }
-          out.flush
         end
 
         # An entry as a line: its payload, which the answer holds as JSON text, back as an object.
@@ -83,6 +64,25 @@ module Hecks
           line
         rescue JSON::ParserError
           line
+        end
+
+        # The words to ask with when the line is a stream of a streamable question; nil otherwise.
+        def stream_words(plan)
+          return if plan[:answer] || !LauncherOptions.streams?(plan[:launcher], plan[:spec])
+
+          words, streaming = LauncherOptions.take_stream(plan[:rest])
+          words if streaming
+        end
+
+        # The arguments of the next ask: the first as given, later ones from the cursor.
+        def next_ask(args, cursor)
+          cursor ? args.except(:from_now).merge(since: { value: cursor }) : args
+        end
+
+        # Prints each event of an answer as one JSON line and flushes.
+        def print_entries(out, events)
+          Array(events).each { |event| out.puts(JSON.generate(entry_line(JsonDoor.materialize(event)))) }
+          out.flush
         end
       end
     end

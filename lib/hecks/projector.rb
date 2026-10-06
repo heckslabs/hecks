@@ -174,6 +174,7 @@ require_relative "projector/target"
 # These need only `Naming`, not this file, so they are safe to load from here.
 require_relative "projector/docs_projector"
 require_relative "projector/narrate_projector"
+require_relative "projector/cli_audience"
 require_relative "projector/cli_projector"
 
 Hecks::Projector.register(:ir, Hecks::Projector::IRProjector)

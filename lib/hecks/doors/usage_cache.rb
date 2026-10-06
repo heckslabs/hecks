@@ -33,27 +33,26 @@ module Hecks
       # @param runtime [#directory] what `Hecks.describe` answered; anything else bypasses the cache
       # @param argv [Array<String>] the command line
       # @param program [String] how the caller was invoked
+      # @param audience [String] who the help is for, since the same line reads differently to each
       # @yield works the answer out, loading the domain
       # @yieldreturn [Array(String, Integer), nil] the text and status; nil if it runs a command
       # @return [Array(String, Integer), nil] the block's answer, or the remembered one
-      def fetch(runtime, argv, program, &)
-        domain = domain_of(runtime)
-        return yield unless domain && enabled?
+      def fetch(runtime, argv, program, audience: "")
+        directory = runtime.respond_to?(:directory) ? runtime.directory : nil
+        return yield unless directory && enabled?
 
-        file = entry_path(domain, argv, program)
-        (file && recall(file)) || worked_out(file, &)
-      end
+        file = entry_path(directory, argv, program, audience)
+        remembered = file && recall(file)
+        return remembered if remembered
 
-      # The directory of the domain the runtime describes, or nil for a runtime that names none.
-      def domain_of(runtime)
-        runtime.directory if runtime.respond_to?(:directory)
-      end
-
-      # The block's answer, remembered when it ended well.
-      def worked_out(file)
         answer = yield
-        remember(file, answer) if file && answer&.last&.zero?
+        remember(file, answer) if worth_keeping?(file, answer)
         answer
+      end
+
+      # Whether an answer that ended well can be written to the entry's file.
+      def worth_keeping?(file, answer)
+        file && answer&.last&.zero?
       end
 
       # @return [Boolean] whether the cache is on
@@ -70,9 +69,9 @@ module Hecks
       # The file that holds the answer for this command line, named by what it depends on.
       #
       # @return [String, nil] nil when the digest cannot be taken
-      def entry_path(domain, argv, program)
+      def entry_path(domain, argv, program, audience = "")
         digest = Digest::SHA256.new
-        [Hecks::VERSION, RUBY_VERSION, ENV["HECKS_ENVIRONMENT"].to_s, program, argv.join("\0")].each do |part|
+        [Hecks::VERSION, RUBY_VERSION, ENV["HECKS_ENVIRONMENT"].to_s, program, audience, argv.join("\0")].each do |part|
           digest << part.to_s << "\0"
         end
         [domain, library].each { |root| fingerprint(root, digest) }

@@ -1,52 +1,54 @@
+require "json"
+
 module Hecks
   module Doors
     module CliRunner
-      # The answer `--wait` gives: the record re-read after every reaction has run, with all its
-      # events, and a status of 1 when its lifecycle ended in a failure state, a refused reaction
-      # blocks the run or a reaction crashed.
+      # The answer `--wait` gives once every reaction has run. Extended into `CliRunner`.
       module Settling
-        # What a settled answer is read against: the booted domain, the command's projected spec,
-        # its chapter and the chapter's `launcher` setting.
-        Context = Struct.new(:runtime, :spec, :bluebook, :launcher)
-
-        module_function
-
+        # The answer `--wait` gives: the record re-read after every reaction has run, with all its
+        # events, and a status of 1 when its lifecycle ended in a failure state, a refused reaction
+        # blocks the run or a reaction crashed.
+        #
         # A refusal blocks unless a sibling reaction delivered another command on the same
         # aggregate (`Runtime::ReactionOutcome`). The settled record is always the text, so a failed
         # run pipes like a passing one; the reason a human reads is a third element.
         #
-        # @param context [Context] what the answer is read against
-        # @param handle [Runtime::Dispatcher::Result] the outcome of the command
-        # @param extra [Hash] keys added to the answer: the minted run key, refused reactions
         # @return [Array(String, Integer)] the JSON and the status, plus (Array(String, Integer,
         #   String)) why the run failed when it did
-        def call(context, handle, extra)
+        def settled(runtime, spec, handle, bluebook, launcher, extra) # rubocop:disable Metrics/ParameterLists -- pinned by the callers and specs
           why = reactions_failed(handle)
-          return finish(JSON.pretty_generate(Answers.answered(handle).merge(extra)), why) if handle.state.nil?
+          return finish(stateless_json(handle, extra), why) if handle.state.nil?
 
-          settle(context, handle, extra, why)
+          aggregate = aggregate_of(bluebook, spec)
+          state     = reread(runtime, bluebook, aggregate, handle) || handle.state
+          answer    = settled_answer(handle, state, settled_event_names(runtime, bluebook, aggregate, handle), extra)
+          why      += failure_reasons(aggregate, state, launcher)
+          settled_result(answer, LauncherOptions.report?(launcher, spec), why)
         end
 
-        # The settled answer for a command that left a record, given the reasons found so far.
-        def settle(context, handle, extra, why)
-          aggregate = aggregate_of(context.bluebook, context.spec)
-          state     = reread(context, aggregate, handle) || handle.state
-          answer    = answer_of(context, aggregate, state, handle, extra)
-          why += failure_reasons(aggregate, state, context.launcher)
-          return report_of(answer[:state], why) if LauncherOptions.report?(context.launcher, context.spec)
-
-          finish(JSON.pretty_generate(answer), why)
+        # The settled answer as the launcher's report when it prints one, else as JSON.
+        def settled_result(answer, report, why)
+          report ? report_of(answer[:state], why) : finish(JSON.pretty_generate(answer), why)
         end
 
-        # The record, as its repository holds it now, with the events the run caused.
-        def answer_of(context, aggregate, state, handle, extra)
-          fqn    = "#{context.bluebook.name}::#{aggregate&.hecks_name}"
-          events = context.runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
-          { id: handle.id, state: JsonDoor.materialize(state),
-            events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
+        # The JSON of a port operation's outcome, which has no record to re-read.
+        def stateless_json(handle, extra)
+          JSON.pretty_generate(answered(handle).merge(extra))
         end
 
-        # The sentence for a record that ended in a failure state, or none when it did not.
+        # The record, as the JSON answer holds it, with the names of its events.
+        def settled_answer(handle, state, events, extra)
+          { id: handle.id, state: JsonDoor.materialize(state), events: events }.merge(extra)
+        end
+
+        # The names of the events the record's run emitted, as the runtime now holds them.
+        def settled_event_names(runtime, bluebook, aggregate, handle)
+          fqn    = "#{bluebook.name}::#{aggregate&.hecks_name}"
+          events = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
+          (events.empty? ? handle.events : events).map(&:name)
+        end
+
+        # The sentence for a record that ended in a failure state, as a list: empty otherwise.
         def failure_reasons(aggregate, state, launcher)
           return [] unless LauncherOptions.failed?(aggregate, state, launcher)
 
@@ -88,6 +90,11 @@ module Hecks
             crashed.map { |row| "reaction #{row[:policy]} crashed (#{row[:error_class]}): #{row[:reason]}" }
         end
 
+        # Whether a reaction the domain refused blocks the run the handle reports.
+        def blocked?(handle)
+          handle.respond_to?(:blocking_reactions) && !handle.blocking_reactions.empty?
+        end
+
         # The aggregate a top-level command belongs to; nil for an entity command or a port.
         def aggregate_of(bluebook, spec)
           head = spec[:command].split("::", 2).last
@@ -97,10 +104,10 @@ module Hecks
         end
 
         # The record as its repository holds it now, or nil when it cannot be read.
-        def reread(context, aggregate, handle)
-          return unless aggregate && context.runtime.respond_to?(:registry)
+        def reread(runtime, bluebook, aggregate, handle)
+          return unless aggregate && runtime.respond_to?(:registry)
 
-          context.runtime.registry.repository(context.bluebook.name, aggregate)&.find(handle.id)&.to_h
+          runtime.registry.repository(bluebook.name, aggregate)&.find(handle.id)&.to_h
         end
       end
     end

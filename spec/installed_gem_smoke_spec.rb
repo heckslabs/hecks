@@ -46,19 +46,20 @@ RSpec.describe "the installed hecks gem", :io do
     [out, err, status.exitstatus]
   end
 
-  # The launcher prints the record on stdout whether the build ended or faulted; the failure
-  # state goes to stderr, after it.
-  def launcher_record(out, err, code)
-    JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}"))
+  # Runs `build_wasm` against the sample project. The launcher prints the record on stdout whether
+  # the build ended or faulted; the failure state goes to stderr, after it.
+  #
+  # @return [Array(Hash, Integer)] the parsed record and the exit status
+  def wasm_build
+    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
+    [JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}")), code]
   end
 
-  # A build that exited 0 did not fault; one that did not names the missing toolchain piece.
-  def expect_wasm_outcome(record, code)
-    if code.zero?
-      expect(record.dig("state", "status")).not_to eq("faulted")
-    else
-      expect(record.dig("state", "refusal", "value")).to match(/wasm32-wasip1|cargo|rustup/)
-    end
+  # A build either finishes without faulting, or refuses because the wasm target is missing.
+  def wasm_outcome_ok?(record, code)
+    return record.dig("state", "status") != "faulted" if code.zero?
+
+    record.dig("state", "refusal", "value").match?(/wasm32-wasip1|cargo|rustup/)
   end
 
   it "runs from a directory that is not a hecks checkout", :aggregate_failures do
@@ -70,7 +71,15 @@ RSpec.describe "the installed hecks gem", :io do
     out, err, code = hecks("--help")
 
     expect(code).to eq(0), err
-    expect(out).to include("hecks <command>!", "  build:\n", "build_wasm!", "  regeneration_run:\n", "regenerate_corpus!")
+    expect(out).to include("hecks <command>!", "  build:\n", "build_wasm!", "hecks --maintainer")
+    expect(out).not_to include("  regeneration_run:\n")
+  end
+
+  it "lists the maintainer's commands for --maintainer, though it is not a hecks checkout", :aggregate_failures do
+    out, err, code = hecks("--maintainer")
+
+    expect(code).to eq(0), err
+    expect(out).to include("  regeneration_run:\n", "regenerate_corpus!")
   end
 
   it "prints a domain's IR as JSON for `ir`", :aggregate_failures do
@@ -110,11 +119,10 @@ RSpec.describe "the installed hecks gem", :io do
   end
 
   it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal", :aggregate_failures do
-    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
-    record = launcher_record(out, err, code)
+    record, code = wasm_build
 
     expect(record.fetch("events")).to include("WasmBuildRequested")
-    expect_wasm_outcome(record, code)
+    expect(wasm_outcome_ok?(record, code)).to be(true)
   end
 
   it "refuses a Codebase command with 'needs a hecks checkout'", :aggregate_failures do

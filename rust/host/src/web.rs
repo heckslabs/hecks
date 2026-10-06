@@ -744,12 +744,11 @@ async fn google_callback(
     // The site's admin authenticates on the account cookie, not this
     // host's own session cookie. Cross-origin, a cookie here would never
     // reach the site, so the token is handed across via /api/google-handoff.
-    const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14;
     let site = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
     let site = site.trim_end_matches('/');
-    let token = auth::account_token(secret, &session.email, SESSION_TTL_SECS);
+    let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
     if same_origin(site, &redirect_uri()) {
-        let cookie = format!("{}={token}{}; Max-Age={SESSION_TTL_SECS}", auth::account_cookie_name(), cookie_flags());
+        let cookie = format!("{}={token}{}; Max-Age={}", auth::account_cookie_name(), cookie_flags(), auth::SESSION_TTL_SECS);
         redirect_with_cookie("/admin.html", &cookie)
     } else {
         // One-redirect URL onto the Astro origin (local rust/host :4567 vs site :4321).

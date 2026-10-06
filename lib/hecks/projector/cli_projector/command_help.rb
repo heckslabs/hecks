@@ -1,23 +1,20 @@
 module Hecks
   module Projector
     module CliProjector
-      # The `--help` page of one command or question: what it is, how to call it, what each
-      # argument takes and every way it refuses.
+      # The `--help` text of one command or query.
       module CommandHelp
-        module_function
-
         # Four independent blocks, concatenated in fixed order: meta, invocation,
         # arguments, refusals.
-        def render(program, name, spec, ask: false)
-          out = meta_lines(name, spec)
-          out.concat(invocation_lines(program, name, spec, ask))
-          out.concat(argument_lines(spec))
-          out.concat(refusal_lines(spec))
+        def command_help(program, name, spec, ask: false)
+          out = command_help_meta_lines(name, spec)
+          out.concat(command_help_invocation_lines(program, name, spec, ask))
+          out.concat(command_help_argument_lines(spec))
+          out.concat(command_help_refusal_lines(spec))
           out.join("\n")
         end
 
-        # The title line and what the call dispatches, reads and who issues it.
-        def meta_lines(name, spec)
+        # The title, what the command dispatches or reads, and who issues it.
+        def command_help_meta_lines(name, spec)
           out = ["#{name} — #{spec[:summary]}", ""]
           out << "dispatches #{spec[:command]}" if spec[:kind] == :command
           out << "reads #{spec[:command]}"      if spec[:kind] == :query
@@ -25,14 +22,14 @@ module Hecks
           out
         end
 
-        # The call as typed, with one `path=…` per argument.
-        def invocation_lines(program, name, spec, ask)
+        # The example call with every argument as `path=…`.
+        def command_help_invocation_lines(program, name, spec, ask)
           invocation = ask ? "#{program} query #{name}" : "#{program} #{name}!"
           ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
         end
 
-        # One line per argument, its path padded to the longest, then a blank line.
-        def argument_lines(spec)
+        # One line per argument: its path padded to the widest, then its notes.
+        def command_help_argument_lines(spec)
           return [] if spec[:arguments].empty?
 
           width = spec[:arguments].map { |a| a[:path].length }.max
@@ -42,13 +39,12 @@ module Hecks
           lines << ""
         end
 
-        # What an argument takes, in the order help reads it: type, closed set, pattern, default,
-        # its own note, then `optional`.
+        # What an argument's line says about it: type, constraints, note, then `optional`.
         def argument_notes(argument)
-          [argument[:type], *constraint_notes(argument), *trailing_notes(argument)]
+          [argument[:type], *constraint_notes(argument), *argument[:note], *("optional" unless argument[:required])]
         end
 
-        # The closed set, pattern and default an argument declares.
+        # The enum, pattern and default an argument carries.
         def constraint_notes(argument)
           notes = []
           notes << "one of #{argument[:enum].join(", ")}" if argument[:enum]
@@ -57,16 +53,8 @@ module Hecks
           notes
         end
 
-        # An argument's own note, then `optional` when it need not be given.
-        def trailing_notes(argument)
-          notes = []
-          notes << argument[:note] if argument[:note]
-          notes << "optional" unless argument[:required]
-          notes
-        end
-
-        # The "refused when" and "refused unless" blocks, each only when it has items.
-        def refusal_lines(spec)
+        # The `refused when:` and `refused unless:` blocks, each present only when it has items.
+        def command_help_refusal_lines(spec)
           [["refused when:", spec[:refusals]], ["refused unless:", spec[:requirements]]].flat_map do |heading, items|
             Array(items).empty? ? [] : [heading, *items.map { |item| "  #{item}" }, ""]
           end
