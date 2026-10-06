@@ -29,6 +29,8 @@ Gem::Specification.new do |spec|
   # corpus domains' generated modules (a build generates the client's own). `rust/Cargo.toml`
   # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
   # spec/gemspec_packaging_spec.rb holds each of these.
+  # `prebuilt/` ships when the release workflow has built it: the syntax-boot and verdict caches for
+  # this exact `lib/`, so a first run after `gem install` reads them instead of judging every chapter.
   # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks chapter boots.
   # `examples/pizzas` ships, without its glossary, because it is the domain `hecks console` opens when
   # given none, so the quickstart works from a plain `gem install`.
@@ -48,6 +50,8 @@ Gem::Specification.new do |spec|
                  else
                    tracked
                  end
+    # `prebuilt/` is made by the release workflow and never tracked, so it is listed by glob.
+    candidates += Dir.glob("prebuilt/*")
     candidates.select { |f| File.file?(f) }.grep_v(not_shipped)
   end
   spec.bindir      = "exe"
