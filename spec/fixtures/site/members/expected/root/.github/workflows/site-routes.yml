@@ -23,8 +23,7 @@ on:
       - "bin/site_routes"
       - "club/Gemfile.lock"
       - ".github/workflows/site-routes.yml"
-  # Lets a GitHub merge queue run this check on each queued PR (paths are not applied to
-  # merge_group).
+  # Lets a GitHub merge queue run this check on each queued PR (paths do not apply to merge_group).
   merge_group:
   workflow_dispatch: {}
 

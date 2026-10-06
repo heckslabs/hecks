@@ -140,8 +140,7 @@ module Hecks
             pull_request:
               paths:
           %<paths>s
-            # Lets a GitHub merge queue run this check on each queued PR (paths are not applied to
-            # merge_group).
+            # Lets a GitHub merge queue run this check on each queued PR (paths do not apply to merge_group).
             merge_group:
             workflow_dispatch: {}
 
