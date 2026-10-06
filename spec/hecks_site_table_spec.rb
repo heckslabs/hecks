@@ -196,7 +196,7 @@ RSpec.describe "the Site row of the ADR command table" do
     # Copies the project into `dir` with its Edge row naming no template.
     def copy_project_naming_no_template(dir)
       FileUtils.cp_r(Dir.children(PROJECT).map { |name| File.join(PROJECT, name) }, dir)
-      chapter = Dir.glob(File.join(dir, "bluebook", "*.bluebook")).find { |file| File.read(file).match?(/template:/) }
+      chapter = Dir.glob(File.join(dir, "bluebook", "*.bluebook")).find { |file| File.read(file).include?("template:") }
       File.write(chapter, File.read(chapter).gsub(/template: "[^"]*",\s*/, ""))
     end
 

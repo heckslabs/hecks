@@ -34,6 +34,8 @@ group :development, :test do
 
   gem "rubocop", "~> 1.69", require: false
   gem "rubocop-rspec", "~> 3.3", require: false
+  gem "rubocop-performance", "~> 1.21", require: false
+  gem "rubocop-thread_safety", "~> 0.7", require: false
 
   # Local-only: `bundle exec guard` watches lib/spec and reruns the
   # matching specs on save. Not wired into CI or the pre-push hook.

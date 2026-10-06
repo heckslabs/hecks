@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
 
       it "runs the coverage tool once for each generated module in this process", :aggregate_failures do
         expect(@asked.map { |ask| ask[:tool] }.uniq).to eq(["rust_coverage"])
-        expect(@asked.map { |ask| ask[:argv] }).to eq(modules.map { |name| [name] })
+        expect(@asked.map { |ask| ask[:argv] }).to eq(modules.zip)
       end
 
       it "points the tool at the checkout's Rust directory" do

@@ -46,7 +46,7 @@ module Hecks
         def english?(word)
           return true unless words
 
-          bare = word.downcase.sub(/n't\z/, "").sub(/'.*\z/, "")
+          bare = word.downcase.delete_suffix("n't").sub(/'.*\z/, "")
           SUFFIXES.any? do |suffix, replacement|
             next false unless bare.end_with?(suffix)
 

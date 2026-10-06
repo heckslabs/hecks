@@ -30,7 +30,7 @@ module Hecks
           case args
           when Hash
             args.each do |name, value|
-              visit.call(name.to_s, value)
+              yield(name.to_s, value)
               each_argument(value, &visit)
             end
           when Array

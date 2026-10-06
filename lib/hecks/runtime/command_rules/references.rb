@@ -156,7 +156,7 @@ module Hecks
         end
 
         def dereferenced_name(attribute)
-          attribute.name.to_s.sub(/_id\z/, "").to_sym
+          attribute.name.to_s.delete_suffix("_id").to_sym
         end
 
         # The target aggregate and stored record a reference argument names, or nil when it names

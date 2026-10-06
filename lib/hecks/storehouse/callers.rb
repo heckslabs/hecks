@@ -52,10 +52,10 @@ module Hecks
       # Binds role/actor_id for the block's duration via Hecks.as_caller; role: nil
       # runs the block unbound (query's own authorization does not depend on it).
       # :nodoc:
-      def with_caller(role, actor_id, &block)
-        return block.call if role.nil?
+      def with_caller(role, actor_id, &)
+        return yield if role.nil?
 
-        Hecks.as_caller(role: role, actor_id: actor_id, &block)
+        Hecks.as_caller(role: role, actor_id: actor_id, &)
       end
 
       # A caller who omits role: would otherwise reach a role-gated command

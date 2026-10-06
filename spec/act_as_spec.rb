@@ -4,13 +4,13 @@ require "hecks"
 # `Hecks.as_caller` scopes it. Two registries, since the check and the dispatch are separate steps.
 RSpec.describe "act_as — a role acting as another, checked against Governance" do
   # A bound runtime over a fresh registry holding what the block declares, on the in-memory ports.
-  def booted_runtime(&declarations)
+  def booted_runtime(&)
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
       [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
        InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
-      declarations.call
+      yield
     end
 
     registry.verify!

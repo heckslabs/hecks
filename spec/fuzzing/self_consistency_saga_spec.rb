@@ -35,7 +35,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     Hecks::Adapters::Heki::SagaStore.send(:define_method, :each_saga) do |domain, &blk|
       return enum_for(:each_saga, domain) unless blk
 
-      original.bind(self).call(domain) { |pm, corr, state, memory, comp| transform.call(blk, pm, corr, state, memory, comp) }
+      original.bind_call(self, domain) { |pm, corr, state, memory, comp| transform.call(blk, pm, corr, state, memory, comp) }
     end
     yield
   ensure

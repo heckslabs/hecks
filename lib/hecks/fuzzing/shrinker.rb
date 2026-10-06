@@ -45,11 +45,11 @@ module Hecks
       # One pass removing `chunk` steps at a time; a removal that still reproduces is kept.
       #
       # @return [Array<Hash>] the surviving steps
-      def sweep(current, chunk, meter, &reproduces)
+      def sweep(current, chunk, meter, &)
         index = 0
         while index < current.length && !meter.exhausted?
           candidate = without_chunk(current, index, chunk)
-          if !candidate.empty? && meter.try { reproduces.call(candidate) }
+          if !candidate.empty? && meter.try { yield(candidate) }
             current = candidate
           else
             index += chunk
@@ -60,7 +60,7 @@ module Hecks
 
       def without_chunk(steps, index, chunk) = steps[0...index] + (steps[(index + chunk)..] || [])
 
-      def drop_arguments(steps, meter, &reproduces)
+      def drop_arguments(steps, meter, &)
         steps.each_index do |position|
           original = args_of(steps[position])
           next unless original.is_a?(Hash)
@@ -69,7 +69,7 @@ module Hecks
             return steps if meter.exhausted?
 
             candidate = without_argument(steps, position, key)
-            steps = candidate if meter.try { reproduces.call(candidate) }
+            steps = candidate if meter.try { yield(candidate) }
           end
         end
         steps

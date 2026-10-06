@@ -3,14 +3,14 @@ require "spec_helper"
 # `namespace` names the module a chapter's constants install under (ADR 0080): the Hecks
 # domain nests under `Hecks::Domain`, since its aggregates share names with the gem's modules.
 RSpec.describe "a chapter's namespace" do
-  def registry_with(&block)
+  def registry_with(&)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      block.call
+      yield
     end
     registry
   end

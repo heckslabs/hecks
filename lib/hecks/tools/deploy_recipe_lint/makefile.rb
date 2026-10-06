@@ -22,7 +22,7 @@ module Hecks
 
         # Drops comment and blank lines; a comment can quote "sam deploy" or "echo" but never runs.
         def real_statements(recipe_lines)
-          recipe_lines.reject { |_, text| text.sub(/\A\t/, "").start_with?("#") || text.strip.empty? }
+          recipe_lines.reject { |_, text| text.delete_prefix("\t").start_with?("#") || text.strip.empty? }
         end
 
         # Splits real statements into shell chains; Make runs each backslash-terminated run as one
@@ -74,9 +74,9 @@ module Hecks
         # @return [Array] the line number, the statement without its continuation backslash, and
         #   whether it continues on the next line
         def continued_statement(line_no, text)
-          stripped = text.sub(/\A\t/, "")
+          stripped = text.delete_prefix("\t")
           continues = stripped.end_with?("\\")
-          [line_no, continues ? stripped.sub(/\\\z/, "").rstrip : stripped, continues]
+          [line_no, continues ? stripped.delete_suffix("\\").rstrip : stripped, continues]
         end
       end
     end

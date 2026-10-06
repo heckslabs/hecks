@@ -54,11 +54,11 @@ RSpec.describe "a process manager" do
   end
 
   # Replaces `reenter` so a leg the block selects raises a defect; answers the log of attempts.
-  def crash_leg(runtime, &selects)
+  def crash_leg(runtime, &)
     real_reenter = runtime.method(:reenter)
     attempts = []
     runtime.define_singleton_method(:reenter) do |verb, **args|
-      if selects.call(verb, args)
+      if yield(verb, args)
         attempts << verb
         raise NoMethodError, "undefined method `boom' for nil"
       end

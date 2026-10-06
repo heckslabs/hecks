@@ -47,9 +47,9 @@ RSpec.describe Hecks::RustBuild do
 
   describe "the capture lock" do
     # Starts `work` on another thread; answers the thread and a probe for whether it has finished.
-    def start_waiter(&work)
+    def start_waiter(&)
       finished = false
-      [Thread.new { work.call.tap { finished = true } }, -> { finished }]
+      [Thread.new { yield.tap { finished = true } }, -> { finished }]
     end
 
     def blocked_while_held(holder_lock, &work)

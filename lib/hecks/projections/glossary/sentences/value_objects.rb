@@ -67,7 +67,7 @@ module Hecks
           def rules_line(rules)
             return nil if rules.empty?
 
-            clauses = rules.map { |rule| Sentences.lower_first(rule.sub(/\.\z/, "")) }
+            clauses = rules.map { |rule| Sentences.lower_first(rule.delete_suffix(".")) }
             "Always true: #{clauses.join("; ")}."
           end
         end

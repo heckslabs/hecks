@@ -150,7 +150,7 @@ module Hecks
       # @yield the dispatch order; an exception rolls the transaction back
       # @return [Object] the block's own value
       # @raise [PG::ConnectionBad] if the connection dropped; it reconnects, then re-raises
-      def with_write_lock(&block) = transaction { lock_writes!; block.call } # rubocop:disable Style/Semicolon
+      def with_write_lock(&) = transaction { lock_writes!; yield } # rubocop:disable Style/Semicolon
 
       # Builds the instance an entry describes, writing nothing; the head is derived, so
       # projecting is reading.

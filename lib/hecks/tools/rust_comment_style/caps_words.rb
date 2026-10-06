@@ -27,7 +27,7 @@ module Hecks
 
         def possessives(masked)
           found = []
-          masked.scan(/(?<=#{FILLER})'S\b/) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
+          masked.scan(/(?<=#{FILLER})'S\b/o) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
           found
         end
 
@@ -78,7 +78,7 @@ module Hecks
 
         def sentence_start?(comment, masked, offset)
           before = masked[0, offset].sub(MARKER, "")
-          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/)
+          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/o)
           return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
 
           after_sentence_end?(comment)

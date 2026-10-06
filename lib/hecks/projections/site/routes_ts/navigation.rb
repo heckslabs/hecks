@@ -33,7 +33,10 @@ module Hecks
           def entry(item, **before)
             link = { **before, path: item.path, label: item.label }
             link[:fragment] = item.fragment if item.respond_to?(:fragment) && item.fragment
-            link.merge!(switch: item.switch, on: false) if item.off
+            if item.off
+              link[:switch] = item.switch
+              link[:on] = false
+            end
             link
           end
 

@@ -6,7 +6,7 @@ module Hecks
           # The ids and references derived from a stack's declared facts. Each method is also the
           # value of the template marker of the same name.
           module Readers
-            def db_id = "#{logical_id.sub(/Function\z/, "")}Db"
+            def db_id = "#{logical_id.delete_suffix("Function")}Db"
 
             # Aurora splits the database into a DBCluster plus DBInstance(s), so every
             # `.Endpoint.Address`/`.MasterUserSecret` reference has to point at the cluster, not

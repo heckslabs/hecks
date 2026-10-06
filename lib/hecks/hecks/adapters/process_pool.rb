@@ -127,9 +127,9 @@ module Hecks
       #
       # @param held [Array<String>] collects the signals that arrive before the pid is known
       # @yield answers the child's pid, or nil while it is still starting
-      def trap_forwarded(held, &pid_of)
+      def trap_forwarded(held, &)
         FORWARDED.to_h do |name|
-          [name, trap(name) { (pid = pid_of.call) ? forward(name, pid) : held << name }]
+          [name, trap(name) { (pid = yield) ? forward(name, pid) : held << name }]
         end
       end
 

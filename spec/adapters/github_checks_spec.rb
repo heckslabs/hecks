@@ -75,7 +75,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
       stub_gh(runs_json)
 
       expect { adapter.run(commit: { value: SHA }) }
-        .to raise_error(/no checks at all against #{SHA}/)
+        .to raise_error(/no checks at all against #{SHA}/o)
     end
 
     # Defensive: refuses rather than answering green if a check starts running mid-ask.
@@ -92,7 +92,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
       stub_gh("", success: false, stderr: "gh: no such commit")
 
       expect { adapter.run(commit: { value: SHA }) }
-        .to raise_error(/gh api check-runs failed for #{SHA}: gh: no such commit/)
+        .to raise_error(/gh api check-runs failed for #{SHA}: gh: no such commit/o)
     end
 
     it "raises a clear error when gh is not installed" do
