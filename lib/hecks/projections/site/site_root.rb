@@ -125,9 +125,8 @@ module Hecks
           %<banner>s
           # Two checks, neither needing AWS or a database:
           #
-          #   1. the generated files are current: `%<script>s --check` regenerates them with the
-          # hecks gem
-          #      the Gemfile.lock pins and exits 1, naming each file, if a row was edited without
+          #   1. the generated files are current: `%<script>s --check` regenerates them with the hecks
+          #      gem the Gemfile.lock pins and exits 1, naming each file, if a row was edited without
           #      regenerating or a generated file was hand-edited;
           #   2. `%<test>s`, which holds the generated code to what the hand-written code does.
           name: %<name>s
