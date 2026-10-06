@@ -403,12 +403,47 @@ module Hecks
         out = ["#{bluebook.name} — #{bluebook.vision}", "",
                "  #{program} <command>! [name=value …]       do something",
                "  #{program} query <query> [name=value …]    read something", ""]
-        out.concat(tables(commands, questions, all: options[:all], notes: aggregate_notes(bluebook)))
+        shown = [without_hidden(commands, options[:hide]), without_hidden(questions, options[:hide])]
+        out.concat(tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)))
+        out.concat(chapter_lines(program, options[:chapters]))
         out << ""
         out << "  #{program} <command> --help       what one command wants, and every way it refuses"
-        out.concat(all_hint(program, commands, questions)) unless options[:all]
-        out << "  a command is called with its aggregate — #{example_qualified(commands)}"
+        out.concat(all_hint(program, *shown)) unless options[:all]
+        out.concat(maintainer_hint(program, commands.size + questions.size - shown.sum(&:size)))
+        out << "  a command is called with its aggregate — #{example_qualified(shown.first)}"
         out.join("\n")
+      end
+
+      # The specs whose aggregate the audience does not run.
+      def without_hidden(specs, hide)
+        hidden = Array(hide)
+        hidden.empty? ? specs : specs.reject { |_, spec| hidden.include?(spec[:group]) }
+      end
+
+      # The attached chapters the help points at, one line each, under the call that opens them.
+      #
+      # @param chapters [Array<Array(String, String)>, nil] each chapter's word and its summary
+      def chapter_lines(program, chapters)
+        return [] if Array(chapters).empty?
+
+        width = chapters.map { |word, _| word.length }.max
+        ["", "chapters (`#{program} <chapter>` lists a chapter's own commands and queries):",
+         *chapters.map { |word, summary| "  #{word.ljust(width)}  #{clipped(summary)}" }]
+      end
+
+      # A summary cut to one terminal line, at a word, with an ellipsis where it was cut.
+      def clipped(text, limit = 96)
+        return text if text.length <= limit
+
+        "#{text[0, limit].sub(/\s+\S*\z/, "")}…"
+      end
+
+      # The line saying the commands for working on hecks itself were left out and how to list
+      # them, or no line when none were.
+      def maintainer_hint(program, count)
+        return [] unless count.positive?
+
+        ["  #{program} --maintainer           also list the #{count} commands and queries for working on hecks itself"]
       end
 
       # The commands table then the queries table.

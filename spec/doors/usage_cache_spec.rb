@@ -51,6 +51,14 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(fetch { worked_out("new help") }).to eq(["new help", 0])
   end
 
+  it "keeps a separate entry for each audience, since the same line reads differently to each" do
+    described_class.fetch(runtime, [], "hecks", audience: "project") { worked_out("project help") }
+    described_class.fetch(runtime, [], "hecks", audience: "maintainer") { worked_out("maintainer help") }
+
+    expect(described_class.fetch(runtime, [], "hecks", audience: "project") { raise "read again" }).to eq(["project help", 0])
+    expect(described_class.fetch(runtime, [], "hecks", audience: "maintainer") { raise "read again" }).to eq(["maintainer help", 0])
+  end
+
   it "keeps a separate entry for each command line" do
     fetch([]) { worked_out("usage") }
     fetch(["--help"]) { worked_out("help flag") }

@@ -104,7 +104,7 @@ module Hecks
       # @return [Array(String, Integer), nil] the text and status, or nil when the line would
       #   run a command or question and so needs a booted domain
       def usage(runtime:, argv:, program: "hecks run")
-        UsageCache.fetch(runtime, argv, program) { resolve(runtime, argv, program)[:answer] }
+        UsageCache.fetch(runtime, argv, program, audience: audience_key) { resolve(runtime, argv, program)[:answer] }
       end
 
       # Parses a command line against the projection: either the answer it gives without
@@ -116,11 +116,12 @@ module Hecks
         bluebook, argv, program = chapter_for(runtime, argv, program)
         launcher = LauncherOptions.settings(runtime, bluebook.name)
         options  = LauncherOptions.projection(launcher, program)
-        cli = Projector.call(:cli, bluebook: bluebook, options: options)
+        cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
 
         name = argv.first
         return { answer: [cli[:usage], 0] } if name.nil? || %w[--help -h help].include?(name)
-        return { answer: [all_usage(bluebook, options), 0] } if name == "--all"
+        return { answer: [all_usage(runtime, bluebook, launcher, options), 0] } if name == "--all"
+        return { answer: [maintainer_usage(runtime, bluebook, launcher, options), 0] } if name == "--maintainer"
 
         asking, name, argv = entry_word(cli, argv)
         return { answer: [cli[:usage], 1] } if name.nil?
@@ -142,9 +143,39 @@ module Hecks
           launcher: launcher }
       end
 
-      # The usage with the internal commands and queries listed too, which `--all` asks for.
-      def all_usage(bluebook, options)
-        Projector.call(:cli, bluebook: bluebook, options: options.merge(all: true))[:usage]
+      # The usage with the internal commands and queries listed too, which `--all` asks for, and
+      # with the maintainer's too.
+      def all_usage(runtime, bluebook, launcher, options)
+        shown = options.merge(audience(runtime, launcher, maintainer: true))
+        Projector.call(:cli, bluebook: bluebook, options: shown.merge(all: true))[:usage]
+      end
+
+      # The usage a maintainer of the hecks checkout sees, which `--maintainer` asks for anywhere.
+      def maintainer_usage(runtime, bluebook, launcher, options)
+        shown = options.merge(audience(runtime, launcher, maintainer: true))
+        Projector.call(:cli, bluebook: bluebook, options: shown)[:usage]
+      end
+
+      # What the help leaves out and points at for whoever typed the line: the maintainer's
+      # aggregates only in a hecks checkout, and the chapters the chapter's launcher names, each
+      # with the first sentence of what it is for.
+      #
+      # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)
+      def audience(runtime, launcher, maintainer: LauncherOptions.maintainer?)
+        shown = LauncherOptions.audience(launcher, maintainer)
+        return shown unless shown[:chapters]
+
+        known = runtime.registry.bluebooks.values.first.then { |own| Array(runtime.registry.hecksagon(own.name)&.member_chapters) }
+        shown.merge(chapters: shown[:chapters].filter_map do |name|
+          next unless known.include?(name)
+
+          [Naming.snake(name), Projector::CliProjector.first_sentence(runtime.registry.bluebook(name).vision)]
+        end)
+      end
+
+      # Names who the help is for, so the help remembered for one is not given to the other.
+      def audience_key
+        LauncherOptions.maintainer? ? "maintainer" : "project"
       end
 
       # Reads the entry words of a line: whether it asks a query, the bare name, and the words
