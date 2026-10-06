@@ -20,7 +20,8 @@ module Hecks
         :mutations_match_recompute,
         :dry_runs_leave_no_trace,
         :corrections_reference_an_emitted_event,
-        :outbox_rows_match_reactions
+        :outbox_rows_match_reactions,
+        :policy_reactions_follow_declared_wiring
       ].freeze
 
       # Which language feature each property is answerable for — exhaustive of
@@ -59,6 +60,9 @@ module Hecks
         # Reads command.mutations for :corrects ops — the same list
         # mutations_match_recompute reads, for a different question.
         corrections_reference_an_emitted_event:           %w[Command#mutations],
+        # Reads each logged reaction back against the policy that produced it: the event it
+        # answers, the trigger it builds, and the domain `across` sends it to.
+        policy_reactions_follow_declared_wiring:          %w[Policy#on_event Policy#trigger_command Policy#target_domain],
         # No feature string exists for what this reads: an argument's own
         # `relationship` (Argument is a value object, outside the meta-domain
         # walk). Its declaration side, `Query#options`, is already claimed by
