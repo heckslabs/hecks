@@ -5,7 +5,7 @@ module Hecks
         # The grammar table's memo keys and its cross-process copy on disk.
         module DiskCache
           # How long an entry nobody has read stays before the next write sweeps it away. A read
-          # marks an entry as used, so only the tables of code that has since changed age out.
+          # marks an entry as used, so only the tables of code that no longer matches the tree age out.
           UNREAD_KEEP_SECONDS = 24 * 60 * 60
 
           # `equal?`, not `==` — chapter identity, not value equality, is the
