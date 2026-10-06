@@ -32,6 +32,26 @@
       "role": null
     },
     {
+      "scope": "deploy:copy_verification.differ",
+      "verb": "Deploy::CopyVerification.Differ",
+      "role": null
+    },
+    {
+      "scope": "deploy:copy_verification.flag",
+      "verb": "Deploy::CopyVerification.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:copy_verification.match",
+      "verb": "Deploy::CopyVerification.Match",
+      "role": null
+    },
+    {
+      "scope": "deploy:copy_verification.run",
+      "verb": "Deploy::CopyVerification.Run",
+      "role": null
+    },
+    {
       "scope": "deploy:cost_check.check",
       "verb": "Deploy::CostCheck.Check",
       "role": null
@@ -44,6 +64,46 @@
     {
       "scope": "deploy:cost_check.pass",
       "verb": "Deploy::CostCheck.Pass",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.complete",
+      "verb": "Deploy::DataCopy.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.confirm",
+      "verb": "Deploy::DataCopy.Confirm",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.drift",
+      "verb": "Deploy::DataCopy.Drift",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.flag",
+      "verb": "Deploy::DataCopy.Flag",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.flag_verification",
+      "verb": "Deploy::DataCopy.FlagVerification",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.plan",
+      "verb": "Deploy::DataCopy.Plan",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.restore",
+      "verb": "Deploy::DataCopy.Restore",
+      "role": null
+    },
+    {
+      "scope": "deploy:data_copy.verify",
+      "verb": "Deploy::DataCopy.Verify",
       "role": null
     },
     {

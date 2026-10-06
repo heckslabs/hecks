@@ -49,6 +49,19 @@ module Hecks
                          37 => "the task definition lacks the pushed image",
                          38 => "the task definition has no such container" }.merge(BOX_STATUS).freeze
 
+      # The file names the AwsBox projection gives the data copy and its comparison.
+      RESTORE_SCRIPT = "restore-to-rds.sh"
+      VERIFY_SCRIPT = "verify-copy.sh"
+
+      # The status `verify-copy.sh` ends with when the databases differ: an answer, not a refusal.
+      DRIFT_STATUS = 50
+
+      # What each status of `restore-to-rds.sh` means, for the reason a refusal gives.
+      RESTORE_STATUS = { 60           => "a Postgres client older than 16",
+                         61           => "the target already has a schema; force=true replaces it",
+                         62           => "unexpected errors restoring a schema",
+                         DRIFT_STATUS => "the copy does not match the source" }.freeze
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused
@@ -173,7 +186,77 @@ module Hecks
         answer.merge(carried(held, "box_roll")).merge(taskdef: wrapped(plain(held[:taskdef])))
       end
 
+      # Copies a project's schemas into RDS with its generated `restore-to-rds.sh`, through
+      # `hecks deploy data_copy.restore`.
+      #
+      # The script overwrites the target database's schemas, so the adapter refuses unless the
+      # record says `confirm`, naming what would be overwritten. A `dry_run` answers the plan and
+      # runs nothing (confirmed or not). The script runs with `VERIFY_BY_COMMAND=1`: the record's
+      # policy requests the comparison, unless `skip_verify` or a dry run.
+      #
+      # @param held [Hash] the `DataCopy` record
+      # @return [Hash{Symbol => Hash}] `report:`, `planned:` and what the policies carry on
+      # @raise [ConsoleCapture::Failure] when no script is found, the copy is not confirmed, or the
+      #   script ends non-zero
+      def copy_data(**held)
+        script = script_for(RESTORE_SCRIPT, plain(held[:project]), plain(held[:script]))
+        plan = copy_plan(script, held)
+        return copy_answer(held, "#{plan}\ndry run: nothing was run", planned: true) if plain(held[:dry_run]) == true
+
+        unless plain(held[:confirm]) == true
+          raise ConsoleCapture::Failure,
+                "refusing to restore: #{plan}\npass confirm=true to run it (dry_run=true prints this plan)"
+        end
+
+        answer = run_script(RESTORE_SCRIPT, held, copy_env(held), "restore", RESTORE_STATUS, args: copy_args(held))
+        copy_answer(held, answer[:report][:value], planned: false)
+      end
+
+      # Compares two databases with a project's generated `verify-copy.sh`, through
+      # `hecks deploy data_copy.verify`. Read-only on both. Differing databases are an answer
+      # (`drifted:`), not a refusal.
+      #
+      # @param held [Hash] the `CopyVerification` record
+      # @return [Hash{Symbol => Hash}] `report:` and `drifted:`
+      # @raise [ConsoleCapture::Failure] when no script is found or it fails for another reason
+      def compare_copy(**held)
+        env = { "A_DB" => database(held[:source_db]), "B_DB" => database(held[:target_db]) }.compact
+        answer = run_script(VERIFY_SCRIPT, held, env, "verify", {}, args: copy_args(held), answering: [DRIFT_STATUS])
+        { report: answer[:report], drifted: { value: answer.key?(:status) } }
+      end
+
       private
+
+      # What a data copy's answer hands on to the policies that follow it.
+      def copy_answer(held, report, planned:)
+        carried = %i[project bastion source source_secret target target_secret source_db target_db]
+                  .to_h { |key| [key, { value: plain(held[key]).to_s }] }
+        verify = !planned && plain(held[:skip_verify]) != true
+        carried.merge(report: { value: report }, planned: { value: planned }, run_verify: { value: verify })
+      end
+
+      # A database name the record gave, or nil when it left the script's default.
+      def database(argument) = plain(argument).to_s.empty? ? nil : plain(argument)
+
+      def copy_args(held) = %i[bastion source source_secret target target_secret].map { |key| plain(held[key]) }
+
+      def copy_env(held)
+        { "FORCE" => flag(held[:force]), "SRC_DB" => database(held[:source_db]), "DST_DB" => database(held[:target_db]),
+          "VERIFY_BY_COMMAND" => "1" }.compact
+      end
+
+      # What the script would overwrite, read from the script itself (its schemas and databases).
+      def copy_plan(script, held)
+        text = File.read(script)
+        schemas = text[/^SCHEMAS="([^"]*)"/, 1].to_s.split.join(", ")
+        databases = text.match(/^SRC_DB=\$\{SRC_DB:-([^}]*)\}; DST_DB=\$\{DST_DB:-([^}]*)\}/)
+        source_db = database(held[:source_db]) || databases&.[](1)
+        target_db = database(held[:target_db]) || databases&.[](2)
+        drop = plain(held[:force]) == true ? "; force=true drops each target schema first" : ""
+        "copy schemas #{schemas} from database #{source_db} on #{plain(held[:source])} into database " \
+          "#{target_db} on #{plain(held[:target])} through bastion #{plain(held[:bastion])}, " \
+          "OVERWRITING those schemas there#{drop}"
+      end
 
       # What a roll's answer hands on to the policies that follow it: the project to find the smoke
       # in, whether to request the smoke (not when the record opted out or the project has no smoke
@@ -202,13 +285,15 @@ module Hecks
 
       # Runs one generated script, found for the record's project, from its own directory. Answers
       # what it printed, or refuses with its status, that status's meaning and its output.
-      def run_script(name, held, env, label, statuses, args: [])
+      def run_script(name, held, env, label, statuses, args: [], answering: [])
         script = script_for(name, plain(held[:project]), plain(held[:script]))
         result = Shell.new.capture("bash", script, *args, env: env, chdir: File.dirname(script))
         report = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
         return { report: { value: report } } if result.ok?
 
         code = result.status.exitstatus
+        return { report: { value: report }, status: code } if answering.include?(code)
+
         raise ConsoleCapture::Failure, "#{label} ended #{code} (#{statuses.fetch(code, 'unexpected')})\n#{report}"
       end
 
