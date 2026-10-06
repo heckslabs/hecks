@@ -59,7 +59,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
   BASH
 
   # The scripts and stand-in programs in a scratch directory; `dir` is where the project lives.
-  class Scratch
+  class DataCopyScratch
     attr_reader :dir
 
     def initialize(dir, golden)
@@ -101,7 +101,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
   # A scratch directory with the stand-in programs for each example, named by `scratch`.
   around do |example|
     Dir.mktmpdir do |dir|
-      @scratch = Scratch.new(dir, golden)
+      @scratch = DataCopyScratch.new(dir, golden)
       example.run
     end
   end
