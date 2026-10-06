@@ -11,9 +11,13 @@ import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-sec
 
 const client = new SecretsManagerClient({});
 
-async function secretField(arn, field) {
+async function secretJson(arn) {
   const { SecretString } = await client.send(new GetSecretValueCommand({ SecretId: arn }));
-  const value = JSON.parse(SecretString)[field];
+  return JSON.parse(SecretString);
+}
+
+async function secretField(arn, field) {
+  const value = (await secretJson(arn))[field];
   if (!value) throw new Error(`secret ${arn} has no "${field}" field`);
   return value;
 }
@@ -21,12 +25,16 @@ async function secretField(arn, field) {
 if (process.env.DB_SECRET_ARN) {
   const { DB_HOST, DB_NAME } = process.env;
   if (!DB_HOST || !DB_NAME) throw new Error("DB_HOST and DB_NAME are required when DB_SECRET_ARN is set");
-  const password = await secretField(process.env.DB_SECRET_ARN, "password");
+  // The user and port come from the secret: RDS's master secret says postgres, and a client that shares
+  // an instance with others has its own role. A secret without them is read as postgres on 5432.
+  const { username = "postgres", password, port = 5432 } = await secretJson(process.env.DB_SECRET_ARN);
+  if (!password) throw new Error(`secret ${process.env.DB_SECRET_ARN} has no "password" field`);
   // The password goes through encodeURIComponent: the generated one can hold characters (@ / #)
   // that would otherwise split the URL. RDS enforces TLS; verify against Amazon's CA bundle,
   // which the image holds beside this file.
   const ssl = "sslmode=verify-full&sslrootcert=" + new URL("./rds-global-bundle.pem", import.meta.url).pathname;
-  process.env.DATABASE_URL = `postgres://postgres:${encodeURIComponent(password)}@${DB_HOST}:5432/${DB_NAME}?${ssl}`;
+  process.env.DATABASE_URL =
+    `postgres://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${DB_HOST}:${port}/${DB_NAME}?${ssl}`;
 } else if (!process.env.DATABASE_URL) {
   throw new Error("either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required");
 }
