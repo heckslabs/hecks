@@ -108,6 +108,38 @@ by default. With the same edge verbs and cache class as the prefix the row rides
 
 `hecks site site_projection.project_site <project>` refuses a table that contradicts itself and names every problem at once.
 
+## Admin sign-in: `admin.ts`
+
+A project that serves admin pages from a domain host declares one `member` row of a `value_object "Admin"` in the chapter that
+holds its route table, and the tool writes `admin.ts` (or `admin.mts`, as `extension` says) beside `routes.ts`. A project with no
+`Admin` row gets no `admin.ts`, and the other output is unchanged.
+
+| field | meaning | default |
+|---|---|---|
+| `session_cookie` | the name of the session cookie the host sets | required |
+| `host_env` | the environment variable that holds the host's address | required |
+| `login` | the path of the login page; a public row of the table | required |
+| `sso` | the path of the hand-off to the content system; an `admin` endpoint row | required |
+| `host_default` | the host's address when the variable is unset | `http://127.0.0.1:4322` |
+| `roles` | the roles that count as an admin, comma-separated | `Admin,Owner` |
+| `session_max_age` | the cookie's lifetime in seconds | `1209600` (14 days) |
+| `account_path`, `members_path`, `sso_token_path` | the host's routes for who is signed in, the membership list, and a hand-off token | `/accounts/me`, `/members`, `/accounts/sso-token` |
+| `sso_target` | the content system's own sign-in endpoint | `/cms/api/sso` |
+| `verdict_ttl_ms`, `timeout_ms` | how long a verdict on one session is reused, and how long to wait for the host | `10000`, `5000` |
+
+The module exports `ADMIN` (the settings), `adminGate(pathname, cookie)`, `currentAdminSession`, `currentAdminEmail`,
+`currentAccountEmail`, `ssoRedirect(cookie, to)`, `isActiveAdmin`, `forgetAdminSessions` and `configureAdmin({ host, fetch })`. It
+imports `routes` beside it and nothing else.
+
+`adminGate` decides from the table: the most specific route that matches the path wins (the characters outside its wildcards
+count, so `/admin-login` outranks `/admin*`), and an `admin` route needs a signed-in person whom the host's membership list holds
+with one of the roles and not disabled. A request without one is sent to `login`; a path under the draft-preview prefix is
+refused with `{ allow: false, status: 401 }` instead. A verdict on one cookie is remembered for `verdict_ttl_ms`, and
+`forgetAdminSessions()` drops them, for after a member is added, disabled or removed.
+
+The table is refused when `login` is not a public route, when `sso` is not an `admin` endpoint, when a path does not start with a
+slash, when `roles` names none, or when the row has a field this list does not.
+
 ## Projecting it
 
 ```
