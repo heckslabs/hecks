@@ -1731,6 +1731,675 @@ Hecks.bluebook "Deploy" do
     trigger CopyVerification::Flag, with: { refusal: :refusal }
   end
 
+  aggregate "BluebookDiff" do
+    description "One report of which bluebook releases a deploy changes: the running image's bluebooks against the ones about to ship."
+
+    attribute :project, Location
+    attribute :script,  Location, optional: true
+    attribute :run,     RunKey
+    attribute :old,     Location, optional: true
+    attribute :new,     Location, optional: true
+    attribute :report,  Report, optional: true
+    attribute :refusal, Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project, script or file is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # No outcome is a failure: a report that could not be made is `unavailable`, never `flagged`
+    # (only a malformed request is), because the era check gates a deploy, not this report.
+    lifecycle :status, default: "requested" do
+      transition "Match" => "unchanged", from: "requested"
+      transition "Differ" => "changed", from: "requested"
+      transition "Withhold" => "unavailable", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy bluebook_diff.run <project> [old=<json> new=<json>] [script=<path>]`. With
+    # `old` and `new` (two `hecks package.verify` outputs) the comparison is made here, offline.
+    # With neither, the project's `bluebooks-diff.sh` reads the running image's bluebooks from the
+    # registry (read-only) and the local image's, and its report is classified. It never fails:
+    # `unchanged`, `changed` or `unavailable` (a lookup failed, or the script is missing). Only
+    # giving one of `old` and `new` is refused, as `flagged`.
+    command "Run" do
+      goal "Report which bluebook releases a deploy changes and record it (never a failure: unchanged, changed or unavailable)"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :old,     Location, optional: true
+      attribute :new,     Location, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :old
+      sets :new
+
+      emits "BluebookDiffRequested"
+    end
+
+    command "Match" do
+      goal "Record that the deploy changes no bluebook"
+
+      reference_to BluebookDiff
+      attribute :report, Report
+
+      sets :report
+
+      emits "BluebooksUnchanged"
+    end
+
+    command "Differ" do
+      goal "Record the bluebooks the deploy adds, removes, re-versions or changes in content"
+
+      reference_to BluebookDiff
+      attribute :report, Report
+
+      sets :report
+
+      emits "BluebooksChanged"
+    end
+
+    command "Withhold" do
+      goal "Record that the report could not be made, and why; the deploy carries on"
+
+      reference_to BluebookDiff
+      attribute :report, Report
+
+      sets :report
+
+      emits "BluebookDiffUnavailable"
+    end
+
+    command "Flag" do
+      goal "Record that the request was malformed (only one of old and new), and why"
+
+      reference_to BluebookDiff
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "BluebookDiffFlagged"
+    end
+
+    query "Verdict" do
+      description "What one report found: its status and the report."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Changed" do
+      description "Every report that found a bluebook release changed."
+      where(status: "changed")
+      order_by :run
+    end
+  end
+
+  policy "DiffWhenRequested" do
+    on      "BluebookDiff.BluebookDiffRequested"
+    trigger BluebookDiff::DeployToolchain::CompareBluebooks, with: { run: :run }
+  end
+
+  policy "RecordTheUnchangedBluebooks" do
+    on      "BluebookDiff.BluebookDiffAnswered"
+    where   { outcome.value == "unchanged" }
+    trigger BluebookDiff::Match, with: { report: :report }
+  end
+
+  policy "RecordTheChangedBluebooks" do
+    on      "BluebookDiff.BluebookDiffAnswered"
+    where   { outcome.value == "changed" }
+    trigger BluebookDiff::Differ, with: { report: :report }
+  end
+
+  policy "RecordTheUnavailableDiff" do
+    on      "BluebookDiff.BluebookDiffAnswered"
+    where   { outcome.value == "unavailable" }
+    trigger BluebookDiff::Withhold, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedDiff" do
+    on      "BluebookDiff.BluebookDiffRefused"
+    trigger BluebookDiff::Flag, with: { refusal: :refusal }
+  end
+
+  aggregate "PreviewRun" do
+    description "One run of a project's preview script: the per-branch preview stack named, found, listed, deployed, destroyed or signed in to, and how it ended."
+
+    attribute :project, Location
+    attribute :script,  Location, optional: true
+    attribute :run,     RunKey
+    attribute :action,  Action
+    attribute :branch,  Branch, optional: true
+    attribute :confirm, Switch, optional: true
+    attribute :dry_run, Switch, optional: true
+    attribute :report,  Report, optional: true
+    attribute :refusal, Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # What the script is asked to do; each command sets its own.
+    value_object "Action" do
+      attribute :value, String, pattern: '^(name|url|list|deploy|destroy|login)$'
+    end
+
+    # A git branch name. A preview is never of a production branch.
+    value_object "Branch" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+
+      invariant("a preview is never of main or master") { value != "main" && value != "master" }
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "RecordName" => "named", from: "requested"
+      transition "RecordUrl" => "located", from: "requested"
+      transition "RecordList" => "listed", from: "requested"
+      transition "RecordDeploy" => "deployed", from: "requested"
+      transition "RecordDestroy" => "destroyed", from: "requested"
+      transition "RecordLogin" => "signed_in", from: "requested"
+      transition "Plan" => "planned", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch=<name>]
+    # [confirm=true] [dry_run=true] [script=<path>]`. Runs the project's `preview.sh` with that
+    # verb; the script derives every name from the branch (the checked-out one unless `branch=`),
+    # refuses `main` and `master`, and only touches stacks under its own prefix. `name`, `url` and
+    # `list` read; `deploy`, `destroy` and `login` write to AWS or read its secrets, so they refuse
+    # unless `confirm=true`, and `dry_run=true` prints the plan and runs nothing. Exit 1 when
+    # flagged, with the script's status (1: it refused or failed) in the reason.
+    command "Name" do
+      goal "Print the names a branch's preview would have, from the project's preview script (no AWS call)"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "name" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewNameRequested"
+    end
+
+    command "Url" do
+      goal "Print a branch's preview URL, read from its stack"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "url" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewUrlRequested"
+    end
+
+    command "List" do
+      goal "List every preview stack that exists, read from AWS"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "list" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewListRequested"
+    end
+
+    command "Deploy" do
+      goal "Create or update a branch's preview from the images built locally (writes to AWS; refuses unless confirm=true)"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "deploy" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewDeployRequested"
+    end
+
+    command "Destroy" do
+      goal "Tear a branch's preview stack down (writes to AWS; refuses unless confirm=true)"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "destroy" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewDestroyRequested"
+    end
+
+    command "Login" do
+      goal "Mint a line that signs the deployer in to a preview as its first admin (reads its session secret; refuses unless confirm=true)"
+
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      attribute :run,     RunKey
+      attribute :action,  Action, default: { value: "login" }
+      attribute :branch,  Branch, optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :dry_run, Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :action
+      sets :branch
+      sets :confirm
+      sets :dry_run
+
+      emits "PreviewLoginRequested"
+    end
+
+    command "RecordName" do
+      goal "Record the names the script printed"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewNamed"
+    end
+
+    command "RecordUrl" do
+      goal "Record the preview URL the script printed"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewLocated"
+    end
+
+    command "RecordList" do
+      goal "Record the preview stacks the script listed"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewListed"
+    end
+
+    command "RecordDeploy" do
+      goal "Record that the preview was created or updated, and what the script said"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewDeployed"
+    end
+
+    command "RecordDestroy" do
+      goal "Record that the preview was torn down, and what the script said"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewDestroyed"
+    end
+
+    command "RecordLogin" do
+      goal "Record that the sign-in line was minted, and where the script put it"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewSignedIn"
+    end
+
+    command "Plan" do
+      goal "Record the plan a dry run printed: what would run and where, with nothing run"
+
+      reference_to PreviewRun
+      attribute :report, Report
+
+      sets :report
+
+      emits "PreviewPlanned"
+    end
+
+    command "Flag" do
+      goal "Record that the run was refused or failed, with the script's status and what it said"
+
+      reference_to PreviewRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "PreviewFlagged"
+    end
+
+    query "Verdict" do
+      description "What one run found: its status, the report, and the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every preview run that was refused or failed."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "RunPreviewWhenNameRequested" do
+    on      "PreviewRun.PreviewNameRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RunPreviewWhenUrlRequested" do
+    on      "PreviewRun.PreviewUrlRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RunPreviewWhenListRequested" do
+    on      "PreviewRun.PreviewListRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RunPreviewWhenDeployRequested" do
+    on      "PreviewRun.PreviewDeployRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RunPreviewWhenDestroyRequested" do
+    on      "PreviewRun.PreviewDestroyRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RunPreviewWhenLoginRequested" do
+    on      "PreviewRun.PreviewLoginRequested"
+    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+  end
+
+  policy "RecordThePreviewName" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "named" }
+    trigger PreviewRun::RecordName, with: { report: :report }
+  end
+
+  policy "RecordThePreviewUrl" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "located" }
+    trigger PreviewRun::RecordUrl, with: { report: :report }
+  end
+
+  policy "RecordThePreviewList" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "listed" }
+    trigger PreviewRun::RecordList, with: { report: :report }
+  end
+
+  policy "RecordTheDeployedPreview" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "deployed" }
+    trigger PreviewRun::RecordDeploy, with: { report: :report }
+  end
+
+  policy "RecordTheDestroyedPreview" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "destroyed" }
+    trigger PreviewRun::RecordDestroy, with: { report: :report }
+  end
+
+  policy "RecordThePreviewLogin" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "signed_in" }
+    trigger PreviewRun::RecordLogin, with: { report: :report }
+  end
+
+  policy "RecordThePreviewPlan" do
+    on      "PreviewRun.PreviewRunAnswered"
+    where   { outcome.value == "planned" }
+    trigger PreviewRun::Plan, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedPreview" do
+    on      "PreviewRun.PreviewRunRefused"
+    trigger PreviewRun::Flag, with: { refusal: :refusal }
+  end
+
+  aggregate "CompanionRoll" do
+    description "One roll of a companion Compose project (a second project beside the app's) onto the box: the project's deploy script run, and how it ended."
+
+    attribute :project,   Location
+    attribute :script,    Location, optional: true
+    attribute :run,       RunKey
+    attribute :companion, Companion, default: { value: "umami" }
+    attribute :taskdef,   TaskDefinition
+    attribute :confirm,   Switch, optional: true
+    attribute :dry_run,   Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a project or script is named by its path") { !value.to_s.empty? }
+    end
+
+    # The companion's name; its script is `deploy-<companion>.sh`.
+    value_object "Companion" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    end
+
+    # A task definition revision (or family) the companion's image and settings are read from.
+    value_object "TaskDefinition" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "rolled", from: "requested"
+      transition "Plan" => "planned", from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    # `hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami] [confirm=true]
+    # [dry_run=true] [script=<path>]`. Runs the project's `deploy-<companion>.sh`, which reads the
+    # companion's image and settings from the task definition, sends a Compose project and its secret
+    # references to the box over SSM (secret values never travel; the box resolves them), starts it
+    # beside the app's project, and checks it on the box. It writes to the box, so it refuses unless
+    # `confirm=true`; `dry_run=true` prints the plan and runs nothing. Exit 1 when flagged.
+    command "Run" do
+      goal "Roll a companion Compose project onto the box and record the check on the box (refuses unless confirm=true)"
+
+      attribute :project,   Location
+      attribute :script,    Location, optional: true
+      attribute :run,       RunKey
+      attribute :companion, Companion, default: { value: "umami" }
+      attribute :taskdef,   TaskDefinition
+      attribute :confirm,   Switch, optional: true
+      attribute :dry_run,   Switch, optional: true
+
+      sets :project
+      sets :script
+      sets :run
+      sets :companion
+      sets :taskdef
+      sets :confirm
+      sets :dry_run
+
+      emits "CompanionRollRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the companion rolled and passed its check on the box, and what the script printed"
+
+      reference_to CompanionRoll
+      attribute :report, Report
+
+      sets :report
+
+      emits "CompanionRolled"
+    end
+
+    command "Plan" do
+      goal "Record the plan a dry run printed: what would be rolled and where, with nothing run"
+
+      reference_to CompanionRoll
+      attribute :report, Report
+
+      sets :report
+
+      emits "CompanionRollPlanned"
+    end
+
+    command "Flag" do
+      goal "Record that the roll was refused, or the companion did not roll or is not healthy, and why"
+
+      reference_to CompanionRoll
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "CompanionRollFlagged"
+    end
+
+    query "Verdict" do
+      description "What one roll found: its status, the report, and the reason it was flagged."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every companion roll that was refused, did not roll or was not healthy."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "RollCompanionWhenRequested" do
+    on      "CompanionRoll.CompanionRollRequested"
+    trigger CompanionRoll::DeployToolchain::RollCompanion, with: { run: :run }
+  end
+
+  policy "RecordTheRolledCompanion" do
+    on      "CompanionRoll.CompanionRollAnswered"
+    where   { !planned.value }
+    trigger CompanionRoll::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheCompanionPlan" do
+    on      "CompanionRoll.CompanionRollAnswered"
+    where   { planned.value }
+    trigger CompanionRoll::Plan, with: { report: :report }
+  end
+
+  policy "RecordTheFlaggedCompanionRoll" do
+    on      "CompanionRoll.CompanionRollRefused"
+    trigger CompanionRoll::Flag, with: { refusal: :refusal }
+  end
+
   aggregate "TemplateComparison" do
     description "One offline comparison of two CloudFormation templates, by logical id."
 

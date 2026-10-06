@@ -5,6 +5,8 @@ require_relative "shell"
 require_relative "codebase/tree"
 require_relative "codebase/ruby_child"
 require "hecks/projections/deploy/template_diff"
+require_relative "bluebook_report"
+require_relative "deploy_plans"
 
 module Hecks
   module Adapters
@@ -61,6 +63,25 @@ module Hecks
                          61           => "the target already has a schema; force=true replaces it",
                          62           => "unexpected errors restoring a schema",
                          DRIFT_STATUS => "the copy does not match the source" }.freeze
+
+      # The file name of the bluebook report script and of the preview script; a companion roll runs
+      # `deploy-<companion>.sh`.
+      DIFF_SCRIPT = "bluebooks-diff.sh"
+      PREVIEW_SCRIPT = "preview.sh"
+
+      # What `preview.sh` ends with: every refusal and failure is 1, a bad verb 2.
+      PREVIEW_STATUS = { 1 => "the preview script refused or failed", 2 => "usage" }.freeze
+
+      # What a roll script ends with: every refusal and failed check is 1.
+      COMPANION_STATUS = { 1 => "the roll was refused, did not succeed, or the companion is not healthy" }.freeze
+
+      # The outcome each `preview.sh` verb records; the writes among them need `confirm`.
+      PREVIEW_OUTCOMES = { "name" => "named", "url" => "located", "list" => "listed", "deploy" => "deployed",
+                           "destroy" => "destroyed", "login" => "signed_in" }.freeze
+      PREVIEW_WRITES = %w[deploy destroy login].freeze
+
+      # What `bluebooks-diff.sh` prints when it has nothing to compare.
+      DIFF_UNAVAILABLE = /^==> bluebooks: (could not read|the local domain image has no|the running domain image .* predates)/
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -225,7 +246,103 @@ module Hecks
         { report: answer[:report], drifted: { value: answer.key?(:status) } }
       end
 
+      # Reports which bluebook releases a deploy changes, through `hecks deploy bluebook_diff.run`.
+      #
+      # With `old` and `new` (two `package.verify` outputs) the comparison is made here, offline.
+      # With neither, the project's `bluebooks-diff.sh` reads the running image's bluebooks
+      # (read-only) and its report is classified. Never a failure: what cannot be compared is
+      # `unavailable`. Only one of `old` and `new` is refused.
+      #
+      # @param held [Hash] the `BluebookDiff` record
+      # @return [Hash{Symbol => Hash}] `outcome:` (unchanged, changed or unavailable) and `report:`
+      # @raise [ConsoleCapture::Failure] when only one of `old` and `new` is given
+      def compare_bluebooks(**held)
+        old = plain(held[:old])
+        new = plain(held[:new])
+        raise ConsoleCapture::Failure, "give old= and new= together, or neither" if old.nil? != new.nil?
+
+        old ? diff_files(old, new) : diff_script(held)
+      end
+
+      # Runs a project's `preview.sh` with one verb, through `hecks deploy preview_run.<verb>`.
+      #
+      # `name`, `url` and `list` read. `deploy`, `destroy` and `login` write to AWS or read its
+      # secrets, so they refuse unless the record says `confirm`, naming the plan; `dry_run` answers
+      # that plan and runs nothing. The branch travels in `BRANCH`, as the script reads it.
+      #
+      # @param held [Hash] the `PreviewRun` record
+      # @return [Hash{Symbol => Hash}] `outcome:`, `report:` and `planned:`
+      # @raise [ConsoleCapture::Failure] when no script is found, a write is not confirmed, or the
+      #   script ends non-zero
+      def run_preview(**held)
+        action = plain(held[:action]).to_s
+        script = script_for(PREVIEW_SCRIPT, plain(held[:project]), plain(held[:script]))
+        if PREVIEW_WRITES.include?(action)
+          plan = DeployPlans.preview(File.read(script), action, plain(held[:branch]))
+          return planned_answer("#{action}: #{plan}") if plain(held[:dry_run]) == true
+
+          require_confirm(held, "#{action} a preview", plan)
+        end
+        env = { "BRANCH" => plain(held[:branch]) }.compact
+        answer = run_script(PREVIEW_SCRIPT, held, env, "preview #{action}", PREVIEW_STATUS, args: [action])
+        { outcome: { value: PREVIEW_OUTCOMES.fetch(action) }, report: answer[:report], planned: { value: false } }
+      end
+
+      # Rolls a companion Compose project onto the box with a project's `deploy-<companion>.sh`,
+      # through `hecks deploy companion_roll.run`.
+      #
+      # The script sends the project and its secret references to the box over SSM and starts it, so
+      # the adapter refuses unless the record says `confirm`, naming the plan; `dry_run` answers the
+      # plan and runs nothing. The task definition is the script's one argument.
+      #
+      # @param held [Hash] the `CompanionRoll` record
+      # @return [Hash{Symbol => Hash}] `report:` and `planned:`
+      # @raise [ConsoleCapture::Failure] when no script is found, the roll is not confirmed, or the
+      #   script ends non-zero
+      def roll_companion(**held)
+        companion = plain(held[:companion]).to_s
+        name = "deploy-#{companion}.sh"
+        script = script_for(name, plain(held[:project]), plain(held[:script]))
+        plan = DeployPlans.companion(File.read(script), companion, plain(held[:taskdef]))
+        return planned_answer(plan) if plain(held[:dry_run]) == true
+
+        require_confirm(held, "roll #{companion}", plan)
+        answer = run_script(name, held, {}, "companion roll", COMPANION_STATUS, args: [plain(held[:taskdef])])
+        answer.merge(planned: { value: false })
+      end
+
       private
+
+      # A dry run's answer: the plan, and nothing run.
+      def planned_answer(plan)
+        { outcome: { value: "planned" }, report: { value: "#{plan}\ndry run: nothing was run" }, planned: { value: true } }
+      end
+
+      def require_confirm(held, what, plan)
+        return if plain(held[:confirm]) == true
+
+        raise ConsoleCapture::Failure,
+              "refusing to #{what}: #{plan}\npass confirm=true to run it (dry_run=true prints this plan)"
+      end
+
+      def diff_files(old, new)
+        report = BluebookReport.new(File.read(File.expand_path(old)), File.read(File.expand_path(new)))
+        diff_answer(report.changed? ? "changed" : "unchanged", report.text)
+      rescue SystemCallError, JSON::ParserError, TypeError, KeyError => e
+        diff_answer("unavailable", "bluebooks: could not compare #{old} and #{new} (#{e.message.lines.first.strip})")
+      end
+
+      # The script reads the registry and the local image; its report says what it found.
+      def diff_script(held)
+        text = run_script(DIFF_SCRIPT, held, {}, "bluebook diff", {}).dig(:report, :value)
+        return diff_answer("unavailable", text) if text.match?(DIFF_UNAVAILABLE)
+
+        diff_answer(text.include?("no bluebook changes.") ? "unchanged" : "changed", text)
+      rescue ConsoleCapture::Failure => e
+        diff_answer("unavailable", "bluebooks: #{e.message.lines.first.strip}; nothing to compare.")
+      end
+
+      def diff_answer(outcome, text) = { outcome: { value: outcome }, report: { value: text } }
 
       # What a data copy's answer hands on to the policies that follow it.
       def copy_answer(held, report, planned:)

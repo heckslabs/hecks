@@ -442,6 +442,30 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Deploy::BluebookDiff.port "DeployToolchain" do
+    asks "CompareBluebooks", to: BluebookDiff do
+      attribute :run, RunKey
+      answers "BluebookDiffAnswered"
+      refuses "BluebookDiffRefused"
+    end
+  end
+
+  Deploy::PreviewRun.port "DeployToolchain" do
+    asks "RunPreview", to: PreviewRun do
+      attribute :run, RunKey
+      answers "PreviewRunAnswered"
+      refuses "PreviewRunRefused"
+    end
+  end
+
+  Deploy::CompanionRoll.port "DeployToolchain" do
+    asks "RollCompanion", to: CompanionRoll do
+      attribute :run, RunKey
+      answers "CompanionRollAnswered"
+      refuses "CompanionRollRefused"
+    end
+  end
+
   Deploy::TemplateComparison.port "DeployToolchain" do
     asks "Compare", to: TemplateComparison do
       attribute :run, RunKey
