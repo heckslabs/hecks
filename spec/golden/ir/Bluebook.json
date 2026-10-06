@@ -31653,6 +31653,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "alert_after",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -31680,6 +31690,10 @@
               [
                 "follows",
                 ""
+              ],
+              [
+                "alert_after",
+                ""
               ]
             ],
             [
@@ -31702,6 +31716,10 @@
               [
                 "follows",
                 "main"
+              ],
+              [
+                "alert_after",
+                4
               ]
             ]
           ],

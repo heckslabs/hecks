@@ -116,6 +116,24 @@ Hecks.bluebook "Tickets" do
       emits "RunFindingReported"
     end
 
+    # A lane that stood behind the lane it follows for longer than its Lane row allows reports
+    # itself. The alert key names the finding and carries the day, so a lane that stays late files
+    # one finding a day: the same key again is the same finding.
+    command "ReportLag" do
+      goal "Record a lane that has stood behind the lane it follows too long as a finding"
+
+      attribute :finding, FindingKey
+      attribute :body,    Body
+
+      sets :finding
+      sets :body
+      sets :fingerprint, to: "lane-lag"
+      sets :title,  to: "A lane is behind the lane it follows"
+      sets :source, to: "qa_loop"
+
+      emits "LagFindingReported"
+    end
+
     command "Triage" do
       role "Maintainer"
       goal "Give a finding its kind and severity"
@@ -283,6 +301,11 @@ Hecks.bluebook "Tickets" do
     trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
   end
 
+  policy "OpenIssueWhenLagReported" do
+    on      "Finding.LagFindingReported"
+    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+  end
+
   policy "LabelIssueWhenTriaged" do
     on      "Finding.FindingTriaged"
     trigger Finding::GitHubIssues::LabelIssue, with: { finding: :finding }
@@ -312,6 +335,12 @@ Hecks.bluebook "Tickets" do
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  # A watch that finds a lane late faults it, and the fault files its finding.
+  policy "ReportWhenLaneLags" do
+    on      "PromotionRun.LaneLagged"
+    trigger Finding::ReportLag, with: { finding: :alert_key, body: :refusal }
   end
 
   policy "ReportWhenGateFaulted" do

@@ -2717,6 +2717,9 @@ Hecks.bluebook "Hecks" do
     attribute :green,      Switch, optional: true
     attribute :descends,   Switch, optional: true
     attribute :head,       Word, optional: true
+    attribute :behind_hours, Hours, optional: true
+    attribute :limit_hours,  Hours, optional: true
+    attribute :alert_key,    Word, optional: true
     attribute :promoted,   Switch, optional: true
     attribute :reason,     Report, optional: true
     attribute :report,     Report, optional: true
@@ -2746,10 +2749,36 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '[^ \t\n\r]'
     end
 
+    # How long a lane has stood behind the lane it follows, or how long its row lets it.
+    value_object "Hours" do
+      attribute :value, Integer
+    end
+
     lifecycle :status, default: "requested" do
       transition "Accept"   => "accepted",  from: "requested"
-      transition "Complete" => "completed", from: "accepted"
+      transition "Observe"  => "observed",  from: "requested"
+      transition "Complete" => "completed", from: %w[accepted observed]
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      transition "Lag"      => "faulted",   from: "observed"
+    end
+
+    # Looks at a lane and moves nothing: faults when it has stood behind the lane it follows for
+    # longer than its `Lane` row allows, which files a finding. A lane whose row allows no lag is
+    # never late.
+    command "Watch" do
+      role "Maintainer"
+      goal "Fault when a lane has stood behind the lane it follows for longer than its Lane row allows"
+
+      attribute :lane,      Word
+      attribute :run,       RunKey
+      attribute :alert_key, Word
+
+      sets :lane
+      sets :run
+      sets :alert_key
+      sets :operation, to: "watch"
+
+      emits WatchRequested
     end
 
     command "Promote" do
@@ -2799,9 +2828,38 @@ Hecks.bluebook "Hecks" do
       emits PromotionAccepted
     end
 
+    # What the tree and the remote reported about a watched lane, held against the rules of a
+    # watch: it needs a hecks checkout and a lane that follows another.
+    command "Observe" do
+      role "System"
+      goal "Let a lane be judged late or on time only in a hecks checkout, for a lane that follows another"
+
+      reference_to PromotionRun
+      attribute :checkout,     Switch
+      attribute :lane_known,   Switch
+      attribute :behind_hours, Hours
+      attribute :limit_hours,  Hours
+      attribute :alert_key,    Word
+      attribute :promoted,     Switch
+      attribute :reason,       Report
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
+
+      sets :checkout
+      sets :lane_known
+      sets :behind_hours
+      sets :limit_hours
+      sets :alert_key
+      sets :promoted
+      sets :reason
+
+      emits LaneObserved
+    end
+
     command "Complete" do
       role "System"
-      goal "Record that the promotion was carried out or rehearsed, and what it reported"
+      goal "Record that the promotion was carried out or rehearsed, or the lane was on time, and what it reported"
 
       reference_to PromotionRun
       attribute :report,   Report
@@ -2811,6 +2869,21 @@ Hecks.bluebook "Hecks" do
       sets :promoted
 
       emits PromotionCompleted
+    end
+
+    # A lane that has stood behind the lane it follows for longer than its Lane row allows.
+    command "Lag" do
+      role "System"
+      goal "Record that a lane is late, and what it is waiting on, under the alert key that names its finding"
+
+      reference_to PromotionRun
+      attribute :refusal,   Report
+      attribute :alert_key, Word
+
+      sets :refusal
+      sets :alert_key
+
+      emits LaneLagged
     end
 
     command "Fault" do
@@ -2844,15 +2917,47 @@ Hecks.bluebook "Hecks" do
     trigger PromotionRun::SourceTree::Examine, with: { run: :run }
   end
 
+  policy "ExamineWhenWatchRequested" do
+    on      "PromotionRun.WatchRequested"
+    trigger PromotionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ObserveWhenWatchExamined" do
+    on      "PromotionRun.PromotionExamined"
+    where   { operation.value == "watch" }
+    trigger PromotionRun::Observe, with: { checkout: :checkout, lane_known: :lane_known, behind_hours: :behind_hours,
+                                           limit_hours: :limit_hours, alert_key: :alert_key, promoted: :promoted,
+                                           reason: :reason }
+  end
+
+  policy "FaultWhenWatchCannotBeJudged" do
+    on      "PromotionRun.PromotionExamined"
+    where   { operation.value == "watch" && (!checkout.value || !lane_known.value) }
+    trigger PromotionRun::Fault, with: { refusal: :reason }
+  end
+
+  policy "LagWhenLaneLate" do
+    on      "PromotionRun.LaneObserved"
+    where   { behind_hours.value > limit_hours.value }
+    trigger PromotionRun::Lag, with: { refusal: :reason, alert_key: :alert_key }
+  end
+
+  policy "CompleteWhenLaneOnTime" do
+    on      "PromotionRun.LaneObserved"
+    where   { behind_hours.value <= limit_hours.value }
+    trigger PromotionRun::Complete, with: { report: :reason, promoted: :promoted }
+  end
+
   policy "AcceptPromotionWhenExamined" do
     on      "PromotionRun.PromotionExamined"
+    where   { operation.value == "promote" }
     trigger PromotionRun::Accept, with: { checkout: :checkout, lane_known: :lane_known, green: :green,
                                           descends: :descends, commit: :commit, head: :head }
   end
 
   policy "FaultPromotionWhenNotAccepted" do
     on      "PromotionRun.PromotionExamined"
-    where   { !checkout.value || !lane_known.value || !green.value || !descends.value }
+    where   { operation.value == "promote" && (!checkout.value || !lane_known.value || !green.value || !descends.value) }
     trigger PromotionRun::Fault, with: { refusal: :reason }
   end
 

@@ -27,9 +27,17 @@ module Hecks
           name = lane["name"]
           return "#{name} has pushers #{lane["pushers"].inspect}" unless Lanes::PUSHERS.include?(lane["pushers"])
           return "#{name} has guarded #{lane["guarded"].inspect}" unless %w[yes no].include?(lane["guarded"])
+          return "#{name} has alert_after #{lane["alert_after"].inspect}, not whole hours" unless hours?(lane)
 
+          follows_problem(lane, names)
+        end
+
+        # @return [Boolean] whether `alert_after` is empty (never late) or whole hours
+        def hours?(lane) = lane["alert_after"].to_s.match?(/\A\d*\z/)
+
+        def follows_problem(lane, names)
           follows = lane["follows"].to_s
-          "#{name} follows #{follows.inspect}, which is not a Lane row" unless follows.empty? || names.include?(follows)
+          "#{lane["name"]} follows #{follows.inspect}, which is not a Lane row" unless follows.empty? || names.include?(follows)
         end
       end
     end

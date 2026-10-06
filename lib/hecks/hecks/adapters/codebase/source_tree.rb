@@ -185,7 +185,11 @@ module Hecks
                   Codebase::CorpusTasks, Codebase::Publishing, Codebase::Promotion].freeze
       private_constant :FAMILIES
 
-      def promotion_facts(held) = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
+      # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
+      def promotion_facts(held)
+        facts = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
+        { operation: held[:operation], alert_key: held[:alert_key] }.compact.merge(facts)
+      end
 
       def tree = Codebase::Tree.new
 

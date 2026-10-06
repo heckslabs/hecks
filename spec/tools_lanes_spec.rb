@@ -62,6 +62,28 @@ RSpec.describe Hecks::Tools::Lanes do
 
       expect(run).to include("exe/hecks promotion_run.promote lane=stable", "--confirm")
     end
+
+    it "watch each lane that has an alert threshold, every hour, by running the watch command",
+       :aggregate_failures do
+      watch = YAML.load_file(File.join(root, ".github/workflows/lane-watch.yml"))
+      run = watch.dig("jobs", "watch_stable", "steps").last.fetch("run")
+
+      expect(watch.fetch(true, watch["on"]).dig("schedule", 0, "cron")).to match(/\A\d+ \* \* \* \*\z/)
+      expect(run).to include("exe/hecks promotion_run.watch lane=stable", "alert_key=stable-lag-$(date -u")
+    end
+
+    it "let a watch keep its journal in Postgres, so the next hour sees the finding the last one filed" do
+      steps = YAML.load_file(File.join(root, ".github/workflows/lane-watch.yml")).dig("jobs", "watch_stable", "steps")
+
+      expect(steps.find { |step| step["uses"].to_s.end_with?("hecks-environment") }.dig("with", "database"))
+        .to eq("${{ secrets.HECKS_JOURNAL_DATABASE }}")
+    end
+
+    it "write no watch for a lane with no alert threshold" do
+      watched = described_class.lanes.reject { |lane| lane["alert_after"].to_s.empty? }.map { |lane| lane["name"] }
+
+      expect(watched).to eq(["stable"])
+    end
   end
 
   describe "main" do
@@ -137,7 +159,9 @@ RSpec.describe Hecks::Tools::Lanes do
   end
 
   describe "a row the projection cannot express" do
-    def base = { "name" => "x", "guarded" => "no", "pushers" => "anyone", "feeds" => "", "follows" => "" }
+    def base
+      { "name" => "x", "guarded" => "no", "pushers" => "anyone", "feeds" => "", "follows" => "", "alert_after" => "" }
+    end
 
     def rows_are(**given)
       allow(Hecks::Vocabulary).to receive(:rows).with("Lane").and_return([base.merge(given.transform_keys(&:to_s))])
@@ -147,6 +171,12 @@ RSpec.describe Hecks::Tools::Lanes do
       rows_are(guarded: "yes", pushers: "nobody")
 
       expect { described_class.lanes }.to raise_error(SystemExit).and output(/x has pushers "nobody"/).to_stderr
+    end
+
+    it "refuses an alert threshold that is not whole hours" do
+      rows_are(alert_after: "soon")
+
+      expect { described_class.lanes }.to raise_error(SystemExit).and output(/alert_after "soon", not whole hours/).to_stderr
     end
 
     it "refuses a lane that follows a lane no row names" do

@@ -46,6 +46,22 @@ module Hecks
         refuse("git merge-base failed", result)
       end
 
+      # When the oldest commit of a range was made: the commits `newer` has that `older` lacks.
+      #
+      # @param older [String, nil] a commit, branch or ref, or nil for every commit of `newer`
+      # @param newer [String] a commit, branch or ref
+      # @param chdir [String, nil] a directory inside the repository
+      # @return [Integer, nil] the oldest such commit's time, in seconds since the epoch, or nil
+      #   when `newer` holds nothing `older` lacks
+      # @raise [ConsoleCapture::Failure] when git cannot read the range
+      def oldest_commit_time(older, newer, chdir: nil)
+        range = older ? "#{checked_ref(older)}..#{checked_ref(newer)}" : checked_ref(newer)
+        listed = capture("log", "--reverse", "--format=%ct", range, chdir: chdir)
+        refuse("git log #{range} failed", listed) unless listed.ok?
+
+        listed.out.lines.first&.to_i
+      end
+
       # Moves a remote branch to a commit, and only forward: the push is refused by the remote when
       # the commit does not contain the branch's head, and is never forced.
       #

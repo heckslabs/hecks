@@ -54,6 +54,36 @@ RSpec.describe Hecks::Adapters::Git do
     end
   end
 
+  describe "#oldest_commit_time" do
+    def dated!(message, at)
+      File.write(File.join(@work, "f.txt"), message)
+      sh(@work, "git", "add", "f.txt")
+      sh(@work, "env", "GIT_COMMITTER_DATE=#{at}", "git", "commit", "-m", message)
+      sh(@work, "git", "rev-parse", "HEAD")
+    end
+
+    def oldest(older, newer) = git.oldest_commit_time(older, newer, chdir: @work)
+
+    it "answers when the oldest commit newer has and older lacks was made", :aggregate_failures do
+      first = commit!("one")
+      dated!("two", "2026-10-06T08:00:00Z")
+      dated!("three", "2026-10-06T10:00:00Z")
+
+      expect(oldest(first, "HEAD")).to eq(Time.utc(2026, 10, 6, 8).to_i)
+      expect(oldest(nil, first)).to be_a(Integer)
+    end
+
+    it "answers nil when newer holds nothing older lacks" do
+      first = commit!("one")
+
+      expect(oldest(first, first)).to be_nil
+    end
+
+    it "refuses a name that is a flag" do
+      expect { oldest("--all", "HEAD") }.to raise_error(failure, /not a ref name/)
+    end
+  end
+
   describe "#ancestor?" do
     it "is true along history, false across it, and true for a commit and itself", :aggregate_failures do
       first = commit!("one")
