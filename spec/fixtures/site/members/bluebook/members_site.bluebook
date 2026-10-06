@@ -76,6 +76,8 @@ Hecks.bluebook "MembersSite" do
       member name: "PAYLOAD_SECRET"
       member name: "HECKS_SESSION_COOKIE", value: "club_session"
       member name: "DATABASE_URI", value: "file:./club-cms.db"
+      member name: "MOCK_MAIL", value: "1"
+      member name: "OPEN_BROWSER", value: "true"
     end
 
     value_object "Cms" do

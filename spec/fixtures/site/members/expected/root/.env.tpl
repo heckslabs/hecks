@@ -6,3 +6,5 @@ SESSION_SECRET=op://Club/club-site/local/SESSION_SECRET
 PAYLOAD_SECRET=op://Club/club-site/local/PAYLOAD_SECRET
 HECKS_SESSION_COOKIE=club_session
 DATABASE_URI=file:./club-cms.db
+MOCK_MAIL=1
+OPEN_BROWSER=true

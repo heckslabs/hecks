@@ -26,7 +26,8 @@ module Hecks
         # An `Env` row: a plain setting when it carries `value`, a secret reference when it does
         # not. `group` heads the rows from it on with a comment; `off` writes the line commented out.
         ENV_ROWS = RootRows.new("Env", required: %i[name], many: true,
-                                       fields: { name: String, value: String, group: String, off: [TrueClass, FalseClass] })
+                                       fields: { name: String, value: [String, Integer, TrueClass, FalseClass], group: String,
+                                                off: [TrueClass, FalseClass] })
 
         # The `Ci` row: the workflow that checks the generated files.
         CI = RootRows.new("Ci", fields:   { name: String, ruby: String, node: String, gem_dir: String, script: String,
@@ -90,7 +91,7 @@ module Hecks
         end
 
         def line(var, secrets)
-          text = var.key?(:value) ? "#{var[:name]}=#{var[:value]}" : "#{var[:name]}=#{reference(var, secrets)}"
+          text = "#{var[:name]}=#{var.key?(:value) ? var[:value] : reference(var, secrets)}"
           var[:off] ? "# #{text}" : text
         end
 
