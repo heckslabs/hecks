@@ -52,6 +52,16 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(answer.dig(:report, :value)).to include("clean")
     end
 
+    it "counts the domains the report headed, so a reader need not" do
+      other = Dir.mktmpdir("operations-other")
+      FileUtils.cp_r(File.join(@dir, "bluebook"), other)
+
+      expect(adapter.check(**held(domains: @dir)).dig(:checked, :value)).to eq(1)
+      expect(adapter.check(**held(domains: "#{@dir},#{other}")).dig(:checked, :value)).to eq(2)
+    ensure
+      FileUtils.rm_rf(other)
+    end
+
     it "passes --strict and --profile through to the analysis" do
       answer = adapter.check(**held(domains: @dir, profile: "client"), strict: { value: true })
 
