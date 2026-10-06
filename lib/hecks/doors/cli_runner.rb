@@ -165,7 +165,7 @@ module Hecks
         shown = LauncherOptions.audience(launcher, maintainer)
         return shown unless shown[:chapters]
 
-        known = runtime.registry.bluebooks.values.first.then { |own| Array(runtime.registry.hecksagon(own.name)&.member_chapters) }
+        known = attached_chapters(runtime)
         shown.merge(chapters: shown[:chapters].filter_map do |name|
           next unless known.include?(name)
 
@@ -203,12 +203,17 @@ module Hecks
       # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
       # `governance`), that chapter, with the word dropped and added to the program name.
       def chapter_for(runtime, argv, program)
-        own      = runtime.registry.bluebooks.values.first
-        attached = Array(runtime.registry.hecksagon(own.name)&.member_chapters)
-        target   = attached.find { |name| Naming.snake(name) == argv.first }
+        own    = runtime.registry.bluebooks.values.first
+        target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
         return [own, argv, program] unless target
 
         [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
+      end
+
+      # The names of the chapters the booted domain's hecksagon attaches or uses as framework members.
+      def attached_chapters(runtime)
+        own = runtime.registry.bluebooks.values.first
+        Array(runtime.registry.hecksagon(own.name)&.member_chapters)
       end
 
       # Parses one resolved command's arguments, runs it as a query or command, and turns the

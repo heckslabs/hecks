@@ -269,7 +269,9 @@ RSpec.describe Hecks::Projector::CliProjector do
 
     # The audience decides what the help lists; every command still runs and answers `--help`.
     describe "for an audience" do
-      let(:hidden) { described_class.call(bluebook: registry.bluebook("Banking"), options: { hide: %w[Account], program: "hecks" }) }
+      let(:hidden) do
+        described_class.call(bluebook: registry.bluebook("Banking"), options: { hide: %w[Account], program: "hecks" })
+      end
 
       it "leaves the hidden aggregates out of the lists and says how many, and how to list them" do
         expect(hidden[:usage]).not_to match(/^  account:$/)
@@ -287,8 +289,9 @@ RSpec.describe Hecks::Projector::CliProjector do
 
       it "points at the chapters it is given, one line each, cut to a line" do
         long = "word " * 40
+        chapters = [["deploy", "Ship it."], ["tenancy", long]]
         usage = described_class.call(bluebook: registry.bluebook("Banking"),
-                                     options:  { program: "hecks", chapters: [["deploy", "Ship it."], ["tenancy", long]] })[:usage]
+                                     options:  { program: "hecks", chapters: chapters })[:usage]
 
         expect(usage).to include("chapters (`hecks <chapter>` lists a chapter's own commands and queries):")
         expect(usage).to match(/^  deploy   Ship it\.$/)

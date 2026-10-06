@@ -18,10 +18,7 @@ module Hecks
     # - **report** lists the settled commands whose answer is the report they recorded, as text.
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
     # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
-    # - **maintainer** names the aggregates only someone working on a hecks checkout runs; the
-    #   help leaves them out anywhere else (`--maintainer` lists them, they still run).
-    # - **chapters** names the attached chapters the help points at, one line each, and
-    #   **maintainer_chapters** the ones it adds inside a checkout.
+    # - **maintainer**, **chapters** and **maintainer_chapters** shape the help by audience (see `audience`).
     module LauncherOptions
       SETTING = "launcher".freeze
       WAIT    = "--wait".freeze
@@ -72,12 +69,13 @@ module Hecks
         end
       end
 
-      # The help options one audience gets: the aggregates left out of the lists, and the chapters
-      # pointed at. A chapter that did not opt in gets neither, so its help is whole.
+      # The help options one audience gets: the aggregates left out of the lists (`maintainer`, shown
+      # only in a hecks checkout or to `--maintainer`) and the chapters pointed at (`chapters`, plus
+      # `maintainer_chapters` in a checkout). A chapter that did not opt in gets neither.
       #
       # @param settings [Hash, nil] the chapter's `launcher` setting
       # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
-      # @return [Hash{Symbol => Object}] `:hide` and `:chapters`, to merge into the projection options
+      # @return [Hash{Symbol => Object}] `:hide` and `:chapters`, to merge into the projection
       def audience(settings, maintainer)
         return {} unless settings
 
