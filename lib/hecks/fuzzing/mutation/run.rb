@@ -10,34 +10,25 @@ module Hecks
   module Fuzzing
     module Mutation
       # Mutation testing of a domain's own checks: makes each small change `Operators` finds to a
-      # copy of the domain, replays the same generated sequences, the domain's corpus script (when it
-      # has one) and its `.behaviors` tests against the copy, and asks whether any check noticed.
+      # copy of the domain, replays the same generated sequences, the domain's corpus script (when
+      # it has one) and its `.behaviors` tests against the copy, and asks whether any check noticed.
       #
-      # A mutant is killed when a fuzz property fails, the replay crashes, a corpus expectation goes
-      # unmet or a behaviors test fails. It survives when its behavior differs from the unmutated
-      # domain's and nothing failed: the checks have a hole there. It is unreached when no sequence
-      # told it apart from the original, which is either an equivalent change or a part of the domain
-      # the generator never gets to. A mutant that does not boot is invalid and counts toward no score.
+      # A mutant is killed when a fuzz property fails, the replay crashes, a corpus expectation
+      # goes unmet or a behaviors test fails. It survives when its behavior differs from the
+      # unmutated domain's and nothing failed: the checks have a hole there. It is unreached when
+      # no sequence told it apart from the original, which is either an equivalent change or a
+      # part of the domain the generator never gets to. A mutant that does not boot is invalid and
+      # counts toward no score.
       #
       # Deterministic: the sequences and the choice of mutants both come from `seed`.
       class Run
         # The checkout this file lives in, where a domain's corpus script is looked for.
         ROOT = File.expand_path("../../../..", __dir__)
 
-        # The knobs of a run.
-        #
-        # @!attribute [r] seed
-        #   @return [Integer] draws the sequences and the choice of mutants
-        # @!attribute [r] budget
-        #   @return [Integer] how many mutants to try at most
-        # @!attribute [r] seeds
-        #   @return [Integer] how many generated sequences each mutant is replayed against
-        # @!attribute [r] steps
-        #   @return [Integer] how many steps each sequence asks for
-        # @!attribute [r] corpus
-        #   @return [String, nil] a corpus script to replay too; found by the domain's name when nil
-        # @!attribute [r] operators
-        #   @return [Array<Symbol>, nil] restricts the run to these operators
+        # The knobs of a run: `seed` draws the sequences and the choice of mutants; `budget` caps
+        # the mutants tried; `seeds` and `steps` size the generated sequences each mutant is
+        # replayed against; `corpus` is a script to replay too (found by the domain's name when
+        # nil); `operators` restricts the run to those operators when given.
         Settings = Struct.new(:seed, :budget, :seeds, :steps, :corpus, :operators, keyword_init: true)
 
         DEFAULTS = { seed: 1, budget: 25, seeds: 3, steps: 30, corpus: nil, operators: nil }.freeze

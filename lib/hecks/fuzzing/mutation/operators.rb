@@ -7,9 +7,9 @@ module Hecks
     module Mutation
       # Finds every site a mutation operator applies to in a bluebook's source.
       #
-      # Each operator is a small change a reviewer would call a plausible slip: a rule dropped, a
-      # comparison off by one, a guard loosened, a handler forgotten. A site is a candidate only; the
-      # mutant it makes may not boot, and `Run` discards one that does not.
+      # Each operator is a small change a reviewer would call a plausible slip: a rule dropped,
+      # a comparison off by one, a guard loosened, a handler forgotten. A site is a candidate
+      # only; the mutant it makes may not boot, and `Run` discards one that does not.
       module Operators
         # What each operator does, in the words a report uses.
         CATALOG = {
@@ -30,7 +30,8 @@ module Hecks
 
         module_function
 
-        # @param files [Hash{String => String}] bluebook source by path relative to the domain directory
+        # @param files [Hash{String => String}] bluebook source by path, relative to the domain
+        #   directory
         # @return [Array<Site>] every site of every operator, in file and line order
         def sites(files)
           files.sort.flat_map { |file, source| sites_in(SourceMap.new(file, source.lines)) }

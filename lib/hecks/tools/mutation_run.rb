@@ -5,12 +5,13 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Mutation-tests a domain's own checks: changes its bluebooks in small ways and reports every
-    # change that the fuzz properties, the corpus script and the domain's behaviors tests let through.
+    # change that the fuzz properties, the corpus script and the behaviors tests let through.
     #
-    #   hecks mutate <domain> [--seed N] [--budget N] [--seeds N] [--steps N] [--corpus PATH]
-    #                         [--operators a,b] [--min-score FRACTION]
+    #   hecks mutate <domain> [--seed N] [--budget N] [--seeds N] [--steps N] [--corpus path]
+    #                         [--operators a,b] [--min-score fraction]
     #
-    # Exit 0 unless `--min-score` is given and the score is below it. See `Hecks::Fuzzing::Mutation`.
+    # Exit 0 unless `--min-score` is given and the score is below it. See
+    # `Hecks::Fuzzing::Mutation`.
     module MutationRun
       USAGE = "usage: hecks mutate <domain> [--seed N] [--budget N] [--seeds N] [--steps N] [--corpus PATH] " \
               "[--operators a,b] [--min-score FRACTION]"

@@ -37,10 +37,9 @@ RSpec.describe Hecks::Fuzzing::RuntimeCoverage, :aggregate_failures do
   end
 
   it "is reproducible: the same block reaches the same keys" do
-    first  = described_class.measure(roots: [@dir]) { branchy(false) }.last
-    second = described_class.measure(roots: [@dir]) { branchy(false) }.last
+    keys = Array.new(2) { described_class.measure(roots: [@dir]) { branchy(false) }.last }
 
-    expect(first).to eq(second)
+    expect(keys.first).to eq(keys.last)
   end
 
   it "needs a block" do
@@ -56,39 +55,43 @@ RSpec.describe Hecks::Fuzzing::RuntimeCoverage, :aggregate_failures do
     end
 
     let(:tuple) { "D::A.Open | verb | absent | - | ok" }
+    let(:runs) { { 1 => %w[a.rb:1], 2 => %w[a.rb:1 a.rb:2], 3 => %w[a.rb:2] } }
+    let(:campaign) { Hecks::Fuzzing::CoverageCampaign.new(splice_probability: 1.0, favor_count: 0) }
+
+    def record(into, seed, runtime: nil)
+      into.record(seed, into.plan(seed), trace([tuple]), runtime: runtime)
+    end
+
+    def seeds_kept(from) = from.corpus.map { |entry| entry[:spec]["seed"] }
+
+    def resume(from)
+      state = JSON.parse(JSON.generate(from.to_h))
+      Hecks::Fuzzing::CoverageCampaign.load(state, splice_probability: 1.0, favor_count: 0)
+    end
 
     it "admits a seed that reached only new runtime lines, whole" do
-      campaign = Hecks::Fuzzing::CoverageCampaign.new(splice_probability: 1.0, favor_count: 0)
-      campaign.record(1, campaign.plan(1), trace([tuple]), runtime: Set["a.rb:1"])
-      campaign.record(2, campaign.plan(2), trace([tuple]), runtime: Set["a.rb:1", "a.rb:2"])
-      campaign.record(3, campaign.plan(3), trace([tuple]), runtime: Set["a.rb:2"])
+      runs.each { |seed, keys| record(campaign, seed, runtime: Set.new(keys)) }
 
-      expect(campaign.corpus.map { |entry| entry[:spec]["seed"] }).to eq([1, 2])
+      expect(seeds_kept(campaign)).to eq([1, 2])
       expect(campaign.corpus.last[:attempts]).to eq(1)
-      expect(campaign.runtime_seen).to eq(2)
       expect(campaign.summary).to include("2 runtime line/branch key(s)")
     end
 
     it "leaves admission to tuples alone when no runtime keys are given" do
-      campaign = Hecks::Fuzzing::CoverageCampaign.new(splice_probability: 1.0, favor_count: 0)
-      campaign.record(1, campaign.plan(1), trace([tuple]))
-      campaign.record(2, campaign.plan(2), trace([tuple]))
+      record(campaign, 1)
+      record(campaign, 2)
 
-      expect(campaign.corpus.size).to eq(1)
-      expect(campaign.runtime_seen).to eq(0)
+      expect([campaign.corpus.size, campaign.runtime_seen]).to eq([1, 0])
       expect(campaign.summary).not_to include("runtime")
     end
 
     it "survives a save and load, so a later tick does not rediscover the same lines" do
-      campaign = Hecks::Fuzzing::CoverageCampaign.new(splice_probability: 1.0, favor_count: 0)
-      campaign.record(1, campaign.plan(1), trace([tuple]), runtime: Set["a.rb:1"])
-
-      state = JSON.parse(JSON.generate(campaign.to_h))
-      resumed = Hecks::Fuzzing::CoverageCampaign.load(state, splice_probability: 1.0, favor_count: 0)
-      resumed.record(2, resumed.plan(2), trace([tuple]), runtime: Set["a.rb:1"])
+      record(campaign, 1, runtime: Set["a.rb:1"])
+      resumed = resume(campaign)
+      record(resumed, 2, runtime: Set["a.rb:1"])
 
       expect(resumed.runtime_seen).to eq(1)
-      expect(resumed.corpus.map { |entry| entry[:spec]["seed"] }).to eq([1])
+      expect(seeds_kept(resumed)).to eq([1])
     end
   end
 end

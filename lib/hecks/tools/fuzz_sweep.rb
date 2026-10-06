@@ -93,32 +93,36 @@ module Hecks
       end
 
       def fuzz_with(options, domain, root)
-        fuzz_domain(domain, options[:seeds], options[:steps], options[:adapter], root, options[:persist])
+        fuzz_domain(domain, options, root)
       end
 
       # Draws seeds until `seeds` results execute or the draw cap is hit.
       #
       # @param domain [String] the domain directory
-      # @param seeds [Integer] how many executing seeds to ask for
-      # @param steps [Integer] how many steps each sequence asks for
-      # @param adapter [Symbol] the persistence to boot on
+      # @param options [Hash] the parsed command line: `seeds` (how many executing seeds to ask
+      #   for), `steps` (how many steps each sequence asks for), `adapter` (the persistence to boot
+      #   on) and `persist` (whether each distinct finding's minimized repro is also kept under
+      #   `spec/corpus/regressions/`)
       # @param root [String] the checkout
-      # @param persist [Boolean] whether each distinct finding's minimized repro is also kept under
-      #   `spec/corpus/regressions/`
       # @return [Boolean] true if clean or skipped
-      def fuzz_domain(domain, seeds, steps, adapter = :memory, root = Tools::ROOT, persist = false)
+      def fuzz_domain(domain, options, root = Tools::ROOT)
         domain = domain.chomp("/")
         name = File.basename(domain)
+        adapter = options[:adapter]
         puts "── #{name}#{" (#{adapter})" unless adapter == :memory}"
 
-        draw = draw_seeds(domain, seeds, steps, adapter)
+        draw = draw_seeds(domain, options[:seeds], options[:steps], adapter)
         if draw.skipped
           puts "   skipped — #{draw.skipped} (not fuzzable under :#{adapter})"
           return true
         end
 
-        result = Result.new(domain, name, seeds, draw.drawn, draw.clean, draw.failures, adapter, root, persist)
-        report(settle_known(result))
+        report(settle_known(sweep_result(domain, name, draw, options, root)))
+      end
+
+      def sweep_result(domain, name, draw, options, root)
+        Result.new(domain, name, options[:seeds], draw.drawn, draw.clean, draw.failures,
+                   options[:adapter], root, options[:persist] || false)
       end
 
       # Known findings print but count as clean, so the sweep does not read as short.

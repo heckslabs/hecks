@@ -1,21 +1,11 @@
 module Hecks
   module Fuzzing
     module Mutation
-      # One place a small semantic change can be made to a bluebook's source: which operator, where,
-      # and the lines it leaves behind.
-      #
-      # @!attribute [r] operator
-      #   @return [Symbol] the operator's name, a key of `Operators::CATALOG`
-      # @!attribute [r] file
-      #   @return [String] the bluebook, relative to the domain directory
-      # @!attribute [r] line
-      #   @return [Integer] the first line the change touches, counting from 1
-      # @!attribute [r] removed
-      #   @return [Integer] how many lines the change takes out, starting at `line`
-      # @!attribute [r] replacement
-      #   @return [Array<String>] the lines that stand where they were (empty for a pure removal)
-      # @!attribute [r] original
-      #   @return [String] the line as it was, for a report
+      # One place a small semantic change can be made to a bluebook's source: which `operator`
+      # (a key of `Operators::CATALOG`), in which `file` (relative to the domain directory), at
+      # which `line` (the first it touches, from 1), how many lines it `removed` from there, the
+      # `replacement` lines that stand in their place (none for a pure removal) and the `original`
+      # line, for a report.
       Site = Struct.new(:operator, :file, :line, :removed, :replacement, :original, keyword_init: true) do
         # @return [String] the stable name of this mutant, `operator@file:line`
         def id = "#{operator}@#{file}:#{line}"

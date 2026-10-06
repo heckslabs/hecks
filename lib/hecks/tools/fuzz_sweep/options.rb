@@ -8,6 +8,9 @@ module Hecks
     module FuzzSweep
       # The command line of a sweep: its options, and what the chosen adapter needs.
       module Options
+        # The options that take a whole number, and the key each fills.
+        INTEGER_OPTIONS = { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers }.freeze
+
         # @param args [Array<String>] the command line, consumed
         # @return [Hash, nil] `seeds`, `steps`, `workers`, `adapter`, `persist` and `domain`; nil
         #   after a refusal
@@ -22,12 +25,9 @@ module Hecks
 
         # Records one command-line word in `options`, taking its value from `rest` when it has one.
         def apply_option(options, arg, rest)
-          case arg
-          when "--seeds" then options[:seeds] = Integer(rest.shift)
-          when "--steps" then options[:steps] = Integer(rest.shift)
-          when "--workers" then options[:workers] = Integer(rest.shift)
-          when "--persist-regressions" then options[:persist] = true
-          when "--adapter" then options[:adapter] = rest.shift.to_s.downcase.to_sym
+          if (key = INTEGER_OPTIONS[arg]) then options[key] = Integer(rest.shift)
+          elsif arg == "--persist-regressions" then options[:persist] = true
+          elsif arg == "--adapter" then options[:adapter] = rest.shift.to_s.downcase.to_sym
           else options[:domain] = arg
           end
         end

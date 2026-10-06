@@ -44,7 +44,8 @@ module Hecks
         end
 
         # @param minimum [Float] the lowest score that still passes
-        # @return [Boolean] whether the score is at least `minimum`; a run with nothing judged passes
+        # @return [Boolean] whether the score is at least `minimum`; a run with nothing judged
+        #   passes
         def passes?(minimum) = score.nil? || score >= minimum
 
         # @return [String] the report as the command prints it
