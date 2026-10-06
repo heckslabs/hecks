@@ -206,8 +206,9 @@ move with every commit.
   on every push to `main` (`.github/workflows/ci.yml`, header comment).
   `.github/workflows/promote.yml` then fast-forwards `stable` onto a commit
   only when every required check passed on it, through
-  `hecks promotion_run.promote`; the ruleset on `stable` lets nothing else
-  push to it (`.github/rulesets/stable.json`). Releases and the `edge` tag
+  `hecks promotion_run.promote`; the ruleset on `stable` refuses deleting or
+  rewinding it and takes only a commit on which every required check has already
+  passed, with no bypass actor (`.github/rulesets/stable.json`). Releases and the `edge` tag
   come from `stable`. `hecks regeneration_run.project_lanes` writes these
   files from the rows, and with `--live` compares the rulesets GitHub holds
   with them.

@@ -105,7 +105,9 @@ commit must pass as `RequiredCheck` rows beside them.
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through
   `exe/hecks promotion_run.promote lane=stable --confirm --wait`. Never push
-  to `stable` yourself. Rehearse a move without `--confirm`: it names the
+  to `stable` yourself: its ruleset takes only a commit every required check
+  already passed, and refuses deleting or rewinding it. Rehearse a move
+  without `--confirm`: it names the
   move and makes none, and it says which check is red or still running.
 - **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
   the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
