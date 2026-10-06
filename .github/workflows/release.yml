@@ -242,6 +242,24 @@ jobs:
         with:
           ruby-version: "3.3"
 
+      # Boots Hecks once into an empty cache and ships what it wrote (`prebuilt/`, which the
+      # gemspec lists), so a first run after `gem install` reads the syntax-boot and verdict caches
+      # instead of judging every chapter. The caches are keyed by this very `lib/` and the Ruby
+      # series, so a copy that does not match is ignored, never wrong. A failure here only costs
+      # that first run its speed, so it never stops the release.
+      - name: Build the caches the gem ships
+        if: steps.state.outputs.gem == 'false'
+        continue-on-error: true
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/prebuilt-cache
+          HECKS_ENVIRONMENT: memory
+        run: |
+          exe/hecks > /dev/null
+          mkdir -p prebuilt
+          cp "$XDG_CACHE_HOME"/hecks/hecks_syntax_boot_cache/*.marshal prebuilt/
+          cp "$XDG_CACHE_HOME"/hecks/hecks_verdict_cache/verdicts-*.json prebuilt/
+          ls -l prebuilt
+
       - name: Build the gem
         if: steps.state.outputs.gem == 'false'
         run: gem build hecks.gemspec

@@ -23,6 +23,10 @@ module Hecks
             S3_BUCKET   = /\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z/
             S3_SHAPE    = "s3_access: a list of `{ bucket: \"name\", write: true }` hashes (write is optional)".freeze
             FROM_TASKDEF = %i[env secrets repository].freeze
+
+            # The settings that size an RDS instance: with `shared_database` they are the shared
+            # instance's.
+            SHARED_INSTANCE_SETTINGS = %i[database_class storage_gb engine_version backup_days].freeze
             # Default images, each a version tag plus the digest of its multi-architecture index,
             # so a rebuilt box pulls the same bytes.
             TUNNEL_IMAGE = "cloudflare/cloudflared:2026.9.3" \

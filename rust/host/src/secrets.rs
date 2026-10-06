@@ -75,9 +75,53 @@ pub fn extract_field(secret_json: &str, field: &str) -> Result<String, String> {
         .ok_or_else(|| format!("secret's SecretString has no string {field:?} field"))
 }
 
+/// The `postgres://` URL for a database secret.
+///
+/// The user is the secret's `username`, which is `postgres` for RDS's managed master secret and a
+/// client's own role for a database shared with other clients; a secret without one is read as
+/// `postgres`. The port is the secret's `port` when it has one, else 5432. The password goes in
+/// literal, as before: the URL parser downstream never percent-decodes it, so a client's generated
+/// password is letters and digits only.
+pub fn database_url(secret_json: &str, host: &str, database: &str) -> Result<String, String> {
+    let password = extract_field(secret_json, "password")?;
+    let user = extract_field(secret_json, "username").unwrap_or_else(|_| "postgres".to_string());
+    let port = serde_json::from_str::<serde_json::Value>(secret_json)
+        .ok()
+        .and_then(|v| v.get("port").and_then(|p| p.as_u64().or_else(|| p.as_str().and_then(|s| s.parse().ok()))))
+        .unwrap_or(5432);
+    Ok(format!("postgres://{user}:{password}@{host}:{port}/{database}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_master_secret_logs_in_as_postgres_on_the_default_port() {
+        let json = r#"{"username":"postgres","password":"abc123"}"#;
+        assert_eq!(database_url(json, "db.example", "app").unwrap(), "postgres://postgres:abc123@db.example:5432/app");
+    }
+
+    #[test]
+    fn a_clients_own_secret_logs_in_as_its_role() {
+        let json = r#"{"username":"acme","password":"s3cr3t","host":"db.example","port":5433,"dbname":"acme"}"#;
+        assert_eq!(database_url(json, "db.example", "acme").unwrap(), "postgres://acme:s3cr3t@db.example:5433/acme");
+    }
+
+    #[test]
+    fn a_secret_with_no_username_is_read_as_postgres() {
+        assert_eq!(database_url(r#"{"password":"pw"}"#, "h", "d").unwrap(), "postgres://postgres:pw@h:5432/d");
+    }
+
+    #[test]
+    fn a_port_written_as_text_is_read() {
+        assert_eq!(database_url(r#"{"password":"pw","port":"6000"}"#, "h", "d").unwrap(), "postgres://postgres:pw@h:6000/d");
+    }
+
+    #[test]
+    fn a_secret_with_no_password_is_refused() {
+        assert!(database_url(r#"{"username":"acme"}"#, "h", "d").is_err());
+    }
 
     #[test]
     fn extracts_the_named_field_from_the_generated_secret_shape() {

@@ -51,10 +51,14 @@ module Hecks
               :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
               :containers, :routes, :default_container, :origin_header, :origin_secret,
               :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image,
-              :task_definition, :migration, :s3_buckets, :hosting, keyword_init: true
+              :task_definition, :migration, :s3_buckets, :hosting, :shared_database, keyword_init: true
             ) do
-              # @return [String] the CloudFormation stack that holds the database
-              def rds_stack = "#{stack_prefix}-#{infra_name}-rds"
+              # @return [String] the CloudFormation stack that holds the database: the shared
+              #   instance's when the world names one, else this site's own
+              def rds_stack = shared_database || "#{stack_prefix}-#{infra_name}-rds"
+
+              # @return [Boolean] whether the database lives on an instance shared with other sites
+              def shared? = !shared_database.nil?
 
               # @return [String] the CloudFormation stack that holds the box
               def box_stack = "#{stack_prefix}-#{infra_name}-box"

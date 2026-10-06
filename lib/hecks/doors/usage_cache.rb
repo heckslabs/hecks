@@ -8,8 +8,9 @@ module Hecks
     #
     # The help is a pure function of the domain's declarations and of the gem that projects them,
     # and reading those is most of what a launcher costs. The answer is kept in a file named for a
-    # digest of everything it depends on (the domain's declaration files, the gem's own library,
-    # the hecks and Ruby versions, the environment overlay, the command line and the program name),
+    # digest of everything it depends on (the domain's declaration files, the gem's judging code and
+    # doors, the hecks and Ruby versions, the environment overlay, the command line and the
+    # program name),
     # so any edit to one of them is simply a different entry: nothing is ever stale, only unused.
     # Only an answer that ended well is kept, and any trouble with the cache itself is ignored
     # and the help is worked out as if it did not exist.
@@ -71,13 +72,18 @@ module Hecks
       # @return [String, nil] nil when the digest cannot be taken
       def entry_path(domain, argv, program, audience = "")
         digest = Digest::SHA256.new
-        [Hecks::VERSION, RUBY_VERSION, ENV["HECKS_ENVIRONMENT"].to_s, program, audience, argv.join("\0")].each do |part|
-          digest << part.to_s << "\0"
-        end
-        [domain, library].each { |root| fingerprint(root, digest) }
+        key_parts(program, audience, argv).each { |part| digest << part.to_s << "\0" }
+        fingerprint_code(domain, digest)
         File.join(directory, "usage-#{digest.hexdigest}.json")
       rescue SystemCallError
         nil
+      end
+
+      # @return [Array<String>] what the answer depends on besides the files: the gem and Ruby
+      #   series, the environment overlay, the program and audience and the command line
+      def key_parts(program, audience, argv)
+        [Hecks::VERSION, Hecks::Bluebook::MetaValidator::VerdictCache.ruby_series,
+         ENV["HECKS_ENVIRONMENT"].to_s, program, audience, argv.join("\0")]
       end
 
       # Feeds the digest every declaration file under `root`: its path below `root` and its bytes,
@@ -88,9 +94,13 @@ module Hecks
         end
       end
 
-      # @return [String] the gem's own library directory, which the frameworks load from
-      def library
-        File.expand_path("..", __dir__)
+      # Feeds the digest what shapes a help text: the domain's declarations, the judging trees of
+      # the gem (the same set the verdict cache keys on) and the doors that render the text. An
+      # edit to the gem's projections, deploy or release code cannot change a help line.
+      def fingerprint_code(domain, digest)
+        fingerprint(domain, digest)
+        digest << Hecks::Bluebook::MetaValidator::VerdictCache.code_digest << "\0"
+        fingerprint(__dir__, digest)
       end
 
       # Reads the remembered answer and marks the entry as used, so a sweep keeps what is read.
