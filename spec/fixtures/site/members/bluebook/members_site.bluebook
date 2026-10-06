@@ -56,5 +56,85 @@ Hecks.bluebook "MembersSite" do
              sso: "/api/cms-sso", host_default: "http://127.0.0.1:4500", roles: "Admin,Owner",
              verdict_ttl_ms: 2000
     end
+
+    value_object "Secrets" do
+      attribute :vault,   String
+      attribute :item,    String
+      attribute :section, String
+      attribute :launcher, String
+
+      member vault: "Club", item: "club-site", section: "local", launcher: "bin/dev"
+    end
+
+    value_object "Env" do
+      attribute :name,  String
+      attribute :value, String
+      attribute :group, String
+      attribute :off,   Boolean
+
+      member name: "SESSION_SECRET"
+      member name: "PAYLOAD_SECRET"
+      member name: "HECKS_SESSION_COOKIE", value: "club_session"
+      member name: "DATABASE_URI", value: "file:./club-cms.db"
+      member name: "MOCK_MAIL", value: "1"
+      member name: "OPEN_BROWSER", value: "true"
+    end
+
+    value_object "Cms" do
+      attribute :heap_mb, Integer
+      attribute :dockerfile, Boolean
+
+      member heap_mb: 768
+    end
+
+    value_object "BootSecret" do
+      attribute :env,   String
+      attribute :from,  String
+      attribute :field, String
+
+      member env: "AUTH_SECRET", from: "AUTH_SECRET_ARN", field: "session_secret"
+      member env: "ANALYTICS_KEY_JSON", from: "ANALYTICS_SECRET_ID"
+    end
+
+    value_object "Ci" do
+      attribute :gem_dir, String
+      attribute :paths,   String
+      attribute :test,    String
+      attribute :install, String
+
+      member gem_dir: "club", paths: "site-routes/**,src/**", test: "npm run check"
+    end
+
+    value_object "Payload" do
+      attribute :domain,  String
+      attribute :chapter, String
+      attribute :skip,    String
+
+      member domain: "domain", chapter: "Club"
+    end
+
+    value_object "PayloadField" do
+      attribute :aggregate,   String
+      attribute :attribute,   String
+      attribute :field,       String
+      attribute :kind,        String
+      attribute :options,     String
+      attribute :relation,    String
+      attribute :label,       String
+      attribute :description, String
+      attribute :required,    Boolean
+
+      member aggregate: "Meeting", attribute: "slug", description: "The meeting's address."
+      member aggregate: "Meeting", attribute: "kind", kind: "select", options: "talk=Talk,social=Social"
+      member aggregate: "Meeting", attribute: "starts_on", kind: "date", description: "When it starts."
+      member aggregate: "Meeting", attribute: "join_link", description: "Full https:// address."
+      member aggregate: "Meeting", attribute: "cover", kind: "upload", relation: "media"
+      member aggregate: "Meeting", attribute: "agenda", label: "Item|Items"
+      member aggregate: "Meeting", attribute: "agenda.starts", kind: "date"
+      member aggregate: "Meeting", attribute: "agenda.details", kind: "textarea", required: false
+      member aggregate: "Meeting", attribute: "tags", label: "Tag|Tags"
+      member aggregate: "Notice", attribute: "posted_on", field: "postedDate", kind: "day"
+      member aggregate: "Notice", attribute: "summary", kind: "textarea"
+    end
   end
 end

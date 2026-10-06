@@ -15,7 +15,7 @@ module Hecks
       class Admin
         Setting = Struct.new(:session_cookie, :session_max_age, :host_env, :host_default, :roles,
                              :account_path, :members_path, :sso_token_path, :sso_target, :login,
-                             :sso, :verdict_ttl_ms, :timeout_ms, keyword_init: true)
+                             :sso, :verdict_ttl_ms, :timeout_ms, :cms_base, keyword_init: true)
 
         # The value object a project declares its admin row in.
         OBJECT = "Admin"
@@ -24,7 +24,8 @@ module Hecks
         FIELDS = {
           session_cookie: String, session_max_age: Integer, host_env: String, host_default: String,
           roles: String, account_path: String, members_path: String, sso_token_path: String,
-          sso_target: String, login: String, sso: String, verdict_ttl_ms: Integer, timeout_ms: Integer
+          sso_target: String, login: String, sso: String, verdict_ttl_ms: Integer, timeout_ms: Integer,
+          cms_base: String
         }.freeze
 
         # The fields the row must carry.
@@ -35,11 +36,11 @@ module Hecks
           session_max_age: 14 * 24 * 60 * 60, host_default: "http://127.0.0.1:4322",
           roles: "Admin,Owner", account_path: "/accounts/me", members_path: "/members",
           sso_token_path: "/accounts/sso-token", sso_target: "/cms/api/sso",
-          verdict_ttl_ms: 10_000, timeout_ms: 5_000
+          verdict_ttl_ms: 10_000, timeout_ms: 5_000, cms_base: "/cms"
         }.freeze
 
         # The fields that name a path on the host or the content system, which start with a slash.
-        PATH_FIELDS = %i[account_path members_path sso_token_path sso_target].freeze
+        PATH_FIELDS = %i[account_path members_path sso_token_path sso_target cms_base].freeze
 
         # @return [Setting] the checked row, defaults filled
         attr_reader :setting
@@ -75,6 +76,10 @@ module Hecks
         # @return [Array<String>] the roles that count as an admin
         def roles = setting.roles.split(",").map(&:strip).reject(&:empty?)
 
+        # @return [String] the path of the content system's sign-in endpoint inside its own API, the
+        #   part of `sso_target` after `<cms_base>/api`
+        def cms_endpoint = setting.sso_target.delete_prefix("#{setting.cms_base}/api")
+
         private
 
         def typed_fields(row, problems)
@@ -89,6 +94,7 @@ module Hecks
 
         def check(rows, problems)
           check_paths(problems)
+          check_cms_base(problems)
           problems << "Admin roles name no role" if roles.empty?
           check_login(rows, problems)
           check_sso(rows, problems)
@@ -99,6 +105,13 @@ module Hecks
             value = setting[field]
             problems << "Admin #{field} #{value.inspect} must start with a slash" unless value.start_with?("/")
           end
+        end
+
+        # The sign-in endpoint is the content system's own API route, under its base path.
+        def check_cms_base(problems)
+          return if setting.sso_target.start_with?("#{setting.cms_base}/api/")
+
+          problems << "Admin sso_target #{setting.sso_target} must be under #{setting.cms_base}/api/"
         end
 
         # The login page is a public row: a visitor with no session must reach it.

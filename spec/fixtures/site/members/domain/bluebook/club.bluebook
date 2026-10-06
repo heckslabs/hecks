@@ -1,0 +1,213 @@
+# A members' club's domain, as the neutral fixture the content system's generators read: two aggregates
+# with a lifecycle (one drafted first, one published at once), a value object of several parts, an
+# integer, and one aggregate with no lifecycle that the generators leave alone.
+Hecks.bluebook "Club" do
+  vision "The meetings and notices a members' club publishes."
+  core
+
+  aggregate "Meeting" do
+    description "One gathering on the club's calendar."
+
+    identified_by :slug
+
+    value_object "MeetingSlug" do
+      attribute :value, String
+      invariant("a meeting has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "MeetingTitle" do
+      attribute :value, String
+      invariant("a meeting has a title") { !value.to_s.empty? }
+    end
+
+    value_object "Kind" do
+      attribute :value, String
+    end
+
+    value_object "Moment" do
+      attribute :value, String
+    end
+
+    value_object "Link" do
+      attribute :url, String
+    end
+
+    value_object "ImageRef" do
+      attribute :value, String
+    end
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    value_object "AgendaItem" do
+      attribute :title,   String
+      attribute :starts,  String
+      attribute :details, String
+    end
+
+    attribute :slug,       MeetingSlug
+    attribute :title,      MeetingTitle
+    attribute :kind,       Kind,       optional: true
+    attribute :starts_on,  Moment,     optional: true
+    attribute :join_link,  Link,       optional: true
+    attribute :cover,      ImageRef,   optional: true
+    attribute :agenda,     list_of(AgendaItem)
+    attribute :tags,       list_of(Tag)
+
+    lifecycle :status, default: "draft" do
+      transition "Publish" => "published", from: "draft"
+      transition "Withdraw" => "withdrawn", from: ["published", "cancelled"]
+      transition "Cancel" => "cancelled", from: "published"
+    end
+
+    command "Draft" do
+      role "Editor"
+      goal "Start a meeting the calendar does not show yet"
+
+      attribute :slug,      MeetingSlug
+      attribute :title,     MeetingTitle
+      attribute :kind,      Kind,     optional: true
+      attribute :starts_on, Moment,   optional: true
+      attribute :join_link, Link,     optional: true
+      attribute :cover,     ImageRef, optional: true
+      attribute :agenda,    list_of(AgendaItem)
+      attribute :tags,      list_of(Tag)
+
+      emits "MeetingDrafted"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Change a meeting's facts"
+      reference_to Meeting
+
+      attribute :title,     MeetingTitle
+      attribute :kind,      Kind,     optional: true
+      attribute :starts_on, Moment,   optional: true
+      attribute :join_link, Link,     optional: true
+      attribute :cover,     ImageRef, optional: true
+      attribute :agenda,    list_of(AgendaItem)
+      attribute :tags,      list_of(Tag)
+
+      emits "MeetingRevised"
+    end
+
+    command "Publish" do
+      role "Editor"
+      goal "Put a drafted meeting on the calendar"
+      reference_to Meeting
+
+      emits "MeetingPublished"
+    end
+
+    command "Withdraw" do
+      role "Editor"
+      goal "Take a meeting off the calendar"
+      reference_to Meeting
+
+      emits "MeetingWithdrawn"
+    end
+
+    command "Cancel" do
+      role "Editor"
+      goal "Keep a meeting on the calendar marked cancelled"
+      reference_to Meeting
+
+      emits "MeetingCancelled"
+    end
+  end
+
+  aggregate "Notice" do
+    description "A short notice on the club's board."
+
+    identified_by :slug
+
+    value_object "NoticeSlug" do
+      attribute :value, String
+    end
+
+    value_object "NoticeTitle" do
+      attribute :value, String
+    end
+
+    value_object "PostedOn" do
+      attribute :value, Integer
+    end
+
+    value_object "Summary" do
+      attribute :value, String
+    end
+
+    attribute :slug,      NoticeSlug
+    attribute :title,     NoticeTitle
+    attribute :posted_on, PostedOn
+    attribute :summary,   Summary, optional: true
+
+    lifecycle :status, default: "posted" do
+      transition "Take" => "taken", from: "posted"
+      transition "Repost" => "posted", from: "taken"
+    end
+
+    command "Post" do
+      role "Editor"
+      goal "Put a notice on the board"
+
+      attribute :slug,      NoticeSlug
+      attribute :title,     NoticeTitle
+      attribute :posted_on, PostedOn
+      attribute :summary,   Summary, optional: true
+
+      emits "NoticePosted"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Change a notice"
+      reference_to Notice
+
+      attribute :title,     NoticeTitle
+      attribute :posted_on, PostedOn
+      attribute :summary,   Summary, optional: true
+
+      emits "NoticeRevised"
+    end
+
+    command "Take" do
+      role "Editor"
+      goal "Take a notice down"
+      reference_to Notice
+
+      emits "NoticeTaken"
+    end
+
+    command "Repost" do
+      role "Editor"
+      goal "Put a taken notice back"
+      reference_to Notice
+
+      emits "NoticeReposted"
+    end
+  end
+
+  aggregate "Settings" do
+    description "The club's contact details: one row, no lifecycle."
+
+    identified_by :key
+
+    value_object "SettingsKey" do
+      attribute :value, String
+    end
+
+    attribute :key, SettingsKey
+
+    command "Establish" do
+      role "Editor"
+      goal "Set the contact details"
+
+      attribute :key, SettingsKey
+
+      emits "SettingsEstablished"
+    end
+  end
+end

@@ -126,6 +126,7 @@ holds its route table, and the tool writes `admin.ts` (or `admin.mts`, as `exten
 | `account_path`, `members_path`, `sso_token_path` | the host's routes for who is signed in, the membership list, and a hand-off token | `/accounts/me`, `/members`, `/accounts/sso-token` |
 | `sso_target` | the content system's own sign-in endpoint | `/cms/api/sso` |
 | `verdict_ttl_ms`, `timeout_ms` | how long a verdict on one session is reused, and how long to wait for the host | `10000`, `5000` |
+| `cms_base` | the path the content system is served under; `sso_target` must be under `<cms_base>/api/` | `/cms` |
 
 The module exports `ADMIN` (the settings), `adminGate(pathname, cookie)`, `currentAdminSession`, `currentAdminEmail`,
 `currentAccountEmail`, `ssoRedirect(cookie, to)`, `isActiveAdmin`, `forgetAdminSessions` and `configureAdmin({ host, fetch })`. It
@@ -137,8 +138,61 @@ with one of the roles and not disabled. A request without one is sent to `login`
 refused with `{ allow: false, status: 401 }` instead. A verdict on one cookie is remembered for `verdict_ttl_ms`, and
 `forgetAdminSessions()` drops them, for after a member is added, disabled or removed.
 
+### The content system's half
+
+For a Payload project, `--cms=<dir>` (`cms=<dir>` on the verb) also writes the other half of the sign-in under `<dir>`, from the
+same row, so the two halves cannot disagree:
+
+| file | what it does |
+|---|---|
+| `endpoints/sso.ts` | the endpoint at `sso_target`: verifies the hand-off token, asks the host whether the person is still admitted, and mints an ordinary session; its `to` is held to a path under `cms_base` |
+| `auth/membership.ts` | the host's membership question, remembered for a minute per email; fails closed, and uses the host's development secret when none is set outside production |
+| `auth/sessionStrategy.ts` | verifies the session cookie on every request and asks the membership check again, so removing someone locks them out at once |
+| `collections/Users.ts` | the users collection: no passwords, hidden, and not creatable over its API |
+
+The files import `@hecks/client`, `jose` and `payload`, so they belong in the content system's project; without `--cms` nothing is
+written there, and `--cms` on a project with no `Admin` row is refused. `--check` covers them like the other files.
+
 The table is refused when `login` is not a public route, when `sso` is not an `admin` endpoint, when a path does not start with a
-slash, when `roles` names none, or when the row has a field this list does not.
+slash, when `roles` names none, or when `sso_target` is not under `<cms_base>/api/`, or when the row has a field this list does not.
+
+## Files at the project root: `root=<dir>`
+
+`--root=<dir>` (`root=<dir>` on the verb) writes the files that sit at a project's root, each only when its rows are
+declared beside the route table. They are wiring, not domain: the rows say where things are, never what the domain does.
+
+| rows | file |
+|---|---|
+| `Secrets` (`vault`, `item`; `section`; `launcher`, the script that starts the stack, named in the header), and `Env` rows (`name`; `value` for a plain setting (a number or true/false is written as it reads), `group` for a comment heading, `off` to comment the line out) | `.env.tpl`: a secret is an `op://` reference into 1Password, never a value |
+| `Ci` (`gem_dir`; `name`, `ruby`, `node`, `script`, `test`, `paths`) | `.github/workflows/site-routes.yml`: runs `<script> --check` and the project's test, on the paths named plus the script, the lockfile and the workflow |
+| `Cms` (`dir`, `node`, `port`, `heap_mb`, `dockerfile`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` (unless `dockerfile: false`, for a project that keeps its own image) and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
+
+| `Payload` (`domain`, `chapter`; `out`, `hecks`, `helpers`, `skip`), and `PayloadField` rows | `<out>/driver/lifecycle.ts`, `<out>/driver/specs.ts` and `<out>/collections/fields.ts`: the content system's way of driving the domain's aggregates, read from the domain itself |
+
+A `BootSecret` fills the variable `env` from the secret whose id the variable `from` holds. With `field` the secret is JSON
+and that field is the value; without it the whole secret is the value and failing to read it only warns. The database
+password and the signing secret are always resolved. A row is refused when it has a field this list does not, when a
+required field is missing, or when an `Env` row is a secret and there is no `Secrets` row to name its vault.
+
+### Driving the domain from the content system
+
+The `Payload` row names a domain (a directory under `--root` holding `bluebook/`) and the chapter to read. Every aggregate of
+that chapter that has a lifecycle and a creating command is driven; `skip` lists any to leave out. Nothing is declared in
+the domain: the generator reads it, and the editor-facing detail sits in `PayloadField` rows beside the route table, so the
+domain never names the content system.
+
+- `driver/lifecycle.ts` is the module that turns a saved document and a spec into the commands between the host's state and
+  the wanted one, acting as the role the commands declare.
+- `driver/specs.ts` holds, for each aggregate, its input type, how an input goes over the wire (a one-attribute value object
+  as `{ value }`, `{ url }` or `{ address }`, an integer as `{ value: n }`, a list as a list, a composite as its parts), how the
+  host's state reads back, the creating command with the status it leaves, and the lifecycle edges.
+- `collections/fields.ts` holds, for each aggregate, a catalogue of Payload fields keyed by attribute and a reader that turns a
+  saved document into the input. A collection picks and orders the fields and adds what the domain does not hold.
+
+A `PayloadField` row says what an attribute's shape cannot: `kind` (`text`, `textarea`, `select`, `date`, `day`, `number`,
+`upload`, `relationship`), `options` (`value=Label` pairs), `relation` and `via` for an upload or relationship, `field` when
+the editor's name differs, `label` (`Singular|Plural`) for a list, `description`, `required`, `default`. A part of a composite is
+`attribute.part`. An aggregate whose attribute is not a value object, or whose commands declare more than one role, is refused.
 
 ## Projecting it
 
