@@ -6,6 +6,7 @@ require "optparse"
 require_relative "../tools"
 require_relative "deploy_recipe/worlds"
 require_relative "deploy_recipe/targets"
+require_relative "deploy_recipe/generation"
 
 module Hecks
   module Tools
@@ -36,6 +37,7 @@ module Hecks
 
       extend Worlds
       extend Targets
+      extend Generation
 
       module_function
 
@@ -59,46 +61,6 @@ module Hecks
         return generate_each(deployment, root, out_dir, blocks) if blocks.size > 1
 
         generate_one(deployment, root, out_dir, blocks.first)
-      end
-
-      # @return [String] `--out`, else `deploy/<name>` in the checkout
-      def output_dir(deployment, root)
-        out = deployment.options.out
-        out ? File.expand_path(out) : File.join(root, "deploy", deployment.infra_name)
-      end
-
-      # One declared target, written straight into `out_dir` as it always was.
-      #
-      # @param block [Hash, nil] the target's settings; nil takes the world's plain `deployed_to`
-      # @return [Integer] 0
-      def generate_one(deployment, root, out_dir, block = nil)
-        view = block ? for_target(deployment, block) : deployment
-        write(project(target_key(view.settings, view.world_file, view.domain), view, root), out_dir)
-        0
-      end
-
-      # Several declared targets, each under its own `out_dir/<adapter>` so their `Makefile`s and
-      # scripts do not collide: a client keeps every deploy kind it declared.
-      #
-      # @return [Integer] 0
-      def generate_each(deployment, root, out_dir, blocks)
-        blocks.each do |block|
-          view = for_target(deployment, block)
-          write(project(target_key(view.settings, view.world_file, view.domain), view, root),
-                File.join(out_dir, block[:adapter].downcase))
-        end
-        0
-      end
-
-      # @param block [Hash] one declared `deployed_to` block
-      # @return [Deployment] the deployment as that target sees it: its settings, name and world
-      def for_target(deployment, block)
-        settings = tenant_settings(block, deployment.options, File.basename(deployment.domain))
-        deployment.dup.tap do |view|
-          view.world = Targets::TargetWorld.new(deployment.world, block)
-          view.settings = settings
-          view.infra_name = settings[:stack_name] || File.basename(deployment.domain)
-        end
       end
 
       # @param argv [Array<String>] the arguments; the flags are removed from it
