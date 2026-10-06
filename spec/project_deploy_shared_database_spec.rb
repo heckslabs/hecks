@@ -82,6 +82,14 @@ RSpec.describe "hecks deploy project, a deployed_to(\"AwsSharedDatabase\") stack
     expect { template_of(files["rds.yaml"]) }.not_to raise_error
   end
 
+  # EC2 refuses any other character in a security group description, and CloudFormation's template
+  # validation does not check it: the first stack made from this template failed on an apostrophe.
+  it "describes its security group in the characters EC2 accepts" do
+    descriptions = files["rds.yaml"].scan(/^\s*GroupDescription: (.*)$/).flatten
+
+    expect(descriptions).to all(match(%r{\A[a-zA-Z0-9. _\-:/()#,@\[\]+=&;{}!$*]{1,255}\z}))
+  end
+
   it "writes the instance and nothing a single site would own", :aggregate_failures do
     expect(files.keys).to match_array(%w[Makefile README.md rds.yaml])
     expect(files["rds.yaml"]).not_to include("DBName", "DatabaseName")

@@ -58,7 +58,7 @@ Resources:
   DbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: hecks-platform-rds RDS, 5432 from each site's box (their stacks add the rules) and a bastion if given
+      GroupDescription: hecks-platform-rds RDS, 5432 from each site box (the box stacks add the rules) and a bastion if given
       VpcId: !Ref VpcId
 
   BastionIngress:
