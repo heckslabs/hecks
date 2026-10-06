@@ -32,10 +32,10 @@ RSpec.describe "the admin sign-in module" do
     dir
   end
 
-  def refusal(project)
+  def refusal(project, **options)
     message = nil
-    expect { tool.projection(project) }.to raise_error(SystemExit) { |error| message = error.message }
-                                       .and output.to_stderr
+    expect { tool.projection(project, **options) }.to raise_error(SystemExit) { |error| message = error.message }
+      .and output.to_stderr
     message
   end
 
@@ -206,6 +206,87 @@ RSpec.describe "the admin sign-in module" do
           expect(status.success?).to be(true), "#{path}: #{err}"
         end
       end
+    end
+  end
+
+  describe "the files at the project's root" do
+    def root_files(project = members) = tool.projection(project, out: "/work/out", root_dir: "/work/root")
+
+    let(:names) { %w[.env.tpl .github/workflows/site-routes.yml cms/Dockerfile cms/deploy-aws/boot.mjs] }
+
+    it "is the settings template, the workflow and the content system's image, under the directory --root names" do
+      expect(root_files.keys.grep(%r{\A/work/root/})).to match_array(names.map { |name| "/work/root/#{name}" })
+    end
+
+    it "is not written unless --root is named" do
+      expect(projected.keys.grep(%r{/root/})).to be_empty
+    end
+
+    it "equals the committed goldens, byte for byte" do
+      names.each do |name|
+        golden = File.join(expected, "root", name)
+        text = root_files.fetch("/work/root/#{name}")
+        if ENV["GOLDEN"] == "rewrite"
+          FileUtils.mkdir_p(File.dirname(golden))
+          File.write(golden, text)
+        end
+
+        expect(text).to eq(File.read(golden)), name
+      end
+    end
+
+    it "holds secrets as references and never as values" do
+      env = root_files.fetch("/work/root/.env.tpl")
+
+      expect(env).to include("SESSION_SECRET=op://Club/club-site/local/SESSION_SECRET", "HECKS_SESSION_COOKIE=club_session")
+      expect(env).not_to match(/SESSION_SECRET=[^o]/)
+    end
+
+    it "watches the files the rows name, and runs the project's own script and test" do
+      workflow = root_files.fetch("/work/root/.github/workflows/site-routes.yml")
+
+      expect(workflow).to include('- "site-routes/**"', '- "club/Gemfile.lock"', "run: bin/site_routes --check",
+                                  "run: npm run check")
+    end
+
+    it "starts the content system after resolving its secrets, the extra ones too" do
+      boot = root_files.fetch("/work/root/cms/deploy-aws/boot.mjs")
+
+      expect(boot).to include('process.env["AUTH_SECRET"] = await secretField(process.env["AUTH_SECRET_ARN"], "session_secret")',
+                              'process.env["ANALYTICS_KEY_JSON"] = SecretString', 'await import("./server.js")')
+      expect(boot.index("PAYLOAD_SECRET_ARN")).to be < boot.index('await import("./server.js")')
+    end
+
+    it "builds an image from the row's node version, port and heap" do
+      image = root_files.fetch("/work/root/cms/Dockerfile")
+
+      expect(image).to include("FROM node:22-slim AS build", "--max-old-space-size=768", "ENV PORT=8080",
+                               'CMD ["node", "boot.mjs"]')
+      expect(image).not_to match(/%<|__[A-Z]+__/)
+    end
+
+    it "writes the script as JavaScript Node can read" do
+      next skip "node is not installed" unless system("node", "--version", out: File::NULL, err: File::NULL)
+
+      Dir.mktmpdir("site_host") do |dir|
+        file = File.join(dir, "boot.mjs")
+        File.write(file, root_files.fetch("/work/root/cms/deploy-aws/boot.mjs"))
+        _out, err, status = Open3.capture3("node", "--check", file)
+        expect(status.success?).to be(true), err
+      end
+    end
+
+    it "is refused when a secret has no Secrets row to name its vault" do
+      dir = edited_members { |text| text.sub(/    value_object "Secrets" do.*?\n    end\n\n/m, "") }
+
+      expect(refusal(dir, root_dir: "/work/root")).to include("declares no Secrets row")
+    end
+
+    it "is refused when a row has a field it does not know" do
+      dir = edited_members { |text| text.sub('member gem_dir: "club",', 'member gem_dir: "club", ruby_version: "3.3",') }
+      text = refusal(dir, root_dir: "/work/root")
+
+      expect(text).to include("Ci row 1 has no field ruby_version")
     end
   end
 

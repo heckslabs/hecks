@@ -156,6 +156,22 @@ written there, and `--cms` on a project with no `Admin` row is refused. `--check
 The table is refused when `login` is not a public route, when `sso` is not an `admin` endpoint, when a path does not start with a
 slash, when `roles` names none, or when `sso_target` is not under `<cms_base>/api/`, or when the row has a field this list does not.
 
+## Files at the project root: `root=<dir>`
+
+`--root=<dir>` (`root=<dir>` on the verb) writes the files that sit at a project's root, each only when its rows are
+declared beside the route table. They are wiring, not domain: the rows say where things are, never what the domain does.
+
+| rows | file |
+|---|---|
+| `Secrets` (`vault`, `item`, `section`, `launcher`), and `Env` rows (`name`, and `value` for a plain setting) | `.env.tpl`: a secret is an `op://` reference into 1Password, never a value |
+| `Ci` (`gem_dir`; `name`, `ruby`, `node`, `script`, `test`, `paths`) | `.github/workflows/site-routes.yml`: runs `<script> --check` and the project's test, on the paths named plus the script, the lockfile and the workflow |
+| `Cms` (`dir`, `node`, `port`, `heap_mb`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
+
+A `BootSecret` fills the variable `env` from the secret whose id the variable `from` holds. With `field` the secret is JSON
+and that field is the value; without it the whole secret is the value and failing to read it only warns. The database
+password and the signing secret are always resolved. A row is refused when it has a field this list does not, when a
+required field is missing, or when an `Env` row is a secret and there is no `Secrets` row to name its vault.
+
 ## Projecting it
 
 ```

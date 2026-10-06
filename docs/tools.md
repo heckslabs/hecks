@@ -80,14 +80,14 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 <!-- generated:begin tools section=Site -->
 | launcher | replaces |
 |---|---|
-| `hecks site site_projection.project_site <domain> [out=] [template=] [cms=] [extension=] [--check]` | (new: no `bin/` script) |
+| `hecks site site_projection.project_site <domain> [out=] [template=] [cms=] [root=] [extension=] [--check]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 `project_site` has no retired script to point at, so its row names `(new)` for the script; see
 `docs/site-routes.md`. It writes `routes.ts` (`routes.mts` with `extension=mts`, for a commonjs package) and, when the
 project declares an edge, rewrites the marked regions of the infrastructure template with the CloudFront behaviours and,
 unless the Edge row says `alb: false`, the load balancer's listener rules. When the project declares an `Admin` row it also
-writes `admin.ts` beside `routes.ts`, the admin sign-in, and with `cms=<dir>` the content system's half of it. It runs from a client project with the installed
+writes `admin.ts` beside `routes.ts`, the admin sign-in, with `cms=<dir>` the content system's half of it, and with `root=<dir>` the project's root files. It runs from a client project with the installed
 gem, no checkout: `<project>` holds `bluebook/`, `out=` is any directory for `routes.ts` (default `<project>/generated`) and
 `template=` is any file to rewrite in place (default the Edge row's `template:`).
 
