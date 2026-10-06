@@ -107,7 +107,7 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
       json, status = roll_cms_existing
 
       expect([status, state_of(json, "status", "tag", "taskdef")]).to eq([0, VERIFIED_STATE])
-      expect(runner.calls).to include("deploy-box widget-platform:7")
+      expect(runner.calls).to include("deploy-box widget-platform:7", "capture-scope=cms skip=")
       expect([smoke_dispatched?, smoke_status(json)]).to eq([true, "passed"])
     end
 
@@ -215,6 +215,120 @@ RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
 
       expect(status).to eq(1)
       expect(refusal_of(json)).to include("ended 41 (the roll did not succeed on the box)")
+    end
+  end
+
+  # The log capture the roll sends over SSM before it replaces a container. The sent script runs for
+  # real against a stand-in `docker` that holds two running containers, in a scratch directory.
+  describe "the log capture before a box roll" do
+    with_stub_runner :services_golden, real_box: true
+
+    LOG_SECRET = "SECRET-LINE-IN-A-LOG".freeze
+
+    # The scripts the roll sent over SSM as base64, decoded, in the order they were sent.
+    def sent_scripts
+      runner.calls.join("\n").scan(/echo (\S+) \| base64 -d \| bash/).flatten.map { |b64| b64.unpack1("m") }
+    end
+
+    def install_docker(logs_ok: true)
+      File.write(File.join(runner.dir, "bin", "docker"), <<~BASH)
+        #!/usr/bin/env bash
+        echo "docker $*" >> "$STUB_DIR/calls.log"
+        case "$*" in
+          *"ps --format"*) printf 'cms widget-cms-1\\nwebsite widget-website-1\\n' ;;
+          "logs "*) #{logs_ok ? "echo #{LOG_SECRET}" : "exit 1"} ;;
+        esac
+      BASH
+      FileUtils.chmod(0o755, File.join(runner.dir, "bin", "docker"))
+    end
+
+    def roll_once(**env)
+      settled
+      command("box_roll.run", ROLL_TAGS, "skip_smoke=true", env: env)
+    end
+
+    # The environment that points the captured script's paths at the scratch directory.
+    def capture_env(env)
+      box = File.join(runner.dir, "box")
+      FileUtils.mkdir_p(box)
+      File.write(File.join(box, "compose.json"), "{}")
+      stub_env({ "CAPTURE_HOME" => box, "CAPTURE_DIR" => File.join(runner.dir, "captures"),
+                 "CAPTURE_DF_PATH" => runner.dir, "CAPTURE_MIN_FREE_KB" => "0" }.merge(env))
+    end
+
+    # Rolls once, so the script is on record, then runs it as the box would.
+    def capture(only: "", logs_ok: true, env: {})
+      roll_once
+      install_docker(logs_ok: logs_ok)
+      script = "ONLY='#{only}'\n#{sent_scripts.first.sub(/\AONLY='[^']*'\n/, "")}"
+      Open3.capture2e(capture_env(env), "bash", "-c", script)
+    end
+
+    def captured = Dir.glob(File.join(runner.dir, "captures", "*.log")).map { |f| File.basename(f) }.sort
+
+    def seed_captures(count)
+      dir = File.join(runner.dir, "captures")
+      FileUtils.mkdir_p(dir)
+      (1..count).each { |n| FileUtils.touch(File.join(dir, format("widget-cms-1-202601%02dT000000Z.log", n))) }
+    end
+
+    def mode_of(name) = File.stat(File.join(runner.dir, "captures", name)).mode & 0o777
+
+    it "is sent before the step that replaces the containers", :aggregate_failures do
+      roll_once
+      sends = runner.calls.join("\n").split(/^aws ssm send-command/).drop(1)
+
+      expect(sent_scripts.first).to include("docker logs", "/var/log/hecks-captures")
+      expect(sends.index { |s| s.include?("up -d") }).to be > sends.index { |s| s.include?("base64 -d") }
+    end
+
+    it "is skipped with SKIP_LOG_CAPTURE=1" do
+      roll_once("SKIP_LOG_CAPTURE" => "1")
+
+      expect(sent_scripts.grep(/docker logs/)).to be_empty
+    end
+
+    it "saves each running container's log under a dated name, prints path and size, never the log", :aggregate_failures do
+      out, status = capture
+
+      expect(out).to match(%r{captured \S+/captures/widget-cms-1-\S+\.log \d+ bytes})
+      expect(captured).to match([/\Awidget-cms-1-\d{8}T\d{6}Z\.log\z/, /\Awidget-website-1-\d{8}T\d{6}Z\.log\z/])
+      expect([status.success?, out.include?(LOG_SECRET), mode_of(captured.first)]).to eq([true, false, 0o640])
+    end
+
+    it "captures only the services it is told to" do
+      capture(only: "cms")
+
+      expect(captured).to match([/\Awidget-cms-1-/])
+    end
+
+    it "keeps the newest 14 captures per container", :aggregate_failures do
+      seed_captures(16)
+      capture(only: "cms")
+
+      expect(captured.grep(/widget-cms-1/).size).to eq(14)
+      expect(captured).not_to include("widget-cms-1-20260101T000000Z.log", "widget-cms-1-20260102T000000Z.log")
+    end
+
+    it "skips with a warning when /var/log has under 2 GiB free", :aggregate_failures do
+      out, status = capture(env: { "CAPTURE_MIN_FREE_KB" => "999999999999" })
+
+      expect([status.success?, captured, out]).to match([true, [], a_string_including("WARNING log capture skipped")])
+    end
+
+    it "warns and goes on when a log cannot be read", :aggregate_failures do
+      out, status = capture(logs_ok: false)
+
+      expect([status.success?, captured, out]).to match([true, [], a_string_including("WARNING log capture failed")])
+    end
+
+    it "leaves the roll's status alone when the capture cannot be sent", :aggregate_failures do
+      path = File.join(runner.dir, "bin", "aws")
+      first_fails = '"ssm send-command") [ -e "$STUB_DIR/sent" ] || { touch "$STUB_DIR/sent"; exit 1; };'
+      File.write(path, File.read(path).sub('"ssm send-command")', first_fails))
+      json, status = roll_once
+
+      expect([status, json.dig("state", "status")]).to eq([0, "rolled"])
     end
   end
 

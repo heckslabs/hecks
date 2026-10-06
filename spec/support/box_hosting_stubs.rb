@@ -87,6 +87,7 @@ module BoxHostingStubs
   DEPLOY_BOX = <<~BASH.freeze
     #!/usr/bin/env bash
     echo "deploy-box $*" >> "$STUB_DIR/calls.log"
+    echo "capture-scope=${LOG_CAPTURE_SERVICES:-} skip=${SKIP_LOG_CAPTURE:-}" >> "$STUB_DIR/calls.log"
   BASH
 
   module_function
