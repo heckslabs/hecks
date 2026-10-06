@@ -959,6 +959,10 @@ fn compensate<S: AggregateScan>(
 }
 
 #[cfg(test)]
+#[path = "orchestrate_guard_tests.rs"]
+mod guard_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
