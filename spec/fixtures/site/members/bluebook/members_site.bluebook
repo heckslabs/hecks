@@ -52,7 +52,7 @@ Hecks.bluebook "MembersSite" do
 
       member session_cookie: "club_session", host_env: "CLUB_DOMAIN_SERVICE_URL", login: "/admin-login",
              sso: "/api/cms-sso", host_default: "http://127.0.0.1:4500", roles: "Admin,Owner",
-             verdict_ttl_ms: 2_000
+             verdict_ttl_ms: 2000
     end
   end
 end
