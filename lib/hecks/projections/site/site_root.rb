@@ -21,11 +21,12 @@ module Hecks
 
         # The `Secrets` row: where the secrets live and what starts the stack.
         SECRETS = RootRows.new("Secrets", fields: { vault: String, item: String, section: String, launcher: String },
-                                          required: %i[vault item section], defaults: { launcher: "bin/dev" })
+                                          required: %i[vault item], defaults: { launcher: "bin/dev" })
 
         # An `Env` row: a plain setting when it carries `value`, a secret reference when it does
-        # not.
-        ENV_ROWS = RootRows.new("Env", fields: { name: String, value: String }, required: %i[name], many: true)
+        # not. `group` heads the rows from it on with a comment; `off` writes the line commented out.
+        ENV_ROWS = RootRows.new("Env", required: %i[name], many: true,
+                                       fields: { name: String, value: String, group: String, off: [TrueClass, FalseClass] })
 
         # The `Ci` row: the workflow that checks the generated files.
         CI = RootRows.new("Ci", fields:   { name: String, ruby: String, node: String, gem_dir: String, script: String,
@@ -65,23 +66,35 @@ module Hecks
             raise Table::Invalid, "Env rows without a value are secrets; the project declares no Secrets row"
           end
 
-          [BANNER, *header(secrets), *vars.map { |var| line(var, secrets) }].join("\n") << "\n"
+          [BANNER, *header(secrets), *body(vars, secrets)].join("\n") << "\n"
         end
 
         def header(secrets)
           return [] unless secrets
 
-          ["# Local-stack settings. Secrets are op:// references into the 1Password",
-           "# \"#{secrets[:vault]}\" vault, item \"#{secrets[:item]}\", section \"#{secrets[:section]}\",",
-           "# resolved at start-up by",
-           "# `op run --env-file=.env.tpl -- <command>` (#{secrets[:launcher]} does this); no secret is",
-           "# ever written to disk. The plain lines below are not secret."]
+          where = ["vault \"#{secrets[:vault]}\"", "item \"#{secrets[:item]}\"",
+                   *(secrets[:section] ? ["section \"#{secrets[:section]}\""] : [])].join(", ")
+          ["# Local-stack settings. Secrets are op:// references into 1Password (#{where}),",
+           "# resolved at start-up by `op run --env-file=.env.tpl -- <command>` (#{secrets[:launcher]}",
+           "# does this); no secret is ever written to disk. The plain lines are not secret."]
+        end
+
+        def body(vars, secrets)
+          group = nil
+          vars.flat_map do |var|
+            heading = var[:group] && var[:group] != group ? ["", "# #{var[:group]}"] : []
+            group = var[:group] if var[:group]
+            [*heading, line(var, secrets)]
+          end
         end
 
         def line(var, secrets)
-          return "#{var[:name]}=#{var[:value]}" if var.key?(:value)
+          text = var.key?(:value) ? "#{var[:name]}=#{var[:value]}" : "#{var[:name]}=#{reference(var, secrets)}"
+          var[:off] ? "# #{text}" : text
+        end
 
-          "#{var[:name]}=op://#{secrets[:vault]}/#{secrets[:item]}/#{secrets[:section]}/#{var[:name]}"
+        def reference(var, secrets)
+          "op://#{[secrets[:vault], secrets[:item], secrets[:section], var[:name]].compact.join('/')}"
         end
 
         # @param row [Hash{Symbol => Object}] the checked `Ci` row

@@ -68,6 +68,8 @@ Hecks.bluebook "MembersSite" do
     value_object "Env" do
       attribute :name,  String
       attribute :value, String
+      attribute :group, String
+      attribute :off,   Boolean
 
       member name: "SESSION_SECRET"
       member name: "PAYLOAD_SECRET"

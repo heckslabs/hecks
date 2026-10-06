@@ -251,6 +251,19 @@ RSpec.describe "the admin sign-in module" do
       expect(env).not_to match(/SESSION_SECRET=[^o]/)
     end
 
+    it "groups the lines, comments out those marked off, and takes a reference without a section" do
+      dir = edited_members do |text|
+        text.sub(', section: "local"', "")
+            .sub('member name: "PAYLOAD_SECRET"', 'member name: "PAYLOAD_SECRET", group: "Content system"')
+            .sub('value: "file:./club-cms.db"', 'value: "file:./club-cms.db", off: true')
+      end
+      env = tool.projection(dir, out: "/work/out", root_dir: root_for_domain).fetch(File.join(root_for_domain, ".env.tpl"))
+
+      expect(env).to include("SESSION_SECRET=op://Club/club-site/SESSION_SECRET",
+                             "\n\n# Content system\nPAYLOAD_SECRET=op://Club/club-site/PAYLOAD_SECRET",
+                             "# DATABASE_URI=file:./club-cms.db")
+    end
+
     it "watches the files the rows name, and runs the project's own script and test" do
       workflow = root_files.fetch("/work/root/.github/workflows/site-routes.yml")
 
