@@ -24,7 +24,7 @@ module Hecks
                                           required: %i[vault item])
 
         # An `Env` row: a plain setting when it carries `value`, a secret reference when it does
-        # not. `group` heads the rows from it on with a comment; `off` writes the line commented out.
+        # not. `group` heads the rows from it on with a comment; `off` comments the line out.
         ENV_ROWS = RootRows.new("Env", required: %i[name], many: true,
                                        fields: { name: String, value: [String, Integer, TrueClass, FalseClass], group: String,
                                                 off: [TrueClass, FalseClass] })
