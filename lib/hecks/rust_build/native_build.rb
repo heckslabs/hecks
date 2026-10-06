@@ -110,8 +110,8 @@ module Hecks
         File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
       end
 
-      # A binary pinned ahead of time, by a prebuild that ran its own `cargo build`s side by side, is
-      # current when no source is newer than it: the rule `make` applies to any target.
+      # A binary pinned ahead of time, by a prebuild that ran its own `cargo build`s side by side,
+      # is current when no source is newer than it: the rule `make` applies to any target.
       #
       # @return [Boolean] whether `pinned` exists and every source predates it
       def pinned_fresh?(pinned, rust_dir)
