@@ -45,27 +45,10 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # Features that deserve an invariant, are not guaranteed by construction, and have no
   # property yet. Each entry names the candidate property to write.
   META_DOMAIN_KNOWN_GAPS = {
-    "Command#references"                => "reference-typed command arguments are exercised constantly (guard dereferencing) " \
-                                           "but have no property of their own asking whether a dangling reference was ever " \
-                                           "silently accepted",
-    "Policy#on_event"                   => "which event a policy answers to is exercised by every reaction a generated " \
-                                           "sequence produces, but nothing asserts a policy NEVER fires on an event it " \
-                                           "doesn't declare",
-    "Policy#trigger_command"            => "a policy's own target command is exercised by dispatch itself; no property " \
-                                           "names a mismatch between declared trigger and what actually fired",
-    # Held statically: model_check.rb raises stale_undelivered_expectation when a declared
-    # target is reachable (spec/model_check_spec.rb proves both directions on banking).
-    "Policy#expect_undelivered"         => "a declared-undelivered across target is held by model_check.rb's static " \
-                                           "stale check, but no fuzzer PROPERTY asks whether a generated sequence's " \
-                                           "reaction to such a policy is actually recorded as undelivered at runtime",
     # Read by the role check, the ungoverned-role boot refusal and the fuzzer's grant steering.
     "Bluebook#provides"                 => "the declared authorization verbs drive every identified-caller role check a " \
                                            "sequence makes, but no property asks whether holds_role? through the " \
                                            "declared assignments verb agrees with the grants the sequence itself made",
-    "Policy#target_domain"              => "cross-domain `across` policies exist in the corpus today (banking declares " \
-                                           "four) and are exercised by model_check.rb's static cross-domain findings, but " \
-                                           "no fuzzer PROPERTY over a GENERATED sequence's own dispatch asks whether " \
-                                           "target_domain resolution matches what actually happened at runtime",
     "ReadModel#query_name"              => "the derived snake_case name is exercised by every read model ask; no property " \
                                            "names a drift between it and the declared name",
     "ReadModel#reference_name"          => "covered incidentally by aggregation_matches_recompute's own FK-join; not " \
