@@ -346,7 +346,7 @@ impl Json {
     }
 
     pub fn parse(input: &str) -> Result<Json, String> {
-        let mut parser = Parser { chars: input.chars().peekable() };
+        let mut parser = Parser { chars: input.chars().peekable(), depth: 0 };
         let value = parser.parse_value()?;
         parser.skip_ws();
         Ok(value)
@@ -611,7 +611,13 @@ fn write_escaped_string(s: &str, out: &mut String) {
 // Recursive descent over chars; the input is a valid `&str`, so no UTF-8 byte handling is needed.
 struct Parser<'a> {
     chars: std::iter::Peekable<std::str::Chars<'a>>,
+    depth: usize,
 }
+
+/// How deeply arrays and objects may nest before `parse` refuses. Each level is a recursive call,
+/// so an unbounded document (`[[[[...`) overflows the stack, which aborts the process rather than
+/// refusing. 128 is `serde_json`'s own recursion limit, so the host and this parser refuse alike.
+const MAX_DEPTH: usize = 128;
 
 impl<'a> Parser<'a> {
     fn skip_ws(&mut self) {
@@ -651,7 +657,26 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // Counts one level of nesting for the duration of `body`; refuses past `MAX_DEPTH`.
+    fn nested(&mut self, body: impl FnOnce(&mut Self) -> Result<Json, String>) -> Result<Json, String> {
+        if self.depth >= MAX_DEPTH {
+            return Err(format!("JSON nests deeper than {MAX_DEPTH} levels"));
+        }
+        self.depth += 1;
+        let result = body(self);
+        self.depth -= 1;
+        result
+    }
+
     fn parse_object(&mut self) -> Result<Json, String> {
+        self.nested(Self::parse_object_body)
+    }
+
+    fn parse_array(&mut self) -> Result<Json, String> {
+        self.nested(Self::parse_array_body)
+    }
+
+    fn parse_object_body(&mut self) -> Result<Json, String> {
         self.expect('{')?;
         let mut fields = Vec::new();
         self.skip_ws();
@@ -676,7 +701,7 @@ impl<'a> Parser<'a> {
         Ok(Json::Object(fields))
     }
 
-    fn parse_array(&mut self) -> Result<Json, String> {
+    fn parse_array_body(&mut self) -> Result<Json, String> {
         self.expect('[')?;
         let mut items = Vec::new();
         self.skip_ws();
@@ -773,7 +798,13 @@ impl<'a> Parser<'a> {
         // A literal with a `.`/exponent is a genuine `Float`, and Ruby's `Float` is the same
         // `f64` Rust's is, so there is nothing to preserve there.
         let is_plain_integer = !s.contains('.') && !s.contains(['e', 'E']);
-        let raw = if is_plain_integer && canonical_integer_digits(value) != s { Some(s) } else { None };
+        let keeps_source = is_plain_integer && canonical_integer_digits(value) != s;
+        // `1e999` parses to infinity with no source text kept, and `write` would print it as `inf`:
+        // not JSON, so refuse it. A plain integer keeps its digits, which `write` re-emits as-is.
+        if !value.is_finite() && !keeps_source {
+            return Err(format!("number {s:?} is out of range"));
+        }
+        let raw = keeps_source.then_some(s);
         Ok(Json::Num(value, raw))
     }
 }

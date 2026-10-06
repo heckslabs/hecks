@@ -479,8 +479,13 @@ fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, exi
         }
         Some("sequence") => {
             let prefix = rule.get("prefix").and_then(|v| v.as_str()).unwrap_or("");
-            let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
-            Some(format!("{prefix}{:0>pad$}", existing + 1))
+            let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3);
+            // `pad` rides in as free-form config JSON, and a width like 10^15 would have the
+            // formatter allocate that many bytes: refuse it rather than abort the process.
+            if pad > MAX_IDENTITY_PAD {
+                return Err(internal_error(&format!("the identity pad {pad} for {name} is wider than the {MAX_IDENTITY_PAD} this host will mint")));
+            }
+            Some(format!("{prefix}{:0>pad$}", existing + 1, pad = pad as usize))
         }
         // `port` delegates to a Ruby adapter this host has no runtime for
         // (ADR 0007); refusing names the real reason rather than
@@ -498,6 +503,9 @@ fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, exi
     }
     Ok(())
 }
+
+/// The widest zero-padded `sequence` identity `apply_identity` will mint.
+const MAX_IDENTITY_PAD: u64 = 64;
 
 /// The wire key an identity value has to be wrapped in — whatever the
 /// target value object's own single attribute is actually called. This
@@ -727,10 +735,21 @@ fn compare_sort_keys(left: Option<&Value>, right: Option<&Value>, descending: bo
     }
 }
 
+/// Numbers, then strings, then anything else (all equal, so the id breaks the tie). A column can
+/// hold mixed types, and `sort_by` panics on a comparison that is not a total order: comparing a
+/// number with a string as `""` made `5`, `""` and `3` each equal to a neighbour but not to each other.
 fn compare_values(left: &Value, right: &Value) -> Ordering {
-    match (left.as_f64(), right.as_f64()) {
-        (Some(left), Some(right)) => left.partial_cmp(&right).unwrap_or(Ordering::Equal),
-        _ => left.as_str().unwrap_or("").cmp(right.as_str().unwrap_or("")),
+    fn rank(value: &Value) -> u8 {
+        match value {
+            Value::Number(_) => 0,
+            Value::String(_) => 1,
+            _ => 2,
+        }
+    }
+    match (left, right) {
+        (Value::Number(a), Value::Number(b)) => a.as_f64().unwrap_or(0.0).total_cmp(&b.as_f64().unwrap_or(0.0)),
+        (Value::String(a), Value::String(b)) => a.cmp(b),
+        _ => rank(left).cmp(&rank(right)),
     }
 }
 
@@ -1594,3 +1613,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "boundary_fuzz/api.rs"]
+mod boundary_fuzz;

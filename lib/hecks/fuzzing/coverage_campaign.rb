@@ -26,6 +26,7 @@ module Hecks
         @max_prefix_depth   = max_prefix_depth
         @corpus             = []
         @seen               = Set.new
+        @runtime_seen       = Set.new
         @verb_hits          = Hash.new(0)
         @declared_verbs     = Set.new
         @seeds = @spliced = @seeds_with_new = 0
@@ -43,13 +44,15 @@ module Hecks
       end
 
       # Folds one seed's trace into the running coverage; admits a corpus entry if it reached
-      # a new tuple.
+      # a new tuple, or, when `runtime` is given, a new runtime line or branch.
       #
       # @param seed [Integer] the seed the trace was generated from
       # @param plan [Fuzzing::CoverageCampaign::Plan] the plan that seed ran with
       # @param trace [Fuzzing::SequenceGenerator::Trace] from `SequenceGenerator.trace`
+      # @param runtime [Enumerable<String>, nil] keys from `RuntimeCoverage.measure`; nil when
+      #   runtime feedback is off, which leaves admission to tuples alone
       # @return [void]
-      def record(seed, plan, trace)
+      def record(seed, plan, trace, runtime: nil)
         @seeds   += 1
         @spliced += 1 if plan.spliced?
         @declared_verbs.merge(trace.verbs)
@@ -58,19 +61,28 @@ module Hecks
           @verb_hits[tuple.split(" | ").first] += 1
           index if @seen.add?(tuple)
         end
-        return if new_at.empty?
+        new_runtime = runtime ? runtime.count { |key| @runtime_seen.add?(key) } : 0
+        return if new_at.empty? && new_runtime.zero?
 
         @seeds_with_new += 1
-        admit(seed, plan, new_at.max + 1)
+        # A tuple cuts the entry at the step that reached it; a runtime key is not tied to a step,
+        # so a seed that reached only new runtime keeps its whole sequence.
+        admit(seed, plan, new_at.empty? ? [trace.steps.size, 1].max : new_at.max + 1)
       end
+
+      # The number of distinct runtime lines and branches reached so far; zero while runtime
+      # feedback is off.
+      def runtime_seen = @runtime_seen.size
 
       # The number of distinct coverage tuples reached so far.
       def tuples_seen = @seen.size
 
       # One line of running totals: tuples seen, seeds run, seeds with new coverage, splices.
       def summary
-        "coverage: #{@seen.size} distinct (verb, kind, state, mutation, outcome) tuple(s) over #{@seeds} seed(s); " \
-          "#{@seeds_with_new} seed(s) reached something new; #{@spliced} spliced from a corpus of #{@corpus.size}"
+        runtime = @runtime_seen.empty? ? "" : " and #{@runtime_seen.size} runtime line/branch key(s)"
+        "coverage: #{@seen.size} distinct (verb, kind, state, mutation, outcome) tuple(s)#{runtime} over " \
+          "#{@seeds} seed(s); #{@seeds_with_new} seed(s) reached something new; " \
+          "#{@spliced} spliced from a corpus of #{@corpus.size}"
       end
 
       # Serializes the accumulated corpus and coverage knowledge, JSON-safe, so a later process can
@@ -78,10 +90,11 @@ module Hecks
       # favor count, corpus and prefix-depth bounds — are configuration a caller supplies fresh each
       # time, not state, so they are not part of this.
       #
-      # @return [Hash] with string keys "corpus", "seen", "verb_hits", "declared_verbs"
+      # @return [Hash] with string keys "corpus", "seen", "runtime_seen", "verb_hits", "declared_verbs"
       def to_h
         { "corpus"         => @corpus.map { |entry| { "spec" => entry[:spec], "attempts" => entry[:attempts] } },
           "seen"           => @seen.to_a,
+          "runtime_seen"   => @runtime_seen.to_a.sort,
           "verb_hits"      => @verb_hits.dup,
           "declared_verbs" => @declared_verbs.to_a }
       end
@@ -95,6 +108,7 @@ module Hecks
         state = state.transform_keys(&:to_s)
         @corpus = Array(state["corpus"]).map { |entry| { spec: entry["spec"], attempts: entry["attempts"] } }
         @seen = Set.new(Array(state["seen"]))
+        @runtime_seen = Set.new(Array(state["runtime_seen"]))
         @verb_hits = Hash.new(0).merge(state["verb_hits"] || {})
         @declared_verbs = Set.new(Array(state["declared_verbs"]))
       end

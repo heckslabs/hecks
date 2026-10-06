@@ -21,6 +21,7 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
       guided_generation: true
       corpus_splice_probability: 0.0
       favor_rare_verbs: 3
+      runtime_coverage_feedback: false
       self_consistency_checks: true
       shrink_budget: 200
       yield_weight_seconds: 1800

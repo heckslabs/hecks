@@ -135,6 +135,8 @@ bundle exec hecks model_check           # static analysis over the IR — unreac
                                         # dead transitions, sagas nothing reaches
 bundle exec hecks fuzz_run.fuzz                  # generated command/query sequences, checked against
                                         # declared properties and interpreter crashes
+bundle exec hecks fuzz_run.mutate examples/pizzas  # mutates the domain's rules and lists every change the
+                                        # properties, corpus script and behaviors tests let through
 bundle exec hecks conformance_run.measure_doc_coverage  # every live DSL word ships with a running example
 bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```

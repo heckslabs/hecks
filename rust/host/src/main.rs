@@ -8,6 +8,11 @@ mod checkout;
 mod dispatch;
 mod expr_json;
 mod field_hints;
+#[cfg(test)]
+mod fuzz_support;
+#[cfg(test)]
+#[path = "boundary_fuzz/expr_json.rs"]
+mod expr_json_fuzz;
 mod ir;
 mod journal;
 mod lambda_client;

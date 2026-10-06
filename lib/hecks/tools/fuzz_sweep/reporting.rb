@@ -52,10 +52,11 @@ module Hecks
           grouped = result.failures.group_by { |failure| failure[:signature] }
           puts "   #{grouped.size} distinct finding(s):"
           save_dir = save_directory(result)
-          grouped.each_value.with_index(1) do |group, number|
+          shrunk = grouped.each_value.with_index(1).map do |group, number|
             print_finding(group, number, result.seeds)
             save_finding(result, group.min_by { |failure| failure[:steps].length }, save_dir)
           end
+          persist_regressions(result, shrunk) if result.persist
         end
 
         # @return [String] where the repro scripts go, created when missing
@@ -71,11 +72,23 @@ module Hecks
         end
 
         # Shrinks the smallest failing sequence of a finding and saves it as a repro script.
+        #
+        # @return [Hash] the finding, with its shrunk `:steps`
         def save_finding(result, smallest, save_dir)
           shrunk = shrink(result.domain, smallest[:steps], smallest[:signature], result.adapter)
           save_path = File.join(save_dir, "#{result.name}-seed#{smallest[:seed]}.json")
           write_script(shrunk, save_path, smallest[:seed], result.name)
           print_saved(smallest[:steps].length, shrunk.length, "hecks run #{result.domain} #{save_path}")
+          smallest.merge(steps: shrunk)
+        end
+
+        # Keeps one minimized repro per distinct finding. Findings that shrank to the same thing
+        # collapse here, and one already kept from an earlier run is left alone.
+        def persist_regressions(result, shrunk)
+          Hecks::Fuzzing::FailureTriage.dedupe(shrunk).each do |finding|
+            path = Hecks::Fuzzing::FailureTriage.persist(result.root, result.name, finding)
+            puts(path ? "       kept regression: #{path}" : "       regression #{finding[:triage]} already kept")
+          end
         end
 
         def print_saved(from, to, command)

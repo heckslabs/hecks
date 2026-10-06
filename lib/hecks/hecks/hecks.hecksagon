@@ -188,6 +188,12 @@ Hecks.hecksagon "Hecks" do
       answers "FuzzAnswered"
       refuses "FuzzRefused"
     end
+
+    asks "Probe", to: FuzzRun do
+      attribute :run, FuzzKey
+      answers "FuzzAnswered"
+      refuses "FuzzRefused"
+    end
   end
 
   Hecks::FuzzRun.port "RustToolchain" do

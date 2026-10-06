@@ -192,19 +192,95 @@ fn unquote(raw: &str) -> String {
     unescape_double_quoted_inner(&raw[1..raw.len() - 1])
 }
 
+/// Unescapes a Ruby double-quoted body: `\n`, `\t`, `\e` and the other single-letter escapes,
+/// octal `\NNN`, `\xHH`, `\uHHHH` and `\u{H H ...}`, and `\<newline>` as nothing. Any other
+/// escaped character stands for itself, as in Ruby. `\c`, `\C-` and `\M-` control and meta
+/// escapes are left as the bare letter, since no bluebook spells them.
 fn unescape_double_quoted_inner(inner: &str) -> String {
     let mut out = String::with_capacity(inner.len());
-    let mut chars = inner.chars();
+    let mut chars = inner.chars().peekable();
     while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            if let Some(next) = chars.next() {
-                out.push(next);
-            }
-        } else {
+        if ch != '\\' {
             out.push(ch);
+            continue;
+        }
+        let Some(next) = chars.next() else {
+            continue;
+        };
+        match next {
+            'a' => out.push('\u{7}'),
+            'b' => out.push('\u{8}'),
+            'e' => out.push('\u{1b}'),
+            'f' => out.push('\u{c}'),
+            'n' => out.push('\n'),
+            'r' => out.push('\r'),
+            's' => out.push(' '),
+            't' => out.push('\t'),
+            'v' => out.push('\u{b}'),
+            '\n' => {}
+            '0'..='7' => out.push(read_octal_escape(next, &mut chars)),
+            'x' => match read_hex_digits(&mut chars, 2) {
+                Some(code) => out.push(char::from_u32(code).unwrap_or('\u{fffd}')),
+                None => out.push('x'),
+            },
+            'u' => read_unicode_escape(&mut chars, &mut out),
+            other => out.push(other),
         }
     }
     out
+}
+
+/// Up to three octal digits starting with `first`, as one character.
+fn read_octal_escape(first: char, chars: &mut std::iter::Peekable<std::str::Chars>) -> char {
+    let mut code = first.to_digit(8).unwrap_or(0);
+    for _ in 0..2 {
+        match chars.peek().and_then(|c| c.to_digit(8)) {
+            Some(digit) => {
+                code = code * 8 + digit;
+                chars.next();
+            }
+            None => break,
+        }
+    }
+    char::from_u32(code & 0xff).unwrap_or('\u{fffd}')
+}
+
+/// Between one and `max` hex digits, or `None` when the next character is not one.
+fn read_hex_digits(chars: &mut std::iter::Peekable<std::str::Chars>, max: usize) -> Option<u32> {
+    let mut code: Option<u32> = None;
+    for _ in 0..max {
+        match chars.peek().and_then(|c| c.to_digit(16)) {
+            Some(digit) => {
+                code = Some(code.unwrap_or(0) * 16 + digit);
+                chars.next();
+            }
+            None => break,
+        }
+    }
+    code
+}
+
+/// `\uHHHH` (exactly four digits) or `\u{H H ...}` (one or more codepoints), after the `u`.
+fn read_unicode_escape(chars: &mut std::iter::Peekable<std::str::Chars>, out: &mut String) {
+    if chars.peek() == Some(&'{') {
+        chars.next();
+        loop {
+            while chars.peek().is_some_and(|c| *c == ' ') {
+                chars.next();
+            }
+            match read_hex_digits(chars, 6) {
+                Some(code) => out.push(char::from_u32(code).unwrap_or('\u{fffd}')),
+                None => break,
+            }
+        }
+        if chars.peek() == Some(&'}') {
+            chars.next();
+        }
+    } else if let Some(code) = read_hex_digits(chars, 4) {
+        out.push(char::from_u32(code).unwrap_or('\u{fffd}'));
+    } else {
+        out.push('u');
+    }
 }
 
 /// Scans adjacent quoted literals (either quote style, whitespace-separated) from index 0.
@@ -406,6 +482,19 @@ mod tests {
             split_items("{a: 1, b: 2}, 3"),
             vec!["{a: 1, b: 2}".to_string(), "3".to_string()]
         );
+    }
+
+    #[test]
+    fn double_quoted_escapes_read_as_ruby_reads_them() {
+        assert_eq!(read(r#""a\tb\nc""#), Value::Str("a\tb\nc".to_string()));
+        assert_eq!(read(r#""\e\s\a\0""#), Value::Str("\u{1b} \u{7}\0".to_string()));
+        assert_eq!(
+            read(r#""\x41\101é\u{1F4A5 41}""#),
+            Value::Str("AA\u{e9}\u{1F4A5}A".to_string())
+        );
+        assert_eq!(read(r#""q\q\"\\""#), Value::Str("qq\"\\".to_string()));
+        assert_eq!(read("\"a\\\nb\""), Value::Str("ab".to_string()));
+        assert_eq!(read(r#""\xZ""#), Value::Str("xZ".to_string()));
     }
 
     #[test]

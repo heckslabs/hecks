@@ -1,0 +1,27 @@
+[package]
+name = "hecks_parse_fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Own workspace root, so neither `rust/parser` nor `rust` adopts this crate and its dependency.
+[workspace]
+
+# The one dependency in the parser tree, and it lives only here: coverage-guided fuzzing needs
+# libFuzzer's instrumentation, and nothing ships from this crate (ADR 0012).
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "chapter"
+path = "fuzz_targets/chapter.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "resolve"
+path = "fuzz_targets/resolve.rs"
+test = false
+doc = false
+bench = false

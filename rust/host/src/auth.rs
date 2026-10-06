@@ -882,11 +882,17 @@ fn sign(secret: &str, payload: &str) -> String {
 
 fn verify_sig(secret: &str, token: &str) -> Option<String> {
     let (payload, sig) = token.rsplit_once('.')?;
-    if sign(secret, payload) == sig {
+    if constant_time_eq(sign(secret, payload).as_bytes(), sig.as_bytes()) {
         Some(payload.to_string())
     } else {
         None
     }
+}
+
+/// Compares two signatures without stopping at the first differing byte, so how long a forged
+/// cookie takes to refuse does not tell the caller how many leading characters were right.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -1341,3 +1347,7 @@ mod tests {
         assert_eq!(state["role"]["value"], "Admin", "a lower ordinal must never move the snapshot backward");
     }
 }
+
+#[cfg(test)]
+#[path = "boundary_fuzz/auth.rs"]
+mod boundary_fuzz;

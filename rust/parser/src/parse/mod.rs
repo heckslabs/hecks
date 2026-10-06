@@ -743,6 +743,31 @@ pub(crate) fn positional_text(
     })
 }
 
+/// Like `positional_text`, but the argument must be a literal. Ruby evaluates what follows
+/// `role` or `goal`, so a bare word or a call there (`role sets :name`) is an expression this
+/// parser cannot evaluate, and reading its source text as the value would invent one.
+pub(crate) fn positional_literal_text(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?;
+    match ruby_value::read(raw) {
+        ruby_value::Value::Bare(_) => Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'{word}'s positional argument {at} ('{}') is not a literal",
+                raw.trim()
+            ),
+        )),
+        ruby_value::Value::Str(s) => Ok(s),
+        literal => Ok(ruby_value::to_s(&literal)),
+    }
+}
+
 /// A required symbol positional without its colon (`attribute :name`), bare or quoted (`:"a.b"`).
 /// The quoted form spells dotted paths, e.g. `correlates_by :"reference.value"`.
 pub(crate) fn positional_symbol(

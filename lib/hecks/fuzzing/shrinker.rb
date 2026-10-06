@@ -5,6 +5,8 @@ module Hecks
     #
     # Pass 1 removes step chunks (delta debugging) until the list is 1-minimal.
     # Pass 2 drops argument keys one at a time inside each surviving step.
+    # Pass 3 replaces each surviving argument value with a simpler one (empty, zero, first
+    # element) wherever the finding still reproduces, so a repro reads as small as it is.
     # `budget:` caps candidate checks; when spent, the best candidate so far is returned.
     module Shrinker
       Result = Struct.new(:steps, :attempts, :exhausted, keyword_init: true)
@@ -26,6 +28,7 @@ module Hecks
         meter   = Meter.new(budget)
         current = drop_steps(steps.dup, meter, &reproduces)
         current = drop_arguments(current, meter, &reproduces)
+        current = simplify_values(current, meter, &reproduces)
         Result.new(steps: current, attempts: meter.used, exhausted: meter.exhausted?)
       end
 
@@ -73,6 +76,59 @@ module Hecks
           end
         end
         steps
+      end
+
+      # Offers each surviving argument a simpler value, keeping one the finding survives. Nested
+      # hashes are simplified key by key; a candidate that no longer reproduces is rejected.
+      def simplify_values(steps, meter, &)
+        steps.each_index do |position|
+          original = args_of(steps[position])
+          next unless original.is_a?(Hash)
+
+          original.each_key do |key|
+            steps = simplify_path(steps, position, [key], meter, &)
+          end
+        end
+        steps
+      end
+
+      # Simplifies the value at `path` inside step `position`'s arguments, recursing into hashes.
+      def simplify_path(steps, position, path, meter, &)
+        value = args_of(steps[position]).dig(*path)
+        if value.is_a?(Hash)
+          return value.each_key.reduce(steps) { |acc, key| simplify_path(acc, position, path + [key], meter, &) }
+        end
+
+        simpler_values(value).each do |replacement|
+          return steps if meter.exhausted?
+
+          candidate = with_value(steps, position, path, replacement)
+          return candidate if meter.try { yield(candidate) }
+        end
+        steps
+      end
+
+      # Simpler stand-ins for `value`, simplest first; none for what is already minimal.
+      def simpler_values(value)
+        candidates =
+          case value
+          when String  then ["", value[0].to_s]
+          when Integer then [0, 1]
+          when Float   then [0.0, 1.0]
+          when Array   then [[], value.first(1)]
+          else []
+          end
+        candidates.uniq.reject { |candidate| candidate == value }
+      end
+
+      def with_value(steps, position, path, replacement)
+        step = steps[position]
+        args = Marshal.load(Marshal.dump(args_of(step)))
+        parent = path.length > 1 ? args.dig(*path[0...-1]) : args
+        parent[path.last] = replacement
+        candidate = steps.map(&:dup)
+        candidate[position] = step.merge("args" => args)
+        candidate
       end
 
       # A copy of `steps` whose step at `position` lacks the argument `key`.

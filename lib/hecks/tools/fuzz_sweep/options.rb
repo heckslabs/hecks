@@ -9,10 +9,10 @@ module Hecks
       # The command line of a sweep: its options, and what the chosen adapter needs.
       module Options
         # @param args [Array<String>] the command line, consumed
-        # @return [Hash, nil] `seeds`, `steps`, `workers`, `adapter` and `domain`; nil after a
-        #   refusal
+        # @return [Hash, nil] `seeds`, `steps`, `workers`, `adapter`, `persist` and `domain`; nil
+        #   after a refusal
         def parse(args)
-          options = { seeds: 20, steps: 30, workers: nil, adapter: :memory, domain: nil }
+          options = { seeds: 20, steps: 30, workers: nil, adapter: :memory, domain: nil, persist: false }
           until args.empty?
             apply_option(options, args.shift, args)
             return nil unless adapter_known?(options[:adapter])
@@ -26,6 +26,7 @@ module Hecks
           when "--seeds" then options[:seeds] = Integer(rest.shift)
           when "--steps" then options[:steps] = Integer(rest.shift)
           when "--workers" then options[:workers] = Integer(rest.shift)
+          when "--persist-regressions" then options[:persist] = true
           when "--adapter" then options[:adapter] = rest.shift.to_s.downcase.to_sym
           else options[:domain] = arg
           end

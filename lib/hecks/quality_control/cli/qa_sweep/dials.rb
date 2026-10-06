@@ -41,6 +41,7 @@ module Hecks
           @guided_generation = dial(:GUIDED_GENERATION, false)
           @corpus_splice_probability = dial(:CORPUS_SPLICE_PROBABILITY, 0.5)
           @favor_rare_verbs = dial(:FAVOR_RARE_VERBS, 3)
+          @runtime_coverage_feedback = dial(:RUNTIME_COVERAGE_FEEDBACK, false)
         end
 
         def read_limit_dials

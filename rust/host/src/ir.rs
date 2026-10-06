@@ -731,3 +731,7 @@ mod tests {
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
     }
 }
+
+#[cfg(test)]
+#[path = "boundary_fuzz/ir.rs"]
+mod boundary_fuzz;
