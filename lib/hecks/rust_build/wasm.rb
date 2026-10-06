@@ -15,9 +15,14 @@ module Hecks
     # `wasmtime run rust/dist/<domain>.wasm < script.json`, and the domain's `ir.json` beside it,
     # which `rust/host` reads at runtime. `HECKS_RUST_DIR` names the workspace to build in and
     # `CARGO_TARGET_DIR` where build output goes, beside the workspace by default.
+    # `HECKS_WASM_PROFILE=dev` builds without `--release`: a much faster compile, for tests that
+    # only run the module, not for one that ships.
     module Wasm
       # The Cargo target the module is built for.
       TARGET = "wasm32-wasip1"
+
+      # The Cargo flags and the `target/<target>/` directory of each build profile.
+      PROFILES = { "release" => { flags: ["--release"], dir: "release" }, "dev" => { flags: [], dir: "debug" } }.freeze
 
       module_function
 
@@ -83,10 +88,18 @@ module Hecks
       # `rustup run`, not bare `cargo`: a `cargo` earlier on PATH may never have seen
       # `rustup target add` and fail with "can't find crate for `std`".
       def compile(scratch)
-        puts "== cargo build --release --target #{TARGET} =="
+        flags = profile.fetch(:flags)
+        puts "== cargo build #{flags.join(" ")} --target #{TARGET} =="
         target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(RustBuild.rust_dir, "target"))
-        RustBuild.command!("rustup", "run", "stable", "cargo", "build", "--release", "--target", TARGET,
+        RustBuild.command!("rustup", "run", "stable", "cargo", "build", *flags, "--target", TARGET,
                            chdir: scratch, env: { "CARGO_TARGET_DIR" => target_dir })
+      end
+
+      # @return [Hash] the flags and directory of the profile `HECKS_WASM_PROFILE` names
+      # @raise [Failure] when the name is not `release` or `dev`
+      def profile
+        name = ENV.fetch("HECKS_WASM_PROFILE", "release")
+        PROFILES.fetch(name) { raise Failure, "HECKS_WASM_PROFILE=#{name} is not release or dev" }
       end
 
       def publish(scratch, rust_dir, name)
@@ -94,7 +107,7 @@ module Hecks
         FileUtils.mkdir_p(dist)
         target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target"))
         out = File.join(dist, "#{name}.wasm")
-        FileUtils.cp(File.join(target_dir, TARGET, "release", "rust.wasm"), out)
+        FileUtils.cp(File.join(target_dir, TARGET, profile.fetch(:dir), "rust.wasm"), out)
         puts "wrote #{out}"
         puts %(run it: wasmtime run #{out} < script.json)
         publish_sidecar(scratch, dist, name)

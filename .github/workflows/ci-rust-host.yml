@@ -70,7 +70,10 @@ jobs:
           name: host
           crate-root: rust/host
 
+      # rust/host runs the module through the wasmtime crate, so the CLI is not installed.
       - uses: ./.github/actions/wasm-toolchain
+        with:
+          install-wasmtime: "false"
 
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
       # role; the postgres action already trusts loopback TCP.
@@ -80,7 +83,10 @@ jobs:
       # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm, read at run
       # time only (rust/dist is gitignored). So build both in the background while the
       # test binaries compile, then run the tests once both are done.
+      # The dev profile: the tests only run the module, and it compiles in half the time.
       - name: "Build wasm in the background, compile tests"
+        env:
+          HECKS_WASM_PROFILE: dev
         run: |
           (
             bundle exec exe/hecks build.build_wasm domain=examples/banking --wait &&
