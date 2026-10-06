@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::RustWorkspace do
 
   after { FileUtils.rm_rf(tmp) }
 
-  it "makes the copy and marks it complete" do
+  it "makes the copy and marks it complete", :aggregate_failures do
     expect(space.directory).to eq(target)
     expect(File.exist?(File.join(target, described_class::MARKER))).to be(true)
     expect(File.exist?(File.join(target, "src", "lib.rs"))).to be(true)
@@ -32,7 +32,7 @@ RSpec.describe Hecks::Adapters::RustWorkspace do
     expect(Dir.children(File.dirname(target))).to eq(["9.9.9"])
   end
 
-  it "redoes a copy an interrupted run left without the marker" do
+  it "redoes a copy an interrupted run left without the marker", :aggregate_failures do
     FileUtils.mkdir_p(File.join(target, "src"))
     File.write(File.join(target, "src", "partial.rs"), "half")
 
@@ -42,17 +42,24 @@ RSpec.describe Hecks::Adapters::RustWorkspace do
     expect(File.exist?(File.join(target, described_class::MARKER))).to be(true)
   end
 
-  it "keeps another process's finished copy when it loses the race to publish" do
-    other = space
-    allow(other).to receive(:build).and_wrap_original do |original, source, staging|
-      original.call(source, staging)
-      # a second process finishes first, and leaves a file the loser must not delete
-      FileUtils.mkdir_p(target)
-      File.write(File.join(target, described_class::MARKER), "9.9.9\n")
-      File.write(File.join(target, "winner.txt"), "mine")
-    end
+  # A second process finishes first, and leaves a file the loser must not delete.
+  def finish_copy_in_another_process
+    FileUtils.mkdir_p(target)
+    File.write(File.join(target, described_class::MARKER), "9.9.9\n")
+    File.write(File.join(target, "winner.txt"), "mine")
+  end
 
-    expect(other.directory).to eq(target)
+  def lose_the_race_to_publish
+    allow(space).to receive(:build).and_wrap_original do |original, source, staging|
+      original.call(source, staging)
+      finish_copy_in_another_process
+    end
+  end
+
+  it "keeps another process's finished copy when it loses the race to publish", :aggregate_failures do
+    lose_the_race_to_publish
+
+    expect(space.directory).to eq(target)
     expect(File.read(File.join(target, "winner.txt"))).to eq("mine")
     expect(Dir.children(File.dirname(target))).to eq(["9.9.9"])
   end

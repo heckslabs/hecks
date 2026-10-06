@@ -9,12 +9,13 @@ RSpec.describe Hecks::Adapters::Codebase::NpmRegistry do
   let(:commands) { ReleaseSpecSupport::RecordingCommands.new(sha: "a" * 40, version: "1.0.0") }
   let(:registry) { described_class.new(root: root, commands: commands) }
   let(:package_dir) { File.join(root, "packages/hecks-client") }
+  let(:seen) { publish_recording_npmrc }
 
   before { FileUtils.mkdir_p(package_dir) }
 
   after { FileUtils.remove_entry(root) }
 
-  it "lists a version as published when npm does, and as not when npm says 404" do
+  it "lists a version as published when npm does, and as not when npm says 404", :aggregate_failures do
     expect(registry.published?("1.0.0")).to be(false)
 
     commands.answer("npm", "view", stdout: "1.0.0\n")
@@ -28,14 +29,17 @@ RSpec.describe Hecks::Adapters::Codebase::NpmRegistry do
     expect { registry.published?("1.0.0") }.to raise_error(Hecks::Release::Runner::Refusal, /could not check npm/)
   end
 
-  it "installs the dependencies in the package's directory, and knows when they are there" do
+  it "installs the dependencies in the package's directory" do
+    registry.install!
+
+    expect([commands.runs.first.argv, commands.runs.first.chdir]).to eq([%w[npm ci], package_dir])
+  end
+
+  it "knows when the dependencies are there", :aggregate_failures do
     expect(registry).not_to be_installed
 
-    registry.install!
     FileUtils.mkdir_p(File.join(package_dir, "node_modules"))
 
-    expect(commands.runs.first.argv).to eq(%w[npm ci])
-    expect(commands.runs.first.chdir).to eq(package_dir)
     expect(registry).to be_installed
   end
 
@@ -45,17 +49,25 @@ RSpec.describe Hecks::Adapters::Codebase::NpmRegistry do
     expect(commands.argvs).to eq([%w[npm publish --dry-run --access public]])
   end
 
-  it "publishes through the vault with a one-use npmrc that reads the token from the environment" do
+  # Publishes, and answers what the one-use npmrc held while `op` ran: its path, content and mode.
+  def publish_recording_npmrc
     seen = nil
     commands.on_run("op") do |argv|
       path = argv[argv.index("--userconfig") + 1]
       seen = { path: path, content: File.read(path), mode: File.stat(path).mode & 0o777 }
     end
-
     registry.publish!
+    seen
+  end
 
-    env_file = "--env-file=#{File.join(root, 'release/npm_publish.env')}"
+  it "publishes through the vault, with the env file naming the token" do
+    seen
+
+    env_file = "--env-file=#{File.join(root, "release/npm_publish.env")}"
     expect(commands.runs.first.argv.first(6)).to eq(["op", "run", env_file, "--", "npm", "publish"])
+  end
+
+  it "publishes with a one-use npmrc that reads the token from the environment", :aggregate_failures do
     expect(seen[:content]).to eq("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n")
     expect(seen[:mode]).to eq(0o600)
     expect(File).not_to exist(seen[:path])

@@ -59,28 +59,38 @@ module Hecks
       def rust_coverage
         modules = Hecks::Corpus.generated_modules
         pending = Hecks::Corpus::RUST_COVERAGE_PENDING
-        unknown = pending.keys - modules
-        if unknown.any?
-          abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, " \
-                "which has no generated module"
-        end
+        refuse_unknown_pending(pending.keys - modules)
 
         results = coverage_results(modules)
-        problems = modules.filter_map do |name|
-          passed, output = results.fetch(name)
-          if pending.key?(name)
-            puts "#{name}: pending (#{passed ? 'NOW PASSES' : 'still fails'}) — #{pending[name]}"
-            "#{name} passes now — delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
-          else
-            puts "#{name}: #{passed ? 'ok' : 'FAILED'}"
-            "#{name} failed:\n#{output}" unless passed
-          end
-        end
-
+        problems = modules.filter_map { |name| coverage_problem(name, results.fetch(name), pending) }
         return puts("hecks corpus_rust_coverage: #{modules.size} generated modules checked").then { 0 } if problems.empty?
 
         warn problems.join("\n\n")
         1
+      end
+
+      # @raise [SystemExit] when `unknown` is not empty
+      def refuse_unknown_pending(unknown)
+        return if unknown.empty?
+
+        abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(", ")}, " \
+              "which has no generated module"
+      end
+
+      # Prints one module's line.
+      #
+      # @param result [Array] the module's `[passed, output]`
+      # @param pending [Hash{String => String}] the modules whose check is expected to fail, and why
+      # @return [String, nil] what is wrong with the module, nil when it is as it must be
+      def coverage_problem(name, result, pending)
+        passed, output = result
+        if pending.key?(name)
+          puts "#{name}: pending (#{passed ? "NOW PASSES" : "still fails"}) — #{pending[name]}"
+          "#{name} passes now — delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
+        else
+          puts "#{name}: #{passed ? "ok" : "FAILED"}"
+          "#{name} failed:\n#{output}" unless passed
+        end
       end
     end
   end

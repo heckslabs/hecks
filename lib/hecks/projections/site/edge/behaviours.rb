@@ -42,12 +42,16 @@ module Hecks
           # share it, their methods united.
           def resolved
             groups = @rows.select(&:cdn).group_by { |row| Pattern.edge(row.path) }
-            groups.to_h do |pattern, rows|
-              entries = rows.map { |row| entry(row, pattern) }
-              disagree = entries.map { |entry| entry.except(:methods) }.uniq.size > 1
-              problem(pattern, "is declared by #{rows.size} routes that resolve to different behaviours") if disagree
-              [pattern, entries.first.merge(methods: methods(rows))]
-            end
+            groups.to_h { |pattern, rows| [pattern, group_entry(pattern, rows)] }
+          end
+
+          # The one behaviour the routes on `pattern` share, refused when they resolve to
+          # different ones.
+          def group_entry(pattern, rows)
+            entries = rows.map { |row| entry(row, pattern) }
+            disagree = entries.map { |entry| entry.except(:methods) }.uniq.size > 1
+            problem(pattern, "is declared by #{rows.size} routes that resolve to different behaviours") if disagree
+            entries.first.merge(methods: methods(rows))
           end
 
           def entry(row, pattern)

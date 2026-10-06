@@ -49,7 +49,7 @@ module DocsStaleVersion
 end
 
 RSpec.describe "docs carry no stale version or commit count" do
-  it "scans the docs it means to" do
+  it "scans the docs it means to", :aggregate_failures do
     getting_started = File.join(DocsStaleVersion::ROOT_DIR, "docs/implemented/guides/getting-started.md")
 
     expect(DocsStaleVersion.scanned).to include(getting_started)

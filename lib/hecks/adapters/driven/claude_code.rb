@@ -62,13 +62,7 @@ module Hecks
 
       # Argv spawn, never a shell, so a `claude` shell alias cannot apply; no tools are allowed.
       def call(system:, payload:)
-        stdout, status = Timeout.timeout(TIMEOUT_SECONDS) do
-          Open3.capture2(
-            "claude", "-p", "--output-format", "json",
-            "--append-system-prompt", system, "--allowedTools", "",
-            stdin_data: JSON.generate(payload)
-          )
-        end
+        stdout, status = spawn_claude(system, payload)
         raise Ports::Agent::Unavailable, "claude exited #{status.exitstatus}: #{stdout}" unless status.success?
 
         unwrap(stdout)
@@ -76,6 +70,16 @@ module Hecks
         raise Ports::Agent::Unavailable, "claude did not answer within #{TIMEOUT_SECONDS}s"
       rescue Errno::ENOENT => e
         raise Ports::Agent::Unavailable, "claude is not on PATH: #{e.message}"
+      end
+
+      def spawn_claude(system, payload)
+        Timeout.timeout(TIMEOUT_SECONDS) do
+          Open3.capture2(
+            "claude", "-p", "--output-format", "json",
+            "--append-system-prompt", system, "--allowedTools", "",
+            stdin_data: JSON.generate(payload)
+          )
+        end
       end
 
       def unwrap(stdout)

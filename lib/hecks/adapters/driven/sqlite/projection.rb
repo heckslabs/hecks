@@ -15,6 +15,9 @@ module Hecks
     # Rebuilds a read store from the authoritative journal, entry by entry.
     # Values are written as JSON, references as bare ids — the shapes the command path writes.
     class SqliteProjection < Sqlite
+      # The state of one `query_read_model` call, threaded through its per-head steps.
+      ReadModelRun = Struct.new(:model, :args, :bluebook, :reference_id, :eligible, :projected)
+
       # Replaces or deletes the read store's row for one journal entry, encoding the entry's
       # state directly rather than through a `Runtime::Instance`.
       #
@@ -26,11 +29,7 @@ module Hecks
         return @db.execute("DELETE FROM #{quoted_table} WHERE id = ?", [entry.id]) if entry.delete?
 
         columns = (["id"] + persisted_fields.map { |field| field[:name].to_s }).map { |column| quote_ident(column) }
-        values  = [entry.id.to_s] + persisted_fields.map { |field| encode_field(field, entry.state[field[:name]]) }
-        @db.execute(
-          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{Array.new(columns.size,
-                                                                                              '?').join(', ')})", values
-        )
+        @db.execute(upsert_sql(columns), row_values(entry))
         entry
       end
 
@@ -55,36 +54,56 @@ module Hecks
         # Plural (ADR 0055) — `on:` lets `where`/`order_by`/`limit`/`offset`
         # each name a different many-side head, so more than one may be
         # eligible in the same read model.
-        eligible = model.filtered_head_names
-
-        # Root first, always (see this method's own header): a later head's
-        # join must match against a root or head already resolved.
-        root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
-        projected = []
-        reports = {}
-        (root_heads + other_heads).each do |head|
-          aggregate = bluebook.aggregate(head[:aggregate])
-          rows = if head[:aggregate] == model.reference_target
-                   [select_projected(aggregate, reference_id) ||
-                     raise(Runtime::NotFound,
-                           Runtime::RefusalWording.render_site("NotFound", "read_model_reference_missing",
-                                                               aggregate: head[:aggregate],
-                                                               offered:   Hecks::Rendering.describe(reference_id)))]
-                 else
-                   select_related(aggregate, projected)
-                 end
-          rows = Ports::Query::InMemory.execute(rows, model.options_for(head[:as]), args) if eligible.include?(head[:as])
-          projected << { aggregate: head[:aggregate], rows: rows }
-          reports[head[:as]] = if head[:many]
-                                 rows.map { |row| Runtime::Value.materialize(row.to_h) }
-                               else
-                                 rows.first && Runtime::Value.materialize(rows.first.to_h)
-                               end
-        end
-        [reports]
+        run = ReadModelRun.new(model, args, bluebook, reference_id, model.filtered_head_names, [])
+        [ordered_heads(model).to_h { |head| [head[:as], resolve_head(run, head)] }]
       end
 
       private
+
+      # Root first, always (see `query_read_model`'s own header): a later head's
+      # join must match against a root or head already resolved.
+      def ordered_heads(model)
+        root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
+        root_heads + other_heads
+      end
+
+      # Reads one head's rows, records them as projected so later heads can join against them,
+      # and returns the head's report entry.
+      def resolve_head(run, head)
+        rows = head_rows(run, head, run.bluebook.aggregate(head[:aggregate]))
+        rows = filter_rows(run, head, rows)
+        run.projected << { aggregate: head[:aggregate], rows: rows }
+        head_report(head, rows)
+      end
+
+      # Applies the head's `where`/`order_by`/`limit`/`offset` when the read model names it.
+      def filter_rows(run, head, rows)
+        return rows unless run.eligible.include?(head[:as])
+
+        Ports::Query::InMemory.execute(rows, run.model.options_for(head[:as]), run.args)
+      end
+
+      def head_report(head, rows)
+        return rows.map { |row| Runtime::Value.materialize(row.to_h) } if head[:many]
+
+        rows.first && Runtime::Value.materialize(rows.first.to_h)
+      end
+
+      def head_rows(run, head, aggregate)
+        return select_related(aggregate, run.projected) unless head[:aggregate] == run.model.reference_target
+
+        [select_projected(aggregate, run.reference_id) || raise(Runtime::NotFound, missing_root_wording(run, head))]
+      end
+
+      def missing_root_wording(run, head)
+        Runtime::RefusalWording.render_site("NotFound", "read_model_reference_missing",
+                                            aggregate: head[:aggregate],
+                                            offered:   Hecks::Rendering.describe(run.reference_id))
+      end
+
+      def row_values(entry)
+        [entry.id.to_s] + persisted_fields.map { |field| encode_field(field, entry.state[field[:name]]) }
+      end
 
       def select_projected(aggregate, id)
         row = @db.get_first_row("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE id = ?", [id.to_s])
@@ -94,24 +113,25 @@ module Hecks
       # Matches every already-projected source, not just the root, so a head
       # referencing another included head still matches.
       def select_related(aggregate, projected)
-        matches = projected.flat_map do |source|
-          references = aggregate.attributes.select do |attribute|
-            attribute.reference? && attribute.type.target_name == source[:aggregate].to_s
-          end
-          next [] if references.empty?
-
-          ids = source[:rows].map { |row| row.id.to_s }
-          next [] if ids.empty?
-
-          references.product(ids)
-        end
+        matches = projected.flat_map { |source| reference_matches(aggregate, source) }
         return [] if matches.empty?
 
         # A reference column holds the id, so it compares directly against itself.
         clauses = matches.map { |attribute, _id| "#{quote_ident(attribute.name)} = ?" }
         bind = matches.map { |_attribute, id| id }
-        @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(' OR ')} ORDER BY id", bind)
+        @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(" OR ")} ORDER BY id", bind)
            .map { |row| projected_instance(aggregate, row) }
+      end
+
+      # Every (reference attribute, id) pair by which `aggregate` points at one projected source.
+      def reference_matches(aggregate, source)
+        references = aggregate.attributes.select do |attribute|
+          attribute.reference? && attribute.type.target_name == source[:aggregate].to_s
+        end
+        return [] if references.empty?
+
+        ids = source[:rows].map { |row| row.id.to_s }
+        references.product(ids)
       end
 
       def projected_instance(aggregate, row)
@@ -126,13 +146,10 @@ module Hecks
       # `projects` fields, all read back raw (see `decode_fields`).
       def fields_for(aggregate)
         fields = aggregate.attributes.map { |attribute| [attribute.name, attribute] }
-        if (lifecycle = aggregate.lifecycle) && fields.none? { |name, _| name == lifecycle.field }
-          fields << [lifecycle.field, nil]
-        end
         # `projects` fields (ADR 0025) read back raw too — see `persisted_fields`.
-        aggregate.projected_fields.each do |field|
-          fields << [field.name, nil] unless fields.any? { |name, _| name == field.name }
-        end
+        lifecycle = aggregate.lifecycle
+        raw_names = (lifecycle ? [lifecycle.field] : []) + aggregate.projected_fields.map(&:name)
+        raw_names.each { |raw| fields << [raw, nil] unless fields.any? { |name, _| name == raw } }
         fields
       end
 
@@ -141,22 +158,24 @@ module Hecks
       def decode_fields(fields, aggregate, row)
         state = fields.each_with_object({}) do |(name, attribute), raw_state|
           raw = row[name.to_s]
-          # rubocop:disable Lint/DuplicateBranch -- the nil-attribute and
-          # reference-id branches both just answer `raw`, for unrelated reasons.
-          next if attribute.nil? && raw.nil? && aggregate.lifecycle&.field&.to_sym != name.to_sym
+          next if unset_projected?(aggregate, name, attribute, raw)
 
-          raw_state[name] =
-            if attribute.nil?
-              raw
-            elsif attribute.list? || !aggregate.value_object(attribute.type).nil?
-              raw ? JSON.parse(raw) : nil
-            else
-              # A reference is a scalar id — see Codec#decode.
-              raw
-            end
-          # rubocop:enable Lint/DuplicateBranch
+          raw_state[name] = decode_column(aggregate, attribute, raw)
         end
         Ports::Persistence::StateCodec.decode(aggregate, state)
+      end
+
+      # A NULL column with no attribute reads back absent, except the lifecycle field.
+      def unset_projected?(aggregate, name, attribute, raw)
+        attribute.nil? && raw.nil? && aggregate.lifecycle&.field&.to_sym != name.to_sym
+      end
+
+      def decode_column(aggregate, attribute, raw)
+        return raw if attribute.nil?
+        # A reference is a scalar id — see Codec#decode.
+        return raw unless attribute.list? || !aggregate.value_object(attribute.type).nil?
+
+        raw ? JSON.parse(raw) : nil
       end
     end
   end

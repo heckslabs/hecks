@@ -46,31 +46,48 @@ RSpec.describe "hecks compact_heki" do
     expect { compaction(missing) }.to raise_error(Hecks::Runtime::NotFound, /#{Regexp.escape(missing)}/)
   end
 
-  describe "against an aggregate nothing projects from" do
-    it "dry-runs without touching the journal, then compacts for real once applied" do
-      bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
-      seed_gadget(bluebook_dir)
-      # Heki resolves paths against the boot root (the bluebook directory's parent),
-      # so the store lands beside `bluebook_dir`, not inside it.
-      journal_path = File.join(@dir, "data", "gadget.heki.journal")
-      expect(File.size(journal_path)).to be > 0
+  # A copy of the Heki fixture with the gadget written `writes` times.
+  def seeded_gadget_dir(writes: 5)
+    copy_fixture(HEKI_COMPACT_FIXTURE, "fixture").tap { |dir| seed_gadget(dir, writes: writes) }
+  end
 
+  # Heki resolves paths against the boot root (the bluebook directory's parent),
+  # so the store lands beside `bluebook_dir`, not inside it.
+  def journal_path = File.join(@dir, "data", "gadget.heki.journal")
+
+  def gadget_repository(bluebook_dir)
+    runtime = Hecks.boot(bluebook_dir, install_doors: false)
+    aggregate = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
+    runtime.registry.repository("HekiCompactFixture", aggregate)
+  end
+
+  describe "against an aggregate nothing projects from" do
+    it "dry-runs without touching the journal", :aggregate_failures do
+      bluebook_dir = seeded_gadget_dir
+
+      expect(File.size(journal_path)).to be > 0
       expect(compaction(bluebook_dir).preview.join("\n")).to include("DRY RUN gadget")
       expect(File.size(journal_path)).to be > 0 # untouched by the dry run
+    end
+
+    it "compacts for real once applied", :aggregate_failures do
+      bluebook_dir = seeded_gadget_dir
 
       expect(compaction(bluebook_dir).apply!.join("\n")).to include("COMPACTED gadget")
       expect(File.size(journal_path)).to eq(0)
+    end
 
-      runtime    = Hecks.boot(bluebook_dir, install_doors: false)
-      aggregate  = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
-      repository = runtime.registry.repository("HekiCompactFixture", aggregate)
+    it "keeps the latest write readable once compacted", :aggregate_failures do
+      bluebook_dir = seeded_gadget_dir
+      compaction(bluebook_dir).apply!
+      repository = gadget_repository(bluebook_dir)
+
       expect(repository.find("g1")[:label].to_h).to eq(value: "label4")
       expect(repository.entries).to eq([])
     end
 
     it "skips a store whose journal is already empty" do
-      bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
-      seed_gadget(bluebook_dir, writes: 1)
+      bluebook_dir = seeded_gadget_dir(writes: 1)
 
       compaction(bluebook_dir).apply!
       lines = compaction(bluebook_dir).apply!
@@ -80,19 +97,20 @@ RSpec.describe "hecks compact_heki" do
   end
 
   describe "against a real, live example that projects from Heki (examples/banking)" do
-    it "refuses every projected aggregate outright, even when applied" do
+    it "refuses every projected aggregate outright, even when applied", :aggregate_failures do
       bluebook_dir = copy_fixture(BANKING_FIXTURE, "banking")
 
       expect { compaction(bluebook_dir).apply! }.to raise_error(Hecks::Runtime::WiringError) do |error|
-        %w[customer account transfer].each do |storage_name|
-          expect(error.message).to include("REFUSED #{storage_name}")
-          expect(error.message).to include("projected_by binding")
-        end
+        %w[customer account transfer].each { |name| expect(error.message).to include("REFUSED #{name}", "projected_by binding") }
       end
+    end
 
-      # Nothing was compacted; this spec never seeds banking data, so no journal exists.
-      journal_path = File.join(@dir, "data", "account.heki.journal")
-      expect(File.exist?(journal_path)).to be false
+    # Nothing was compacted; this spec never seeds banking data, so no journal exists.
+    it "compacts nothing, so no journal exists afterward", :aggregate_failures do
+      bluebook_dir = copy_fixture(BANKING_FIXTURE, "banking")
+
+      expect { compaction(bluebook_dir).apply! }.to raise_error(Hecks::Runtime::WiringError)
+      expect(File.exist?(File.join(@dir, "data", "account.heki.journal"))).to be false
     end
   end
 end

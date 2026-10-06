@@ -14,18 +14,28 @@ RSpec.describe Hecks::Chapters, ".load!" do
   let(:registry) { Hecks.current_registry }
   let(:paths)    { described_class.index.fetch("Deploy") }
 
-  it "leaves no half-loaded chapter behind when a file raises, so a retry loads it" do
+  # Loads every file of the chapter, then raises after the last one.
+  def fail_after_last_file
     allow(Kernel).to receive(:load).and_wrap_original do |original, path, *rest|
       original.call(path, *rest)
       raise "boom after #{File.basename(path)}" if path == paths.last
     end
+  end
+
+  it "leaves no half-loaded chapter behind when a file raises", :aggregate_failures do
+    fail_after_last_file
 
     expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
     expect(registry.bluebook("Deploy")).to be_nil
     expect(registry.bluebook_sources).not_to have_key("Deploy")
     expect(Hecks::Bluebook::MetaValidator.deferred_chapters).not_to include("Deploy")
+  end
 
+  it "loads the chapter on a retry after a file raised", :aggregate_failures do
+    fail_after_last_file
+    expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
     RSpec::Mocks.space.proxy_for(Kernel).reset
+
     expect(described_class.load!("Deploy")).to be true
     expect(registry.bluebook("Deploy")).not_to be_nil
   end
@@ -43,19 +53,30 @@ RSpec.describe Hecks::Chapters, ".load!" do
       .to raise_error(Hecks::Runtime::WiringError, /no registry is open/)
   end
 
-  it "refuses a user chapter that shares the attachable chapter's name" do
+  def open_session_command
+    proc do
+      command("Open") do
+        attribute :id, Id
+        sets :id
+        emits "Opened"
+      end
+    end
+  end
+
+  def declare_user_deploy_chapter
+    open_session = open_session_command
     Hecks.bluebook("Deploy") do
       aggregate("Session") do
         identified_by :id
         attribute :id, Id
         value_object("Id") { attribute :value, String }
-        command("Open") do
-          attribute :id, Id
-          sets :id
-          emits "Opened"
-        end
+        instance_eval(&open_session)
       end
     end
+  end
+
+  it "refuses a user chapter that shares the attachable chapter's name" do
+    declare_user_deploy_chapter
 
     expect { described_class.load!("Deploy") }
       .to raise_error(Hecks::Runtime::WiringError, /already declared in .*chapters_load_spec/)

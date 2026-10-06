@@ -1,0 +1,11 @@
+        # cloudflared dials out to the tunnel edge on 7844. Outbound only: nothing opens inbound.
+        - IpProtocol: tcp
+          FromPort: 7844
+          ToPort: 7844
+          CidrIp: 0.0.0.0/0
+          Description: tunnel to the edge
+        - IpProtocol: udp
+          FromPort: 7844
+          ToPort: 7844
+          CidrIp: 0.0.0.0/0
+          Description: tunnel to the edge (QUIC)

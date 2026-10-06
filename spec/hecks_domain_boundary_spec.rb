@@ -19,30 +19,32 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
   end
 
   # The pattern, as Ruby source, a probe greps `$LOADED_FEATURES` with.
-  def hecks_domain = "%r{/lib/hecks/hecks/}"
+  HECKS_DOMAIN_PATTERN = "%r{/lib/hecks/hecks/}"
+
+  REQUIRE_PROBE = <<~RUBY.freeze
+    require "hecks"
+    require "json"
+    puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}))
+  RUBY
+
+  LAUNCHER_PROBE = <<~RUBY.freeze
+    require "hecks"
+    require "json"
+    runtime = Hecks.boot_files(
+      [File.join(Dir.pwd, "examples/pizzas/bluebook/pizzas.bluebook"),
+       File.join(Dir.pwd, "examples/pizzas/pizzas_behaviors.hecksagon")],
+      install_doors: false
+    )
+    Hecks::Doors::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
+    puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}), chapters: runtime.registry.bluebooks.keys)
+  RUBY
 
   it "is never loaded by `require \"hecks\"`" do
-    result = probe(<<~RUBY)
-      require "hecks"
-      require "json"
-      puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{hecks_domain}))
-    RUBY
-
-    expect(result["loaded"]).to be_empty
+    expect(probe(REQUIRE_PROBE)["loaded"]).to be_empty
   end
 
-  it "is never loaded by a client launcher's boot and dispatch, and is not in its registry" do
-    result = probe(<<~RUBY)
-      require "hecks"
-      require "json"
-      runtime = Hecks.boot_files(
-        [File.join(Dir.pwd, "examples/pizzas/bluebook/pizzas.bluebook"),
-         File.join(Dir.pwd, "examples/pizzas/pizzas_behaviors.hecksagon")],
-        install_doors: false
-      )
-      Hecks::Doors::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
-      puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{hecks_domain}), chapters: runtime.registry.bluebooks.keys)
-    RUBY
+  it "is never loaded by a client launcher's boot and dispatch, and is not in its registry", :aggregate_failures do
+    result = probe(LAUNCHER_PROBE)
 
     expect(result["loaded"]).to be_empty
     expect(result["chapters"]).not_to include("Hecks")

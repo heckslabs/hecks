@@ -8,12 +8,12 @@ RSpec.describe Hecks::Bluebook::Assembly::Marks do
       expect(described_class.bindings(source: ":amount")).to eq(source: :amount)
     end
 
-    it "recovers a literal number, not the text Literal.render wrote" do
+    it "recovers a literal number, not the text Literal.render wrote", :aggregate_failures do
       expect(described_class.bindings(retry_count: "3")).to eq(retry_count: 3)
       expect(described_class.bindings(rate: "1.5")).to eq(rate: 1.5)
     end
 
-    it "recovers a literal boolean" do
+    it "recovers a literal boolean", :aggregate_failures do
       expect(described_class.bindings(active: "true")).to eq(active: true)
       expect(described_class.bindings(active: "false")).to eq(active: false)
     end

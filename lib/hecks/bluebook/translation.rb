@@ -1,3 +1,5 @@
+require_relative "keyword_fields"
+
 module Hecks
   module Bluebook
     # One field crossing a value-object boundary, or carried under a new name.
@@ -32,6 +34,12 @@ module Hecks
     class TranslationAggregate
       attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
 
+      # Every optional field and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
+        computes: [], rekeys: [], backfills: []
+      }.freeze
+
       # @param name [String, Symbol] the aggregate's name in the destination era
       # @param was [String, Symbol, nil] its name in the origin era, or `nil` if unchanged
       # @param renames [Hash{Symbol => Symbol}] old field name to new field name
@@ -42,18 +50,10 @@ module Hecks
       # @param computes [Array<Bluebook::TranslationCompute>] fields computed by Postgres-only SQL
       # @param rekeys [Array<Bluebook::TranslationRekey>] SQL recomputing the aggregate's identity
       # @param backfills [Array<Bluebook::TranslationBackfill>] new required fields, no old source
-      def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-                     computes: [], rekeys: [], backfills: [])
-        @name      = name.to_s
-        @was       = was&.to_s
-        @renames   = renames
-        @moves     = moves
-        @converts  = converts
-        @drops     = drops
-        @retypes   = retypes
-        @computes  = computes
-        @rekeys    = rekeys
-        @backfills = backfills
+      def initialize(name:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
+        @name = name.to_s
+        @was  = @was&.to_s
       end
     end
 

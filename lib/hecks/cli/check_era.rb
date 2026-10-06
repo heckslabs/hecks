@@ -40,11 +40,11 @@ module Hecks
       def sentence(verdict, file)
         case verdict.status
         when :match
-          "era #{verdict.era} is expected (#{verdict.allowed.join(', ')})"
+          "era #{verdict.era} is expected (#{verdict.allowed.join(", ")})"
         when :unlisted
           "host reports era #{verdict.era}; #{file} lists no era, so nothing was compared"
         else
-          "host reports era #{verdict.era}, which is not in #{file} (expected: #{verdict.allowed.join(', ')})"
+          "host reports era #{verdict.era}, which is not in #{file} (expected: #{verdict.allowed.join(", ")})"
         end
       end
     end

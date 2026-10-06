@@ -24,32 +24,32 @@ RSpec.describe Hecks::Forms::FieldShape do
     described_class.resolve(aggregate.attribute(attribute_name), aggregate: aggregate)
   end
 
-  it "unwraps a single-attribute value object to the inner scalar's own path" do
+  it "unwraps a single-attribute value object to the inner scalar's own path", :aggregate_failures do
     field = resolve(customer, :reference) # CustomerNumber { value }
     expect(field.path).to eq("reference.value")
     expect(field.kind).to eq(:text)
   end
 
-  it "reads a pattern naming '@' as an email input, even nested inside a value object" do
+  it "reads a pattern naming '@' as an email input, even nested inside a value object", :aggregate_failures do
     field = resolve(customer, :email) # EmailAddress { address, pattern: .../@/... }
     expect(field.path).to eq("email.address")
     expect(field.html_type).to eq("email")
   end
 
-  it "renders a same-attribute one_of value object as a closed set at its own discriminant path" do
+  it "renders a same-attribute one_of value object as a closed set at its own discriminant path", :aggregate_failures do
     field = resolve(account, :kind) # AccountKind { name }, one_of current/savings/reserve
     expect(field.path).to eq("kind.name")
     expect(field.kind).to eq(:radio) # <= 4 members
     expect(field.options.map(&:first)).to contain_exactly("current", "savings", "reserve")
   end
 
-  it "renders a cents+currency value object as :money with cents/currency children" do
+  it "renders a cents+currency value object as :money with cents/currency children", :aggregate_failures do
     field = resolve(account, :balance) # Money { cents, currency }
     expect(field.kind).to eq(:money)
     expect(field.children.map(&:path)).to eq(%w[balance.cents balance.currency])
   end
 
-  it "renders a reference-typed command argument as :reference, carrying the resolved target aggregate" do
+  it "renders a reference-typed command argument as :reference, carrying the resolved target aggregate", :aggregate_failures do
     # Account's own `reference_to Customer` is aggregate-level; this checks the
     # reference carried as an ordinary command argument (Open's customer).
     open = account.command("Open")
@@ -58,13 +58,13 @@ RSpec.describe Hecks::Forms::FieldShape do
     expect(field.target_aggregate.hecks_name).to eq("Customer")
   end
 
-  it "renders a list_of attribute as :list, with the element's own shape as its one child" do
+  it "renders a list_of attribute as :list, with the element's own shape as its one child", :aggregate_failures do
     field = resolve(account, :ledger)
     expect(field.kind).to eq(:list)
     expect(field.children.size).to eq(1)
   end
 
-  it "leaves a plain admits: scalar's own set resolvable across aggregates" do
+  it "leaves a plain admits: scalar's own set resolvable across aggregates", :aggregate_failures do
     entry = account.entities.find { |e| e.hecks_name == "LedgerEntry" }
     field = described_class.resolve(entry.attribute(:direction), aggregate: account)
     # MovementDirection { value }, admits Account::LedgerDirection
@@ -72,7 +72,7 @@ RSpec.describe Hecks::Forms::FieldShape do
     expect(field.options.map(&:first)).to contain_exactly("credit", "debit")
   end
 
-  it "humanizes a dotted path by its last segment, and an underscored name by all its words" do
+  it "humanizes a dotted path by its last segment, and an underscored name by all its words", :aggregate_failures do
     expect(Hecks::Forms::Humanize.label("daily_limit")).to eq("Daily limit")
     expect(Hecks::Forms::Humanize.label("amount.cents")).to eq("Cents")
   end

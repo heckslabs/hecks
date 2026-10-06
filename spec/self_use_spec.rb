@@ -102,21 +102,23 @@ RSpec.describe "the language uses everything the core grammar declares" do
                          "names this exact gap by hand."
   }.freeze
 
+  SELF_USE_UNNAMED_WHY = <<~WHY.freeze
+    These constructs are declared by the core grammar and never
+    DECLARED FOR REAL anywhere in the language's own chapters — only
+    grammar rows describing what they look like, never an instance of
+    one:
+
+      %<names>s
+
+    Either use the construct for real somewhere in
+    lib/hecks/language/bluebook/, or name it in SELF_USE_KNOWN_GAPS
+    with a reason it cannot be, honestly.
+  WHY
+
   it "uses every construct it declares, or names why not" do
     unnamed = SELF_USE_COUNTS.reject { |feature, counter| counter.call.positive? || SELF_USE_KNOWN_GAPS.key?(feature) }
 
-    expect(unnamed).to be_empty, <<~WHY
-      These constructs are declared by the core grammar and never
-      DECLARED FOR REAL anywhere in the language's own chapters — only
-      grammar rows describing what they look like, never an instance of
-      one:
-
-        #{unnamed.keys.join("\n        ")}
-
-      Either use the construct for real somewhere in
-      lib/hecks/language/bluebook/, or name it in SELF_USE_KNOWN_GAPS
-      with a reason it cannot be, honestly.
-    WHY
+    expect(unnamed).to be_empty, format(SELF_USE_UNNAMED_WHY, names: unnamed.keys.join("\n        "))
   end
 
   it "measures a real use it is known to have" do
@@ -130,7 +132,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     stale = SELF_USE_KNOWN_GAPS.keys.select { |feature| SELF_USE_COUNTS.fetch(feature).call.positive? }
 
     expect(stale).to be_empty,
-                     "the language now declares #{stale.join(', ')} for real — " \
+                     "the language now declares #{stale.join(", ")} for real — " \
                      "delete the SELF_USE_KNOWN_GAPS entry, the claim is used now"
   end
 
@@ -138,7 +140,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     orphaned = SELF_USE_KNOWN_GAPS.keys - SELF_USE_COUNTS.keys
 
     expect(orphaned).to be_empty,
-                        "SELF_USE_KNOWN_GAPS names #{orphaned.join(', ')}, which SELF_USE_COUNTS does not " \
+                        "SELF_USE_KNOWN_GAPS names #{orphaned.join(", ")}, which SELF_USE_COUNTS does not " \
                         "track — a gap entry for nothing this spec measures is dead weight"
   end
 end

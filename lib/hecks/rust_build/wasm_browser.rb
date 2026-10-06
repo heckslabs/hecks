@@ -29,16 +29,12 @@ module Hecks
         domain = argv.first or raise Failure, "usage: hecks build_browser_wasm <domain>"
         rust_dir = RustBuild.rust_dir
         web_dir = File.join(rust_dir, "web")
-        name = File.basename(domain)
         require_target!
         require_cli!(web_dir)
         scratch = scratch_copy(rust_dir)
-        puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
-        status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
-        raise Failure, "project_rust failed for #{domain}" unless status.zero?
-
+        Wasm.regenerate(scratch, domain)
         compile(File.join(scratch, "web"), web_dir)
-        bind(web_dir, name)
+        bind(web_dir, File.basename(domain))
         0
       end
 
@@ -99,7 +95,11 @@ module Hecks
         puts "== wasm-bindgen --target web =="
         RustBuild.command!("wasm-bindgen", "--target", "web", "--out-dir", out_dir, "--out-name", name, built)
         puts "wrote #{out_dir}/"
-        puts <<~MSG
+        puts browser_usage(name)
+      end
+
+      def browser_usage(name)
+        <<~MSG
           use it in a browser:
               <script type="module">
                 import init, { dispatch } from "./#{name}.js";

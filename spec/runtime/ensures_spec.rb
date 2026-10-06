@@ -88,35 +88,43 @@ RSpec.describe "a command's ensures" do
     runtime
   end
 
-  it "saves and emits when the postcondition holds" do
+  def stored_record(runtime, chapter, aggregate, id)
+    runtime.registry.repository(chapter, runtime.registry.bluebook(chapter).aggregate(aggregate)).find(id)
+  end
+
+  def stored_balance(runtime) = stored_record(runtime, "Vault", "Box", "b1")[:balance][:cents]
+
+  def deposit(runtime, verb, cents)
+    runtime.dispatch_flat("Vault::Box.#{verb}", number: { value: "b1" }, amount: { cents: cents })
+  end
+
+  it "saves and emits when the postcondition holds", :aggregate_failures do
     runtime = open_box(vault)
 
-    result = runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
+    result = deposit(runtime, "Deposit", 500)
 
     expect(result.instance[:balance][:cents]).to eq(500)
     expect(result.events.map(&:name)).to eq(["Deposited"])
-    expect(runtime.registry.repository("Vault", runtime.registry.bluebook("Vault").aggregate("Box"))
-                  .find("b1")[:balance][:cents]).to eq(500)
+    expect(stored_balance(runtime)).to eq(500)
   end
 
-  it "refuses with EnsuresNotMet, in the command's own words, and persists nothing" do
+  it "refuses with EnsuresNotMet, in the command's own words, and persists nothing", :aggregate_failures do
     runtime = open_box(vault)
 
-    expect { runtime.dispatch_flat("Vault::Box.Overstate", number: { value: "b1" }, amount: { cents: 100 }) }
+    expect { deposit(runtime, "Overstate", 100) }
       .to raise_error(Hecks::Runtime::EnsuresNotMet,
                       "Overstate refused — the balance grew by exactly double the deposit")
 
-    expect(runtime.registry.repository("Vault", runtime.registry.bluebook("Vault").aggregate("Box"))
-                  .find("b1")[:balance][:cents]).to eq(0)
+    expect(stored_balance(runtime)).to eq(0)
   end
 
   it "hands `old` the PRE-mutation state, not the post" do
     runtime = open_box(vault)
-    runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
+    deposit(runtime, "Deposit", 500)
 
     # A passing Deposit already proves it: if `old` leaked the post-mutation value,
     # 700 == 500 + 200 would fail and this dispatch would raise.
-    result = runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 200 })
+    result = deposit(runtime, "Deposit", 200)
     expect(result.instance[:balance][:cents]).to eq(700)
   end
 
@@ -216,28 +224,38 @@ RSpec.describe "a command's ensures" do
       end
     end
 
-    it "leaves the aggregate untouched in Memory when an ensures after apply_mutations refuses" do
+    def open_purse
       runtime = coin
       runtime.dispatch_flat("Coin::Purse.Open", number: { value: "p1" })
+      runtime
+    end
+
+    def add_heads_coin(runtime)
+      runtime.dispatch_flat("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" },
+                            label: { value: "heads" }, cents: { cents: 25 })
+    end
+
+    def reface_to_tails(runtime)
+      runtime.dispatch_flat("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" },
+                            new_label: { value: "tails" })
+    end
+
+    it "leaves the aggregate untouched in Memory when an ensures after apply_mutations refuses", :aggregate_failures do
+      runtime = open_purse
 
       expect { runtime.dispatch_flat("Coin::Purse.TotalUp", number: { value: "p1" }) }
         .to raise_error(Hecks::Runtime::EnsuresNotMet)
 
-      stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")
-      expect(stored[:total][:cents]).to eq(0)
+      expect(stored_record(runtime, "Coin", "Purse", "p1")[:total][:cents]).to eq(0)
     end
 
-    it "leaves an entity element untouched in Memory when its own ensures refuses" do
-      runtime = coin
-      runtime.dispatch_flat("Coin::Purse.Open", number: { value: "p1" })
-      runtime.dispatch_flat("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" }, label: { value: "heads" },
-cents: { cents: 25 })
+    it "leaves an entity element untouched in Memory when its own ensures refuses", :aggregate_failures do
+      runtime = open_purse
+      add_heads_coin(runtime)
 
-      expect { runtime.dispatch_flat("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" }, new_label: { value: "tails" }) }
-        .to raise_error(Hecks::Runtime::EnsuresNotMet)
+      expect { reface_to_tails(runtime) }.to raise_error(Hecks::Runtime::EnsuresNotMet)
 
-      stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")
-      expect(stored[:coins].first[:label][:value]).to eq("heads")
+      expect(stored_record(runtime, "Coin", "Purse", "p1")[:coins].first[:label][:value]).to eq("heads")
     end
   end
 end

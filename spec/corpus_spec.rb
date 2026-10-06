@@ -12,7 +12,7 @@ RSpec.describe "The corpus" do
   CORPUS_MEMBERS = Hecks::Corpus.members(:example, :grammar, :framework)
                                 .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
-  it "finds every domain the corpus declares" do
+  it "finds every domain the corpus declares", :aggregate_failures do
     expect(EXAMPLE_ROOTS).not_to be_empty
     expect(GRAMMAR_CHAPTERS).not_to be_empty
     expect(FRAMEWORK_MEMBERS).not_to be_empty

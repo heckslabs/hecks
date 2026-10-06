@@ -1,0 +1,4 @@
+- Statement:
+    - Effect: Allow
+      Action: secretsmanager:GetSecretValue
+      Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:@@stack_name@@-web-google-oauth-*"

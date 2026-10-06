@@ -16,13 +16,22 @@ module Hecks
           translations_dir = File.join(directory, "translations")
           FileUtils.mkdir_p(translations_dir)
 
-          existing = Dir[File.join(translations_dir, "*.bluebook")].find do |path|
-            text = File.read(path)
-            text.include?("from: #{edge.from.inspect}") && text.include?("to: #{edge.to.inspect}")
-          end
+          existing = existing_file(translations_dir, edge)
           path = existing || File.join(translations_dir, "#{edge.ordinal}-#{edge.label}.bluebook")
           File.write(path, render(edge))
           path
+        end
+
+        # Finds a file already written for this shape pair, matched on its text.
+        #
+        # @param translations_dir [String] the directory holding the domain's translations
+        # @param edge [Scaffold::Edge] the edge whose `from:` and `to:` are looked for
+        # @return [String, nil] the matching path, or nil
+        def existing_file(translations_dir, edge)
+          Dir[File.join(translations_dir, "*.bluebook")].find do |path|
+            text = File.read(path)
+            text.include?("from: #{edge.from.inspect}") && text.include?("to: #{edge.to.inspect}")
+          end
         end
       end
     end

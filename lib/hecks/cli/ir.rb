@@ -24,21 +24,18 @@ module Hecks
       # @raise [SystemExit] when no domain is named and there is no default
       def call(argv, program:, default_domain: nil)
         argv = argv.dup
-        if argv.delete("--meta")
-          require_relative "../bluebook/meta_validator"
-          puts Projector::Exporter.json(Bluebook::MetaValidator.grammar_registry)
-          return
-        end
+        return print_meta if argv.delete("--meta")
 
         translations_only = argv.delete("--translations")
         domain = argv.shift || default_domain or abort "usage: #{program} <domain> [--translations] | #{program} --meta"
-        runtime = Hecks.boot(domain)
+        registry = Hecks.boot(domain).registry
+        puts(translations_only ? Projector::Exporter.translations_json(registry) : Projector::Exporter.json(registry))
+      end
 
-        if translations_only
-          puts Projector::Exporter.translations_json(runtime.registry)
-        else
-          puts Projector::Exporter.json(runtime.registry)
-        end
+      # @api private
+      def print_meta
+        require_relative "../bluebook/meta_validator"
+        puts Projector::Exporter.json(Bluebook::MetaValidator.grammar_registry)
       end
     end
   end

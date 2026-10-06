@@ -24,7 +24,9 @@ RSpec.describe Hecks::RustBuild::WasmBrowser do
 
   after { FileUtils.rm_rf(dir) }
 
-  it "generates in a scratch workspace and builds the web crate there, leaving the workspace untouched" do
+  # Runs the build with generation and `cargo` stubbed; answers the scratch workspace generation
+  # ran in and each [program, options] the build ran.
+  def build_in_scratch
     generated_in = nil
     allow(Hecks::RustBuild::ProjectRust).to receive(:call) do
       generated_in = ENV.fetch("HECKS_RUST_DIR")
@@ -33,23 +35,38 @@ RSpec.describe Hecks::RustBuild::WasmBrowser do
     end
     built = []
     allow(Hecks::RustBuild).to receive(:command!) { |*command, **options| built << [command.first, options] }
-
     Hecks::RustBuild.with_env("HECKS_RUST_DIR" => dir) { described_class.call(["examples/pizzas"]) }
+    [generated_in, built]
+  end
+
+  it "generates in a scratch workspace", :aggregate_failures do
+    generated_in, = build_in_scratch
 
     expect(generated_in).to eq(File.join(dir, "scratch", "project_wasm_browser"))
-    expect(Dir.exist?(File.join(dir, "src", "generated"))).to be(false)
-    cargo = built.first.last
-    expect(cargo[:chdir]).to eq(File.join(generated_in, "web"))
-    expect(cargo[:env]).to eq("CARGO_TARGET_DIR" => File.join(dir, "web", "target"))
-    expect(File.exist?(File.join(generated_in, "web", "src", "lib.rs"))).to be(true)
     expect(Dir.exist?(File.join(generated_in, "web", "target"))).to be(false)
   end
 
-  it "refuses with the reason when generation fails, before building anything" do
+  it "builds the web crate there", :aggregate_failures do
+    generated_in, built = build_in_scratch
+    cargo = built.first.last
+
+    expect(cargo[:chdir]).to eq(File.join(generated_in, "web"))
+    expect(cargo[:env]).to eq("CARGO_TARGET_DIR" => File.join(dir, "web", "target"))
+  end
+
+  it "leaves the workspace untouched, and copies the web crate into the scratch one", :aggregate_failures do
+    generated_in, = build_in_scratch
+
+    expect(Dir.exist?(File.join(dir, "src", "generated"))).to be(false)
+    expect(File.exist?(File.join(generated_in, "web", "src", "lib.rs"))).to be(true)
+  end
+
+  it "refuses with the reason when generation fails, before building anything", :aggregate_failures do
     allow(Hecks::RustBuild::ProjectRust).to receive(:call).and_return(1)
-    expect(Hecks::RustBuild).not_to receive(:command!)
+    allow(Hecks::RustBuild).to receive(:command!)
 
     expect { Hecks::RustBuild.with_env("HECKS_RUST_DIR" => dir) { described_class.call(["examples/pizzas"]) } }
       .to raise_error(Hecks::RustBuild::Failure, /project_rust failed/)
+    expect(Hecks::RustBuild).not_to have_received(:command!)
   end
 end

@@ -12,19 +12,18 @@ module Hecks
           fields = @aggregate.attributes.reject { |attribute| attribute.name == :id }.map do |attribute|
             { name: attribute.name, attribute: attribute, sql_type: sql_type(attribute) }
           end
-          lifecycle = @aggregate.lifecycle
-          fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" } if lifecycle && fields.none? do |field|
-            field[:name] == lifecycle.field
-          end
-          # `projects` fields are written straight into `Instance#state`, so they need a column
-          # or `project` drops them. They carry no attribute and are stored as raw scalars,
-          # like the lifecycle field.
-          @aggregate.projected_fields.each do |field|
-            next if fields.any? { |f| f[:name] == field.name }
-
-            fields << { name: field.name, attribute: nil, sql_type: "TEXT" }
+          raw_field_names.each do |name|
+            fields << { name: name, attribute: nil, sql_type: "TEXT" } unless fields.any? { |f| f[:name] == name }
           end
           fields
+        end
+
+        # The lifecycle field and the `projects` fields. `projects` fields are written straight
+        # into `Instance#state`, so they need a column or `project` drops them. They carry no
+        # attribute and are stored as raw scalars, like the lifecycle field.
+        def raw_field_names
+          lifecycle = @aggregate.lifecycle
+          (lifecycle ? [lifecycle.field] : []) + @aggregate.projected_fields.map(&:name)
         end
 
         def encode(attr, value)
@@ -45,25 +44,29 @@ module Hecks
         def state_json(value) = JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, value))
 
         def decode(row)
-          state = persisted_fields.each_with_object({}) do |field, raw_state|
-            attr = field[:attribute]
-            unless attr
-              value = row[field[:name].to_s]
-              next if value.nil? && projected_only?(field)
-
-              raw_state[field[:name]] = value
-              next
-            end
-            raw = row[attr.name.to_s]
-            raw_state[attr.name] =
-              if attr.list? || value_object?(attr)
-                raw ? JSON.parse(raw) : nil
-              else
-                # A reference holds a head's id, which is text and would fail JSON.parse.
-                raw
-              end
-          end
+          state = persisted_fields.each_with_object({}) { |field, raw_state| decode_field(row, field, raw_state) }
           Ports::Persistence::StateCodec.decode(@aggregate, state)
+        end
+
+        def decode_field(row, field, raw_state)
+          attr = field[:attribute]
+          return decode_raw_field(row, field, raw_state) unless attr
+
+          raw_state[attr.name] = decode_stored(attr, row[attr.name.to_s])
+        end
+
+        def decode_raw_field(row, field, raw_state)
+          value = row[field[:name].to_s]
+          return if value.nil? && projected_only?(field)
+
+          raw_state[field[:name]] = value
+        end
+
+        def decode_stored(attr, raw)
+          return raw ? JSON.parse(raw) : nil if attr.list? || value_object?(attr)
+
+          # A reference holds a head's id, which is text and would fail JSON.parse.
+          raw
         end
 
         # A NULL `projects` column means never seeded, so it reads back absent as under Heki and

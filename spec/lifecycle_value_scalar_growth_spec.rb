@@ -1,34 +1,11 @@
 require "spec_helper"
-require "tempfile"
+require_relative "support/inline_bluebook_boot"
 
 # A VO-typed lifecycle field must unwrap to its inner scalar when matching `from`.
 # It only shows on the second transition: the field starts as a raw default and
 # becomes a Value once the first transition wraps it.
 RSpec.describe "lifecycle transition on a VO-typed field" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["lifecycle-value-scalar-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   LIFECYCLE_VALUE_SCALAR_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "LifecycleValueScalarGrowth" do
@@ -82,22 +59,27 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
     end
   end
 
-  it "admits a SECOND transition once the field is already Value-wrapped by the first" do
+  def open_task(runtime, id)
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: id })
+  end
+
+  def task_command(runtime, command, id)
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.#{command}", id: id)
+  end
+
+  it "admits a SECOND transition once the field is already Value-wrapped by the first", :aggregate_failures do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t1" })
-    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Advance", id: "t1")
+    open_task(runtime, "t1")
+    task_command(runtime, "Advance", "t1")
 
-    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t1") }.not_to raise_error
-
-    task = repository_for(runtime).find("t1")
-    expect(task[:status][:value]).to eq("done")
+    expect { task_command(runtime, "Finish", "t1") }.not_to raise_error
+    expect(repository_for(runtime).find("t1")[:status][:value]).to eq("done")
   end
 
   it "still refuses a transition from a state the field never held" do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t2" })
+    open_task(runtime, "t2")
 
-    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t2") }
-      .to raise_error(Hecks::Runtime::LifecycleRefused)
+    expect { task_command(runtime, "Finish", "t2") }.to raise_error(Hecks::Runtime::LifecycleRefused)
   end
 end

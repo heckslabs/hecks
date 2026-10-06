@@ -3,6 +3,7 @@ require "json"
 # Loads the whole framework on purpose; nothing the entry point loads
 # requires this file back, so the require is acyclic.
 require_relative "../hecks"
+require_relative "grammar/operators"
 
 module Hecks
   # The sublanguage grammar domains (grammar/*.bluebook) and the one boot path
@@ -13,6 +14,14 @@ module Hecks
   module Grammar
     DIR    = File.expand_path("grammar", __dir__)
     LEDGER = File.join(DIR, "expression_operators.json")
+
+    # The ports and adapters a chapter needs loaded before its own bluebook, relative to the
+    # repository root.
+    CHAPTER_PREREQUISITES = %w[lib/hecks/ports/persistence.port lib/hecks/ports/extraction.port
+                               lib/hecks/adapters/driven/memory.adapter
+                               lib/hecks/adapters/driven/prism.adapter].freeze
+
+    extend Operators
 
     module_function
 
@@ -25,27 +34,36 @@ module Hecks
     #   own domain rules
     def expression
       registry = Runtime::Registry.new
+      load_chapter(registry, File.join(DIR, "expression.bluebook"))
+      dispatcher = Runtime::Dispatcher.new(registry)
+      JSON.parse(File.read(LEDGER)).fetch("steps").each { |step| replay_step(dispatcher, step) }
+      dispatcher
+    end
+
+    # Loads a chapter's bluebook into a registry, after the ports and adapters it needs.
+    #
+    # @param registry [Runtime::Registry] the registry the chapter loads into
+    # @param chapter [String] the path of the chapter's `.bluebook`
+    # @return [void]
+    def load_chapter(registry, chapter)
       root = File.expand_path("../..", __dir__)
       Hecks.with_registry(registry) do
-        Kernel.load(File.join(root, "lib/hecks/ports/persistence.port"))
-        Kernel.load(File.join(root, "lib/hecks/ports/extraction.port"))
-        Kernel.load(File.join(root, "lib/hecks/adapters/driven/memory.adapter"))
-        Kernel.load(File.join(root, "lib/hecks/adapters/driven/prism.adapter"))
-        Kernel.load(File.join(DIR, "expression.bluebook"))
+        CHAPTER_PREREQUISITES.each { |file| Kernel.load(File.join(root, file)) }
+        Kernel.load(chapter)
       end
-      dispatcher = Runtime::Dispatcher.new(registry)
+    end
 
-      JSON.parse(File.read(LEDGER)).fetch("steps").each do |step|
-        args = symbolize(step.fetch("args"))
-        begin
-          dispatcher.dispatch_flat(step.fetch("verb"), args)
-        rescue *Runtime::DOMAIN_REFUSALS => e
-          raise Runtime::WiringError,
-                "the admission ledger refused at #{step['verb']} #{step['args']} — #{e.message}"
-        end
-      end
-
-      dispatcher
+    # Dispatches one admission-ledger step.
+    #
+    # @param dispatcher [Runtime::Dispatcher] the dispatcher bound to the expression chapter
+    # @param step [Hash] a ledger step, with `"verb"` and `"args"`
+    # @return [void]
+    # @raise [Runtime::WiringError] if the chapter's own domain rules refuse the step
+    def replay_step(dispatcher, step)
+      dispatcher.dispatch_flat(step.fetch("verb"), symbolize(step.fetch("args")))
+    rescue *Runtime::DOMAIN_REFUSALS => e
+      raise Runtime::WiringError,
+            "the admission ledger refused at #{step["verb"]} #{step["args"]} — #{e.message}"
     end
 
     # Reads every admitted operator from the ledger's replayed chapter.
@@ -56,11 +74,15 @@ module Hecks
     #   `:category`, `:precedence`, `:arity`, and `:renderings` (an Array of
     #   `{target:, form:}` Hashes)
     def admitted_operators(dispatcher = expression)
-      records(dispatcher, "Operator").select { |op| op[:status] == "admitted" }.map do |op|
-        { symbol: op[:symbol].value, category: op[:category].value,
-          precedence: op[:precedence].value, arity: op[:arity].value,
-          renderings: Array(op[:renderings]).map { |r| { target: r[:target], form: r[:form] } } }
-      end
+      records(dispatcher, "Operator").select { |op| op[:status] == "admitted" }.map { |op| operator_row(op) }
+    end
+
+    # @param operator [Runtime::Instance] an admitted `Operator` record
+    # @return [Hash] its symbol, category, precedence, arity and renderings
+    def operator_row(operator)
+      { symbol: operator[:symbol].value, category: operator[:category].value,
+        precedence: operator[:precedence].value, arity: operator[:arity].value,
+        renderings: Array(operator[:renderings]).map { |r| { target: r[:target], form: r[:form] } } }
     end
 
     # Reads every admitted normalisation rule from the ledger's replayed
@@ -74,11 +96,15 @@ module Hecks
       records(dispatcher, "Normalisation")
         .select { |rule| rule[:status] == "admitted" }
         .sort_by { |rule| rule[:position].value }
-        .map do |rule|
-          { strategy: rule[:strategy].value, source_token: rule[:source_token].value,
-            replacement: rule[:replacement].value, boundary: rule[:boundary].value,
-            position: rule[:position].value }
-        end
+        .map { |rule| normalisation_row(rule) }
+    end
+
+    # @param rule [Runtime::Instance] an admitted `Normalisation` record
+    # @return [Hash] its strategy, source token, replacement, boundary and position
+    def normalisation_row(rule)
+      { strategy: rule[:strategy].value, source_token: rule[:source_token].value,
+        replacement: rule[:replacement].value, boundary: rule[:boundary].value,
+        position: rule[:position].value }
     end
 
     # Reads every record of one aggregate from the expression chapter's own
@@ -93,105 +119,6 @@ module Hecks
       registry  = dispatcher.registry
       aggregate = registry.bluebook("Expression").aggregate(aggregate_name)
       registry.repository("Expression", aggregate).all
-    end
-
-    # The operators the language's own guards and invariants (Bluebook, World and
-    # the grammar chapters) evaluate through. Retiring one would leave the
-    # language unable to read its own rules, so callers refuse it by name.
-    #
-    # @return [Hash{String => Array<String>}] each self-bearing operator symbol
-    #   mapped to the `"Chapter Aggregate.command"`/`"Chapter Aggregate::ValueObject"`
-    #   sites that use it
-    def self_bearing_operators
-      sites = Hash.new { |h, k| h[k] = [] }
-
-      chapters = Bluebook::MetaValidator.grammar_registry
-                                        .then { |reg| %w[Bluebook World].map { |name| reg.bluebook(name) } }
-      chapters += grammar_chapters
-
-      chapters.compact.each do |chapter|
-        chapter.aggregates.each do |aggregate|
-          aggregate.commands.each do |command|
-            command.givens.each do |given|
-              operators_in(given.canonical).each do |symbol|
-                sites[symbol] << "#{chapter.name} #{aggregate.name}.#{command.hecks_name}"
-              end
-            end
-          end
-          aggregate.value_objects.each do |value_object|
-            value_object.invariants.each do |invariant|
-              operators_in(invariant.canonical).each do |symbol|
-                sites[symbol] << "#{chapter.name} #{aggregate.name}::#{value_object.hecks_name}"
-              end
-            end
-          end
-        end
-      end
-
-      sites.transform_values(&:uniq)
-    end
-
-    # Every grammar/*.bluebook chapter, each booted alone in a scratch registry.
-    #
-    # @return [Array<Class>] each grammar chapter, booted alone in its own scratch
-    #   registry
-    def grammar_chapters
-      Dir[File.join(DIR, "*.bluebook")].map do |chapter|
-        registry = Runtime::Registry.new
-        root = File.expand_path("../..", __dir__)
-        Hecks.with_registry(registry) do
-          Kernel.load(File.join(root, "lib/hecks/ports/persistence.port"))
-          Kernel.load(File.join(root, "lib/hecks/ports/extraction.port"))
-          Kernel.load(File.join(root, "lib/hecks/adapters/driven/memory.adapter"))
-          Kernel.load(File.join(root, "lib/hecks/adapters/driven/prism.adapter"))
-          Kernel.load(chapter)
-        end
-        registry.bluebooks.values.first
-      end
-    end
-
-    # Which admitted operators one canonical text evaluates through, found by
-    # walking the evaluator's own parse.
-    #
-    # @param canonical [String] canonical expression text to parse
-    # @return [Array<String>] operator symbols the expression evaluates through, or
-    #   `[]` when `canonical` fails to parse
-    def operators_in(canonical)
-      evaluator = Bluebook::Expression::Evaluator
-      begin
-        node = evaluator.parse(canonical)
-      rescue StandardError
-        return []
-      end
-      walk_operators(node, evaluator).uniq
-    end
-
-    # One case over the closed set of AST node types, kept together so the whole
-    # operator vocabulary reads in one place.
-    # @param node [Object] an evaluator/resolver AST node, or a Struct fallback
-    # @param evaluator [Module] `Bluebook::Expression::Evaluator`, passed through
-    #   so nested calls don't re-resolve the constant
-    # @return [Array<String>] operator symbols found in `node` and its children
-    # rubocop:disable-next Metrics/AbcSize
-    def walk_operators(node, evaluator)
-      resolver = Bluebook::Expression::Resolver
-      case node
-      when evaluator::Or  then ["||"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
-      when evaluator::And then ["&&"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
-      when evaluator::Not then ["!"] + walk_operators(node.node, evaluator)
-      when evaluator::Compare
-        [node.operator.symbol] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
-      when evaluator::Include
-        [".include?"] + walk_operators(node.haystack, evaluator) + walk_operators(node.needle, evaluator)
-      when evaluator::Resolve then walk_operators(node.expr, evaluator)
-      when resolver::Addition then ["+"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
-      when resolver::Modulo   then [".modulo"] + walk_operators(node.receiver,
-                                                                evaluator) + walk_operators(node.divisor, evaluator)
-      when Struct
-        node.members.flat_map { |member| walk_operators(node[member], evaluator) }
-      else
-        []
-      end
     end
 
     # Deep-symbolizes a JSON-decoded value's Hash keys.

@@ -68,6 +68,13 @@ RSpec.describe "the era check", :io do
 
   def bad_response = Hecks::Runtime::EraCheck::ExpectedEra::BadResponse
 
+  # Assesses a host reporting `reported_era` against an allow-list file holding `list_text`.
+  def assessed(list_text, reported_era = "199b08")
+    with_host(body: version_body(reported_era)) do |host|
+      with_list(list_text) { |list| yield host, assess(host.url, list) }
+    end
+  end
+
   describe "the allow-list file" do
     it "reads one era per line, ignoring comments and blanks" do
       text = "# header\n\naaa111\n  bbb222  \n# gone\nccc333 # trailing note\n"
@@ -81,7 +88,7 @@ RSpec.describe "the era check", :io do
   end
 
   describe "the version URL" do
-    it "adds /version to a base URL and leaves a /version URL alone" do
+    it "adds /version to a base URL and leaves a /version URL alone", :aggregate_failures do
       expect(era_check.version_url("https://host.example")).to eq("https://host.example/version")
       expect(era_check.version_url("https://host.example/")).to eq("https://host.example/version")
       expect(era_check.version_url("https://host.example/version")).to eq("https://host.example/version")
@@ -89,39 +96,27 @@ RSpec.describe "the era check", :io do
   end
 
   describe "against a host" do
-    it "finds the reported era on the list" do
-      with_host(body: version_body("199b08")) do |host|
-        with_list("# eras\n199b08\n") do |list|
-          finding = assess(host.url, list)
-
-          expect(finding.verdict.status).to eq(:match)
-          expect(finding.line).to include("199b08")
-          expect(host.requests.first).to eq("GET /version HTTP/1.1")
-        end
+    it "finds the reported era on the list", :aggregate_failures do
+      assessed("# eras\n199b08\n") do |host, finding|
+        expect(finding.verdict.status).to eq(:match)
+        expect(finding.line).to include("199b08")
+        expect(host.requests.first).to eq("GET /version HTTP/1.1")
       end
     end
 
-    it "finds the reported era off the list" do
-      with_host(body: version_body("199b08")) do |host|
-        with_list("aaa111\nbbb222\n") do |list|
-          finding = assess(host.url, list)
-
-          expect(finding.verdict.status).to eq(:mismatch)
-          expect(finding.verdict).not_to be_ok
-          expect(finding.line).to include("199b08", "aaa111, bbb222")
-        end
+    it "finds the reported era off the list", :aggregate_failures do
+      assessed("aaa111\nbbb222\n") do |_host, finding|
+        expect(finding.verdict.status).to eq(:mismatch)
+        expect(finding.verdict).not_to be_ok
+        expect(finding.line).to include("199b08", "aaa111, bbb222")
       end
     end
 
-    it "only checks that an era is reported when the list names none" do
-      with_host(body: version_body("199b08")) do |host|
-        with_list("# nothing listed\n") do |list|
-          finding = assess(host.url, list)
-
-          expect(finding.verdict.status).to eq(:unlisted)
-          expect(finding.verdict).to be_ok
-          expect(finding.line).to include("lists no era")
-        end
+    it "only checks that an era is reported when the list names none", :aggregate_failures do
+      assessed("# nothing listed\n") do |_host, finding|
+        expect(finding.verdict.status).to eq(:unlisted)
+        expect(finding.verdict).to be_ok
+        expect(finding.line).to include("lists no era")
       end
     end
 

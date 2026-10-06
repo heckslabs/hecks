@@ -38,36 +38,41 @@ RSpec.describe "Domain.project" do
   end
 
   describe "out:" do
-    it "is pure without it — the artifact comes back and nothing is written" do
+    around do |example|
       Dir.mktmpdir do |dir|
-        domain.project(Hecks::Projections::OIDC)
-
-        expect(Dir.children(dir)).to be_empty
+        @dir = dir
+        example.run
       end
     end
 
-    it "writes JSON and answers with the path when given one" do
-      Dir.mktmpdir do |dir|
-        path = File.join(dir, "oidc.json")
+    after { Hecks::Projector.registry.delete(:stub_text) }
 
-        expect(domain.project(Hecks::Projections::OIDC, out: path)).to eq(path)
-        expect(JSON.parse(File.read(path))).to eq(JSON.parse(JSON.generate(domain.project(Hecks::Projections::OIDC))))
-      end
+    def register_text_stub
+      Hecks::Projector.register(:stub_text, Class.new do
+        def self.call(bluebook:, options: {}) = "just text, not #{bluebook.name.inspect} as JSON"
+      end)
+    end
+
+    it "is pure without it — the artifact comes back and nothing is written" do
+      domain.project(Hecks::Projections::OIDC)
+
+      expect(Dir.children(@dir)).to be_empty
+    end
+
+    it "writes JSON and answers with the path when given one", :aggregate_failures do
+      path = File.join(@dir, "oidc.json")
+
+      expect(domain.project(Hecks::Projections::OIDC, out: path)).to eq(path)
+      expect(JSON.parse(File.read(path))).to eq(JSON.parse(JSON.generate(domain.project(Hecks::Projections::OIDC))))
     end
 
     it "writes a String artifact verbatim rather than as JSON" do
-      Dir.mktmpdir do |dir|
-        path = File.join(dir, "raw.txt")
-        Hecks::Projector.register(:stub_text, Class.new do
-          def self.call(bluebook:, options: {}) = "just text, not #{bluebook.name.inspect} as JSON"
-        end)
+      path = File.join(@dir, "raw.txt")
+      register_text_stub
 
-        domain.project(:stub_text, out: path)
+      domain.project(:stub_text, out: path)
 
-        expect(File.read(path)).to eq('just text, not "Pizzas" as JSON')
-      ensure
-        Hecks::Projector.registry.delete(:stub_text)
-      end
+      expect(File.read(path)).to eq('just text, not "Pizzas" as JSON')
     end
   end
 
@@ -84,7 +89,7 @@ RSpec.describe "Domain.project" do
       Object.const_get("Pizzas::Order")
     end
 
-    it "projects its OWN IR, not its chapter's" do
+    it "projects its OWN IR, not its chapter's", :aggregate_failures do
       expect(order.project(Hecks::Projections::IR)).to eq(order.ir.to_h)
       expect(order.project(Hecks::Projections::IR)).not_to eq(domain.project(Hecks::Projections::IR))
     end
@@ -101,45 +106,63 @@ RSpec.describe "Domain.project" do
   end
 
   describe "emits: :files" do
-    it "writes a tree and answers with the paths, rather than one JSON blob" do
+    around do |example|
       Dir.mktmpdir do |dir|
-        tree = Module.new do
-          extend Hecks::Projector::Target
-
-          projects_as :tree_stub, emits: :files
-          def self.call(bluebook:, options: {}) = { "a.txt" => "one", "nested/b.txt" => "two" }
-        end
-
-        written = Hecks::Projector.write(
-          Hecks::Projector.call(:tree_stub, bluebook: bluebook), dir, as: :files
-        )
-
-        expect(written.map { |p| p.sub("#{dir}/", "") }).to eq(["a.txt", "nested/b.txt"])
-        expect(File.read(File.join(dir, "nested/b.txt"))).to eq("two")
-        tree
-      ensure
-        Hecks::Projector.registry.delete(:tree_stub)
+        @dir = dir
+        example.run
       end
+    end
+
+    after { Hecks::Projector.registry.delete(:tree_stub) }
+
+    def register_tree_stub
+      Module.new do
+        extend Hecks::Projector::Target
+
+        projects_as :tree_stub, emits: :files
+        def self.call(bluebook:, options: {}) = { "a.txt" => "one", "nested/b.txt" => "two" }
+      end
+    end
+
+    it "writes a tree and answers with the paths, rather than one JSON blob", :aggregate_failures do
+      tree = register_tree_stub
+      written = Hecks::Projector.write(Hecks::Projector.call(:tree_stub, bluebook: bluebook), @dir, as: :files)
+
+      expect(written.map { |path| path.sub("#{@dir}/", "") }).to eq(["a.txt", "nested/b.txt"])
+      expect(File.read(File.join(@dir, "nested/b.txt"))).to eq("two")
+      expect(tree).to respond_to(:call)
     end
 
     # The kind is declared, never inferred: a Hash of path => contents and a Hash that merely
     # holds strings look the same to Ruby.
-    it "asks the projection what it emits rather than inspecting the artifact" do
+    it "asks the projection what it emits rather than inspecting the artifact", :aggregate_failures do
       expect(Hecks::Projector.emits_for(:reference)).to eq(:files)
       expect(Hecks::Projector.emits_for(:vocabulary)).to eq(:artifact)
     end
   end
 
   describe "capabilities" do
+    after { Hecks::Projector.registry.delete(:legacy_capability_stub) }
+
+    def register_legacy_target
+      legacy = Module.new do
+        extend Hecks::Projector::Target
+
+        def self.call(bluebook:, options: {}) = :ran
+      end
+      legacy.projects_as :legacy_capability_stub
+      legacy
+    end
+
     # `requires:` names a capability module (Hecks::IR, Behaviour::Chapter), not a shape word.
-    it "lets a target requiring only the IR capability run on any construct that emits" do
+    it "lets a target requiring only the IR capability run on any construct that emits", :aggregate_failures do
       expect(Hecks::Projections::IR.projection_requires).to eq([Hecks::IR])
       expect { Object.const_get("Pizzas::Order").project(Hecks::Projections::IR) }.not_to raise_error
     end
 
     # Class-shaped constructs extend capabilities; `is_a?` consults the singleton chain, so one
     # check covers both shapes.
-    it "sees a capability a class-shaped construct extends" do
+    it "sees a capability a class-shaped construct extends", :aggregate_failures do
       command = bluebook.aggregate("Order").commands.first
 
       expect(command).to be_a(Class)
@@ -148,19 +171,12 @@ RSpec.describe "Domain.project" do
 
     # Defaulting to the chapter capability keeps the check safe; a permissive default would
     # preserve the fail-quiet.
-    it "defaults an undeclared target to the chapter capability" do
-      legacy = Module.new do
-        extend Hecks::Projector::Target
-
-        def self.call(bluebook:, options: {}) = :ran
-      end
-      legacy.projects_as :legacy_capability_stub
+    it "defaults an undeclared target to the chapter capability", :aggregate_failures do
+      legacy = register_legacy_target
 
       expect(legacy.projection_requires).to eq([Hecks::Bluebook::Behaviour::Chapter])
       expect { Hecks::Projector.call(:legacy_capability_stub, bluebook: Object.const_get("Pizzas::Order").ir) }
         .to raise_error(Hecks::Projector::WrongConstruct)
-    ensure
-      Hecks::Projector.registry.delete(:legacy_capability_stub)
     end
   end
 

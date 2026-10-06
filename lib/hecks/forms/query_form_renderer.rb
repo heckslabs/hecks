@@ -13,7 +13,11 @@ module Hecks
     # See docs/command-form-and-query-form-bluebook.md.
     module QueryFormRenderer
       # Renders one query's whole GET view as the page body.
-      def self.render(registry:, domain:, aggregate:, query:, action:, params: {}, results: nil, error: nil)
+      #
+      # @param view [Hash] `action:` (required), the form's URL path, and optionally `params:`
+      #   (the values asked for), `results:` (the records found) and `error:` (a refusal to show)
+      def self.render(registry:, domain:, aggregate:, query:, **view)
+        action = view.fetch(:action)
         fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
         reference_options = ReferenceOptions.collect(registry, domain, fields)
 
@@ -21,9 +25,9 @@ module Hecks
           #{header(domain, aggregate, query)}
           #{canonical_link(action, fields)}
           #{quick_links(action, fields)}
-          #{filter_form(action, fields, params, reference_options)}
-          #{error_banner(error)}
-          #{results_section(aggregate, results, domain)}
+          #{filter_form(action, fields, view.fetch(:params, {}), reference_options)}
+          #{error_banner(view[:error])}
+          #{results_section(aggregate, view[:results], domain)}
           #{inspect_panel(domain, aggregate, query, fields)}
         HTML
       end
@@ -44,7 +48,7 @@ module Hecks
 
       def self.canonical_link(action, fields)
         paths = Params.paths(fields)
-        template = paths.empty? ? action : "#{action}?#{paths.map { |path| "#{path}={#{path}}" }.join('&')}"
+        template = paths.empty? ? action : "#{action}?#{paths.map { |path| "#{path}={#{path}}" }.join("&")}"
         <<~HTML
           <p class="help">Every query is a plain GET — this exact URL is bookmarkable, linkable from a dashboard, curlable, whatever a feature needs:</p>
           <div class="link-row"><code id="canonical-link">#{Escape.html(template)}</code><button type="button" class="copy" data-copy="#canonical-link">copy</button></div>
@@ -77,7 +81,7 @@ module Hecks
       def self.error_banner(error)
         return "" unless error
 
-        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — ) \
+        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — ) \
           "#{Escape.html(error.message)}</p></div>"
       end
 
@@ -93,7 +97,7 @@ module Hecks
         <<~HTML
           <details class="inspect">
             <summary>Inspect — #{Escape.html(verb)}</summary>
-            <p>Parameters: #{paths.empty? ? '<em>none</em>' : paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(', ')}</p>
+            <p>Parameters: #{paths.empty? ? "<em>none</em>" : paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(", ")}</p>
             <pre>#{Escape.html(JSON.pretty_generate(query.to_h))}</pre>
           </details>
         HTML

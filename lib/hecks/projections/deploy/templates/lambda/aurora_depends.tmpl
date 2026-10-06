@@ -1,0 +1,18 @@
+
+    # `{{resolve:secretsmanager:...}}` dynamic references do NOT
+    # create an implicit CloudFormation dependency on the referenced
+    # resource (documented AWS behavior) -- @@logical_id@@'s own
+    # Environment resolves one against @@db_id@@Secret below. A plain
+    # `DependsOn: @@db_id@@Secret` alone (CREATE_COMPLETE before this
+    # resource's own update starts) still hit a real, live, repeatable
+    # "Secrets Manager can't find the specified secret
+    # (ResourceNotFoundException)" -- CREATE_COMPLETE from
+    # CloudFormation's own perspective doesn't guarantee the secret is
+    # yet READABLE via a dynamic reference from a DIFFERENT resource's
+    # own concurrent update (AWS-side eventual consistency, not a
+    # CloudFormation ordering bug `DependsOn` alone can close).
+    # Chaining through @@db_id@@Cluster too -- which ALSO reads this
+    # secret, and whose own RDS-side update takes real, substantial
+    # wall-clock time to apply -- gives that propagation window time
+    # to close before @@logical_id@@'s own resolution is attempted.
+    DependsOn: [@@db_id@@Secret, @@db_id@@Cluster]

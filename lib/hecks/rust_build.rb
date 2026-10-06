@@ -80,7 +80,7 @@ module Hecks
         options[:chdir] = chdir if chdir
         return if system(env, *command, **options)
 
-        raise Failure, "`#{command.join(' ')}` failed#{" in #{chdir}" if chdir}"
+        raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end
 
       # Runs a tool and holds what it printed.
@@ -127,10 +127,14 @@ module Hecks
         $stdout, $stderr = saved
       end
 
-      def finish(tool, argv)
+      def load_tool(tool)
         file, constant = TOOLS.fetch(tool)
         require_relative file
-        RustBuild.const_get(constant).call(argv)
+        RustBuild.const_get(constant)
+      end
+
+      def finish(tool, argv)
+        load_tool(tool).call(argv)
       rescue Failure => e
         warn e.message
         1

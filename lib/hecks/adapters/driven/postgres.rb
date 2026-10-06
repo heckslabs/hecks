@@ -3,6 +3,11 @@ require "json"
 require_relative "sql_query_builder"
 require_relative "postgres/schema_builder"
 require_relative "postgres/codec"
+require_relative "postgres/dialect"
+require_relative "postgres/events"
+require_relative "postgres/journal"
+require_relative "postgres/repository"
+require_relative "postgres/sagas"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/common/order_by"
@@ -22,8 +27,13 @@ module Hecks
       include SqlQueryBuilder
       include SchemaBuilder
       include Codec
+      include Repository
+      include Journal
+      include Events
+      include Sagas
       include PostgresOutbox
       include PostgresReconnect
+      include Dialect
 
       SQL_TYPES = { "Integer" => "bigint", "Float" => "double precision" }.freeze
 
@@ -46,39 +56,10 @@ module Hecks
       #   refuses the connection or the `SET` statements
       # @raise [LoadError] if the `pg` gem is not installed
       def self.connect_for(name, settings)
-        # **Lazy, on purpose** — same reasoning as PostgresEra's own
-        # connect_for: a domain that never wires Postgres should never
-        # need the gem installed.
-        begin
-          require "pg"
-        rescue LoadError
-          raise LoadError, "#{name} binds Postgres, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
-        end
-
+        require_pg(name)
         declared = settings.key?(:database) ? settings[:database] : settings["database"]
-        if declared.to_s.empty?
-          raise Runtime::WiringError,
-                "#{name} binds Postgres, which needs a database connection, " \
-                "but its world declares no \"database\"."
-        end
-
-        connection =
-          if declared.start_with?("postgres://", "postgresql://")
-            PG.connect(declared)
-          else
-            PG.connect(dbname: declared)
-          end
-
-        # A domain with `schema` set shares this Postgres instance, so every
-        # unqualified reference resolves through search_path.
-        schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
-        connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
-
-        # **Quiet on purpose** — same reasoning as PostgresEra's own: a
-        # schema/table that already exists is the ordinary case on every
-        # boot after the first, not news.
-        connection.exec("SET client_min_messages = warning")
-        connection
+        refuse_undeclared(name, declared)
+        configure(open_connection(declared), settings)
       rescue StandardError => e
         # PG is only defined once the gem loads, so the clause cannot name it.
         raise unless defined?(PG::Error) && e.is_a?(PG::Error)
@@ -86,6 +67,40 @@ module Hecks
         raise Runtime::WiringError,
               "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
+
+      # **Lazy, on purpose** — same reasoning as PostgresEra's own connect_for: a domain that
+      # never wires Postgres should never need the gem installed.
+      def self.require_pg(name)
+        require "pg"
+      rescue LoadError
+        raise LoadError, "#{name} binds Postgres, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
+      end
+
+      def self.refuse_undeclared(name, declared)
+        return unless declared.to_s.empty?
+
+        raise Runtime::WiringError,
+              "#{name} binds Postgres, which needs a database connection, " \
+              "but its world declares no \"database\"."
+      end
+
+      def self.open_connection(declared)
+        return PG.connect(declared) if declared.start_with?("postgres://", "postgresql://")
+
+        PG.connect(dbname: declared)
+      end
+
+      # A domain with `schema` set shares this Postgres instance, so every unqualified
+      # reference resolves through search_path. Messages stay quiet on purpose, same as
+      # PostgresEra's own: a schema/table that already exists is the ordinary case on every
+      # boot after the first, not news.
+      def self.configure(connection, settings)
+        schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
+        connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
+        connection.exec("SET client_min_messages = warning")
+        connection
+      end
+      private_class_method :require_pg, :refuse_undeclared, :open_connection, :configure
 
       # Joins the process's shared connection for the declared database and schema, then
       # creates the aggregate, journal, event, saga and outbox tables if absent.
@@ -105,16 +120,18 @@ module Hecks
         @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
         # Scopes saga rows; falls back to the aggregate's storage name when
         # settings gives no domain (e.g. a directly-instantiated adapter).
-        @domain = (
-          if settings.key?(:domain)
-            settings[:domain]
-          elsif settings.key?("domain")
-            settings["domain"]
-          else
-            aggregate.storage_name
-          end
-        ).to_s
+        @domain = setting(settings, :domain, aggregate.storage_name).to_s
+        create_tables!
+      end
 
+      # Names the aggregate's table; the journal table and outbox rows are keyed off it.
+      #
+      # @return [String] the aggregate's snake_case storage name, unquoted
+      def table = @aggregate.storage_name
+
+      private
+
+      def create_tables!
         create_aggregate_table!
         create_entry_table!
         create_event_table!
@@ -123,497 +140,13 @@ module Hecks
         create_checkpoint_table!
       end
 
-      # Names the aggregate's table; the journal table and outbox rows are keyed off it.
-      #
-      # @return [String] the aggregate's snake_case storage name, unquoted
-      def table = @aggregate.storage_name
+      # A setting read under its Symbol key, then its String key, then `default`.
+      def setting(settings, key, default)
+        return settings[key] if settings.key?(key)
+        return settings[key.to_s] if settings.key?(key.to_s)
 
-      # Reads the current row for one aggregate identity, stamped with its stored version.
-      #
-      # @param id [String, Object] the aggregate identity, bound as `id.to_s`
-      # @return [Runtime::Instance, nil] the decoded record with `version` set, or nil when
-      #   no row has that id
-      # @raise [PG::Error] if the statement fails; a `PG::ConnectionBad` also triggers a
-      #   reconnect for the next caller
-      def find(id)
-        result = pg_exec_params("SELECT * FROM #{quoted_table} WHERE id = $1", [id.to_s])
-        return nil if result.ntuples.zero?
-
-        instance_from_row(result[0])
+        default
       end
-
-      # Lists every stored record, ordered by id unless an ordering attribute is given.
-      #
-      # order_by is a runtime value, whitelisted the same way Sqlite#all does.
-      #
-      # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
-      #   by, with id as the tie-break; nil orders by id alone
-      # @param direction [Symbol, String] `:asc` or `:desc`, case-insensitive; anything else
-      #   sorts ascending
-      # @return [Array<Runtime::Instance>] the decoded records with `version` set, `[]` when
-      #   the table is empty
-      # @raise [Runtime::WiringError] if `order_by` names no attribute of the aggregate
-      # @raise [PG::Error] if the statement fails
-      def all(order_by: nil, direction: :asc)
-        order_sql = "ORDER BY id"
-        if order_by
-          name = order_by.to_s.split(".").first
-          unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
-            raise Runtime::WiringError,
-                  "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
-          end
-
-          spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
-          order_sql = "ORDER BY #{order_clause(spec, nil)}"
-        end
-
-        pg_exec("SELECT * FROM #{quoted_table} #{order_sql}").map { |row| instance_from_row(row) }
-      end
-
-      # Counts the rows in the aggregate's table, deleted records excluded.
-      #
-      # @return [Integer] number of current records
-      # @raise [PG::Error] if the statement fails
-      def count = pg_exec("SELECT COUNT(*) FROM #{quoted_table}")[0]["count"].to_i
-
-      # Inserts one journal row, outside any transaction of its own.
-      #
-      # Stamps the row's assigned `sequence` onto `entry` in place, so a `project` call right
-      # after (same object, same transaction) can advance the checkpoint with no extra query.
-      #
-      # @param entry [Ports::Persistence::Entry] the save or delete to journal; `state` is
-      #   encoded through the state codec and `mirrors` stored as JSON, or NULL when nil
-      # @return [Ports::Persistence::Entry] the same `entry`, `sequence` now set
-      # @raise [PG::Error] if the insert fails
-      def append(entry)
-        result = pg_exec_params(
-          "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES ($1, $2, $3, $4) " \
-          "RETURNING sequence",
-          # `mirrors` is nullable; an absent hash must bind SQL NULL, not the
-          # string "null", or a future IS NULL check would never match.
-          [entry.id, entry.operation, state_json(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
-        )
-        entry.sequence = result[0]["sequence"].to_i
-        entry
-      end
-
-      # Upserts or deletes the aggregate's row for one journal entry, bumping its version.
-      #
-      # `expected_version` requests optimistic-concurrency CAS; nil back means it didn't match.
-      #
-      # @param entry [Ports::Persistence::Entry] the save or delete to materialize
-      # @param expected_version [Integer, nil] the `hecks_version` the row must still hold for
-      #   an update to apply; nil writes unconditionally. Ignored for a delete
-      # @return [Runtime::Instance, PG::Result, nil] a new instance with `version` set, nil on
-      #   CAS mismatch, or the `DELETE` statement's `PG::Result`
-      # @raise [PG::Error] if the statement fails
-      # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
-      # protocol; splitting it would hide the version handshake.
-      def project(entry, expected_version: nil)
-        advance_checkpoint!(entry.sequence) if entry.sequence
-        return pg_exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
-
-        instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
-        columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
-        values   = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
-        updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
-                   ["hecks_version = #{quoted_table}.hecks_version + 1"]
-
-        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
-              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
-              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
-        if expected_version
-          values += [expected_version]
-          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
-        end
-        sql += " RETURNING hecks_version"
-
-        result = pg_exec_params(sql, values)
-        return nil if result.ntuples.zero?
-
-        instance.version = result[0]["hecks_version"].to_i
-        instance
-      end
-      # rubocop:enable Metrics/AbcSize
-
-      # Reads the whole journal back in append order, for `AppendOnly#recover!` to replay.
-      #
-      # @return [Array<Ports::Persistence::Entry>] every journalled entry, state decoded
-      #   through the state codec and `mirrors` parsed with String keys (nil when none were
-      #   stored); `[]` when nothing has been appended
-      # @raise [PG::Error] if the statement fails
-      # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
-      def entries
-        entries_matching(
-          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} ORDER BY sequence"
-        )
-      end
-
-      # Reads only the journal rows past a given `sequence`, for `AppendOnly#recover!` to replay
-      # after a checkpoint instead of the whole journal.
-      #
-      # @param sequence [Integer] the highest `sequence` already projected; rows at or below it
-      #   are skipped
-      # @return [Array<Ports::Persistence::Entry>] the journalled entries past `sequence`, in
-      #   append order, decoded exactly as `entries` decodes them; `[]` when none are newer
-      # @raise [PG::Error] if the statement fails
-      # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
-      def entries_since(sequence)
-        entries_matching(
-          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} " \
-          "WHERE sequence > $1 ORDER BY sequence",
-          [sequence]
-        )
-      end
-
-      # Reads the highest journal `sequence` this table has already had projected into it.
-      #
-      # @return [Integer] `0` when the table has never been checkpointed (a fresh table, or one
-      #   from before this bookkeeping existed) — `entries_since(0)` then reads the whole journal,
-      #   matching `entries`' own full replay
-      # @raise [PG::Error] if the statement fails
-      def checkpoint
-        result = pg_exec_params("SELECT last_sequence FROM hecks_checkpoints WHERE aggregate_table = $1", [table])
-        result.ntuples.zero? ? 0 : result[0]["last_sequence"].to_i
-      end
-
-      # Reads the highest journal `sequence` compaction has already deleted from this table.
-      #
-      # @return [Integer] `0` when nothing has ever been compacted
-      # @raise [PG::Error] if the statement fails
-      def compacted_through
-        result = pg_exec_params("SELECT compacted_through FROM hecks_checkpoints WHERE aggregate_table = $1", [table])
-        result.ntuples.zero? ? 0 : result[0]["compacted_through"].to_i
-      end
-
-      # Deletes every journal row at or before `through` and records it, so a `:strict`
-      # projection catch-up can tell whether it still has the history it needs.
-      #
-      # Never moves `compacted_through` backwards, and never touches the aggregate's own
-      # table — only the journal, which a `:refresh` projection rebuild never needs.
-      #
-      # @param through [Integer] the highest `sequence` to delete
-      # @return [Integer] the number of journal rows deleted
-      # @raise [PG::Error] if a statement fails
-      def compact_entries!(through:)
-        removed = pg_exec_params("DELETE FROM #{quoted_entry_table} WHERE sequence <= $1", [through]).cmd_tuples
-        pg_exec_params(
-          "INSERT INTO hecks_checkpoints (aggregate_table, compacted_through) VALUES ($1, $2) " \
-          "ON CONFLICT (aggregate_table) DO UPDATE SET " \
-          "compacted_through = GREATEST(hecks_checkpoints.compacted_through, excluded.compacted_through)",
-          [table, through]
-        )
-        removed
-      end
-
-      # Deletes every row of the aggregate's table and its journal; events, saga rows and
-      # outbox rows are left in place.
-      #
-      # @return [Adapters::Postgres] self
-      # @raise [PG::Error] if a statement fails
-      def reset!
-        pg_exec("DELETE FROM #{quoted_table}")
-        pg_exec("DELETE FROM #{quoted_entry_table}")
-        self
-      end
-
-      # Journals and upserts an instance's current state atomically.
-      #
-      # One transaction, so a crash between the journal insert and the row upsert
-      # can never leave the two disagreeing.
-      #
-      # @param instance [Runtime::Instance] the instance to store
-      # @return [Runtime::Instance] a new instance over the saved state, `version` set to the
-      #   row's new `hecks_version`
-      # @raise [PG::Error] if either statement fails; the transaction is rolled back
-      def save(instance)
-        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        transaction do
-          append(entry)
-          project(entry)
-        end
-      end
-
-      # Stores an entry under a per-identity advisory lock and reports whether it inserted,
-      # replaced or conflicted, so two concurrent creators of one id cannot both insert.
-      #
-      # @param entry [Ports::Persistence::Entry] the save to store
-      # @param insert_only [Boolean] when true, an existing row is left untouched
-      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
-      #   existing row and nothing was written
-      # @raise [PG::Error] if a statement fails; the transaction is rolled back
-      def atomic_put(entry, insert_only: false)
-        status = nil
-        transaction do
-          pg_exec_params(
-            "SELECT pg_advisory_xact_lock(" \
-            "hashtext(current_schema() || ':' || $1), hashtext($2))",
-            [table, entry.id.to_s]
-          )
-          exists = !pg_exec_params(
-            "SELECT 1 FROM #{quoted_table} WHERE id = $1",
-            [entry.id.to_s]
-          ).ntuples.zero?
-          if insert_only && exists
-            status = :conflicted
-            next
-          end
-          status = exists ? :replaced : :inserted
-          append(entry)
-          project(entry)
-        end
-        status
-      end
-
-      # Journals a delete and removes the row atomically, whether or not a row exists.
-      #
-      # @param id [String, Object] the aggregate identity, journalled as `id.to_s`
-      # @return [Boolean] always true
-      # @raise [PG::Error] if either statement fails; the transaction is rolled back
-      def delete(id)
-        entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
-        transaction do
-          append(entry)
-          project(entry)
-        end
-        true
-      end
-
-      # Inserts an emitted event into the shared `events` table.
-      #
-      # @param event [Runtime::Event] the emitted event; `payload` is stored as JSON
-      # @return [PG::Result] the insert's result; callers ignore it
-      # @raise [PG::Error] if the insert fails
-      def record_event(event)
-        pg_exec_params(
-          "INSERT INTO events (name, aggregate, aggregate_id, payload, occurred_at) VALUES ($1, $2, $3, $4, $5)",
-          [event.name, event.aggregate, event.id.to_s, JSON.generate(event.payload), event.occurred_at]
-        )
-      end
-
-      # Reads back every recorded event in insertion order — the whole `events` table, not
-      # only this aggregate's rows.
-      #
-      # @return [Array<Runtime::Event>] the stored events, `payload` parsed with Symbol keys
-      #   and `occurred_at` as the String Postgres returns; `[]` when none are recorded
-      # @raise [PG::Error] if the statement fails
-      def events
-        pg_exec("SELECT * FROM events ORDER BY id").map do |row|
-          Runtime::Event.new(
-            name:        row["name"],
-            aggregate:   row["aggregate"],
-            id:          row["aggregate_id"],
-            payload:     JSON.parse(row["payload"], symbolize_names: true),
-            occurred_at: row["occurred_at"]
-          )
-        end
-      end
-
-      # Reads back one record's recorded events, oldest first — pushed down as a `WHERE`
-      # clause (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table
-      # read, since a `corrects` command's history lookup only ever needs this one record.
-      #
-      # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
-      # @param id [String, Object] the record's identity, matched as `id.to_s`
-      # @return [Array<Runtime::Event>] the record's stored events; `[]` when it has none
-      # @raise [PG::Error] if the statement fails
-      def events_for(aggregate:, id:)
-        pg_exec_params(
-          "SELECT * FROM events WHERE aggregate = $1 AND aggregate_id = $2 ORDER BY id",
-          [aggregate, id.to_s]
-        ).map do |row|
-          Runtime::Event.new(
-            name:        row["name"],
-            aggregate:   row["aggregate"],
-            id:          row["aggregate_id"],
-            payload:     JSON.parse(row["payload"], symbolize_names: true),
-            occurred_at: row["occurred_at"]
-          )
-        end
-      end
-
-      # Upserts one saga instance's checkpoint, keyed by domain, process manager and
-      # correlation.
-      #
-      # @param process_manager [String, Symbol] the process manager's name
-      # @param correlation [String, Object] the instance's correlation value, stored as
-      #   `correlation.to_s`
-      # @param state [String, Symbol] the saga's current state name
-      # @param memory [Hash] the saga's memory; must be JSON-serializable
-      # @param completed_compensations [Array] the ledger of completed compensable legs; must
-      #   be JSON-serializable
-      # @return [PG::Result] the upsert's result; callers ignore it
-      # @raise [PG::Error] if the statement fails
-      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
-        pg_exec_params(
-          "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
-          "VALUES ($1, $2, $3, $4, $5, $6) " \
-          "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
-          "SET state = EXCLUDED.state, memory = EXCLUDED.memory, " \
-          "completed_compensations = EXCLUDED.completed_compensations, updated_at = now()",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory),
-           JSON.generate(completed_compensations)]
-        )
-      end
-
-      # Removes a finished saga instance's checkpoint; a missing row is not an error.
-      #
-      # @param process_manager [String, Symbol] the process manager's name
-      # @param correlation [String, Object] the instance's correlation value, matched as
-      #   `correlation.to_s`
-      # @return [PG::Result] the delete's result; callers ignore it
-      # @raise [PG::Error] if the statement fails
-      def delete_saga(process_manager:, correlation:)
-        pg_exec_params(
-          "DELETE FROM hecks_saga_instances WHERE domain = $1 AND process_manager = $2 AND correlation = $3",
-          [@domain, process_manager.to_s, correlation.to_s]
-        )
-      end
-
-      # Yields every checkpointed saga instance of this adapter's domain, for
-      # `Registry#rehydrate_sagas!` to restore at boot.
-      #
-      # @yieldparam process_manager [String] the process manager's name
-      # @yieldparam correlation [String] the instance's correlation value
-      # @yieldparam state [String] the saga's state name
-      # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every depth
-      # @yieldparam completed_compensations [Array] the completed-compensation ledger, `[]`
-      #   when the column is NULL
-      # @return [Enumerator, PG::Result] an enumerator over the same five values when no block
-      #   is given; otherwise the query result
-      # @raise [PG::Error] if the statement fails
-      def each_saga
-        return enum_for(:each_saga) unless block_given?
-
-        pg_exec_params(
-          "SELECT process_manager, correlation, state, memory, completed_compensations " \
-          "FROM hecks_saga_instances WHERE domain = $1",
-          [@domain]
-        ).each do |row|
-          yield row["process_manager"], row["correlation"], row["state"],
-                JSON.parse(row["memory"], symbolize_names: true),
-                JSON.parse(row["completed_compensations"] || "[]", symbolize_names: true)
-        end
-      end
-
-      private
-
-      def select_list = "*"
-      def from_relation = quoted_table
-      def dialect_name = "Postgres"
-      def empty_in_clause = "FALSE"
-
-      def placeholder(binds, value)
-        binds << value
-        "$#{binds.size}"
-      end
-
-      def contains_clause(expression, placeholder)
-        "position(#{placeholder} in #{expression}) > 0"
-      end
-
-      # `column` is already a real jsonb column and already the array — no shared
-      # `state` blob to walk into first, unlike PostgresEra's own version.
-      def list_contains_clause(column, member, placeholder)
-        target = member.empty? ? "elem #>> '{}'" : "elem ->> #{text_literal(member)}"
-        elements = "jsonb_array_elements(#{quote_ident(column)}) AS elem"
-        "EXISTS (SELECT 1 FROM #{elements} WHERE #{target} = #{placeholder})"
-      end
-
-      def plain_column(name) = quote_ident(name)
-
-      # The attribute name is the column itself here, not part of the path (unlike
-      # PostgresEra's shared `state` blob) — the path is whatever follows the column.
-      def nested_expression(name, path, member)
-        segments = path.empty? ? [(member || "value").to_s] : path
-        jsonb_path(name, segments)
-      end
-
-      # A jsonb-extracted value still comes out as text; cast it to compare/sort
-      # numerically instead of lexicographically.
-      def comparable_expression(expression, value)
-        value.is_a?(Numeric) && jsonb_extraction?(expression) ? "(#{expression})::numeric" : expression
-      end
-
-      def execute_query(sql, binds)
-        pg_exec_params(sql, binds).map { |row| instance_from_row(row) }
-      end
-
-      # Stamps `.version` from `hecks_version` so a later CAS save has something
-      # to check against.
-      def instance_from_row(row)
-        instance = Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
-        instance.version = row["hecks_version"].to_i
-        instance
-      end
-
-      def quote_ident(name) = PG::Connection.quote_ident(name.to_s)
-      def quoted_table = quote_ident(table)
-      def entry_table = "#{table}_entries"
-      def quoted_entry_table = quote_ident(entry_table)
-
-      def jsonb_extraction?(expression) = expression.include?("#>>")
-
-      def order_expression(field)
-        expression = query_expression(field)
-        jsonb_extraction?(expression) && numeric_field?(field) ? "(#{expression})::numeric" : expression
-      end
-
-      # Overrides Postgres's default NULLS LAST on ASC so every adapter answers
-      # a declared query's null ordering identically.
-      def order_clause(order_by, policy)
-        direction = order_by.direction.to_s.downcase == "desc" ? "DESC" : "ASC"
-        nulls = case policy&.mode.to_s
-                when "first" then " NULLS FIRST"
-                when "last" then " NULLS LAST"
-                else direction == "DESC" ? " NULLS LAST" : " NULLS FIRST"
-                end
-        "#{order_expression(order_by.field)} #{direction}#{nulls}, id #{direction}"
-      end
-
-      # Same walk PostgresEra's own numeric_field? uses — decides
-      # numericness at any depth from the declared shape itself, not a
-      # runtime value.
-      def numeric_field?(field)
-        name, *path = field.to_s.split(".")
-        QuerySpecification::FieldPath.numeric?(@aggregate.attribute(name), path) do |type|
-          Runtime::Value.value_object_for(@aggregate, type)
-        end
-      end
-
-      # Builds an escaped Array[...] literal rather than a hand-rolled '{a,b,c}'
-      # string, since a segment name isn't guaranteed schema-declared.
-      def jsonb_path(column, segments)
-        "#{quote_ident(column)} #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(', ')}]::text[]"
-      end
-
-      # Shared decode step for `entries`/`entries_since` — runs a query already selecting
-      # `aggregate_id, operation, state, mirrors, sequence` and builds one Entry per row.
-      def entries_matching(sql, binds = [])
-        pg_exec_params(sql, binds).map do |row|
-          state = JSON.parse(row["state"])
-          Ports::Persistence::Entry.new(
-            operation: row["operation"] || "save",
-            id:        row["aggregate_id"],
-            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
-            mirrors:   row["mirrors"] && JSON.parse(row["mirrors"]),
-            sequence:  row["sequence"].to_i
-          )
-        end
-      end
-
-      # Advances this table's checkpoint to `sequence`, never backwards — two overlapping
-      # `project` calls for out-of-order entries must not let an older sequence win.
-      def advance_checkpoint!(sequence)
-        pg_exec_params(
-          "INSERT INTO hecks_checkpoints (aggregate_table, last_sequence) VALUES ($1, $2) " \
-          "ON CONFLICT (aggregate_table) DO UPDATE SET " \
-          "last_sequence = GREATEST(hecks_checkpoints.last_sequence, EXCLUDED.last_sequence)",
-          [table, sequence]
-        )
-      end
-
-      def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
     end
   end
 end

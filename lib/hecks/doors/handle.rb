@@ -110,22 +110,25 @@ module Hecks
       # commands allow). Nesting is masked one level deep only.
       def redacted(field)
         raw = @state[field]
-        rows = marked_paths.select { |row| row[:attribute_path][:value].to_s.split(".", 2).first == field.to_s }
-        return raw if rows.empty?
-
-        rows.each do |row|
-          path = row[:attribute_path][:value].to_s
-          next if authorized_for?(row[:readable_by][:value].to_s)
-
-          segments = path.split(".", 2)
-          if segments.size == 1
-            raw = "[redacted]"
-          elsif raw.is_a?(Runtime::Value)
-            raw = raw.with(segments[1], "[redacted]")
-          end
+        marked_rows(field).each do |row|
+          raw = masked(raw, row) unless authorized_for?(row[:readable_by][:value].to_s)
         end
 
         raw
+      end
+
+      # The privacy markings that name `field` or a path beneath it.
+      def marked_rows(field)
+        marked_paths.select { |row| row[:attribute_path][:value].to_s.split(".", 2).first == field.to_s }
+      end
+
+      # `raw` with the marked leaf masked: the whole value for a marked field, one nested leaf of a
+      # value object for a marked path beneath it.
+      def masked(raw, row)
+        segments = row[:attribute_path][:value].to_s.split(".", 2)
+        return "[redacted]" if segments.size == 1
+
+        raw.is_a?(Runtime::Value) ? raw.with(segments[1], "[redacted]") : raw
       end
 
       # Cached per handle so an unattached-Privacy domain never pays for a query
@@ -182,23 +185,22 @@ module Hecks
       # (ADR 0025) — `piece.account` and `piece[:account]` (bracket access,
       # the raw id) never collide despite sharing a name.
       def define_reference_accessors
-        @ir.attributes.select(&:reference?).each do |attribute|
-          target = attribute.type.resolve
-          # Cross-domain, or otherwise unresolvable — no accessor rather than a guess.
-          next unless target
+        @ir.attributes.select(&:reference?).each { |attribute| define_reference_accessor(attribute) }
+      end
 
-          domain     = @domain
-          field      = attribute.name
-          list       = attribute.list?
-          target_fqn = "#{domain}::#{target.hecks_name}"
+      # One lazy reader for a reference attribute.
+      def define_reference_accessor(attribute)
+        target = attribute.type.resolve
+        # Cross-domain, or otherwise unresolvable — no accessor rather than a guess.
+        return unless target
 
-          define_singleton_method(field) do
-            value = self[field]
-            door = Object.const_get(target_fqn)
-            next Array(value).map { |identity| door.find(identity) } if list
+        target_fqn = "#{@domain}::#{target.hecks_name}"
+        define_singleton_method(attribute.name) do
+          value = self[attribute.name]
+          door = Object.const_get(target_fqn)
+          next Array(value).map { |identity| door.find(identity) } if attribute.list?
 
-            value && door.find(value)
-          end
+          value && door.find(value)
         end
       end
     end

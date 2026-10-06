@@ -2,7 +2,7 @@ require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../value"
 require_relative "../../rendering"
-require_relative "../../ports/query/in_memory"
+require_relative "tenant_boundary"
 
 module Hecks
   module Runtime
@@ -15,16 +15,9 @@ module Hecks
         # @raise [Runtime::NotFound] if an argument names an identity that does not exist
         def resolve_references(domain, command, args)
           command.attributes.each do |attribute|
-            next unless attribute.reference?
-            next unless args.key?(attribute.name)
+            next unless attribute.reference? && args.key?(attribute.name)
 
-            held = args[attribute.name]
-            next if held.nil?
-
-            target = referenced_aggregate(attribute)
-            next unless target
-
-            validate_reference_values(domain, target, held, list: attribute.list?)
+            validate_reference_argument(domain, attribute, args[attribute.name])
           end
         end
 
@@ -34,29 +27,52 @@ module Hecks
         # @raise [Runtime::NotFound] if a reference names an identity that does not exist
         # @raise [Runtime::Unauthorized] if a referenced record belongs to another tenant
         def resolve_state_references(domain, construct, state)
-          own_tenant_field = tenant_field_for(construct)
+          boundary = TenantBoundary.new(self, domain, construct, state, tenant_field_for(construct))
 
           construct.attributes.each do |attribute|
             next unless attribute.reference?
 
-            held = state[attribute.name]
-            validate_relationship_cardinality(construct, attribute, held)
-            next if held.nil?
-
-            target = referenced_aggregate(attribute)
-            next unless target
-
-            validate_reference_values(domain, target, held, list: attribute.list?)
-            enforce_tenant_boundary(domain, construct, attribute, target, held, state, own_tenant_field)
+            resolve_state_reference(domain, construct, attribute, state, boundary)
           end
 
+          resolve_entity_references(domain, construct, state)
+        end
+
+        # One reference-typed argument's value, refused unless its target identity exists.
+        def validate_reference_argument(domain, attribute, held)
+          return if held.nil?
+
+          target = referenced_aggregate(attribute)
+          validate_reference_values(domain, target, held, list: attribute.list?) if target
+        end
+
+        # One reference-typed attribute of settled state: cardinality, target and tenant.
+        def resolve_state_reference(domain, construct, attribute, state, boundary)
+          held = state[attribute.name]
+          validate_relationship_cardinality(construct, attribute, held)
+          return if held.nil?
+
+          target = referenced_aggregate(attribute)
+          return unless target
+
+          validate_reference_values(domain, target, held, list: attribute.list?)
+          enforce_tenant_boundary(boundary, attribute, target, held)
+        end
+
+        # Re-checks the rows of each entity list `construct` holds, as their own constructs.
+        def resolve_entity_references(domain, construct, state)
           Array(construct.entities).each do |entity|
-            field = construct.attribute(Naming.snake(entity.hecks_name).to_sym) ||
-                    construct.attributes.find { |attribute| attribute.type.to_s == entity.hecks_name.to_s }
+            field = entity_list_field(construct, entity)
             next unless field
 
             Array(state[field.name]).each { |row| resolve_state_references(domain, entity, row) }
           end
+        end
+
+        # The attribute of `construct` that holds `entity`'s rows, by name or by type.
+        def entity_list_field(construct, entity)
+          construct.attribute(Naming.snake(entity.hecks_name).to_sym) ||
+            construct.attributes.find { |attribute| attribute.type.to_s == entity.hecks_name.to_s }
         end
 
         # `has_one` and `belongs_to` require a target unless optional. Checked on state,
@@ -95,33 +111,8 @@ module Hecks
 
         # Refuses a write whose record and referenced record disagree about their tenant.
         # Hooked into `resolve_state_references` so both interpreters are covered.
-        def enforce_tenant_boundary(domain, construct, attribute, target, held, state, own_tenant_field)
-          return unless own_tenant_field && state.key?(own_tenant_field)
-
-          target_tenant_field = tenant_field_for(target)
-          return unless target_tenant_field
-
-          own_tenant = Ports::Query::InMemory.comparable(state[own_tenant_field])
-
-          values = attribute.list? ? Array(held) : [held]
-          values.each do |value|
-            key = reference_key(value)
-            next if key.empty?
-
-            record = @registry.repository(domain, target).find(key)
-            next unless record&.state&.key?(target_tenant_field)
-
-            target_tenant = Ports::Query::InMemory.comparable(record.state[target_tenant_field])
-            next if target_tenant == own_tenant
-
-            raise Unauthorized,
-                  RefusalWording.render_site("Unauthorized", "cross_tenant_reference",
-                                             aggregate: construct.hecks_name, field: own_tenant_field,
-                                             tenant: Rendering.describe(state[own_tenant_field]),
-                                             attribute: attribute.name, target: target.name,
-                                             target_field: target_tenant_field,
-                                             other: Rendering.describe(record.state[target_tenant_field]))
-          end
+        def enforce_tenant_boundary(boundary, attribute, target, held)
+          boundary.enforce(attribute, target, held, tenant_field_for(target))
         end
 
         # The field a query names in `authorize policy, tenant: :field`, or nil.
@@ -156,18 +147,29 @@ module Hecks
           owner.attributes.each_with_object({}) do |attribute, hydrated|
             next unless attribute.reference?
 
-            id = source[attribute.name]
-            next if id.nil?
-
-            target = referenced_aggregate(attribute)
-            next unless target
-
-            record = @registry.repository(domain, target).find(id.to_s)
+            target, record = dereferenced_record(domain, attribute, source)
             next unless record
 
-            name = attribute.name.to_s.sub(/_id\z/, "").to_sym
-            hydrated[name] = record.state.merge(dereference(domain, target, record.state, depth: depth - 1))
+            hydrated[dereferenced_name(attribute)] =
+              record.state.merge(dereference(domain, target, record.state, depth: depth - 1))
           end
+        end
+
+        def dereferenced_name(attribute)
+          attribute.name.to_s.sub(/_id\z/, "").to_sym
+        end
+
+        # The target aggregate and stored record a reference argument names, or nil when it names
+        # nothing that exists.
+        def dereferenced_record(domain, attribute, source)
+          id = source[attribute.name]
+          return if id.nil?
+
+          target = referenced_aggregate(attribute)
+          return unless target
+
+          record = @registry.repository(domain, target).find(id.to_s)
+          [target, record] if record
         end
       end
     end

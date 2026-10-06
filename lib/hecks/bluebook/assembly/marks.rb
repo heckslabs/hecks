@@ -12,20 +12,21 @@ module Hecks
           type = field[:type].to_s
           target = type[/\AReference<(.+)>\z/, 1]
 
-          Attribute.new(
-            name:         field[:name],
-            type:         target ? Reference.new(target) : type,
+          Attribute.new(name: field[:name], type: target ? Reference.new(target) : type, **attribute_options(field))
+        end
+
+        # Every registry bluebook is a round-trip product, so a fact dropped here is a fact
+        # the language cannot state about itself. `admits` is not on `to_h`, but the grammar
+        # registry keeps the assembled graph and downstream projections read the link off it.
+        def attribute_options(field)
+          {
             list:         field[:list] ? true : false,
             default:      field[:default],
-            # Every registry bluebook is a round-trip product, so a fact dropped
-            # here is a fact the language cannot state about itself.
             optional:     field[:optional] ? true : false,
             pattern:      field[:pattern],
-            # Not on `to_h`, but the grammar registry keeps the assembled graph and
-            # downstream projections read the link off it, so it must survive.
             admits:       field[:admits],
             relationship: field[:relationship]
-          )
+          }
         end
 
         # A head's field and a verb's argument are separate verbs sharing one IR class.

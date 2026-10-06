@@ -15,6 +15,9 @@ module Hecks
     module GeneratedDomainCheck
       DIFFERENTIAL_MODES = %i[differential self_consistency properties_in_differential].freeze
 
+      # What one check run is configured with beyond the domain and seed count.
+      Settings = Struct.new(:steps, :adversarial, :binary, :differ, :match, :shrink_budget, keyword_init: true)
+
       module_function
 
       # Checks one generated domain over up to `seeds` sequences, stopping at the first finding.
@@ -23,20 +26,28 @@ module Hecks
       # `match` (`{"mode" =>, "signature" =>}`) keeps only a finding that still matches, so
       # domain-level shrinking can ask whether a smaller domain shows the same finding.
       #
+      # Beyond the required keywords it takes `binary:`, `differ:`, `match:` (default nil) and
+      # `shrink_budget:` (default 0).
+      #
       # @return [Hash] `"status"` is `"invalid"`, `"clean"` or `"found"`; a found finding is
       #   `#finding` merged with `"seeds_run"`, plus `"shrunk_steps"` if `shrink_budget` > 0
-      def run(domain_path, seeds:, steps:, adversarial:, binary: nil, differ: nil, match: nil, shrink_budget: 0)
+      def run(domain_path, seeds:, steps:, adversarial:, **)
+        settings = Settings.new(shrink_budget: 0, steps: steps, adversarial: adversarial, **)
         error = boot_error(domain_path)
         return { "status" => "invalid", "error" => error } if error
 
         (1..seeds).each do |seed|
-          finding = check_seed(domain_path, seed, steps, adversarial, binary, differ, match)
-          next unless finding
-
-          finding["shrunk_steps"] = shrink(domain_path, finding, binary, differ, shrink_budget) if shrink_budget.positive?
-          return finding.merge("status" => "found", "seeds_run" => seed)
+          finding = check_seed(domain_path, seed, settings)
+          return found(domain_path, finding, settings, seed) if finding
         end
         { "status" => "clean", "seeds_run" => seeds }
+      end
+
+      def found(domain_path, finding, settings, seed)
+        if settings.shrink_budget.positive?
+          finding["shrunk_steps"] = shrink(domain_path, finding, settings.binary, settings.differ, settings.shrink_budget)
+        end
+        finding.merge("status" => "found", "seeds_run" => seed)
       end
 
       def boot_error(domain_path)
@@ -46,13 +57,14 @@ module Hecks
         "#{e.class}: #{e.message.lines.first&.strip}"
       end
 
-      def check_seed(domain_path, seed, steps, adversarial, binary, differ, match)
-        sequence = SequenceGenerator.generate(domain_path, seed: seed, steps: steps, adversarial: adversarial)
+      def check_seed(domain_path, seed, settings)
+        sequence = SequenceGenerator.generate(domain_path, seed: seed, steps: settings.steps,
+                                                           adversarial: settings.adversarial)
       rescue StandardError => e
-        finding(seed, :generator, [{ field: "generator_crash", detail: "#{e.class}: #{e.message}" }], [], match)
+        finding(seed, :generator, [{ field: "generator_crash", detail: "#{e.class}: #{e.message}" }], [], settings.match)
       else
-        outcomes(domain_path, sequence, binary, differ).each do |mode, divergences|
-          found = finding(seed, mode, divergences, sequence, match)
+        outcomes(domain_path, sequence, settings.binary, settings.differ).each do |mode, divergences|
+          found = finding(seed, mode, divergences, sequence, settings.match)
           return found if found
         end
         nil

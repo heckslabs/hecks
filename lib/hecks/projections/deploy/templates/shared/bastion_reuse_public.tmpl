@@ -1,0 +1,10 @@
+# BastionSubnetId, not a subnet minted here — the main
+# template's own @@db_id@@BastionPublicSubnet (and the
+# Internet Gateway it shares with @@db_id@@PublicSubnet)
+# already exist once google_oauth_present is true, and a VPC
+# accepts only one attached Internet Gateway: this stack's
+# own BastionInternetGateway (below, the no-oauth branch)
+# would collide with it. Its own subnet, not PublicSubnetId
+# directly, despite sharing that subnet's route table --
+# PublicSubnetId's AZ can't launch EC2 instances at all on
+# this account.

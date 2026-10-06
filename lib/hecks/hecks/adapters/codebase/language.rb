@@ -83,11 +83,20 @@ module Hecks
           rows = Grammar::Evolve.keyword_rows
           moving = rows.reject { |row| row[:status] == "admitted" }
           renamed = rows.reject { |row| row[:was].to_s.empty? }
-          lines = ["#{rows.size} keyword rows; #{moving.size} not simply admitted; #{renamed.size} renamed"]
-          lines += moving.map { |row| "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}" }
-          lines += renamed.map { |row| "  renamed    #{row[:context]}.#{row[:word]} (was #{row[:was]})" }
-          lines.join("\n")
+          [summary_line(rows, moving, renamed),
+           *moving.map { |row| moving_line(row) }, *renamed.map { |row| renamed_line(row) }].join("\n")
         end
+
+        # The count line that heads the report.
+        def summary_line(rows, moving, renamed)
+          "#{rows.size} keyword rows; #{moving.size} not simply admitted; #{renamed.size} renamed"
+        end
+
+        # The line for a row that is not simply admitted.
+        def moving_line(row) = "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}"
+
+        # The line for a row that carries a former name.
+        def renamed_line(row) = "  renamed    #{row[:context]}.#{row[:word]} (was #{row[:was]})"
 
         # @param operation [String] a projection's operation
         # @param args [Hash] the record's plain fields
@@ -110,7 +119,7 @@ module Hecks
         # @return [String] the rehearsed edit, or the confirmed edit's outcome
         # @raise [ConsoleCapture::Failure] when the language or a gate refuses
         def evolve(operation, args, tree, shell)
-          change = -> { edit(operation, args) }
+          change = -> { Edits.edit(operation, args) }
           return rehearse(change, tree) unless args[:confirm] == true
 
           guarded(operation, args, tree, shell, change)
@@ -147,15 +156,23 @@ module Hecks
           snapshots = paths.to_h { |path| [path, File.read(path)] }
           Grammar::Evolve.restore_on_raise(paths, &edit)
           regenerate(tree, shell)
-          gates = shell.capture("bundle", "exec", "rspec", *GATES, chdir: tree.root)
-          unless gates.ok?
-            snapshots.each { |path, text| File.write(path, text) }
-            raise ConsoleCapture::Failure,
-                  "RESTORED — the gates refused, and the failures are the checklist. Nothing was " \
-                  "changed.\n#{[gates.out, gates.err].join.strip}"
-          end
+          hold_gates(tree, shell, snapshots)
           ["#{args[:context]}.#{args[:word]} — the gates hold. Regenerated projections and the golden " \
            "are in the tree.", follow_up(operation, args)].compact.join("\n")
+        end
+
+        # Runs the gates, and puts every file back from `snapshots` when one refuses.
+        #
+        # @param snapshots [Hash{String => String}] each file's text before the edit
+        # @raise [ConsoleCapture::Failure] when a gate refuses; nothing was changed
+        def hold_gates(tree, shell, snapshots)
+          gates = shell.capture("bundle", "exec", "rspec", *GATES, chdir: tree.root)
+          return if gates.ok?
+
+          snapshots.each { |path, text| File.write(path, text) }
+          raise ConsoleCapture::Failure,
+                "RESTORED — the gates refused, and the failures are the checklist. Nothing was " \
+                "changed.\n#{[gates.out, gates.err].join.strip}"
         end
 
         # @param tree [Tree] the checkout
@@ -174,67 +191,8 @@ module Hecks
 
           format(text, context: args[:context], new_name: args[:new_name], word: args[:word])
         end
-
-        # Makes one edit to the syntax tables.
-        #
-        # @param operation [String] a word or argument operation
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        # @raise [Grammar::Evolve::Refusal] when the tables refuse the edit
-        def edit(operation, args)
-          case operation
-          when "propose" then propose(args)
-          when "rename" then rename(args)
-          when "propose_argument" then propose_argument(args)
-          when "admit", "deprecate", "retire" then set_status(operation, args)
-          else set_argument_status(operation, args)
-          end
-        end
-
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        def propose(args)
-          Grammar::Evolve.propose(word: args[:word], context: args[:context], body: args[:body] || "none",
-                                  inner: args[:inner] || "", opens: args[:opens] || "", fills: args[:fills] || "")
-        end
-
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        # @raise [Grammar::Evolve::Refusal] when no new name was given
-        def rename(args)
-          to = args[:new_name] or refuse("a rename goes somewhere: new_name=")
-          Grammar::Evolve.rename(word: args[:word], context: args[:context], to: to)
-        end
-
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        def propose_argument(args)
-          Grammar::Evolve.propose_argument(keyword: args[:word], context: args[:context], kind: args[:kind],
-                                           required: args[:required] || "false", at: args[:at] || "",
-                                           named: args[:named] || "", fills: args[:fills] || "",
-                                           pairs_shape: args[:pairs_shape])
-        end
-
-        # @param operation [String] `admit`, `deprecate` or `retire`
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        def set_status(operation, args)
-          Grammar::Evolve.set_status(word: args[:word], context: args[:context], to: STATUSES.fetch(operation))
-        end
-
-        # @param operation [String] the argument form of `admit`, `deprecate` or `retire`
-        # @param args [Hash] the record's plain fields
-        # @return [void]
-        def set_argument_status(operation, args)
-          Grammar::Evolve.set_argument_status(keyword: args[:word], context: args[:context],
-                                              to: STATUSES.fetch(operation), at: args[:at] || "",
-                                              named: args[:named] || "")
-        end
-
-        # @param message [String] why the edit cannot be made
-        # @raise [Grammar::Evolve::Refusal] always
-        def refuse(message) = raise(Grammar::Evolve::Refusal, message)
       end
     end
   end
 end
+require_relative "language/edits"

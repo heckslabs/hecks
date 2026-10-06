@@ -9,7 +9,7 @@ RSpec.describe Hecks::Forms::BankingPresentation do
     @app ||= described_class.app(root: InMemoryDomain::ROOT)
   end
 
-  it "serves the index of every exposed chapter" do
+  it "serves the index of every exposed chapter", :aggregate_failures do
     get "/"
 
     expect(last_response.status).to eq(200)

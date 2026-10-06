@@ -1,0 +1,9 @@
+
+@@ID@@:
+  Type: AWS::ECR::Repository
+  Properties:
+    RepositoryName: @@REPOSITORY@@
+    ImageScanningConfiguration:
+      ScanOnPush: true
+    LifecyclePolicy:
+      LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"keep the newest 30","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":30},"action":{"type":"expire"}}]}'

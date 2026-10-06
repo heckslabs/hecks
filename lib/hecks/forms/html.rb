@@ -67,7 +67,7 @@ module Hecks
           next if value.nil? || value == false
           next name.to_s.tr("_", "-") if value == true
 
-          %(#{name.to_s.tr('_', '-')}="#{Escape.attr(value)}")
+          %(#{name.to_s.tr("_", "-")}="#{Escape.attr(value)}")
         end.join(" ")
       end
 

@@ -55,7 +55,7 @@ module Hecks
           diverged = domain.writing { |lineage| diverged_writes(domain, lineage) }
           PostgresEra::LineageManager.merge!(registry: domain.registry, bluebook: domain.bluebook,
                                              settings: domain.settings, winners: named)
-          ["#{domain.bluebook.name}: #{diverged} post-cut write#{'s' unless diverged == 1} in ancestor " \
+          ["#{domain.bluebook.name}: #{diverged} post-cut write#{"s" unless diverged == 1} in ancestor " \
            "eras before the merge",
            "merged — the head now interleaves both worlds by their recorded ordinals",
            *named.map { |id, side| "  winner #{id}=#{side} appended as the newest row" }].join("\n")
@@ -88,17 +88,19 @@ module Hecks
           before = missing.call
           return "#{domain.bluebook.name}: every held era already carries a projection — nothing to do." if before.zero?
 
-          begin
-            # Raises on the first row whose own digest check fails: a tampered row, not a merely
-            # legacy one, which backfilling must not paper over.
-            lineage.eras
-          rescue Runtime::WiringError => e
-            raise Runtime::WiringError, "#{domain.bluebook.name}: stopped at a row that isn't merely legacy — " \
-                                        "it fails its own integrity check: #{e.message} — resolve that first " \
-                                        "(`hecks reattest`), then run this again for the remaining rows."
-          end
+          require_legacy_rows!(domain, lineage)
           done = before - missing.call
-          "#{domain.bluebook.name}: backfilled #{done} era#{'s' unless done == 1} — every row now carries a projection."
+          "#{domain.bluebook.name}: backfilled #{done} era#{"s" unless done == 1} — every row now carries a projection."
+        end
+
+        # Raises on the first row whose own digest check fails: a tampered row, not a merely
+        # legacy one, which backfilling must not paper over.
+        def require_legacy_rows!(domain, lineage)
+          lineage.eras
+        rescue Runtime::WiringError => e
+          raise Runtime::WiringError, "#{domain.bluebook.name}: stopped at a row that isn't merely legacy — " \
+                                      "it fails its own integrity check: #{e.message} — resolve that first " \
+                                      "(`hecks reattest`), then run this again for the remaining rows."
         end
 
         def missing_projections(lineage)
@@ -120,13 +122,17 @@ module Hecks
         def apply_approve_translation(held)
           domain = HeldDomain.open(plain(held[:domain]))
           finding = domain.reading { |lineage| audited_edge(domain, lineage) }
-          document = Translation::ApprovalFile.build(
+          document = approval_document(domain, finding, held)
+          path = Translation::ApprovalFile.write!(domain.directory, finding.edge, document)
+          "approval of edge #{document["edge"]} written to #{path} (digest #{document["edge_digest"][0, 12]}…, " \
+            "by #{document["approved_by"]}). Commit it with the edge; the host applies it at its next boot."
+        end
+
+        def approval_document(domain, finding, held)
+          Translation::ApprovalFile.build(
             edge: finding.edge, approved_by: Git.new.identity(chdir: domain.directory),
             approved_at: Time.now.utc.iso8601, rehearsal: rehearsal_block(held)
           )
-          path = Translation::ApprovalFile.write!(domain.directory, finding.edge, document)
-          "approval of edge #{document['edge']} written to #{path} (digest #{document['edge_digest'][0, 12]}…, " \
-            "by #{document['approved_by']}). Commit it with the edge; the host applies it at its next boot."
         end
 
         def audited_edge(domain, lineage)

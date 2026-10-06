@@ -59,7 +59,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
 
   let(:domain) { { value: @dir } }
 
-  it "answers the IR a boot produces, as JSON, for a value-object path or a bare one" do
+  it "answers the IR a boot produces, as JSON, for a value-object path or a bare one", :aggregate_failures do
     expect(JSON.parse(adapter.ir(domain: domain).fetch(:text)).fetch("Shelf")).to have_key("aggregates")
     expect(adapter.ir(domain: @dir).fetch(:text)).to eq(adapter.ir(domain: domain).fetch(:text))
   end
@@ -80,7 +80,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(JSON.parse(adapter.history(domain: domain).fetch(:text))).to eq("book" => [])
   end
 
-  it "answers the storage shape of one bluebook file, and a label per domain for a directory" do
+  it "answers the storage shape of one bluebook file, and a label per domain for a directory", :aggregate_failures do
     file = { value: File.join(@dir, "bluebook/shelf.bluebook") }
 
     expect(JSON.parse(adapter.shape(domain: file).fetch(:text)).fetch("name")).to eq("Shelf")
@@ -91,7 +91,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(adapter.statements(domain: domain, chapter: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
   end
 
-  it "answers the domain narrated and documented, whole or for one aggregate" do
+  it "answers the domain narrated and documented, whole or for one aggregate", :aggregate_failures do
     expect(adapter.narrate(domain: domain).fetch(:text)).to include("Book")
     expect(adapter.narrate(domain: domain, aggregate: { value: "Book" }).fetch(:text)).to include("Book")
     expect(adapter.docs(domain: domain).fetch(:text)).to include("Book")
@@ -102,42 +102,59 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect { adapter.narrate(domain: domain, aggregate: { value: "Nope" }) }.to raise_error(Hecks::Runtime::NotFound)
   end
 
-  it "answers diagrams and the glossary as files, and writes none" do
-    before = Dir.glob(File.join(@dir, "**/*"))
+  context "with the diagrams and the glossary" do
+    let(:diagrams) { adapter.project_diagrams(domain: domain, chapter: { value: "Shelf" }) }
+    let(:glossary) { adapter.glossary(domain: domain, chapter: { value: "Shelf" }) }
 
-    diagrams = adapter.project_diagrams(domain: domain, chapter: { value: "Shelf" })
-    glossary = adapter.glossary(domain: domain, chapter: { value: "Shelf" })
+    it "answers diagrams as files", :aggregate_failures do
+      expect(diagrams).not_to be_empty
+      expect(diagrams).to all(include(:name, :text))
+    end
 
-    expect(diagrams).not_to be_empty
-    expect(diagrams).to all(include(:name, :text))
-    expect(glossary.map { |file| file.fetch(:name) }).to include(a_string_matching(/glossary/))
-    expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
+    it "answers the glossary as a file" do
+      expect(glossary.map { |file| file.fetch(:name) }).to include(a_string_matching(/glossary/))
+    end
+
+    it "writes none" do
+      before = Dir.glob(File.join(@dir, "**/*"))
+
+      [diagrams, glossary]
+
+      expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
+    end
   end
 
-  it "answers one generated sequence as a replayable script, the same one for the same seed" do
-    script = JSON.parse(adapter.generate_sequence(domain: domain, seed: 3, steps: 5).fetch(:text))
+  context "with a generated sequence" do
+    let(:script) { JSON.parse(adapter.generate_sequence(domain: domain, seed: 3, steps: 5).fetch(:text)) }
 
-    expect(script.fetch("name")).to eq("#{File.basename(@dir)}-generated")
-    expect(script.fetch("note")).to include("seed 3, 5 steps requested")
-    expect(script.fetch("steps")).to all(include("verb"))
-    expect(adapter.generate_sequence(domain: domain, seed: 3, steps: 5).fetch(:text))
-      .to eq(adapter.generate_sequence(domain: @dir, seed: 3, steps: 5).fetch(:text))
+    it "answers one generated sequence as a replayable script", :aggregate_failures do
+      expect(script.fetch("name")).to eq("#{File.basename(@dir)}-generated")
+      expect(script.fetch("note")).to include("seed 3, 5 steps requested")
+      expect(script.fetch("steps")).to all(include("verb"))
+    end
+
+    it "answers the same one for the same seed" do
+      expect(adapter.generate_sequence(domain: domain, seed: 3, steps: 5).fetch(:text))
+        .to eq(adapter.generate_sequence(domain: @dir, seed: 3, steps: 5).fetch(:text))
+    end
   end
 
-  it "generates from seed 1 and 30 steps unless told otherwise, and refuses a missing domain" do
+  def absent_domain = File.join(Dir.tmpdir, "hecks-absent-#{Process.pid}", "no/such/domain")
+
+  it "generates from seed 1 and 30 steps unless told otherwise" do
     expect(JSON.parse(adapter.generate_sequence(domain: domain).fetch(:text)).fetch("note")).to include("seed 1, 30 steps")
-    Dir.mktmpdir do |scratch|
-      absent = File.join(scratch, "no/such/domain")
-      expect { adapter.generate_sequence(domain: { value: absent }) }
-        .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
-    end
   end
 
-  it "refuses a domain or chapter that cannot be found" do
-    Dir.mktmpdir do |scratch|
-      absent = File.join(scratch, "no/such/domain")
-      expect { adapter.stores(domain: { value: absent }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
-    end
+  it "refuses to generate for a missing domain" do
+    expect { adapter.generate_sequence(domain: { value: absent_domain }) }
+      .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+  end
+
+  it "refuses a domain that cannot be found" do
+    expect { adapter.stores(domain: { value: absent_domain }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+  end
+
+  it "refuses a chapter that cannot be found" do
     expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }
       .to raise_error(Hecks::Runtime::NotFound, /no chapter named Nope/)
   end

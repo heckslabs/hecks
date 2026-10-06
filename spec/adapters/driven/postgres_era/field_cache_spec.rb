@@ -1,11 +1,13 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
-require "tempfile"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/era_registry_loading"
 
 # Field cache and resumable backfill against a throwaway Postgres database:
 # correctness before and after a mint, crash resumability, and non-blocking writes.
 RSpec.describe "PostgresEra field cache — Track C validation", :io do
+  include EraRegistryLoading
+
   FIELD_CACHE_DB = "hecks_field_cache_spec".freeze
   FIELD_CACHE_OWNER = "hecks_field_cache_owner".freeze
 
@@ -122,22 +124,6 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     scrub.close
   end
 
-  def load_registry(source, translation_source: nil)
-    registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    file = Tempfile.new(["field-cache-", ".bluebook"])
-    file.write(source)
-    file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-      eval(translation_source) if translation_source
-    end
-    registry
-  ensure
-    file&.close!
-  end
-
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
@@ -172,181 +158,216 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t" ? name : nil
   end
 
-  it "answers a declared where query correctly through the field cache, before any mint" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
+  let(:registry) { check!(FIELD_CACHE_V1_SOURCE) }
+  let(:aggregate) { registry.bluebooks.values.first.aggregate("Widget") }
+  let(:adapter) { adapter_for(registry, "Widget") }
 
-    adapter.save(instance_for(aggregate, "w1", status: "active", cents: 1000))
-    adapter.save(instance_for(aggregate, "w2", status: "retired", cents: 200))
-    adapter.save(instance_for(aggregate, "w3", status: "active", cents: 300))
+  def save_widget(id, status:, cents:) = adapter.save(instance_for(aggregate, id, status: status, cents: cents))
 
+  # The ids a declared query answers on `store`, which defaults to the era 1 adapter.
+  def query_ids(query_name, store: adapter, reg: registry, aggregate_name: "Widget")
+    store.query(declared_query(reg, aggregate_name, query_name)).map(&:id)
+  end
+
+  def with_owner_db
     db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    expect(field_cache_table(db, "widget", 1, "status")).not_to be_nil
-    expect(field_cache_table(db, "widget", 1, "price.cents")).not_to be_nil
-
-    results = adapter.query(declared_query(registry, "Widget", "ByStatus"))
-    expect(results.map(&:id)).to contain_exactly("w1", "w3")
-
-    costly = adapter.query(declared_query(registry, "Widget", "Costly"))
-    expect(costly.map(&:id)).to contain_exactly("w1")
+    yield db
   ensure
     db&.close
+  end
+
+  # Empties the era 1 status cache and forgets its backfill progress; answers the table's name.
+  def empty_status_cache!(db)
+    name = field_cache_table(db, "widget", 1, "status")
+    db.exec("TRUNCATE #{PG::Connection.quote_ident(name)}")
+    db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
+    name
+  end
+
+  def status_expression = "state #>> ARRAY['status']::text[]"
+
+  def lineage_on_adapter_db = Hecks::Adapters::PostgresEra::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
+
+  context "with three widgets saved" do
+    before do
+      save_widget("w1", status: "active", cents: 1000)
+      save_widget("w2", status: "retired", cents: 200)
+      save_widget("w3", status: "active", cents: 300)
+    end
+
+    it "caches the fields the declared queries read, before any mint", :aggregate_failures do
+      with_owner_db do |db|
+        expect(field_cache_table(db, "widget", 1, "status")).not_to be_nil
+        expect(field_cache_table(db, "widget", 1, "price.cents")).not_to be_nil
+      end
+    end
+
+    it "answers a declared where query correctly through the field cache, before any mint" do
+      expect(query_ids("ByStatus")).to contain_exactly("w1", "w3")
+    end
+
+    it "answers a declared comparison query correctly through the field cache" do
+      expect(query_ids("Costly")).to contain_exactly("w1")
+    end
   end
 
   it "keeps the cache correct across a save that changes the cached field's value" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
+    save_widget("w1", status: "active", cents: 1000)
+    before_change = query_ids("ByStatus")
+    save_widget("w1", status: "retired", cents: 1000)
 
-    adapter.save(instance_for(aggregate, "w1", status: "active", cents: 1000))
-    expect(adapter.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)).to eq(["w1"])
-
-    adapter.save(instance_for(aggregate, "w1", status: "retired", cents: 1000))
-    expect(adapter.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)).to eq([])
+    expect([before_change, query_ids("ByStatus")]).to eq([["w1"], []])
   end
 
   it "removes a deleted id from the cache" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
-
-    adapter.save(instance_for(aggregate, "w1", status: "active", cents: 1000))
+    save_widget("w1", status: "active", cents: 1000)
     adapter.delete("w1")
-    expect(adapter.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)).to eq([])
+
+    expect(query_ids("ByStatus")).to eq([])
   end
 
-  it "answers the same declared query correctly after a real era mint" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate1 = registry.bluebooks.values.first.aggregate("Widget")
-    adapter1 = adapter_for(registry, "Widget")
-    adapter1.save(instance_for(aggregate1, "w1", status: "active", cents: 1000))
-    adapter1.save(instance_for(aggregate1, "w2", status: "retired", cents: 900))
+  context "with a real era mint after two widgets were saved" do
+    let(:registry2) { check!(FIELD_CACHE_V2_SOURCE, translation_source: edge_source) }
+    let(:adapter2) { adapter_for(registry2, "Item", era: 2) }
 
-    registry2 = check!(FIELD_CACHE_V2_SOURCE, translation_source: edge_source)
-    aggregate2 = registry2.bluebooks.values.first.aggregate("Item")
-    adapter2 = adapter_for(registry2, "Item", era: 2)
+    def era_two_ids = query_ids("ByStatus", store: adapter2, reg: registry2, aggregate_name: "Item")
+
+    before do
+      save_widget("w1", status: "active", cents: 1000)
+      save_widget("w2", status: "retired", cents: 900)
+    end
 
     # nothing wrote w1/w2 in era 2 yet, so the ancestor side of the backfill must supply them
-    ids = adapter2.query(declared_query(registry2, "Item", "ByStatus")).map(&:id)
-    expect(ids).to contain_exactly("w1")
+    it "answers the same declared query correctly after the mint" do
+      expect(era_two_ids).to contain_exactly("w1")
+    end
 
-    adapter2.save(instance_for(aggregate2, "w3", status: "active", cents: 50))
-    ids = adapter2.query(declared_query(registry2, "Item", "ByStatus")).map(&:id)
-    expect(ids).to contain_exactly("w1", "w3")
+    it "answers it correctly after a write in the new era too" do
+      item = registry2.bluebooks.values.first.aggregate("Item")
+      adapter2.save(instance_for(item, "w3", status: "active", cents: 50))
+
+      expect(era_two_ids).to contain_exactly("w1", "w3")
+    end
   end
 
-  it "backfills a field cache correctly when the cache table is created against pre-existing history" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
-    adapter.save(instance_for(aggregate, "w1", status: "active", cents: 1000))
-    adapter.save(instance_for(aggregate, "w2", status: "active", cents: 200))
-    adapter.save(instance_for(aggregate, "w3", status: "retired", cents: 900))
-
-    db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    name = field_cache_table(db, "widget", 1, "status")
-    db.exec("DROP TABLE #{PG::Connection.quote_ident(name)}")
-    db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
+  context "with three widgets saved before the cache table is dropped" do
+    before do
+      save_widget("w1", status: "active", cents: 1000)
+      save_widget("w2", status: "active", cents: 200)
+      save_widget("w3", status: "retired", cents: 900)
+      with_owner_db { |db| db.exec("DROP TABLE #{PG::Connection.quote_ident(empty_status_cache!(db))}") }
+    end
 
     # a fresh adapter must recreate the table and backfill it from the current head
-    adapter2 = adapter_for(registry, "Widget")
-    ids = adapter2.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)
-    expect(ids).to contain_exactly("w1", "w2")
-  ensure
-    db&.close
+    it "backfills a field cache correctly when the cache table is created against pre-existing history" do
+      expect(query_ids("ByStatus", store: adapter_for(registry, "Widget"))).to contain_exactly("w1", "w2")
+    end
   end
 
-  # One scenario: the resume assertions only mean something against the partial
-  # state the simulated crash leaves, so splitting would re-pay the crash setup.
-  # rubocop:disable-next RSpec/ExampleLength
-  it "resumes a backfill from its persisted cursor after a simulated crash mid-scan" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
-    ids = (1..10).map { |n| "w#{n}" }
-    ids.each { |id| adapter.save(instance_for(aggregate, id, status: "active", cents: 100)) }
+  # The resume assertions only mean something against the partial state the simulated crash leaves.
+  context "when a backfill crashed mid-scan" do
+    def widget_ids = (1..10).map { |n| "w#{n}" }
 
-    db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    name = field_cache_table(db, "widget", 1, "status")
-    db.exec("TRUNCATE #{PG::Connection.quote_ident(name)}")
-    db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
+    # Raises on the second chunk, and lets every other one through.
+    def crash_on_second_chunk(lineage)
+      attempts = 0
+      allow(lineage).to receive(:upsert_field_cache_rows!).and_wrap_original do |original, *args|
+        attempts += 1
+        raise "simulated crash mid-backfill" if attempts == 2
 
-    stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
-
-    attempts = 0
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
-    allow(lineage).to receive(:upsert_field_cache_rows!).and_wrap_original do |original, *args|
-      attempts += 1
-      raise "simulated crash mid-backfill" if attempts == 2
-
-      original.call(*args)
+        original.call(*args)
+      end
     end
 
-    expression = "state #>> ARRAY['status']::text[]"
-    expect { lineage.ensure_field_cache!("widget", 1, "status", expression) }
-      .to raise_error(RuntimeError, "simulated crash mid-backfill")
+    def run_crashing_backfill
+      stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
+      lineage = lineage_on_adapter_db
+      crash_on_second_chunk(lineage)
+      expect { lineage.ensure_field_cache!("widget", 1, "status", status_expression) }
+        .to raise_error(RuntimeError, "simulated crash mid-backfill")
+    end
 
-    progress = db.exec_params("SELECT cursor, completed FROM hecks_backfill_progress WHERE target = $1", [name])[0]
-    expect(progress["completed"]).to eq("f")
-    expect(progress["cursor"]).not_to be_nil
-    partial_count = db.exec("SELECT COUNT(*) FROM #{PG::Connection.quote_ident(name)}")[0]["count"].to_i
-    expect(partial_count).to be > 0
-    expect(partial_count).to be < 10
+    def backfill_progress(db)
+      db.exec_params("SELECT cursor, completed FROM hecks_backfill_progress WHERE target = $1", [@cache_name])[0]
+    end
+
+    def cached_count(db) = db.exec("SELECT COUNT(*) FROM #{PG::Connection.quote_ident(@cache_name)}")[0]["count"].to_i
+
+    before do
+      widget_ids.each { |id| save_widget(id, status: "active", cents: 100) }
+      with_owner_db { |db| @cache_name = empty_status_cache!(db) }
+      run_crashing_backfill
+    end
+
+    it "records the backfill as incomplete, with a cursor", :aggregate_failures do
+      with_owner_db do |db|
+        expect(backfill_progress(db)["completed"]).to eq("f")
+        expect(backfill_progress(db)["cursor"]).not_to be_nil
+      end
+    end
+
+    it "leaves the cache partly filled" do
+      with_owner_db { |db| expect(cached_count(db)).to be_between(1, 9) }
+    end
 
     # resume unstubbed: continues from the persisted cursor to full coverage
-    fresh_lineage = Hecks::Adapters::PostgresEra::Lineage.new(
-      adapter.instance_variable_get(:@db), "Cache"
-    )
-    fresh_lineage.ensure_field_cache!("widget", 1, "status", expression)
+    it "resumes from the persisted cursor to full coverage" do
+      lineage_on_adapter_db.ensure_field_cache!("widget", 1, "status", status_expression)
 
-    final_ids = db.exec("SELECT id FROM #{PG::Connection.quote_ident(name)} ORDER BY id").map { |row| row["id"] }
-    expect(final_ids).to eq(ids.sort)
-  ensure
-    db&.close
+      with_owner_db do |db|
+        final = db.exec("SELECT id FROM #{PG::Connection.quote_ident(@cache_name)} ORDER BY id").map { |row| row["id"] }
+        expect(final).to eq(widget_ids.sort)
+      end
+    end
   end
 
-  # One concurrency proof: a slow backfill, a write landing mid-scan, and a
-  # wall-clock bound; the setup and the timing assertion cannot be split.
-  # rubocop:disable-next RSpec/ExampleLength
-  it "lets a concurrent plain write through while a backfill is mid-scan" do
-    registry = check!(FIELD_CACHE_V1_SOURCE)
-    aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = adapter_for(registry, "Widget")
-    ids = (1..20).map { |n| "w#{n}" }
-    ids.each { |id| adapter.save(instance_for(aggregate, id, status: "active", cents: 100)) }
-
-    db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    name = field_cache_table(db, "widget", 1, "status")
-    db.exec("TRUNCATE #{PG::Connection.quote_ident(name)}")
-    db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
-    db.close
-
-    stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
-
-    backfill_db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
-    expression = "state #>> ARRAY['status']::text[]"
-
-    # slow enough that a lock held across a chunk would visibly stall the writer
-    original = lineage.method(:upsert_field_cache_rows!)
-    allow(lineage).to receive(:upsert_field_cache_rows!) do |*args|
-      sleep 0.3
-      original.call(*args)
+  context "with a slow backfill mid-scan" do
+    def slow_down_upserts(lineage)
+      # slow enough that a lock held across a chunk would visibly stall the writer
+      original = lineage.method(:upsert_field_cache_rows!)
+      allow(lineage).to receive(:upsert_field_cache_rows!) do |*args|
+        sleep 0.3
+        original.call(*args)
+      end
     end
 
-    backfill_thread = Thread.new { lineage.ensure_field_cache!("widget", 1, "status", expression) }
-    sleep 0.15 # let the backfill get into its first slow chunk
+    def start_slow_backfill(backfill_db)
+      stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
+      lineage = Hecks::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
+      slow_down_upserts(lineage)
+      Thread.new { lineage.ensure_field_cache!("widget", 1, "status", status_expression) }
+    end
 
-    write_adapter = adapter_for(registry, "Widget")
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    write_adapter.save(instance_for(aggregate, "w1", status: "retired", cents: 999))
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    def timed_plain_write
+      write_adapter = adapter_for(registry, "Widget")
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      write_adapter.save(instance_for(aggregate, "w1", status: "retired", cents: 999))
+      Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    end
 
-    backfill_thread.join(10)
-    expect(backfill_thread.status).to be(false) # finished, not still running / not dead-from-error
-    expect(elapsed).to be < 1.0 # nowhere near the ~3s the full slow backfill takes end to end
-  ensure
-    backfill_db&.close
+    # Writes while a backfill thread is mid-scan; answers the thread's status and the write's
+    # duration.
+    def write_during_backfill
+      backfill_db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
+      thread = start_slow_backfill(backfill_db)
+      sleep 0.15 # let the backfill get into its first slow chunk
+      elapsed = timed_plain_write
+      thread.join(10)
+      [thread.status, elapsed]
+    ensure
+      backfill_db&.close
+    end
+
+    before do
+      (1..20).each { |n| save_widget("w#{n}", status: "active", cents: 100) }
+      with_owner_db { |db| empty_status_cache!(db) }
+    end
+
+    it "lets a concurrent plain write through while a backfill is mid-scan", :aggregate_failures do
+      status, elapsed = write_during_backfill
+
+      expect(status).to be(false) # finished, not still running / not dead-from-error
+      expect(elapsed).to be < 1.0 # nowhere near the ~3s the full slow backfill takes end to end
+    end
   end
 end

@@ -7,7 +7,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   let(:root) { Hecks::Corpus::ROOT }
   let(:features) { corpus.rust_domains.map(&:feature) }
 
-  it "sends every Cargo feature to exactly one bucket" do
+  it "sends every Cargo feature to exactly one bucket", :aggregate_failures do
     elsewhere = corpus::RUST_ELSEWHERE.keys
     expect(features & elsewhere).to be_empty
     expect(corpus.cargo_features.sort).to eq((features + elsewhere).sort)
@@ -17,7 +17,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(features.tally.select { |_, count| count > 1 }.keys).to be_empty
   end
 
-  it "sends every generated module to exactly one bucket" do
+  it "sends every generated module to exactly one bucket", :aggregate_failures do
     side_chapter_modules = (corpus.rust_framework_chapters + corpus.rust_vendored_chapters)
                            .map { |stem| corpus.rust_side_module_name(stem) }
     buckets = features + side_chapter_modules + corpus.rust_sibling_chapters + corpus::RUST_ELSEWHERE.keys
@@ -29,7 +29,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(corpus.rust_sibling_chapters).to include("payments")
   end
 
-  it "has generated every in-repo Rust domain, from the directory it names" do
+  it "has generated every in-repo Rust domain, from the directory it names", :aggregate_failures do
     corpus.rust_domains.each do |domain|
       expect(corpus.generated_source(domain.feature)).to eq(domain.dir.delete_prefix("#{root}/")), domain.feature
     end
@@ -51,31 +51,41 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     end
   end
 
-  # A vendored chapter's name is not its file stem, so it is read from the bluebook header.
   it "attaches every vendored chapter through some Rust domain's hecksagon" do
     hecksagons = corpus.rust_attachment_hecksagon_text
-    vendored_by_stem = corpus.members(:vendored).to_h { |member| [member.stem, member] }
     corpus.rust_vendored_chapters.each do |stem|
-      member = vendored_by_stem.fetch(stem)
-      chapter = corpus.chapter_name_of(corpus.bluebook_files(member.path))
       expect(hecksagons).to match(/^\s*attaches\s+"#{stem}",\s*from:\s*:vendor/), stem
-      expect(chapter).to eq(Hecks::Naming.pascal(stem)), "#{member.path}: chapter #{chapter.inspect} != #{Hecks::Naming.pascal(stem).inspect}"
     end
   end
 
-  it "routes every elsewhere feature to a check that exists" do
+  # A vendored chapter's name is not its file stem, so it is read from the bluebook header.
+  def vendored_chapter(stem)
+    member = corpus.members(:vendored).to_h { |candidate| [candidate.stem, candidate] }.fetch(stem)
+    [member.path, corpus.chapter_name_of(corpus.bluebook_files(member.path))]
+  end
+
+  it "names every vendored chapter by the stem of its file" do
+    corpus.rust_vendored_chapters.each do |stem|
+      path, chapter = vendored_chapter(stem)
+      expected = Hecks::Naming.pascal(stem)
+      expect(chapter).to eq(expected), "#{path}: chapter #{chapter.inspect} != #{expected.inspect}"
+    end
+  end
+
+  def expect_route_checked(feature, route)
+    raise "unknown RUST_ELSEWHERE check #{route.check.inspect}" unless route.check == :named_in
+
+    expect(File.read(File.join(root, route.destination))).to include(route.names), feature
+  end
+
+  it "routes every elsewhere feature to a check that exists", :aggregate_failures do
     corpus::RUST_ELSEWHERE.each do |feature, route|
       expect(route.why).to match(/\S/)
-      case route.check
-      when :named_in
-        expect(File.read(File.join(root, route.destination))).to include(route.names), feature
-      else
-        raise "unknown RUST_ELSEWHERE check #{route.check.inspect}"
-      end
+      expect_route_checked(feature, route)
     end
   end
 
-  it "pends rust coverage only for modules that exist" do
+  it "pends rust coverage only for modules that exist", :aggregate_failures do
     expect(corpus::RUST_COVERAGE_PENDING.keys - corpus.generated_modules).to be_empty
     expect(corpus::RUST_COVERAGE_PENDING.values).to all(match(/\S/))
   end

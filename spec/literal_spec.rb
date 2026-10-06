@@ -32,7 +32,7 @@ RSpec.describe Hecks::Literal do
 
     # A numeric-looking string keeps its quotes; bare `007` would read back as an
     # Integer and `where code == "007"` would match nothing.
-    it "quotes a numeric-looking string differently from the number itself" do
+    it "quotes a numeric-looking string differently from the number itself", :aggregate_failures do
       expect(described_class.render("007")).to eq('"007"')
       expect(described_class.render(7)).to eq("7")
     end

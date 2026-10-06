@@ -30,22 +30,26 @@ module Hecks
         path, aggregate = target(argv, here)
         refuse_without_domain(program, root) unless path
 
+        bluebook = boot_bluebook(path)
+        begin
+          puts Projector.call(projection, bluebook: bluebook, options: aggregate ? { aggregate: aggregate } : {})
+        rescue Runtime::NotFound => e
+          abort e.message
+        end
+      end
+
+      # The domain's own chapter, not a framework member it attached: insertion
+      # order, the same distinction `Runtime::Loader.dispatcher_for` draws.
+      #
+      # @api private
+      def boot_bluebook(path)
         begin
           runtime = Hecks.boot(path, install_doors: false)
         rescue StandardError => e
           abort "cannot read #{path}: #{e.message.lines.first.strip}"
         end
 
-        # The domain's own chapter, not a framework member it attached: insertion
-        # order, the same distinction `Runtime::Loader.dispatcher_for` draws.
-        bluebook = runtime.registry.bluebooks.values.first
-        abort "#{path} loaded no bluebook" unless bluebook
-
-        begin
-          puts Projector.call(projection, bluebook: bluebook, options: aggregate ? { aggregate: aggregate } : {})
-        rescue Runtime::NotFound => e
-          abort e.message
-        end
+        runtime.registry.bluebooks.values.first or abort "#{path} loaded no bluebook"
       end
 
       # Lists every directory under `root` that `Hecks.boot` would accept.

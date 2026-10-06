@@ -105,7 +105,11 @@ RSpec.describe "a mutation sourced from the record's own state" do
 
   def board = Hecks::Runtime::Value.materialize(Snapshots::Board.find("b").to_h)
 
-  it "copies the record's own fields into the appended element, and asks the caller for nothing" do
+  def move_piece_to(file) = runtime.dispatch("Snapshots::Board.MovePiece", to: "b", with: { id: "p1", to: { file: file } })
+
+  def claim_repeat = runtime.dispatch("Snapshots::Board.ClaimRepeat", to: "b", with: {})
+
+  it "copies the record's own fields into the appended element, and asks the caller for nothing", :aggregate_failures do
     runtime.dispatch("Snapshots::Board.Record", to: "b", with: {})
 
     expect(board[:positions]).to eq([{ ply: { value: 0 }, pieces: [{ id: { value: "p1" }, square: { file: 1 } }] }])
@@ -113,7 +117,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
     expect(board[:ply]).to eq(value: 1)
   end
 
-  it "snapshots by value — a later move does not rewrite an earlier position" do
+  it "snapshots by value — a later move does not rewrite an earlier position", :aggregate_failures do
     runtime.dispatch("Snapshots::Board.Record", to: "b", with: {})
     runtime.dispatch("Snapshots::Board.MovePiece", to: "b", with: { id: "p1", to: { file: 2 } })
 
@@ -121,17 +125,16 @@ RSpec.describe "a mutation sourced from the record's own state" do
     expect(board[:pieces]).to eq([{ id: { value: "p1" }, square: { file: 2 } }])
   end
 
-  it "lets a given quantify over the snapshot's own list" do
+  it "lets a given quantify over the snapshot's own list", :aggregate_failures do
     runtime.dispatch("Snapshots::Board.Record", to: "b", with: {})
-    runtime.dispatch("Snapshots::Board.MovePiece", to: "b", with: { id: "p1", to: { file: 2 } })
-    expect { runtime.dispatch("Snapshots::Board.ClaimRepeat", to: "b", with: {}) }
-      .to raise_error(Hecks::Runtime::GivenNotMet)
+    move_piece_to(2)
+    expect { claim_repeat }.to raise_error(Hecks::Runtime::GivenNotMet)
 
-    runtime.dispatch("Snapshots::Board.MovePiece", to: "b", with: { id: "p1", to: { file: 1 } })
-    expect(runtime.dispatch("Snapshots::Board.ClaimRepeat", to: "b", with: {}).events.map(&:name)).to eq(["RepeatClaimed"])
+    move_piece_to(1)
+    expect(claim_repeat.events.map(&:name)).to eq(["RepeatClaimed"])
   end
 
-  it "carries the source through the IR as its own kind" do
+  it "carries the source through the IR as its own kind", :aggregate_failures do
     command = runtime.registry.bluebook("Snapshots").aggregate("Board").command("Record")
     mutations = command.mutations.map(&:to_h)
     expect(mutations[0][:fields]).to eq(ply: "state(:ply)", pieces: "state(:pieces)")

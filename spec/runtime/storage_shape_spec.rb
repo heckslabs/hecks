@@ -9,15 +9,17 @@ require "hecks/ports/persistence/plugins/era"
 RSpec.describe "the storage-shape projection" do
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 
-  def self.project_fixture(path)
+  def self.load_fixture(path)
     registry = Hecks::Runtime::Registry.new
     loading = Hecks::Ports::Loading.bootstrap
     Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(File.read(path), TOPLEVEL_BINDING, path, 1)
     end
-    Hecks::Runtime::StorageShape.project(registry.bluebooks.values.first)
+    registry.bluebooks.values.first
   end
+
+  def self.project_fixture(path) = Hecks::Runtime::StorageShape.project(load_fixture(path))
 
   BASE = project_fixture(File.join(FIXTURES, "base.bluebook"))
 
@@ -25,7 +27,7 @@ RSpec.describe "the storage-shape projection" do
                 .reject { |path| File.basename(path) == "base.bluebook" }
                 .sort.freeze
 
-  it "has fixtures for both verdicts" do
+  it "has fixtures for both verdicts", :aggregate_failures do
     names = VARIANTS.map { |path| File.basename(path) }
     expect(names.count { |name| name.start_with?("bump_") }).to be >= 5
     expect(names.count { |name| name.start_with?("same_") }).to be >= 2
@@ -46,20 +48,12 @@ RSpec.describe "the storage-shape projection" do
     end
   end
 
-  it "mints a stable name from the canonical serialization — Ruby-only, at mint time" do
-    path = File.join(FIXTURES, "base.bluebook")
-    registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(File.read(path), TOPLEVEL_BINDING, path, 1)
-    end
-    bluebook = registry.bluebooks.values.first
+  it "mints a stable name from the canonical serialization — Ruby-only, at mint time", :aggregate_failures do
+    bluebook = self.class.load_fixture(File.join(FIXTURES, "base.bluebook"))
 
     label = Hecks::Runtime::StorageShape.mint_label(bluebook)
     expect(label).to match(/\A\h{6}\z/)
-    expect(Hecks::Runtime::StorageShape.mint_hash(bluebook))
-      .to start_with(label)
+    expect(Hecks::Runtime::StorageShape.mint_hash(bluebook)).to start_with(label)
     expect(Hecks::Runtime::StorageShape.mint_label(bluebook)).to eq(label)
   end
 end

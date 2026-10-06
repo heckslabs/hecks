@@ -17,61 +17,82 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
   def build_rust_for(domain_feature) = super(domain_feature, RUST_DIR)
 
+  RUST_CONFORMANCE_UNCOVERED_QUERY = "Banking::Account.NoSuchQuery".freeze
+
+  # The fixture domain's compiled binary, skipping the example when its feature is not built.
+  def binary_for(fixture)
+    feature = File.basename(fixture.fetch("domain")).downcase
+    build_rust_for(feature) || skip("rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first")
+  end
+
+  def kernel_stdout(binary, fixture)
+    stdin = Hecks::RustBuild::KernelInput.json(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), fixture.fetch("steps"))
+    stdout, status = Open3.capture2(binary, stdin_data: stdin)
+    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+    stdout
+  end
+
+  def stripped_rust_output(stdout)
+    JSON.parse(stdout).tap do |rust_output|
+      strip_emitted_flags!(rust_output["instances"])
+      strip_emitted_flags!(rust_output["queries"])
+      strip_occurred_at!(rust_output["events"])
+    end
+  end
+
+  def expect_fields_match(rust_output, expected)
+    # No tolerance: this corpus never asks a verb the manifest declares `generated: false`.
+    %w[instances events refusals queries sagas dry_runs].each do |key|
+      expect(rust_output[key]).to eq(expected[key]), "#{key} differs from the frozen expect"
+    end
+    # Rust's kernel cannot yet resolve cross-domain policies, which the corpus records as delivered.
+    cross_domain = cross_domain_policy_names(rust_output)
+    expect(rust_output.fetch("reactions")).to eq(expected["reactions"].reject { |r| cross_domain.include?(r["policy"]) })
+  end
+
+  def banking_binary
+    build_rust_for("banking") || skip("rust/Cargo.toml has no banking feature — run hecks build.project_rust for it first")
+  end
+
+  def uncovered_query_output(binary)
+    stdin = JSON.generate({ "steps" => [{ "query" => RUST_CONFORMANCE_UNCOVERED_QUERY }] })
+    stdout, status = Open3.capture2(binary, stdin_data: stdin)
+    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+    JSON.parse(stdout)
+  end
+
   # The full corpus scripts (banking, chess) ride along with the small fixtures: only a long
   # replay reaches divergences that need accumulated state.
   ConformanceCorpus.paths.sort_by { |path| [ConformanceCorpus.load(path).fetch("domain"), path] }.each do |script_path|
     # One example per script: splitting per field would repeat the cargo build and spawn.
-    it "#{File.basename(script_path)}: instances, events, refusals, reactions, and sagas match the frozen expect" do
+    it "#{File.basename(script_path)}: instances, events, refusals, reactions, and sagas match the frozen expect",
+       :aggregate_failures do
       fixture = ConformanceCorpus.load(script_path)
-      steps = fixture.fetch("steps")
-      expected = fixture.fetch("expect")
-      feature = File.basename(fixture.fetch("domain")).downcase
+      rust_output = stripped_rust_output(kernel_stdout(binary_for(fixture), fixture))
 
-      binary = build_rust_for(feature)
-      skip "rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first" unless binary
-
-      stdin = Hecks::RustBuild::KernelInput.json(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), steps)
-      stdout, status = Open3.capture2(binary, stdin_data: stdin)
-      expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
-
-      rust_output = JSON.parse(stdout)
-      strip_emitted_flags!(rust_output["instances"])
-      strip_emitted_flags!(rust_output["queries"])
-      strip_occurred_at!(rust_output["events"])
-
-      # No tolerance: this corpus never asks a verb the manifest declares `generated: false`.
-      %w[instances events refusals queries sagas dry_runs].each do |key|
-        expect(rust_output[key]).to eq(expected[key]), "#{key} differs from the frozen expect"
-      end
-
-      # Rust's kernel cannot yet resolve cross-domain policies, which the corpus records as delivered.
-      cross_domain = cross_domain_policy_names(rust_output)
-      expect(rust_output.fetch("reactions"))
-        .to eq(expected["reactions"].reject { |r| cross_domain.include?(r["policy"]) })
+      expect_fields_match(rust_output, fixture.fetch("expect"))
     end
   end
 
   # Rust refuses a query verb it never generated cleanly: TypeMismatch, exit 0, no panic.
-  it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a " \
-     "byte-for-byte comparison — Ruby answers this one for real)" do
-    binary = build_rust_for("banking")
-    skip "rust/Cargo.toml has no banking feature — run hecks build.project_rust for it first" unless binary
+  it "refuses a query step whose shape this generator doesn't cover, once, naming the verb", :aggregate_failures do
+    refusals = uncovered_query_output(banking_binary)["refusals"]
 
-    uncovered = "Banking::Account.NoSuchQuery"
-    stdout, status = Open3.capture2(
-      binary,
-      stdin_data: JSON.generate({ "steps" => [{ "query" => uncovered }] })
-    )
-    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+    expect(refusals.size).to eq(1)
+    expect(refusals[0]["verb"]).to eq(RUST_CONFORMANCE_UNCOVERED_QUERY)
+  end
 
-    rust_output = JSON.parse(stdout)
+  it "says the uncovered query is not generated for this domain (not a byte-for-byte comparison — Ruby answers it)" do
+    refusal = uncovered_query_output(banking_binary)["refusals"][0]
+
+    expect(refusal["error"]).to include(RUST_CONFORMANCE_UNCOVERED_QUERY).and include("is not generated for this domain")
+  end
+
+  it "answers no query rows for the uncovered query, and the manifest declares no gap for it", :aggregate_failures do
+    binary = banking_binary
+
     # The manifest declares no gap for this verb, so a divergence would be a fuzzer finding.
-    expect(Hecks::Fuzzing::RustGapManifest.for_binary(binary).not_generated(uncovered)).to be_nil
-    expect(rust_output["refusals"].size).to eq(1)
-    expect(rust_output["refusals"][0]["verb"]).to eq(uncovered)
-    expect(rust_output["refusals"][0]["error"])
-      .to include(uncovered)
-      .and include("is not generated for this domain")
-    expect(rust_output["queries"]).to eq([])
+    expect(Hecks::Fuzzing::RustGapManifest.for_binary(binary).not_generated(RUST_CONFORMANCE_UNCOVERED_QUERY)).to be_nil
+    expect(uncovered_query_output(binary)["queries"]).to eq([])
   end
 end

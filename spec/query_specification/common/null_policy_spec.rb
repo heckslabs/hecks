@@ -12,13 +12,13 @@ RSpec.describe Hecks::QuerySpecification::Common::NullPolicy do
       expect(described_class.sql_order("price", "desc", nil)).to eq("price DESC NULLS LAST, id DESC")
     end
 
-    it "still honors an explicit :first policy regardless of direction" do
+    it "still honors an explicit :first policy regardless of direction", :aggregate_failures do
       policy = Hecks::QuerySpecification::Common::NullSemantics.new(mode: :first)
       expect(described_class.sql_order("price", "asc", policy)).to eq("price ASC NULLS FIRST, id ASC")
       expect(described_class.sql_order("price", "desc", policy)).to eq("price DESC NULLS FIRST, id DESC")
     end
 
-    it "still honors an explicit :last policy regardless of direction" do
+    it "still honors an explicit :last policy regardless of direction", :aggregate_failures do
       policy = Hecks::QuerySpecification::Common::NullSemantics.new(mode: :last)
       expect(described_class.sql_order("price", "asc", policy)).to eq("price ASC NULLS LAST, id ASC")
       expect(described_class.sql_order("price", "desc", policy)).to eq("price DESC NULLS LAST, id DESC")
@@ -44,7 +44,7 @@ RSpec.describe Hecks::QuerySpecification::Common::NullPolicy do
       expect(ordered).to eq([{ v: 2 }, { v: 1 }, { v: nil }])
     end
 
-    it "treats an upper- or mixed-case direction the same as lowercase, matching #sql_order" do
+    it "treats an upper- or mixed-case direction the same as lowercase, matching #sql_order", :aggregate_failures do
       rows = [{ v: 2 }, { v: nil }, { v: 1 }]
       expect(described_class.order(rows, direction: "DESC") { |row| row[:v] })
         .to eq(described_class.order(rows, direction: "desc") { |row| row[:v] })

@@ -23,7 +23,7 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     scratches.each { |path| FileUtils.rm_rf(path) }
   end
 
-  it "removes the scratch crate when a domain aborts the run" do
+  it "removes the scratch crate when a domain aborts the run", :aggregate_failures do
     allow(described_class).to receive(:regenerate).and_raise(SystemExit.new(1))
 
     expect { described_class.main(["--check"], root: root) }.to raise_error(SystemExit)
@@ -32,7 +32,7 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     expect(Dir.exist?(scratches.first)).to be(false)
   end
 
-  it "removes the scratch crate when a domain raises" do
+  it "removes the scratch crate when a domain raises", :aggregate_failures do
     allow(described_class).to receive(:regenerate).and_raise(RuntimeError, "boom")
 
     expect { described_class.main(["--check"], root: root) }.to raise_error("boom")
@@ -40,7 +40,7 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     expect(Dir.exist?(scratches.first)).to be(false)
   end
 
-  it "puts HECKS_RUST_DIR back after an aborted check" do
+  it "puts HECKS_RUST_DIR back after an aborted check", :aggregate_failures do
     before = ENV.fetch("HECKS_RUST_DIR", nil)
     allow(described_class).to receive(:regenerate).and_raise(SystemExit.new(1))
 

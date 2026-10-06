@@ -29,19 +29,19 @@ RSpec.describe Hecks::Doors::CliDoor do
   # guessed would send the Integer 99 for a version string of "99" and be wrong
   # in a way nothing downstream could detect.
   describe "typing" do
-    it "casts by the declared type, not by what the value looks like" do
+    it "casts by the declared type, not by what the value looks like", :aggregate_failures do
       args = described_class.arguments(spec, ["sequence.value=99", "reference.value=99"])
 
       expect(args[:sequence][:value]).to eq(99)
       expect(args[:reference][:value]).to eq("99")
     end
 
-    it "reads a boolean the ways a shell writes one" do
+    it "reads a boolean the ways a shell writes one", :aggregate_failures do
       expect(described_class.arguments(spec, ["wanted=true"])[:wanted]).to be(true)
       expect(described_class.arguments(spec, ["wanted=no"])[:wanted]).to be(false)
     end
 
-    it "reads every Boolean word in any letter case" do
+    it "reads every Boolean word in any letter case", :aggregate_failures do
       %w[true YES 1 On].each { |word| expect(described_class.arguments(spec, ["wanted=#{word}"])[:wanted]).to be(true) }
       %w[false No 0 OFF].each { |word| expect(described_class.arguments(spec, ["wanted=#{word}"])[:wanted]).to be(false) }
     end
@@ -53,7 +53,7 @@ RSpec.describe Hecks::Doors::CliDoor do
       end
     end
 
-    it "takes a Boolean word after a flag as its value, not as the first argument" do
+    it "takes a Boolean word after a flag as its value, not as the first argument", :aggregate_failures do
       expect(described_class.arguments(spec, ["--wanted", "no"])).to eq(wanted: false)
       expect(described_class.arguments(spec, ["--wanted", "yes"])).to eq(wanted: true)
       expect(described_class.arguments(spec, ["--wanted", "A-1"])).to eq(id: "A-1", wanted: true)

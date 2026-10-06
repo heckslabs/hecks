@@ -16,36 +16,46 @@ module Hecks
         bluebook = registry.bluebooks.values.first
         return failed("no bluebook in #{directory}") unless bluebook
 
-        first = bluebook.aggregates.first
-        return not_applicable("#{bluebook.name} declares no aggregates") unless first
+        reason = unaudited_reason(registry, bluebook)
+        return not_applicable(reason) if reason
 
-        adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
-        unless adapter_name == "PostgresEra"
-          return not_applicable("#{bluebook.name} is bound to #{adapter_name}, not PostgresEra")
-        end
-
-        settings = registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
-        db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
-        begin
-          lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
-          lineage.ensure_base!
-          eras = lineage.eras
-          breakdown = if eras.size > 1
-                        (1...eras.last[:ordinal]).map do |ordinal|
-                          { ordinal: ordinal, diverged: lineage.diverged_count(ordinal) }
-                        end
-                      else
-                        []
-                      end
-          { checked: true, era_count: eras.size, breakdown: breakdown, diverged_total: breakdown.sum { |b| b[:diverged] } }
-        ensure
-          db.close
-        end
+        audit(registry, bluebook, "PostgresEra")
       rescue StandardError => e
         # A refused connection or malformed `.world` settings is not the
         # same as nothing to audit, so this reports `:error`, never the
         # benign `:not_applicable` shape.
         failed("#{e.class}: #{e.message}")
+      end
+
+      # Why a bluebook has no `PostgresEra` lineage to audit, or nil when it does.
+      def unaudited_reason(registry, bluebook)
+        return "#{bluebook.name} declares no aggregates" unless bluebook.aggregates.first
+
+        adapter_name = bound_adapter(registry, bluebook)
+        "#{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless adapter_name == "PostgresEra"
+      end
+
+      def bound_adapter(registry, bluebook)
+        Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
+      end
+
+      # Counts the writes each ancestor era holds that were never merged forward.
+      def audit(registry, bluebook, adapter_name)
+        settings = registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
+        db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+        lineage.ensure_base!
+        eras = lineage.eras
+        breakdown = ancestor_breakdown(lineage, eras)
+        { checked: true, era_count: eras.size, breakdown: breakdown, diverged_total: breakdown.sum { |b| b[:diverged] } }
+      ensure
+        db&.close
+      end
+
+      def ancestor_breakdown(lineage, eras)
+        return [] unless eras.size > 1
+
+        (1...eras.last[:ordinal]).map { |ordinal| { ordinal: ordinal, diverged: lineage.diverged_count(ordinal) } }
       end
 
       def not_applicable(reason) = { checked: false, kind: :not_applicable, reason: reason }

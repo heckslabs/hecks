@@ -34,7 +34,15 @@ RSpec.describe Hecks::Doors::UsageCache do
     [text, status]
   end
 
-  it "works the help out once and answers the repeat from the file, without running the block" do
+  # Backdates the only entry past the sweep window and returns its path.
+  def age_first_entry
+    stale = Dir.glob(File.join(cache, "usage-*.json")).first
+    long_ago = Time.now - (described_class::KEEP_SECONDS + 60)
+    File.utime(long_ago, long_ago, stale)
+    stale
+  end
+
+  it "works the help out once and answers the repeat from the file, without running the block", :aggregate_failures do
     first = fetch { worked_out("help text") }
     again = fetch { raise "the domain was read again" }
 
@@ -51,7 +59,7 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(fetch { worked_out("new help") }).to eq(["new help", 0])
   end
 
-  it "keeps a separate entry for each audience, since the same line reads differently to each" do
+  it "keeps a separate entry for each audience, since the same line reads differently to each", :aggregate_failures do
     for_audience = ->(audience, &block) { described_class.fetch(runtime, [], "hecks", audience: audience, &block) }
     for_audience.call("project") { worked_out("project help") }
     for_audience.call("maintainer") { worked_out("maintainer help") }
@@ -60,7 +68,7 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(for_audience.call("maintainer") { raise "read again" }).to eq(["maintainer help", 0])
   end
 
-  it "keeps a separate entry for each command line" do
+  it "keeps a separate entry for each command line", :aggregate_failures do
     fetch([]) { worked_out("usage") }
     fetch(["--help"]) { worked_out("help flag") }
 
@@ -68,7 +76,7 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(fetch(["--help"]) { raise "read again" }).to eq(["help flag", 0])
   end
 
-  it "does not remember an answer that failed, or a line that runs something" do
+  it "does not remember an answer that failed, or a line that runs something", :aggregate_failures do
     expect(fetch { worked_out("no such command", 1) }).to eq(["no such command", 1])
     expect(fetch { nil }).to be_nil
     fetch { worked_out("ok") }
@@ -77,7 +85,7 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(calls.size).to eq(2)
   end
 
-  it "is off when HECKS_NO_USAGE_CACHE is set, and writes nothing" do
+  it "is off when HECKS_NO_USAGE_CACHE is set, and writes nothing", :aggregate_failures do
     ENV["HECKS_NO_USAGE_CACHE"] = "1"
     2.times { fetch { worked_out("help") } }
 
@@ -100,9 +108,7 @@ RSpec.describe Hecks::Doors::UsageCache do
 
   it "sweeps entries nobody has read for two weeks when it writes a new one" do
     fetch(["old"]) { worked_out("stale") }
-    stale = Dir.glob(File.join(cache, "usage-*.json")).first
-    long_ago = Time.now - (described_class::KEEP_SECONDS + 60)
-    File.utime(long_ago, long_ago, stale)
+    stale = age_first_entry
 
     fetch(["new"]) { worked_out("fresh") }
 

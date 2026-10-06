@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Changed: RuboCop runs at its defaults, with a short list of deliberate overrides and no todo file.** `.rubocop.yml` names each cop the codebase departs from (house style such as double quotes and table-aligned hashes, and structural cases such as `module_function` and the RSpec cops) with its reason, and every other cop runs at the RuboCop default. Every offense the defaults find is fixed, and `.rubocop_todo.yml` is deleted. ADR 0091 records the overrides.
+
 **Changed: `hecks` lists the maintainer's commands only inside a hecks checkout, and points at the attached chapters.** Typed in any other project, `hecks` printed the commands for working on hecks itself (`language_run`, `style_run`, `publishing_run` and the rest). It now lists what a project runs against its own domain, then a `chapters` section with one line each for `hecks deploy`, `governance`, `tenancy`, `site`, `tickets` and `quality_control`. A directory with `hecks.gemspec` beside `lib/`, or any directory below one, gets the maintainer's view as before, with the language's own chapters added. `hecks --maintainer` lists everything anywhere, `HECKS_MAINTAINER=1` or `0` forces the view either way, and nothing is removed: every command still runs and answers `--help`. A world's `launcher` setting names the split with `maintainer:`, `chapters:` and `maintainer_chapters:`; a chapter that names none keeps its help whole.
 
 **Behavior change: the host's `session` cookie now expires.** The host refuses a `session` cookie with no `exp` field or

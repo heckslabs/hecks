@@ -27,15 +27,13 @@ module Hecks
         # @param domain [String] the owning domain, carried in the record and filtered on read
         # @param process_manager [String] the process manager's name
         # @param correlation [String] the instance's correlation value
-        # @param state [String] the saga's current state name
-        # @param memory [Hash] the saga's working memory to persist
-        # @param completed_compensations [Array] completed compensable legs; `[]` when none
+        # @param checkpoint [Hash{String => Object}] the saga's `"state"` (name), `"memory"`
+        #   (working memory) and `"completed_compensations"` (compensable legs; `[]` when none)
         # @return [Hash{String => Hash}] the full records Hash after the write; callers ignore it
-        def save_saga(domain, process_manager, correlation, state, memory, completed_compensations = [])
+        def save_saga(domain, process_manager, correlation, checkpoint)
           key    = key_for(domain, process_manager, correlation)
           record = { "domain" => domain, "process_manager" => process_manager,
-                     "correlation" => correlation, "state" => state, "memory" => memory,
-                     "completed_compensations" => completed_compensations }
+                     "correlation" => correlation }.merge(checkpoint)
 
           with_lock do
             append_entry("save", key, record)

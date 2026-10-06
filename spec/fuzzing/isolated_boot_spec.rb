@@ -9,7 +9,7 @@ require_relative "../support/postgres_probe"
 # `<root>/vendor/embryonaut_bluebooks/<name>/bluebook`, where the root is the
 # parent of the directory booted, so the copy has to carry the packages the
 # hecksagons name and nothing else from `vendor/`.
-RSpec.describe Hecks::Fuzzing::IsolatedBoot do
+RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
   WIDGETS_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Widgets" do
       vision "a vendored package"
@@ -35,6 +35,18 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
       end
     end
   BLUEBOOK
+
+  # Every example works in its own scratch directory, named `root` or `copy` by what it stands for.
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @scratch = dir
+      example.run
+    end
+  end
+
+  def root = @scratch
+
+  def copy = @scratch
 
   def write(root, relative, content)
     path = File.join(root, relative)
@@ -62,88 +74,74 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     File.join(root, "bluebook")
   end
 
+  def vendored_paths(copy)
+    Dir.glob(File.join(File.dirname(copy), "vendor", "*", "*")).map { |path| path.split("vendor/").last }
+  end
+
   describe ".call, for a target that vendors a bluebook" do
     it "boots the copy past the vendored package" do
-      Dir.mktmpdir do |root|
-        domain = project(root, uses: %w[widgets])
+      domain = project(root, uses: %w[widgets])
 
-        booted = described_class.call(domain) do |copy|
-          Hecks.boot(copy, install_doors: false).registry.bluebook("Widgets")
-        end
-
-        expect(booted).not_to be_nil
+      booted = described_class.call(domain) do |copy|
+        Hecks.boot(copy, install_doors: false).registry.bluebook("Widgets")
       end
+
+      expect(booted).not_to be_nil
     end
 
     it "carries only the packages a hecksagon names" do
-      Dir.mktmpdir do |root|
-        domain = project(root, uses: %w[widgets], vendored: %w[widgets gadgets])
-        write(root, "vendor/other_project/keep_out.txt", "not a bluebook package")
+      domain = project(root, uses: %w[widgets], vendored: %w[widgets gadgets])
+      write(root, "vendor/other_project/keep_out.txt", "not a bluebook package")
 
-        vendor = described_class.call(domain) do |copy|
-          Dir.glob(File.join(File.dirname(copy), "vendor", "*", "*")).map { |path| path.split("vendor/").last }
-        end
+      vendor = described_class.call(domain) { |copy| vendored_paths(copy) }
 
-        expect(vendor).to eq(["embryonaut_bluebooks/widgets"])
-      end
+      expect(vendor).to eq(["embryonaut_bluebooks/widgets"])
     end
 
     it "carries every package the hecksagons name" do
-      Dir.mktmpdir do |root|
-        domain = project(root, uses: %w[widgets gadgets], vendored: %w[widgets gadgets extras])
+      domain = project(root, uses: %w[widgets gadgets], vendored: %w[widgets gadgets extras])
 
-        vendor = described_class.call(domain) do |copy|
-          Dir.children(File.join(File.dirname(copy), "vendor", "embryonaut_bluebooks")).sort
-        end
-
-        expect(vendor).to eq(%w[gadgets widgets])
+      vendor = described_class.call(domain) do |copy|
+        Dir.children(File.join(File.dirname(copy), "vendor", "embryonaut_bluebooks")).sort
       end
+
+      expect(vendor).to eq(%w[gadgets widgets])
     end
 
     it "leaves a named package the source root lacks to the boot's own error" do
-      Dir.mktmpdir do |root|
-        domain = project(root, uses: %w[widgets], vendored: [])
+      domain = project(root, uses: %w[widgets], vendored: [])
 
-        expect { described_class.call(domain) { |copy| Hecks.boot(copy, install_doors: false) } }
-          .to raise_error(Hecks::Runtime::WiringError, /no vendored embryonaut bluebook named "widgets"/)
-      end
+      expect { described_class.call(domain) { |copy| Hecks.boot(copy, install_doors: false) } }
+        .to raise_error(Hecks::Runtime::WiringError, /no vendored embryonaut bluebook named "widgets"/)
     end
   end
 
   describe ".call, for a target that vendors nothing" do
     it "copies no vendor directory when the hecksagons name no package" do
-      Dir.mktmpdir do |root|
-        write(root, "bluebook/consumer.hecksagon", "Hecks.hecksagon(\"Widgets\") { }\n")
-        write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
+      write(root, "bluebook/consumer.hecksagon", "Hecks.hecksagon(\"Widgets\") { }\n")
+      write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
 
-        present = described_class.call(File.join(root, "bluebook")) do |copy|
-          File.exist?(File.join(File.dirname(copy), "vendor"))
-        end
+      present = described_class.call(File.join(root, "bluebook")) { |copy| File.exist?(File.join(File.dirname(copy), "vendor")) }
 
-        expect(present).to be(false)
-      end
+      expect(present).to be(false)
     end
 
     it "does not fail on a project that has no vendor directory at all" do
-      Dir.mktmpdir do |root|
-        write(root, "bluebook/consumer.hecksagon", consumer_hecksagon("widgets"))
+      write(root, "bluebook/consumer.hecksagon", consumer_hecksagon("widgets"))
 
-        expect { described_class.call(File.join(root, "bluebook")) { |copy| copy } }.not_to raise_error
-      end
+      expect { described_class.call(File.join(root, "bluebook")) { |copy| copy } }.not_to raise_error
     end
   end
 
   describe ".rewrite_bindings!" do
     it "keeps the statement after a binding written without parentheses" do
-      Dir.mktmpdir do |copy|
-        hecksagon = %(Hecks.hecksagon "Main" do\n  persisted_by "Postgres"\n\n  Main::Thing.port "Out" do\nend\nend\n)
-        write(copy, "bluebook/main.hecksagon", hecksagon)
+      hecksagon = %(Hecks.hecksagon "Main" do\n  persisted_by "Postgres"\n\n  Main::Thing.port "Out" do\nend\nend\n)
+      write(copy, "bluebook/main.hecksagon", hecksagon)
 
-        described_class.rewrite_bindings!(copy, "Memory")
+      described_class.rewrite_bindings!(copy, "Memory")
 
-        text = File.read(File.join(copy, "bluebook/main.hecksagon"))
-        expect(text).to include(%(persisted_by("Memory")\n\n  Main::Thing.port))
-      end
+      text = File.read(File.join(copy, "bluebook/main.hecksagon"))
+      expect(text).to include(%(persisted_by("Memory")\n\n  Main::Thing.port))
     end
   end
 
@@ -154,49 +152,41 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     def world_text(name) = %(Hecks.world "#{name}" do\nend\n)
 
     it "writes one world naming every hecksagon block in a directory, across files" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
-        write(copy, "bluebook/context_map.hecksagon", %(Hecks.hecksagon "Governance" do\nend\n))
+      write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+      write(copy, "bluebook/context_map.hecksagon", %(Hecks.hecksagon "Governance" do\nend\n))
 
-        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+      described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
 
-        text = File.read(File.join(copy, "bluebook/fuzz.world"))
-        expect(text.scan(/Hecks\.world "([^"]+)"/).flatten).to contain_exactly("Main", "Governance")
-      end
+      text = File.read(File.join(copy, "bluebook/fuzz.world"))
+      expect(text.scan(/Hecks\.world "([^"]+)"/).flatten).to contain_exactly("Main", "Governance")
     end
 
     it "names a block declared in two files of the directory once" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/a.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
-        write(copy, "bluebook/b.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
+      write(copy, "bluebook/a.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
+      write(copy, "bluebook/b.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
 
-        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+      described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
 
-        expect(File.read(File.join(copy, "bluebook/fuzz.world")).scan("Hecks.world").size).to eq(1)
-      end
+      expect(File.read(File.join(copy, "bluebook/fuzz.world")).scan("Hecks.world").size).to eq(1)
     end
 
     it "keeps each directory's world to that directory's own blocks" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
-        write(copy, "nested/bluebook/inner.hecksagon", %(Hecks.hecksagon "Inner" do\nend\n))
+      write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+      write(copy, "nested/bluebook/inner.hecksagon", %(Hecks.hecksagon "Inner" do\nend\n))
 
-        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+      described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
 
-        expect(File.read(File.join(copy, "bluebook/fuzz.world"))).not_to include("Inner")
-        expect(File.read(File.join(copy, "nested/bluebook/fuzz.world"))).to include("Inner")
-      end
+      expect(File.read(File.join(copy, "bluebook/fuzz.world"))).not_to include("Inner")
+      expect(File.read(File.join(copy, "nested/bluebook/fuzz.world"))).to include("Inner")
     end
 
     it "deletes every world the copy shipped with" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
-        write(copy, "bluebook/deployed.world", world_text("Main"))
+      write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+      write(copy, "bluebook/deployed.world", world_text("Main"))
 
-        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+      described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
 
-        expect(Dir.children(File.join(copy, "bluebook")).sort).to eq(%w[fuzz.world main.hecksagon])
-      end
+      expect(Dir.children(File.join(copy, "bluebook")).sort).to eq(%w[fuzz.world main.hecksagon])
     end
   end
 
@@ -211,37 +201,31 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     end
 
     it "gives a chapter no hecksagon names a Memory world" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
-        write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
-        write(copy, "bluebook/extra.bluebook", %(Hecks.bluebook "Extra" do\nend\n))
+      write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+      write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
+      write(copy, "bluebook/extra.bluebook", %(Hecks.bluebook "Extra" do\nend\n))
 
-        described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_chapter_worlds!(copy)
 
-        expect(unbound_worlds(copy, "bluebook")).to eq(["Extra"])
-      end
+      expect(unbound_worlds(copy, "bluebook")).to eq(["Extra"])
     end
 
     it "writes nothing where every chapter is named by a hecksagon" do
-      Dir.mktmpdir do |copy|
-        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
-        write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
+      write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+      write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
 
-        described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_chapter_worlds!(copy)
 
-        expect(Dir.glob(File.join(copy, "**", "*.world"))).to be_empty
-      end
+      expect(Dir.glob(File.join(copy, "**", "*.world"))).to be_empty
     end
 
     it "declares a chapter of the same name in two directories once" do
-      Dir.mktmpdir do |copy|
-        write(copy, "a/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
-        write(copy, "b/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
+      write(copy, "a/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
+      write(copy, "b/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
 
-        described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_chapter_worlds!(copy)
 
-        expect(Dir.glob(File.join(copy, "**", "*.world")).size).to eq(1)
-      end
+      expect(Dir.glob(File.join(copy, "**", "*.world")).size).to eq(1)
     end
   end
 
@@ -272,11 +256,11 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     end
 
     it "binds the unbound aggregate to Memory in a :memory copy" do
-      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :memory)).to eq("Memory") }
+      expect(bind_adapter_in_copy(root, :memory)).to eq("Memory")
     end
 
     it "binds the unbound aggregate to SqlitePersistence in a :sqlite copy" do
-      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :sqlite)).to eq("SqlitePersistence") }
+      expect(bind_adapter_in_copy(root, :sqlite)).to eq("SqlitePersistence")
     end
   end
 
@@ -299,15 +283,17 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
   # bind through the world's `default_adapter`; the copy must give that chapter the same
   # scratch database and schema as every hecksagon-bound one.
   describe ".call with adapter: :postgres, for a chapter no hecksagon binds", :io do
+    def open_privacy_repositories(copy)
+      registry = Hecks.boot(copy, install_doors: false).registry
+      registry.bluebook("Privacy").aggregates.each { |aggregate| registry.repository("Privacy", aggregate) }
+    end
+
     it "opens a repository for the framework's Privacy aggregates" do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
       framework = File.join(InMemoryDomain::ROOT, "lib/hecks/framework")
       expect do
-        described_class.call(framework, adapter: :postgres) do |copy|
-          registry = Hecks.boot(copy, install_doors: false).registry
-          registry.bluebook("Privacy").aggregates.each { |aggregate| registry.repository("Privacy", aggregate) }
-        end
+        described_class.call(framework, adapter: :postgres) { |copy| open_privacy_repositories(copy) }
       end.not_to raise_error
     end
   end

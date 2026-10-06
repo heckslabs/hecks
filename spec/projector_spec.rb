@@ -11,13 +11,16 @@ RSpec.describe Hecks::Projector do
   end
 
   describe "register/call" do
-    it "dispatches to whatever answers call(bluebook:, options:)" do
-      stub = Class.new do
+    def echoing_projector
+      Class.new do
         def self.call(bluebook:, options: {})
           { name: bluebook.name, options: options }
         end
       end
-      described_class.register(:stub, stub)
+    end
+
+    it "dispatches to whatever answers call(bluebook:, options:)" do
+      described_class.register(:stub, echoing_projector)
 
       expect(described_class.call(:stub, bluebook: pizzas, options: { flavor: "large" }))
         .to eq(name: "Pizzas", options: { flavor: "large" })
@@ -35,7 +38,7 @@ RSpec.describe Hecks::Projector do
         .to raise_error(described_class::UnknownProjector, /nonexistent/)
     end
 
-    it "answers registered? and registered without calling anything" do
+    it "answers registered? and registered without calling anything", :aggregate_failures do
       described_class.register(:stub, Class.new { def self.call(bluebook:, options: {}) end })
 
       expect(described_class.registered?(:stub)).to be true
@@ -49,7 +52,7 @@ RSpec.describe Hecks::Projector do
       expect(described_class.call(:ir, bluebook: pizzas)).to eq(pizzas.to_h)
     end
 
-    it "carries target-version metadata for free, as the first key" do
+    it "carries target-version metadata for free, as the first key", :aggregate_failures do
       projected = described_class.call(:ir, bluebook: pizzas)
 
       expect(projected.keys.first).to eq(:ir_version)

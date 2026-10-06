@@ -16,16 +16,22 @@ RSpec.describe "Facade install of attached chapters" do
     RUBY
   end
 
-  it "adds no attached chapter or chapter aggregate as a top-level constant" do
-    out, status = Open3.capture2e({ "HECKS_ENVIRONMENT" => "memory" }, RbConfig.ruby, "-e", script,
-                                  chdir: File.expand_path("../..", __dir__))
-    added = out.lines.map(&:strip).grep(/\A[A-Z]\w*\z/)
+  let(:booted) do
+    Open3.capture2e({ "HECKS_ENVIRONMENT" => "memory" }, RbConfig.ruby, "-e", script,
+                    chdir: File.expand_path("../..", __dir__))
+  end
 
-    expect(status).to be_success
-    leaked = added & %w[Query Command Policy Port Adapter Aggregate Entity ValueObject Syntax
-                        Vocabulary Target Ticket Bug Patch Improvement Angle Sweep Clearance
-                        Operator Tenant Recipe World Wiring Translation Deploy Tenancy
-                        QualityControl Bluebook Hecksagon Expression]
-    expect(leaked).to eq([])
+  let(:chapter_names) do
+    %w[Query Command Policy Port Adapter Aggregate Entity ValueObject Syntax
+       Vocabulary Target Ticket Bug Patch Improvement Angle Sweep Clearance
+       Operator Tenant Recipe World Wiring Translation Deploy Tenancy
+       QualityControl Bluebook Hecksagon Expression]
+  end
+
+  it "adds no attached chapter or chapter aggregate as a top-level constant", :aggregate_failures do
+    added = booted.first.lines.map(&:strip).grep(/\A[A-Z]\w*\z/)
+
+    expect(booted.last).to be_success
+    expect(added & chapter_names).to eq([])
   end
 end

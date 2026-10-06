@@ -69,14 +69,23 @@ module Hecks
         # The shape not yet minted: the edge that leaves the latest era for the current shape.
         def pending(latest)
           label = Runtime::StorageShape.mint_hash(@held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
-          domain = @held.bluebook.name
-          leaving = @held.registry.translations.select { |t| t.domain == domain && t.from == latest[:label] }
-          edge = leaving.find { |t| t.to == label } or
+          leaving = leaving_edges(latest)
+          edge = edge_to(leaving, latest, label)
+          chain = @manager.edge_chain(@held.registry, @held.bluebook, @eras[0..-2] + [latest], label)
+          finding(chain, latest[:ordinal] + 1, leaving.size, edge)
+        end
+
+        # The leaving edge that arrives at the current shape.
+        def edge_to(leaving, latest, label)
+          leaving.find { |t| t.to == label } or
             raise Runtime::NotFound, "no translation edge leads #{latest[:label]} to #{label} — " \
                                      "run `hecks scaffold_translation` first"
-          ancestors = @eras[0..-2] + [latest]
-          chain = @manager.edge_chain(@held.registry, @held.bluebook, ancestors, label)
-          finding(chain, latest[:ordinal] + 1, leaving.size, edge)
+        end
+
+        # The registered translations that leave the latest era.
+        def leaving_edges(latest)
+          domain = @held.bluebook.name
+          @held.registry.translations.select { |t| t.domain == domain && t.from == latest[:label] }
         end
 
         def finding(chain, era, leaving, edge = chain.last[:translation])
@@ -109,14 +118,22 @@ module Hecks
         end
 
         def describe(aggregate, edge, verdict, records)
-          lines = ["── #{@held.bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
-                   "#{records} record#{'s' unless records == 1})"]
-          verdict.violations.each { |violation| lines << "   REFUSED: #{violation}" }
-          lines << "   dropped (declared data loss): #{verdict.dropped.join(', ')}" unless verdict.dropped.empty?
+          [heading_line(aggregate, edge, records), *verdict_lines(verdict),
+           *verdict.samples.flat_map { |sample| sample_lines(sample) }]
+        end
+
+        def heading_line(aggregate, edge, records)
+          "── #{@held.bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
+            "#{records} record#{"s" unless records == 1})"
+        end
+
+        # What the audit found wrong with, or dropped from, the translated records.
+        def verdict_lines(verdict)
+          lines = verdict.violations.map { |violation| "   REFUSED: #{violation}" }
+          lines << "   dropped (declared data loss): #{verdict.dropped.join(", ")}" unless verdict.dropped.empty?
           unless verdict.unfed.empty?
-            lines << "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(', ')}"
+            lines << "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(", ")}"
           end
-          verdict.samples.each { |sample| lines.concat(sample_lines(sample)) }
           lines
         end
 

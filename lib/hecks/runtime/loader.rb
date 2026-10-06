@@ -5,12 +5,16 @@ require_relative "dispatcher"
 require_relative "remote_dispatcher"
 require_relative "boot_gates"
 require_relative "registry"
+require_relative "loader/boot_steps"
+require_relative "loader/described"
 
 module Hecks
   module Runtime
     # Boots a domain: loads its bluebook directory into a fresh Registry, runs
     # every boot gate, and hands back the bound Dispatcher (or RemoteDispatcher).
     class Loader
+      extend BootSteps
+
       # Default for a boot's `environment:` keyword: read `HECKS_ENVIRONMENT`. An explicit
       # `nil` means no overlay, whatever the variable holds.
       FROM_ENV = :from_env
@@ -48,28 +52,6 @@ module Hecks
         install_doors ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # What `describe` answers: the loaded declarations and nothing bound to run them.
-      #
-      # The declarations load the first time `registry` is asked for, not when `describe` returns,
-      # so a caller that can answer from `directory` alone (a launcher with its help already
-      # remembered) never pays for the load. The directory is checked at once.
-      class Described
-        # @return [String] the domain directory that was described
-        attr_reader :directory
-
-        # @param directory [String] the domain directory
-        # @yield loads the declarations; answers the registry
-        def initialize(directory, &load)
-          @directory = directory
-          @load = load
-        end
-
-        # @return [Registry] the declarations, loaded on first use
-        def registry
-          @registry ||= @load.call
-        end
-      end
-
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
       # persistence adapter is resolved or bound, nothing connects to a database.
       #
@@ -86,17 +68,20 @@ module Hecks
         directory = loading.bluebook_directory(path)
         overlay   = selected_environment(environment)
 
-        Described.new(directory) do
-          root     = loading.shared_root(shared, directory)
-          registry = Registry.new(root: File.dirname(directory))
+        Described.new(directory) { load_declarations(loading, directory, shared, overlay) }
+      end
 
-          Hecks.with_registry(registry) do
-            loading.load_library
-            loading.load_project(root)
-            loading.load_domain(directory, environment: overlay)
-          end
-          registry
+      # Loads the directory's declarations into a fresh Registry, answering it.
+      def self.load_declarations(loading, directory, shared, overlay)
+        root     = loading.shared_root(shared, directory)
+        registry = Registry.new(root: File.dirname(directory))
+
+        Hecks.with_registry(registry) do
+          loading.load_library
+          loading.load_project(root)
+          loading.load_domain(directory, environment: overlay)
         end
+        registry
       end
 
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the
@@ -122,25 +107,6 @@ module Hecks
         dispatcher.outbox.redrive!
       end
 
-      # Turns every `.hecksagon`-declared `mark_sensitive` fact into a real
-      # `Privacy::Marking.Mark`. Idempotent across reboots — a marking already
-      # present is never re-dispatched. A no-op when nothing declared one, or
-      # the domain never attached Privacy at all.
-      def self.seed_privacy_markings!(dispatcher, registry)
-        return if registry.pending_privacy_markings.empty?
-        return unless registry.bluebook("Privacy")
-
-        already_marked_by_domain = registry.pending_privacy_markings.map { |marking| marking[:domain] }.uniq.to_h do |domain|
-          [domain, dispatcher.query("Privacy::Marking.ForDomain", domain: domain).map { |row| row[:attribute_path][:value] }]
-        end
-
-        registry.pending_privacy_markings.each do |marking|
-          next if already_marked_by_domain[marking[:domain]].include?(marking[:attribute_path])
-
-          dispatcher.dispatch_flat("Privacy::Marking.Mark", marking)
-        end
-      end
-
       # Boots the exact bluebook/hecksagon/world files in `paths`, in place —
       # unlike `boot`, no directory globbing and no copying into a temp dir
       # (a `persisted_by` path must resolve against the real project root,
@@ -156,78 +122,25 @@ module Hecks
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
-        root      = loading.shared_root(shared, directory)
-        registry  = Registry.new(root: File.dirname(directory))
-
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(root)
-          loading.load_selected(files, environment: selected_environment(environment))
-        end
+        registry  = load_files(loading, files, shared, selected_environment(environment))
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
         install_doors ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # Runs every registered boot gate against `registry`, in order:
-      # era-checking (if a plugin contributes one) before `verify!`, saga
-      # rehydration after. No era-specific class is named here — each loaded
-      # persistence plugin contributes its own gates generically (ADR 0031).
-      def self.run_boot_gates!(registry, directory)
-        gates = BootGates.new
-        load_bound_adapters!(registry)
-        Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
-        check_compute_rules_backstop!(registry)
+      # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it.
+      def self.load_files(loading, files, shared, overlay)
+        directory = File.dirname(files.first)
+        root      = loading.shared_root(shared, directory)
+        registry  = Registry.new(root: File.dirname(directory))
 
-        gates.run!(:pre_verify, registry, directory)
-        registry.verify!
-
-        gates.register(:saga_rehydration, ->(reg, _dir) { reg.rehydrate_sagas! }, phase: :post_verify) if
-          registry.saga_domains.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
-        gates.run!(:post_verify, registry, directory)
-        gates
-      end
-
-      # Resolves the Ruby implementation of every adapter a hecksagon binds, and of every
-      # `default_adapter` a world names (a chapter that binds nothing takes its world's).
-      # An adapter's implementation can register its own persistence plugin as
-      # a side effect of loading (e.g. `PostgresEra`) — resolving here, before
-      # gates are collected, is what registers those plugins' gates without
-      # the app requiring them itself. A bind with no implementation is left
-      # for `verify!` to refuse.
-      def self.load_bound_adapters!(registry)
-        registry.hecksagons.each_value do |hexagon|
-          hexagon.binds.each do |bind|
-            registry.adapter_class(bind.adapter)
-          rescue WiringError
-            next
-          end
+        Hecks.with_registry(registry) do
+          loading.load_library
+          loading.load_project(root)
+          loading.load_selected(files, environment: overlay)
         end
-        registry.worlds.each_value do |world|
-          registry.adapter_class(world.default_adapter) if world.default_adapter
-        rescue WiringError
-          next
-        end
-      end
-
-      # A backstop only: fires when a translation declares a `computes`/
-      # `rekeys` rule but no persistence plugin is loaded to interpret it.
-      # Any loaded plugin's own compute-rules gate refuses earlier, by name,
-      # whenever one is loaded — this only runs when nothing was.
-      def self.check_compute_rules_backstop!(registry)
-        return if Ports::Persistence.plugins_loaded?
-
-        registry.translations.each do |translation|
-          translation.aggregates.each do |aggregate|
-            next if aggregate.computes.empty? && aggregate.rekeys.empty?
-
-            raise WiringError,
-                  "cannot boot #{translation.domain}::#{aggregate.name}: a compute/rekey rule is declared, but no " \
-                  "persistence plugin that can interpret it is loaded (e.g. require " \
-                  "\"hecks/ports/persistence/plugins/era\")"
-          end
-        end
+        registry
       end
 
       # `RemoteDispatcher` for a domain declaring `dispatched_by("Lambda")`,

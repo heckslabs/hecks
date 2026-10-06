@@ -1,4 +1,5 @@
 require "json"
+require_relative "../text_template"
 require_relative "yaml_text"
 
 module Hecks
@@ -21,34 +22,14 @@ module Hecks
 
           def networking(settings)
             ingress = settings.containers.select(&:routed?).map do |c|
-              <<~YAML.chomp
-                ComputeIngressFromAlb#{c.logical}:
-                  Type: AWS::EC2::SecurityGroupIngress
-                  Properties:
-                    GroupId: !Ref OwningSecurityGroupId
-                    IpProtocol: tcp
-                    FromPort: #{c.port}
-                    ToPort: #{c.port}
-                    SourceSecurityGroupId: !Ref AlbSecurityGroup
-              YAML
+              TextTemplate.render("preview/ingress.tmpl", logical: c.logical, port: c.port).chomp
             end
             [alb_security_group(settings), "#{INGRESS_NOTE}\n#{ingress.join("\n\n")}"]
           end
 
           def alb_security_group(settings)
-            <<~YAML.chomp
-              AlbSecurityGroup:
-                Type: AWS::EC2::SecurityGroup
-                Properties:
-                  VpcId: !Ref OwningVpcId
-                  GroupDescription: !Sub "#{settings.infra_name} preview ${EnvName} ALB - HTTP ingress from CloudFront only"
-                  SecurityGroupIngress:
-                    # The AWS-managed com.amazonaws.global.cloudfront.origin-facing prefix list.
-                    - IpProtocol: tcp
-                      FromPort: 80
-                      ToPort: 80
-                      SourcePrefixListId: #{CLOUDFRONT_PREFIX_LIST}
-            YAML
+            TextTemplate.render("preview/alb_security_group.tmpl", infra_name:  settings.infra_name,
+                                                                   prefix_list: CLOUDFRONT_PREFIX_LIST).chomp
           end
 
           def load_balancing(settings)
@@ -57,45 +38,17 @@ module Hecks
           end
 
           def target_group(container)
-            <<~YAML.chomp
-              #{container.logical}TargetGroup:
-                Type: AWS::ElasticLoadBalancingV2::TargetGroup
-                Properties:
-                  TargetType: ip
-                  Port: #{container.port}
-                  Protocol: HTTP
-                  VpcId: !Ref OwningVpcId
-                  HealthCheckPath: #{container.health_check_path}
-                  HealthCheckPort: "#{container.port}"
-            YAML
+            TextTemplate.render("preview/target_group.tmpl", logical: container.logical, port: container.port,
+                                                             health_check_path: container.health_check_path).chomp
           end
 
           def alb(settings)
-            <<~YAML.chomp
-              Alb:
-                Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-                Properties:
-                  Name: !Sub "#{settings.alb_prefix}-${EnvName}"
-                  Scheme: internet-facing
-                  Type: application
-                  SecurityGroups: [!Ref AlbSecurityGroup]
-                  Subnets: [!Ref OwningPublicSubnetAId, !Ref OwningPublicSubnetBId]
-            YAML
+            TextTemplate.render("preview/alb.tmpl", alb_prefix: settings.alb_prefix).chomp
           end
 
           # The default action goes to the default container.
           def listener(settings)
-            <<~YAML.chomp
-              Listener:
-                Type: AWS::ElasticLoadBalancingV2::Listener
-                Properties:
-                  LoadBalancerArn: !Ref Alb
-                  Port: 80
-                  Protocol: HTTP
-                  DefaultActions:
-                    - Type: forward
-                      TargetGroupArn: !Ref #{settings.default_container.logical}TargetGroup
-            YAML
+            TextTemplate.render("preview/listener.tmpl", default_logical: settings.default_container.logical).chomp
           end
 
           def rule_specs(settings)
@@ -112,44 +65,19 @@ module Hecks
           end
 
           def listener_rule(spec, priority)
-            <<~YAML.chomp
-              #{spec[:id]}:
-                Type: AWS::ElasticLoadBalancingV2::ListenerRule
-                Properties:
-                  ListenerArn: !Ref Listener
-                  Priority: #{priority}
-                  Conditions:
-                    - Field: path-pattern
-                      Values: [#{spec[:paths].map { |p| JSON.generate(p) }.join(', ')}]
-                  Actions:
-                    - Type: forward
-                      TargetGroupArn: !Ref #{spec[:container].logical}TargetGroup
-            YAML
+            TextTemplate.render("preview/listener_rule.tmpl", id: spec[:id], priority: priority,
+                                                              paths: spec[:paths].map { |p| JSON.generate(p) }.join(", "),
+                                                              logical: spec[:container].logical).chomp
           end
 
           def rule_id(container, slice) = "ListenerRule#{container.logical}#{slice + 1}"
 
           def service(settings)
             rule_ids = rule_specs(settings).map { |spec| spec[:id] }
-            <<~YAML.chomp
-              Service:
-                Type: AWS::ECS::Service
-                DependsOn: [#{(['Listener'] + rule_ids).join(', ')}]
-                Properties:
-                  ServiceName: !Sub "#{settings.prefix}-${EnvName}"
-                  Cluster: !Ref Cluster
-                  TaskDefinition: !Ref TaskDefinition
-                  DesiredCount: !Ref DesiredCount
-                  LaunchType: FARGATE
-                  EnableExecuteCommand: true
-                  NetworkConfiguration:
-                    AwsvpcConfiguration:
-                      AssignPublicIp: DISABLED
-                      Subnets: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]
-                      SecurityGroups: [!Ref OwningSecurityGroupId]
-                  LoadBalancers:
-              #{indent(service_load_balancers(settings), 6)}
-            YAML
+            balancers = indent(service_load_balancers(settings), 6)
+            TextTemplate.render("preview/service.tmpl", depends_on:     (["Listener"] + rule_ids).join(", "),
+                                                        prefix:         settings.prefix,
+                                                        load_balancers: balancers).chomp
           end
 
           def service_load_balancers(settings)

@@ -4,6 +4,8 @@ require_relative "../../../hecks"
 # The era subsystem does not load with core; a `PostgresEra` domain needs it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../adapters/driven/heki"
+require_relative "qa_postgres_migrate/copying"
+require_relative "qa_postgres_migrate/reporting"
 
 module Hecks
   module QualityControlCli
@@ -20,6 +22,9 @@ module Hecks
     # `<storage_name>.heki` file in the Heki directory are considered; trailing names (`hecks_name`
     # or `storage_name`) narrow further.
     class QaPostgresMigrate
+      include Copying
+      include Reporting
+
       USAGE = "usage: hecks quality_control migrate_ledger_from_heki <domain_dir> <heki_data_dir> " \
               "[aggregate_name ...] [--force]"
 
@@ -47,27 +52,11 @@ module Hecks
       def call(argv)
         argv = argv.dup
         force = argv.delete("--force")
-        domain_dir = argv.shift
-        return usage("no domain directory given") if domain_dir.nil?
-        return usage("no such domain directory #{domain_dir.inspect}") unless Dir.exist?(domain_dir)
-
-        heki_dir = argv.shift
-        return usage("no Heki data directory given") if heki_dir.nil?
-        return usage("no such Heki data directory #{heki_dir.inspect}") unless Dir.exist?(heki_dir)
-
-        heki_dir = File.expand_path(heki_dir)
-        registry = Hecks.boot(domain_dir).registry
-        candidates = candidates_in(registry, heki_dir, argv)
-        if candidates.empty?
-          @out.puts "hecks quality_control migrate_ledger_from_heki: no aggregate matched " \
-                    "#{argv.empty? ? '(any)' : argv.inspect} with a " \
-                    "corresponding .heki file under #{heki_dir}"
-          return 0
-        end
-
-        migrated, skipped, conflicts = copy(candidates, registry, heki_dir, force)
-        report(force, migrated, skipped, conflicts)
-        conflicts.empty? ? 0 : 1
+        domain_dir = directory_argument(argv.shift, "domain directory")
+        heki_dir = File.expand_path(directory_argument(argv.shift, "Heki data directory"))
+        migrate(domain_dir, heki_dir, argv, force)
+      rescue UsageError => e
+        usage(e.message)
       end
 
       # Deep comparison independent of key type and hash order; only array order is meaningful.
@@ -88,6 +77,33 @@ module Hecks
 
       private
 
+      # Raised for a wrong command line; `call` answers it with the usage line and status 1.
+      class UsageError < StandardError; end
+
+      def directory_argument(value, name)
+        raise UsageError, "no #{name} given" if value.nil?
+        raise UsageError, "no such #{name} #{value.inspect}" unless Dir.exist?(value)
+
+        value
+      end
+
+      def migrate(domain_dir, heki_dir, names, force)
+        registry = Hecks.boot(domain_dir).registry
+        candidates = candidates_in(registry, heki_dir, names)
+        return report_no_match(names, heki_dir) if candidates.empty?
+
+        migrated, skipped, conflicts = copy(candidates, registry, heki_dir, force)
+        report(force, migrated, skipped, conflicts)
+        conflicts.empty? ? 0 : 1
+      end
+
+      def report_no_match(names, heki_dir)
+        @out.puts "hecks quality_control migrate_ledger_from_heki: no aggregate matched " \
+                  "#{names.empty? ? "(any)" : names.inspect} with a " \
+                  "corresponding .heki file under #{heki_dir}"
+        0
+      end
+
       def usage(message)
         @err.puts "hecks quality_control migrate_ledger_from_heki: #{message}"
         @err.puts USAGE
@@ -106,48 +122,6 @@ module Hecks
             all << { domain_name: domain_name, aggregate: aggregate, heki_path: heki_path }
           end
         end
-      end
-
-      def copy(candidates, registry, heki_dir, force)
-        migrated = []
-        skipped = []
-        conflicts = []
-        candidates.each do |candidate|
-          aggregate = candidate[:aggregate]
-          # Guarded like a factory-built repository so a Heki store decodes through the state codec.
-          source = Hecks::Ports::Persistence::CodecBoundary.guard!(
-            Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
-          )
-          dest = registry.repository(candidate[:domain_name], aggregate)
-          source.all.each do |instance|
-            name = "#{aggregate.storage_name}/#{instance.id}"
-            existing = dest.find(instance.id)
-            if existing.nil?
-              dest.save(instance) if force
-              migrated << name
-            elsif self.class.canonical(existing.state) == self.class.canonical(instance.state)
-              skipped << name
-            else
-              conflicts << name
-            end
-          end
-        end
-        [migrated, skipped, conflicts]
-      end
-
-      def report(force, migrated, skipped, conflicts)
-        label = force ? "MIGRATED" : "WOULD MIGRATE"
-        migrated.each { |id| @out.puts "#{label} #{id}" }
-        skipped.each { |id| @out.puts "SKIP #{id}: destination already holds the identical state" }
-        conflicts.each do |id|
-          @err.puts "REFUSED #{id}: the destination already holds a DIFFERENT state for this id — " \
-                    "not overwritten, --force or not. Resolve by hand (compare the two states, decide " \
-                    "which is authoritative) before migrating this id again."
-        end
-        @out.puts "" unless migrated.empty? && skipped.empty? && conflicts.empty?
-        @out.puts "#{force ? 'migrated' : 'would migrate'} #{migrated.size}, skipped #{skipped.size} " \
-                  "(already caught up), refused #{conflicts.size} (conflicting data)"
-        @out.puts "re-run with --force to apply" unless force || migrated.empty?
       end
     end
   end

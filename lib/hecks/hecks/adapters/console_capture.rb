@@ -44,23 +44,27 @@ module Hecks
       #
       # @yield the entry point to run
       # @return [Outcome] the text printed and the exit status
-      def capture
-        synchronize do
-          saved  = [$stdout, $stderr]
-          buffer = StringIO.new
-          begin
-            $stdout = $stderr = buffer
-            status = begin
-              yield
-              0
-            rescue SystemExit => e
-              e.status
-            end
-            Outcome.new(buffer.string, status)
-          ensure
-            $stdout, $stderr = saved
-          end
-        end
+      def capture(&)
+        synchronize { redirected(&) }
+      end
+
+      # Runs the block with both streams pointed at one buffer, putting them back afterwards.
+      def redirected(&)
+        saved  = [$stdout, $stderr]
+        buffer = StringIO.new
+        $stdout = $stderr = buffer
+        status = exit_status(&)
+        Outcome.new(buffer.string, status)
+      ensure
+        $stdout, $stderr = saved
+      end
+
+      # The status the block ends with: 0, or the one an `exit` inside it carries.
+      def exit_status
+        yield
+        0
+      rescue SystemExit => e
+        e.status
       end
 
       # Runs the block captured and answers its text, or refuses with it.

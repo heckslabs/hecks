@@ -28,17 +28,31 @@ RSpec.describe "a graph assembled from declarations" do
     registry
   end
 
+  def meta_bluebook = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+
+  def assembled(name)
+    Hecks::Bluebook::Assembly.call(load_chapter(ASSEMBLY_CORPUS.fetch(name)).bluebook(name).to_h)
+  end
+
   # Names the field that moved rather than dumping two documents.
   def differences(source, back, path = "")
     return [] if source == back
+    return hash_differences(source, back, path) if source.is_a?(Hash) && back.is_a?(Hash)
+    return array_differences(source, back, path) if same_size_arrays?(source, back)
 
-    if source.is_a?(Hash) && back.is_a?(Hash)
-      (source.keys | back.keys).flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
-    elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
-      source.each_with_index.flat_map { |held, i| differences(held, back[i], "#{path}[#{i}]") }
-    else
-      ["#{path}: declared #{source.inspect[0, 70]}, assembled #{back.inspect[0, 70]}"]
-    end
+    ["#{path}: declared #{source.inspect[0, 70]}, assembled #{back.inspect[0, 70]}"]
+  end
+
+  def hash_differences(source, back, path)
+    (source.keys | back.keys).flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
+  end
+
+  def array_differences(source, back, path)
+    source.each_with_index.flat_map { |held, i| differences(held, back[i], "#{path}[#{i}]") }
+  end
+
+  def same_size_arrays?(source, back)
+    source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
   end
 
   def assert_inverse(built)
@@ -76,30 +90,36 @@ RSpec.describe "a graph assembled from declarations" do
       owner.entities.find { |piece| piece.hecks_name == category }
     end
 
+    def declared_field_names(aggregate, declared)
+      aggregate.attributes.map(&:name) +
+        declared.fields.map(&:to_sym) +
+        declared.appends.keys.map(&:to_sym) +
+        declared.setters.flat_map { |setter| setter.targets.keys.map(&:to_sym) }
+    end
+
+    def derived_pointer?(field, declared)
+      field.to_s.end_with?("_id") || field == declared.parent_key&.to_sym
+    end
+
     def stored_fields(meta, category)
       declared  = plan.category(category)
       aggregate = construct_for(meta, category, declared)
 
-      (aggregate.attributes.map(&:name) +
-       declared.fields.map(&:to_sym) +
-       declared.appends.keys.map(&:to_sym) +
-       declared.setters.flat_map { |setter| setter.targets.keys.map(&:to_sym) })
-        .uniq
-        # A parent pointer is derived from containment, not a contract; an explicit `as:` `_id`
-        # stays data but is excluded the same way.
-        .reject { |field| field.to_s.end_with?("_id") || field == declared.parent_key&.to_sym }
+      # A parent pointer is derived from containment, not a contract; an explicit `as:` `_id`
+      # stays data but is excluded the same way.
+      declared_field_names(aggregate, declared).uniq.reject { |field| derived_pointer?(field, declared) }
+    end
+
+    def unclaimed_fields(meta)
+      plan.names.flat_map do |category|
+        contract = Hecks::Bluebook::Assembly.contract(category)
+
+        stored_fields(meta, category).reject { |field| contract.declares?(field) }.map { |field| "#{category}##{field}" }
+      end
     end
 
     it "consumes or explicitly derives every field the language declares" do
-      meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-
-      unclaimed = plan.names.flat_map do |category|
-        contract = Hecks::Bluebook::Assembly.contract(category)
-
-        stored_fields(meta, category)
-          .reject { |field| contract.declares?(field) }
-          .map { |field| "#{category}##{field}" }
-      end
+      unclaimed = unclaimed_fields(meta_bluebook)
 
       expect(unclaimed).to be_empty,
                            "the language declares #{unclaimed.size} field(s) no contract accounts for, " \
@@ -113,7 +133,7 @@ RSpec.describe "a graph assembled from declarations" do
       end
 
       expect(missing).to be_empty,
-                         "the language declares #{missing.join(', ')} and the table has no contract for it"
+                         "the language declares #{missing.join(", ")} and the table has no contract for it"
     end
 
     # PARENT_POINTERS cannot be computed in lib without going circular, so it is derived here
@@ -129,10 +149,8 @@ RSpec.describe "a graph assembled from declarations" do
 
     # A bare `derived:` name list is a promise nobody holds, so each claim carries a kind that
     # can fail: `derived: %i[version]` would otherwise drop a field in silence.
-    it "justifies every derived field with a claim that can be false" do
-      keys = declaration_keys
-
-      unjustified = plan.names.flat_map do |category|
+    def unjustified_claims(keys)
+      plan.names.flat_map do |category|
         contract = Hecks::Bluebook::Assembly.contract(category)
 
         contract.derived.filter_map do |field, kind|
@@ -140,6 +158,10 @@ RSpec.describe "a graph assembled from declarations" do
           "#{category}##{field} claims #{kind.inspect} — #{fault}" if fault
         end
       end
+    end
+
+    it "justifies every derived field with a claim that can be false" do
+      unjustified = unjustified_claims(declaration_keys)
 
       expect(unjustified).to be_empty,
                              "#{unjustified.size} derived claim(s) do not hold:\n  #{unjustified.join("\n  ")}"
@@ -147,49 +169,67 @@ RSpec.describe "a graph assembled from declarations" do
 
     # One place naming what each derived-claim kind must justify.
     def fault_in(category, contract, field, kind, keys)
+      return fault_in_pair(contract, field, kind, keys) if kind.is_a?(Array)
+
       case kind
-      when :parent
-        return nil if Hecks::Bluebook::Assembly.parent_pointer?(field)
-
-        "no parent names it — a pointer is a *_id or one of #{Hecks::Bluebook::Assembly::PARENT_POINTERS.inspect}"
-      when :children
-        # `field` is a plural collection name; ask the pluralizer rather than strip an "s"
-        # ("dispatches" would become "dispatchs").
-        child = plan.names.find { |name| Hecks::Naming.plural(Hecks::Naming.snake(name)) == field.to_s }
-        return nil if plan.category(child)&.parent == category
-
-        "no category #{child} is declared with #{category} as its parent"
-      when :elsewhere
-        return nil if Hecks::Bluebook::Assembly.elsewhere?(category, field)
-
-        "elsewhere is allow-listed one at a time, and this is not on the list"
-      when :walk
-        # The walk supplies the field; it is only consumed if the ask orders by it.
-        return nil if ordered_by?(category, field)
-
-        "#{category}.DeclaredIn does not order by it, so nothing consumes it"
-      when Array
-        fault_in_pair(contract, field, kind, keys)
+      when :parent then parent_fault(field)
+      when :children then children_fault(category, field)
+      when :elsewhere then elsewhere_fault(category, field)
+      when :walk then walk_fault(category, field)
       else "no such kind"
       end
+    end
+
+    def parent_fault(field)
+      return nil if Hecks::Bluebook::Assembly.parent_pointer?(field)
+
+      "no parent names it — a pointer is a *_id or one of #{Hecks::Bluebook::Assembly::PARENT_POINTERS.inspect}"
+    end
+
+    def children_fault(category, field)
+      # `field` is a plural collection name; ask the pluralizer rather than strip an "s"
+      # ("dispatches" would become "dispatchs").
+      child = plan.names.find { |name| Hecks::Naming.plural(Hecks::Naming.snake(name)) == field.to_s }
+      return nil if plan.category(child)&.parent == category
+
+      "no category #{child} is declared with #{category} as its parent"
+    end
+
+    def elsewhere_fault(category, field)
+      return nil if Hecks::Bluebook::Assembly.elsewhere?(category, field)
+
+      "elsewhere is allow-listed one at a time, and this is not on the list"
+    end
+
+    # The walk supplies the field; it is only consumed if the ask orders by it.
+    def walk_fault(category, field)
+      return nil if ordered_by?(category, field)
+
+      "#{category}.DeclaredIn does not order by it, so nothing consumes it"
     end
 
     def fault_in_pair(contract, _field, kind, keys)
       shape, target = kind
 
       case shape
-      when :computed
-        return nil if contract.computes?(target)
-        return "#{contract.holder} takes #{target} as a keyword, so it is STORED, not computed" if contract.accepts?(target)
-
-        "#{contract.holder} does not answer to #{target}"
-      when :folded
-        # Check the member too, so a mistyped one (`:directionn`) is caught.
-        wanted = Array(target) + [kind[2]].compact
-        absent = wanted.reject { |key| keys.include?(key) }
-        absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
+      when :computed then computed_fault(contract, target)
+      when :folded then folded_fault(kind, target, keys)
       else "no such kind"
       end
+    end
+
+    def computed_fault(contract, target)
+      return nil if contract.computes?(target)
+      return "#{contract.holder} takes #{target} as a keyword, so it is STORED, not computed" if contract.accepts?(target)
+
+      "#{contract.holder} does not answer to #{target}"
+    end
+
+    def folded_fault(kind, target, keys)
+      # Check the member too, so a mistyped one (`:directionn`) is caught.
+      wanted = Array(target) + [kind[2]].compact
+      absent = wanted.reject { |key| keys.include?(key) }
+      absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
     end
 
     # Whether the category's own way back orders by the field, proving a walk-supplied field is
@@ -198,12 +238,15 @@ RSpec.describe "a graph assembled from declarations" do
     def ordered_by?(category, field)
       declared = plan.category(category)
       # An identity path like "position.value" claims for its head, "position".
-      return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s) if declared.entity_owned
+      return identity_head?(declared, field) if declared.entity_owned
 
-      meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-      ask  = meta.aggregate(category)&.query("DeclaredIn")
+      ask = meta_bluebook.aggregate(category)&.query("DeclaredIn")
 
       ask&.order_by&.field.to_s == field.to_s
+    end
+
+    def identity_head?(declared, field)
+      declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s)
     end
 
     # Every key a real reconstructed declaration carries; a fold must land on one.
@@ -223,21 +266,26 @@ RSpec.describe "a graph assembled from declarations" do
       end
     end
 
-    # Every list the language declares has a shaper that exists or a reader on the holder.
-    it "offers every appendable list, by a shaper that exists or a reader on the holder" do
-      unreadable = plan.names.flat_map do |category|
+    def unreadable_lists
+      plan.names.flat_map do |category|
         contract = Hecks::Bluebook::Assembly.contract(category)
 
-        plan.category(category).appends.keys.filter_map do |list|
-          shaper = contract.shaper(list)
-          unknown_shaper = shaper && !readings.include?(shaper)
-          next "#{category}##{list} names shaper #{shaper} and Readings has no such method" if unknown_shaper
-          next nil if shaper
-          next nil if contract.holder.nil? || contract.answers?(list.to_sym)
-
-          "#{category}##{list} has no shaper and #{contract.holder} does not answer to it"
-        end
+        plan.category(category).appends.keys.filter_map { |list| list_fault(category, contract, list) }
       end
+    end
+
+    def list_fault(category, contract, list)
+      shaper = contract.shaper(list)
+      unknown_shaper = shaper && !readings.include?(shaper)
+      return "#{category}##{list} names shaper #{shaper} and Readings has no such method" if unknown_shaper
+      return nil if shaper || contract.holder.nil? || contract.answers?(list.to_sym)
+
+      "#{category}##{list} has no shaper and #{contract.holder} does not answer to it"
+    end
+
+    # Every list the language declares has a shaper that exists or a reader on the holder.
+    it "offers every appendable list, by a shaper that exists or a reader on the holder" do
+      unreadable = unreadable_lists
 
       expect(unreadable).to be_empty,
                             "#{unreadable.size} list(s) the language declares cannot be offered:\n  " \
@@ -246,33 +294,49 @@ RSpec.describe "a graph assembled from declarations" do
 
     def readings = Hecks::Bluebook::MetaValidator::Readings.instance_methods(false)
 
-    # Every `reads:` exception names a key that exists and a reader that exists.
-    it "reads every declaration key by a reader that exists, for a key the table names" do
-      meta    = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-      readers = Hecks::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
-                Hecks::Bluebook::MetaValidator::Shapes.instance_methods(false)
+    def reader_methods
+      Hecks::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
+        Hecks::Bluebook::MetaValidator::Shapes.instance_methods(false)
+    end
 
-      broken = plan.names.flat_map do |category|
+    def reader_name(spec) = spec.is_a?(Array) ? spec.last : spec
+
+    # A reader name that is not a checkable symbol is accounted for;
+    # a symbol must name a real reader.
+    def reader_accounted_for?(spec)
+      method = reader_name(spec)
+      return true unless method.is_a?(Symbol) && !%i[symbol names].include?(method)
+
+      reader_methods.include?(method)
+    end
+
+    # `[:from, row_key]` names a row key, not a reader; it must be a category field.
+    def from_fault(category, key, spec)
+      return nil if stored_fields(meta_bluebook, category).include?(spec.last)
+
+      "#{category}##{key} reads from #{spec.last}, which the language does not declare"
+    end
+
+    def read_fault(category, named, key, spec)
+      return "#{category}##{key} is read but no field declares it" unless named.include?(key)
+      return from_fault(category, key, spec) if spec.is_a?(Array) && spec.first == :from
+      return nil if reader_accounted_for?(spec)
+
+      "#{category}##{key} names reader #{reader_name(spec)}, which does not exist"
+    end
+
+    def broken_reads
+      plan.names.flat_map do |category|
         contract = Hecks::Bluebook::Assembly.contract(category)
         named    = contract.fields.values.map(&:first)
 
-        Hash(contract.reads).filter_map do |key, spec|
-          next "#{category}##{key} is read but no field declares it" unless named.include?(key)
-
-          # `[:from, row_key]` names a row key, not a reader; it must be a category field.
-          if spec.is_a?(Array) && spec.first == :from
-            next nil if stored_fields(meta, category).include?(spec.last)
-
-            next "#{category}##{key} reads from #{spec.last}, which the language does not declare"
-          end
-
-          method = spec.is_a?(Array) ? spec.last : spec
-          next nil unless method.is_a?(Symbol) && !%i[symbol names].include?(method)
-          next nil if readers.include?(method)
-
-          "#{category}##{key} names reader #{method}, which does not exist"
-        end
+        Hash(contract.reads).filter_map { |key, spec| read_fault(category, named, key, spec) }
       end
+    end
+
+    # Every `reads:` exception names a key that exists and a reader that exists.
+    it "reads every declaration key by a reader that exists, for a key the table names" do
+      broken = broken_reads
 
       expect(broken).to be_empty,
                         "#{broken.size} read exception(s) do not hold:\n  #{broken.join("\n  ")}"
@@ -280,7 +344,7 @@ RSpec.describe "a graph assembled from declarations" do
 
     # Containment stays code: `Command.Declare` carries `aggregate_id` before `entity_id`, so
     # the plan says an entity has no children and a derived walk would need an exception.
-    it "cannot derive an entity's children from the plan, which is why containment is code" do
+    it "cannot derive an entity's children from the plan, which is why containment is code", :aggregate_failures do
       expect(plan.names.select { |name| plan.category(name).parent == "Entity" }).to be_empty
       expect(plan.category("Command").parent).to eq("Aggregate")
       expect(plan.category("Query").parent).to eq("Aggregate")
@@ -295,11 +359,9 @@ RSpec.describe "a graph assembled from declarations" do
     end
   end
 
-  it "gives the assembled head a working graph, not just a bag of fields" do
+  it "gives the assembled head a working graph, not just a bag of fields", :aggregate_failures do
     # The assembled aggregate must carry the verbs, fields and owned shapes the DSL builds.
-    built     = load_chapter(ASSEMBLY_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
-    assembled = Hecks::Bluebook::Assembly.call(built.to_h)
-    pizza     = assembled.aggregate("Order")
+    pizza = assembled("Pizzas").aggregate("Order")
 
     expect(pizza.command("CreatePizza").creates?).to be(true)
     expect(pizza.command("AddTopping").acts_on).to be(pizza)
@@ -308,11 +370,9 @@ RSpec.describe "a graph assembled from declarations" do
   end
 
   it "gives an assembled reference a resolvable edge" do
-    built     = load_chapter(ASSEMBLY_CORPUS.fetch("Banking")).bluebook("Banking")
-    assembled = Hecks::Bluebook::Assembly.call(built.to_h)
-    account   = assembled.aggregate("Account")
+    graph = assembled("Banking")
+    account = graph.aggregate("Account")
 
-    expect(account.attribute(:customer).type.resolve)
-      .to be(assembled.aggregate("Customer"))
+    expect(account.attribute(:customer).type.resolve).to be(graph.aggregate("Customer"))
   end
 end

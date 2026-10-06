@@ -63,36 +63,54 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
-  # `Command.Need` and `Query.Need` are real DSL surface only a declaration that asks the runtime
-  # for a fact reaches, and no corpus chapter the judge walks declares one that way, so a small
-  # fixture does (ADR 0081).
-  def needs_chapter
-    @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage") do
+  def clocked_value_objects
+    proc do
+      value_object("ClockedRef")     { attribute :value, String }
+      value_object("ClockedInstant") { attribute :value, Integer }
+    end
+  end
+
+  def clocked_issue_command
+    proc do
+      command "Issue" do
+        attribute :ref, ClockedRef
+        attribute :now, ClockedInstant
+        needs :now
+        sets :ref
+        sets :issued_at, to: :now
+        emits "ClockedIssued"
+      end
+    end
+  end
+
+  def clocked_issued_before_query
+    proc do
+      query "IssuedBefore" do
+        attribute :now, ClockedInstant
+        needs :now
+        where("issued_at.value": { lte: :now })
+        order_by :ref
+      end
+    end
+  end
+
+  def clocked_aggregate
+    parts = [clocked_value_objects, clocked_issue_command, clocked_issued_before_query]
+    proc do
       aggregate "Clocked" do
         attribute :ref, ClockedRef
         attribute :issued_at, ClockedInstant, optional: true
         identified_by :ref
-
-        value_object("ClockedRef")     { attribute :value, String }
-        value_object("ClockedInstant") { attribute :value, Integer }
-
-        command "Issue" do
-          attribute :ref, ClockedRef
-          attribute :now, ClockedInstant
-          needs :now
-          sets :ref
-          sets :issued_at, to: :now
-          emits "ClockedIssued"
-        end
-
-        query "IssuedBefore" do
-          attribute :now, ClockedInstant
-          needs :now
-          where("issued_at.value": { lte: :now })
-          order_by :ref
-        end
+        parts.each { |part| instance_eval(&part) }
       end
     end
+  end
+
+  # `Command.Need` and `Query.Need` are real DSL surface only a declaration that asks the runtime
+  # for a fact reaches, and no corpus chapter the judge walks declares one that way, so a small
+  # fixture does (ADR 0081).
+  def needs_chapter
+    @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
   end
 
   attr_reader :banking
@@ -113,13 +131,9 @@ RSpec.describe "the judge's coverage of the language" do
   def offered_in_order(bluebook = banking)
     spy = Spy.new
     judge = Hecks::Bluebook::MetaValidator::Judge.allocate
-    judge.instance_variable_set(:@bluebook, bluebook)
-    judge.instance_variable_set(:@refusals, [])
-    judge.instance_variable_set(:@runtime, spy)
-    judge.instance_variable_set(
-      :@plan,
-      Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
-    )
+    plan = Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
+    state = { bluebook: bluebook, refusals: [], runtime: spy, plan: plan }
+    state.each { |name, value| judge.instance_variable_set(:"@#{name}", value) }
     judge.send(:judge!)
     spy.verbs
   end

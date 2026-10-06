@@ -1,0 +1,8 @@
+PiiOriginAccessControl:
+  Type: AWS::CloudFront::OriginAccessControl
+  Properties:
+    OriginAccessControlConfig:
+      Name: !Sub "${AWS::StackName}-pii-oac"
+      OriginAccessControlOriginType: lambda
+      SigningBehavior: always
+      SigningProtocol: sigv4

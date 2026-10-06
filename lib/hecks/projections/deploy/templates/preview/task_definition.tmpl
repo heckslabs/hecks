@@ -1,0 +1,15 @@
+TaskDefinition:
+  Type: AWS::ECS::TaskDefinition
+  Properties:
+    Family: !Sub "@@prefix@@-${EnvName}"
+    RequiresCompatibilities: [FARGATE]
+    NetworkMode: awsvpc
+    Cpu: "@@cpu@@"
+    Memory: "@@memory@@"
+    RuntimePlatform:
+      CpuArchitecture: ARM64
+      OperatingSystemFamily: LINUX
+    ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+    TaskRoleArn: !GetAtt TaskRole.Arn
+    ContainerDefinitions:
+@@containers@@

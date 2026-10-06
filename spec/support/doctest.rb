@@ -29,59 +29,84 @@ module Doctest
   def self.pizzas_history_available?
     return @pizzas_history_available if defined?(@pizzas_history_available)
 
-    @pizzas_history_available =
-      postgres_available? &&
-      begin
-        db = PG.connect(dbname: "hecks_pizzas")
-        count = db.exec("SELECT count(*) FROM hecks_eras").getvalue(0, 0).to_i
-        db.close
-        count >= 2
-      rescue PG::Error
-        false
-      end
+    @pizzas_history_available = postgres_available? && pizzas_era_count >= 2
   end
+
+  # @return [Integer] how many eras the pizzas database has recorded; 0 when it cannot be read
+  def self.pizzas_era_count
+    db = PG.connect(dbname: "hecks_pizzas")
+    count = db.exec("SELECT count(*) FROM hecks_eras").getvalue(0, 0).to_i
+    db.close
+    count
+  rescue PG::Error
+    0
+  end
+  private_class_method :pizzas_era_count
 
   module_function
 
-  # rubocop:disable-next Metrics/CyclomaticComplexity
-  def parse(path)
-    blocks = []
-    fence = nil
-    buffer = []
-    start = nil
-    skip_fences = 0
-
-    File.read(path).each_line.with_index(1) do |line, number|
-      if fence
-        if line.strip == (fence == :hidden_boot ? "-->" : "```")
-          unless %i[skip ignore].include?(fence)
-            kind = fence == :hidden_boot ? :boot : fence
-            blocks << Block.new(kind: kind, code: buffer.join, line: start)
-          end
-          fence = nil
-          buffer = []
-        else
-          buffer << line
-        end
-        next
-      end
-
-      case line.rstrip
-      when "```ruby bluebook"     then fence = :bluebook
-      when "```ruby boot"         then fence = :boot
-      when "```ruby"              then fence = :usage
-      when "```ruby skip"         then fence = :skip
-      when "<!-- doctest:boot"    then fence = :hidden_boot
-      when /\A```/                then fence = :ignore
-      else next
-      end
-      start = number + 1
-      skip_fences += 1 if fence == :skip
+  # Reads a guide's fenced blocks, one line at a time.
+  class GuideParser
+    # @param path [String] the guide to read
+    def initialize(path)
+      @path = path
+      @blocks = []
+      @fence = nil
+      @buffer = []
+      @start = nil
+      @skip_fences = 0
     end
 
-    Guide.new(path: path, blocks: blocks, skip_fences: skip_fences,
-              postgres: File.foreach(path).first(3).any? { |l| l.include?("<!-- doctest: postgres -->") })
+    # @return [Doctest::Guide] the guide's blocks and its postgres and skip-fence markers
+    def call
+      File.read(@path).each_line.with_index(1) { |line, number| consume(line, number) }
+      Guide.new(path: @path, blocks: @blocks, skip_fences: @skip_fences,
+                postgres: File.foreach(@path).first(3).any? { |l| l.include?("<!-- doctest: postgres -->") })
+    end
+
+    private
+
+    def consume(line, number)
+      @fence ? continue_fence(line) : open_fence(line, number)
+    end
+
+    def continue_fence(line)
+      return @buffer << line unless line.strip == (@fence == :hidden_boot ? "-->" : "```")
+
+      close_fence
+    end
+
+    def close_fence
+      unless %i[skip ignore].include?(@fence)
+        kind = @fence == :hidden_boot ? :boot : @fence
+        @blocks << Block.new(kind: kind, code: @buffer.join, line: @start)
+      end
+      @fence = nil
+      @buffer = []
+    end
+
+    def open_fence(line, number)
+      fence = opening(line.rstrip)
+      return unless fence
+
+      @fence = fence
+      @start = number + 1
+      @skip_fences += 1 if fence == :skip
+    end
+
+    def opening(text)
+      case text
+      when "```ruby bluebook"     then :bluebook
+      when "```ruby boot"         then :boot
+      when "```ruby"              then :usage
+      when "```ruby skip"         then :skip
+      when "<!-- doctest:boot"    then :hidden_boot
+      when /\A```/                then :ignore
+      end
+    end
   end
+
+  def parse(path) = GuideParser.new(path).call
 
   # Facade constants install onto Object and are never uninstalled, so two guides inventing the
   # same chapter would rebind to whichever booted last. Only `Hecks.bluebook "Name"` counts;
@@ -115,18 +140,10 @@ module Doctest
     # @raise [Doctest::Mismatch] if an `# =>` or `# ~>` claim does not hold
     # @raise [Doctest::Malformed] if a claim marker sits on an expression that does not parse alone
     def call
-      host = Object.new
-      checker = Checker.new(@guide.path)
-      runtime = nil
-      host.define_singleton_method(:runtime) { runtime }
-      shared = host.instance_eval { binding }
-      shared.local_variable_set(:__dt__, checker)
-
+      shared = shared_binding
       waves.each do |declarations, usages|
-        runtime = boot(declarations) unless declarations.empty?
-        usages.each do |block|
-          eval(transform(block), shared, @guide.path, block.line)
-        end
+        @runtime = boot(declarations) unless declarations.empty?
+        usages.each { |block| eval(transform(block), shared, @guide.path, block.line) }
       end
       true
     ensure
@@ -134,6 +151,17 @@ module Doctest
     end
 
     private
+
+    # The binding every usage block runs in: it answers `runtime` and holds the claim checker.
+    def shared_binding
+      @runtime = nil
+      reader = -> { @runtime }
+      host = Object.new
+      host.define_singleton_method(:runtime) { reader.call }
+      shared = host.instance_eval { binding }
+      shared.local_variable_set(:__dt__, Checker.new(@guide.path))
+      shared
+    end
 
     def waves
       grouped = @guide.blocks.chunk_while do |before, after|
@@ -147,27 +175,30 @@ module Doctest
     def boot(declarations)
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if @guide.postgres
-
-        declarations.each do |block|
-          if block.kind == :bluebook
-            # Prism memoises extraction per path, so each block needs a fresh file.
-            file = Tempfile.new(["doctest-", ".bluebook"])
-            file.write(block.code)
-            file.flush
-            @tempfiles << file
-            Kernel.eval(block.code, TOPLEVEL_BINDING, file.path, 1)
-          else
-            Kernel.eval(block.code, TOPLEVEL_BINDING, @guide.path, block.line)
-          end
-        end
+        load_adapters
+        declarations.each { |block| declare(block) }
       end
       registry.verify!
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    end
+
+    def load_adapters
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if @guide.postgres
+    end
+
+    def declare(block)
+      return Kernel.eval(block.code, TOPLEVEL_BINDING, @guide.path, block.line) unless block.kind == :bluebook
+
+      # Prism memoises extraction per path, so each block needs a fresh file.
+      file = Tempfile.new(["doctest-", ".bluebook"])
+      file.write(block.code)
+      file.flush
+      @tempfiles << file
+      Kernel.eval(block.code, TOPLEVEL_BINDING, file.path, 1)
     end
 
     # One line stays one line, so backtraces name the guide's true line.
@@ -180,14 +211,22 @@ module Doctest
     def transform_line(line, number)
       if (match = line.match(/\A(?<code>.*\S)\s*#\s*=>\s*(?<expected>.+?)\s*\z/))
         single_line!(match[:code], number)
-        "__dt__.eq(#{number}, #{match[:expected].dump}, #{match[:code].strip.dump}) { (#{match[:code]}) }\n"
+        equality_claim(match, number)
       elsif (match = line.match(/\A(?<code>.*\S)\s*#\s*~>\s*(?<klass>\w+)(?::\s*(?<message>.+?))?\s*\z/))
         single_line!(match[:code], number)
-        "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || '').dump}, " \
-          "#{match[:code].strip.dump}) { (#{match[:code]}) }\n"
+        refusal_claim(match, number)
       else
         line
       end
+    end
+
+    def equality_claim(match, number)
+      "__dt__.eq(#{number}, #{match[:expected].dump}, #{match[:code].strip.dump}) { (#{match[:code]}) }\n"
+    end
+
+    def refusal_claim(match, number)
+      "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || "").dump}, " \
+        "#{match[:code].strip.dump}) { (#{match[:code]}) }\n"
     end
 
     def single_line!(code, number)
@@ -221,23 +260,33 @@ module Doctest
 
     def refuses(line, klass, message, expression)
       yield
-      raise Mismatch, <<~WHY
+      raise no_refusal(line, klass, message, expression)
+    rescue Mismatch
+      raise
+    rescue StandardError => e
+      return e if e.class.name.to_s.split("::").last == klass && e.message.include?(message)
+
+      raise wrong_refusal(line, klass, message, expression, e)
+    end
+
+    private
+
+    def no_refusal(line, klass, message, expression)
+      Mismatch.new(<<~WHY)
         #{@path}:#{line}
           expr:     #{expression}
           expected: a #{klass} refusal#{" (#{message})" unless message.empty?}
           actual:   no refusal at all
       WHY
-    rescue Mismatch
-      raise
-    rescue StandardError => e
-      raised = e.class.name.to_s.split("::").last
-      return e if raised == klass && e.message.include?(message)
+    end
 
-      raise Mismatch, <<~WHY
+    def wrong_refusal(line, klass, message, expression, error)
+      raised = error.class.name.to_s.split("::").last
+      Mismatch.new(<<~WHY)
         #{@path}:#{line}
           expr:     #{expression}
           expected: #{klass}#{": #{message}" unless message.empty?}
-          actual:   #{raised}: #{e.message}
+          actual:   #{raised}: #{error.message}
       WHY
     end
   end

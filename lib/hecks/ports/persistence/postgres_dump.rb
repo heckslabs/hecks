@@ -26,10 +26,10 @@ module Hecks
         # Writes a custom-format dump of the schema and proves it restores.
         def call(dest)
           require "pg"
-          raise Error, "schema #{@schema} has no tables in #{@source.database}" if counting(@source) { |db| counts(db) }.empty?
+          raise Error, "schema #{@schema} has no tables in #{@source.database}" if source_counts.empty?
 
           run("pg_dump", @source, "--format=custom", "--no-owner", "--no-privileges", "--schema=#{@schema}", "--file=#{dest}")
-          expected = counting(@source) { |db| counts(db) }
+          expected = source_counts
           verify_restore(dest, expected)
           Result.new(tables: expected)
         rescue PG::Error => e
@@ -38,19 +38,25 @@ module Hecks
 
         private
 
+        def source_counts = counting(@source) { |db| counts(db) }
+
         def verify_restore(dump, expected)
           scratch = "dump_verify_#{Process.pid}_#{SecureRandom.hex(3)}"
           counting(@verify) do |admin|
             admin.exec("CREATE DATABASE #{admin.quote_ident(scratch)}")
             begin
-              target = @verify.with_database(scratch)
-              run("pg_restore", target, "--no-owner", "--no-privileges", "--exit-on-error", "--dbname=#{scratch}", dump)
-              actual = counting(target) { |db| counts(db) }
-              raise Error, mismatch(expected, actual) unless actual == expected
+              restore_and_compare(dump, scratch, expected)
             ensure
               drop(admin, scratch)
             end
           end
+        end
+
+        def restore_and_compare(dump, scratch, expected)
+          target = @verify.with_database(scratch)
+          run("pg_restore", target, "--no-owner", "--no-privileges", "--exit-on-error", "--dbname=#{scratch}", dump)
+          actual = counting(target) { |db| counts(db) }
+          raise Error, mismatch(expected, actual) unless actual == expected
         end
 
         def counting(connection)
@@ -72,7 +78,7 @@ module Hecks
         def mismatch(expected, actual)
           differing = (expected.keys | actual.keys).reject { |name| expected[name] == actual[name] }
           detail = differing.map { |name| "#{name} (source #{expected[name].inspect}, restored #{actual[name].inspect})" }
-          "the restored dump disagrees with the source for #{detail.join(', ')}; " \
+          "the restored dump disagrees with the source for #{detail.join(", ")}; " \
             "if the database took writes during the dump, dump it again"
         end
 

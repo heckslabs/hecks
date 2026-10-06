@@ -42,15 +42,13 @@ module RuboCop
           # (`a[k] || b[k]`) fails this check and is correctly left alone.
           return unless lhs_receiver == rhs_receiver
 
-          add_offense(
-            node,
-            message: format(
-              MSG,
-              receiver: lhs_receiver.source,
-              lhs_key:  lhs_key.source,
-              rhs_key:  rhs_key.source
-            )
-          )
+          add_offense(node, message: offense_message(lhs_receiver, lhs_key, rhs_key))
+        end
+
+        private
+
+        def offense_message(receiver, lhs_key, rhs_key)
+          format(MSG, receiver: receiver.source, lhs_key: lhs_key.source, rhs_key: rhs_key.source)
         end
       end
     end

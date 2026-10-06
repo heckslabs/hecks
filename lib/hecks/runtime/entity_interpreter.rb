@@ -11,6 +11,10 @@ require_relative "dependency_planning"
 require_relative "../ports/persistence/execution"
 require_relative "entity_element"
 require_relative "command_interpreter/argument_gate"
+require_relative "entity_interpreter/resolution"
+require_relative "entity_interpreter/locating"
+require_relative "entity_interpreter/enforcement"
+require_relative "entity_interpreter/saving"
 
 module Hecks
   module Runtime
@@ -22,6 +26,9 @@ module Hecks
       # Same argument gate aggregate commands and port operations run —
       # without it, entity commands skip unknown/absent-argument checks.
       include CommandInterpreter::ArgumentGate
+      include Locating
+      include Enforcement
+      include Saving
 
       attr_reader :registry
 
@@ -44,41 +51,7 @@ module Hecks
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
-                           :correction_bindings, :invocation)
-
-      # A dotted entity verb resolved against its aggregate: the entity
-      # chain it names and the command located at the end of it.
-      Resolution = Data.define(:entity_names, :chain, :command_name, :command) do
-        # Resolves a dotted entity verb into its entity chain and command,
-        # raising UnknownVerb if either segment doesn't exist.
-        def self.of(aggregate, dotted)
-          *entity_names, command_name = dotted.to_s.split(".")
-          if entity_names.empty?
-            raise UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_unknown",
-                                                          aggregate: aggregate.hecks_name, entity: dotted.to_s)
-          end
-
-          chain = walk(aggregate, entity_names)
-          command = chain.last.command(command_name) ||
-                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_no_command",
-                                                                  entity: chain.last.hecks_name, command: command_name))
-          new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
-        end
-
-        # Walks one hop per dotted segment, resolving each entity name off
-        # the previous one — not limited to two levels.
-        def self.walk(aggregate, entity_names)
-          owner = aggregate
-          entity_names.map do |name|
-            found = owner.entities.find { |piece| piece.hecks_name == name } ||
-                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_unknown",
-                                                                  aggregate: owner.hecks_name, entity: name))
-            owner = found
-            found
-          end
-        end
-        private_class_method :walk
-      end
+                           :correction_bindings, :invocation, keyword_init: true)
 
       # @param registry [Runtime::Registry] the booted registry this interpreter reads
       # @param rules [Runtime::CommandRules] the shared rules engine (admissibility,
@@ -101,29 +74,11 @@ module Hecks
       # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class when a rule refuses
       # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
       def call(domain, aggregate, resolution, invocation, dry_run: false)
-        chain        = resolution.chain
-        entity       = chain.last
-        command      = resolution.command
-        command_name = resolution.command_name
-        route        = invocation.target
-        args         = invocation.to_args
-        attempt = 0
+        settings = { invocation: invocation, route: invocation.target, dry_run: dry_run }
+        args     = invocation.to_args
+        attempt  = 0
         begin
-          ctx = Context.new(domain, aggregate, entity, resolution.entity_names.join("."), command, command_name, args)
-          ctx.invocation = invocation
-          ctx.chain = chain
-          ctx.route = route
-          ctx.dry_run = dry_run
-          # `root_aggregate:` is the true root aggregate (this method's first
-          # parameter), never `entity` — a `parent.X` read in this command's
-          # given/ensures means the root's field, not the entity's.
-          ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command, root_aggregate: aggregate)
-          # Resolved once, here — `step_hydrate_parent` reuses `ctx.repository`
-          # rather than re-fetching it.
-          ctx.repository = @registry.repository(domain, aggregate)
-          lock_id = Identity.best_effort(aggregate, args, route)
-          run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
-          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome, ctx.outbox_rows]
+          dispatch_once(new_context(domain, aggregate, resolution, args, settings))
         rescue StaleWrite
           attempt += 1
           retry if attempt < MAX_STALE_WRITE_RETRIES
@@ -132,6 +87,32 @@ module Hecks
       end
 
       private
+
+      # A fresh context for one attempt, its plan and repository resolved up front.
+      def new_context(domain, aggregate, resolution, args, settings)
+        chain = resolution.chain
+        ctx = Context.new(domain: domain, aggregate: aggregate, entity: chain.last, chain: chain, args: args,
+                          entity_name: resolution.entity_names.join("."), command: resolution.command,
+                          command_name: resolution.command_name, **settings)
+        ctx.plan       = planned(ctx)
+        # Resolved once, here — `step_hydrate_parent` reuses `ctx.repository`
+        # rather than re-fetching it.
+        ctx.repository = @registry.repository(domain, aggregate)
+        ctx
+      end
+
+      # `root_aggregate:` is the true root aggregate (the dispatch's own aggregate),
+      # never `entity` — a `parent.X` read in this command's given/ensures means the root's
+      # field, not the entity's.
+      def planned(ctx)
+        DependencyPlanning::Analyzer.call(aggregate: ctx.entity, command: ctx.command, root_aggregate: ctx.aggregate)
+      end
+
+      def dispatch_once(ctx)
+        lock_id = Identity.best_effort(ctx.aggregate, ctx.args, ctx.route)
+        run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
+        [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome, ctx.outbox_rows]
+      end
 
       # Answers the outside facts the entity command `needs`, as the aggregate interpreter does;
       # the arguments are otherwise already decoded.
@@ -167,48 +148,15 @@ module Hecks
         step(:resolve_references) { @rules.resolve_references(ctx.domain, ctx.command, ctx.args) }
       end
 
-      def step_hydrate_parent(ctx)
-        # `ctx.repository` is resolved once, in `#call`, before the
-        # isolation decision — not here.
-        ctx.instance = step(:hydrate_parent) do
-          parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args, ctx.route)
-        end
-      end
-
-      def step_locate_element(ctx)
-        ctx.element = step(:locate_element) do
-          EntityElement.locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name, ctx.route)
-        end
-        # `view` was hydrated once, here, into its own state hash
-        # (Value.hydrate builds a fresh Hash — never aliased with `element`)
-        # — exactly right for enforce_givens, which must read pre-mutation.
-        ctx.view = Instance.new(aggregate: ctx.entity, id: EntityElement.element_identity(ctx.entity, ctx.element).to_s,
-                                state: ctx.element)
-      end
-
-      # Enforces this command's `given`s and correction-target admissibility.
-      # Checked against the parent aggregate, never the entity view — every
-      # emitted event is stamped with the root aggregate's name and the
-      # parent record's id, regardless of dispatch level.
-      def step_enforce_givens(ctx)
-        step(:enforce_givens) do
-          ctx.correction_bindings = @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
-          @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance,
-                                correction: ctx.correction_bindings)
-        end
-      end
-
-      def step_admissible_transition(ctx)
-        ctx.transition = step(:admissible_transition) { @rules.admissible_transition(ctx.entity, ctx.command, ctx.view) }
-      end
-
       def step_apply_mutations(ctx)
         ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
-        step(:apply_mutations) do
-          pre = ctx.element.dup # the update set reads the element as it stood before mutation
-          ctx.command.mutations.each do |mutation|
-            EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args, pre)
-          end
+        step(:apply_mutations) { mutate_element(ctx) }
+      end
+
+      def mutate_element(ctx)
+        pre = ctx.element.dup # the update set reads the element as it stood before mutation
+        ctx.command.mutations.each do |mutation|
+          EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args, pre)
         end
       end
 
@@ -216,73 +164,6 @@ module Hecks
         return unless ctx.transition
 
         step(:advance_lifecycle) { ctx.element[ctx.entity.lifecycle.field] = ctx.transition.target }
-      end
-
-      # An ensures reads the settled record, so it needs a view hydrated from
-      # `element` as it stands now, mutations included — unlike `view` above,
-      # built once and read pre-mutation by enforce_givens.
-      def step_enforce_ensures(ctx)
-        step(:enforce_ensures) do
-          settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
-          # `correction:` reuses the `as:`-bound bindings `step_enforce_givens`
-          # already located; `|| {}` covers a command with no `corrects`
-          # mutation, where `ctx.correction_bindings` may be unset.
-          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance,
-                                 correction: ctx.correction_bindings || {})
-        end
-      end
-
-      # Enforces the parent aggregate's own invariants — there is no separate
-      # "entity invariant" concept (ADR 0025 scopes `invariant` to the aggregate).
-      def step_enforce_invariants(ctx)
-        step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
-      end
-
-      # `dry_run:` skips only the persist — the reference-existence check
-      # above stays unconditional either way.
-      def step_save(ctx)
-        step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
-
-        return if ctx.dry_run
-
-        step(:save) do
-          # `expected_version:` is nil for a non-CAS repository or an instance
-          # never read from storage — either falls through to a plain save.
-          ctx.persistence_outcome = ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
-          if ctx.persistence_outcome.status == :stale
-            # Intentionally not a `RefusalWording.render` call — see
-            # `Runtime::StaleWrite`'s own comment.
-            raise(StaleWrite,
-                  "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
-                  "(#{Identity.reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
-                  "another write committed against this record after it was read")
-          end
-        end
-      end
-
-      # `dry_run:` skips this too — nothing was committed, so `ctx.result`
-      # stays nil and `Dispatcher#dry_run?` never reads it.
-      def step_emit(ctx)
-        return if ctx.dry_run
-
-        ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository) }
-      end
-
-      # Finds the parent aggregate: the declared identity first, then a bare
-      # `id:` for a record the caller derived itself.
-      def parent(repository, aggregate, entity_name, command_name, args, route = nil)
-        parent_id = route&.aggregate ||
-                    Identity.of(aggregate, args) ||
-                    Identity.from(aggregate, args, :id) ||
-                    raise(NotFound, RefusalWording.render_site("NotFound", "entity_parent_no_identity",
-                                                               command: command_name, aggregate: aggregate.hecks_name,
-                                                               entity: entity_name, identity: Identity.reading(aggregate)))
-        found = repository.find(parent_id) ||
-                raise(NotFound, RefusalWording.render_site("NotFound", "record_missing",
-                                                           aggregate: aggregate.hecks_name,
-                                                           identity:  Identity.reading(aggregate),
-                                                           offered:   Rendering.describe(parent_id)))
-        found.dup
       end
 
       # Entity element helpers (`locate_chain`, `element_of`, `element_identity`,

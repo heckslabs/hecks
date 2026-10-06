@@ -32,7 +32,7 @@ RSpec.describe "hecks deploy project — smoke true", :io do
           cpu 256
           memory 512
           port 8080
-      #{smoke_lines.gsub(/^/, '    ')}
+      #{smoke_lines.gsub(/^/, "    ")}
         end
       end
     WORLD
@@ -71,7 +71,7 @@ RSpec.describe "hecks deploy project — smoke true", :io do
     SETTINGS
   end
 
-  it "adds only the smoke files, leaving every other generated file byte-identical" do
+  it "adds only the smoke files, leaving every other generated file byte-identical", :aggregate_failures do
     without, with = generate(world(""), world(smoke_settings))
 
     expect(with.keys - without.keys).to contain_exactly("smoke/harness.js", "smoke/workflow.yml")

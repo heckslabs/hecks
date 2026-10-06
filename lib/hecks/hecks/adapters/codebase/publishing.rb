@@ -80,24 +80,40 @@ module Hecks
           err = StringIO.new
           runner = release(args, tree, commands, out, err)
           status = runner.call
-          text = [out.string, err.string].map(&:strip).reject(&:empty?).join("\n")
+          text = transcript(out, err)
           raise ConsoleCapture::Failure, text if !status.zero? && runner.steps.empty?
 
-          outcome(text, args, tagged: runner.steps.include?(:tagged), published: runner.steps.include?(:gem),
-                              verified: runner.verified, succeeded: status.zero?)
+          outcome(text, args, **steps_taken(runner, status))
+        end
+
+        # @return [String] what the release printed to either stream, trimmed
+        def transcript(out, err)
+          [out, err].map { |stream| stream.string.strip }.reject(&:empty?).join("\n")
+        end
+
+        # @return [Hash] which steps the release really carried out, and whether it ended well
+        def steps_taken(runner, status)
+          { tagged: runner.steps.include?(:tagged), published: runner.steps.include?(:gem),
+            verified: runner.verified, succeeded: status.zero? }
         end
 
         # @return [Hecks::Release::Runner] the release, over the facts the run was cleared by
         def release(args, tree, commands, out, err)
-          flag = ->(name) { args[name] == true }
-          options = Release::Runner::Options.new(dry_run: args[:confirm] != true, gem_only: flag.call(:gem_only),
-                                                 npm_only: flag.call(:npm_only), npm_local: flag.call(:npm_local),
-                                                 no_wait: flag.call(:no_wait), yes: true)
+          options = runner_options(args)
           facts = Release::Runner::Preflight::Facts.new(version: args[:version], sha: args[:head])
           Release::Runner.new(root: tree.root, options: options, commands: commands, input: StringIO.new, out: out,
                               err: err, facts: facts, **(Publishing.release_options || {}))
         rescue ArgumentError => e
           raise ConsoleCapture::Failure, e.message
+        end
+
+        # @return [Hecks::Release::Runner::Options] the release's switches: a dry run unless
+        #   confirmed
+        def runner_options(args)
+          flag = ->(name) { args[name] == true }
+          Release::Runner::Options.new(dry_run: args[:confirm] != true, gem_only: flag.call(:gem_only),
+                                       npm_only: flag.call(:npm_only), npm_local: flag.call(:npm_local),
+                                       no_wait: flag.call(:no_wait), yes: true)
         end
 
         # Pushes the gem alone, or builds it and deletes it again when unconfirmed.
@@ -130,11 +146,14 @@ module Hecks
           raise ConsoleCapture::Failure, e.message
         end
 
+        # @param steps [Hash] `tagged`, `published` and `verified`, and `succeeded` (true when
+        #   absent)
         # @return [Hash] the answer the journal records: a report, what was done, and the release
-        def outcome(text, args, tagged:, published:, verified:, succeeded: true)
-          { report: { value: text }, tagged: { value: tagged }, published: { value: published },
-            verified: { value: verified }, succeeded: { value: succeeded }, version: { value: args[:version] },
-            ir_version: { value: args[:ir_version] }, ships_from: args[:ships_from] }
+        def outcome(text, args, **steps)
+          { report: { value: text }, tagged: { value: steps[:tagged] }, published: { value: steps[:published] },
+            verified: { value: steps[:verified] }, succeeded: { value: steps.fetch(:succeeded, true) },
+            version: { value: args[:version] }, ir_version: { value: args[:ir_version] },
+            ships_from: args[:ships_from] }
         end
       end
     end

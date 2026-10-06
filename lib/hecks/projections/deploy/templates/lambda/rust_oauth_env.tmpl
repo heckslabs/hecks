@@ -1,0 +1,17 @@
+# NOT `{{resolve:secretsmanager:...}}` composing
+# GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/SESSION_SECRET
+# directly anymore -- the identical GetFunctionConfiguration
+# exposure DATABASE_URL's own comment above documents
+# applied here too. main.rs's own cold start fetches both
+# secrets itself and `set_var`s the real GOOGLE_CLIENT_ID/
+# GOOGLE_CLIENT_SECRET/SESSION_SECRET keys before anything
+# else runs -- auth.rs/web.rs still read those exact keys,
+# unchanged. GOOGLE_OAUTH_SECRET_ID is a bare NAME (`make
+# sync-google-oauth` owns @@stack_name@@-web-google-oauth's
+# whole lifecycle outside CloudFormation, straight from
+# @@domain@@'s own gitignored .env.local, never baked into
+# this generated, git-tracked template as plaintext) --
+# GetSecretValue accepts a name directly, no ARN needed.
+GOOGLE_OAUTH_SECRET_ID: @@stack_name@@-web-google-oauth
+GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+SESSION_SECRET_ARN: !Sub "${@@logical_id@@SessionSecret}"

@@ -49,23 +49,40 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` the report that was printed
       # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file exists
       def scaffold(**held)
-        name   = plain(held[:name])
-        files  = stub_files(name, plain(held[:adapter]))
-        target = File.expand_path(plain(held[:dir]) || CLI::DomainStub.directory(name), Dir.pwd)
+        files  = stub_files(plain(held[:name]), plain(held[:adapter]))
+        target = stub_target(held)
         refuse_existing!(target, files.keys)
-        warn "warning: #{target} is inside the hecks clone; keep a service you deploy outside it." if inside_clone?(target)
+        warn_inside_clone(target)
 
-        files.each do |path, text|
-          full = File.join(target, path)
-          FileUtils.mkdir_p(File.dirname(full))
-          File.write(full, text)
-        end
+        write_files(target, files)
         report = scaffold_report(target, files.keys, plain(held[:adapter]))
         puts report
         { output: { value: report } }
       end
 
       private
+
+      # The directory the stub is written into: the named one, or the snake-cased name under the
+      # current directory.
+      def stub_target(held)
+        File.expand_path(plain(held[:dir]) || CLI::DomainStub.directory(plain(held[:name])), Dir.pwd)
+      end
+
+      # Warns that a service written inside the hecks clone is not one to deploy from there.
+      def warn_inside_clone(target)
+        return unless inside_clone?(target)
+
+        warn "warning: #{target} is inside the hecks clone; keep a service you deploy outside it."
+      end
+
+      # Writes each stub file under `target`, creating the directories on the way.
+      def write_files(target, files)
+        files.each do |path, text|
+          full = File.join(target, path)
+          FileUtils.mkdir_p(File.dirname(full))
+          File.write(full, text)
+        end
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
@@ -81,7 +98,7 @@ module Hecks
         return if taken.empty?
 
         raise ConsoleCapture::Failure,
-              "nothing written; already there: #{taken.map { |full| shown(full) }.join(', ')}"
+              "nothing written; already there: #{taken.map { |full| shown(full) }.join(", ")}"
       end
 
       def inside_clone?(target)

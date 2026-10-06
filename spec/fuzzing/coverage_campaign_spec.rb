@@ -8,7 +8,7 @@ require "hecks/fuzzing/coverage_campaign"
 # never a generator run. `SequenceGenerator`'s side of the contract
 # (a prefix really reproduces the steps it names) is pinned in
 # sequence_generator_spec.rb.
-RSpec.describe Hecks::Fuzzing::CoverageCampaign do
+RSpec.describe Hecks::Fuzzing::CoverageCampaign, :aggregate_failures do
   def trace(tuples, verbs: %w[D::A.Open D::A.Close D::A.Rare])
     Hecks::Fuzzing::SequenceGenerator::Trace.new(
       steps: [], coverage: tuples.each_with_index.map { |tuple, index| [index, tuple] }, verbs: verbs
@@ -17,9 +17,26 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
 
   def tuple(verb, outcome = "ok") = "#{verb} | verb | absent | - | #{outcome}"
 
+  # A campaign that has recorded `first_trace` as seed 1.
+  def recording(first_trace, **dials)
+    described_class.new(**dials).tap { |campaign| campaign.record(1, campaign.plan(1), first_trace) }
+  end
+
+  def five_seed_campaign
+    described_class.new(splice_probability: 0.5, favor_count: 2).tap do |campaign|
+      (1..5).each { |seed| campaign.record(seed, campaign.plan(seed), trace([tuple("D::A.V#{seed}")])) }
+    end
+  end
+
+  def two_seed_campaign
+    original = described_class.new(splice_probability: 1.0, favor_count: 0)
+    original.record(1, original.plan(1), trace([tuple("D::A.Open"), tuple("D::A.Close")]))
+    original.record(2, original.plan(2), trace([tuple("D::A.Rare")]))
+    original
+  end
+
   it "plans nothing at all while splicing and favor are both off" do
-    campaign = described_class.new(splice_probability: 0.0, favor_count: 0)
-    campaign.record(1, campaign.plan(1), trace([tuple("D::A.Open")]))
+    campaign = recording(trace([tuple("D::A.Open")]), splice_probability: 0.0, favor_count: 0)
 
     plan = campaign.plan(2)
     expect(plan.prefix).to be_nil
@@ -51,26 +68,18 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
   end
 
   it "splices from the corpus, naming the whole prefix chain a seed needs to reproduce" do
-    campaign = described_class.new(splice_probability: 1.0, favor_count: 0)
-    campaign.record(1, campaign.plan(1), trace([tuple("D::A.Open"), tuple("D::A.Close")]))
+    campaign = recording(trace([tuple("D::A.Open"), tuple("D::A.Close")]), splice_probability: 1.0, favor_count: 0)
 
     second = campaign.plan(2)
-    expect(second.prefix).to include("seed" => 1, "favor" => [])
-    expect(second.prefix["steps"]).to be_between(1, 2)
+    expect(second.prefix).to include("seed" => 1, "favor" => []).and include("steps" => be_between(1, 2))
 
     campaign.record(2, second, trace([tuple("D::A.Rare")]))
     expect(campaign.corpus.last[:spec]).to include("seed" => 2, "prefix" => second.prefix)
   end
 
   it "plans the same thing for the same seed from the same record" do
-    build = lambda do
-      described_class.new(splice_probability: 0.5, favor_count: 2).tap do |campaign|
-        (1..5).each { |seed| campaign.record(seed, campaign.plan(seed), trace([tuple("D::A.V#{seed}")])) }
-      end
-    end
-
-    first  = build.call.plan(6)
-    second = build.call.plan(6)
+    first  = five_seed_campaign.plan(6)
+    second = five_seed_campaign.plan(6)
     expect(second).to eq(first)
   end
 
@@ -103,9 +112,7 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
   # rebuilding it from scratch every time.
   describe "#to_h / .load / #restore!" do
     it "round-trips the corpus, seen tuples, verb hits and declared verbs through a JSON-safe hash" do
-      original = described_class.new(splice_probability: 1.0, favor_count: 0)
-      original.record(1, original.plan(1), trace([tuple("D::A.Open"), tuple("D::A.Close")]))
-      original.record(2, original.plan(2), trace([tuple("D::A.Rare")]))
+      original = two_seed_campaign
 
       # JSON.parse(JSON.generate(...)) is exactly what a real hecks quality_control ask run round
       # trip does: every key becomes a string, same as reading the saved file back on the next
@@ -113,8 +120,7 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
       state = JSON.parse(JSON.generate(original.to_h))
 
       restored = described_class.load(state, splice_probability: 1.0, favor_count: 0)
-      expect(restored.corpus).to eq(original.corpus)
-      expect(restored.tuples_seen).to eq(original.tuples_seen)
+      expect([restored.corpus, restored.tuples_seen]).to eq([original.corpus, original.tuples_seen])
 
       # A plan for the next seed after the restore is identical to the plan the original campaign
       # would have built for that same seed: the restored corpus and verb hits behave the same, not

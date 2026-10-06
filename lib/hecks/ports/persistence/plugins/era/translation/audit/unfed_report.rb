@@ -12,26 +12,26 @@ module Hecks
         # @param after [Hash{String => Hash}] translated state per record id
         # @return [Array<String>] names of unfed attributes, in declaration order; `[]` when
         #   every attribute is fed or `after` holds no records
-        # rubocop:disable-next Metrics/CyclomaticComplexity
-        # rubocop:disable-next Metrics/PerceivedComplexity
         def unfed(aggregate, declared, after)
-          fed = if declared
-                  (declared.renames.values.map(&:to_s) +
-                   declared.moves.map(&:to) +
-                   declared.converts.map(&:to) +
-                   declared.computes.map(&:to)).map { |path| path.to_s.split(".").first }
-                else
-                  []
-                end
+          return [] if after.empty?
+
+          fed = fed_names(declared)
           aggregate.attributes.filter_map do |attribute|
             name = attribute.name.to_s
-            next if fed.include?(name)
-            next unless attribute.default.nil?
-            next if after.any? { |_, state| !dig_path(state, name).nil? }
-            next if after.empty?
-
-            name
+            name unless fed.include?(name) || !attribute.default.nil? || after.any? { |_, state| !dig_path(state, name).nil? }
           end
+        end
+
+        # The top-level attribute names an edge's destinations feed.
+        #
+        # @param declared [Bluebook::TranslationAggregate, nil] this edge's rules
+        # @return [Array<String>] the destinations of renames, moves, converts and computes, cut to
+        #   their top-level name; `[]` when there is no edge
+        def fed_names(declared)
+          return [] unless declared
+
+          rules = [declared.moves, declared.converts, declared.computes].flat_map { |list| list.map(&:to) }
+          (declared.renames.values.map(&:to_s) + rules).map { |path| path.to_s.split(".").first }
         end
 
         # Reads a dotted path out of a state whose keys may be Strings or Symbols.

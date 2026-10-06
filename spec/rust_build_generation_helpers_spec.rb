@@ -31,7 +31,7 @@ RSpec.describe "hecks project_rust generation helpers" do
       end
     end
 
-    it "leaves an unchanged file's mtime alone, so Cargo does not rebuild" do
+    it "leaves an unchanged file's mtime alone, so Cargo does not rebuild", :aggregate_failures do
       path = File.join(@dir, "a.rs")
       described_class.call(path, "fn a() {}\n")
       File.utime(Time.at(0), Time.at(0), path)
@@ -40,12 +40,18 @@ RSpec.describe "hecks project_rust generation helpers" do
       expect(File.mtime(path)).to eq(Time.at(0))
     end
 
-    it "prunes a file the run never touched once the directory is closed" do
+    # Writes an orphan file the run never touches and records a kept one; returns both paths.
+    def prune_with_orphan
       kept = File.join(@dir, "kept.rs")
       orphan = File.join(@dir, "orphan.rs")
       File.write(orphan, "")
       described_class.push_directory(@dir)
       described_class.call(kept, "x")
+      [kept, orphan]
+    end
+
+    it "prunes a file the run never touched once the directory is closed", :aggregate_failures do
+      kept, orphan = prune_with_orphan
       expect { described_class.pop_and_prune(@dir) }.to output(/pruned .*orphan\.rs/).to_stdout
 
       expect(File.exist?(orphan)).to be(false)

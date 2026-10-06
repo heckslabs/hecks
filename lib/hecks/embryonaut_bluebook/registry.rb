@@ -3,6 +3,8 @@ require "tmpdir"
 require "fileutils"
 require_relative "../vendoring"
 require_relative "lock"
+require_relative "registry/changelog"
+require_relative "registry/versions"
 
 module Hecks
   module EmbryonautBluebook
@@ -14,6 +16,9 @@ module Hecks
     # a changelog entry; `release` is the sequence of refusals before a tag is made. A package's
     # files are compared through `Lock.digest_of`, the digest a consuming project locks.
     class Registry
+      include Changelog
+      include Versions
+
       # A version a package may carry, `X.Y.Z`.
       VERSION = /\A\d+\.\d+\.\d+\z/
 
@@ -86,20 +91,28 @@ module Hecks
       # @return [Tagged] the tag made and the commit it stands on
       # @raise [Vendoring::Error] with the first refusal
       def release(package)
+        version = releasable_version(package)
+        tag = "#{package}-v#{version}"
+        refuse_release!(package, version, tag)
+        create_tag(package, version, tag)
+      end
+
+      private
+
+      def releasable_version(package)
         fault!("#{package.inspect} is not a package name") unless package.to_s.match?(NAME)
         version = manifest_version(package) or fault!("no #{package}/bluebook.yml")
         fault!("#{package}/bluebook.yml: version '#{version}' is not X.Y.Z") unless version.match?(VERSION)
+        version
+      end
 
-        tag = "#{package}-v#{version}"
-        refuse_release!(package, version, tag)
+      def create_tag(package, version, tag)
         notes = changelog_section(package, version)
         _, _, status = git("tag", "-a", tag, "-m", "#{package} #{version}", "-m", notes)
         raise Vendoring::Error, "git could not tag #{tag}" unless status.success?
 
         Tagged.new(tag: tag, commit: git("rev-parse", "--short", "HEAD").first.strip)
       end
-
-      private
 
       def packages
         Dir.glob(File.join(@root, "*", "bluebook.yml")).map { |file| File.basename(File.dirname(file)) }.sort
@@ -111,13 +124,17 @@ module Hecks
           report.fault "#{package}: version '#{version}' is not X.Y.Z"
           return
         end
-        name = File.read(File.join(@root, package, "bluebook.yml"))[/^name: *(.*)$/, 1]
-        report.fault "#{package}: bluebook.yml name does not match the directory" unless name == package
+        check_name(package, report)
         tags(package).each { |tag| check_tag(package, tag, report) }
         latest = latest_version(package)
         return report.note("#{package}: no release tag yet (#{version} unreleased)") unless latest
 
         check_changes(package, version, latest, report)
+      end
+
+      def check_name(package, report)
+        name = File.read(File.join(@root, package, "bluebook.yml"))[/^name: *(.*)$/, 1]
+        report.fault "#{package}: bluebook.yml name does not match the directory" unless name == package
       end
 
       def check_tag(package, tag, report)
@@ -146,6 +163,10 @@ module Hecks
         fault!("#{version} is not newer than the latest release #{latest}") if latest && newest(latest, version) != version
         fault!("#{package}/CHANGELOG.md has no '## #{version}' entry") unless changelog_entry?(package, version)
         fault!("#{package} has uncommitted changes; commit them first") unless clean?(package)
+        refuse_unchanged!(package, latest)
+      end
+
+      def refuse_unchanged!(package, latest)
         return unless latest && released_digest(package, latest) == current_digest(package)
 
         fault!("the bluebook files are identical to #{package}-v#{latest}; nothing to release")
@@ -154,37 +175,6 @@ module Hecks
       def fault!(why) = raise(Vendoring::Error, why)
 
       def clean?(package) = git("status", "--porcelain", "--", package).first.strip.empty?
-
-      def manifest_version(package)
-        file = File.join(@root, package, "bluebook.yml")
-        File.file?(file) ? File.read(file)[/^version: *(.*)$/, 1] : nil
-      end
-
-      def tags(package) = @source.tags("#{package}-v*")
-
-      def latest_version(package)
-        tags(package).map { |tag| tag.delete_prefix("#{package}-v") }.max_by { |version| order(version) }
-      end
-
-      # The greater of two versions, compared as `sort -V` does: runs of digits as numbers.
-      def newest(left, right) = [left, right].max_by { |version| order(version) }
-
-      def order(version) = version.scan(/\d+|\D+/).map { |part| part.match?(/\A\d/) ? [0, part.to_i, ""] : [1, 0, part] }
-
-      def changelog_entry?(package, version)
-        file = File.join(@root, package, "CHANGELOG.md")
-        File.file?(file) && File.read(file).match?(/^## #{Regexp.escape(version)}( |$)/)
-      end
-
-      # The lines under a version's heading, up to the next heading, without trailing blank lines.
-      def changelog_section(package, version)
-        on = false
-        lines = File.readlines(File.join(@root, package, "CHANGELOG.md"), chomp: true).select do |line|
-          on = line.match?(/^## #{Regexp.escape(version)}( |$)/) if line.start_with?("## ")
-          on && !line.start_with?("## ")
-        end
-        lines.join("\n").sub(/\n+\z/, "")
-      end
 
       def current_digest(package)
         dir = File.join(@root, package, "bluebook")

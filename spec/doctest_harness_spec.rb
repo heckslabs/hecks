@@ -7,6 +7,153 @@ require "tempfile"
 # name the guide's true line, or every future failure sends its reader
 # to the wrong paragraph.
 RSpec.describe Doctest do
+  # One guide exercising every fence kind together — bluebook, boot,
+  # shared locals across blocks, a passing claim, a refusal claim, and
+  # a skipped fence — is the actual claim under test: that the harness
+  # runs a whole guide coherently. Splitting the guide loses that.
+  DOCTEST_SPEC_WHOLE_GUIDE = <<~MD.freeze
+    # A tiny guide
+
+    ```ruby bluebook
+    Hecks.bluebook "DoctestSampleA" do
+      vision "A guide's own tiny domain."
+      generic
+
+      aggregate "DoctestGadget" do
+        description "A widget."
+        identified_by :name
+
+        attribute :name, Name
+
+        value_object "Name" do
+          attribute :value, String
+        end
+
+        lifecycle :status, default: "current" do
+          transition "Retire" => "retired", from: "current"
+        end
+
+        command "Add" do
+          attribute :name, Name
+          emits "WidgetAdded"
+        end
+
+        command "Retire" do
+          reference_to DoctestGadget
+          given("only a current widget retires") { status == "current" }
+          emits "WidgetRetired"
+        end
+      end
+    end
+    ```
+
+    ```ruby boot
+    Hecks.hecksagon("DoctestSampleA") { DoctestSampleA::DoctestGadget.persisted_by("Memory") }
+    ```
+
+    Locals carry across blocks:
+
+    ```ruby
+    widget = DoctestGadget.add!(name: { value: "w1" })
+    widget.status   # => "current"
+    ```
+
+    ```ruby
+    widget.retire!
+    widget.status   # => "retired"
+    widget.retire!   # ~> GivenNotMet: only a current widget retires
+    ```
+
+    ```ruby skip
+    this does not even parse — and is never asked to
+    ```
+  MD
+
+  DOCTEST_SPEC_WRONG_CLAIM_GUIDE = <<~MD.freeze
+    # prose line one
+    # prose line two
+
+    ```ruby
+    answer = 1 + 1
+    answer   # => 3
+    ```
+  MD
+
+  DOCTEST_SPEC_NO_REFUSAL_GUIDE = <<~MD.freeze
+    ```ruby
+    1 + 1   # ~> ArgumentError: anything
+    ```
+  MD
+
+  DOCTEST_SPEC_REFUSAL_GUIDE = <<~MD.freeze
+    ```ruby
+    Integer("nope")   # ~> ArgumentError: invalid value for Integer
+    ```
+  MD
+
+  # Proves a second bluebook/boot pair, later in the same guide, gets
+  # its own wave and its own boot while still seeing the first wave's
+  # locals — a claim about cross-wave interaction that only a guide
+  # with both waves present, run as one, can establish.
+  DOCTEST_SPEC_SECOND_WAVE_GUIDE = <<~MD.freeze
+    ```ruby
+    x = 41
+    ```
+
+    ```ruby bluebook
+    Hecks.bluebook "DoctestWaveTwo" do
+      vision "The second narrative in one file."
+      generic
+
+      aggregate "DoctestHarnessMemo" do
+        description "A note."
+        identified_by :label
+
+        attribute :label, Label
+
+        value_object "Label" do
+          attribute :value, String
+        end
+
+        command "Jot" do
+          attribute :label, Label
+          emits "Jotted"
+        end
+      end
+    end
+    ```
+
+    ```ruby boot
+    Hecks.hecksagon("DoctestWaveTwo") { DoctestWaveTwo::DoctestHarnessMemo.persisted_by("Memory") }
+    ```
+
+    ```ruby
+    x + 1                                     # => 42
+    DoctestHarnessMemo.jot!(label: { value: "later" }).label.to_h   # => { value: "later" }
+    ```
+  MD
+
+  DOCTEST_SPEC_MULTILINE_CLAIM_GUIDE = <<~MD.freeze
+    ```ruby
+    [1, 2,
+     3].size   # => 3
+    ```
+  MD
+
+  DOCTEST_SPEC_DECLARED_GUIDE = <<~MD.freeze
+    <!-- doctest: postgres -->
+
+    ```ruby bluebook
+    Hecks.bluebook "DoctestSampleB" do
+    end
+    ```
+
+    ```ruby boot
+    Hecks.hecksagon("DoctestSampleB") { DoctestSampleB::Thing.persisted_by("Memory") }
+    Hecks.world("DoctestWorldB") { realm "Examples" }
+    ```
+  MD
+
   def guide(markdown)
     file = Tempfile.new(["doctest-guide-", ".md"])
     file.write(markdown)
@@ -18,83 +165,12 @@ RSpec.describe Doctest do
   before { @guides = [] }
   after  { @guides.each(&:close!) }
 
-  # One guide exercising every fence kind together — bluebook, boot,
-  # shared locals across blocks, a passing claim, a refusal claim, and
-  # a skipped fence — is the actual claim under test: that the harness
-  # runs a whole guide coherently. Splitting the guide loses that.
-  # rubocop:disable-next RSpec/ExampleLength
   it "runs a whole guide — declarations, wiring, shared locals, claims, refusals" do
-    path = guide(<<~MD)
-      # A tiny guide
-
-      ```ruby bluebook
-      Hecks.bluebook "DoctestSampleA" do
-        vision "A guide's own tiny domain."
-        generic
-
-        aggregate "DoctestGadget" do
-          description "A widget."
-          identified_by :name
-
-          attribute :name, Name
-
-          value_object "Name" do
-            attribute :value, String
-          end
-
-          lifecycle :status, default: "current" do
-            transition "Retire" => "retired", from: "current"
-          end
-
-          command "Add" do
-            attribute :name, Name
-            emits "WidgetAdded"
-          end
-
-          command "Retire" do
-            reference_to DoctestGadget
-            given("only a current widget retires") { status == "current" }
-            emits "WidgetRetired"
-          end
-        end
-      end
-      ```
-
-      ```ruby boot
-      Hecks.hecksagon("DoctestSampleA") { DoctestSampleA::DoctestGadget.persisted_by("Memory") }
-      ```
-
-      Locals carry across blocks:
-
-      ```ruby
-      widget = DoctestGadget.add!(name: { value: "w1" })
-      widget.status   # => "current"
-      ```
-
-      ```ruby
-      widget.retire!
-      widget.status   # => "retired"
-      widget.retire!   # ~> GivenNotMet: only a current widget retires
-      ```
-
-      ```ruby skip
-      this does not even parse — and is never asked to
-      ```
-    MD
-
-    expect(described_class.run(path)).to be(true)
+    expect(described_class.run(guide(DOCTEST_SPEC_WHOLE_GUIDE))).to be(true)
   end
 
-  it "names the guide's TRUE line when a claim fails" do
-    path = guide(<<~MD)
-      # prose line one
-      # prose line two
-
-      ```ruby
-      answer = 1 + 1
-      answer   # => 3
-      ```
-    MD
+  it "names the guide's TRUE line when a claim fails", :aggregate_failures do
+    path = guide(DOCTEST_SPEC_WRONG_CLAIM_GUIDE)
 
     expect { described_class.run(path) }.to raise_error(Doctest::Mismatch) { |error|
       expect(error.message).to include("#{path}:6")
@@ -103,82 +179,20 @@ RSpec.describe Doctest do
   end
 
   it "fails a refusal claim whose expression declines to refuse" do
-    path = guide(<<~MD)
-      ```ruby
-      1 + 1   # ~> ArgumentError: anything
-      ```
-    MD
-
-    expect { described_class.run(path) }
+    expect { described_class.run(guide(DOCTEST_SPEC_NO_REFUSAL_GUIDE)) }
       .to raise_error(Doctest::Mismatch, /no refusal at all/)
   end
 
   it "passes a refusal claim on class and message together" do
-    path = guide(<<~MD)
-      ```ruby
-      Integer("nope")   # ~> ArgumentError: invalid value for Integer
-      ```
-    MD
-
-    expect(described_class.run(path)).to be(true)
+    expect(described_class.run(guide(DOCTEST_SPEC_REFUSAL_GUIDE))).to be(true)
   end
 
-  # Proves a second bluebook/boot pair, later in the same guide, gets
-  # its own wave and its own boot while still seeing the first wave's
-  # locals — a claim about cross-wave interaction that only a guide
-  # with both waves present, run as one, can establish.
-  # rubocop:disable-next RSpec/ExampleLength
   it "runs a later declaration block as a second wave, its own boot" do
-    path = guide(<<~MD)
-      ```ruby
-      x = 41
-      ```
-
-      ```ruby bluebook
-      Hecks.bluebook "DoctestWaveTwo" do
-        vision "The second narrative in one file."
-        generic
-
-        aggregate "DoctestHarnessMemo" do
-          description "A note."
-          identified_by :label
-
-          attribute :label, Label
-
-          value_object "Label" do
-            attribute :value, String
-          end
-
-          command "Jot" do
-            attribute :label, Label
-            emits "Jotted"
-          end
-        end
-      end
-      ```
-
-      ```ruby boot
-      Hecks.hecksagon("DoctestWaveTwo") { DoctestWaveTwo::DoctestHarnessMemo.persisted_by("Memory") }
-      ```
-
-      ```ruby
-      x + 1                                     # => 42
-      DoctestHarnessMemo.jot!(label: { value: "later" }).label.to_h   # => { value: "later" }
-      ```
-    MD
-
-    expect(described_class.run(path)).to be(true)
+    expect(described_class.run(guide(DOCTEST_SPEC_SECOND_WAVE_GUIDE))).to be(true)
   end
 
   it "refuses a claim marker on a line that does not parse alone" do
-    path = guide(<<~MD)
-      ```ruby
-      [1, 2,
-       3].size   # => 3
-      ```
-    MD
-
-    expect { described_class.run(path) }
+    expect { described_class.run(guide(DOCTEST_SPEC_MULTILINE_CLAIM_GUIDE)) }
       .to raise_error(Doctest::Malformed, /single-line expression/)
   end
 
@@ -186,22 +200,9 @@ RSpec.describe Doctest do
     expect(described_class.run(guide("# just prose\n\nno fences at all\n"))).to be(true)
   end
 
-  it "reads declared domains and the postgres pragma" do
-    path = guide(<<~MD)
-      <!-- doctest: postgres -->
+  it "reads declared domains and the postgres pragma", :aggregate_failures do
+    parsed = described_class.parse(guide(DOCTEST_SPEC_DECLARED_GUIDE))
 
-      ```ruby bluebook
-      Hecks.bluebook "DoctestSampleB" do
-      end
-      ```
-
-      ```ruby boot
-      Hecks.hecksagon("DoctestSampleB") { DoctestSampleB::Thing.persisted_by("Memory") }
-      Hecks.world("DoctestWorldB") { realm "Examples" }
-      ```
-    MD
-
-    parsed = described_class.parse(path)
     expect(parsed.postgres).to be(true)
     # Only the fresh `Hecks.bluebook` invention counts as owned — the
     # hecksagon/world block wires an already-declared chapter and is not

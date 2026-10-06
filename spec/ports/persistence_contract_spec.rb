@@ -4,42 +4,90 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../support/persistence_legacy_fixture"
 require_relative "../support/postgres_probe"
 
+# A durable-adapter stand-in whose `store`/`journal` live outside the adapter instance, so two
+# separate `.new`s (one per simulated boot) share the same underlying data — the way a real
+# Sqlite file or Postgres database persists across process restarts, unlike Memory.
+class ContractDurableStubAdapter
+  class << self
+    attr_accessor :atomic_append, :store, :journal
+
+    def backed_by(atomic_append:, store:, journal:)
+      Class.new(self).tap do |klass|
+        klass.atomic_append = atomic_append
+        klass.store = store
+        klass.journal = journal
+      end
+    end
+  end
+
+  attr_reader :aggregate
+
+  def initialize(aggregate:, **)
+    @aggregate = aggregate
+  end
+
+  def persistence_capabilities = self.class.atomic_append ? [:atomic_append] : []
+
+  def append(entry)
+    self.class.journal << entry
+    entry
+  end
+
+  def entries = self.class.journal.dup
+
+  def project(entry)
+    entry.delete? ? self.class.store.delete(entry.id) : self.class.store[entry.id] = entry.state
+    entry
+  end
+
+  def find(id)
+    state = self.class.store[id]
+    state && Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state)
+  end
+
+  def all
+    self.class.store.map { |id, state| Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state) }
+  end
+
+  def count = self.class.store.size
+end
+
 # One round-trip contract every persistence adapter must satisfy: saved
 # state reads back exactly as `StateCodec` encoded it, head and journal alike.
 RSpec.describe "persistence adapter contract (state codec round trip)" do
   def fixture = PersistenceLegacyFixture
 
-  def canonical(name)
-    {
-      "Account"     => {
-        customer:        "CUST-1",
-        number:          { value: "ACC-1" },
-        balance:         { cents: 1250, currency: "USD" },
-        kind:            { name: "current" },
-        daily_limit:     { cents: 500 },
-        ledger:          [
-          { sequence: { value: 1 }, amount: { cents: 1000, currency: "USD" }, narrative: { text: "opening" },
-            direction: { value: "credit" }, state: "posted" },
-          { sequence: { value: 2 }, amount: { cents: 250, currency: "USD" }, narrative: { text: "top up" },
-            direction: { value: "credit" }, state: "reversed" }
-        ],
-        fees_cents:      { cents: 0, currency: "USD" },
-        interest_cents:  { cents: 0, currency: "USD" },
-        status:          "open",
-        customer_status: "active"
-      },
-      "CardPayment" => {
-        account:        "ACC-1",
-        disputed_by:    nil,
-        authorisation:  { value: "AUTH-1" },
-        amount:         { cents: 300 },
-        merchant:       { value: "Cafe" },
-        tags:           [{ value: "food" }, { value: "travel" }],
-        status:         "authorized",
-        account_status: "open"
-      }
-    }.fetch(name)
-  end
+  CONTRACT_CANONICAL_STATES = {
+    "Account"     => {
+      customer:        "CUST-1",
+      number:          { value: "ACC-1" },
+      balance:         { cents: 1250, currency: "USD" },
+      kind:            { name: "current" },
+      daily_limit:     { cents: 500 },
+      ledger:          [
+        { sequence: { value: 1 }, amount: { cents: 1000, currency: "USD" }, narrative: { text: "opening" },
+          direction: { value: "credit" }, state: "posted" },
+        { sequence: { value: 2 }, amount: { cents: 250, currency: "USD" }, narrative: { text: "top up" },
+          direction: { value: "credit" }, state: "reversed" }
+      ],
+      fees_cents:      { cents: 0, currency: "USD" },
+      interest_cents:  { cents: 0, currency: "USD" },
+      status:          "open",
+      customer_status: "active"
+    },
+    "CardPayment" => {
+      account:        "ACC-1",
+      disputed_by:    nil,
+      authorisation:  { value: "AUTH-1" },
+      amount:         { cents: 300 },
+      merchant:       { value: "Cafe" },
+      tags:           [{ value: "food" }, { value: "travel" }],
+      status:         "authorized",
+      account_status: "open"
+    }
+  }.freeze
+
+  def canonical(name) = CONTRACT_CANONICAL_STATES.fetch(name)
 
   def live(name) = fixture.instances.find { |instance| instance.aggregate.name == name }
 
@@ -96,7 +144,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
           expect(repository.entries.map(&:state)).to eq([canonical(name)])
         end
 
-        it "leaves a never-seeded projected field absent, and keeps a stored nil reference as nil" do
+        it "leaves a never-seeded projected field absent, and keeps a stored nil reference as nil",
+           :aggregate_failures do
           state = read_after_save { repository.find(record.id) }
 
           aggregate.projected_fields.each do |field|
@@ -105,7 +154,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
           expect(state).to include(disputed_by: nil) if name == "CardPayment"
         end
 
-        it "forgets a deleted record" do
+        it "forgets a deleted record", :aggregate_failures do
           repository.save(record)
           repository.delete(record.id)
 
@@ -114,7 +163,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
         end
 
         if durable
-          it "reads the same canonical state from a second adapter over the same store (recover! included)" do
+          it "reads the same canonical state from a second adapter over the same store (recover! included)",
+             :aggregate_failures do
             repository.save(record)
             reopened = repository_for(aggregate).recover!
 
@@ -257,23 +307,26 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
       expect { build(recover: true) }.to raise_error(Hecks::Runtime::WiringError, /journal entry "A" with undecoded state/)
     end
 
-    it "keeps the adapter's own identity, and leaves a caller's block (the dispatch itself) outside the boundary" do
+    it "keeps the adapter's own identity" do
+      expect(build.adapter).to be_a(forgetful_class)
+    end
+
+    it "leaves a caller's block (the dispatch itself) outside the boundary" do
       repository = build
 
-      expect(repository.adapter).to be_a(forgetful_class)
-      expect do
-        repository.transaction do
-          Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: undecoded_nested)
-        end
-      end.not_to raise_error
+      expect { repository.transaction { hydrate_undecoded } }.not_to raise_error
     end
 
     # Nested string keys under a declared value object still pass through
     # hydration undecoded; only a string top-level key is refused there.
     def undecoded_nested = { status: "open", balance: { "cents" => 1, "currency" => "USD" } }
 
+    def hydrate_undecoded
+      Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: undecoded_nested)
+    end
+
     it "does nothing to an Instance built outside any adapter call" do
-      expect { Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: undecoded_nested) }.not_to raise_error
+      expect { hydrate_undecoded }.not_to raise_error
     end
 
     it "refuses a string top-level key at hydration, inside or outside any adapter call" do
@@ -286,35 +339,6 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     let(:aggregate) { fixture.aggregate("Account") }
     let(:seeded_entry) { Hecks::Ports::Persistence::Entry.new(operation: "save", id: "A", state: canonical("Account")) }
 
-    # `store`/`journal` live outside the adapter instance, so two separate `.new`s (one per
-    # simulated boot) share the same underlying data — the way a real Sqlite file or Postgres
-    # database persists across process restarts, unlike Memory.
-    def durable_adapter_class(atomic_append:, store:, journal:)
-      Class.new do
-        attr_reader :aggregate
-
-        define_method(:initialize) { |aggregate:, settings: {}, root: nil| @aggregate = aggregate }
-        define_method(:persistence_capabilities) { atomic_append ? [:atomic_append] : [] }
-        define_method(:append) do |entry|
-          journal << entry
-          entry
-        end
-        define_method(:entries) { journal.dup }
-        define_method(:project) do |entry|
-          entry.delete? ? store.delete(entry.id) : store[entry.id] = entry.state
-          entry
-        end
-        define_method(:find) do |id|
-          state = store[id]
-          state && Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state)
-        end
-        define_method(:all) do
-          store.map { |id, state| Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state) }
-        end
-        define_method(:count) { store.size }
-      end
-    end
-
     def boot(adapter_class)
       registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
         allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
@@ -325,14 +349,14 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     end
 
     it "leaves a journaled-but-unprojected entry unrecovered when the adapter declares :atomic_append" do
-      adapter_class = durable_adapter_class(atomic_append: true, store: {}, journal: [])
+      adapter_class = ContractDurableStubAdapter.backed_by(atomic_append: true, store: {}, journal: [])
       boot(adapter_class).adapter.append(seeded_entry) # simulates a crash: journaled, unprojected
 
       expect(boot(adapter_class).find("A")).to be_nil
     end
 
     it "still recovers a journaled-but-unprojected entry when the adapter does not declare :atomic_append" do
-      adapter_class = durable_adapter_class(atomic_append: false, store: {}, journal: [])
+      adapter_class = ContractDurableStubAdapter.backed_by(atomic_append: false, store: {}, journal: [])
       boot(adapter_class).adapter.append(seeded_entry)
 
       expect(boot(adapter_class).find("A")).not_to be_nil

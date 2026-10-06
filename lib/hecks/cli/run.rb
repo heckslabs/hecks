@@ -3,6 +3,7 @@ require_relative "../../hecks"
 # ADR 0033 — a domain wired to PostgresEra needs this plugin loaded
 # explicitly; the era/lineage subsystem does not load with core.
 require_relative "../ports/persistence/plugins/era"
+require_relative "run_expectations"
 
 module Hecks
   module CLI
@@ -30,14 +31,26 @@ module Hecks
       def call(argv, program:)
         usage = "usage: #{program} [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>"
         argv = argv.dup
-        here = Adapters::Folder.new.domain_root
-        domain = argv.first && File.directory?(argv.first) ? argv.shift : here
-        abort "no bluebook here — #{Dir.pwd} is not inside a domain. #{usage}" unless domain
+        domain = resolve_domain(argv, usage)
 
         # The command-line form answers unless the first argument is script-shaped,
         # in which case the step-list form takes over.
         cli_form(domain, argv, program) unless argv.first && script_shaped?(argv.first)
 
+        run_script(domain, argv, usage)
+      end
+
+      # @api private
+      def resolve_domain(argv, usage)
+        here = Adapters::Folder.new.domain_root
+        domain = argv.first && File.directory?(argv.first) ? argv.shift : here
+        abort "no bluebook here — #{Dir.pwd} is not inside a domain. #{usage}" unless domain
+
+        domain
+      end
+
+      # @api private
+      def run_script(domain, argv, usage)
         script = argv.first or abort usage
         document = parse(read_source(script))
         steps = document["steps"] or abort %(the script has no "steps" — #{usage})
@@ -99,12 +112,14 @@ module Hecks
           return
         end
 
-        verb = step["verb"]
-        begin
-          runtime.dispatch_flat(verb, args)
-        rescue StandardError => e
-          refusals << { verb: verb, error: e.message.to_s }
-        end
+        dispatch_verb(runtime, step["verb"], args, refusals)
+      end
+
+      # @api private
+      def dispatch_verb(runtime, verb, args, refusals)
+        runtime.dispatch_flat(verb, args)
+      rescue StandardError => e
+        refusals << { verb: verb, error: e.message.to_s }
       end
 
       # @api private
@@ -132,42 +147,8 @@ module Hecks
         end
       end
 
-      def unmet_expectations(expectations, report)
-        missing_events = Array(expectations["event_names"]) - report[:events].map { |event| event[:name] }
-        unmet = []
-        unmet << "matrix expected events missing: #{missing_events.join(', ')}" unless missing_events.empty?
-        unmet.concat(unmet_refusals(Array(expectations["refusals"]), report[:refusals]))
-        unmet.concat(unmet_instances(expectations["instances"] || {}, report[:instances]))
-      end
-
       # @api private
-      def unmet_refusals(expected_refusals, refusals)
-        expected_refusals.filter_map do |expected|
-          verb = expected.fetch("verb")
-          matched = refusals.any? do |refusal|
-            refusal[:verb] == verb && refusal[:error].include?(expected.fetch("includes"))
-          end
-          next if matched
-
-          # A refusal that changed its words is a different story from one that never
-          # happened, so the actual errors are printed beside the wanted one.
-          said = refusals.select { |refusal| refusal[:verb] == verb }.map { |refusal| refusal[:error] }.uniq
-          "matrix expected refusal missing: #{expected}\n  " \
-            "#{verb} actually refused with: #{said.empty? ? '(nothing — every attempt was accepted)' : said.inspect}"
-        end
-      end
-
-      # @api private
-      def unmet_instances(expected_instances, instances)
-        expected_instances.flat_map do |key, fields|
-          actual = instances[key] || {}
-          fields.filter_map do |field, value|
-            next if actual[field.to_sym] == value
-
-            "matrix expected #{key}.#{field}=#{value.inspect}, got #{actual[field.to_sym].inspect}"
-          end
-        end
-      end
+      def unmet_expectations(expectations, report) = RunExpectations.unmet(expectations, report)
     end
   end
 end

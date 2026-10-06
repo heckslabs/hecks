@@ -13,16 +13,13 @@ module Hecks
     module Site
       # What the content system needs to drive a domain's aggregates, from the domain itself: the
       # lifecycle module, a spec per aggregate (its input, its wire form, its lifecycle edges and
-      # the
-      # command that creates it) and the Payload field definitions with the readers that turn a
-      # saved
-      # document back into an input.
+      # the command that creates it) and the Payload field definitions with the readers that turn a
+      # saved document back into an input.
       #
       # A `Payload` row names the domain, its chapter and where the files go; `PayloadField` rows
-      # say what
-      # the editor needs that an attribute's shape cannot (a date picker, a choice list, an upload,
-      # a
-      # relation). The domain stays free of the content system: it is read, never annotated.
+      # say what the editor needs that an attribute's shape cannot (a date picker, a choice list,
+      # an upload, a relation). The domain stays free of the content system: it is read, never
+      # annotated.
       module PayloadDriver
         extend Projector::Target
 
@@ -50,8 +47,7 @@ skip: String },
         # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the rows
         # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's chapter, or nil
         # @return [Hash{String => String}] each file's path relative to the project root to its
-        #   text;
-        #   empty when the project declares no `Payload` row
+        #   text; empty when the project declares no `Payload` row
         # @raise [Table::Invalid] when a row is refused
         # @raise [ArgumentError] when an aggregate cannot be driven or a row names what is not there
         def call(bluebook:, options: {})
@@ -67,19 +63,25 @@ skip: String },
 
         def files(row, aggregates, rows)
           out = row[:out]
+          role = driver_role(aggregates)
+          hecks = relative(row[:hecks], "#{out}/driver")
+          helpers = relative(row[:helpers], "#{out}/collections")
+          { "#{out}/driver/lifecycle.ts"   => Payload::Lifecycle.render(role: role, hecks: hecks),
+            "#{out}/driver/specs.ts"       => Payload::Specs.render(aggregates, lifecycle: "./lifecycle", hecks: hecks),
+            "#{out}/collections/fields.ts" => Payload::Fields.render(aggregates, rows: rows, specs: "../driver/specs",
+                                                                     helpers: helpers) }
+        end
+
+        # @return [String, nil] the one role every driven command declares
+        # @raise [ArgumentError] when the aggregates' commands declare more than one
+        def driver_role(aggregates)
           roles = aggregates.map(&:role).uniq
           if roles.size > 1
             raise ArgumentError,
                   "the driven aggregates' commands declare roles #{roles.inspect}; the driver acts as one"
           end
 
-          from_driver = ->(path) { relative(path, "#{out}/driver") }
-          from_collections = ->(path) { relative(path, "#{out}/collections") }
-          { "#{out}/driver/lifecycle.ts"   => Payload::Lifecycle.render(role: roles.first, hecks: from_driver.call(row[:hecks])),
-            "#{out}/driver/specs.ts"       => Payload::Specs.render(aggregates, lifecycle: "./lifecycle",
-                                                                                hecks:     from_driver.call(row[:hecks])),
-            "#{out}/collections/fields.ts" => Payload::Fields.render(aggregates, rows: rows, specs: "../driver/specs",
-                                                                     helpers: from_collections.call(row[:helpers])) }
+          roles.first
         end
 
         # @return [String] `path` as an import from `dir`, both relative to the project root

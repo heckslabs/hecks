@@ -31,7 +31,7 @@ RSpec.describe "the declared translation rule kinds" do
         .select { |word| GENERIC_DISPATCH.handles?("TranslationAggregate", word) }
   ).uniq.sort.freeze
 
-  it "declares Kind as a closed set, not an open string" do
+  it "declares Kind as a closed set, not an open string", :aggregate_failures do
     expect(KIND_OBJECT.closed_set?).to be(true)
     expect(DECLARED_KINDS).not_to be_empty
   end
@@ -40,23 +40,23 @@ RSpec.describe "the declared translation rule kinds" do
     expect(DECLARED_KINDS - %w[retired]).to match_array(AGGREGATE_RULES)
   end
 
-  it "declares retired, the edge-level kind, which the edge builder admits" do
+  it "declares retired, the edge-level kind, which the edge builder admits", :aggregate_failures do
     expect(DECLARED_KINDS).to include("retired")
     expect(GENERIC_DISPATCH.handles?("Translation", "retired")).to be(true)
   end
 
   # `identified_by` is admitted elsewhere in the grammar, so WordGate refuses it with a message
   # naming this context's legal words; a word admitted nowhere would be a plain NoMethodError.
-  it "names the same kinds WordGate refuses toward" do
-    builder = Hecks::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
-    message = begin
-      builder.identified_by :whatever
-      nil
-    rescue Hecks::Bluebook::DSL::Malformed => e
-      e.message
-    end
+  def word_gate_message
+    Hecks::Bluebook::DSL::TranslationAggregateBuilder.new("Account").identified_by :whatever
+    nil
+  rescue Hecks::Bluebook::DSL::Malformed => e
+    e.message
+  end
 
-    named = message[/legal words here: (.+)\z/, 1].split(", ")
+  it "names the same kinds WordGate refuses toward" do
+    named = word_gate_message[/legal words here: (.+)\z/, 1].split(", ")
+
     expect(named).to match_array(AGGREGATE_RULES)
   end
 end

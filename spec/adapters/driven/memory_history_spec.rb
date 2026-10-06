@@ -113,26 +113,33 @@ RSpec.describe "Memory with a growing list" do
     (clock - started) / count
   end
 
+  # Allocations per step early on (after 20 snapshots) and late (after 200).
+  def early_and_late_allocations
+    open_run
+    19.times { advance }
+    early = allocations_per_step(5)
+    175.times { advance }
+    [early, allocations_per_step(5)]
+  end
+
+  # How much slower a step is at 200 snapshots than at 20, for a run named `label`.
+  def late_to_early_ratio(label)
+    open_run(label)
+    advance(label)
+    early = seconds_per_step(5, label)
+    175.times { advance(label) }
+    seconds_per_step(5, label) / early
+  end
+
   describe "growth" do
     it "allocates about the same per step at 200 recorded snapshots as at 20" do
-      open_run
-      19.times { advance }
-      early = allocations_per_step(5)
-      175.times { advance }
-      late = allocations_per_step(5)
+      early, late = early_and_late_allocations
 
       expect(late).to be < early * 2
     end
 
     it "takes about the same time per step at 200 recorded snapshots as at 20" do
-      ratios = Array.new(2) do |attempt|
-        open_run("t#{attempt}")
-        advance("t#{attempt}")
-        early = seconds_per_step(5, "t#{attempt}")
-        175.times { advance("t#{attempt}") }
-        late = seconds_per_step(5, "t#{attempt}")
-        late / early
-      end
+      ratios = Array.new(2) { |attempt| late_to_early_ratio("t#{attempt}") }
 
       expect(ratios.min).to be < 3
     end
@@ -144,7 +151,7 @@ RSpec.describe "Memory with a growing list" do
       3.times { advance }
     end
 
-    it "journals each snapshot once, as one frozen node shared by every later entry" do
+    it "journals each snapshot once, as one frozen node shared by every later entry", :aggregate_failures do
       saves = repository.entries.select { |entry| entry.id == "r" }
       first_snapshot = saves.last(3).first.state[:snapshots].first
 
@@ -153,7 +160,7 @@ RSpec.describe "Memory with a growing list" do
       expect(Hecks::Freezer.deeply_frozen?(first_snapshot)).to be(true)
     end
 
-    it "journals the same shape a durable adapter would read back" do
+    it "journals the same shape a durable adapter would read back", :aggregate_failures do
       live = repository.find("r")
 
       expect(repository.entries.last.state).to eq(codec.copy(aggregate, live.state))
@@ -161,7 +168,7 @@ RSpec.describe "Memory with a growing list" do
       expect(repository.entries.last.state[:snapshots].first.keys).to all(be_a(Symbol))
     end
 
-    it "keeps the journal's key order and the list contents of every entry" do
+    it "keeps the journal's key order and the list contents of every entry", :aggregate_failures do
       entry = repository.entries.last
 
       expect(entry.state.keys).to eq(codec.copy(aggregate, repository.find("r").state).keys)
@@ -176,14 +183,14 @@ RSpec.describe "Memory with a growing list" do
       2.times { advance }
     end
 
-    it "refuses an in-place change to a journalled element" do
+    it "refuses an in-place change to a journalled element", :aggregate_failures do
       snapshot = repository.entries.last.state[:snapshots].first
 
       expect { snapshot[:tick] = { value: 99 } }.to raise_error(FrozenError)
       expect { repository.entries.last.state[:snapshots] << {} }.to raise_error(FrozenError)
     end
 
-    it "leaves the journal alone when a returned instance's state is changed" do
+    it "leaves the journal alone when a returned instance's state is changed", :aggregate_failures do
       before = Marshal.load(Marshal.dump(repository.entries.map(&:state)))
       record = repository.find("r")
 
@@ -193,7 +200,7 @@ RSpec.describe "Memory with a growing list" do
       expect(repository.entries.map(&:state)).to eq(before)
     end
 
-    it "shares no node between a record and the journal" do
+    it "shares no node between a record and the journal", :aggregate_failures do
       record = repository.find("r")
       journalled = repository.entries.last.state[:snapshots]
 
@@ -201,11 +208,17 @@ RSpec.describe "Memory with a growing list" do
       expect(record.state[:snapshots].first).to be_a(Hecks::Runtime::Value)
     end
 
-    it "does not share an element a caller may still change" do
+    # Saves a record holding a marker the caller keeps a reference to; answers the adapter and marker.
+    def save_loose_marker
       adapter = Hecks::Adapters::Memory.new(aggregate: aggregate)
       marker = { id: { value: "loose" }, cell: { column: 0, row: 0 } }
       state = { label: { value: "m" }, markers: [marker] }
       adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "m", state: state))
+      [adapter, marker]
+    end
+
+    it "does not share an element a caller may still change", :aggregate_failures do
+      adapter, marker = save_loose_marker
 
       marker[:cell] = { column: 7, row: 7 }
 
@@ -215,26 +228,34 @@ RSpec.describe "Memory with a growing list" do
   end
 
   describe "replay" do
-    it "rebuilds identical records from the journal" do
-      open_run
-      4.times { advance }
-      held = repository.find("r")
+    def held = repository.find("r")
 
+    def rebuilt
       replica = Hecks::Adapters::Memory.new(aggregate: aggregate)
       repository.entries.each { |entry| replica.project(entry) }
-      rebuilt = replica.find("r")
+      replica.find("r")
+    end
+
+    # Resets the adapter midway, then opens a run again and takes one step.
+    def reset_and_reopen
+      open_run
+      2.times { advance }
+      repository.reset!
+      open_run
+      advance
+    end
+
+    it "rebuilds identical records from the journal", :aggregate_failures do
+      open_run
+      4.times { advance }
 
       expect(rebuilt.to_h).to eq(held.to_h)
       expect(Hecks::Runtime::Value.materialize(rebuilt.to_h)).to eq(Hecks::Runtime::Value.materialize(held.to_h))
       expect(rebuilt.state.keys).to eq(held.state.keys)
     end
 
-    it "gives a reset adapter nothing to reuse and still saves correctly" do
-      open_run
-      2.times { advance }
-      repository.reset!
-      open_run
-      advance
+    it "gives a reset adapter nothing to reuse and still saves correctly", :aggregate_failures do
+      reset_and_reopen
 
       expect(repository.find("r")[:snapshots].size).to eq(1)
       expect(repository.entries.size).to eq(34)

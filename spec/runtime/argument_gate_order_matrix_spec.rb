@@ -33,36 +33,45 @@ RSpec.describe "the argument-gate ordering matrix" do
     expect(MATRIX.fetch("rows").map { |row| row.fetch("pair") }.uniq.sort).to eq(COVERED_PAIRS.sort)
   end
 
+  def declared_order(row) = MATRIX.fetch(row.fetch("kind") == "entity" ? "entity_order" : "aggregate_order")
+
+  def replay_step(row)
+    step = { "verb" => row.fetch("verb") }
+    step["role"] = row["role"] if row["role"]
+    step["args"] = row.fetch("args")
+    step
+  end
+
+  def recorded_refusals(rows)
+    rows.map { |row| { "kind" => row.dig("expected", "kind"), "error" => row.dig("expected", "error") } }
+  end
+
+  def replayed_refusals(domain, rows)
+    result = Hecks::Fuzzing::Replay.call(File.join(InMemoryDomain::ROOT, domain), rows.map { |row| replay_step(row) })
+    result[:refusals].map { |r| { "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] } }
+  end
+
+  def expect_declared_before(row)
+    order = declared_order(row)
+    earlier, later = row.fetch("pair")
+    expect(order.index(earlier)).to be < order.index(later),
+                                    "#{row.fetch("verb")}: #{earlier} is not declared before #{later}"
+  end
+
   it "names, for every row, two steps the declared order really puts in that order" do
-    MATRIX.fetch("rows").each do |row|
-      order = MATRIX.fetch(row.fetch("kind") == "entity" ? "entity_order" : "aggregate_order")
-      earlier, later = row.fetch("pair")
-      expect(order.index(earlier)).to be < order.index(later),
-                                      "#{row.fetch('verb')}: #{earlier} is not declared before #{later}"
-    end
+    MATRIX.fetch("rows").each { |row| expect_declared_before(row) }
   end
 
   it "attributes every row's refusal to the EARLIER of its two violated steps" do
     MATRIX.fetch("rows").each do |row|
       expect(row.dig("expected", "refused_at")).to eq(row.fetch("pair").first),
-                                                   "#{row.fetch('verb')} #{row.fetch('pair').inspect}"
+                                                   "#{row.fetch("verb")} #{row.fetch("pair").inspect}"
     end
   end
 
   MATRIX.fetch("rows").group_by { |row| row.fetch("domain") }.each do |domain, rows|
     it "#{domain}: replays to exactly the recorded refusals, in order" do
-      steps = rows.map do |row|
-        step = { "verb" => row.fetch("verb") }
-        step["role"] = row["role"] if row["role"]
-        step["args"] = row.fetch("args")
-        step
-      end
-
-      result = Hecks::Fuzzing::Replay.call(File.join(InMemoryDomain::ROOT, domain), steps)
-      actual = result[:refusals].map { |r| { "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] } }
-      expected = rows.map { |row| { "kind" => row.dig("expected", "kind"), "error" => row.dig("expected", "error") } }
-
-      expect(actual).to eq(expected)
+      expect(replayed_refusals(domain, rows)).to eq(recorded_refusals(rows))
     end
   end
 end

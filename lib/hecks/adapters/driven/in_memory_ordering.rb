@@ -25,17 +25,46 @@ module Hecks
       def ordered(records, aggregate:, order_by:, direction:)
         return records unless order_by
 
-        name = order_by.to_s.split(".").first
-        unless aggregate.lifecycle&.field.to_s == name || aggregate.attribute(name)
-          raise Runtime::WiringError,
-                "#{aggregate.name} has no attribute #{order_by.inspect} to order by"
-        end
-
+        require_orderable!(aggregate, order_by)
         path = sortable_path(aggregate, order_by)
         spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
         Ports::Query::Ordering.apply(records, spec, nil, identity: ->(record) { record.id.to_s }) do |record|
           Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(record, path))
         end
+      end
+
+      # Refuses an `order_by` that names neither an attribute nor the lifecycle field.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate being ordered
+      # @param order_by [String, Symbol] a dotted attribute path
+      # @return [void]
+      # @raise [Runtime::WiringError] if the path's first segment names nothing orderable
+      def require_orderable!(aggregate, order_by)
+        name = order_by.to_s.split(".").first
+        return if lifecycle_field?(aggregate, name) || aggregate.attribute(name)
+
+        raise Runtime::WiringError, "#{aggregate.name} has no attribute #{order_by.inspect} to order by"
+      end
+
+      # Whether `name` is the aggregate's lifecycle field.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate to ask
+      # @param name [String] an attribute name
+      # @return [Boolean] true when `name` is the lifecycle field
+      def lifecycle_field?(aggregate, name)
+        aggregate.lifecycle&.field.to_s == name
+      end
+
+      # Picks the member of a value object that orders it.
+      #
+      # Numeric member, else the sole attribute, else `value`; kept in lockstep with
+      # `SqlQueryBuilder#query_expression` so Memory and SQL order rows identically.
+      #
+      # @param shape [Bluebook::ValueObject] the value object type
+      # @return [String] the member name
+      def orderable_member(shape)
+        shape.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name ||
+          shape.sole_attribute&.name || "value"
       end
 
       # Resolves the dotted path `FieldPath.dig` should read to compare a value object field.
@@ -51,16 +80,12 @@ module Hecks
         return field.to_s unless path.empty?
 
         attribute = aggregate.attribute(name)
-        return field.to_s if aggregate.lifecycle&.field.to_s == name || attribute.nil?
+        return field.to_s if lifecycle_field?(aggregate, name) || attribute.nil?
 
         vo = aggregate.value_object(attribute.type)
         return field.to_s unless vo
 
-        # Numeric member, else the sole attribute, else `value`; kept in lockstep with
-        # `SqlQueryBuilder#query_expression` so Memory and SQL order rows identically.
-        member = vo.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name ||
-                 vo.sole_attribute&.name || "value"
-        "#{name}.#{member}"
+        "#{name}.#{orderable_member(vo)}"
       end
     end
   end

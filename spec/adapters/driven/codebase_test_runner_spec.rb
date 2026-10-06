@@ -10,26 +10,46 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
 
   after { described_class.runner = nil }
 
-  it "hands the runner the example and the file, and answers what it printed" do
-    asked = nil
+  # Installs a runner that prints `text` and ends with `status`.
+  def runner_printing(text, status)
+    described_class.runner = lambda do |_args, _err, out|
+      out.puts text
+      status
+    end
+  end
+
+  # Installs a runner that notes what it was asked and where it ran; answers that note.
+  def runner_noting_its_call
+    asked = {}
     described_class.runner = lambda do |args, _err, out|
-      asked = { args: args, cwd: Dir.pwd }
+      asked.merge!(args: args, cwd: Dir.pwd)
       out.puts "1 example, 0 failures"
       0
     end
+    asked
+  end
 
-    report = described_class.new(tree).run(file: "hecks.gemspec", example: "it says hello")
+  context "with a runner that notes its call" do
+    before do
+      @asked = runner_noting_its_call
+      @report = described_class.new(tree).run(file: "hecks.gemspec", example: "it says hello")
+    end
 
-    expect(report).to eq("1 example, 0 failures")
-    expect(asked[:args]).to eq(["--example", "it says hello", tree.path("hecks.gemspec")])
-    expect(File.realpath(asked[:cwd])).to eq(File.realpath(tree.root))
+    it "answers what it printed" do
+      expect(@report).to eq("1 example, 0 failures")
+    end
+
+    it "hands the runner the example and the file" do
+      expect(@asked[:args]).to eq(["--example", "it says hello", tree.path("hecks.gemspec")])
+    end
+
+    it "runs it from the root of the tree" do
+      expect(File.realpath(@asked[:cwd])).to eq(File.realpath(tree.root))
+    end
   end
 
   it "refuses with what the runner printed when an example fails" do
-    described_class.runner = lambda do |_args, _err, out|
-      out.puts "1 example, 1 failure"
-      1
-    end
+    runner_printing("1 example, 1 failure", 1)
 
     expect { described_class.new(tree).run(file: "hecks.gemspec", example: "x") }
       .to raise_error(failure, "1 example, 1 failure")
@@ -49,14 +69,18 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
       .to raise_error(failure, "no such spec file spec/no_such_spec.rb")
   end
 
-  it "runs a real example of a real spec file" do
-    Dir.mktmpdir do |dir|
-      FileUtils.touch(File.join(dir, "hecks.gemspec"))
-      FileUtils.mkdir_p(File.join(dir, "lib"))
-      File.write(File.join(dir, "one_spec.rb"), "RSpec.describe('one') { it('passes') { expect(1).to eq(1) } }\n")
-      script = "require 'rspec/core'; puts RSpec::Core::Runner.run(['--example', 'passes', ARGV[0]])"
+  # Runs the one example of a one-example spec file in a scratch checkout; answers [output, status].
+  def run_real_example(dir)
+    FileUtils.touch(File.join(dir, "hecks.gemspec"))
+    FileUtils.mkdir_p(File.join(dir, "lib"))
+    File.write(File.join(dir, "one_spec.rb"), "RSpec.describe('one') { it('passes') { expect(1).to eq(1) } }\n")
+    script = "require 'rspec/core'; puts RSpec::Core::Runner.run(['--example', 'passes', ARGV[0]])"
+    Open3.capture2e(RbConfig.ruby, "-e", script, File.join(dir, "one_spec.rb"))
+  end
 
-      out, status = Open3.capture2e(RbConfig.ruby, "-e", script, File.join(dir, "one_spec.rb"))
+  it "runs a real example of a real spec file", :aggregate_failures do
+    Dir.mktmpdir do |dir|
+      out, status = run_real_example(dir)
 
       expect(status).to be_success
       expect(out).to include("1 example, 0 failures")

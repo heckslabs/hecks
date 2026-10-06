@@ -1,0 +1,16 @@
+- Statement:
+    - Effect: Allow
+      Action: secretsmanager:GetSecretValue
+      # NAME-BASED, not `!Ref`/`!GetAtt` -- this secret is
+      # never a stack resource (RUSTOAUTH's own Environment
+      # comment, above, has the full story), so there is no
+      # exact ARN to point at. The trailing `-*` is AWS's
+      # own documented pattern for granting a secret known
+      # only by name: every real ARN Secrets Manager mints
+      # is this name plus a random 6-character suffix,
+      # which can't be predicted at template-render time.
+      Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:@@stack_name@@-web-google-oauth-*"
+- Statement:
+    - Effect: Allow
+      Action: secretsmanager:GetSecretValue
+      Resource: !Sub "${@@logical_id@@SessionSecret}"

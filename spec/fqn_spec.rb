@@ -1,21 +1,21 @@
 require "spec_helper"
 
 RSpec.describe Hecks::Fqn do
-  it "addresses a command with a PascalCase verb" do
+  it "addresses a command with a PascalCase verb", :aggregate_failures do
     fqn = described_class.command(realm: "Acme", domain: "Banking", aggregate: "Account", command: "Credit")
 
     expect(fqn.to_s).to eq("Acme::Banking::Account.Credit")
     expect(fqn).to be_command
   end
 
-  it "addresses a query with a snake_case verb" do
+  it "addresses a query with a snake_case verb", :aggregate_failures do
     fqn = described_class.query(realm: "Acme", domain: "Banking", aggregate: "Account", query: "in_good_standing")
 
     expect(fqn.to_s).to eq("Acme::Banking::Account.in_good_standing")
     expect(fqn).to be_query
   end
 
-  it "pins a domain version on the domain segment" do
+  it "pins a domain version on the domain segment", :aggregate_failures do
     fqn = described_class.parse("Acme::Banking@v2::Account.Credit")
 
     expect(fqn.realm).to eq("Acme")
@@ -37,11 +37,17 @@ RSpec.describe Hecks::Fqn do
       end
   end
 
-  it "rejects domain-level commands and invalid constructor segments" do
+  it "rejects domain-level commands" do
     expect { described_class.parse("Acme.Register") }
       .to raise_error(described_class::Invalid, /domain-level FQNs are query-only/)
+  end
+
+  it "rejects an invalid constructor verb" do
     expect { described_class.command(realm: "Acme", domain: "Banking", aggregate: "Account", command: "bad") }
       .to raise_error(described_class::Invalid, /invalid verb/)
+  end
+
+  it "rejects an invalid constructor segment" do
     expect { described_class.query(realm: "Acme", domain: "Banking", aggregate: "Account", query: "bad.query") }
       .to raise_error(described_class::Invalid, /cannot be empty or contain a separator/)
   end

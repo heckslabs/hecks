@@ -39,14 +39,22 @@ module Hecks
       #   field — the closed set's own first admitted member's fields, or one
       #   freshly synthesized scalar per declared field
       def value_for(chapter, aggregate, type_name)
-        value_object = aggregate.value_object(type_name) ||
-                       chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
+        value_object = find_value_object(chapter, aggregate, type_name)
         return "smoke-test" unless value_object
-
-        closed_set = value_object.respond_to?(:closed_set?) && value_object.closed_set? && value_object.members.any?
-        return value_object.members.first.to_h if closed_set
+        return value_object.members.first.to_h if populated_closed_set?(value_object)
 
         value_object.attributes.to_h { |field| [field.name, field_value_for(chapter, aggregate, field.type)] }
+      end
+
+      # The value object `type_name` names, on `aggregate` first, then on any other aggregate.
+      def find_value_object(chapter, aggregate, type_name)
+        aggregate.value_object(type_name) ||
+          chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
+      end
+
+      # Whether `value_object` is a closed set that admits at least one member.
+      def populated_closed_set?(value_object)
+        value_object.respond_to?(:closed_set?) && value_object.closed_set? && value_object.members.any?
       end
 
       # A field's value: a scalar for a primitive type, otherwise the nested value object.

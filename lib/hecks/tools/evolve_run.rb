@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "../tools"
+require_relative "evolve_run/words"
+require_relative "evolve_run/arguments"
 
 module Hecks
   module Tools
@@ -34,6 +36,9 @@ module Hecks
               "<keyword> --context <Context> [--kind K] [--at N] [--named NAME] [--required true|false] " \
               "[--fills F]"
 
+      extend Words
+      extend Arguments
+
       module_function
 
       # Runs one lifecycle command.
@@ -45,19 +50,21 @@ module Hecks
       def main(argv, root: Tools::ROOT)
         require "hecks/grammar/evolve"
         args = argv.dup
-        command = args.shift
-        evolve = Hecks::Grammar::Evolve
-        ok =
-          case command
-          when "status" then status(evolve)
-          when "propose" then propose(args, evolve, root)
-          when *WORD_STATUS.keys then set_status(command, args, evolve, root)
-          when "rename" then rename(args, evolve, root)
-          when "argument-propose" then propose_argument(args, evolve, root)
-          when *ARGUMENT_STATUS.keys then set_argument_status(command, args, evolve, root)
-          else abort USAGE
-          end
+        ok = run_command(args.shift, args, Hecks::Grammar::Evolve, root)
         ok == false ? 1 : 0
+      end
+
+      # @return [Boolean, nil] whether the command's gates held
+      def run_command(command, args, evolve, root)
+        case command
+        when "status" then status(evolve)
+        when "propose" then propose(args, evolve, root)
+        when *WORD_STATUS.keys then set_status(command, args, evolve, root)
+        when "rename" then rename(args, evolve, root)
+        when "argument-propose" then propose_argument(args, evolve, root)
+        when *ARGUMENT_STATUS.keys then set_argument_status(command, args, evolve, root)
+        else abort USAGE
+        end
       end
 
       # Rewrites spec/golden/ir/Bluebook.json by running its spec with `GOLDEN=rewrite`.
@@ -87,102 +94,48 @@ module Hecks
       # @param root [String] the checkout
       # @return [Boolean] true if the block ran and the gates held
       def guarded(word, context, evolve, root, &)
-        paths = evolve.syntax_paths + [File.join(root, "spec/golden/ir/Bluebook.json")]
-        snapshots = paths.to_h { |path| [path, File.read(path)] }
-        evolve.restore_on_raise(paths, &)
-        regenerate!(root)
-        if gates_pass?(root)
-          puts "\n#{context}.#{word} — the gates hold. Regenerated projections and the golden are in the tree."
-          true
-        else
-          snapshots.each { |path, content| File.write(path, content) }
-          puts "\nRESTORED — the gates refused, and the failures above are the checklist. " \
-               "Nothing was changed."
-          false
-        end
+        edit_and_gate(word, context, evolve, root, &)
       rescue StandardError => e
         # `restore_on_raise` has already restored the files; this only reports.
         puts "\nRESTORED — #{e.message} Nothing was changed."
         false
       end
 
+      # @return [Boolean] true if the block ran and the gates held; false after restoring the
+      #   snapshots when a gate refused
+      def edit_and_gate(word, context, evolve, root, &) # rubocop:disable Naming/PredicateMethod -- the edit's verdict
+        paths = evolve.syntax_paths + [File.join(root, "spec/golden/ir/Bluebook.json")]
+        snapshots = paths.to_h { |path| [path, File.read(path)] }
+        evolve.restore_on_raise(paths, &)
+        regenerate!(root)
+        if gates_pass?(root)
+          puts "\n#{context}.#{word} — the gates hold. Regenerated projections and the golden are in the tree."
+          return true
+        end
+        restore(snapshots)
+        false
+      end
+
+      # Puts every snapshot back after a gate refused.
+      def restore(snapshots)
+        snapshots.each { |path, content| File.write(path, content) }
+        puts "\nRESTORED — the gates refused, and the failures above are the checklist. " \
+             "Nothing was changed."
+      end
+
       # @return [true]
-      def status(evolve) # rubocop:disable Naming/PredicateMethod
+      def status(evolve) # rubocop:disable Naming/PredicateMethod -- the command always succeeds
         rows = evolve.keyword_rows
         moving = rows.reject { |row| row[:status] == "admitted" }
         renamed = rows.reject { |row| row[:was].to_s.empty? }
         puts "#{rows.size} keyword rows; #{moving.size} not simply admitted; #{renamed.size} renamed"
-        moving.each { |row| puts "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}" }
-        renamed.each { |row| puts "  renamed    #{row[:context]}.#{row[:word]} (was #{row[:was]})" }
+        print_status_rows(moving, renamed)
         true
       end
 
-      # @return [Boolean] whether the gates held
-      def propose(args, evolve, root)
-        word = args.shift or abort "propose what word?"
-        context = evolve.option(args, "context") or abort "--context is required — a word is a word somewhere"
-        ok = guarded(word, context, evolve, root) do
-          evolve.propose(word: word, context: context,
-                         body: evolve.option(args, "body", "none"), inner: evolve.option(args, "inner", ""),
-                         opens: evolve.option(args, "opens", ""), fills: evolve.option(args, "fills", ""))
-        end
-        if ok
-          puts "Proposed. It reaches no projection until admitted. Before `hecks evolve admit`:"
-          puts "  1. teach the #{context} builder the word (and its spec/dsl_spec example)"
-        end
-        ok
-      end
-
-      # @return [Boolean] whether the gates held
-      def set_status(command, args, evolve, root)
-        word = args.shift or abort "#{command} what word?"
-        context = evolve.option(args, "context") or abort "--context is required"
-        guarded(word, context, evolve, root) do
-          evolve.set_status(word: word, context: context, to: WORD_STATUS.fetch(command))
-        end
-      end
-
-      # @return [Boolean] whether the gates held
-      def rename(args, evolve, root)
-        word = args.shift or abort "rename what word?"
-        context = evolve.option(args, "context") or abort "--context is required"
-        to = evolve.option(args, "to") or abort "--to is required — a rename goes somewhere"
-        ok = guarded(word, context, evolve, root) { evolve.rename(word: word, context: context, to: to) }
-        if ok
-          puts "Renamed. The old spelling keeps parsing — that is the point. Before this holds:"
-          puts "  1. alias the new word to the old in the #{context} builder (alias_method :#{to}, :#{word})"
-          puts "  2. add the identical-IR example to spec/dsl_spec.rb"
-        end
-        ok
-      end
-
-      # @return [Boolean] whether the gates held
-      def propose_argument(args, evolve, root)
-        keyword = args.shift or abort "argument-propose which keyword's argument?"
-        context = evolve.option(args, "context") or abort "--context is required"
-        kind = evolve.option(args, "kind") or abort "--kind is required — text|symbol|number|flag|literal|constant|pairs|list"
-        ok = guarded("#{keyword} argument", context, evolve, root) do
-          evolve.propose_argument(keyword: keyword, context: context, kind: kind,
-                                  required: evolve.option(args, "required", "false"),
-                                  at: evolve.option(args, "at", ""), named: evolve.option(args, "named", ""),
-                                  fills: evolve.option(args, "fills", ""),
-                                  pairs_shape: evolve.option(args, "pairs-shape"))
-        end
-        if ok
-          puts "Proposed. It reaches no projection until admitted. Before `hecks evolve argument-admit`:"
-          puts "  1. teach the #{context} builder's #{keyword} method the argument"
-        end
-        ok
-      end
-
-      # @return [Boolean] whether the gates held
-      def set_argument_status(command, args, evolve, root)
-        keyword = args.shift or abort "#{command} which keyword's argument?"
-        context = evolve.option(args, "context") or abort "--context is required"
-        guarded("#{keyword} argument", context, evolve, root) do
-          evolve.set_argument_status(keyword: keyword, context: context, to: ARGUMENT_STATUS.fetch(command),
-                                     at: evolve.option(args, "at", ""), named: evolve.option(args, "named", ""))
-        end
+      def print_status_rows(moving, renamed)
+        moving.each { |row| puts "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}" }
+        renamed.each { |row| puts "  renamed    #{row[:context]}.#{row[:word]} (was #{row[:was]})" }
       end
     end
   end

@@ -28,9 +28,7 @@ module Hecks
         @seen               = Set.new
         @verb_hits          = Hash.new(0)
         @declared_verbs     = Set.new
-        @seeds              = 0
-        @spliced            = 0
-        @seeds_with_new     = 0
+        @seeds = @spliced = @seeds_with_new = 0
       end
 
       # Builds this seed's plan: a possible corpus splice, plus the verbs to favor.
@@ -40,10 +38,7 @@ module Hecks
       def plan(seed)
         random = Random.new(seed)
         prefix = nil
-        if !@corpus.empty? && random.rand < @splice_probability
-          entry  = @corpus[random.rand(@corpus.size)]
-          prefix = entry[:spec].merge("steps" => random.rand(1..entry[:attempts]))
-        end
+        prefix = splice_prefix(random) if !@corpus.empty? && random.rand < @splice_probability
         Plan.new(prefix: prefix, favor: rare_verbs)
       end
 
@@ -120,6 +115,11 @@ module Hecks
       end
 
       private
+
+      def splice_prefix(random)
+        entry = @corpus[random.rand(@corpus.size)]
+        entry[:spec].merge("steps" => random.rand(1..entry[:attempts]))
+      end
 
       def admit(seed, plan, attempts)
         return if depth(plan.prefix) + 1 > @max_prefix_depth

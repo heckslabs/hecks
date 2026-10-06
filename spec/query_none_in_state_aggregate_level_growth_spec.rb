@@ -4,27 +4,31 @@ require "tempfile"
 # Pins none_in_state on an aggregate-level query against a Memory-backed aggregate.
 # Ports::Query::InMemory#holds? once lacked the case and excluded every row.
 RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["anti-join-aggregate-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
+  def write_bluebook(source)
+    Tempfile.new(["anti-join-aggregate-growth-", ".bluebook"]).tap do |file|
+      file.write(source)
+      file.flush
+    end
+  end
 
-    registry = Hecks::Runtime::Registry.new
+  def declare_in(registry, file, source, hecksagon_name, &binds)
     Hecks::Bluebook::MetaValidator.while_disabled do
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+         InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
         Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
         Hecks.hecksagon(hecksagon_name, &binds)
       end
     end
+  end
+
+  def boot(source, hecksagon_name, &binds)
+    file = write_bluebook(source)
+    registry = Hecks::Runtime::Registry.new
+    declare_in(registry, file, source, hecksagon_name, &binds)
 
     registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   ensure
     file&.close!
   end
@@ -86,15 +90,22 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
     end
   end
 
-  it "excludes an aggregate-level row whose claim IS in the named state, and keeps the rest" do
-    runtime = boot_aggregate_anti_join
+  def file_claims(runtime)
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c1" })
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c2" })
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.Release", id: "c2")
+  end
 
+  def open_boards(runtime)
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b3" }, claim_id: "nonexistent")
+  end
+
+  it "excludes an aggregate-level row whose claim IS in the named state, and keeps the rest" do
+    runtime = boot_aggregate_anti_join
+    file_claims(runtime)
+    open_boards(runtime)
 
     rows = runtime.query("AggregateAntiJoinGrowth::Board.Unclaimed")
 

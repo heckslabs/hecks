@@ -17,7 +17,7 @@ RSpec.describe Hecks::QueryIrMcp do
       .to eq(%w[query_ir_constructs query_ir_duplicates query_ir_impact])
   end
 
-  it "answers initialize, ping and an unknown method, and stays quiet for a notification" do
+  it "answers initialize, ping and an unknown method, and stays quiet for a notification", :aggregate_failures do
     responses = ask({ id: 1, method: "initialize" }, { method: "notifications/initialized" },
                     { id: 2, method: "ping" }, { id: 3, method: "no/such" })
 
@@ -25,7 +25,7 @@ RSpec.describe Hecks::QueryIrMcp do
     expect(responses.last["error"]["code"]).to eq(-32_601)
   end
 
-  it "answers a tool call, and a refused one as an error result" do
+  it "answers a tool call, and a refused one as an error result", :aggregate_failures do
     responses = ask({ id: 1, method: "tools/call", params: { name:      "query_ir_impact",
                                                              arguments: { name: "Aggregate", field: "preconditions" } } },
                     { id: 2, method: "tools/call", params: { name: "nothing" } })
@@ -34,9 +34,9 @@ RSpec.describe Hecks::QueryIrMcp do
     expect(responses.last["result"]["isError"]).to be true
   end
 
-  it "answers a line that is not JSON with a parse error and keeps serving" do
+  it "answers a line that is not JSON with a parse error and keeps serving", :aggregate_failures do
     output = StringIO.new
-    described_class.serve(input: StringIO.new("{\n#{JSON.generate(id: 1, method: 'ping')}\n"), output: output)
+    described_class.serve(input: StringIO.new("{\n#{JSON.generate(id: 1, method: "ping")}\n"), output: output)
 
     codes = output.string.lines.map { |line| JSON.parse(line) }
 

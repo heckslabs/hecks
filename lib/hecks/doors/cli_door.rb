@@ -24,85 +24,34 @@ module Hecks
       # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the command
       # @raise [Runtime::TypeMismatch] if a value does not parse as its Integer or Float
       def arguments(spec, pairs)
-        # Extra accepted arguments stay out of help, which teaches only to=....
-        options = (spec[:arguments] + Array(spec[:legacy_arguments])).to_h do |argument|
-          [argument[:path], argument]
-        end
-
-        normalize(spec, pairs, options).each_with_object({}) do |pair, args|
-          path, value = split(pair)
-          # key? rather than `||`, so the lookup below honors the same spelling `full` chose.
-          full     = options.key?(path) ? path : expand(path, options)
-          argument = options.key?(full) ? options[full] : raise(Runtime::NotFound, unknown(path, options.keys))
-
-          next words(args, full.split("."), value, argument[:type]) if argument[:words]
-          next append(args, full.split("."), cast(value, argument[:type])) if argument[:list]
-
-          bury(args, full.split("."), cast(value, argument[:type]))
-        end
+        options = declared_options(spec)
+        Shorthand.normalize(spec, pairs, options).each_with_object({}) { |pair, args| store(args, pair, options) }
       end
 
-      # Rewrites the short forms into `name=value`: `--name` for a Boolean (a following `yes`,
-      # `no`, `true`, `false`, `on`, `off`, `1` or `0` is that flag's value, not an argument),
-      # `--name=value` as `name=value`, and one bare word as the command's first argument (`to` for
-      # a command on an existing aggregate, the first attribute for one that creates).
-      def normalize(spec, words, options)
-        queue = words.dup
-        pairs = []
-        bare  = []
-        until queue.empty?
-          word = queue.shift
-          if word.start_with?("--") && word.include?("=")
-            pairs << underscored(word.delete_prefix("--"), options)
-          elsif word.start_with?("--")
-            path  = flag(word.delete_prefix("--"), options)
-            value = BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
-            pairs << "#{path}=#{value}"
-          elsif word.include?("=")
-            pairs << word
-          else
-            bare << word
-            pairs << word
-          end
-        end
-        raise Runtime::NotFound, too_many_bare(bare) if bare.length > 1
-
-        pairs.map { |pair| bare.include?(pair) && !pair.include?("=") ? positional(pair, spec) : pair }
+      # Every argument the command accepts, by path. Extra accepted arguments stay out of help,
+      # which teaches only to=....
+      def declared_options(spec)
+        (spec[:arguments] + Array(spec[:legacy_arguments])).to_h { |argument| [argument[:path], argument] }
       end
 
-      # A `name=value` pair whose name is spelled with dashes (`seed-start=3`), as the argument
-      # spelled with underscores, unless an argument is named with the dashes.
-      def underscored(pair, options)
-        name, value = pair.split("=", 2)
-        options.key?(name) ? pair : "#{name.tr('-', '_')}=#{value}"
+      # Casts the value of one `name=value` pair and sets it into `args` at its path.
+      def store(args, pair, options)
+        path, value = split(pair)
+        full, argument = declared_argument(path, options)
+        keys = full.split(".")
+        return words(args, keys, value, argument[:type]) if argument[:words]
+        return Nesting.append(args, keys, cast(value, argument[:type])) if argument[:list]
+
+        Nesting.bury(args, keys, cast(value, argument[:type]))
       end
 
-      # A `--name` flag, as the path of the Boolean argument it stands for. A dashed name
-      # (`--gem-only`) is the argument spelled with underscores (`gem_only`).
-      def flag(name, options)
-        name = name.tr("-", "_") unless options.key?(name) || options.keys.any? { |key| key.start_with?("#{name}.") }
-        path = options.key?(name) ? name : expand(name, options)
-        return path if options.dig(path, :type) == "Boolean"
+      # The full path and declaration of the argument `path` names, expanding a value object's
+      # short form. `key?` rather than `||`, so the lookup honors the same spelling `full` chose.
+      def declared_argument(path, options)
+        full = options.key?(path) ? path : expand(path, options)
+        return [full, options[full]] if options.key?(full)
 
-        raise Runtime::NotFound, "--#{name} is a flag, but this command has no Boolean argument #{name.inspect}"
-      end
-
-      # The one bare word, as a pair for the command's first argument the launcher does not mint.
-      def positional(word, spec)
-        first = spec[:arguments].find { |argument| !argument[:minted] }
-        return "#{first[:path]}=#{word}" if first
-
-        if spec[:arguments].any?
-          raise Runtime::NotFound, "#{word.inspect} is not name=value; this command's only argument is its run key, " \
-                                   "which is minted when omitted (run=<key> names one)"
-        end
-
-        raise Runtime::NotFound, "#{word.inspect} is not name=value, and this command takes no arguments"
-      end
-
-      # Words the refusal for more than one unnamed argument.
-      def too_many_bare(bare)
-        "only one argument may go unnamed, not #{bare.map(&:inspect).join(', ')}; name the rest as name=value"
+        raise Runtime::NotFound, unknown(path, options.keys)
       end
 
       # Cuts one word at its first `=`, so a value may itself contain `=`.
@@ -146,21 +95,6 @@ module Hecks
         end
       end
 
-      # Appends one element to a list argument, creating the list on first use.
-      #
-      # Repeats must grow the list (`bury` would silently keep only the last), and a single
-      # element is still a one-item list, since a `list_of` attribute must never see a bare
-      # object. Multi-field elements are left to `JsonDoor`: a flat command line cannot say
-      # which `a.x=` pairs with which `a.y=`.
-      def append(hash, path, value)
-        *branches, leaf = path.map(&:to_sym)
-        holder = branches[0..-2].reduce(hash) { |node, key| node[key] ||= {} }
-        list   = holder[branches.last] ||= []
-
-        list << { leaf => value }
-        hash
-      end
-
       # Adds the words of a `list_of` scalar argument to its Array: a comma-separated value is
       # several elements and a repeated name adds more, each cast to the element type. The
       # runtime refuses a lone scalar for a list, so the door is where every spelling becomes an
@@ -179,18 +113,12 @@ module Hecks
         hash
       end
 
-      # Sets one value at a nested path, creating intermediate Hashes and overwriting the leaf.
-      def bury(hash, path, value)
-        *branches, leaf = path.map(&:to_sym)
-        target = branches.reduce(hash) { |node, key| node[key] ||= {} }
-        target[leaf] = value
-        hash
-      end
-
       # Words the refusal for an argument the command does not take, listing what it does.
       def unknown(path, known)
-        "no argument #{path.inspect} — this command takes #{known.sort.join(', ')}"
+        "no argument #{path.inspect} — this command takes #{known.sort.join(", ")}"
       end
     end
   end
 end
+require_relative "cli_door/nesting"
+require_relative "cli_door/shorthand"

@@ -21,12 +21,12 @@ RSpec.describe Hecks::Fuzzing::SweepDepth do
 
   # **The two boundaries** — each `upto` is inclusive, so 4 is still the first
   # tier and 5 is the first streak that earns the second.
-  it "widens the sweep after the fifth clean release in a row" do
+  it "widens the sweep after the fifth clean release in a row", :aggregate_failures do
     expect(described_class.for_streak(4, tiers: tiers)).to eq([10, 25])
     expect(described_class.for_streak(5, tiers: tiers)).to eq([25, 50])
   end
 
-  it "reaches the ceiling at twenty clean releases" do
+  it "reaches the ceiling at twenty clean releases", :aggregate_failures do
     expect(described_class.for_streak(19, tiers: tiers)).to eq([25, 50])
     expect(described_class.for_streak(20, tiers: tiers)).to eq([50, 100])
   end
@@ -35,7 +35,7 @@ RSpec.describe Hecks::Fuzzing::SweepDepth do
     expect(described_class.for_streak(5_000, tiers: tiers)).to eq([50, 100])
   end
 
-  it "ships a default table identical to the dial's own three rows" do
+  it "ships a default table identical to the dial's own three rows", :aggregate_failures do
     expect(described_class.for_streak(0)).to eq([10, 25])
     expect(described_class.for_streak(20)).to eq([50, 100])
   end
@@ -56,21 +56,23 @@ RSpec.describe Hecks::Fuzzing::SweepDepth do
       expect(described_class.seed_offset(0, 50)).to eq(0)
     end
 
-    it "grows with the streak, one full seed-count stride per clean release" do
+    it "grows with the streak, one full seed-count stride per clean release", :aggregate_failures do
       expect(described_class.seed_offset(20, 50)).to eq(1000)
       expect(described_class.seed_offset(21, 50)).to eq(1050)
     end
 
-    it "never lets consecutive streaks' ranges overlap, at a fixed seed count" do
-      seeds = 50
-      (0..30).each do |streak|
-        this_range_end   = described_class.seed_offset(streak, seeds) + seeds
-        next_range_start = described_class.seed_offset(streak + 1, seeds) + 1
-        expect(next_range_start).to be > this_range_end
-      end
+    # Whether the seed range of the streak after `streak` starts past where its range ends.
+    def ranges_clear?(streak, seeds)
+      described_class.seed_offset(streak + 1, seeds) + 1 > described_class.seed_offset(streak, seeds) + seeds
     end
 
-    it "restarts at 0 after a streak reset, however far the streak had climbed" do
+    it "never lets consecutive streaks' ranges overlap, at a fixed seed count" do
+      overlapping = (0..30).reject { |streak| ranges_clear?(streak, 50) }
+
+      expect(overlapping).to be_empty, "the range after each of these streaks overlaps its own: #{overlapping}"
+    end
+
+    it "restarts at 0 after a streak reset, however far the streak had climbed", :aggregate_failures do
       expect(described_class.seed_offset(5_000, 50)).to be > 0
       expect(described_class.seed_offset(0, 50)).to eq(0)
     end

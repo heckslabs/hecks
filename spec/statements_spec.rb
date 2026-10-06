@@ -2,6 +2,9 @@ require "spec_helper"
 
 # Projections::Statements turns declared facts into plain-English sentences, never inventing one.
 RSpec.describe "the domain's own English statements" do
+  PIZZAS_STATEMENTS = ["An Order has many toppings.", "A pizza is named.", "A price is never negative.",
+                       "A customer is named.", "A topping is named.", "An amount is positive."].freeze
+
   def boot_banking
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -18,14 +21,7 @@ RSpec.describe "the domain's own English statements" do
   let(:banking_chapter) { boot_banking.bluebook("Banking") }
 
   it "states exactly Pizzas' own declared list attribute and every invariant, verbatim" do
-    expect(Hecks::Projector.call(:statements, bluebook: pizzas_chapter)).to eq([
-                                                                                 "An Order has many toppings.",
-                                                                                 "A pizza is named.",
-                                                                                 "A price is never negative.",
-                                                                                 "A customer is named.",
-                                                                                 "A topping is named.",
-                                                                                 "An amount is positive."
-                                                                               ])
+    expect(Hecks::Projector.call(:statements, bluebook: pizzas_chapter)).to eq(PIZZAS_STATEMENTS)
   end
 
   it "is reachable the same way every projection already is, with no bespoke wiring" do
@@ -38,7 +34,7 @@ RSpec.describe "the domain's own English statements" do
   it "never gets the indefinite article wrong, anywhere in a real, richly-relational domain" do
     statements = Hecks::Projector.call(:statements, bluebook: banking_chapter)
     wrong_article = statements.grep(/\bA (Account|ATMCard|ExternalTransfer|OnboardingCase|Onboarding)\b/)
-    expect(wrong_article).to be_empty, "wrong article (should be \"An\"): #{wrong_article.join(', ')}"
+    expect(wrong_article).to be_empty, "wrong article (should be \"An\"): #{wrong_article.join(", ")}"
   end
 
   it "draws one relationship statement per real reference/belongs_to/has_many/has_one attribute in banking" do

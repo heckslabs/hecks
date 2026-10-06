@@ -58,51 +58,45 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
     file&.unlink
   end
 
+  # The settings the valid fixture file loads as.
+  def loaded_settings = with_settings_file(valid_yaml) { |path| described_class.load(path) }
+
+  TYPED_DIALS = %i[cadence_seconds pr_cap_per_day sweep_max_parallel draft_only auto_merge adversarial_fraction].freeze
+
+  EXPECTED_PARITY_PAIRS = {
+    persistence_parity:    { left: :memory, right: :postgres_era },
+    adapter_parity_sqlite: { left: :memory, right: :sqlite }
+  }.freeze
+
   describe ".load" do
     it "loads a valid file and exposes every dial by its own typed accessor" do
-      with_settings_file(valid_yaml) do |path|
-        settings = described_class.load(path)
+      settings = loaded_settings
 
-        expect(settings.cadence_seconds).to eq(0)
-        expect(settings.pr_cap_per_day).to eq(3)
-        expect(settings.sweep_max_parallel).to eq(4)
-        expect(settings.draft_only).to be(false)
-        expect(settings.auto_merge).to be(true)
-        expect(settings.adversarial_fraction).to eq(0.3)
-      end
+      expect(TYPED_DIALS.map { |dial| settings.public_send(dial) }).to eq([0, 3, 4, false, true, 0.3])
     end
 
     it "parses the widening tiers as an array of symbol-keyed hashes, INFINITY intact" do
-      with_settings_file(valid_yaml) do |path|
-        tiers = described_class.load(path).widening_tiers
-        expect(tiers).to eq([{ upto: 4, seeds: 10, steps: 25 }, { upto: Float::INFINITY, seeds: 50, steps: 100 }])
-      end
+      tiers = loaded_settings.widening_tiers
+
+      expect(tiers).to eq([{ upto: 4, seeds: 10, steps: 25 }, { upto: Float::INFINITY, seeds: 50, steps: 100 }])
     end
 
     it "symbolizes modes' keys, matching what QualityControlDials::MODES has always been" do
-      with_settings_file(valid_yaml) do |path|
-        expect(described_class.load(path).modes).to eq(differential: true, ruby_only: true)
-      end
+      expect(loaded_settings.modes).to eq(differential: true, ruby_only: true)
     end
 
     it "symbolizes adapter_parity_pairs' left/right VALUES, not just its keys — IsolatedBoot case-matches by Symbol" do
-      with_settings_file(valid_yaml) do |path|
-        pairs = described_class.load(path).adapter_parity_pairs
-        expect(pairs).to eq(
-          persistence_parity:    { left: :memory, right: :postgres_era },
-          adapter_parity_sqlite: { left: :memory, right: :sqlite }
-        )
-      end
+      expect(loaded_settings.adapter_parity_pairs).to eq(EXPECTED_PARITY_PAIRS)
     end
 
-    it "returns a frozen instance with frozen collection values, so nothing mutates a loaded dial by accident" do
-      with_settings_file(valid_yaml) do |path|
-        settings = described_class.load(path)
-        expect(settings).to be_frozen
-        expect(settings.widening_tiers).to be_frozen
-        expect(settings.modes).to be_frozen
-        expect(settings.structural_refusal_boundary).to be_frozen
-      end
+    it "returns a frozen instance with frozen collection values, so " \
+       "nothing mutates a loaded dial by accident", :aggregate_failures do
+      settings = loaded_settings
+
+      expect(settings).to be_frozen
+      expect(settings.widening_tiers).to be_frozen
+      expect(settings.modes).to be_frozen
+      expect(settings.structural_refusal_boundary).to be_frozen
     end
 
     it "refuses a path that does not exist" do

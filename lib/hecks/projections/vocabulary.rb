@@ -25,6 +25,39 @@ module Hecks
         # be the table the framework loads with.
       RUBY
 
+      # The generated file, with `@@ROWS@@` standing for the table entries.
+      TEMPLATE = <<~RUBY.freeze
+        #{HEADER}
+        module Hecks
+          module Vocabulary
+            TABLES = {
+        @@ROWS@@
+            }.freeze
+
+            # The terms — the first field of each row, which for a
+            # one-field vocabulary is the whole of it. Derived once and
+            # frozen rather than mapped per call: these are constant
+            # tables, and a constant that allocates a new array every
+            # time it is read is not one.
+            TERMS = TABLES.transform_values { |rows| rows.map { |row| row.values.first }.freeze }.freeze
+
+            module_function
+
+            # Refuses an unknown name rather than answering nil: a set
+            # the language does not declare is a typo, not an empty set.
+            def fetch(name) = TERMS.fetch(name)
+
+            # The rows whole, for the vocabularies that carry more than
+            # a term — Comparison's own algebra, RefusalTemplate's text.
+            def rows(name) = TABLES.fetch(name)
+
+            def symbols(name) = fetch(name).map(&:to_sym)
+
+            def names = TABLES.keys
+          end
+        end
+      RUBY
+
       module_function
 
       # The projector protocol; `options` is unused.
@@ -62,37 +95,7 @@ module Hecks
           "      #{name.inspect} => [\n#{members.map { |row| "        #{row.inspect}.freeze" }.join(",\n")}\n      ].freeze"
         end
 
-        <<~RUBY
-          #{HEADER}
-          module Hecks
-            module Vocabulary
-              TABLES = {
-          #{rows.join(",\n")}
-              }.freeze
-
-              # The terms — the first field of each row, which for a
-              # one-field vocabulary is the whole of it. Derived once and
-              # frozen rather than mapped per call: these are constant
-              # tables, and a constant that allocates a new array every
-              # time it is read is not one.
-              TERMS = TABLES.transform_values { |rows| rows.map { |row| row.values.first }.freeze }.freeze
-
-              module_function
-
-              # Refuses an unknown name rather than answering nil: a set
-              # the language does not declare is a typo, not an empty set.
-              def fetch(name) = TERMS.fetch(name)
-
-              # The rows whole, for the vocabularies that carry more than
-              # a term — Comparison's own algebra, RefusalTemplate's text.
-              def rows(name) = TABLES.fetch(name)
-
-              def symbols(name) = fetch(name).map(&:to_sym)
-
-              def names = TABLES.keys
-            end
-          end
-        RUBY
+        TEMPLATE.sub("@@ROWS@@") { rows.join(",\n") }
       end
     end
   end

@@ -14,7 +14,7 @@ module Hecks
       # @raise [ArgumentError] when any file, or a bluebook the files would add, is already there
       def write!(files, target)
         taken = taken(files, target)
-        raise ArgumentError, "nothing written; already there: #{taken.join(', ')}" unless taken.empty?
+        raise ArgumentError, "nothing written; already there: #{taken.join(", ")}" unless taken.empty?
 
         files.each do |path, text|
           full = File.join(target, path)

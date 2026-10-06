@@ -76,10 +76,21 @@ RSpec.describe "client launcher smoke" do
   # `$LOAD_PATH` line finds this checkout.
   def self.client(name, world: nil, bluebook: nil)
     root = File.join(scratch, name)
+    copy_pizzas(root)
+    dir = File.join(root, "pizzas/bluebook")
+    bind_to_memory(dir, world)
+    rewrite_bluebook(File.join(dir, "pizzas.bluebook"), bluebook) if bluebook
+    root
+  end
+
+  def self.copy_pizzas(root)
     FileUtils.mkdir_p(root)
     FileUtils.cp_r(File.join(InMemoryDomain::ROOT, "examples/pizzas"), File.join(root, "pizzas"))
     File.symlink(File.join(InMemoryDomain::ROOT, "lib"), File.join(root, "lib"))
-    dir = File.join(root, "pizzas/bluebook")
+  end
+
+  # Rebinds the copy's hecksagon to Memory and writes its world, with `world` as an extra setting.
+  def self.bind_to_memory(dir, world)
     hecksagon = File.join(dir, "pizzas.hecksagon")
     File.write(hecksagon, File.read(hecksagon).gsub("PostgresEra", "Memory"))
     File.write(File.join(dir, "pizzas.world"), <<~RUBY)
@@ -89,12 +100,9 @@ RSpec.describe "client launcher smoke" do
         #{world}
       end
     RUBY
-    if bluebook
-      path = File.join(dir, "pizzas.bluebook")
-      File.write(path, bluebook.call(File.read(path)))
-    end
-    root
   end
+
+  def self.rewrite_bluebook(path, edit) = File.write(path, edit.call(File.read(path)))
 
   # The bluebook with a `Run` value object and an optional Boolean `confirm` on CreatePizza.
   def self.add_run_and_confirm(text)
@@ -172,7 +180,7 @@ RSpec.describe "client launcher smoke" do
   shared_examples "today's forms" do |ivar|
     let(:results) { instance_variable_get(ivar) }
 
-    it "lists every command and question with no arguments, and on --help" do
+    it "lists every command and question with no arguments, and on --help", :aggregate_failures do
       %i[usage help].each do |call|
         expect(results[call][:status]).to eq(0)
         expect(results[call][:out]).to include("create_pizza", "add_topping", "purchase", "available")
@@ -180,13 +188,13 @@ RSpec.describe "client launcher smoke" do
       expect(results[:usage][:out]).to eq(results[:help][:out])
     end
 
-    it "says what a command wants and how it refuses" do
+    it "says what a command wants and how it refuses", :aggregate_failures do
       expect(results[:verb_help][:out]).to include("dispatches Pizzas::Order.CreatePizza", "name.value")
       expect(results[:refusal_help][:out]).to include("refused when:", "the payment covers the price")
       expect(results[:refusal_help][:status]).to eq(0)
     end
 
-    it "runs `command name=value` with short and long argument spellings and a trailing `!` alike" do
+    it "runs `command name=value` with short and long argument spellings and a trailing `!` alike", :aggregate_failures do
       answers = %i[short long qualified].map { |call| created(results[call]) }
 
       expect(answers.map { |a| a["id"] }).to all(eq("Margherita"))
@@ -195,38 +203,38 @@ RSpec.describe "client launcher smoke" do
       expect(answers.first.dig("state", "status")).to eq("available")
     end
 
-    it "answers a question with and without `ask`" do
+    it "answers a question with and without `ask`", :aggregate_failures do
       expect(created(results[:question])).to eq([])
       expect(created(results[:bare_question])).to eq([])
     end
 
-    it "prints the domain's own reason and exits 1 when a value is refused" do
+    it "prints the domain's own reason and exits 1 when a value is refused", :aggregate_failures do
       expect(results[:invariant][:status]).to eq(1)
       expect(results[:invariant][:err]).to include('Size admits "small", "large" — got "huge"')
       expect(results[:invariant][:out]).to be_empty
     end
 
-    it "points at --help and exits 1 for a record that is not there" do
+    it "points at --help and exits 1 for a record that is not there", :aggregate_failures do
       expect(results[:missing][:status]).to eq(1)
       expect(results[:missing][:err]).to include('no Order with name.value "nope"', "purchase --help")
     end
 
-    it "suggests the near name and exits 1 for an unknown command" do
+    it "suggests the near name and exits 1 for an unknown command", :aggregate_failures do
       expect(results[:unknown][:status]).to eq(1)
       expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  order.create_pizza")
     end
 
-    it "refuses a bare command name, pointing at the one qualified by its aggregate" do
+    it "refuses a bare command name, pointing at the one qualified by its aggregate", :aggregate_failures do
       expect(results[:bare][:status]).to eq(1)
       expect(results[:bare][:err]).to include("no such command: create_pizza", "did you mean:", "  order.create_pizza")
     end
 
-    it "names the argument and exits 1 for a word the command does not take" do
+    it "names the argument and exits 1 for a word the command does not take", :aggregate_failures do
       expect(results[:bad_word][:status]).to eq(1)
       expect(results[:bad_word][:err]).not_to be_empty
     end
 
-    it "refuses --wait and --confirm, as flags the command lacks, when the domain did not opt in" do
+    it "refuses --wait and --confirm, as flags the command lacks, when the domain did not opt in", :aggregate_failures do
       expect(results[:confirm_unset][:status]).to eq(1)
       expect(results[:wait_unset][:status]).to eq(1)
       expect(results[:wait_unset][:err]).to include("--wait is a flag, but this command has no Boolean argument")
@@ -234,7 +242,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a launcher the current generator wrote for a domain that did not opt in" do
-    it "is the launcher the 2.9 generator wrote, byte for byte" do
+    it "is the launcher the 2.9 generator wrote, byte for byte", :aggregate_failures do
       expect(File.read(File.join(@plain_root, "pizzas/pizzas"))).to eq(PRE_3_0_LAUNCHER)
       expect(@out).to include("pizzas/pizzas  ->  Pizzas")
       expect(File.executable?(File.join(@plain_root, "pizzas/pizzas"))).to be(true)
@@ -260,7 +268,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a domain that opted in through its world's launcher setting" do
-    it "answers an alias, noted beside the command it stands for, and the full name too" do
+    it "answers an alias, noted beside the command it stands for, and the full name too", :aggregate_failures do
       expect(created(@opted[:alias])["id"]).to eq("A")
       expect(@opted[:alias_help][:out]).to include("dispatches Pizzas::Order.CreatePizza")
       expect(@opted[:listed][:out]).to match(/^  order\.create_pizza! .*\(also: make!\)/)
@@ -268,18 +276,18 @@ RSpec.describe "client launcher smoke" do
       expect(@opted[:plain][:status]).to eq(0)
     end
 
-    it "mints the run key of a creating command given none, and keeps an explicit one" do
+    it "mints the run key of a creating command given none, and keeps an explicit one", :aggregate_failures do
       expect(created(@opted[:plain]).fetch("run")).to match(/\A\h{8}-\h{4}-/)
       expect(created(@opted[:run_given])).not_to have_key("run")
     end
 
-    it "reads --confirm as the Boolean argument of that name, and refuses it where there is none" do
+    it "reads --confirm as the Boolean argument of that name, and refuses it where there is none", :aggregate_failures do
       expect(created(@opted[:confirm])["id"]).to eq("D")
       expect(@plain[:confirm_unset][:status]).to eq(1)
       expect(@plain[:confirm_unset][:err]).to include("--confirm is a flag, but this command has no Boolean")
     end
 
-    it "exits 1 under --wait when the record settles in a failure state, printing that state" do
+    it "exits 1 under --wait when the record settles in a failure state, printing that state", :aggregate_failures do
       expect(@opted[:wait][:status]).to eq(1)
       expect(JSON.parse(@opted[:wait][:out]).dig("state", "status")).to eq("available")
       expect(@opted[:plain][:status]).to eq(0)

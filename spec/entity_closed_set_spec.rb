@@ -11,7 +11,7 @@ RSpec.describe "an entity attribute's own one_of" do
     built
   end
 
-  def chapter_with_flagged_pieces
+  let(:chapter_with_flagged_pieces) do
     build_chapter do
       vision "Pieces carrying their own closed-set flag, synthesized from a type-position one_of."
       supporting
@@ -47,34 +47,10 @@ RSpec.describe "an entity attribute's own one_of" do
     end
   end
 
-  it "lands the synthesized closed set on the aggregate, where the runtime and the IR can both reach it" do
-    board = chapter_with_flagged_pieces.aggregate("Board")
-    flag  = board.value_object("Flag")
+  let(:board) { chapter_with_flagged_pieces.aggregate("Board") }
 
-    expect(flag).not_to be_nil
-    expect(flag.closed_set?).to be(true)
-    expect(flag.members.map { |m| m.to_h[:value].to_s }).to contain_exactly("up", "down")
-  end
-
-  it "installs an identical sibling set once — King's and Rook's own `moved` are one Moved" do
-    board = chapter_with_flagged_pieces.aggregate("Board")
-
-    expect(board.value_objects.count { |vo| vo.hecks_name == "Flag" }).to eq(1)
-  end
-
-  it "feeds the fuzzer a real member instead of crashing on an unknown primitive" do
-    board = chapter_with_flagged_pieces.aggregate("Board")
-    piece = board.entities.find { |e| e.hecks_name == "Piece" }
-    flag  = piece.attributes.find { |a| a.name.to_s == "flag" }
-
-    value = Hecks::Fuzzing::ValueGenerator.value_for(flag, board, random: Random.new(1))
-    scalar = Hecks::Fuzzing::ValueGenerator.scalar_of(value)
-    # The generator sometimes mints invalid values on purpose; it must still answer.
-    expect(scalar).to be_a(String)
-  end
-
-  it "refuses two pieces synthesizing the SAME name with DIFFERENT members — a collision, never first-wins" do
-    expect do
+  let(:building_colliding_pieces) do
+    lambda do
       build_chapter do
         vision "Two pieces disagreeing about what Flag admits."
         supporting
@@ -103,6 +79,32 @@ RSpec.describe "an entity attribute's own one_of" do
           end
         end
       end
-    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /already holds a different "Flag"/)
+    end
+  end
+
+  it "lands the synthesized closed set on the aggregate, where the runtime and the IR can both reach it", :aggregate_failures do
+    flag = board.value_object("Flag")
+
+    expect(flag).not_to be_nil
+    expect(flag.closed_set?).to be(true)
+    expect(flag.members.map { |m| m.to_h[:value].to_s }).to contain_exactly("up", "down")
+  end
+
+  it "installs an identical sibling set once — King's and Rook's own `moved` are one Moved" do
+    expect(board.value_objects.count { |vo| vo.hecks_name == "Flag" }).to eq(1)
+  end
+
+  it "feeds the fuzzer a real member instead of crashing on an unknown primitive" do
+    piece = board.entities.find { |e| e.hecks_name == "Piece" }
+    flag  = piece.attributes.find { |a| a.name.to_s == "flag" }
+
+    value = Hecks::Fuzzing::ValueGenerator.value_for(flag, board, random: Random.new(1))
+    # The generator sometimes mints invalid values on purpose; it must still answer.
+    expect(Hecks::Fuzzing::ValueGenerator.scalar_of(value)).to be_a(String)
+  end
+
+  it "refuses two pieces synthesizing the SAME name with DIFFERENT members — a collision, never first-wins" do
+    expect { building_colliding_pieces.call }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /already holds a different "Flag"/)
   end
 end

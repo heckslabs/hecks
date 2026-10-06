@@ -17,13 +17,13 @@ module Hecks
       # @param left [Symbol] an `IsolatedBoot` adapter: `:memory`, `:sqlite`, `:postgres`,
       #   `:postgres_era`
       # @param right [Symbol] the second adapter, same set as `left`
-      # @param database [String, nil] required when either side is `:postgres_era`
-      # @param schema [String, nil] required when either side is `:postgres_era`
+      # @param storage [Hash] connection settings `Replay.call` takes, passed to both sides:
+      #   `database:` and `schema:` (strings, required when either side is `:postgres_era`)
       # @return [Array<Hash>] entries `{field: String, left => Object, right => Object}`,
       #   keyed by the adapter symbols; empty if both sides agree
-      def diff(domain_path, steps, left: :memory, right: :postgres_era, database: nil, schema: nil)
-        left_result  = Replay.call(domain_path, steps, adapter: left, database: database, schema: schema)
-        right_result = Replay.call(domain_path, steps, adapter: right, database: database, schema: schema)
+      def diff(domain_path, steps, left: :memory, right: :postgres_era, **storage)
+        left_result  = Replay.call(domain_path, steps, adapter: left, **storage)
+        right_result = Replay.call(domain_path, steps, adapter: right, **storage)
 
         divergences = []
         divergences.concat(diff_instances(left_result, right_result, left, right))

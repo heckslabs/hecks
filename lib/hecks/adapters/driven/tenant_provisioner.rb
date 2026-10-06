@@ -37,22 +37,28 @@ module Hecks
       # @param adapter [String, Hash, nil] the adapter the overlay binds; PostgresEra when none
       # @return [Hash{Symbol => Object}] `:slug`, `:domain`, `:realm`, `:schema` and `:output`
       # @raise [Refused] when a value is outside its allow-list or the path leaves `environments/`
-      def write_overlay(slug:, domain:, realm:, schema:, database:, directory:, adapter: nil, **)
+      def write_overlay(slug:, domain:, realm:, schema:, database:, directory:, adapter: nil, **) # rubocop:disable Metrics/ParameterLists -- one keyword per command attribute
         values = { slug: unwrap(slug), domain: unwrap(domain), realm: unwrap(realm),
                    schema: unwrap(schema), database: unwrap(database),
                    adapter: adapter_name(adapter) }
-        values.each { |name, value| check(name, value) }
-
-        overlay_path = overlay_path_for(unwrap(directory), values[:slug])
-        refuse_missing_directory(unwrap(directory))
-        FileUtils.mkdir_p(File.dirname(overlay_path))
-        File.write(overlay_path, render(values))
+        overlay_path = write_world(values, unwrap(directory))
 
         { slug: slug, domain: domain, realm: realm, schema: schema,
           output: { value: "wrote #{overlay_path}\n" } }
       end
 
       private
+
+      # Checks the values, then writes the overlay file and returns its path.
+      def write_world(values, directory)
+        values.each { |name, value| check(name, value) }
+
+        overlay_path = overlay_path_for(directory, values[:slug])
+        refuse_missing_directory(directory)
+        FileUtils.mkdir_p(File.dirname(overlay_path))
+        File.write(overlay_path, render(values))
+        overlay_path
+      end
 
       # A tenant overlay belongs to a domain that exists: a missing directory is a mistyped path,
       # not a place to create.

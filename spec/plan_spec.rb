@@ -10,35 +10,37 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
   end
 
   describe "the containment tree, recovered from the declarations" do
-    it "finds Bluebook to be the root" do
+    it "finds Bluebook to be the root", :aggregate_failures do
       expect(plan.category("Bluebook")).to be_root
       expect(plan.category("Bluebook").parent).to be_nil
     end
 
+    PLAN_CATEGORY_PARENTS = {
+      "Bluebook"       => nil,
+      "Aggregate"      => "Bluebook",
+      "Command"        => "Aggregate",
+      "ValueObject"    => "Aggregate",
+      "Query"          => "Aggregate",
+      "Entity"         => "Aggregate",
+      "Member"         => "ValueObject",
+      "Policy"         => "Bluebook",
+      "ProcessManager" => "Bluebook",
+      "Handler"        => "ProcessManager",
+      "Dispatch"       => "Handler",
+      "ReadModel"      => "Bluebook",
+      # S14, ADR 0026 — Syntax now declares real commands
+      # (Declare/Keyword/Argument), so `Plan` finds it (and its own
+      # entities, Keyword/Argument) the same way it finds every other
+      # real aggregate.
+      "Syntax"         => "Bluebook",
+      "Keyword"        => "Syntax",
+      "Argument"       => "Syntax"
+    }.freeze
+
     it "reads each category's parent off the creating command's reference" do
       parents = plan.names.to_h { |name| [name, plan.category(name).parent] }
 
-      expect(parents).to eq(
-        "Bluebook"       => nil,
-        "Aggregate"      => "Bluebook",
-        "Command"        => "Aggregate",
-        "ValueObject"    => "Aggregate",
-        "Query"          => "Aggregate",
-        "Entity"         => "Aggregate",
-        "Member"         => "ValueObject",
-        "Policy"         => "Bluebook",
-        "ProcessManager" => "Bluebook",
-        "Handler"        => "ProcessManager",
-        "Dispatch"       => "Handler",
-        "ReadModel"      => "Bluebook",
-        # S14, ADR 0026 — Syntax now declares real commands
-        # (Declare/Keyword/Argument), so `Plan` finds it (and its own
-        # entities, Keyword/Argument) the same way it finds every other
-        # real aggregate.
-        "Syntax"         => "Bluebook",
-        "Keyword"        => "Syntax",
-        "Argument"       => "Syntax"
-      )
+      expect(parents).to eq(PLAN_CATEGORY_PARENTS)
     end
 
     it "leaves out a category that declares no commands" do
@@ -49,19 +51,17 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
   end
 
   describe "the append table — the thing said to be underivable" do
-    it "finds the appender for each of a command's lists, by target and not by name" do
+    it "finds the appender for each of a command's lists, by target and not by name", :aggregate_failures do
       # The list names are the IR's reader names — `givens`, not `rules` — so the
       # walk reads a built command straight through with no table in between.
       # The verb keeps the language's own word for the act (Rule, Change), which
       # is not a name the walk ever has to match.
       appends = plan.category("Command").appends
+      verbs = appends.to_h { |name, append| [name, append.verb] }
 
       expect(appends.keys).to match_array(%w[attributes givens ensures needs mutations emits])
-      expect(appends["attributes"].verb).to eq("Argument")
-      expect(appends["givens"].verb).to eq("Rule")
-      expect(appends["ensures"].verb).to eq("Ensure")
-      expect(appends["needs"].verb).to eq("Need")
-      expect(appends["mutations"].verb).to eq("Change")
+      expect(verbs).to include("attributes" => "Argument", "givens" => "Rule", "ensures" => "Ensure",
+                               "needs" => "Need", "mutations" => "Change")
     end
 
     it "carries the field -> argument map, so an element can be shaped into a dispatch" do
@@ -102,7 +102,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
   end
 
   describe "the fields the creating command carries" do
-    it "lists them without the parent link" do
+    it "lists them without the parent link", :aggregate_failures do
       # `position` is carried like any other declared field, and spent on ordering
       # rather than on building — see Judge#declare and each DeclaredIn's order_by.
       expect(plan.category("Command").fields).to eq(%w[name role goal provenance from position])
@@ -120,14 +120,14 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
       entity.entities.flat_map { |piece| entity_verbs(dotted, piece) }
   end
 
-  it "names every verb the language declares, and no others" do
-    declared = Hecks::Bluebook::MetaValidator.grammar_registry
-                                             .bluebook("Bluebook").aggregates
-                                             .flat_map do |a|
-                                               a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
-                                                 a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
-                                             end
+  def declared_verbs
+    Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook").aggregates.flat_map do |a|
+      a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
+        a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
+    end
+  end
 
-    expect(plan.verbs).to match_array(declared)
+  it "names every verb the language declares, and no others" do
+    expect(plan.verbs).to match_array(declared_verbs)
   end
 end

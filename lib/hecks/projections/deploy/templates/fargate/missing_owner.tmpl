@@ -1,0 +1,9 @@
+@@world_file@@'s deployed_to("AwsFargate") declares database "Shared" but no owner. Add one, e.g.:
+
+    deployed_to("AwsFargate") do
+      ...
+      database "Shared"
+      owner "Core"
+    end
+
+naming the already-deployed domain whose Postgres instance this one borrows.

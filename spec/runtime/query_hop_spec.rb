@@ -5,21 +5,29 @@ require "spec_helper"
 RSpec.describe "cross-aggregate query filtering" do
   HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
 
+  def bind_memory
+    Hecks.hecksagon("HopChain") do
+      HopChain::Client.persisted_by("Memory")
+      HopChain::Engagement.persisted_by("Memory")
+      HopChain::Proposal.persisted_by("Memory")
+      HopChain::Node.persisted_by("Memory")
+    end
+  end
+
+  def load_memory_stack
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
   def boot_hop_chain
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_memory_stack
       Kernel.load(HOP_CHAIN)
-      Hecks.hecksagon("HopChain") do
-        HopChain::Client.persisted_by("Memory")
-        HopChain::Engagement.persisted_by("Memory")
-        HopChain::Proposal.persisted_by("Memory")
-        HopChain::Node.persisted_by("Memory")
-      end
+      bind_memory
     end
 
     registry.verify!
@@ -56,6 +64,12 @@ RSpec.describe "cross-aggregate query filtering" do
 
   def ids(query, **args) = runtime.query(query, **args).map { |r| r[:id] }
 
+  def plant_three_generations
+    runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
+    runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
+    runtime.dispatch_flat("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
+  end
+
   it "answers a single hop" do
     expect(ids("HopChain::Engagement.WithActiveClient")).to eq(%w[e-1])
   end
@@ -74,16 +88,14 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Proposal.SentButNotFromActiveClients")).to eq(%w[P-2])
   end
 
-  it "the nil-reference proposal matches no hop clause at all, positive or negated" do
+  it "the nil-reference proposal matches no hop clause at all, positive or negated", :aggregate_failures do
     expect(ids("HopChain::Proposal.AwaitingReplyFromActiveClients")).not_to include("P-3")
     expect(ids("HopChain::Proposal.SentButNotFromActiveClients")).not_to include("P-3")
   end
 
   # The same aggregate type may appear twice in one chain without being refused as a cycle.
   it "answers a hop chain that revisits the same aggregate type" do
-    runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
-    runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
-    runtime.dispatch_flat("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
+    plant_three_generations
 
     expect(ids("HopChain::Node.GrandparentLabelled", label: { value: "root" })).to eq(%w[grandchild])
   end
@@ -105,10 +117,7 @@ RSpec.describe "cross-aggregate query filtering" do
     end
 
     it "agree on the self-referential chain" do
-      runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
-      runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
-      runtime.dispatch_flat("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
-
+      plant_three_generations
       args = { label: { value: "root" } }
       native    = runtime.query("HopChain::Node.GrandparentLabelled", **args).map { |r| r[:id] }.sort
       reference = runtime.reference_query("HopChain::Node.GrandparentLabelled", **args).map { |r| r[:id] }.sort

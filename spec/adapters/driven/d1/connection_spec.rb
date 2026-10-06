@@ -12,25 +12,19 @@ RSpec.describe Hecks::Adapters::D1::Connection do
     allow(Net::HTTP).to receive(:start) { |*_args, &block| block.call(fake_http) }
   end
 
+  def stub_failed_statement(statement)
+    stub_http_response("success" => true, "result" => [statement])
+  end
+
   it "surfaces a batched statement's own stored `false` error detail, not the `message` fallback" do
-    stub_http_response(
-      "success" => true,
-      "result"  => [
-        { "success" => false, "error" => false, "message" => "should never be used instead" }
-      ]
-    )
+    stub_failed_statement("success" => false, "error" => false, "message" => "should never be used instead")
 
     expect { connection.execute("SELECT 1") }
       .to raise_error(Hecks::Runtime::WiringError, "D1 query failed: false")
   end
 
   it "still falls back to `message` when `error` is genuinely absent" do
-    stub_http_response(
-      "success" => true,
-      "result"  => [
-        { "success" => false, "message" => "a real failure detail" }
-      ]
-    )
+    stub_failed_statement("success" => false, "message" => "a real failure detail")
 
     expect { connection.execute("SELECT 1") }
       .to raise_error(Hecks::Runtime::WiringError, "D1 query failed: a real failure detail")

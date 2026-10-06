@@ -67,36 +67,16 @@ module Hecks
           end
         end
 
+        # One run of a predicate: a closed quoted literal, an unterminated one (to the end), or
+        # the unquoted text between them.
+        RUNS = /"[^"]*"|'[^']*'|["'].*\z|[^"']+/m
+        private_constant :RUNS
+
         # Yields each run of `text` outside quoted literals, copying quoted runs through verbatim.
         # Quote-blind rewriting would change what a predicate compares a string against.
         # Handles `"` and `'`; an unterminated quote is passed through raw.
         def map_outside_strings(text)
-          result = +""
-          buffer = +""
-          quote = nil
-
-          text.each_char do |char|
-            if quote
-              buffer << char
-              if char == quote
-                result << buffer
-                buffer = +""
-                quote = nil
-              end
-            elsif ['"', "'"].include?(char)
-              result << yield(buffer)
-              # Must be a real copy: aliasing `buffer` and `quote` makes `buffer << char` grow
-              # `quote`, so the literal never closes and later text skips normalisation.
-              # Pinned by spec/parser_parity_spec.rb (multi-line `given`/`ensures`).
-              buffer = char.dup
-              quote = char.dup
-            else
-              buffer << char
-            end
-          end
-
-          result << (quote ? buffer : yield(buffer))
-          result
+          text.scan(RUNS).map { |run| run.start_with?('"', "'") ? run : yield(run) }.join
         end
       end
     end

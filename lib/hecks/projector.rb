@@ -56,25 +56,33 @@ module Hecks
     # @raise [WrongConstruct] if a required capability or aggregate is missing, or the
     #   projector needs `world:` and `world` is nil
     def admits!(name, projector, construct, world = nil)
-      needed = projector.respond_to?(:projection_requires) ? projector.projection_requires : []
-      missing = needed.reject { |capability| capable?(construct, capability) }
-      unless missing.empty?
-        raise WrongConstruct,
-              "#{name.inspect} needs #{missing.map(&:name).join(' and ')}, and was handed " \
-              "#{construct.class} (#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect})."
-      end
-
-      declared = projector.respond_to?(:projection_declares) ? projector.projection_declares : []
-      absent   = declared.reject { |named| construct.aggregate(named) }
-      unless absent.empty?
-        raise WrongConstruct,
-              "#{name.inspect} needs a chapter declaring #{absent.join(' and ')}; " \
-              "#{construct.name} declares no such aggregate."
-      end
-
+      refuse_missing_capabilities!(name, projector, construct)
+      refuse_absent_aggregates!(name, projector, construct)
       return unless projector.respond_to?(:projection_needs_world?) && projector.projection_needs_world? && world.nil?
 
       raise WrongConstruct, "#{name.inspect} needs .world/.hecksagon bindings — pass world: to Projector.call."
+    end
+
+    # @raise [WrongConstruct] if the construct lacks a capability the projector requires
+    def refuse_missing_capabilities!(name, projector, construct)
+      needed = projector.respond_to?(:projection_requires) ? projector.projection_requires : []
+      missing = needed.reject { |capability| capable?(construct, capability) }
+      return if missing.empty?
+
+      raise WrongConstruct,
+            "#{name.inspect} needs #{missing.map(&:name).join(" and ")}, and was handed " \
+            "#{construct.class} (#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect})."
+    end
+
+    # @raise [WrongConstruct] if the construct declares no aggregate the projector requires
+    def refuse_absent_aggregates!(name, projector, construct)
+      declared = projector.respond_to?(:projection_declares) ? projector.projection_declares : []
+      absent   = declared.reject { |named| construct.aggregate(named) }
+      return if absent.empty?
+
+      raise WrongConstruct,
+            "#{name.inspect} needs a chapter declaring #{absent.join(" and ")}; " \
+            "#{construct.name} declares no such aggregate."
     end
 
     # Tells whether `construct` has the capability `admits!` requires of it.

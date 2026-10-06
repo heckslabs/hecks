@@ -36,15 +36,17 @@ RSpec.describe "the glossary a domain carries with it" do
       let(:html)    { File.read(File.join(committed_dir(domain), "html/index.html")) }
       let(:visible) { html.gsub(%r{<(script|style)[^>]*>.*?</\1>}m, "").gsub(/<[^>]+>/, " ") }
 
-      it "is exactly what hecks glossary would regenerate right now" do
+      it "carries exactly the files hecks glossary would write", :aggregate_failures do
         expect(tree.keys).to contain_exactly("glossary.md", "html/index.html")
+        expect(committed_files(domain).sort).to eq(tree.keys.sort)
+      end
+
+      it "is exactly what hecks glossary would regenerate right now", :aggregate_failures do
         tree.each do |relative, contents|
           path = File.join(committed_dir(domain), relative)
           expect(File).to exist(path), "#{domain}/glossary/#{relative} is missing — run hecks glossary"
-          expect(File.read(path)).to eq(contents),
-                                     "#{domain}/glossary/#{relative} is stale — run hecks glossary and commit it"
+          expect(File.read(path)).to eq(contents), "#{domain}/glossary/#{relative} is stale — run hecks glossary and commit it"
         end
-        expect(committed_files(domain).sort).to eq(tree.keys.sort)
       end
 
       it "renders the page from the Markdown, so the two cannot drift" do
@@ -52,7 +54,7 @@ RSpec.describe "the glossary a domain carries with it" do
         expect(Hecks::Projections::Glossary::Html.render(markdown)).to eq(html)
       end
 
-      it "spells every headword as a person would, never as an identifier" do
+      it "spells every headword as a person would, never as an identifier", :aggregate_failures do
         headwords = tree["glossary.md"].scan(/^\#{2,3} (.+)$/).flatten
         expect(headwords).not_to be_empty
         expect(headwords.grep(/[a-z][A-Z]/)).to be_empty
@@ -62,7 +64,7 @@ RSpec.describe "the glossary a domain carries with it" do
         expect(visible).not_to match(/\b(Aggregate|Value Object|Read Model|Lifecycle|Saga)\b/)
       end
 
-      it "lands every in-page link on a heading" do
+      it "lands every in-page link on a heading", :aggregate_failures do
         ids   = html.scan(/ id="([^"]+)"/).flatten
         hrefs = html.scan(/ href="#([^"]+)"/).flatten
         expect(hrefs).not_to be_empty
@@ -85,12 +87,12 @@ RSpec.describe "the glossary a domain carries with it" do
     let(:markdown) { File.read(File.join(committed_dir("examples/banking"), "glossary.md")) }
     let(:html)     { File.read(File.join(committed_dir("examples/banking"), "html/index.html")) }
 
-    it "tells Open the action from Open the list by qualifying the headword, not numbering it" do
+    it "tells Open the action from Open the list by qualifying the headword, not numbering it", :aggregate_failures do
       expect(markdown).to include("### Open\n", "### Open (the list)\n")
       expect(markdown).not_to match(/^### Open \(\d\)/)
     end
 
-    it "shows the reader ATM card, not ATMCard, in the rail" do
+    it "shows the reader ATM card, not ATMCard, in the rail", :aggregate_failures do
       expect(html).to include(">ATM card</a>")
       expect(html).not_to include("ATMCard")
     end

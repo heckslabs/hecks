@@ -13,6 +13,12 @@ RSpec.describe "Registry#saga_persistence" do
     registry
   end
 
+  def memory_registry
+    registry = fresh_registry
+    Hecks.with_registry(registry) { Kernel.load(InMemoryDomain::MEMORY_ADAPTER) }
+    registry
+  end
+
   # One block per line: the Prism adapter finds a block by start line alone, so nested
   # blocks sharing a line would extract the outermost one.
   def declare_thing(registry, domain)
@@ -23,6 +29,27 @@ RSpec.describe "Registry#saga_persistence" do
         end
       end
     end
+  end
+
+  def bind_thing_to_memory(registry, domain)
+    Hecks.with_registry(registry) do
+      Hecks.hecksagon(domain) { Object.const_get(domain)::Thing.persisted_by("Memory") }
+    end
+  end
+
+  def memory_bound_registry(domain)
+    registry = memory_registry
+    declare_thing(registry, domain)
+    bind_thing_to_memory(registry, domain)
+    registry
+  end
+
+  # "First" is bound to Memory and "Second" has no hecksagon at all.
+  def verified_two_domain_registry
+    registry = memory_bound_registry("First")
+    declare_thing(registry, "Second")
+    registry.verify!
+    registry
   end
 
   it "resolves to the no-op store for a domain with no hecksagon at all" do
@@ -39,10 +66,7 @@ RSpec.describe "Registry#saga_persistence" do
   end
 
   it "resolves to the no-op store when the resolved adapter (Memory) doesn't implement the capability" do
-    registry = fresh_registry
-    Hecks.with_registry(registry) { Kernel.load(InMemoryDomain::MEMORY_ADAPTER) }
-    declare_thing(registry, "Hexed")
-    Hecks.with_registry(registry) { Hecks.hecksagon("Hexed") { Hexed::Thing.persisted_by("Memory") } }
+    registry = memory_bound_registry("Hexed")
     registry.verify!
 
     expect(registry.saga_persistence("Hexed")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
@@ -53,21 +77,16 @@ RSpec.describe "Registry#saga_persistence" do
   it "resolves to the no-op store, not a raised error, when the anchor aggregate has no bind at all" do
     registry = fresh_registry
     declare_thing(registry, "Unbound")
-    Hecks.with_registry(registry) { Hecks.hecksagon("Unbound") {} }
+    Hecks.with_registry(registry) { Hecks.hecksagon("Unbound") { nil } }
 
     expect(registry.saga_persistence("Unbound")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
   end
 
-  it "resolves independently per domain" do
-    registry = fresh_registry
-    Hecks.with_registry(registry) { Kernel.load(InMemoryDomain::MEMORY_ADAPTER) }
-    declare_thing(registry, "First")
-    Hecks.with_registry(registry) { Hecks.hecksagon("First") { First::Thing.persisted_by("Memory") } }
-    declare_thing(registry, "Second")
-    registry.verify!
+  it "resolves independently per domain", :aggregate_failures do
+    registry = verified_two_domain_registry
 
-    expect(registry.saga_persistence("First")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
-    expect(registry.saga_persistence("Second")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
+    expect(%w[First Second].map { |domain| registry.saga_persistence(domain) })
+      .to all(be(Hecks::Ports::Persistence::NULL_SAGA_STORE))
     # Guards against one memoized slot keyed by the registry instead of the domain name.
     expect(registry.instance_variable_get(:@saga_persistence).keys).to contain_exactly("First", "Second")
   end
