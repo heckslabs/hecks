@@ -13,12 +13,11 @@ module Hecks
     #
     # - **run_keys** mints the `run` key of a creating command that was given none.
     # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
-    # - **settled** lists the commands (`aggregate.command`) that always behave as if `--wait`
-    #   was given, so a script gets their outcome in its exit status.
+    # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
     # - **report** lists the settled commands whose answer is the report they recorded, as text.
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
     # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
-    # - **maintainer**, **chapters** and **maintainer_chapters** shape the help by audience (see `audience`).
+    # - **maintainer**, **chapters**, **maintainer_chapters** shape the help for its audience.
     module LauncherOptions
       SETTING = "launcher".freeze
       WAIT    = "--wait".freeze
@@ -69,9 +68,10 @@ module Hecks
         end
       end
 
-      # The help options one audience gets: the aggregates left out of the lists (`maintainer`, shown
-      # only in a hecks checkout or to `--maintainer`) and the chapters pointed at (`chapters`, plus
-      # `maintainer_chapters` in a checkout). A chapter that did not opt in gets neither.
+      # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
+      # shown only in a hecks checkout or to `--maintainer`) and the chapters pointed at
+      # (`chapters`, plus `maintainer_chapters` in a checkout). A chapter that did not opt in
+      # gets neither.
       #
       # @param settings [Hash, nil] the chapter's `launcher` setting
       # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout

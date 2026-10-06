@@ -210,7 +210,7 @@ module Hecks
         [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
       end
 
-      # The names of the chapters the booted domain's hecksagon attaches or uses as framework members.
+      # The chapters the booted domain's hecksagon attaches or uses as framework members.
       def attached_chapters(runtime)
         own = runtime.registry.bluebooks.values.first
         Array(runtime.registry.hecksagon(own.name)&.member_chapters)
