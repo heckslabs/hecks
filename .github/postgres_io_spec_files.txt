@@ -41,6 +41,9 @@ spec/hecks_deploy_roll_spec.rb
 spec/hecks_deploy_smoke_run_spec.rb
 spec/hecks_journal_survives_spec.rb
 spec/installed_gem_smoke_spec.rb
+spec/load_hygiene_lib_1_spec.rb
+spec/load_hygiene_lib_2_spec.rb
+spec/load_hygiene_lib_3_spec.rb
 spec/load_hygiene_spec.rb
 spec/ports/persistence_contract_spec.rb
 spec/ports/persistence_legacy_decode_spec.rb
