@@ -34,7 +34,7 @@ jobs:
           checks: rspec
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
-  # Two shards, each running `-n 4` parallel workers, to roughly halve wall-clock.
+  # Three shards, each running `-n 4` parallel workers, to cut wall-clock to about a third.
   rspec_shard:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3]
 
     # No Postgres service: specs that boot examples/pizzas against PostgresEra are tagged
     # `io: true` and run in rspec_postgres_io. An untagged one fails here with
@@ -67,7 +67,7 @@ jobs:
       - name: Determine this shard's own file list
         run: |
           mkdir -p tmp
-          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=2 runtime_log=.github/rspec_runtime_baseline.log \
+          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=3 runtime_log=.github/rspec_runtime_baseline.log \
             > tmp/rspec_shard_files.txt
 
       # --group-by runtime: without it parallel_rspec splits by file size and one worker can
