@@ -69,10 +69,10 @@ async fn main() -> Result<(), Error> {
                 .fetch_secret_string(&secret_arn)
                 .await
                 .map_err(|e| format!("fetching DB_SECRET_ARN from Secrets Manager: {e:#}"))?;
-            let password = secrets::extract_field(&secret_json, "password")?;
-            // Literal, unescaped, no percent-encoding -- parse_database_url
-            // below never percent-decodes the password segment either way.
-            format!("postgres://postgres:{password}@{db_host}:5432/{db_name}")
+            // The user and port come from the secret too (a client sharing an instance logs in as
+            // its own role); the password goes in literal, since parse_database_url below never
+            // percent-decodes it.
+            secrets::database_url(&secret_json, &db_host, &db_name)?
         }
         Err(_) => std::env::var("DATABASE_URL")
             .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,

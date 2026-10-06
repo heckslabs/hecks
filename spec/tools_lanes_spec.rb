@@ -45,6 +45,13 @@ RSpec.describe Hecks::Tools::Lanes do
       expect(contexts).to eq(Hecks::Vocabulary.rows("RequiredCheck").map { |check| check["name"] })
     end
 
+    it "take a required check only from the GitHub Actions app, so no other app can certify a commit" do
+      required = committed_ruleset["rules"].find { |rule| rule["type"] == "required_status_checks" }
+      apps = required.dig("parameters", "required_status_checks").map { |check| check["integration_id"] }
+
+      expect(apps.uniq).to eq([Hecks::Adapters::GithubChecks::GITHUB_ACTIONS_APP_ID])
+    end
+
     it "write no ruleset for a lane that takes pushes from anyone" do
       expect(File.exist?(File.join(root, ".github/rulesets/main.json"))).to be(false)
     end

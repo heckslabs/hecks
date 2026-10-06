@@ -4,6 +4,7 @@ require "json"
 require_relative "../../cache_dir"
 require_relative "../../version"
 require_relative "verdict_cache/tagging"
+require_relative "verdict_cache/prebuilt"
 
 module Hecks
   module Bluebook
@@ -22,6 +23,7 @@ module Hecks
       #   VerdictCache.flush  # also runs at process exit
       module VerdictCache
         extend Tagging
+        extend Prebuilt
 
         module_function
 
@@ -70,7 +72,7 @@ module Hecks
         #   file's relative path and bytes, in sorted order
         def digest_of(lib)
           state = Digest::SHA256.new
-          state << "#{FORMAT}\0#{RUBY_VERSION}\0#{Hecks::VERSION}\0"
+          state << "#{FORMAT}\0#{ruby_series}\0#{Hecks::VERSION}\0"
           judging_files(lib).each do |file|
             state << file.delete_prefix(lib) << "\0" << File.binread(file) << "\0"
           end
@@ -145,22 +147,6 @@ module Hecks
 
         # @return [Hash{String => Hash}] every verdict this process knows
         def entries = @entries ||= {}
-
-        # Reads and decodes the current code's file.
-        #
-        # @return [Hash{String => Hash}] entries, or `{}` on any problem
-        def read
-          file = path
-          return {} unless File.file?(file) && trusted?(file)
-
-          doc = JSON.parse(File.binread(file), max_nesting: false)
-          return {} unless doc.is_a?(Hash) && doc["format"] == FORMAT
-
-          decoded = decode(doc["entries"])
-          well_formed?(decoded) ? decoded : {}
-        rescue StandardError
-          {}
-        end
 
         # Whether `file` and its directory belong to this user and nobody else
         # can write them.

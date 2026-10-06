@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Added: an `AwsBox` site can share one RDS instance with other sites, each in its own database with its own login role.** `shared_database "<stack>"` in `deployed_to("AwsBox")` makes the generator write no `rds.yaml`; the Makefile and `deploy-box.sh` read the endpoint and security group from the shared stack and the login from the site's own secret `<stack>/database`, and a new `provision-database.sh` (with `make provision BASTION=i-...`) creates the role (not a superuser), the database it owns, and the secret, idempotently, with `--rotate` for a new password. Settings that size the instance are refused beside it. The Rust host and the generated CMS boot script now read `username` and `port` from the database secret, defaulting to `postgres` on 5432, so a dedicated instance behaves as before. A site without `shared_database` generates the same files as before. ADR 0092 records the decision and the phases (the shared instance's own generator, then moving a client onto it).
+
+**Changed: a required check counts only when GitHub Actions reported it.** `stable`'s ruleset pins each required check to the GitHub Actions app (`integration_id` 15368), the promotion reads only that app's check runs, and `project_lanes --live` names a check GitHub takes from any app when the model pins one. Before, any app with `checks:write` could post a passing check of a required name against a commit. A check of the right name from another app now stands as missing.
+
 ## [3.6.0] - 2026-10-06
 
 **Changed: the files that hold `Hecksagon` and `World` are named `hecksagon.rb`.** `lib/hecks/bluebook/hexagon.rb` and `behaviour/hexagon.rb` read as a typo for the classes inside them. The files, the `require_relative` lines and the locals that meant a `Hecksagon` carry the right name; hexagonal-architecture wording in the docs is unchanged.

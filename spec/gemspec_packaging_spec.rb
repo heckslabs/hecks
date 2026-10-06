@@ -83,6 +83,14 @@ RSpec.describe "gem packaging" do
     end
   end
 
+  it "ships the caches a release builds into prebuilt/, though git does not track them" do
+    with_scratch_dir("gemspec-prebuilt") do |dir|
+      spec = gemspec_in(dir, CHECKOUT_FILES.merge("prebuilt/verdicts-a.json" => "{}")) { track_in_git(dir) }
+
+      expect(spec.files).to include("prebuilt/verdicts-a.json")
+    end
+  end
+
   it "falls back to globbing when there is no git checkout" do
     Dir.mktmpdir("gemspec-plain") do |tmp|
       spec = gemspec_in(File.realpath(tmp), "lib/plain.rb" => "", "exe/hecks" => "", "qa/settings.yml" => "")

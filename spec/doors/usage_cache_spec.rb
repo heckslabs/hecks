@@ -66,6 +66,20 @@ RSpec.describe Hecks::Doors::UsageCache do
     expect(fetch { worked_out("new help") }).to eq(["old help", 0])
   end
 
+  it "treats a change in the gem's judging code as a different entry" do
+    fetch { worked_out("old help") }
+    allow(Hecks::Bluebook::MetaValidator::VerdictCache).to receive(:code_digest).and_return("edited")
+
+    expect(fetch { worked_out("new help") }).to eq(["new help", 0])
+  end
+
+  it "keeps the entry while the gem's judging code is unchanged" do
+    fetch { worked_out("old help") }
+    allow(Hecks::Bluebook::MetaValidator::VerdictCache).to receive(:code_digest).and_call_original
+
+    expect(fetch { worked_out("new help") }).to eq(["old help", 0])
+  end
+
   it "keeps a separate entry for each audience, since the same line reads differently to each", :aggregate_failures do
     for_audience = ->(audience, &block) { described_class.fetch(runtime, [], "hecks", audience: audience, &block) }
     for_audience.call("project") { worked_out("project help") }

@@ -20,6 +20,16 @@ module Hecks
       File.join(root, name)
     end
 
+    # The directory the gem ships prebuilt cache files in, beside `lib/` so the digest of `lib/`
+    # that names a cache file never covers the files built from it. It exists only in a packaged
+    # gem, and it is part of the gem's own code, so it needs no ownership check.
+    #
+    # @param name [String] the file name inside it
+    # @return [String] the absolute path of `name` under the gem's `prebuilt/`
+    def prebuilt(name)
+      File.join(File.expand_path("../..", __dir__), "prebuilt", name)
+    end
+
     # The cache root, resolved once per process.
     #
     # @return [String] the absolute path of the directory every `path` lives under

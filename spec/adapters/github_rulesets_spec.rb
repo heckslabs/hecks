@@ -91,5 +91,13 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
     it "names each part that differs" do
       expect(rulesets.differences(projected, differing)).to match_array(each_difference)
     end
+
+    # A check any app may report is not the check the model asks for.
+    it "names a required check that GitHub takes from any app when the model pins one" do
+      pinned = Marshal.load(Marshal.dump(projected))
+      pinned["rules"].last["parameters"]["required_status_checks"].each { |check| check["integration_id"] = 15_368 }
+
+      expect(rulesets.differences(pinned, projected)).to contain_exactly(a_string_matching(/required checks are/))
+    end
   end
 end

@@ -47,6 +47,7 @@ module Hecks
           def extra_fields(settings, task_definition, database_name)
             {
               task_definition: task_definition, migration: read_migration(settings[:migration], database_name),
+              shared_database: read_shared_database(settings),
               s3_buckets: read_s3_access(settings.fetch(:s3_access, [])),
               hosting: HostingSettings.read(settings, task_definition)
             }
@@ -127,6 +128,23 @@ module Hecks
               name = check(:s3_bucket, spec.fetch(:bucket) { raise ArgumentError, S3_SHAPE }, S3_BUCKET)
               Bucket.new(name: name, write: boolean(:s3_write, spec.fetch(:write, false)))
             end.uniq(&:name)
+          end
+
+          # The stack of the RDS instance this site shares with others. The instance's size,
+          # storage, engine and backups are the instance's, so a world that sets them is refused.
+          #
+          # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
+          # @return [String, nil] the shared stack's name, or nil for a database of its own
+          # @raise [ArgumentError] when the name is malformed or the world also sizes the instance
+          def read_shared_database(settings)
+            return nil unless settings.key?(:shared_database)
+
+            clash = SHARED_INSTANCE_SETTINGS & settings.keys
+            unless clash.empty?
+              raise ArgumentError, "shared_database: #{clash.join(", ")} size the instance, which belongs to the shared " \
+                                   "stack #{settings[:shared_database]}; drop #{clash.size == 1 ? "it" : "them"}"
+            end
+            check(:shared_database, settings[:shared_database], NAME)
           end
 
           def read_database_name(settings, infra_name)
