@@ -220,6 +220,22 @@ jobs:
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
 
+  # The remaining drift checks of the old checks_codegen_drift job: tables, gates and coverage,
+  # short next to the corpus regeneration, so they run beside it instead of after it.
+  checks_drift_tables:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    needs: ci_attestation_checks_heavy
+    if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
       # The reserved-name tables (RustReservedWord/CargoReservedName in
       # vocabulary.bluebook) are read by ModelCheck and DomainName through
       # lib/hecks/vocabulary.rb and by hecks-codegen/hecks-build through the
