@@ -1,0 +1,17 @@
+Service:
+  Type: AWS::ECS::Service
+  DependsOn: [@@depends_on@@]
+  Properties:
+    ServiceName: !Sub "@@prefix@@-${EnvName}"
+    Cluster: !Ref Cluster
+    TaskDefinition: !Ref TaskDefinition
+    DesiredCount: !Ref DesiredCount
+    LaunchType: FARGATE
+    EnableExecuteCommand: true
+    NetworkConfiguration:
+      AwsvpcConfiguration:
+        AssignPublicIp: DISABLED
+        Subnets: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]
+        SecurityGroups: [!Ref OwningSecurityGroupId]
+    LoadBalancers:
+@@load_balancers@@

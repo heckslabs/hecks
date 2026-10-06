@@ -2,12 +2,15 @@ require "fileutils"
 require_relative "../vendoring"
 require_relative "lock"
 require_relative "shape"
+require_relative "vendor/acceptance"
 
 module Hecks
   module EmbryonautBluebook
     # Pins a package's `bluebook/*.bluebook` files from a source repo commit; a
     # release pin also refuses a downgrade or an era-breaking storage-shape change.
     class Vendor
+      include Acceptance
+
       # A release version, `X.Y.Z`.
       VERSION = /\A\d+\.\d+\.\d+\z/
 
@@ -22,6 +25,9 @@ module Hecks
 
         def shape_changed? = !previous_shape.nil? && previous_shape != shape
       end
+
+      # The version and storage shape already vendored; nil for each when there is no earlier copy.
+      Previous = Struct.new(:version, :shape)
 
       # `ref` accepts `X.Y.Z`, a release tag name, any commit-ish, or nil for
       # the newest release.
@@ -38,22 +44,28 @@ module Hecks
       # Pins the package and reports what changed.
       def call
         tag, version = release
-        previous_version, previous_shape = existing
+        previous = Previous.new(*existing)
+        pin, shape = pin_files(tag, version, previous)
+        build_result(pin, tag, version, shape, previous)
+      end
+
+      private
+
+      def package_dir = File.join(@root, "vendor", "embryonaut_bluebooks", @name)
+
+      # @return [Array(Vendoring::Pin, Array<String>)] what was pinned, and the storage shape staged
+      def pin_files(tag, version, previous)
         shape = nil
         pin = Vendoring.pin(from: @source.path, ref: tag || @ref, subtree: "#{@name}/bluebook",
                             into: package_dir, glob: "*.bluebook") do |staged, commit|
           shape = Shape.labels(staged)
           next nil unless tag
 
-          refuse_unless_acceptable!(version, previous_version, previous_shape, shape)
+          refuse_unless_acceptable!(version, previous, shape)
           { "bluebook.lock" => lock(version, tag, commit, staged, shape).to_s }
         end
-        build_result(pin, tag, version, shape, previous_version, previous_shape)
+        [pin, shape]
       end
-
-      private
-
-      def package_dir = File.join(@root, "vendor", "embryonaut_bluebooks", @name)
 
       # Resolves what `ref` asks for into a release tag and its version, or nil
       # for a bare commit.
@@ -108,41 +120,15 @@ module Hecks
         [version, nil]
       end
 
-      def refuse_unless_acceptable!(version, previous_version, previous_shape, shape)
-        return unless previous_version
-
-        refuse_downgrade!(version, previous_version)
-        return if previous_shape.nil? || previous_shape == shape
-        return if minor_or_more?(previous_version, version)
-
-        raise Vendoring::Error,
-              "#{@name} #{previous_version} -> #{version} changes the storage shape but is only a patch bump " \
-              "(before: #{previous_shape.join(" ")}; after: #{shape.join(" ")}). Raise the package's version " \
-              "by at least a minor in the source repository and release again. Nothing was changed."
-      end
-
-      def refuse_downgrade!(version, previous_version)
-        return if @allow_downgrade || Gem::Version.new(version) >= Gem::Version.new(previous_version)
-
-        raise Vendoring::Error, "#{@name} #{previous_version} is vendored; #{version} is older. " \
-                                "Pass allow_downgrade (ALLOW_DOWNGRADE=1 on the command line) to do it anyway."
-      end
-
-      def minor_or_more?(old, new)
-        old_major, old_minor = old.split(".").map(&:to_i)
-        new_major, new_minor = new.split(".").map(&:to_i)
-        new_major > old_major || (new_major == old_major && new_minor > old_minor)
-      end
-
       def lock(version, tag, commit, staged, shape)
         Lock.new(package: @name, version: version, tag: tag, commit: commit,
                  digest: Lock.digest_of(staged), shape: shape)
       end
 
-      def build_result(pin, tag, version, shape, previous_version, previous_shape)
+      def build_result(pin, tag, version, shape, previous)
         Result.new(package: @name, commit: pin.commit, version: version, tag: tag,
                    digest: Lock.digest_of(pin.dir), shape: shape, dir: pin.dir,
-                   previous_version: previous_version, previous_shape: previous_shape)
+                   previous_version: previous.version, previous_shape: previous.shape)
       end
     end
   end

@@ -31,27 +31,30 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     job.fetch("if")[shape, 1]
   end
 
+  # A wrapper whose `if:` carries no skip condition tolerates no skip at all.
+  def expect_no_skip_tolerated(name, job, step)
+    impl = job.fetch("needs")
+    message = "#{name}'s if: must be either `always() && !(needs.#{impl}.result == 'success' || " \
+              "(needs.#{impl}.result == 'skipped' && (<skip condition>)))` or, when nothing about " \
+              "#{impl} ever legitimately skips, `always() && needs.#{impl}.result != 'success'`; got #{job["if"].inspect}"
+
+    expect(job.fetch("if")).to eq("always() && needs.#{impl}.result != 'success'"), message
+    expect(step.dig("with", "skip-expected")).to be_nil, "#{name} tolerates no skip at all, so it must not claim one is expected"
+  end
+
+  def expect_skip_expected(name, condition, step)
+    expect(condition).to include("github.event_name"), "#{name}: the skip condition must be an expression, not a constant"
+    expect(step.dig("with", "skip-expected")).to eq("${{ #{condition} }}")
+  end
+
   wrappers.each do |name, job|
-    it "#{name} lets #{job.fetch("needs")}'s skip through only when its own skip condition holds" do
-      impl = job.fetch("needs")
+    it "#{name} lets #{job.fetch("needs")}'s skip through only when its own skip condition holds", :aggregate_failures do
       condition = skip_condition(job)
       step = job.fetch("steps").find { |candidate| candidate["uses"] == REQUIRE_RESULT }
 
-      if condition.nil?
-        expect(job.fetch("if")).to eq("always() && needs.#{impl}.result != 'success'"),
-                                   "#{name}'s if: must be either `always() && !(needs.#{impl}.result == 'success' || " \
-                                   "(needs.#{impl}.result == 'skipped' && (<skip condition>)))` or, when nothing about " \
-                                   "#{impl} ever legitimately skips, `always() && needs.#{impl}.result != 'success'`; " \
-                                   "got #{job["if"].inspect}"
-        expect(step.dig("with", "skip-expected")).to be_nil,
-                                                     "#{name} tolerates no skip at all, so it must not claim one is expected"
-      else
-        expect(condition).to include("github.event_name"), "#{name}: the skip condition must be an expression, not a constant"
-        expect(step.dig("with", "skip-expected")).to eq("${{ #{condition} }}")
-      end
-
-      expect(step.dig("with", "job")).to eq(impl)
-      expect(step.dig("with", "result")).to eq("${{ needs.#{impl}.result }}")
+      condition.nil? ? expect_no_skip_tolerated(name, job, step) : expect_skip_expected(name, condition, step)
+      expect(step.dig("with", "job")).to eq(job.fetch("needs"))
+      expect(step.dig("with", "result")).to eq("${{ needs.#{job.fetch("needs")}.result }}")
     end
   end
 
@@ -60,7 +63,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     let(:action) { YAML.load_file(File.join(InMemoryDomain::ROOT, REQUIRE_RESULT, "action.yml")) }
     let(:script) { action.dig("runs", "steps").first.fetch("run") }
 
-    it "runs only to fail" do
+    it "runs only to fail", :aggregate_failures do
       expect(script).to include("exit 1")
       expect(script).not_to include("exit 0"), "a wrapper runs only to fail, so its step must never pass"
     end
@@ -76,57 +79,70 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
+  def workflow_files(pattern) = Dir[File.join(InMemoryDomain::ROOT, pattern)]
+
+  # Every job of the given workflow files as [path, name, job]; a file with no jobs is an error
+  # unless `lenient`.
+  def workflow_jobs(paths, lenient: false)
+    paths.flat_map do |path|
+      doc = YAML.load_file(path)
+      (lenient ? doc.fetch("jobs", {}) : doc.fetch("jobs")).map { |name, job| [path, name, job] }
+    end
+  end
+
+  def job_label(path, name) = "#{File.basename(path)}'s #{name}"
+
   # Every job runs on `pull_request`, so a label gate would let a job that never ran on
   # the PR fail in the merge queue and eject the batch.
   it "gates no job on the retired full-ci label" do
-    [CI_YML, File.join(InMemoryDomain::ROOT, ".github/workflows/ci-checks.yml")].each do |path|
-      YAML.load_file(path).fetch("jobs").each do |name, job|
-        expect(job["if"].to_s).not_to include("full-ci"),
-                                      "#{File.basename(path)}'s #{name} still gates on the retired full-ci label: #{job["if"]}"
-      end
-    end
+    paths = [CI_YML, File.join(InMemoryDomain::ROOT, ".github/workflows/ci-checks.yml")]
+    gated = workflow_jobs(paths).select { |_, _, job| job["if"].to_s.include?("full-ci") }
+
+    expect(gated.map { |path, name, _| job_label(path, name) }).to be_empty, "still gate on the retired full-ci label"
+  end
+
+  def uncommented(script) = script.to_s.gsub(/^\s*#.*$/, "")
+
+  def reads_base_sha?(job)
+    job.fetch("steps", []).any? { |step| uncommented(step["run"]).include?("merge_group.base_sha") }
   end
 
   # `merge_group.base_sha` is the previous queue entry, not the target branch, so a path
   # gate diffing against it lets a gate-skipped PR carry a red one in ahead of it.
   it "diffs no merge group against the previous queue entry" do
-    Dir[File.join(InMemoryDomain::ROOT, ".github/{workflows,actions}/**/*.yml")].each do |path|
-      YAML.load_file(path).fetch("jobs", {}).each do |name, job|
-        job.fetch("steps", []).each do |step|
-          script = step["run"].to_s.gsub(/^\s*#.*$/, "")
-          expect(script).not_to include("merge_group.base_sha"),
-                                "#{File.basename(path)}'s #{name} reads merge_group.base_sha — diff against " \
-                                "`git merge-base origin/<base_ref> <sha>` instead"
-        end
-      end
-    end
+    jobs = workflow_jobs(workflow_files(".github/{workflows,actions}/**/*.yml"), lenient: true)
+    reading = jobs.select { |_, _, job| reads_base_sha?(job) }
+    message = "read merge_group.base_sha — diff against `git merge-base origin/<base_ref> <sha>` instead"
+
+    expect(reading.map { |path, name, _| job_label(path, name) }).to be_empty, message
+  end
+
+  def skips_on_push?(job) = job["if"].to_s.include?("github.event_name != 'push'")
+
+  # A job skips on push by saying so, or by needing one that does.
+  def runner_on_push?(name, job, jobs)
+    return false if job.key?("uses") || name == "postgres_io_relevant_changed" || self.class.wrappers.key?(name)
+
+    upstream = Array(job["needs"]).map { |needed| jobs.fetch(needed) }
+    !(skips_on_push?(job) || upstream.any? { |needed| skips_on_push?(needed) })
   end
 
   # The merge queue already tested a push to main, so only the Postgres detector may take
-  # a runner. A job skips on push by saying so, or by needing one that does.
+  # a runner.
   it "spends no runner on a push to main beyond the Postgres detector" do
-    Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/ci*.yml")].each do |path|
+    offenders = workflow_files(".github/workflows/ci*.yml").flat_map do |path|
       jobs = YAML.load_file(path).fetch("jobs")
-      skips_on_push = ->(job) { job["if"].to_s.include?("github.event_name != 'push'") }
-      jobs.each do |name, job|
-        next if job.key?("uses") || name == "postgres_io_relevant_changed" || self.class.wrappers.key?(name)
-
-        upstream = Array(job["needs"]).map { |needed| jobs.fetch(needed) }
-        skipped = skips_on_push.call(job) || upstream.any?(&skips_on_push)
-        expect(skipped).to be(true), "#{File.basename(path)}'s #{name} would take a runner on a push to main"
-      end
+      jobs.select { |name, job| runner_on_push?(name, job, jobs) }.map { |name, _| job_label(path, name) }
     end
+
+    expect(offenders).to be_empty, "would take a runner on a push to main"
   end
 
   # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.
   it "gives every job that takes a runner a timeout" do
-    Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/*.yml")].each do |path|
-      YAML.load_file(path).fetch("jobs").each do |name, job|
-        next if job.key?("uses")
+    running = workflow_jobs(workflow_files(".github/workflows/*.yml")).reject { |_, _, job| job.key?("uses") }
+    untimed = running.reject { |_, _, job| job["timeout-minutes"].is_a?(Integer) && job["timeout-minutes"] <= 60 }
 
-        expect(job["timeout-minutes"]).to be_a(Integer).and(be <= 60),
-                                          "#{File.basename(path)}'s #{name} needs a timeout-minutes of at most 60"
-      end
-    end
+    expect(untimed.map { |path, name, _| job_label(path, name) }).to be_empty, "need a timeout-minutes of at most 60"
   end
 end

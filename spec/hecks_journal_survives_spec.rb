@@ -75,21 +75,39 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
     Open3.capture3(env, RbConfig.ruby, "-I#{File.join(HECKS_ROOT, "lib")}", *argv, chdir: HECKS_ROOT)
   end
 
+  # What the child printed; fails with everything it printed when it did not succeed.
+  def child!(*argv)
+    out, err, status = child(*argv)
+    raise "#{out}\n#{err}" unless status.success?
+
+    out
+  end
+
+  def launch(*words) = child!(File.join(@dir, "launch.rb"), HECKS_ROOT, *words)
+
+  # Runs a journaled command in one process and reads it back in two more: the events the first
+  # answered, the operations `history` lists for it, and whether `stores` names its run.
+  def journal_summary
+    hecks_domain = File.join(HECKS_ROOT, "lib/hecks/hecks")
+    [journaled_events, history_operations(hecks_domain), stores_name_run?(hecks_domain)]
+  end
+
+  def journaled_events
+    out = launch("model_check_run.model_check", "run=kept-1", "domains=#{File.join(@dir, "shelf")}")
+    JSON.parse(out).fetch("events")
+  end
+
+  def history_operations(domain)
+    out = launch("query", "introspection.history", "domain=#{domain}")
+    JSON.parse(out.lines.last).fetch("model_check_run").map { |entry| entry.fetch("operation") }
+  end
+
+  def stores_name_run?(domain)
+    out = child!(File.join(HECKS_ROOT, "exe/hecks"), "stores", domain)
+    JSON.parse(out.lines.last).fetch("model_check_run").fetch("authoritative").to_s.include?("kept-1")
+  end
+
   it "keeps a journaled command's events for a later process" do
-    out, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "model_check_run.model_check", "run=kept-1",
-                             "domains=#{File.join(@dir, "shelf")}")
-    expect(status.success?).to be(true), "#{out}\n#{err}"
-    expect(JSON.parse(out).fetch("events")).to eq(["ModelCheckRequested"])
-
-    history, err, status = child(File.join(@dir, "launch.rb"), HECKS_ROOT, "query", "introspection.history",
-                                 "domain=#{File.join(HECKS_ROOT, "lib/hecks/hecks")}")
-    expect(status.success?).to be(true), err
-    entries = JSON.parse(history.lines.last).fetch("model_check_run")
-    expect(entries.map { |entry| entry.fetch("operation") }).to eq(%w[save save])
-
-    stores, err, status = child(File.join(HECKS_ROOT, "exe/hecks"), "stores", File.join(HECKS_ROOT, "lib/hecks/hecks"))
-    expect(status.success?).to be(true), err
-    runs = JSON.parse(stores.lines.last).fetch("model_check_run").fetch("authoritative")
-    expect(runs.to_s).to include("kept-1")
+    expect(journal_summary).to eq([["ModelCheckRequested"], %w[save save], true])
   end
 end

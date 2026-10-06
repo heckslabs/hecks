@@ -5,14 +5,14 @@ require "spec_helper"
 RSpec.describe "Hecks.describe" do
   let(:path) { File.join(InMemoryDomain::ROOT, "examples/pizzas") }
 
-  it "names the directory without loading the declarations" do
+  it "names the directory without loading the declarations", :aggregate_failures do
     described = Hecks.describe(path)
 
     expect(described.directory).to end_with("pizzas/bluebook")
     expect(described.instance_variable_get(:@registry)).to be_nil
   end
 
-  it "loads the declarations on the first registry call and keeps them" do
+  it "loads the declarations on the first registry call and keeps them", :aggregate_failures do
     described = Hecks.describe(path)
     registry = described.registry
 

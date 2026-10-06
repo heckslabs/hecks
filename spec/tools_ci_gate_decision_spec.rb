@@ -37,20 +37,28 @@ RSpec.describe Hecks::Tools::CiGateDecision do
   # said on stderr.
   def touched(gate, event:, payload: {})
     output = File.join(repo, ".github_output")
+    env = runner_env(event, payload, output)
+    err = StringIO.new
+    silenced(err) { expect(described_class.main(["gate=#{gate}"], root: repo, env: env)).to eq(0) }
+    [File.read(output)[/touched=(\w+)/, 1], err.string]
+  end
+
+  # The environment a runner gives the decision: the event file, the sha and where to write outputs.
+  def runner_env(event, payload, output)
     event_file = File.join(repo, ".github_event.json")
     File.write(event_file, JSON.generate(payload))
-    env = { "GITHUB_EVENT_NAME" => event, "GITHUB_EVENT_PATH" => event_file,
-            "GITHUB_SHA" => git("rev-parse", "HEAD"), "GITHUB_OUTPUT" => output }
-    err = StringIO.new
+    { "GITHUB_EVENT_NAME" => event, "GITHUB_EVENT_PATH" => event_file,
+      "GITHUB_SHA" => git("rev-parse", "HEAD"), "GITHUB_OUTPUT" => output }
+  end
+
+  # Yields with stdout discarded and stderr collected into `err`.
+  def silenced(err)
     previous = [$stdout, $stderr]
     $stdout = StringIO.new
     $stderr = err
-    begin
-      expect(described_class.main(["gate=#{gate}"], root: repo, env: env)).to eq(0)
-    ensure
-      $stdout, $stderr = previous
-    end
-    [File.read(output)[/touched=(\w+)/, 1], err.string]
+    yield
+  ensure
+    $stdout, $stderr = previous
   end
 
   def pull_request(base) = { "pull_request" => { "base" => { "sha" => base } } }
@@ -94,7 +102,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
     expect(touched("runtime_changed", event: "pull_request", payload: pull_request(head)).first).to eq("false")
   end
 
-  it "refuses a gate no CiGate row names" do
+  it "refuses a gate no CiGate row names", :aggregate_failures do
     expect { described_class.main(["gate=no_such_gate"], root: repo, env: {}) }
       .to raise_error(SystemExit) { |error| expect(error.status).to eq(1) }
       .and output(/no CiGate row named no_such_gate/).to_stderr
@@ -142,11 +150,17 @@ RSpec.describe Hecks::Tools::CiGateDecision do
   # A merge group diffs against the target branch, never against the previous queue entry:
   # #729 (docs only) rode behind a red #730 on 2026-09-18 because the gate saw only its own files.
   context "when the run is a merge group" do
-    it "sees the files of the entries queued before it" do
+    # Two entries behind main: the runtime change, then a docs-only one. Answers the first's sha.
+    def queue_two_entries
       git("update-ref", "refs/remotes/origin/main", "HEAD")
       commit("lib/hecks/runtime/dispatch.rb")
       previous_entry = git("rev-parse", "HEAD")
       commit("docs/notes.md")
+      previous_entry
+    end
+
+    it "sees the files of the entries queued before it" do
+      previous_entry = queue_two_entries
 
       payload = { "merge_group" => { "base_sha" => previous_entry, "base_ref" => "refs/heads/main" } }
       expect(touched("runtime_changed", event: "merge_group", payload: payload).first).to eq("true")

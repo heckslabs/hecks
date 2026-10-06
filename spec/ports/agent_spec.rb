@@ -31,8 +31,7 @@ RSpec.describe Hecks::Ports::Agent do
       registry = registry_with(SCRIPTED_ADAPTER)
       Hecks::Adapters::ScriptedAgent.script(:ask, { "questions" => [{ "text" => "what?", "because" => "why not" }] })
 
-      questions = described_class.ask(registry, state: {})
-      expect(questions.first.text).to eq("what?")
+      expect(described_class.ask(registry, state: {}).first.text).to eq("what?")
     end
 
     it "refuses to choose between more than one bound adapter" do
@@ -45,75 +44,103 @@ RSpec.describe Hecks::Ports::Agent do
   describe "the four operations, against the scripted double" do
     let(:registry) { registry_with(SCRIPTED_ADAPTER) }
 
-    it "ask returns Question structs" do
-      Hecks::Adapters::ScriptedAgent.script(
-        :ask, { "questions" => [{ "text" => "what identifies a Loyalty Member?", "because" => "no identity yet" }] }
-      )
-
-      questions = described_class.ask(registry, state: { chapter: "Loyalty" }, asked: [])
-      expect(questions).to eq([described_class::Question.new(text:    "what identifies a Loyalty Member?",
-                                                             because: "no identity yet")])
+    def script(operation, answer)
+      Hecks::Adapters::ScriptedAgent.script(operation, answer)
     end
 
-    it "interpret returns Proposal structs shaped as Interview::Proposal Argument rows" do
-      Hecks::Adapters::ScriptedAgent.script(
-        :interpret,
-        { "proposals" => [{ "verb" => "Loyalty::Member.Declare", "rationale" => "named a new aggregate",
-                             "arguments" => [{ "name" => "name", "field" => "value", "value" => "Member" }] }] }
-      )
+    def critique
+      described_class.critique(registry, declared: {}, refusals: [], findings: [])
+    end
 
-      proposals = described_class.interpret(registry, prose: "a member has a loyalty tier", state: {})
-      expect(proposals.size).to eq(1)
-      expect(proposals.first.verb).to eq("Loyalty::Member.Declare")
-      expect(proposals.first.arguments).to eq([{ name: "name", field: "value", value: "Member" }])
+    def ask
+      described_class.ask(registry, state: {})
+    end
+
+    def interpret
+      described_class.interpret(registry, prose: "a member has a loyalty tier", state: {})
+    end
+
+    it "ask returns Question structs" do
+      script(:ask, { "questions" => [{ "text" => "what identifies a Loyalty Member?", "because" => "no identity yet" }] })
+
+      expect(described_class.ask(registry, state: { chapter: "Loyalty" }, asked: []))
+        .to eq([described_class::Question.new(text: "what identifies a Loyalty Member?", because: "no identity yet")])
+    end
+
+    describe "interpret returns Proposal structs shaped as Interview::Proposal Argument rows" do
+      before do
+        script(:interpret,
+               { "proposals" => [{ "verb" => "Loyalty::Member.Declare", "rationale" => "named a new aggregate",
+                                    "arguments" => [{ "name" => "name", "field" => "value", "value" => "Member" }] }] })
+      end
+
+      it "answers one proposal" do
+        expect(interpret.size).to eq(1)
+      end
+
+      it "names the verb" do
+        expect(interpret.first.verb).to eq("Loyalty::Member.Declare")
+      end
+
+      it "carries the arguments as rows" do
+        expect(interpret.first.arguments).to eq([{ name: "name", field: "value", value: "Member" }])
+      end
     end
 
     it "interpret tolerates a sentence with no declaration in it" do
-      Hecks::Adapters::ScriptedAgent.script(:interpret, { "proposals" => [] })
+      script(:interpret, { "proposals" => [] })
       expect(described_class.interpret(registry, prose: "why do you ask?", state: {})).to eq([])
     end
 
-    it "critique returns Finding structs, closed to the known kind and severity vocabularies" do
-      Hecks::Adapters::ScriptedAgent.script(
-        :critique,
-        { "findings" => [{ "kind" => "crud_verb", "severity" => "warning", "subject" => "Loyalty::Member.Update",
-                            "message" => "says nothing about what changed or why" }] }
-      )
+    describe "critique returns Finding structs, closed to the known kind and severity vocabularies" do
+      before do
+        script(:critique,
+               { "findings" => [{ "kind" => "crud_verb", "severity" => "warning", "subject" => "Loyalty::Member.Update",
+                                   "message" => "says nothing about what changed or why" }] })
+      end
 
-      findings = described_class.critique(registry, declared: {}, refusals: [], findings: [])
-      expect(findings.first.kind).to eq(:crud_verb)
-      expect(findings.first.severity).to eq(:warning)
+      it "closes the kind" do
+        expect(critique.first.kind).to eq(:crud_verb)
+      end
+
+      it "closes the severity" do
+        expect(critique.first.severity).to eq(:warning)
+      end
     end
 
     it "critique refuses a kind outside the closed vocabulary" do
-      Hecks::Adapters::ScriptedAgent.script(
-        :critique,
-        { "findings" => [{ "kind" => "bad_vibes", "severity" => "warning", "subject" => "x", "message" => "y" }] }
-      )
+      script(:critique, { "findings" => [{ "kind" => "bad_vibes", "severity" => "warning", "subject" => "x",
+                                           "message" => "y" }] })
 
-      expect { described_class.critique(registry, declared: {}, refusals: [], findings: []) }
-        .to raise_error(described_class::ValidationError, /not a critique kind/)
+      expect { critique }.to raise_error(described_class::ValidationError, /not a critique kind/)
     end
 
-    it "suggest_name returns Suggestion structs, rejected near-misses included" do
-      Hecks::Adapters::ScriptedAgent.script(
-        :name, { "names" => [{ "name" => "TierChanged", "because" => "past tense, the language's own convention",
-                                "rejected" => ["TierChange", "ChangeTier"] }] }
-      )
+    describe "suggest_name returns Suggestion structs, rejected near-misses included" do
+      let(:suggestions) do
+        described_class.suggest_name(registry, meaning: "a member's tier moved", kind: "event", near: [])
+      end
 
-      suggestions = described_class.suggest_name(registry, meaning: "a member's tier moved", kind: "event", near: [])
-      expect(suggestions.first.name).to eq("TierChanged")
-      expect(suggestions.first.rejected).to eq(["TierChange", "ChangeTier"])
+      before do
+        script(:name, { "names" => [{ "name" => "TierChanged", "because" => "past tense, the language's own convention",
+                                       "rejected" => ["TierChange", "ChangeTier"] }] })
+      end
+
+      it "names the suggestion" do
+        expect(suggestions.first.name).to eq("TierChanged")
+      end
+
+      it "keeps the rejected near-misses" do
+        expect(suggestions.first.rejected).to eq(["TierChange", "ChangeTier"])
+      end
     end
 
     it "a malformed answer raises ValidationError rather than a bare Ruby error" do
-      Hecks::Adapters::ScriptedAgent.script(:ask, { "questions" => [{ "because" => "no text at all" }] })
-      expect { described_class.ask(registry, state: {}) }
-        .to raise_error(described_class::ValidationError, /"text"/)
+      script(:ask, { "questions" => [{ "because" => "no text at all" }] })
+      expect { ask }.to raise_error(described_class::ValidationError, /"text"/)
     end
 
     it "an exhausted queue raises Unavailable, not a silent nil" do
-      expect { described_class.ask(registry, state: {}) }.to raise_error(described_class::Unavailable, /no ask answer queued/)
+      expect { ask }.to raise_error(described_class::Unavailable, /no ask answer queued/)
     end
   end
 end

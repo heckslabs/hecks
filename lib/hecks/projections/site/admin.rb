@@ -83,13 +83,17 @@ module Hecks
         private
 
         def typed_fields(row, problems)
-          unknown = row.keys - FIELDS.keys
-          problems << "Admin row has no field #{unknown.join(", ")}; fields are #{FIELDS.keys.join(", ")}" if unknown.any?
-          (REQUIRED - row.keys).each { |field| problems << "Admin row needs #{field}" }
+          check_fields(row, problems)
           row.slice(*FIELDS.keys).select do |field, value|
             value.is_a?(FIELDS.fetch(field)) ||
               (problems << "Admin row has #{field} #{value.inspect}; #{field} is a #{FIELDS.fetch(field)}")
           end
+        end
+
+        def check_fields(row, problems)
+          unknown = row.keys - FIELDS.keys
+          problems << "Admin row has no field #{unknown.join(", ")}; fields are #{FIELDS.keys.join(", ")}" if unknown.any?
+          (REQUIRED - row.keys).each { |field| problems << "Admin row needs #{field}" }
         end
 
         def check(rows, problems)
@@ -127,12 +131,14 @@ module Hecks
         # The hand-off to the content system is an admin endpoint: it answers only an admin.
         def check_sso(rows, problems)
           row = rows.find { |candidate| candidate.path == setting.sso }
-          if row.nil?
-            problems << "Admin sso #{setting.sso} is not a route of the table"
-          else
-            problems << "Admin sso #{setting.sso} is #{row.auth}; it must be admin" unless row.auth == "admin"
-            problems << "Admin sso #{setting.sso} is a #{row.kind}; it must be an endpoint" unless row.kind == "endpoint"
-          end
+          return problems << "Admin sso #{setting.sso} is not a route of the table" if row.nil?
+
+          check_sso_row(row, problems)
+        end
+
+        def check_sso_row(row, problems)
+          problems << "Admin sso #{setting.sso} is #{row.auth}; it must be admin" unless row.auth == "admin"
+          problems << "Admin sso #{setting.sso} is a #{row.kind}; it must be an endpoint" unless row.kind == "endpoint"
         end
       end
     end

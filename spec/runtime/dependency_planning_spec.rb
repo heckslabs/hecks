@@ -9,13 +9,13 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     Hecks::Bluebook::Mutation.new(target: target, op: oper, source: source)
   end
 
-  let(:sku) { field(:sku, String) }
-  let(:label) { field(:label, String) }
-  let(:quantity) { field(:quantity, Integer) }
-  let(:amount) { field(:amount, Integer) }
+  def sku = @sku ||= field(:sku, String)
+  def label = @label ||= field(:label, String)
+  def quantity = @quantity ||= field(:quantity, Integer)
+  def amount = @amount ||= field(:amount, Integer)
 
-  let(:register) do
-    Hecks::Bluebook::Command.declare(
+  def register
+    @register ||= Hecks::Bluebook::Command.declare(
       name:       "Register",
       attributes: [sku, label, quantity],
       mutations:  [
@@ -26,38 +26,29 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     )
   end
 
-  let(:restock) do
-    Hecks::Bluebook::Command.declare(
+  def rule(description, canonical) = Hecks::Bluebook::Given.new(description: description, canonical: canonical)
+
+  def restock
+    @restock ||= Hecks::Bluebook::Command.declare(
       name:       "Restock",
       attributes: [amount],
-      givens:     [
-        Hecks::Bluebook::Given.new(
-          description: "the amount is positive",
-          canonical:   "amount > 0"
-        )
-      ],
-      ensures:    [
-        Hecks::Bluebook::Given.new(
-          description: "the stock grew by the amount",
-          canonical:   "quantity == old.quantity + amount"
-        )
-      ],
+      givens:     [rule("the amount is positive", "amount > 0")],
+      ensures:    [rule("the stock grew by the amount", "quantity == old.quantity + amount")],
       mutations:  [mutation(:quantity, :increment, :amount)]
     )
   end
 
-  let(:inventory_item) do
-    Hecks::Bluebook::Aggregate.new(
+  def never_negative
+    Hecks::Bluebook::Invariant.new(description: "stock is never negative", canonical: "quantity >= 0")
+  end
+
+  def inventory_item
+    @inventory_item ||= Hecks::Bluebook::Aggregate.new(
       name:          "InventoryItem",
       attributes:    [sku, label, quantity],
       commands:      [register, restock],
       identified_by: [:sku],
-      invariants:    [
-        Hecks::Bluebook::Invariant.new(
-          description: "stock is never negative",
-          canonical:   "quantity >= 0"
-        )
-      ]
+      invariants:    [never_negative]
     )
   end
 
@@ -65,73 +56,90 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     described_class::Analyzer.call(aggregate: inventory_item, command: command)
   end
 
-  it "proves a complete replacement from canonical expressions and mutations" do
+  it "proves a complete replacement's reads and writes from canonical expressions and mutations", :aggregate_failures do
     register_plan = plan(register)
 
     expect(register_plan.read_set).to eq([])
     expect(register_plan.payload_read_set).to eq(%i[label quantity sku])
     expect(register_plan.write_set).to eq(%i[label quantity sku])
+  end
+
+  it "proves a complete replacement is complete, state independent and fully resolved", :aggregate_failures do
+    register_plan = plan(register)
+
     expect(register_plan).to be_complete_state
     expect(register_plan).to be_state_independent
     expect(register_plan.unresolved_dependencies).to eq([])
   end
 
-  it "keeps a partial state-dependent mutation on the correctness path" do
+  it "reads the stored state a partial mutation depends on", :aggregate_failures do
     restock_plan = plan(restock)
 
     expect(restock_plan.read_set).to eq(%i[label quantity sku])
     expect(restock_plan.payload_read_set).to eq([:amount])
     expect(restock_plan.write_set).to eq([:quantity])
+  end
+
+  it "keeps a partial state-dependent mutation on the correctness path", :aggregate_failures do
+    restock_plan = plan(restock)
+
     expect(restock_plan).not_to be_complete_state
     expect(restock_plan).not_to be_state_independent
     expect(restock_plan.strategy_for(capabilities: [:atomic_put]))
       .to eq(:load_apply_validate_store)
   end
 
-  it "requires both a semantic proof and adapter capability before recommending atomic put" do
+  it "requires both a semantic proof and adapter capability before recommending atomic put", :aggregate_failures do
     register_plan = plan(register)
 
     expect(register_plan.strategy_for).to eq(:load_apply_validate_store)
     expect(register_plan.strategy_for(capabilities: [:atomic_put])).to eq(:atomic_put)
   end
 
-  it "counts deterministic fresh-instance defaults without calling them command mutations" do
-    notes = Hecks::Bluebook::Attribute.new(name: :notes, type: String, list: true)
-    nickname = Hecks::Bluebook::Attribute.new(name: :nickname, type: String, optional: true)
-    enabled = Hecks::Bluebook::Attribute.new(name: :enabled, type: TrueClass, default: true)
-    aggregate = Hecks::Bluebook::Aggregate.new(
-      name:          "DefaultedItem",
-      attributes:    [sku, notes, nickname, enabled],
-      commands:      [],
-      identified_by: [:sku]
-    )
-    command = Hecks::Bluebook::Command.declare(
-      name:       "Register",
-      attributes: [sku],
-      mutations:  [mutation(:sku, :set, :sku)]
-    )
+  describe "fresh-instance defaults" do
+    def defaulted_aggregate
+      notes = Hecks::Bluebook::Attribute.new(name: :notes, type: String, list: true)
+      nickname = Hecks::Bluebook::Attribute.new(name: :nickname, type: String, optional: true)
+      enabled = Hecks::Bluebook::Attribute.new(name: :enabled, type: TrueClass, default: true)
+      Hecks::Bluebook::Aggregate.new(
+        name:          "DefaultedItem",
+        attributes:    [sku, notes, nickname, enabled],
+        commands:      [],
+        identified_by: [:sku]
+      )
+    end
 
-    defaulted_plan = described_class::Analyzer.call(aggregate: aggregate, command: command)
+    def defaulted_plan
+      command = Hecks::Bluebook::Command.declare(
+        name:       "Register",
+        attributes: [sku],
+        mutations:  [mutation(:sku, :set, :sku)]
+      )
+      described_class::Analyzer.call(aggregate: defaulted_aggregate, command: command)
+    end
 
-    expect(defaulted_plan.read_set).to eq([])
-    expect(defaulted_plan.write_set).to eq([:sku])
-    expect(defaulted_plan).to be_complete_state
-    expect(defaulted_plan).to be_state_independent
+    it "counts deterministic fresh-instance defaults without calling them command mutations", :aggregate_failures do
+      expect(defaulted_plan.read_set).to eq([])
+      expect(defaulted_plan.write_set).to eq([:sku])
+      expect(defaulted_plan).to be_complete_state
+      expect(defaulted_plan).to be_state_independent
+    end
   end
 
   # EntityInterpreter passes the entity as `aggregate:`, but `parent.X` in a given or
   # ensures names the root aggregate's field, hence `root_aggregate:`.
   describe "an entity-owned command's own parent.* reads" do
-    let(:status) { field(:status, String) }
-    let(:narrative) { field(:narrative, String) }
+    def status = @status ||= field(:status, String)
+    def narrative = @narrative ||= field(:narrative, String)
 
-    let(:root_aggregate) do
-      Hecks::Bluebook::Aggregate.new(name: "Account", attributes: [status, field(:number, String)], commands: [],
-                                     identified_by: [:number])
+    def root_aggregate
+      @root_aggregate ||= Hecks::Bluebook::Aggregate.new(
+        name: "Account", attributes: [status, field(:number, String)], commands: [], identified_by: [:number]
+      )
     end
 
-    let(:amend) do
-      Hecks::Bluebook::Command.declare(
+    def amend
+      @amend ||= Hecks::Bluebook::Command.declare(
         name:       "Amend",
         attributes: [narrative],
         givens:     [Hecks::Bluebook::Given.new(description: "account is open", canonical: 'parent.status == "open"')],
@@ -139,8 +147,8 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
       )
     end
 
-    let(:ledger_entry) do
-      Hecks::Bluebook::Entity.declare(name: "LedgerEntry", attributes: [narrative], commands: [amend])
+    def ledger_entry
+      @ledger_entry ||= Hecks::Bluebook::Entity.declare(name: "LedgerEntry", attributes: [narrative], commands: [amend])
     end
 
     it "resolves against the ENTITY's own fields when no root_aggregate is given — the pre-fix, still-real " \
@@ -151,7 +159,7 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     end
 
     it "resolves parent.* against the ROOT aggregate's own fields when root_aggregate: is given, matching " \
-       "EntityInterpreter's real call site" do
+       "EntityInterpreter's real call site", :aggregate_failures do
       plan = described_class::Analyzer.call(aggregate: ledger_entry, command: amend, root_aggregate: root_aggregate)
 
       expect(plan.unresolved_dependencies).to eq([])
@@ -162,7 +170,14 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
   describe Hecks::Runtime::DependencyPlanning::ExpressionReads do
     let(:evaluator) { Hecks::Bluebook::Expression::Evaluator }
 
-    it "answers the paths a rule reads, the same on every ask" do
+    def concurrent_answers
+      threads = Array.new(8) do |n|
+        Thread.new { Array.new(50) { described_class.paths("thread_probe_#{n % 3} > 0") } }
+      end
+      threads.flat_map(&:value)
+    end
+
+    it "answers the paths a rule reads, the same on every ask", :aggregate_failures do
       first = described_class.paths("amount > 0 && parent.limit > amount")
 
       expect(first).to eq(%w[amount parent.limit amount])
@@ -171,22 +186,26 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
 
     it "parses a rule's text once, however many times a command is analyzed" do
       text = "quantity_unique_to_this_example > 0"
-      expect(evaluator).to receive(:parse).with(text).once.and_call_original
+      allow(evaluator).to receive(:parse).and_call_original
 
       3.times { described_class.paths(text) }
+
+      expect(evaluator).to have_received(:parse).with(text).once
     end
 
     it "hands out a frozen answer, so one caller cannot change what the next reads" do
       expect(described_class.paths("frozen_probe > 0")).to be_frozen
     end
 
-    it "never remembers a text that fails to parse" do
-      expect(evaluator).to receive(:parse).with("broken_probe ???").twice.and_raise(ArgumentError, "unparseable")
+    it "never remembers a text that fails to parse", :aggregate_failures do
+      allow(evaluator).to receive(:parse).with("broken_probe ???").and_raise(ArgumentError, "unparseable")
 
       2.times { expect { described_class.paths("broken_probe ???") }.to raise_error(ArgumentError) }
+
+      expect(evaluator).to have_received(:parse).with("broken_probe ???").twice
     end
 
-    it "stays bounded however many distinct texts are asked" do
+    it "stays bounded however many distinct texts are asked", :aggregate_failures do
       stub_const("#{described_class}::PATHS_CACHE_LIMIT", 3)
       cache = described_class.const_get(:PATHS_CACHE)
 
@@ -196,11 +215,8 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
       expect(described_class.paths("bound_probe_9 > 0")).to eq(%w[bound_probe_9])
     end
 
-    it "answers the same frozen paths to concurrent dispatch threads" do
-      threads = Array.new(8) do |n|
-        Thread.new { Array.new(50) { described_class.paths("thread_probe_#{n % 3} > 0") } }
-      end
-      answers = threads.flat_map(&:value)
+    it "answers the same frozen paths to concurrent dispatch threads", :aggregate_failures do
+      answers = concurrent_answers
 
       expect(answers).to all(be_frozen)
       expect(answers.uniq.size).to eq(3)

@@ -92,6 +92,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end
   end
 
+  # The record queries every Codebase aggregate shares, which no row of the table names.
+  ADR_OUTCOME_VERBS = %w[language_outcome kernel_outcome conformance_outcome regeneration_outcome style_outcome
+                         codemod_outcome test_suite_outcome corpus_outcome publishing_outcome].freeze
+  ADR_FAULTED_VERBS = %w[language_faulted kernel_faulted conformance_faulted regeneration_faulted style_faulted
+                         codemod_faulted test_suite_faulted corpus_faulted publishing_faulted].freeze
+
   # The launcher's name for each verb: its aggregate, snake-cased, then the verb (`style_run.fix_comments`).
   def qualified_names
     CODEBASE_RECORDS.flat_map do |name|
@@ -106,7 +112,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
 
   ADR_CODEBASE_ROWS.each do |row|
     row.verbs.each do |verb|
-      it "answers #{row.script} with `hecks #{verb}`, called with its aggregate" do
+      it "answers #{row.script} with `hecks #{verb}`, called with its aggregate", :aggregate_failures do
         qualified = qualified_names.fetch(verb)
         out, status = launch([qualified, "--help"])
 
@@ -116,20 +122,14 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end
   end
 
-  it "lists each script once, and every deliberate difference in words" do
+  it "lists each script once, and every deliberate difference in words", :aggregate_failures do
     expect(ADR_CODEBASE_ROWS.map(&:script).uniq.size).to eq(ADR_CODEBASE_ROWS.size)
     expect(ADR_CODEBASE_ROWS.flat_map(&:verbs).uniq.size).to eq(ADR_CODEBASE_ROWS.sum { |row| row.verbs.size })
     expect(ADR_CODEBASE_ROWS.filter_map(&:note)).to all(be_a(String))
   end
 
   it "leaves no Codebase command or query that no row accounts for" do
-    listed = ADR_CODEBASE_ROWS.flat_map(&:verbs)
-    outcomes = %w[language_outcome kernel_outcome conformance_outcome regeneration_outcome style_outcome
-                  codemod_outcome test_suite_outcome corpus_outcome publishing_outcome]
-    faults = %w[language_faulted kernel_faulted conformance_faulted regeneration_faulted style_faulted
-                codemod_faulted test_suite_faulted corpus_faulted publishing_faulted]
-
-    unaccounted = domain_verbs - listed - outcomes - faults
+    unaccounted = domain_verbs - ADR_CODEBASE_ROWS.flat_map(&:verbs) - ADR_OUTCOME_VERBS - ADR_FAULTED_VERBS
 
     expect(unaccounted).to eq([]), "verbs with no row of the ADR table: #{unaccounted.join(", ")}"
   end

@@ -1,8 +1,22 @@
 require "spec_helper"
+require_relative "../../support/memory_ports"
 
 # A `provides` verb of kind `:port_operation` is spelled at build time and checked by verify!,
 # since the hecksagon attaches later. No real capability uses the kind, so it is stubbed.
 RSpec.describe "a provides verb naming a port operation" do
+  PROBE_PAYMENT_BODY = proc do
+    identified_by :reference
+    attribute :reference, Reference
+    value_object "Reference" do
+      attribute :value, String
+    end
+    command "Open" do
+      goal "open"
+      attribute :reference, Reference
+      sets :reference
+    end
+  end
+
   before do
     stub_const("Hecks::Bluebook::Capabilities::CONTRACTS",
                { "settlement" => { settled: :port_operation }.freeze }.freeze)
@@ -13,18 +27,7 @@ RSpec.describe "a provides verb naming a port operation" do
       vision "probe"
       supporting
       provides "settlement", settled: verb
-      aggregate "Payment" do
-        identified_by :reference
-        attribute :reference, Reference
-        value_object "Reference" do
-          attribute :value, String
-        end
-        command "Open" do
-          goal "open"
-          attribute :reference, Reference
-          sets :reference
-        end
-      end
+      aggregate "Payment", &PROBE_PAYMENT_BODY
     end
   end
 
@@ -43,8 +46,7 @@ RSpec.describe "a provides verb naming a port operation" do
   def registry_providing(verb, port_operation: "Settled")
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |path| Kernel.load(path) }
+      MemoryPorts.load!
       probe_chapter(verb)
       probe_hecksagon(port_operation)
     end

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "fields/definitions"
+require_relative "fields/readers"
 
 module Hecks
   module Projections
@@ -84,19 +86,23 @@ module Hecks
 
           def aggregate(agg, rows)
             var = "#{agg.noun[0].downcase}#{agg.noun[1..]}"
-            fields = fields_of(agg, rows).map { |name, text| "  #{name}: #{text}," }.join("\n")
-            inputs = agg.attrs.map { |attr| "  #{attr.ts}: #{input(attr, row_for(rows, attr.name), rows)}," }.join("\n")
             <<~TS.chomp
               // ---- #{agg.noun} ----
 
               export const #{var}Fields = {
-              #{fields}
+              #{fields_block(agg, rows)}
               } satisfies Record<string, Field>;
 
               export const #{var}FromDoc = async (req: PayloadRequest, doc: Doc): Promise<#{agg.noun}Input> => ({
-              #{inputs}
+              #{inputs_block(agg, rows)}
               });
             TS
+          end
+
+          def fields_block(agg, rows) = fields_of(agg, rows).map { |name, text| "  #{name}: #{text}," }.join("\n")
+
+          def inputs_block(agg, rows)
+            agg.attrs.map { |attr| "  #{attr.ts}: #{Readers.input(attr, row_for(rows, attr.name), rows)}," }.join("\n")
           end
 
           def row_for(rows, attribute, part = nil)
@@ -115,117 +121,14 @@ module Hecks
 
           def field(_agg, attr, row, rows)
             name = field_name(attr, row)
-            return composite(attr, row, name, rows) if attr.shape == :composite
-            return array(attr, row, name) if attr.list
+            return Definitions.composite(attr, row, name, rows) if attr.shape == :composite
+            return Definitions.array(attr, row, name) if attr.list
 
-            literal(base(attr, row, name, !attr.optional))
+            Definitions.literal(Definitions.base(attr, row, name, !attr.optional))
           end
 
           def kind_of(attr, row)
             row[:kind] || (attr.shape == :integer ? "number" : "text")
-          end
-
-          def base(attr, row, name, required)
-            kind = kind_of(attr, row)
-            required = row[:required] if row.key?(:required)
-            pairs = [["name", name.to_json], ["type", KINDS.fetch(kind).to_json]]
-            pairs << ["required", "true"] if required
-            pairs << ["unique", "true"] if attr.name == "slug"
-            pairs << ["defaultValue", row[:default].to_json] if row[:default]
-            pairs.concat(extras(kind, row))
-          end
-
-          def extras(kind, row, describe: true)
-            pairs = []
-            pairs << ["options", options(row[:options])] if kind == "select" && row[:options]
-            pairs << ["relationTo", row[:relation].to_json] if row[:relation]
-            admin = []
-            admin << ["description", row[:description].to_json] if describe && row[:description]
-            if KINDS[kind] == "date"
-              admin << ["date",
-                        "{ pickerAppearance: #{(kind == "day" ? "dayOnly" : "dayAndTime").to_json} }"]
-            end
-            pairs << ["admin", "{ #{admin.map { |key, value| "#{key}: #{value}" }.join(", ")} }"] if admin.any?
-            pairs
-          end
-
-          def options(text)
-            items = text.split(",").map(&:strip).reject(&:empty?).map do |item|
-              value, label = item.split("=", 2)
-              label ? "{ label: #{label.to_json}, value: #{value.to_json} }" : value.to_json
-            end
-            "[#{items.join(", ")}]"
-          end
-
-          def literal(pairs) = "{ #{pairs.map { |key, value| "#{key}: #{value}" }.join(", ")} }"
-
-          def array(_attr, row, name)
-            kind = row[:kind] || "text"
-            element = literal([["name", '"value"'], ["type", KINDS.fetch(kind).to_json], ["required", "true"],
-                               *extras(kind, row, describe: false)])
-            pairs = [["name", name.to_json], ["type", '"array"']]
-            pairs << ["labels", labels(row[:label])] if row[:label]
-            pairs << ["admin", "{ description: #{row[:description].to_json} }"] if row[:description]
-            pairs << ["fields", "[#{element}]"]
-            literal(pairs)
-          end
-
-          def labels(text)
-            singular, plural = text.split("|", 2)
-            "{ singular: #{singular.to_json}, plural: #{(plural || "#{singular}s").to_json} }"
-          end
-
-          def composite(attr, row, name, rows)
-            subs = attr.parts.map do |part|
-              part_row = row_for(rows, attr.name, part.name)
-              literal(base(part, part_row.merge(required: part_row.fetch(:required, true)), part.ts, true))
-            end
-            pairs = [["name", name.to_json], ["type", '"array"']]
-            pairs << ["labels", labels(row[:label])] if row[:label]
-            pairs << ["admin", "{ description: #{row[:description].to_json} }"] if row[:description]
-            pairs << ["fields", "[#{subs.join(", ")}]"]
-            literal(pairs)
-          end
-
-          def input(attr, row, rows)
-            return composite_input(attr, rows) if attr.shape == :composite
-
-            name = row[:field] || attr.ts
-            kind = kind_of(attr, row)
-            return list_input(name, kind) if attr.list
-
-            scalar_input(attr, row, name, kind)
-          end
-
-          def list_input(name, kind) = "valuesOf(doc.#{name}, #{kind == "date" ? "isoOrNull" : "nonBlank"})"
-
-          def scalar_input(attr, row, name, kind)
-            case kind
-            when "upload", "relationship"
-              via = row[:via] || (kind == "upload" ? "url" : "slug")
-              "await related(req, #{row[:relation].to_json}, doc.#{name}, #{via.to_json})"
-            when "date", "day" then date_input(attr, name, kind)
-            when "number" then attr.optional ? "doc.#{name} == null ? null : Number(doc.#{name})" : "Number(doc.#{name})"
-            else attr.optional ? "nonBlank(doc.#{name})" : "String(doc.#{name})"
-            end
-          end
-
-          def date_input(attr, name, kind)
-            return "isoOrNull(doc.#{name})#{' ?? ""' unless attr.optional}" unless attr.shape == :integer || kind == "day"
-
-            stamp = "doc.#{name} ? new Date(doc.#{name} as string).getTime() : Date.now()"
-            "Math.floor((#{stamp}) / 1000)"
-          end
-
-          def composite_input(attr, rows)
-            parts = attr.parts.map { |part| "#{part.ts}: #{part_input(part, row_for(rows, attr.name, part.name))}" }.join(", ")
-            "(Array.isArray(doc.#{attr.ts}) ? doc.#{attr.ts} : []).map((raw) => { const s = raw as Doc; return { #{parts} }; })"
-          end
-
-          def part_input(part, row)
-            return "isoOrNull(s.#{part.ts}) ?? \"\"" if KINDS[row[:kind]] == "date"
-
-            "nonBlank(s.#{part.ts}) ?? \"\""
           end
         end
       end

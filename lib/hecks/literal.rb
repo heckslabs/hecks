@@ -1,3 +1,5 @@
+require_relative "literal/item_splitter"
+
 module Hecks
   # A mutation source that reads the record's own state: `append: { knights: state(:knights) }`.
   # A bare Symbol in a mutation source names a command argument, so this is the only way to say it.
@@ -23,12 +25,19 @@ module Hecks
       when Symbol then ":#{value}"
       when String then quote(value)
       when StateRef, true, false, Integer, Float then value.to_s
-      when Hash   then "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(", ")}}"
-      when Array  then "[#{value.map { |held| render(held) }.join(", ")}]"
+      when Hash, Array then render_collection(value)
       else
         raise ArgumentError, "#{value.class} has no pinned literal spelling — teach Literal.render one " \
                              "rather than letting #to_s decide it"
       end
+    end
+
+    # @param value [Hash, Array] a collection to render
+    # @return [String] `{key: value}` for a Hash, `[value, ...]` for an Array, each element rendered
+    def render_collection(value)
+      return "[#{value.map { |held| render(held) }.join(", ")}]" if value.is_a?(Array)
+
+      "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(", ")}}"
     end
 
     # Parses a wire spelling back into a Ruby value; the exact inverse of `render`.
@@ -37,23 +46,29 @@ module Hecks
     # @param text [String, #to_s] wire spelling produced by `render`, or a bare word
     # @return [Object] nil, true, false, Integer, Float, Symbol, StateRef, String,
     #   Hash, or Array — or `text` itself, stripped, when it matches no known spelling
-    # rubocop:disable-next Metrics/CyclomaticComplexity
-    # rubocop:disable-next Metrics/PerceivedComplexity
     def read(text)
       raw = text.to_s.strip
       return nil if raw.empty? || raw == "nil"
-      return true if raw == "true"
-      return false if raw == "false"
-      return raw.to_i if raw.match?(/\A-?\d+\z/)
-      return raw.to_f if raw.match?(/\A-?\d+\.\d+\z/)
-      return raw[1..].to_sym if raw.start_with?(":")
-      return StateRef.new(raw[7..-2].to_sym) if raw.match?(/\Astate\(:[A-Za-z_][A-Za-z0-9_]*\)\z/)
-      return unquote(raw) if quoted?(raw)
-      return read_hash(raw) if raw.start_with?("{") && raw.end_with?("}")
-      return read_array(raw) if raw.start_with?("[") && raw.end_with?("]")
+      return KEYWORD_VALUES[raw] if KEYWORD_VALUES.key?(raw)
 
+      READERS.each { |matches, convert| return convert.call(raw) if matches.call(raw) }
       raw
     end
+
+    # The words that read as `true` and `false`.
+    KEYWORD_VALUES = { "true" => true, "false" => false }.freeze
+
+    # Each spelling `read` recognizes after the keywords, in the order it tries them: whether the
+    # text is that spelling, and how to turn it into its value.
+    READERS = [
+      [->(raw) { raw.match?(/\A-?\d+\z/) }, :to_i.to_proc],
+      [->(raw) { raw.match?(/\A-?\d+\.\d+\z/) }, :to_f.to_proc],
+      [->(raw) { raw.start_with?(":") }, ->(raw) { raw[1..].to_sym }],
+      [->(raw) { raw.match?(/\Astate\(:[A-Za-z_][A-Za-z0-9_]*\)\z/) }, ->(raw) { StateRef.new(raw[7..-2].to_sym) }],
+      [->(raw) { quoted?(raw) }, ->(raw) { unquote(raw) }],
+      [->(raw) { raw.start_with?("{") && raw.end_with?("}") }, ->(raw) { read_hash(raw) }],
+      [->(raw) { raw.start_with?("[") && raw.end_with?("]") }, ->(raw) { read_array(raw) }]
+    ].freeze
 
     ESCAPED = { '"' => '\\"', "\\" => "\\\\" }.freeze
 
@@ -96,30 +111,6 @@ module Hecks
     #
     # @param body [String] the text between a literal's outer braces or brackets
     # @return [Array<String>] each item's raw text, stripped, with empty items dropped
-    def split_items(body)
-      items = []
-      current = +""
-      depth = 0
-      quoting = false
-      escaping = false
-
-      body.each_char do |char|
-        current << char
-        next (escaping = false) if escaping
-        next (escaping = true) if quoting && char == "\\"
-        next (quoting = !quoting) if char == '"'
-        next if quoting
-
-        depth += 1 if "{[".include?(char)
-        depth -= 1 if "}]".include?(char)
-        next unless char == "," && depth.zero?
-
-        current.chop!
-        items << current
-        current = +""
-      end
-      items << current
-      items.map(&:strip).reject(&:empty?)
-    end
+    def split_items(body) = ItemSplitter.new(body).call
   end
 end

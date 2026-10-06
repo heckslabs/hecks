@@ -1,4 +1,5 @@
 require_relative "behaviour/aggregate"
+require_relative "keyword_fields"
 require_relative "expression/ast_json"
 
 module Hecks
@@ -43,28 +44,21 @@ module Hecks
                   :projected_fields, :identified_by, :identity_paths, :identity_heads, :lifecycle,
                   :entities, :queries, :policies, :ports, :reference_targets, :provenance
 
+      # Every optional field and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        description: nil, attributes: [], value_objects: [], commands: [], invariants: [],
+        preconditions: [], projected_fields: [], identified_by: [], lifecycle: nil, entities: [],
+        queries: [], policies: [], ports: [], reference_targets: [], provenance: nil
+      }.freeze
+
       # Assigns the declared fields, then `settle` derives identity, name indexes and owner stamps.
-      def initialize(name:, description: nil, attributes: [], value_objects: [],
-                     commands: [], invariants: [], preconditions: [], projected_fields: [], identified_by: [], lifecycle: nil,
-                     entities: [], queries: [], policies: [], ports: [], reference_targets: [],
-                     provenance: nil)
-        @name              = name.to_s
-        @hecks_name        = @name
-        @description       = description
-        @attributes        = attributes
-        @value_objects     = value_objects
-        @commands          = commands
-        @invariants        = invariants
-        @preconditions     = preconditions
-        @projected_fields  = projected_fields
-        @identified_by     = identified_by
-        @lifecycle         = lifecycle
-        @entities          = entities
-        @queries           = queries
-        @policies          = policies
-        @ports             = ports
-        @reference_targets = reference_targets
-        @provenance        = provenance
+      #
+      # @param name [String, Symbol] the aggregate's name
+      # @param given [Hash] any key of `FIELD_DEFAULTS`; an unknown key raises `ArgumentError`
+      def initialize(name:, **given)
+        @name       = name.to_s
+        @hecks_name = @name
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
 
         settle
       end

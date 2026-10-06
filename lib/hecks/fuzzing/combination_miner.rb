@@ -25,28 +25,39 @@ module Hecks
       end
 
       def brief(paths, root:, bug_titles:)
+        covered, skipped = census_paths(paths, root)
+        { "forms" => FormCensus::FORMS.keys, "corpus" => paths.map { |path| relative(path, root) },
+          "unmet_pairs" => (FormCensus.pairs - covered.keys).sort,
+          "single_carrier_pairs" => single_carrier_pairs(covered),
+          "skipped" => skipped, "recent_bugs" => bug_titles, "covered" => covered }
+      end
+
+      def census_paths(paths, root)
         covered = Hash.new { |hash, key| hash[key] = [] }
         skipped = []
         paths.each do |path|
           FormCensus.covered_pairs(FormCensus.census(path)).each { |pair, names| covered[pair].concat(names) }
         rescue StandardError, ScriptError => e
-          skipped << "#{relative(path, root)} (#{e.class}: #{e.message.lines.first&.strip})"
+          skipped << skip_note(relative(path, root), e)
         end
-        { "forms" => FormCensus::FORMS.keys, "corpus" => paths.map { |path| relative(path, root) },
-          "unmet_pairs" => (FormCensus.pairs - covered.keys).sort,
-          "single_carrier_pairs" => covered.select { |_, names| names.uniq.size == 1 }
-                                           .map { |pair, names| "#{pair} (only #{names.first})" }.sort,
-          "skipped" => skipped, "recent_bugs" => bug_titles, "covered" => covered }
+        [covered, skipped]
+      end
+
+      def skip_note(path, error) = "#{path} (#{error.class}: #{error.message.lines.first&.strip})"
+
+      def single_carrier_pairs(covered)
+        covered.select { |_, names| names.uniq.size == 1 }.map { |pair, names| "#{pair} (only #{names.first})" }.sort
       end
 
       def prompt(root, brief, count:, out_dir:)
-        substitutions = {
-          "count" => count.to_s, "out_dir" => out_dir, "forms" => brief["forms"].join(", "),
-          "corpus" => bulleted(brief["corpus"]), "unmet_pairs" => bulleted(brief["unmet_pairs"]),
-          "single_carrier_pairs" => bulleted(brief["single_carrier_pairs"]),
-          "recent_bugs" => bulleted(brief["recent_bugs"]), "skipped" => bulleted(brief["skipped"])
-        }
+        substitutions = prompt_substitutions(brief, count, out_dir)
         File.read(File.join(root, PROMPT_TEMPLATE)).gsub(/\{\{(\w+)\}\}/) { substitutions.fetch(Regexp.last_match(1)) }
+      end
+
+      def prompt_substitutions(brief, count, out_dir)
+        lists = ["corpus", "unmet_pairs", "single_carrier_pairs", "recent_bugs", "skipped"]
+        lists.to_h { |key| [key, bulleted(brief[key])] }
+             .merge("count" => count.to_s, "out_dir" => out_dir, "forms" => brief["forms"].join(", "))
       end
 
       def repair_prompt(failures, out_dir:)

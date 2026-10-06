@@ -88,11 +88,7 @@ module Hecks
         end
 
         def services_block(settings)
-          arms = settings.containers.map do |container|
-            repository = Shellwords.escape(container.repository_name)
-            parameter = Shellwords.escape(container.tag_parameter)
-            "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
-          end
+          arms = settings.containers.map { |container| service_arm(container) }
           <<~BASH.chomp
             SERVICES='#{settings.containers.map(&:name).join(" ")}'
 
@@ -106,12 +102,18 @@ module Hecks
           BASH
         end
 
+        def service_arm(container)
+          repository = Shellwords.escape(container.repository_name)
+          parameter = Shellwords.escape(container.tag_parameter)
+          "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
+        end
+
         def render(template, values)
           text = File.read(File.join(SCRIPT_DIR, template))
           values.reduce(text) { |out, (marker, value)| out.gsub(/#?@@#{marker}@@/) { value } }
         end
 
-        private_class_method :stack_constants, :services_block, :render
+        private_class_method :stack_constants, :services_block, :service_arm, :render
       end
     end
   end

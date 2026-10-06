@@ -39,11 +39,11 @@ module Hecks
           @authoritative = authoritative
           @projection = projection
           @policy = policy.to_sym
-          unless VALID_POLICIES.include?(@policy)
-            raise ArgumentError,
-                  "unknown projection catch_up! policy #{@policy.inspect} — expected one of " \
-                  "#{VALID_POLICIES.map(&:inspect).join(" or ")}"
-          end
+          return if VALID_POLICIES.include?(@policy)
+
+          raise ArgumentError,
+                "unknown projection catch_up! policy #{@policy.inspect} — expected one of " \
+                "#{VALID_POLICIES.map(&:inspect).join(" or ")}"
         end
 
         # Appends and projects every authoritative entry the store lacks.
@@ -57,25 +57,15 @@ module Hecks
         def catch_up!
           return refresh! if @policy == :refresh
 
-          compacted_through = @authoritative.respond_to?(:compacted_through) ? @authoritative.compacted_through : 0
+          compacted_through = compacted_through_sequence
           present = @projection.entries
-          if present.length < compacted_through
-            raise Runtime::WiringError,
-                  ":strict catch-up needs journal history the authoritative store has already " \
-                  "compacted (through sequence #{compacted_through}, this projection has only " \
-                  "consumed #{present.length}) — use :refresh instead"
-          end
+          refuse_compacted!(compacted_through, present)
 
           entries = Queue.new(@authoritative).entries
           present_tail = present.drop(compacted_through)
-          unless consistent?(entries, present_tail)
-            raise Runtime::WiringError, "projection history does not match its authoritative history"
-          end
+          refuse_divergence!(entries, present_tail)
 
-          entries.drop(present_tail.length).each do |entry|
-            @projection.append(entry)
-            @projection.project(entry)
-          end
+          entries.drop(present_tail.length).each { |entry| apply(entry) }
           @projection
         end
 
@@ -83,14 +73,37 @@ module Hecks
 
         private
 
+        def compacted_through_sequence
+          @authoritative.respond_to?(:compacted_through) ? @authoritative.compacted_through : 0
+        end
+
+        def refuse_compacted!(compacted_through, present)
+          return unless present.length < compacted_through
+
+          raise Runtime::WiringError,
+                ":strict catch-up needs journal history the authoritative store has already " \
+                "compacted (through sequence #{compacted_through}, this projection has only " \
+                "consumed #{present.length}) — use :refresh instead"
+        end
+
+        def refuse_divergence!(entries, present_tail)
+          return if consistent?(entries, present_tail)
+
+          raise Runtime::WiringError, "projection history does not match its authoritative history"
+        end
+
+        def apply(entry)
+          @projection.append(entry)
+          @projection.project(entry)
+        end
+
         # Resets the store and rebuilds it from the aggregate's own current records — one
         # synthetic save per live record, never a replay of deleted or superseded history.
         def refresh!
           @projection.reset!
           @authoritative.all.each do |instance|
             entry = Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-            @projection.append(entry)
-            @projection.project(entry)
+            apply(entry)
           end
           @projection
         end

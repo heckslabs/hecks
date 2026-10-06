@@ -3,6 +3,43 @@ require "spec_helper"
 # A procedure coordinates; it is a saga when a leg also declares compensation.
 # `saga` is derived from that leg and never written in a .bluebook.
 RSpec.describe "a procedure, and when it is a saga" do
+  # Coordination only: ordered steps, no undo.
+  HIRING_DOMAIN = proc do
+    vision "Carry a candidate from application to offer."
+    supporting
+
+    aggregate "Candidate" do
+      identified_by :id
+      description "Somebody applying for a job."
+
+      attribute :stage, Stage
+
+      value_object "Stage" do
+        attribute :value, String
+        invariant("a stage is named") { !value.to_s.empty? }
+      end
+
+      command "Screen" do
+        role "Recruiter"
+        goal "Read the application"
+        reference_to Candidate
+        attribute :stage, Stage
+        sets :stage
+        emits "CandidateScreened"
+      end
+    end
+
+    process_manager "Pipeline" do
+      correlates_by :"candidate.id"
+      starts_on "CandidateApplied"
+      ends_on   "OfferAccepted"
+
+      transition "CandidateApplied" => "screened", from: "applied" do
+        dispatch Candidate::Screen, with: { candidate: :candidate }
+      end
+    end
+  end
+
   def in_registry
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -13,45 +50,8 @@ RSpec.describe "a procedure, and when it is a saga" do
     registry
   end
 
-  # Coordination only: ordered steps, no undo.
   def hiring
-    in_registry do
-      Hecks.bluebook("Hiring") do
-        vision "Carry a candidate from application to offer."
-        supporting
-
-        aggregate "Candidate" do
-          identified_by :id
-          description "Somebody applying for a job."
-
-          attribute :stage, Stage
-
-          value_object "Stage" do
-            attribute :value, String
-            invariant("a stage is named") { !value.to_s.empty? }
-          end
-
-          command "Screen" do
-            role "Recruiter"
-            goal "Read the application"
-            reference_to Candidate
-            attribute :stage, Stage
-            sets :stage
-            emits "CandidateScreened"
-          end
-        end
-
-        process_manager "Pipeline" do
-          correlates_by :"candidate.id"
-          starts_on "CandidateApplied"
-          ends_on   "OfferAccepted"
-
-          transition "CandidateApplied" => "screened", from: "applied" do
-            dispatch Candidate::Screen, with: { candidate: :candidate }
-          end
-        end
-      end
-    end.bluebook("Hiring").process_managers.first
+    in_registry { Hecks.bluebook("Hiring", &HIRING_DOMAIN) }.bluebook("Hiring").process_managers.first
   end
 
   # Banking's settlement compensates. Booted once per file; nothing dispatches.
@@ -69,13 +69,13 @@ RSpec.describe "a procedure, and when it is a saga" do
 
   attr_reader :settlement
 
-  it "is a procedure without being a saga, when nothing needs undoing" do
+  it "is a procedure without being a saga, when nothing needs undoing", :aggregate_failures do
     expect(hiring.handlers).not_to be_empty
     expect(hiring).not_to be_saga
     expect(hiring.saga).to be_nil
   end
 
-  it "is a saga once a leg says what makes a refusal good again" do
+  it "is a saga once a leg says what makes a refusal good again", :aggregate_failures do
     expect(settlement).to be_saga
     expect(settlement.saga.to_state).to eq("reversed")
     expect(settlement.saga.trigger).to eq("refused")

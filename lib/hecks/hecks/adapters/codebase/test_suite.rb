@@ -51,14 +51,33 @@ module Hecks
           case operation
           when "refresh_runtime_baseline" then refresh(args, tree)
           when "run_spec_example" then TestRunner.new(tree).run(file: args[:file], example: args[:example])
-          when "stress_concurrency"
-            answer { command("stress_concurrency_specs").call(stress_flags(args), root: tree.root) }
-          when "regenerate_legacy_fixtures"
-            SqliteFixture.new(tree, shell: shell).regenerate(confirm: args[:confirm] == true)
-          when "seed_semantics_corpus"
-            answer { command("seed_semantics_corpus").call(root: tree.root, env: seed_env(args)) }
+          when "stress_concurrency" then stress(args, tree)
+          when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
+          when "seed_semantics_corpus" then seed(args, tree)
           else write_list(args, tree)
           end
+        end
+
+        # @param args [Hash] `runs`, `parallel` and `seed_start`
+        # @param tree [Tree] the checkout
+        # @return [String] what the stress run printed
+        def stress(args, tree)
+          answer { command("stress_concurrency_specs").call(stress_flags(args), root: tree.root) }
+        end
+
+        # @param args [Hash] `confirm`
+        # @param tree [Tree] the checkout
+        # @param shell [#capture, nil] starts the fixtures' child process
+        # @return [String] what was regenerated, or (unconfirmed) what would be
+        def regenerate_fixtures(args, tree, shell)
+          SqliteFixture.new(tree, shell: shell).regenerate(confirm: args[:confirm] == true)
+        end
+
+        # @param args [Hash] `fixture`, perhaps absent
+        # @param tree [Tree] the checkout
+        # @return [String] what the seeding printed
+        def seed(args, tree)
+          answer { command("seed_semantics_corpus").call(root: tree.root, env: seed_env(args)) }
         end
 
         # A pure read: a listing, or the recorded pattern cases.

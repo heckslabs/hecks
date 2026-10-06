@@ -17,12 +17,12 @@ RSpec.describe "packages/hecks-client version" do
                                          "`npm version #{Hecks::VERSION} --no-git-tag-version` in packages/hecks-client"
   end
 
-  it "records that version in its lockfile too" do
+  it "records that version in its lockfile too", :aggregate_failures do
     expect(lockfile.fetch("version")).to eq(Hecks::VERSION)
     expect(lockfile.fetch("packages").fetch("").fetch("version")).to eq(Hecks::VERSION)
   end
 
-  it "is a public package named @hecks/client" do
+  it "is a public package named @hecks/client", :aggregate_failures do
     expect(manifest.fetch("name")).to eq("@hecks/client")
     expect(manifest.fetch("private")).to be(false)
   end

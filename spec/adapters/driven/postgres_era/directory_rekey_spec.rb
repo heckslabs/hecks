@@ -2,10 +2,13 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
+require_relative "../../../support/era_registry_loading"
 
 # Mints examples/directory's committed rekey edge against a real Postgres, seeded with
 # several distinct records (a `backfill` default could fit at most one, hence `compute`).
 RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
+  include EraRegistryLoading
+
   DIRECTORY_DB = "hecks_directory_rekey_spec".freeze
   DOMAIN_ROOT = File.expand_path("../../../../examples/directory", __dir__).freeze
 
@@ -47,20 +50,12 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     admin.close
   end
 
-  def load_registry(source, translation_source: nil)
-    registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    file = Tempfile.new(["directory-rekey-", ".bluebook"])
-    file.write(source)
-    file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-      eval(translation_source) if translation_source
-    end
-    registry
-  ensure
-    file&.close!
+  def scrub_database!
+    scrub = PG.connect(dbname: DIRECTORY_DB)
+    scrub.exec("DROP SCHEMA public CASCADE")
+    scrub.exec("CREATE SCHEMA public")
+    scrub.close
+    FencedOwner.own_public!(DIRECTORY_DB)
   end
 
   def check!(source, translation_source: nil)
@@ -77,58 +72,72 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     Hecks::Adapters::PostgresEra.new(aggregate: member, settings: { database: DIRECTORY_DB, domain: "Directory" })
   end
 
-  # One scenario: splitting would re-pay the real-Postgres seed/mint setup or
-  # separate the approval gate from the multi-row proof.
-  # rubocop:disable-next RSpec/ExampleLength
-  it "mints the committed edge — a real compute+rekey pair, agreeing on more than one row" do
+  MEMBERS_BY_EMAIL = {
+    "ada.lovelace@example.com" => ["Ada Lovelace", "Engineer"],
+    "grace.hopper@example.com" => ["Grace Hopper", "Rear Admiral"],
+    "grace.chen@example.com"   => ["Grace Chen", "Analyst"]
+  }.freeze
+
+  # Era 1 with several distinct records saved, so the rekey is proven on more than one row.
+  def seed_era_one!
     registry = check!(ERA_1_SOURCE)
     adapter = adapter_for(registry)
     member = registry.bluebooks.values.first.aggregate("Member")
-
-    [
-      ["Ada Lovelace", "Engineer"],
-      ["Grace Hopper", "Rear Admiral"],
-      ["Grace Chen",   "Analyst"]
-    ].each do |name, title|
-      adapter.save(Hecks::Runtime::Instance.new(
-                     aggregate: member, id: name,
-                     state: { name: { "value" => name }, title: { "value" => title } }
-                   ))
+    MEMBERS_BY_EMAIL.each_value do |name, title|
+      state = { name: { "value" => name }, title: { "value" => title } }
+      adapter.save(Hecks::Runtime::Instance.new(aggregate: member, id: name, state: state))
     end
+  end
 
-    # a rekey is exempt from per-record checks, so the mint refuses without human approval
+  def drifted_registry = load_registry(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
+
+  def approve_edge!(drifted)
+    edge = drifted.translations.first
+    db = PG.connect(dbname: DIRECTORY_DB)
+    Hecks::Adapters::PostgresEra::Lineage.new(db, "Directory").record_approval!(
+      from: edge.from, to: edge.to, edge_digest: Hecks::Translation::Audit.edge_digest(edge)
+    )
+    db.close
+  end
+
+  def journal_ids
+    db = PG.connect(dbname: DIRECTORY_DB)
+    db.exec("SELECT aggregate_id FROM hecks_journal_directory ORDER BY aggregate_id").map { |r| r["aggregate_id"] }
+  ensure
+    db&.close
+  end
+
+  before do
+    scrub_database!
+    seed_era_one!
+  end
+
+  # a rekey is exempt from per-record checks, so the mint refuses without human approval
+  it "refuses to mint a compute+rekey edge nobody approved" do
     expect { check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE) }.to raise_error(
       Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/
     )
+  end
 
-    drifted = load_registry(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
-    db = PG.connect(dbname: DIRECTORY_DB)
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Directory")
-    lineage.record_approval!(
-      from: drifted.translations.first.from, to: drifted.translations.first.to,
-      edge_digest: Hecks::Translation::Audit.edge_digest(drifted.translations.first)
-    )
-    db.close
+  context "when the edge is approved and minted" do
+    let(:drifted) { drifted_registry }
+    let(:head) { adapter_for(drifted) }
 
-    check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
-
-    head = adapter_for(drifted)
-    {
-      "ada.lovelace@example.com" => ["Ada Lovelace", "Engineer"],
-      "grace.hopper@example.com" => ["Grace Hopper", "Rear Admiral"],
-      "grace.chen@example.com"   => ["Grace Chen", "Analyst"]
-    }.each do |email, (original_name, title)|
-      found = head.find(email)
-      expect(found).not_to be_nil, "expected #{original_name} to resolve under #{email}"
-      expect(found.email.to_h).to eq(value: email)
-      expect(found.title.to_h).to eq(value: title)
-      expect(head.find(original_name)).to be_nil
+    before do
+      approve_edge!(drifted)
+      check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
     end
 
-    # the raw journal is never rewritten
-    db = PG.connect(dbname: DIRECTORY_DB)
-    raw = db.exec("SELECT aggregate_id FROM hecks_journal_directory ORDER BY aggregate_id").map { |r| r["aggregate_id"] }
-    db.close
-    expect(raw).to eq(["Ada Lovelace", "Grace Chen", "Grace Hopper"])
+    it "resolves every record under its rekeyed email, and no longer under its old name", :aggregate_failures do
+      MEMBERS_BY_EMAIL.each do |email, (name, title)|
+        found = head.find(email)
+        expect(found).not_to be_nil, "expected #{name} to resolve under #{email}"
+        expect([found.email.to_h, found.title.to_h, head.find(name)]).to eq([{ value: email }, { value: title }, nil])
+      end
+    end
+
+    it "never rewrites the raw journal" do
+      expect(journal_ids).to eq(["Ada Lovelace", "Grace Chen", "Grace Hopper"])
+    end
   end
 end

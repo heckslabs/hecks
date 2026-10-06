@@ -15,6 +15,8 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   let(:web) { { name: "web", port: 8080 } }
+  let(:with_env) { [web.merge(env: { "A" => "1" })] }
+  let(:with_both) { [web.merge(secrets: { "A" => "shop/a" }, repository: "shop-web")] }
 
   def resolve(infra_name: "shop", **given)
     settings.resolve(deploy_settings: { containers: [web] }.merge(given), target: target, infra_name: infra_name)
@@ -27,16 +29,18 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     e.message
   end
 
+  def default_plan_attributes
+    { infra_name: "shop", stack_prefix: "hecks", instance_type: "t4g.medium", volume_gb: 30, swap_gb: 2,
+      database_class: "db.t4g.small", storage_gb: 20, backup_days: 7, snapshots_keep: 7, database_name: "shop",
+      engine_version: "16", default_container: "web", origin_header: nil, origin_secret: nil,
+      secret_prefixes: ["shop/*"], tunnel: false, routes: [] }
+  end
+
   describe "with only a container" do
-    it "resolves to the defaults the golden stack is built from" do
+    it "resolves to the defaults the golden stack is built from", :aggregate_failures do
       plan = resolve
 
-      expect(plan).to have_attributes(
-        infra_name: "shop", stack_prefix: "hecks", instance_type: "t4g.medium", volume_gb: 30, swap_gb: 2,
-        database_class: "db.t4g.small", storage_gb: 20, backup_days: 7, snapshots_keep: 7, database_name: "shop",
-        engine_version: "16", default_container: "web", origin_header: nil, origin_secret: nil,
-        secret_prefixes: ["shop/*"], tunnel: false, routes: []
-      )
+      expect(plan).to have_attributes(default_plan_attributes)
       expect(plan.rds_stack).to eq("hecks-shop-rds")
       expect(plan.box_stack).to eq("hecks-shop-box")
       expect(plan.containers.first).to have_attributes(name: "web", repository: "shop-web", port: 8080, env: {}, secrets: {})
@@ -48,22 +52,22 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "containers" do
-    it "is required" do
+    it "is required", :aggregate_failures do
       expect(refusal(containers: nil)).to include("containers").and include("at least one container")
       expect(refusal(containers: [])).to include("at least one container")
     end
 
-    it "refuses a duplicate name and a shared port" do
+    it "refuses a duplicate name and a shared port", :aggregate_failures do
       expect(refusal(containers: [web, { name: "web", port: 9090 }])).to include('two containers are named "web"')
       expect(refusal(containers: [web, { name: "cms", port: 8080 }])).to include("two containers listen on port 8080")
     end
 
-    it "refuses a name or repository that could not be spliced safely" do
+    it "refuses a name or repository that could not be spliced safely", :aggregate_failures do
       expect(refusal(containers: [{ name: "web; rm -rf /", port: 8080 }])).to include("container_name")
       expect(refusal(containers: [{ name: "web", port: 8080, repository: "a b" }])).to include("repository")
     end
 
-    it "carries environment variables and named secrets, and refuses a malformed one" do
+    it "carries environment variables and named secrets, and refuses a malformed one", :aggregate_failures do
       plan = resolve(containers: [web.merge(env: { "HOST" => "0.0.0.0" }, secrets: { "AUTH" => "shop/auth" })])
 
       expect(plan.containers.first).to have_attributes(env: { "HOST" => "0.0.0.0" }, secrets: { "AUTH" => "shop/auth" })
@@ -72,7 +76,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(refusal(containers: [web.merge(secrets: { "A" => "shop/$(id)" })])).to include("secrets")
     end
 
-    it "refuses a port outside 1..65535" do
+    it "refuses a port outside 1..65535", :aggregate_failures do
       expect(refusal(containers: [{ name: "web", port: 0 }])).to include("port")
       expect(refusal(containers: [{ name: "web", port: 70_000 }])).to include("port")
     end
@@ -81,18 +85,18 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   describe "routes and the default container" do
     let(:two) { [web, { name: "cms", port: 8081 }] }
 
-    it "needs a default container when there are several" do
+    it "needs a default container when there are several", :aggregate_failures do
       expect(refusal(containers: two)).to include("default_container")
       expect(resolve(containers: two, default_container: "web").default.name).to eq("web")
     end
 
-    it "refuses a route to a container that is not declared, and a default that is not declared" do
+    it "refuses a route to a container that is not declared, and a default that is not declared", :aggregate_failures do
       expect(refusal(containers: two, default_container: "web", routes: [{ container: "ghost", paths: ["/x/*"] }]))
         .to include('"ghost" is not a declared container')
       expect(refusal(containers: two, default_container: "ghost")).to include('"ghost" is not a declared container')
     end
 
-    it "refuses a route with no paths or with a path that is not a URL path" do
+    it "refuses a route with no paths or with a path that is not a URL path", :aggregate_failures do
       expect(refusal(containers: two, default_container: "web", routes: [{ container: "cms" }])).to include("no paths")
       expect(refusal(containers: two, default_container: "web", routes: [{ container: "cms", paths: ["cms/*"] }]))
         .to include("path")
@@ -109,7 +113,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "the origin guard" do
-    it "takes a header and a secret together" do
+    it "takes a header and a secret together", :aggregate_failures do
       plan = resolve(origin_header: "X-Origin-Secret", origin_secret: "shop/origin")
 
       expect(plan).to have_attributes(origin_header: "X-Origin-Secret", origin_secret: "shop/origin")
@@ -123,12 +127,12 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "secret prefixes, tunnel and sizes" do
-    it "takes a list of secret name patterns and refuses one with shell characters" do
+    it "takes a list of secret name patterns and refuses one with shell characters", :aggregate_failures do
       expect(resolve(secret_prefixes: ["a/*", "b/c"]).secret_prefixes).to eq(["a/*", "b/c"])
       expect(refusal(secret_prefixes: ["a b"])).to include("secret_prefixes")
     end
 
-    it "takes a boolean tunnel, which opens the egress and runs no service" do
+    it "takes a boolean tunnel, which opens the egress and runs no service", :aggregate_failures do
       plan = resolve(tunnel: true)
 
       expect(plan.tunnel).to be(true)
@@ -140,7 +144,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     describe "a tunnel service" do
       let(:two) { [web, { name: "stats", port: 3000 }] }
 
-      it "forwards to the named container's port and reads its token from a secret" do
+      it "forwards to the named container's port and reads its token from a secret", :aggregate_failures do
         plan = resolve(containers: two, default_container: "web", tunnel: { to: "stats", token_secret: "shop/tunnel" })
 
         expect(plan.tunnel).to be(true)
@@ -154,7 +158,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
         expect(plan.tunnel_service.image).to eq("cloudflare/cloudflared:2026.9.0")
       end
 
-      it "refuses a missing half, an unknown container and an image that could not be spliced safely" do
+      it "refuses a missing half, an unknown container and an image that could not be spliced safely", :aggregate_failures do
         expect(refusal(tunnel: { to: "web" })).to include("token_secret")
         expect(refusal(tunnel: { token_secret: "shop/tunnel" })).to include("`to`")
         expect(refusal(tunnel: { to: "ghost", token_secret: "shop/tunnel" })).to include('"ghost" is not a declared container')
@@ -162,7 +166,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       end
     end
 
-    it "bounds backup days, snapshots and swap, and checks the engine version" do
+    it "bounds backup days, snapshots and swap, and checks the engine version", :aggregate_failures do
       expect(refusal(backup_days: 0)).to include("backup_days")
       expect(refusal(snapshots_keep: 0)).to include("snapshots_keep")
       expect(refusal(swap_gb: 100)).to include("swap_gb")
@@ -172,20 +176,17 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "a task definition" do
-    it "is nil unless the world names one" do
+    it "is nil unless the world names one", :aggregate_failures do
       expect(resolve.task_definition).to be_nil
       expect(resolve(task_definition: "shop-platform").task_definition).to eq("shop-platform")
     end
 
-    it "refuses a family that could not be spliced safely" do
+    it "refuses a family that could not be spliced safely", :aggregate_failures do
       expect(refusal(task_definition: "shop platform")).to include("task_definition")
       expect(refusal(task_definition: "shop-platform:7")).to include("task_definition")
     end
 
-    it "refuses a container that also sets what the task definition supplies" do
-      with_env = [web.merge(env: { "A" => "1" })]
-      with_both = [web.merge(secrets: { "A" => "shop/a" }, repository: "shop-web")]
-
+    it "refuses a container that also sets what the task definition supplies", :aggregate_failures do
       expect(refusal(task_definition: "shop-platform", containers: with_env))
         .to include("web sets env", "shop-platform supplies")
       expect(refusal(task_definition: "shop-platform", containers: with_both)).to include("secrets, repository")
@@ -204,7 +205,8 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(plan.s3_buckets.map(&:to_h)).to eq([{ name: "media", write: true }, { name: "assets", write: false }])
     end
 
-    it "refuses a bucket name that could not be spliced safely, a missing name and a write that is not a boolean" do
+    it "refuses a bucket name that could not be spliced safely, a missing name and a write that is not a boolean",
+       :aggregate_failures do
       expect(refusal(s3_access: [{ bucket: "Bad Bucket" }])).to include("s3_bucket")
       expect(refusal(s3_access: [{ bucket: "a/../b" }])).to include("s3_bucket")
       expect(refusal(s3_access: [{ write: true }])).to include("s3_access")
@@ -230,10 +232,13 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(plan.migration).to have_attributes(database: "newdb", source_database: "olddb")
     end
 
-    it "refuses a migration with no schemas, a schema that could not be spliced safely, or a bad database" do
+    it "refuses a migration with no schemas", :aggregate_failures do
       expect(refusal(migration: {})).to include("`schemas`")
       expect(refusal(migration: { schemas: [] })).to include("`schemas`")
       expect(refusal(migration: "a")).to include("`schemas`")
+    end
+
+    it "refuses a schema that could not be spliced safely, or a bad database", :aggregate_failures do
       expect(refusal(migration: { schemas: ["a; drop schema b"] })).to include("migration_schemas")
       expect(refusal(migration: { schemas: ["Upper"] })).to include("migration_schemas")
       expect(refusal(migration: { schemas: ["a"], source_database: "old db" })).to include("migration_source_database")
@@ -241,13 +246,13 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "images" do
-    it "pins both default images by version and digest" do
+    it "pins both default images by version and digest", :aggregate_failures do
       expect(described_class::TUNNEL_IMAGE).to match(%r{\Acloudflare/cloudflared:\d+\.\d+\.\d+@sha256:\h{64}\z})
       expect(described_class::PROXY_IMAGE).to match(%r{\Apublic\.ecr\.aws/docker/library/caddy:\d+\.\d+@sha256:\h{64}\z})
       expect(resolve.proxy_image).to eq(described_class::PROXY_IMAGE)
     end
 
-    it "takes a proxy image of its own and refuses one that could not be spliced safely" do
+    it "takes a proxy image of its own and refuses one that could not be spliced safely", :aggregate_failures do
       expect(resolve(proxy_image: "caddy:2.9").proxy_image).to eq("caddy:2.9")
       expect(refusal(proxy_image: "caddy 2.9")).to include("proxy_image")
     end
@@ -256,12 +261,12 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   describe "hosting scripts" do
     let(:hosting) { { hosting_scripts: true, smoke_workflow: "smoke.yml" } }
 
-    it "are off unless the world opts in" do
+    it "are off unless the world opts in", :aggregate_failures do
       expect(resolve.hosting).to be_nil
       expect(resolve(hosting_scripts: false).hosting).to be_nil
     end
 
-    it "resolve to the smoke defaults and a parameter name per container" do
+    it "resolve to the smoke defaults and a parameter name per container", :aggregate_failures do
       plan = resolve(**hosting)
 
       expect(plan.hosting).to have_attributes(stack: nil, smoke_repo: nil, smoke_workflow: "smoke.yml",
@@ -269,7 +274,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(plan.containers.first.tag_parameter).to eq("WebImageTag")
     end
 
-    it "name the parameter after a dashed container, or take the one the world gives" do
+    it "name the parameter after a dashed container, or take the one the world gives", :aggregate_failures do
       listed = [{ name: "web-app", port: 80 }, { name: "cms", port: 81, tag_parameter: "CmsTag" }]
       plan = resolve(containers: listed, default_container: "web-app")
 
@@ -281,21 +286,24 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
       expect(refusal(hosting_scripts: true)).to include("smoke_workflow")
     end
 
-    it "refuse a flag that is not true or false, and a workflow that is not a file name" do
+    it "refuse a flag that is not true or false, and a workflow that is not a file name", :aggregate_failures do
       expect(refusal(hosting_scripts: "yes", smoke_workflow: "smoke.yml")).to include("hosting_scripts")
       expect(refusal(hosting_scripts: true, smoke_workflow: "smoke; rm -rf /")).to include("smoke_workflow")
+    end
+
+    it "refuse a repo, a ref, the eras and a public URL that could not be spliced safely", :aggregate_failures do
       expect(refusal(hosting_scripts: true, smoke_workflow: "smoke.yml", smoke_repo: "not a repo")).to include("smoke_repo")
       expect(refusal(hosting_scripts: true, smoke_workflow: "smoke.yml", smoke_ref: "main; x")).to include("smoke_ref")
       expect(refusal(**hosting, expected_eras: ["a b"])).to include("expected_eras")
       expect(refusal(**hosting, public_url: "javascript:x")).to include("public_url")
     end
 
-    it "refuse a hosting word when the scripts are not on" do
+    it "refuse a hosting word when the scripts are not on", :aggregate_failures do
       expect(refusal(smoke_workflow: "smoke.yml")).to include("only apply with hosting_scripts true")
       expect(refusal(hosting_scripts: false, expected_eras: ["a"])).to include("expected_eras")
     end
 
-    it "need the stack behind a task definition, and refuse a stack when there is none" do
+    it "need the stack behind a task definition, and refuse a stack when there is none", :aggregate_failures do
       with_task = { **hosting, task_definition: "shop-platform" }
 
       expect(refusal(**with_task)).to include("hosting_stack")

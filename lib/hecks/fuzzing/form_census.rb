@@ -12,6 +12,12 @@ module Hecks
       # A given path crossing two references has at least this many segments.
       TWO_HOP_GIVEN_PATH_LENGTH = 3
 
+      # Ports and adapters a census boots with, relative to the repository root.
+      CENSUS_SUPPORT = [
+        "lib/hecks/ports/persistence.port", "lib/hecks/ports/extraction.port",
+        "lib/hecks/adapters/driven/memory.adapter", "lib/hecks/adapters/driven/prism.adapter"
+      ].freeze
+
       FORMS = {
         "composite_id"       => ->(a) { (a["identified_by"] || []).size >= 2 },
         "has_entity"         => ->(a) { entities(a).any? },
@@ -114,22 +120,26 @@ module Hecks
       #
       # @raise [ArgumentError] if `domain_path` has no bluebook files
       def census(domain_path)
-        root = File.expand_path("../../..", __dir__)
         files = bluebook_files(domain_path)
         raise ArgumentError, "#{domain_path} has no bluebook/*.bluebook (or *.bluebook) to measure" if files.nil?
 
         registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain_path))
         Hecks.with_registry(registry) do
-          Kernel.load(File.join(root, "lib/hecks/ports/persistence.port"))
-          Kernel.load(File.join(root, "lib/hecks/ports/extraction.port"))
-          Kernel.load(File.join(root, "lib/hecks/adapters/driven/memory.adapter"))
-          Kernel.load(File.join(root, "lib/hecks/adapters/driven/prism.adapter"))
+          support_files.each { |file| Kernel.load(file) }
           files.each { |file| Kernel.load(file) }
         end
 
+        aggregates_in(exported_chapter(registry))
+      end
+
+      def support_files
+        root = File.expand_path("../../..", __dir__)
+        CENSUS_SUPPORT.map { |relative| File.join(root, relative) }
+      end
+
+      def exported_chapter(registry)
         chapter_name = registry.bluebooks.keys.first
-        exported = JSON.parse(JSON.generate(Hecks::Projector::Exporter.call(registry).fetch(chapter_name)))
-        aggregates_in(exported)
+        JSON.parse(JSON.generate(Hecks::Projector::Exporter.call(registry).fetch(chapter_name)))
       end
     end
   end

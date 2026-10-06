@@ -52,23 +52,26 @@ RSpec.describe "hecks gate" do
     expect([status, out]).to eq([0, "[gate demo] green: passes, reads_env\n"])
   end
 
-  it "runs every check and reports each red one with its output and what it means" do
+  it "runs every check and reports each red one with its output and what it means", :aggregate_failures do
     status, out, = run_gate("demo")
     expect(status).to eq(1)
     expect(out).to include("a check that fails", "broken", "BLOCKED: fix the broken thing", "red: fails")
     expect(out).not_to include("never shown")
   end
 
-  it "keeps the caller's environment over the stage's" do
-    ENV["GATE_SPEC_ENV"] = "from-the-caller"
-    status, out, = run_gate("demo", "only=reads_env")
-    expect(status).to eq(1)
-    expect(out).to include("env was not set")
-  ensure
-    ENV.delete("GATE_SPEC_ENV")
+  context "when the caller sets GATE_SPEC_ENV" do
+    before { ENV["GATE_SPEC_ENV"] = "from-the-caller" }
+
+    after { ENV.delete("GATE_SPEC_ENV") }
+
+    it "keeps the caller's environment over the stage's", :aggregate_failures do
+      status, out, = run_gate("demo", "only=reads_env")
+      expect(status).to eq(1)
+      expect(out).to include("env was not set")
+    end
   end
 
-  it "refuses a check no stage lists, and a stage that does not exist, with status 2" do
+  it "refuses a check no stage lists, and a stage that does not exist, with status 2", :aggregate_failures do
     expect(run_gate("demo", "only=nope")).to eq([2, "", "no such check: nope (checks: passes, fails, reads_env)\n"])
     expect(run_gate("elsewhere")[0]).to eq(2)
     expect(run_gate[0]).to eq(2)
@@ -81,7 +84,7 @@ RSpec.describe "hecks gate" do
   describe "the stages file the gem ships" do
     let(:shipped) { YAML.load_file(File.expand_path("../lib/hecks/gate/stages.yml", __dir__), aliases: true) }
 
-    it "gives every check an id, a title, a command and what a red one means" do
+    it "gives every check an id, a title, a command and what a red one means", :aggregate_failures do
       checks = shipped.values.flat_map { |stage| stage.fetch("checks") }
       expect(checks).not_to be_empty
       expect(checks.map { |check| check.keys.sort }.uniq).to eq([%w[blocked id run title]])
@@ -94,7 +97,7 @@ RSpec.describe "hecks gate" do
       end
     end
 
-    it "is the list the pre-push hook runs, and the hook lists no check of its own" do
+    it "is the list the pre-push hook runs, and the hook lists no check of its own", :aggregate_failures do
       hook = File.read(File.expand_path("../.githooks/pre-push", __dir__))
       expect(hook).to include('Hecks::Tools.script("gate", ARGV)', "pre_push")
       expect(hook).not_to match(/^run_check /)

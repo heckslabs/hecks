@@ -101,29 +101,76 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
 
   ISO_8601 = /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/
 
-  def adapter_files(dir, name:, klass:, body:, port: "Echoer")
-    FileUtils.mkdir_p(File.join(dir, "adapters"))
-    File.write(File.join(dir, "adapters", "#{name}.adapter"), <<~RUBY)
-      require_relative "#{name}"
+  # An entity "Line" with one query, placed before the aggregate's own command.
+  LINE_ENTITY = <<~RUBY.freeze
+    entity "Line" do
+      attribute :text, Title
+      identified_by :text
 
-      Hecks.adapter "#{klass}" do
-        port "#{port}"
+      query "Spoken" do
+        %<query>s
       end
-    RUBY
-    methods = body.gsub(/^(?=.)/, "      ")
-    File.write(File.join(dir, "adapters", "#{name}.rb"), <<~RUBY)
-      require "time"
+    end
 
-      module Hecks
-        module Adapters
-          class #{klass}
-            def initialize(aggregate: nil, settings: {}, root: nil); end
+    command "Write" do
+  RUBY
 
-      #{methods}
-          end
+  FAKE_ECHOER_BODY = <<~RUBY.freeze
+    def echo(title:)
+      { heard: "fake" }
+    end
+
+    def roster = []
+
+    def sight = { seen: "nothing", taken_at: "then" }
+  RUBY
+
+  FAKE_BEHAVIORS = <<~RUBY.freeze
+    Hecks.behaviors "Lookup" do
+      vision "The lookup, heard from a fake."
+
+      loads "anchor.hecksagon", "../bluebook/lookup.bluebook", "../bluebook/lookup.hecksagon"
+
+      test "Echo answers what the fake heard" do
+        tests "Echo", on: "Note", kind: :query
+        input title: { value: "hi" }
+        expect heard: { value: "fake" }
+      end
+    end
+  RUBY
+
+  # The bluebook with an entity "Line" whose one query is `query_text`.
+  def bluebook_with_line_query(query_text)
+    OUTSIDE_BLUEBOOK.sub("    command \"Write\" do", format(LINE_ENTITY, query: query_text).chomp)
+  end
+
+  ADAPTER_SOURCE = <<~RUBY.freeze
+    require "time"
+
+    module Hecks
+      module Adapters
+        class %<klass>s
+          def initialize(aggregate: nil, settings: {}, root: nil); end
+
+    %<methods>s
         end
       end
-    RUBY
+    end
+  RUBY
+
+  def adapter_declaration(name, klass, port) = <<~RUBY
+    require_relative "#{name}"
+
+    Hecks.adapter "#{klass}" do
+      port "#{port}"
+    end
+  RUBY
+
+  def adapter_files(dir, name:, klass:, body:, port: "Echoer")
+    FileUtils.mkdir_p(File.join(dir, "adapters"))
+    File.write(File.join(dir, "adapters", "#{name}.adapter"), adapter_declaration(name, klass, port))
+    methods = body.gsub(/^(?=.)/, "      ")
+    File.write(File.join(dir, "adapters", "#{name}.rb"), format(ADAPTER_SOURCE, klass: klass, methods: methods))
   end
 
   # One class name per call: a class reopened by a later example would keep the methods an
@@ -169,7 +216,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       expect(rows).to eq([{ title: "a" }, { title: "b" }])
     end
 
-    it "stamps no time of its own: a query that wants one declares taken_at and its adapter fills it" do
+    it "stamps no time of its own: a query that wants one declares taken_at and its adapter fills it", :aggregate_failures do
       runtime = boot_domain
 
       expect(runtime.query("Lookup::Note.Echo", title: "hello").first.keys).to eq([:heard])
@@ -264,16 +311,18 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
   end
 
   describe "the IR" do
-    it "carries the shape on the query, in the bluebook, and only the binding on the hecksagon's port" do
-      note    = boot_domain.registry.bluebook("Lookup").aggregate("Note")
-      emitted = note.queries.to_h { |query| [query.name, query.to_h] }
+    let(:note) { boot_domain.registry.bluebook("Lookup").aggregate("Note") }
+    let(:emitted) { note.queries.to_h { |query| [query.name, query.to_h] } }
 
+    it "carries the shape on the query, in the bluebook", :aggregate_failures do
       expect(emitted["Echo"]).to include(returns: "Heard")
       expect(emitted["Roster"]).to include(returns: "list_of(Listing)")
       expect(emitted["Recent"]).not_to have_key(:returns)
       expect(note.query("Roster")).to have_attributes(returns_name: "Listing", returns_list?: true)
-      expect(note.port("Echoer").to_h[:answered_queries])
-        .to eq([{ name: "Echo" }, { name: "Roster" }, { name: "Sight" }])
+    end
+
+    it "carries only the binding on the hecksagon's port", :aggregate_failures do
+      expect(note.port("Echoer").to_h[:answered_queries]).to eq([{ name: "Echo" }, { name: "Roster" }, { name: "Sight" }])
       expect(emitted.values.flat_map(&:keys)).not_to include(:answered_by)
       expect(note.query_binding("Recent")).to be_nil
     end
@@ -305,7 +354,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       expect_refusal(/Lookup::Note\.Echo has two answer paths: the Echoer port and the Twin port/, hecksagon: twin)
     end
 
-    it "merges a port declared twice under one name, as an environment overlay repeats it" do
+    it "merges a port declared twice under one name, as an environment overlay repeats it", :aggregate_failures do
       again    = %(\n\n  Lookup::Note.port "Echoer" do\n    answers_query "Echo"\n  end\nend\n)
       repeated = OUTSIDE_HECKSAGON.sub(/\nend\n\z/, again)
       runtime  = boot_domain(hecksagon: repeated)
@@ -376,11 +425,15 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
                      body: ECHOER_BODY.sub("def echo(title:)", "def echo(title:, token:)"))
     end
 
-    it "refuses an adapter whose constructor requires arguments, since it is built with none" do
+    # The domain written with the adapter's constructor signature replaced by `signature`.
+    def write_domain_with_constructor(signature)
       write_domain(@dir)
       path = Dir[File.join(@dir, "bluebook", "adapters", "answering_echoer*.rb")].first
-      File.write(path, File.read(path).sub("def initialize(aggregate: nil, settings: {}, root: nil)",
-                                           "def initialize(token)"))
+      File.write(path, File.read(path).sub("def initialize(aggregate: nil, settings: {}, root: nil)", signature))
+    end
+
+    it "refuses an adapter whose constructor requires arguments, since it is built with none" do
+      write_domain_with_constructor("def initialize(token)")
 
       expect { Hecks.boot(@dir, install_doors: false) }
         .to raise_error(Hecks::Runtime::WiringError, /constructor requires token/)
@@ -397,45 +450,20 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
 
     it "refuses an entity's query that returns a value object, since nothing can be bound to it" do
-      bluebook = OUTSIDE_BLUEBOOK.sub("    command \"Write\" do", <<~RUBY.chomp)
-        entity "Line" do
-          attribute :text, Title
-          identified_by :text
-
-          query "Spoken" do
-            returns Heard
-          end
-        end
-
-        command "Write" do
-      RUBY
-
-      expect_refusal(/Lookup::Note\.Line\.Spoken has no answer path: it returns Heard/, bluebook: bluebook)
+      expect_refusal(/Lookup::Note\.Line\.Spoken has no answer path: it returns Heard/,
+                     bluebook: bluebook_with_line_query("returns Heard"))
     end
   end
 
   describe "an entity's query with arguments that select nothing" do
     it "is refused at boot, as an aggregate's is" do
-      bluebook = OUTSIDE_BLUEBOOK.sub("    command \"Write\" do", <<~RUBY.chomp)
-        entity "Line" do
-          attribute :text, Title
-          identified_by :text
-
-          query "Spoken" do
-            attribute :text, Title
-          end
-        end
-
-        command "Write" do
-      RUBY
-
-      expect { boot_domain(bluebook: bluebook) }
+      expect { boot_domain(bluebook: bluebook_with_line_query("attribute :text, Title")) }
         .to raise_error(Hecks::Runtime::WiringError, /Lookup::Note\.Line\.Spoken has no answer path.*\(text\)/)
     end
   end
 
   describe "a query answered from the aggregate's records" do
-    it "keeps a query with no arguments, no clause and no return as the plain list of records" do
+    it "keeps a query with no arguments, no clause and no return as the plain list of records", :aggregate_failures do
       runtime = boot_domain
 
       expect(runtime.query("Lookup::Note.Everything")).to eq([])
@@ -453,7 +481,8 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
   end
 
   describe "model_check" do
-    it "refuses the outside-answered queries of a domain with a Rust target, which the Rust host cannot serve" do
+    it "refuses the outside-answered queries of a domain with a Rust target, which the Rust host cannot serve",
+       :aggregate_failures do
       bluebook = boot_domain.registry.bluebook("Lookup")
 
       findings = Hecks::Bluebook::ModelCheck.call(bluebook, rust_target: true).select { |f| f.kind == :external_query }
@@ -470,43 +499,22 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
 
     def write_fake_behaviors
+      write_domain(@dir)
       fake = File.join(@dir, "fake")
       FileUtils.mkdir_p(fake)
       File.write(File.join(fake, "anchor.hecksagon"), %(Hecks.hecksagon "Lookup" do\nend\n))
-      adapter_files(fake, name: "answering_fake_echoer", klass: "AnsweringFakeEchoer", body: <<~RUBY)
-        def echo(title:)
-          { heard: "fake" }
-        end
-
-        def roster = []
-
-        def sight = { seen: "nothing", taken_at: "then" }
-      RUBY
-      File.write(File.join(fake, "lookup.behaviors"), <<~RUBY)
-        Hecks.behaviors "Lookup" do
-          vision "The lookup, heard from a fake."
-
-          loads "anchor.hecksagon", "../bluebook/lookup.bluebook", "../bluebook/lookup.hecksagon"
-
-          test "Echo answers what the fake heard" do
-            tests "Echo", on: "Note", kind: :query
-            input title: { value: "hi" }
-            expect heard: { value: "fake" }
-          end
-        end
-      RUBY
+      adapter_files(fake, name: "answering_fake_echoer", klass: "AnsweringFakeEchoer", body: FAKE_ECHOER_BODY)
+      File.write(File.join(fake, "lookup.behaviors"), FAKE_BEHAVIORS)
       File.join(fake, "lookup.behaviors")
     end
 
-    it "answers from the fake for the same, untouched bluebook and hecksagon" do
-      write_domain(@dir)
+    it "answers from the fake for the same, untouched bluebook and hecksagon", :aggregate_failures do
       behaviors = write_fake_behaviors
       before = fingerprint
 
       outcome = Hecks::Behaviors.run(behaviors)
 
-      expect(outcome.parse_error).to be_nil
-      expect(outcome.runs.map(&:status)).to eq([:pass]), outcome.runs.map(&:message).inspect
+      expect([outcome.parse_error, outcome.runs.map(&:status)]).to eq([nil, [:pass]]), outcome.runs.map(&:message).inspect
       expect(fingerprint).to eq(before)
     end
   end
@@ -515,26 +523,32 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     PARSER_DIR    = File.expand_path("../rust/parser", __dir__)
     PARSER_BINARY = File.join(PARSER_DIR, "target", "debug", "hecks-parse")
 
-    it "emits the same IR for returns as the Ruby exporter, byte for byte" do
+    # Builds the parser and parses the Lookup bluebook with it; answers what it printed, and its status.
+    def rust_parse(path)
       built = system("cargo", "build", chdir: PARSER_DIR, out: File::NULL, err: File::NULL)
       raise "cargo build failed in rust/parser" unless built
 
-      path = File.join(@dir, "lookup.bluebook")
       File.write(path, OUTSIDE_BLUEBOOK)
-      stdout, stderr, status = Open3.capture3(PARSER_BINARY, "chapter", "--chapter", "Lookup", path)
-      expect(status.exitstatus).to eq(0), stderr
+      Open3.capture3(PARSER_BINARY, "chapter", "--chapter", "Lookup", path)
+    end
 
+    # The Lookup chapter as the Ruby exporter writes its IR.
+    def ruby_export(path)
       registry = Hecks::Runtime::Registry.new(root: @dir)
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+         InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
         InMemoryDomain.load_bluebook_files([path])
       end
-      expected = "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch("Lookup"))}\n"
+      "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch("Lookup"))}\n"
+    end
 
-      expect(stdout).to eq(expected)
+    it "emits the same IR for returns as the Ruby exporter, byte for byte", :aggregate_failures do
+      path = File.join(@dir, "lookup.bluebook")
+      stdout, stderr, status = rust_parse(path)
+
+      expect(status.exitstatus).to eq(0), stderr
+      expect(stdout).to eq(ruby_export(path))
       expect(stdout).to include('"returns": "list_of(Listing)"')
     end
   end

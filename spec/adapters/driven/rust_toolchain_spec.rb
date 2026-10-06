@@ -59,47 +59,49 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     FileUtils.rm_rf(dir)
   end
 
+  RUST_TOOLCHAIN_FEATURE_MANIFEST = <<~TOML.freeze
+    [features]
+    default = ["pizzas"]
+    pizzas = []
+
+    [package]
+    name = "rust"
+  TOML
+
   describe "in an installed gem" do
-    it "copies the packaged workspace into the project, keyed by the gem version, without build output" do
+    def copy = File.join(dir, "app/.hecks/rust/9.9.9")
+
+    it "copies the packaged workspace into the project, keyed by the gem version", :aggregate_failures do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
-      copy = File.join(dir, "app/.hecks/rust/9.9.9")
       expect(File.read(File.join(copy, "src/lib.rs"))).to eq("// kernel\n")
       expect(File.exist?(File.join(copy, "host/Cargo.toml"))).to be(true)
-      expect(File.exist?(File.join(copy, "src/generated"))).to be(false)
-      expect(File.exist?(File.join(copy, "target"))).to be(false)
-      expect(File.exist?(File.join(copy, "host/target"))).to be(false)
-      expect(File.exist?(File.join(copy, "tests"))).to be(false)
+    end
+
+    it "leaves generated sources, build output and tests out of the copy" do
+      toolchain.generate(domain: { value: "domains/pizzas" })
+
+      expect(%w[src/generated target host/target tests].map { |path| File.exist?(File.join(copy, path)) }).to all(be(false))
     end
 
     it "writes the copy's Cargo feature list clean, keeping the rest of the manifest" do
-      File.write(File.join(dir, "gem/rust/Cargo.toml"), <<~TOML)
-        [features]
-        default = ["pizzas"]
-        pizzas = []
-
-        [package]
-        name = "rust"
-      TOML
+      File.write(File.join(dir, "gem/rust/Cargo.toml"), RUST_TOOLCHAIN_FEATURE_MANIFEST)
 
       toolchain.generate(domain: { value: "domains/pizzas" })
 
-      manifest = File.read(File.join(dir, "app/.hecks/rust/9.9.9/Cargo.toml"))
-      expect(manifest).to eq("[features]\ndefault = []\n\n[package]\nname = \"rust\"\n")
+      expect(File.read(File.join(copy, "Cargo.toml"))).to eq("[features]\ndefault = []\n\n[package]\nname = \"rust\"\n")
     end
 
-    it "points the child at the copy and its own target directory, never at the gem" do
+    it "points the child at the copy and its own target directory, never at the gem", :aggregate_failures do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
       env = runner.calls.first.fetch(:env)
-      copy = File.join(dir, "app/.hecks/rust/9.9.9")
       expect(env).to include("HECKS_RUST_DIR" => copy, "CARGO_TARGET_DIR" => File.join(copy, "target"))
       expect(env.values.join).not_to include(File.join(dir, "gem"))
     end
 
     it "keeps a copy that is already there, so a generated domain and its build survive" do
       toolchain.generate(domain: { value: "domains/pizzas" })
-      copy = File.join(dir, "app/.hecks/rust/9.9.9")
       FileUtils.mkdir_p(File.join(copy, "src/generated"))
       File.write(File.join(copy, "src/generated/mine.rs"), "// mine\n")
 
@@ -108,10 +110,13 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(File.exist?(File.join(copy, "src/generated/mine.rs"))).to be(true)
     end
 
-    it "redoes a copy that was interrupted before it was complete" do
-      copy = File.join(dir, "app/.hecks/rust/9.9.9")
+    def leave_an_interrupted_copy
       FileUtils.mkdir_p(copy)
       File.write(File.join(copy, "half"), "")
+    end
+
+    it "redoes a copy that was interrupted before it was complete", :aggregate_failures do
+      leave_an_interrupted_copy
 
       toolchain.generate(domain: { value: "domains/pizzas" })
 
@@ -119,17 +124,20 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(File.exist?(File.join(copy, "Cargo.toml"))).to be(true)
     end
 
+    def newer_workspace
+      Hecks::Adapters::RustWorkspace.new(gem_root: File.join(dir, "gem"), project_root: File.join(dir, "app"),
+                                         version: "10.0.0")
+    end
+
     it "keeps a copy per gem version" do
       toolchain.generate(domain: { value: "domains/pizzas" })
-      newer = Hecks::Adapters::RustWorkspace.new(gem_root: File.join(dir, "gem"), project_root: File.join(dir, "app"),
-                                                 version: "10.0.0")
-      described_class.workspace = newer
+      described_class.workspace = newer_workspace
       toolchain.generate(domain: { value: "domains/pizzas" })
 
       expect(Dir.children(File.join(dir, "app/.hecks/rust")).sort).to eq(%w[10.0.0 9.9.9])
     end
 
-    it "refuses, with a reason, when the install carries no Rust workspace" do
+    it "refuses, with a reason, when the install carries no Rust workspace", :aggregate_failures do
       FileUtils.rm_rf(File.join(dir, "gem/rust"))
 
       expect { toolchain.generate(domain: { value: "domains/pizzas" }) }
@@ -141,7 +149,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
   describe "in a hecks checkout" do
     before { File.write(File.join(dir, "gem/hecks.gemspec"), "") }
 
-    it "builds in the checkout's own rust/ and copies nothing" do
+    it "builds in the checkout's own rust/ and copies nothing", :aggregate_failures do
       toolchain.generate(domain: { value: "domains/pizzas" })
 
       expect(runner.calls.first.fetch(:env)).to eq({})
@@ -170,18 +178,20 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_wasm project_wasm_browser])
     end
 
-    it "builds the host with the target and stage it is given, and only those" do
+    it "builds the host with no target or stage unless it is given them" do
       toolchain.host(domain: { value: "domains/pizzas" })
+
+      expect([script_of(runner.calls.first), arguments_of(runner.calls.first)]).to eq(["project_host", %w[domains/pizzas]])
+    end
+
+    it "builds the host with the target and stage it is given, and only those" do
       toolchain.host(domain: { value: "domains/pizzas" }, target: { value: "aarch64-unknown-linux-gnu" },
                      stage_dir: { value: "out/host" })
 
-      expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_host project_host])
-      expect(arguments_of(runner.calls[0])).to eq(%w[domains/pizzas])
-      expect(arguments_of(runner.calls[1]))
-        .to eq(%w[domains/pizzas --target=aarch64-unknown-linux-gnu --stage=out/host])
+      expect(arguments_of(runner.calls.first)).to eq(%w[domains/pizzas --target=aarch64-unknown-linux-gnu --stage=out/host])
     end
 
-    it "replays a script against an artifact, or against Ruby alone when none is named" do
+    it "replays a script against an artifact, or against Ruby alone when none is named", :aggregate_failures do
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" }, artifact: { value: "native" })
       toolchain.conform(domain: { value: "d/pizzas" }, script: { value: "steps.json" })
 
@@ -189,7 +199,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(arguments_of(runner.calls[1])).to eq(%w[d/pizzas steps.json])
     end
 
-    it "replays generated sequences ten seeds of twenty-five steps unless told otherwise" do
+    it "replays generated sequences ten seeds of twenty-five steps unless told otherwise", :aggregate_failures do
       toolchain.replay(domain: { value: "d/pizzas" }, artifact: { value: "native" })
       toolchain.replay(domain: { value: "d/pizzas" }, artifact: { value: "native" }, seeds: { value: 3 }, steps: { value: 7 })
 
@@ -219,11 +229,10 @@ RSpec.describe Hecks::Adapters::RustToolchain do
   end
 
   describe "#measure" do
-    let(:started) { [] }
-    let(:pool) do
-      log = started
-      Object.new.tap do |pool|
-        pool.define_singleton_method(:run) do |command, env: {}, chdir: nil|
+    # A pool that notes each command and environment it is asked to run, and answers a report.
+    def recording_pool(log)
+      Object.new.tap do |recorder|
+        recorder.define_singleton_method(:run) do |command, env: {}, **|
           log << { command: command, env: env }
           Struct.new(:output, :ok?).new("| ruby:memory | 1000 |\n", true)
         end
@@ -232,22 +241,37 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
     before do
       File.write(File.join(dir, "gem/hecks.gemspec"), "")
-      described_class.pool = pool
+      @started = []
+      described_class.pool = recording_pool(@started)
     end
 
     after { described_class.pool = nil }
 
-    it "starts the benchmark through the pool with the flags the record holds, and answers its report" do
-      answer = toolchain.measure(domains: { value: "pizzas,banking" }, targets: { value: "ruby:memory" },
-                                 iterations: { value: 50 }, warmup: { value: 0 }, runs: { value: 1 },
-                                 format: { value: "json" }, output: { value: "tmp/bench.json" })
+    context "with every flag held" do
+      let(:answer) do
+        toolchain.measure(domains: { value: "pizzas,banking" }, targets: { value: "ruby:memory" },
+                          iterations: { value: 50 }, warmup: { value: 0 }, runs: { value: 1 },
+                          format: { value: "json" }, output: { value: "tmp/bench.json" })
+      end
 
-      command = started.first.fetch(:command)
-      expect(command[command.index("-e") + 1]).to include("Hecks::Bench::CLI.run(ARGV)")
-      flags = %w[--domain pizzas,banking --targets ruby:memory --iterations 50 --warmup 0
-                 --runs 1 --format json --output tmp/bench.json]
-      expect(command.drop(command.index("--") + 1)).to eq(flags)
-      expect(answer).to eq(report: { value: "| ruby:memory | 1000 |\n" })
+      before { answer }
+
+      def command = @started.first.fetch(:command)
+
+      it "starts the benchmark through the pool" do
+        expect(command[command.index("-e") + 1]).to include("Hecks::Bench::CLI.run(ARGV)")
+      end
+
+      it "passes the flags the record holds" do
+        flags = %w[--domain pizzas,banking --targets ruby:memory --iterations 50 --warmup 0
+                   --runs 1 --format json --output tmp/bench.json]
+
+        expect(command.drop(command.index("--") + 1)).to eq(flags)
+      end
+
+      it "answers its report" do
+        expect(answer).to eq(report: { value: "| ruby:memory | 1000 |\n" })
+      end
     end
 
     it "builds in the copy of the packaged workspace when it is not in a checkout" do
@@ -255,7 +279,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
       toolchain.measure
 
-      expect(started.first.fetch(:env)).to include("HECKS_RUST_DIR" => File.join(dir, "app/.hecks/rust/9.9.9"))
+      expect(@started.first.fetch(:env)).to include("HECKS_RUST_DIR" => File.join(dir, "app/.hecks/rust/9.9.9"))
     end
 
     it "refuses with what the benchmark printed when it could not run" do
@@ -270,32 +294,45 @@ RSpec.describe Hecks::Adapters::RustToolchain do
   # The real generator, in a copy of a packaged workspace. It builds `hecks-codegen` with Cargo,
   # into the copy's own target directory, so nothing is written into the gem.
   describe "generating for real", :io do
-    it "writes the domain into the copy and leaves the gem's own workspace untouched" do
+    def write_real_gem_tree
       gem_rust = File.join(dir, "real_gem/rust")
       FileUtils.mkdir_p(File.join(gem_rust, "src"))
       FileUtils.cp(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"), gem_rust)
       File.write(File.join(gem_rust, "src/lib.rs"), "")
       FileUtils.mkdir_p(File.join(dir, "real_gem/lib"))
+    end
+
+    def prepare_real_gem
+      write_real_gem_tree
       described_class.runner = nil
       described_class.workspace = Hecks::Adapters::RustWorkspace.new(
         gem_root: File.join(dir, "real_gem"), project_root: File.join(dir, "app"), version: "9.9.9"
       )
-      checkout_manifest = File.read(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"))
+    end
 
+    before do
+      prepare_real_gem
+      @checkout_manifest = File.read(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"))
       described_class.new.generate(domain: { value: File.join(InMemoryDomain::ROOT, "examples/pizzas") })
+    end
 
+    it "writes the domain into the copy", :aggregate_failures do
       copy = File.join(dir, "app/.hecks/rust/9.9.9")
+
       expect(File.exist?(File.join(copy, "src/generated/pizzas/mod.rs"))).to be(true)
       expect(File.read(File.join(copy, "Cargo.toml"))).to include("pizzas")
-      expect(File.exist?(File.join(gem_rust, "src/generated"))).to be(false)
-      expect(File.read(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"))).to eq(checkout_manifest)
+    end
+
+    it "leaves the gem's own workspace untouched", :aggregate_failures do
+      expect(File.exist?(File.join(dir, "real_gem/rust/src/generated"))).to be(false)
+      expect(File.read(File.join(InMemoryDomain::ROOT, "rust/Cargo.toml"))).to eq(@checkout_manifest)
     end
   end
 
   describe "#rust_coverage" do
     before { File.write(File.join(dir, "gem/hecks.gemspec"), "") }
 
-    it "answers the report as text, and passes the generator it was asked to read" do
+    it "answers the report as text, and passes the generator it was asked to read", :aggregate_failures do
       runner.answer(out: "#{"=" * 72}\nPizzas - 3 constructs\n")
 
       answer = toolchain.rust_coverage(module_name: { value: "pizzas" }, codegen: { value: "rust" })

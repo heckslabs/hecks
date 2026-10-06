@@ -5,44 +5,51 @@ require "spec_helper"
 RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   PROJECTIONS_DIR = File.join(InMemoryDomain::ROOT, "lib/hecks/projections")
 
-  it "registers every file in lib/hecks/projections/ as a live Projector target" do
+  # `extend[\s(]+`, not `extend\s+`: projections/ir.rb writes `IR.extend(Projector::Target)`,
+  # which the narrower regex skipped silently.
+  def extends_target?(content)
+    content.match?(/extend[\s(]+[\w:]*Projector::Target\b/) || content.match?(/extend[\s(]+Target\b/)
+  end
+
+  # What is wrong with the projection file at `path`, or nil when it registers a live target.
+  def projection_finding(path)
+    content = File.read(path)
+    return unless extends_target?(content)
+
+    key_match = content.match(/projects_as\s+:(\w+)/)
+    return "#{File.basename(path)} extends Projector::Target but declares no projects_as key" unless key_match
+
+    key = key_match[1].to_sym
+    return if Hecks::Projector.registered?(key)
+
+    "#{File.basename(path)} declares projects_as :#{key}, but Hecks::Projector doesn't have it " \
+      "live — registered: #{Hecks::Projector.registered.sort.inspect}"
+  end
+
+  it "registers every file in lib/hecks/projections/ as a live Projector target", :aggregate_failures do
     files = Dir.glob(File.join(PROJECTIONS_DIR, "*.rb"))
-    expect(files).not_to be_empty,
-                         "lib/hecks/projections/ is empty or missing — this spec's own path is stale"
+    expect(files).not_to be_empty, "lib/hecks/projections/ is empty or missing — this spec's own path is stale"
 
-    # `extend[\s(]+`, not `extend\s+`: projections/ir.rb writes `IR.extend(Projector::Target)`,
-    # which the narrower regex skipped silently.
-    findings = files.filter_map do |path|
-      content = File.read(path)
-      next unless content.match?(/extend[\s(]+[\w:]*Projector::Target\b/) ||
-                  content.match?(/extend[\s(]+Target\b/)
-
-      key_match = content.match(/projects_as\s+:(\w+)/)
-      next "#{File.basename(path)} extends Projector::Target but declares no projects_as key" unless key_match
-
-      key = key_match[1].to_sym
-      next if Hecks::Projector.registered?(key)
-
-      "#{File.basename(path)} declares projects_as :#{key}, but Hecks::Projector doesn't have it " \
-        "live — registered: #{Hecks::Projector.registered.sort.inspect}"
-    end
+    findings = files.filter_map { |path| projection_finding(path) }
 
     expect(findings).to be_empty, findings.join("; ")
+  end
+
+  # The projection files that declare a `projects_as` key without extending `Target`.
+  def orphaned_projects_as
+    Dir.glob(File.join(PROJECTIONS_DIR, "*.rb")).select do |path|
+      content = File.read(path)
+      content.match?(/projects_as\s+:\w+/) && !extends_target?(content)
+    end
   end
 
   it "extends Projector::Target from every file that declares a projects_as key" do
     # The other direction: `projects_as` without `extend`ing `Target` raises NoMethodError on load.
     # Kept separate so a change to how `projects_as` is reached fails here.
-    files = Dir.glob(File.join(PROJECTIONS_DIR, "*.rb"))
-    orphaned_projects_as = files.select do |path|
-      content = File.read(path)
-      content.match?(/projects_as\s+:\w+/) &&
-        !(content.match?(/extend[\s(]+[\w:]*Projector::Target\b/) || content.match?(/extend[\s(]+Target\b/))
-    end
+    orphaned = orphaned_projects_as
 
-    expect(orphaned_projects_as).to be_empty,
-                                    "#{orphaned_projects_as.map { |p| File.basename(p) }.join(", ")} call projects_as without " \
-                                    "extending Projector::Target"
+    expect(orphaned).to be_empty,
+                        "#{orphaned.map { |p| File.basename(p) }.join(", ")} call projects_as without extending Projector::Target"
   end
 
   # Each entry is a construct that genuinely is an export or state projection, not an escape hatch.

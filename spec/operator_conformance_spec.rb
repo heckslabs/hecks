@@ -109,15 +109,19 @@ RSpec.describe "the operator domain" do
     )
   end
 
+  def leaked_operators
+    unadmitted = symbols(OPERATORS.reject { |op| op[:status] == "admitted" })
+    (Evaluator::COMPARISONS + PROBES.keys) & unadmitted
+  end
+
   it "lets no proposed or retired operator into any live table" do
     # A proposed or retired operator does not exist to the evaluator at all.
-    unadmitted = symbols(OPERATORS.reject { |op| op[:status] == "admitted" })
-    live       = Evaluator::COMPARISONS + PROBES.keys
+    leaked = leaked_operators
 
-    expect(live & unadmitted).to be_empty,
-                                 "#{(live & unadmitted).inspect} run in a live table while the " \
-                                 "chapter holds them proposed or retired — admit them in the " \
-                                 "ledger or take them out of the machinery"
+    expect(leaked).to be_empty,
+                      "#{leaked.inspect} run in a live table while the " \
+                      "chapter holds them proposed or retired — admit them in the " \
+                      "ledger or take them out of the machinery"
   end
 
   # Structural operators have no live constant (they are parse's cases), so each is
@@ -155,7 +159,7 @@ RSpec.describe "the operator domain" do
     ".unset?"      => -> { Resolver.parse("a.unset?").is_a?(Resolver::Assignment) && Resolver.parse("a.unset?").negated }
   }.freeze
 
-  it "implements every admitted structural operator, and no other" do
+  it "implements every admitted structural operator, and no other", :aggregate_failures do
     structural = symbols(ADMITTED) - symbols(admitted("comparison"))
 
     expect(PROBES.keys.sort).to eq(structural.sort)
@@ -195,53 +199,61 @@ RSpec.describe "the operator domain" do
     Evaluator::Resolve, Evaluator::Operator
   ].freeze
 
-  it "gives every non-terminal Resolver/Evaluator node type an admitted ledger symbol" do
-    all_nodes      = (node_classes(Evaluator) + node_classes(Resolver)).uniq
-    operator_nodes = all_nodes - NON_OPERATOR_NODE_TYPES
-    covered        = NODE_TYPE_FOR_SYMBOL.values_at(*symbols(ADMITTED)).compact.uniq
+  def all_node_types = (node_classes(Evaluator) + node_classes(Resolver)).uniq
 
-    stranded = operator_nodes - covered
-    expect(stranded).to be_empty,
-                        "#{stranded.map(&:name).inspect} — a real AST node type with " \
-                        "no admitted ledger symbol pointing at it. Either it's a genuine terminal/" \
-                        "structural production (add it to NON_OPERATOR_NODE_TYPES, the same reasoning " \
-                        "grammar.md's own exclusions use) or it bypassed Propose/Render/Admit the way " \
-                        "eight vendored operators did (see this file's own header) — admit it in the " \
-                        "ledger, add its symbol to NODE_TYPE_FOR_SYMBOL and a PROBES entry, instead."
+  def covered_node_types = NODE_TYPE_FOR_SYMBOL.values_at(*symbols(ADMITTED)).compact.uniq
 
-    # A stale NODE_TYPE_FOR_SYMBOL entry would inflate `covered` and defeat the check above.
-    expect(covered - all_nodes).to be_empty
+  def stranded_message(stranded)
+    "#{stranded.map(&:name).inspect} — a real AST node type with " \
+      "no admitted ledger symbol pointing at it. Either it's a genuine terminal/" \
+      "structural production (add it to NON_OPERATOR_NODE_TYPES, the same reasoning " \
+      "grammar.md's own exclusions use) or it bypassed Propose/Render/Admit the way " \
+      "eight vendored operators did (see this file's own header) — admit it in the " \
+      "ledger, add its symbol to NODE_TYPE_FOR_SYMBOL and a PROBES entry, instead."
   end
 
-  it "orders precedence the way the grammar checks" do
+  it "gives every non-terminal Resolver/Evaluator node type an admitted ledger symbol", :aggregate_failures do
+    stranded = all_node_types - NON_OPERATOR_NODE_TYPES - covered_node_types
+
+    expect(stranded).to be_empty, stranded_message(stranded)
+    # A stale NODE_TYPE_FOR_SYMBOL entry would inflate `covered` and defeat the check above.
+    expect(covered_node_types - all_node_types).to be_empty
+  end
+
+  def precedence_tiers
+    ["||", "&&", ".include?", ">=", "!"].map { |symbol| ADMITTED.find { |op| op[:symbol].value == symbol }[:precedence].value }
+  end
+
+  it "orders precedence the way the grammar checks", :aggregate_failures do
     # Precedence rises with binding tightness: ||, &&, membership, comparison, then !.
-    tiers = ["||", "&&", ".include?", ">=", "!"].map do |symbol|
-      ADMITTED.find { |op| op[:symbol].value == symbol }[:precedence].value
-    end
+    tiers = precedence_tiers
+
     expect(tiers).to eq(tiers.sort)
     expect(tiers.uniq).to eq(tiers)
-
     expect(Evaluator.parse("a || b && c")).to be_a(Evaluator::Or)
   end
 
+  def expect_ruby_rendering(operator)
+    targets = Array(operator[:renderings]).map { |rendering| rendering[:target] }
+    expect(targets).to include("ruby"),
+                       "#{operator[:symbol].value} was admitted reading in #{targets.inspect} — " \
+                       "every target means ruby, at minimum"
+  end
+
   it "renders every admitted operator in ruby — the guard's claim, strengthened" do
-    ADMITTED.each do |op|
-      targets = Array(op[:renderings]).map { |rendering| rendering[:target] }
-      expect(targets).to include("ruby"),
-                         "#{op[:symbol].value} was admitted reading in #{targets.inspect} — " \
-                         "every target means ruby, at minimum"
-    end
+    ADMITTED.each { |op| expect_ruby_rendering(op) }
+  end
+
+  def admitted_rules = RULES.select { |rule| rule[:status] == "admitted" }.sort_by { |rule| rule[:position].value }
+
+  def rule_row(rule)
+    { strategy: rule[:strategy].value, source_token: rule[:source_token].value,
+      replacement: rule[:replacement].value, boundary: rule[:boundary].value,
+      position: rule[:position].value.to_s }
   end
 
   it "admits exactly the normalisation rules canonical form applies, field for field" do
-    admitted_rules = RULES.select { |rule| rule[:status] == "admitted" }.sort_by { |rule| rule[:position].value }
-    read_back = admitted_rules.map do |rule|
-      { strategy: rule[:strategy].value, source_token: rule[:source_token].value,
-        replacement: rule[:replacement].value, boundary: rule[:boundary].value,
-        position: rule[:position].value.to_s }
-    end
-
-    expect(read_back).to eq(CanonicalForm.table)
+    expect(admitted_rules.map { |rule| rule_row(rule) }).to eq(CanonicalForm.table)
   end
 
   it "keeps the chapter's own Rule set equal to the live rules — no third copy" do
@@ -254,28 +266,43 @@ RSpec.describe "the operator domain" do
     expect(declared).to eq(CanonicalForm::RULES.map(&:to_h))
   end
 
+  def self_bearing_message(stranded)
+    stranded.map { |symbol, sites| "#{symbol} is self-bearing (#{sites.first(2).join("; ")}) and not admitted" }.join("\n")
+  end
+
   it "admits every operator the language itself stands on" do
     # Guards and invariants in the language's own chapters evaluate through this operator
     # table, so retiring one would leave the language unable to read its rules.
     # hecks project_expression_tables refuses the same case at regeneration.
     require "hecks/grammar"
-    stranded = Hecks::Grammar.self_bearing_operators
-                             .except(*symbols(ADMITTED))
+    stranded = Hecks::Grammar.self_bearing_operators.except(*symbols(ADMITTED))
 
-    expect(stranded).to be_empty,
-                        stranded.map { |symbol, sites|
-                          "#{symbol} is self-bearing (#{sites.first(2).join("; ")}) and not admitted"
-                        }.join("\n")
+    expect(stranded).to be_empty, self_bearing_message(stranded)
   end
 
-  describe "the gates, seen refusing" do
-    it "refuses to admit an operator that does not read in every target" do
-      throwaway = self.class.boot_expression
+  # A throwaway chapter runtime with the `**` operator proposed and nothing else done to it.
+  def power_runtime
+    self.class.boot_expression.tap do |throwaway|
       throwaway.dispatch_flat("Expression::Operator.Propose",
                               symbol: { value: "**" }, category: { value: "arithmetic" },
                               precedence: { value: 6 }, arity: { value: 2 },
                               grammar: { value: "inner" }, strategy: { value: "top_level_split" },
                               position: { value: 9 })
+    end
+  end
+
+  def retired_power_runtime
+    runtime = power_runtime
+    runtime.dispatch_flat("Expression::Operator.Render",
+                          symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
+    runtime.dispatch_flat("Expression::Operator.Admit",  symbol: { value: "**" })
+    runtime.dispatch_flat("Expression::Operator.Retire", symbol: { value: "**" })
+    runtime
+  end
+
+  describe "the gates, seen refusing" do
+    it "refuses to admit an operator that does not read in every target" do
+      throwaway = power_runtime
 
       expect { throwaway.dispatch_flat("Expression::Operator.Admit", symbol: { value: "**" }) }
         .to raise_error(Hecks::Runtime::GivenNotMet,
@@ -283,16 +310,7 @@ RSpec.describe "the operator domain" do
     end
 
     it "refuses a rendering on a retired operator" do
-      throwaway = self.class.boot_expression
-      throwaway.dispatch_flat("Expression::Operator.Propose",
-                              symbol: { value: "**" }, category: { value: "arithmetic" },
-                              precedence: { value: 6 }, arity: { value: 2 },
-                              grammar: { value: "inner" }, strategy: { value: "top_level_split" },
-                              position: { value: 9 })
-      throwaway.dispatch_flat("Expression::Operator.Render",
-                              symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
-      throwaway.dispatch_flat("Expression::Operator.Admit",  symbol: { value: "**" })
-      throwaway.dispatch_flat("Expression::Operator.Retire", symbol: { value: "**" })
+      throwaway = retired_power_runtime
 
       expect do
         throwaway.dispatch_flat("Expression::Operator.Render",

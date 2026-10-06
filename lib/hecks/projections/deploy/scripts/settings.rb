@@ -28,18 +28,26 @@ module Hecks
             @raw = deploy_settings
             @region = check(:region, region, REGION)
             @stack = check(:stack_name, stack_name, RESOURCE)
-            @cluster = check(:ecs_cluster, fetch(:ecs_cluster, plan.names.fetch(:cluster)), RESOURCE)
-            @service = check(:ecs_service, fetch(:ecs_service, plan.names.fetch(:service)), RESOURCE)
-            @containers = plan.layout.all
-            @hecks_release = read_release
-            @hecks_source = check(:hecks_source, fetch(:hecks_source, DEFAULT_SOURCE), SOURCE)
-            @hecks_cache_dir = check(:hecks_cache_dir, fetch(:hecks_cache_dir, DEFAULT_CACHE_DIR), MAKE_PATH)
+            read_ecs(plan)
+            read_hecks
             read_smoke
             @expected_eras = list(:expected_eras, []).each { |era| check(:expected_eras, era, ERA) }
             @public_url = optional(:public_url, %r{\Ahttps?://[^\s'"$`\\]+\z})
           end
 
           private
+
+          def read_ecs(plan)
+            @cluster = check(:ecs_cluster, fetch(:ecs_cluster, plan.names.fetch(:cluster)), RESOURCE)
+            @service = check(:ecs_service, fetch(:ecs_service, plan.names.fetch(:service)), RESOURCE)
+            @containers = plan.layout.all
+          end
+
+          def read_hecks
+            @hecks_release = read_release
+            @hecks_source = check(:hecks_source, fetch(:hecks_source, DEFAULT_SOURCE), SOURCE)
+            @hecks_cache_dir = check(:hecks_cache_dir, fetch(:hecks_cache_dir, DEFAULT_CACHE_DIR), MAKE_PATH)
+          end
 
           def read_release
             release = fetch(:hecks_release, nil)

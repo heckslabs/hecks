@@ -10,32 +10,55 @@ module Hecks
       # Compiles one edge's rename/move/convert/drop/compute/backfill rules into a nested
       # SQL expression over `state`, composed innermost-first in that phase order.
       def compile_rules(declared)
-        expression = "state"
-        declared.renames.each do |old_name, new_name|
-          expression = "hecks_tr_rename(#{expression}, #{text_literal(old_name)}, #{text_literal(new_name)})"
-        end
-        declared.moves.each do |move|
-          expression = "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)}, " \
-                       "#{text_literal("move #{move.from} to: #{move.to}")})"
-        end
-        declared.converts.each do |convert|
-          pairs = JSON.generate(convert.values.map { |key, value| [key, value] })
-          expression = "hecks_tr_convert(#{expression}, #{path_literal(convert.from)}, #{path_literal(convert.to)}, " \
-                       "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)}, " \
-                       "#{text_literal("convert #{convert.from} to: #{convert.to}")})"
-        end
-        declared.drops.each do |name|
-          expression = "hecks_tr_drop(#{expression}, #{path_literal(name)})"
-        end
-        declared.computes.each do |compute|
-          expression = compile_compute(expression, compute)
-        end
+        expression = compile_renames("state", declared.renames)
+        expression = compile_moves(expression, declared.moves)
+        expression = compile_converts(expression, declared.converts)
+        expression = compile_drops(expression, declared.drops)
+        expression = compile_computes(expression, declared.computes)
         # Backfilled last, same order as `Lineage#translate`'s in-process pass, so the
         # boot-time mint audit (which reads only this compiled SQL) sees the same result.
-        declared.backfills.each do |backfill|
-          expression = compile_backfill(expression, backfill)
-        end
-        expression
+        compile_backfills(expression, declared.backfills)
+      end
+
+      # Folds each rule of one kind into `expression`, innermost-first.
+      def compile_renames(expression, renames)
+        renames.inject(expression) { |sql, (old_name, new_name)| compile_rename(sql, old_name, new_name) }
+      end
+
+      def compile_moves(expression, moves) = moves.inject(expression) { |sql, move| compile_move(sql, move) }
+
+      def compile_converts(expression, converts) = converts.inject(expression) { |sql, convert| compile_convert(sql, convert) }
+
+      def compile_drops(expression, drops) = drops.inject(expression) { |sql, name| compile_drop(sql, name) }
+
+      def compile_computes(expression, computes) = computes.inject(expression) { |sql, compute| compile_compute(sql, compute) }
+
+      def compile_backfills(expression, backfills)
+        backfills.inject(expression) { |sql, backfill| compile_backfill(sql, backfill) }
+      end
+
+      # Wraps `expression` in the rename of one top-level key.
+      def compile_rename(expression, old_name, new_name)
+        "hecks_tr_rename(#{expression}, #{text_literal(old_name)}, #{text_literal(new_name)})"
+      end
+
+      # Wraps `expression` in the move of one path to another.
+      def compile_move(expression, move)
+        "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)}, " \
+          "#{text_literal("move #{move.from} to: #{move.to}")})"
+      end
+
+      # Wraps `expression` in the conversion of one path's value through a lookup table.
+      def compile_convert(expression, convert)
+        pairs = JSON.generate(convert.values.map { |key, value| [key, value] })
+        "hecks_tr_convert(#{expression}, #{path_literal(convert.from)}, #{path_literal(convert.to)}, " \
+          "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)}, " \
+          "#{text_literal("convert #{convert.from} to: #{convert.to}")})"
+      end
+
+      # Wraps `expression` in the removal of one path.
+      def compile_drop(expression, name)
+        "hecks_tr_drop(#{expression}, #{path_literal(name)})"
       end
 
       # Reports whether an edge's declared rules for an aggregate include a rekey, read

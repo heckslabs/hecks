@@ -80,12 +80,11 @@ module Hecks
       def manifest_paths
         generated = File.join(rust_dir, "src/generated")
         own = File.join(generated, feature, "manifest.json")
-        chapters = Dir.glob(File.join(generated, "*/manifest.json")).reject do |path|
-          dir = File.dirname(path)
-          File.basename(dir) == feature || File.exist?(File.join(dir, "merged.rs"))
-        end
+        chapters = Dir.glob(File.join(generated, "*/manifest.json")).reject { |path| own_or_merged?(File.dirname(path)) }
         ([own] + chapters.sort).select { |path| File.exist?(path) }
       end
+
+      def own_or_merged?(dir) = File.basename(dir) == feature || File.exist?(File.join(dir, "merged.rs"))
 
       def index_not_generated
         @entries.each_with_object({}) do |entry, index|

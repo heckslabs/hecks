@@ -162,6 +162,12 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
       123_456_789.123456789].map { |f| [:leaf, "x.to_s", { "x" => f }] }
   ].freeze
 
+  # Per case kind, the interpreter that evaluates it and the AstJson emitter for its node.
+  EXPR_ENGINES = {
+    rule: [Hecks::Bluebook::Expression::Evaluator, :emit_bool],
+    leaf: [Hecks::Bluebook::Expression::Resolver, :emit_resolver]
+  }.freeze
+
   def self.cargo? = system("cargo", "--version", out: File::NULL, err: File::NULL)
 
   # Built once per suite run and memoized, failures included, as the lineage spec builds its own.
@@ -184,16 +190,11 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
 
   # Ruby's own answer as JSON-shaped data, plus the `ast` the Rust host is handed.
   def ruby_answer(kind, text, state)
+    engine, emit = EXPR_ENGINES.fetch(kind)
     symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)
-    if kind == :rule
-      node = Hecks::Bluebook::Expression::Evaluator.parse(text)
-      ast = Hecks::Bluebook::Expression::AstJson.emit_bool(node)
-      value = Hecks::Bluebook::Expression::Evaluator.interpret(node, symbolized, {})
-    else
-      node = Hecks::Bluebook::Expression::Resolver.parse(text)
-      ast = Hecks::Bluebook::Expression::AstJson.emit_resolver(node)
-      value = Hecks::Bluebook::Expression::Resolver.interpret(node, symbolized, {})
-    end
+    node = engine.parse(text)
+    ast = Hecks::Bluebook::Expression::AstJson.public_send(emit, node)
+    value = engine.interpret(node, symbolized, {})
     [ast, { "ok" => JSON.parse(JSON.generate([value])).first }]
   rescue Hecks::Bluebook::Expression::EvaluationError => e
     [ast, { "error" => e.message }]
@@ -206,34 +207,50 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     { "error" => answer["error"].split(" — ").first }
   end
 
-  it "answers every expression the way Ruby's interpreters do, value for value and refusal for refusal" do
-    prepared = EXPR_PARITY_CASES.map do |kind, text, state|
+  # Each parity case with Ruby's answer: [text, state, ast, expected].
+  def prepared_cases
+    EXPR_PARITY_CASES.map do |kind, text, state|
       ast, expected = ruby_answer(kind, text, state)
       [text, state, ast, expected]
     end
+  end
 
+  # Runs the Rust harness over the prepared cases and answers its result for each, in order.
+  def harness_results(prepared)
     request = JSON.generate({ "cases" => prepared.map { |_, state, ast, _| { "ast" => ast, "instance" => state } } })
     stdout, stderr, status = Open3.capture3(self.class.harness_binary, stdin_data: request)
     expect(status).to be_success, "expr_harness exited #{status.exitstatus}:\n#{stderr}"
-    actual = JSON.parse(stdout).fetch("results")
+    JSON.parse(stdout).fetch("results")
+  end
 
-    mismatches = prepared.zip(actual).filter_map do |(text, state, _ast, expected), got|
+  def disagreements(prepared, actual)
+    prepared.zip(actual).filter_map do |(text, state, _ast, expected), got|
       next if comparable(got).eql?(comparable(expected))
 
       "#{text.inspect} over #{state.inspect}\n    ruby: #{expected.inspect}\n    rust: #{got.inspect}"
     end
+  end
+
+  it "answers every expression the way Ruby's interpreters do, value for value and refusal for refusal" do
+    prepared = prepared_cases
+    mismatches = disagreements(prepared, harness_results(prepared))
+
     expect(mismatches).to be_empty, "#{mismatches.size} of #{EXPR_PARITY_CASES.size} disagree:\n#{mismatches.join("\n")}"
   end
 
-  it "keeps the op roster and the Rust parser in step, so no emitted node is unparseable" do
-    ops = Hecks::Bluebook::Expression::AstJson::OPS
-    covered = EXPR_PARITY_CASES.flat_map { |kind, text, state| ruby_answer(kind, text, state).first }
+  # The ops of every node the Ruby emitter produces across the parity cases.
+  def emitted_ops
+    asts = EXPR_PARITY_CASES.flat_map { |kind, text, state| ruby_answer(kind, text, state).first }
     seen = []
-    covered.each do |ast|
-      Hecks::Bluebook::Expression::AstJson.each_node(ast) do |node|
-        seen << node["op"] if node.is_a?(Hash) && node["op"]
-      end
+    asts.each do |ast|
+      Hecks::Bluebook::Expression::AstJson.each_node(ast) { |node| seen << node["op"] if node.is_a?(Hash) && node["op"] }
     end
-    expect(ops - seen.uniq).to be_empty, "ops with no differential case: #{(ops - seen.uniq).inspect}"
+    seen.uniq
+  end
+
+  it "keeps the op roster and the Rust parser in step, so no emitted node is unparseable" do
+    missing = Hecks::Bluebook::Expression::AstJson::OPS - emitted_ops
+
+    expect(missing).to be_empty, "ops with no differential case: #{missing.inspect}"
   end
 end

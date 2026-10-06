@@ -10,15 +10,37 @@ module Hecks
 
         # `--release`: a person puts a suspended target back, concluding what was open against it.
         def release_suspended_target
+          target = releasable_target
+          open_sweeps = open_sweeps_against(target)
+          surprises, clean = close_open_sweeps(open_sweeps)
+          # No open sweep (a crash between claim and open): nothing was watched, so the streak
+          # resets rather than incrementing.
+          puts "no open sweep against #{@target_reference} — releasing with the streak reset" if open_sweeps.empty?
+
+          capabilities = Hecks::Fuzzing::TargetCapabilities.infer(@domain_path, rust_dir: @rust_dir)
+          was = target.status
+          released = release_target!(target, capabilities, target.clean_streak.value, surprises: surprises, clean: clean)
+          puts released_line(released, was)
+          EXIT_OK
+        end
+
+        def releasable_target
           target = ::QualityControl::Target.find(@target_reference)
           abort "target #{@target_reference.inspect} vanished between being queried and being released" unless target
-          unless %w[suspended held].include?(target.status)
-            abort "target #{@target_reference.inspect} is #{target.status.inspect}, not suspended (or held) — " \
-                  "nothing to release"
-          end
+          return target if %w[suspended held].include?(target.status)
 
-          open_sweeps = query("Sweep.Sweeping").select { |row| row[:target] == target.id }
-                                               .map { |row| ::QualityControl::Sweep.find(row[:reference][:value]) }
+          abort "target #{@target_reference.inspect} is #{target.status.inspect}, not suspended (or held) — " \
+                "nothing to release"
+        end
+
+        def open_sweeps_against(target)
+          query("Sweep.Sweeping").select { |row| row[:target] == target.id }
+                                 .map { |row| ::QualityControl::Sweep.find(row[:reference][:value]) }
+        end
+
+        # @return [Array(Integer, Boolean)] the bugs logged against the sweeps, and whether every
+        #   one of them was clean
+        def close_open_sweeps(open_sweeps)
           surprises = 0
           clean = !open_sweeps.empty?
           open_sweeps.each do |sweep|
@@ -26,33 +48,30 @@ module Hecks
             clean &&= sweep_was_clean?(sweep)
             close_open_sweep(sweep, surprises)
           end
+          [surprises, clean]
+        end
 
-          # No open sweep (a crash between claim and open): nothing was watched, so the streak
-          # resets rather than incrementing.
-          puts "no open sweep against #{@target_reference} — releasing with the streak reset" if open_sweeps.empty?
-
-          capabilities = Hecks::Fuzzing::TargetCapabilities.infer(@domain_path, rust_dir: @rust_dir)
-          was = target.status
-          target = release_target!(target, capabilities, target.clean_streak.value, surprises: surprises, clean: clean)
-          puts "released #{@target_reference} (was #{was}) — status #{target.status}, " \
-               "clean_streak #{target.clean_streak.value}, yield_score #{target.yield_score.value}, " \
-               "capabilities #{target.capabilities.value.inspect}"
-          EXIT_OK
+        def released_line(target, was)
+          "released #{@target_reference} (was #{was}) — status #{target.status}, " \
+            "clean_streak #{target.clean_streak.value}, yield_score #{target.yield_score.value}, " \
+            "capabilities #{target.capabilities.value.inspect}"
         end
 
         def close_open_sweep(sweep, surprises)
           if sweep.made.value.positive? || sweep.waived.value.positive?
-            begin
-              sweep.conclude!(notes: { value: @release_notes })
-            rescue Hecks::Runtime::InvariantViolation => e
-              abort "--notes was refused by Sweep.Conclude — #{e.message}"
-            end
+            conclude_sweep(sweep)
             puts "concluded #{sweep.id} (#{sweep.made.value} check(s), #{surprises} bug(s) logged against it so far)"
           else
             # Never made a check: `Sweep.Conclude` refuses it, so abandon it to leave `Sweeping`.
             sweep.abandon!
             puts "abandoned #{sweep.id} (it never made a check)"
           end
+        end
+
+        def conclude_sweep(sweep)
+          sweep.conclude!(notes: { value: @release_notes })
+        rescue Hecks::Runtime::InvariantViolation => e
+          abort "--notes was refused by Sweep.Conclude — #{e.message}"
         end
       end
     end

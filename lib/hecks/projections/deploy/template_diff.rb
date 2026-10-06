@@ -83,11 +83,16 @@ module Hecks
           case change.kind
           when :added then ["#{indent}+ #{change.path}: #{show(change.after)}"]
           when :removed then ["#{indent}- #{change.path}: #{show(change.before)}"]
-          when :reordered then ["#{indent}~ #{change.path}: order #{show(change.before)} -> #{show(change.after)}#{marker}"]
-          else ["#{indent}~ #{change.path}: #{show(change.before)} -> #{show(change.after)}#{marker}"]
+          when :reordered then ["#{indent}~ #{change.path}: order #{transition(change)}#{marker}"]
+          else ["#{indent}~ #{change.path}: #{transition(change)}#{marker}"]
           end
         end
         private_class_method :change_lines
+
+        def transition(change)
+          "#{show(change.before)} -> #{show(change.after)}"
+        end
+        private_class_method :transition
 
         def show(value)
           text = value.is_a?(String) ? value.inspect : JSON.generate(value)

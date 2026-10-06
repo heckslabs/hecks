@@ -1,3 +1,5 @@
+require_relative "ddl"
+
 module Hecks
   module Adapters
     class Sqlite
@@ -15,16 +17,7 @@ module Hecks
         end
 
         def create_event_table!
-          @db.execute(<<~SQL)
-            CREATE TABLE IF NOT EXISTS events (
-              id           INTEGER PRIMARY KEY AUTOINCREMENT,
-              name         TEXT NOT NULL,
-              aggregate    TEXT NOT NULL,
-              aggregate_id TEXT NOT NULL,
-              payload      TEXT,
-              occurred_at  TEXT
-            )
-          SQL
+          @db.execute(Ddl::EVENTS)
           # Backs #events_for's per-record lookup (a `corrects` command's history read).
           @db.execute(
             "CREATE INDEX IF NOT EXISTS hecks_events_aggregate_id_idx ON events (aggregate, aggregate_id)"
@@ -32,15 +25,7 @@ module Hecks
         end
 
         def create_entry_table!
-          @db.execute(<<~SQL)
-            CREATE TABLE IF NOT EXISTS #{quoted_entry_table} (
-              sequence     INTEGER PRIMARY KEY AUTOINCREMENT,
-              aggregate_id TEXT NOT NULL,
-              operation    TEXT NOT NULL DEFAULT 'save',
-              state        TEXT NOT NULL,
-              mirrors      TEXT
-            )
-          SQL
+          @db.execute(format(Ddl::ENTRY_TABLE, table: quoted_entry_table))
         end
 
         def ensure_entry_operation_column!
@@ -60,17 +45,7 @@ module Hecks
         # Shared with D1, which includes this module. `domain` is an explicit column so
         # two domains can share one database file.
         def create_saga_table!
-          @db.execute(<<~SQL)
-            CREATE TABLE IF NOT EXISTS hecks_saga_instances (
-              domain               TEXT NOT NULL,
-              process_manager      TEXT NOT NULL,
-              correlation          TEXT NOT NULL,
-              state                TEXT NOT NULL,
-              memory               TEXT NOT NULL,
-              completed_compensations  TEXT NOT NULL DEFAULT '[]',
-              PRIMARY KEY (domain, process_manager, correlation)
-            )
-          SQL
+          @db.execute(Ddl::SAGA_INSTANCES)
           # The table may predate this column, and SQLite lacks ADD COLUMN IF NOT EXISTS,
           # so a duplicate-column error is treated as already applied.
           @db.execute("ALTER TABLE hecks_saga_instances ADD COLUMN completed_compensations TEXT NOT NULL DEFAULT '[]'")
@@ -79,24 +54,7 @@ module Hecks
         end
 
         def create_outbox_table!
-          @db.execute(<<~SQL)
-            CREATE TABLE IF NOT EXISTS hecks_outbox (
-              id           INTEGER PRIMARY KEY AUTOINCREMENT,
-              delivery_id  TEXT NOT NULL UNIQUE,
-              event_uid    TEXT NOT NULL,
-              aggregate    TEXT NOT NULL,
-              domain       TEXT NOT NULL,
-              kind         TEXT NOT NULL,
-              consumer     TEXT NOT NULL,
-              event        TEXT NOT NULL,
-              status       TEXT NOT NULL DEFAULT 'pending',
-              attempts     INTEGER NOT NULL DEFAULT 0,
-              error        TEXT,
-              enqueued_at  TEXT NOT NULL,
-              claimed_at   TEXT,
-              settled_at   TEXT
-            )
-          SQL
+          @db.execute(Ddl::OUTBOX)
           @db.execute("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
         end
 
@@ -104,12 +62,7 @@ module Hecks
         # already had projected into it — shared across every aggregate in the database file,
         # since it is keyed by table name rather than declared per aggregate.
         def create_checkpoint_table!
-          @db.execute(<<~SQL)
-            CREATE TABLE IF NOT EXISTS hecks_checkpoints (
-              aggregate_table TEXT PRIMARY KEY,
-              last_sequence   INTEGER NOT NULL DEFAULT 0
-            )
-          SQL
+          @db.execute(Ddl::CHECKPOINTS)
           ensure_checkpoint_compacted_through_column!
         end
 

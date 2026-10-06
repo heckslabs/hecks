@@ -69,21 +69,28 @@ module Hecks
     # @return [Array<String>] a problem for each engine that lost `Comparison.holds?` or grew a case
     def engine_problems(root, declared)
       ENGINE_FILES.flat_map do |label, relative|
-        source = File.read(File.join(root, relative))
-        found = []
-        unless source =~ /Comparison\.holds\?/
-          found << "#{relative} (#{label}) no longer calls Comparison.holds? at all — " \
-                   "has it grown its own comparator dispatch again?"
-        end
-        declared.each do |comparator|
-          escaped = Regexp.escape(comparator)
-          next unless source =~ /when\s+"#{escaped}"/ || source =~ /when\s+:#{escaped}\b/
-
-          found << "#{relative} (#{label}) has its own `when #{comparator.inspect}` — comparator logic " \
-                   "belongs ONLY in #{SHARED_COMPARISON_FILE}, not re-implemented per engine."
-        end
-        found
+        engine_file_problems(label, relative, File.read(File.join(root, relative)), declared)
       end
+    end
+
+    # @return [Array<String>] the problems of one engine file: no `Comparison.holds?` call, and
+    #   a `when` case of its own for a declared comparator
+    def engine_file_problems(label, relative, source, declared)
+      found = []
+      unless source =~ /Comparison\.holds\?/
+        found << "#{relative} (#{label}) no longer calls Comparison.holds? at all — " \
+                 "has it grown its own comparator dispatch again?"
+      end
+      found + declared.filter_map { |comparator| own_case_problem(label, relative, source, comparator) }
+    end
+
+    # @return [String, nil] the problem when the engine file has its own `when` for the comparator
+    def own_case_problem(label, relative, source, comparator)
+      escaped = Regexp.escape(comparator)
+      return unless source =~ /when\s+"#{escaped}"/ || source =~ /when\s+:#{escaped}\b/
+
+      "#{relative} (#{label}) has its own `when #{comparator.inspect}` — comparator logic " \
+        "belongs ONLY in #{SHARED_COMPARISON_FILE}, not re-implemented per engine."
     end
 
     # @param root [String] the checkout

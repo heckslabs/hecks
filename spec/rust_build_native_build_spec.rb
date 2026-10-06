@@ -27,10 +27,27 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     File.utime(Time.now + 5, Time.now + 5, path)
   end
 
+  def add_build_noise
+    FileUtils.mkdir_p(File.join(dir, "target"))
+    File.write(File.join(dir, "target", "noise.rs"), "x")
+  end
+
+  def stub_builds(*results)
+    queue = results.each
+    allow(described_class).to receive(:build_and_pin) do
+      result = queue.next
+      raise result if result.is_a?(Exception)
+
+      result
+    end
+  end
+
   it "builds once while the sources stay the same" do
-    expect(described_class).to receive(:build_and_pin).once.and_return("bin-1")
+    allow(described_class).to receive(:build_and_pin).and_return("bin-1")
 
     2.times { described_class.build_rust_for("pizzas", dir) }
+
+    expect(described_class).to have_received(:build_and_pin).once
   end
 
   it "builds again after the generated sources change" do
@@ -43,14 +60,8 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     expect([first, described_class.build_rust_for("pizzas", dir)]).to eq(%w[bin-1 bin-2])
   end
 
-  it "does not keep a failure once the sources change" do
-    results = [described_class::BuildFailed.new("broken"), "bin-2"].each
-    allow(described_class).to receive(:build_and_pin) do
-      result = results.next
-      raise result if result.is_a?(Exception)
-
-      result
-    end
+  it "does not keep a failure once the sources change", :aggregate_failures do
+    stub_builds(described_class::BuildFailed.new("broken"), "bin-2")
 
     expect { described_class.build_rust_for("pizzas", dir) }.to raise_error(described_class::BuildFailed)
     expect { described_class.build_rust_for("pizzas", dir) }.to raise_error(described_class::BuildFailed, "broken")
@@ -60,11 +71,11 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
   end
 
   it "ignores files under target/" do
-    expect(described_class).to receive(:build_and_pin).once.and_return("bin-1")
+    allow(described_class).to receive(:build_and_pin).and_return("bin-1")
     described_class.build_rust_for("pizzas", dir)
-    FileUtils.mkdir_p(File.join(dir, "target"))
-    File.write(File.join(dir, "target", "noise.rs"), "x")
+    add_build_noise
+    described_class.build_rust_for("pizzas", dir)
 
-    described_class.build_rust_for("pizzas", dir)
+    expect(described_class).to have_received(:build_and_pin).once
   end
 end

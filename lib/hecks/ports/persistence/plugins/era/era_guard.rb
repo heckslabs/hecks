@@ -27,21 +27,41 @@ module Hecks
       #   `was:` declares it, and no translation retires it
       def check_vanished_aggregates!(registry, bluebook, held_bluebook)
         held_bluebook.aggregates.each do |held_aggregate|
-          claimed = bluebook.aggregates.any? do |aggregate|
-            aggregate.name == held_aggregate.name ||
-              registry.translations.any? do |translation|
-                translation.domain == bluebook.name &&
-                  translation.for_aggregate(aggregate.name)&.was == held_aggregate.name
-              end
-          end
-          claimed ||= registry.translations.any? do |translation|
-            translation.domain == bluebook.name && translation.retired.include?(held_aggregate.name)
-          end
-          next if claimed
+          next if explained?(registry, bluebook, held_aggregate)
 
           raise WiringError,
                 "cannot boot #{bluebook.name}: #{held_aggregate.name} existed and now doesn't, " \
                 "and nothing declares was: #{held_aggregate.name.inspect} to explain where its data went."
+        end
+      end
+
+      # Says whether a held aggregate is accounted for: still present, renamed by a `was:`,
+      # or retired by a translation.
+      #
+      # @param registry [Runtime::Registry] the registry whose translations are searched
+      # @param bluebook [Bluebook::Chapter] the bluebook booting now
+      # @param held_aggregate [Bluebook::Aggregate] the aggregate from the held era
+      # @return [Boolean] true when a current aggregate or a translation explains it
+      def explained?(registry, bluebook, held_aggregate)
+        claimed = bluebook.aggregates.any? do |aggregate|
+          aggregate.name == held_aggregate.name || renamed_from?(registry, bluebook, aggregate, held_aggregate)
+        end
+        claimed || registry.translations.any? do |translation|
+          translation.domain == bluebook.name && translation.retired.include?(held_aggregate.name)
+        end
+      end
+
+      # Says whether a translation declares a current aggregate was the held one.
+      #
+      # @param registry [Runtime::Registry] the registry whose translations are searched
+      # @param bluebook [Bluebook::Chapter] the bluebook booting now
+      # @param aggregate [Bluebook::Aggregate] the current aggregate
+      # @param held_aggregate [Bluebook::Aggregate] the aggregate from the held era
+      # @return [Boolean] true when some translation's `was:` names the held aggregate
+      def renamed_from?(registry, bluebook, aggregate, held_aggregate)
+        registry.translations.any? do |translation|
+          translation.domain == bluebook.name &&
+            translation.for_aggregate(aggregate.name)&.was == held_aggregate.name
         end
       end
 
@@ -136,17 +156,26 @@ module Hecks
       def parse_bluebook(source, path, shadow:)
         scratch = Registry.new
         loading = Ports::Loading.bootstrap
-        run = lambda do
-          Hecks.with_registry(scratch) do
-            loading.load_library
-            # Held text of a chapter spread over files is several blocks in one string, each
-            # opening the same chapter: judge once after all of them, as a directory load does.
-            Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
-            Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)
-          end
-        end
+        run = -> { evaluate_into(scratch, loading, source, path) }
         shadow ? Hecks::Bluebook::MetaValidator.while_shadow_parsing(&run) : run.call
         scratch.bluebooks.values.first
+      end
+
+      # Loads the library and evaluates the text with the scratch registry current.
+      #
+      # @param scratch [Registry] the throwaway registry the text registers into
+      # @param loading [Object] the bootstrap loader whose `load_library` runs first
+      # @param source [String] the bluebook text to evaluate
+      # @param path [String] the file path reported to `Kernel.eval` as the text's origin
+      # @return [void]
+      def evaluate_into(scratch, loading, source, path)
+        Hecks.with_registry(scratch) do
+          loading.load_library
+          # Held text of a chapter spread over files is several blocks in one string, each
+          # opening the same chapter: judge once after all of them, as a directory load does.
+          Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
+          Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)
+        end
       end
     end
   end

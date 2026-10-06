@@ -78,45 +78,80 @@ RSpec.describe "hecks interview, held at a terminal" do
       proposals: [[THING], [ACTION], [RULE]] }
   end
 
-  it "records what the developer types, puts each finding to them, and writes the domain they accepted" do
-    result = run_interview(agent: ai_script, keys: ["Books, each with an ISBN.", "y", "We put it on the shelf.", "",
-                                                    "A book cannot be lent twice at once.", "n", "done"])
+  ENOUGH_KEYS = ["Books.", "y", "On the shelf.", "y", "done"].freeze
+  MIXED_KEYS = ["Books, each with an ISBN.", "y", "We put it on the shelf.", "",
+                "A book cannot be lent twice at once.", "n", "done"].freeze
+  FIELD_SCRIPT = { questions: ["What do you keep track of?", "What happens, and what does a book have?"],
+                   proposals: [[THING], [ACTION, FIELD, TRANSITION]] }.freeze
+  FIELD_KEYS = ["Books.", "y", "On the shelf, and each is good or worn.", "y", "y", "n", "done"].freeze
+  NOTHING_ACCEPTED_SCRIPT = { questions: ["What do you keep?", "Say more.", "And then?"],
+                              proposals: [[THING], [THING], [ACTION]] }.freeze
+  NOTHING_ACCEPTED_KEYS = ["Books.", "n", "done", "Books, each with an ISBN.", "y", "On the shelf.", "y", "done"].freeze
+  UNAVAILABLE_SCRIPT = { questions: ["FAIL"], proposals: ["FAIL", "FAIL"] }.freeze
+  UNAVAILABLE_KEYS = ["Books, each with an ISBN.", "thing", "Book", "isbn", "", "On the shelf.", "action", "Shelve",
+                      "Book", "BookShelved", "y", "", "done"].freeze
+  NO_AI_KEYS = ["Books.", "thing", "Book", "isbn", "", "On the shelf.", "action", "Shelve", "Book", "BookShelved", "y", "",
+                "done"].freeze
+  TYPED_FIELD_KEYS = ["Books.", "thing", "Book", "isbn", "field", "Book", "condition", "good, worn", "transition",
+                      "Book", "Shelve", "shelved", "", "", "On the shelf.", "action", "Shelve", "Book",
+                      "BookShelved", "y", "", "done"].freeze
+  EXISTING_BLUEBOOK = "Hecks.bluebook \"Lending\" do\n  # mine\nend\n".freeze
+  EXISTING_FILES = { "bluebook/lending.bluebook": EXISTING_BLUEBOOK, "interviews/INT-1.md": "# first\n" }.freeze
 
-    expect(result[:transcript]).to include("Proposed thing: Book, identified by isbn", "Accepted.", "Rejected.")
-    expect(result[:files].keys).to eq(%w[bluebook/lending.bluebook bluebook/lending.world interviews/INT-1.md])
-    expect(result[:files]["bluebook/lending.bluebook"]).to include('aggregate "Book" do', 'command "Shelve" do')
-    expect(result[:files]["bluebook/lending.bluebook"]).not_to include("cannot be lent twice")
-    expect(result[:files]["interviews/INT-1.md"]).to include("Rule 3, rejected: A book cannot be lent twice")
+  def lending_bluebook(result) = result[:files]["bluebook/lending.bluebook"]
+
+  context "when the developer accepts a thing and an action and rejects a rule" do
+    let(:result) { run_interview(agent: ai_script, keys: MIXED_KEYS) }
+
+    it "records what the developer types and puts each finding to them", :aggregate_failures do
+      expect(result[:transcript]).to include("Proposed thing: Book, identified by isbn", "Accepted.", "Rejected.")
+      expect(result[:files].keys).to eq(%w[bluebook/lending.bluebook bluebook/lending.world interviews/INT-1.md])
+    end
+
+    it "writes the domain they accepted", :aggregate_failures do
+      expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
+      expect(lending_bluebook(result)).not_to include("cannot be lent twice")
+      expect(result[:files]["interviews/INT-1.md"]).to include("Rule 3, rejected: A book cannot be lent twice")
+    end
   end
 
-  it "tells the developer where the answers go before the first question, and suggests ending once there is enough" do
-    result = run_interview(agent: ai_script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
+  context "when the developer accepts two findings and then ends" do
+    let(:result) { run_interview(agent: ai_script, keys: ENOUGH_KEYS) }
+    let(:state) { result[:state] }
 
-    expect(result[:transcript]).to include("sent to a model through your own `claude` login")
-    expect(result[:transcript]).to include("I think we have enough to start")
+    it "tells the developer where the answers go before the first question, and suggests ending once there is enough",
+       :aggregate_failures do
+      expect(result[:transcript]).to include("sent to a model through your own `claude` login")
+      expect(result[:transcript]).to include("I think we have enough to start")
+    end
+
+    it "sends the agent the subject, the exchanges, what was accepted and the gaps, and no files", :aggregate_failures do
+      expect(state.keys.map(&:to_s)).to contain_exactly("task", "subject", "expert", "verbs", "exchanges", "accepted", "gaps")
+      expect(state[:subject]).to eq("Lending")
+      expect(state[:task]).to include("Do not assume what kind of business it is")
+      expect(state[:exchanges].length).to eq(2)
+      expect(state[:accepted][:things].first).to eq(name: "Book", identifier: "isbn")
+    end
+
+    it "tells the interviewer what a thing is not yet said to have, so it asks next", :aggregate_failures do
+      expect(state[:gaps]).to include("nothing is yet said Book has, beyond its identifier")
+      expect(state[:accepted].keys.map(&:to_s)).to include("fields", "transitions")
+    end
   end
 
-  it "sends the agent the subject, the exchanges, what was accepted and the gaps, and no files" do
-    result = run_interview(agent: ai_script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
+  context "when the agent proposes a field and a transition" do
+    let(:result) { run_interview(agent: FIELD_SCRIPT, keys: FIELD_KEYS) }
 
-    expect(result[:state].keys.map(&:to_s)).to contain_exactly("task", "subject", "expert", "verbs", "exchanges", "accepted",
-                                                               "gaps")
-    expect(result[:state][:subject]).to eq("Lending")
-    expect(result[:state][:task]).to include("Do not assume what kind of business it is")
-    expect(result[:state][:exchanges].length).to eq(2)
-    expect(result[:state][:accepted][:things].first).to eq(name: "Book", identifier: "isbn")
-  end
+    it "puts a proposed field and transition to the developer", :aggregate_failures do
+      expect(result[:transcript]).to include("Proposed field: condition of Book, one of good, worn",
+                                             "Proposed transition: Shelve leaves Book shelved")
+    end
 
-  it "puts a proposed field and transition to the developer, and writes the field they accepted" do
-    script = { questions: ["What do you keep track of?", "What happens, and what does a book have?"],
-               proposals: [[THING], [ACTION, FIELD, TRANSITION]] }
-    result = run_interview(agent: script, keys: ["Books.", "y", "On the shelf, and each is good or worn.", "y", "y", "n", "done"])
-
-    expect(result[:transcript]).to include("Proposed field: condition of Book, one of good, worn",
-                                           "Proposed transition: Shelve leaves Book shelved")
-    bluebook = result[:files]["bluebook/lending.bluebook"]
-    expect(bluebook).to include("attribute :condition, Condition, optional: true", 'one_of: ["good", "worn"]')
-    expect(result[:files]["interviews/INT-1.md"]).to include("- Transition 4, rejected: **Shelve** on Book to shelved")
+    it "writes the field they accepted, and records the transition they rejected", :aggregate_failures do
+      expect(lending_bluebook(result)).to include("attribute :condition, Condition, optional: true",
+                                                  'one_of: ["good", "worn"]')
+      expect(result[:files]["interviews/INT-1.md"]).to include("- Transition 4, rejected: **Shelve** on Book to shelved")
+    end
   end
 
   it "ignores a field proposal with no name, and says so" do
@@ -127,67 +162,48 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(result[:transcript]).to include("Ignored a field proposal with no name.")
   end
 
-  it "tells the interviewer what a thing is not yet said to have, so it asks next" do
-    result = run_interview(agent: ai_script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
-
-    expect(result[:state][:gaps]).to include("nothing is yet said Book has, beyond its identifier")
-    expect(result[:state][:accepted].keys.map(&:to_s)).to include("fields", "transitions")
-  end
-
-  it "refuses to finish with nothing accepted, says why, and carries on" do
-    script = { questions: ["What do you keep?", "Say more.", "And then?"], proposals: [[THING], [THING], [ACTION]] }
-    result = run_interview(agent: script,
-                           keys:  ["Books.", "n", "done", "Books, each with an ISBN.", "y",
-                                   "On the shelf.", "y", "done"])
+  it "refuses to finish with nothing accepted, says why, and carries on", :aggregate_failures do
+    result = run_interview(agent: NOTHING_ACCEPTED_SCRIPT, keys: NOTHING_ACCEPTED_KEYS)
 
     expect(result[:transcript]).to include("Not finished yet: a thing must be accepted before the interview ends")
     expect(result[:files].keys).to include("bluebook/lending.bluebook")
   end
 
-  it "stops and writes nothing when the developer quits" do
+  it "stops and writes nothing when the developer quits", :aggregate_failures do
     result = run_interview(agent: ai_script, keys: ["Books.", "y", "quit"])
 
     expect(result[:transcript]).to include("Stopped. Nothing was written.")
     expect(result[:files]).to be_empty
   end
 
-  it "says what failed when the agent cannot answer, and uses a plain prompt for that turn" do
-    script = { questions: ["FAIL"], proposals: %w[FAIL FAIL] }
-    result = run_interview(agent: script, keys: ["Books, each with an ISBN.", "thing", "Book", "isbn", "",
-                                                 "On the shelf.", "action", "Shelve", "Book", "BookShelved", "y", "", "done"])
+  it "says what failed when the agent cannot answer, and uses a plain prompt for that turn", :aggregate_failures do
+    result = run_interview(agent: UNAVAILABLE_SCRIPT, keys: UNAVAILABLE_KEYS)
 
     expect(result[:transcript]).to include("The AI could not answer (claude is not on PATH)", "What is the main thing")
     expect(result[:transcript]).to include("The AI could not answer (claude did not answer)")
     expect(result[:files].keys).to include("bluebook/lending.bluebook")
-    expect(result[:files]["bluebook/lending.bluebook"]).to include('aggregate "Book" do', 'command "Shelve" do')
+    expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
   end
 
-  it "runs with fixed questions and typed findings under --no-ai, and says nothing about a model" do
-    result = run_interview(ai: false, keys: ["Books.", "thing", "Book", "isbn", "", "On the shelf.", "action", "Shelve", "Book",
-                                             "BookShelved", "y", "", "done"])
+  it "runs with fixed questions and typed findings under --no-ai, and says nothing about a model", :aggregate_failures do
+    result = run_interview(ai: false, keys: NO_AI_KEYS)
 
     expect(result[:transcript]).not_to include("sent to a model")
     expect(result[:transcript]).to include("What is the main thing this business keeps track of?")
-    expect(result[:files]["bluebook/lending.bluebook"]).to include('aggregate "Book" do', 'command "Shelve" do')
+    expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
   end
 
-  it "takes a typed field and a typed transition under --no-ai, leaving the optional parts blank" do
-    result = run_interview(ai: false, keys: ["Books.", "thing", "Book", "isbn", "field", "Book", "condition", "good, worn",
-                                             "transition",
-                                             "Book", "Shelve", "shelved", "", "", "On the shelf.", "action", "Shelve", "Book",
-                                             "BookShelved", "y", "", "done"])
+  it "takes a typed field and a typed transition under --no-ai, leaving the optional parts blank", :aggregate_failures do
+    result = run_interview(ai: false, keys: TYPED_FIELD_KEYS)
 
-    expect(result[:files]["bluebook/lending.bluebook"]).to include("attribute :condition, Condition, optional: true",
-                                                                   'one_of: ["good", "worn"]')
+    expect(lending_bluebook(result)).to include("attribute :condition, Condition, optional: true", 'one_of: ["good", "worn"]')
     expect(result[:files]["interviews/INT-1.md"]).to include("**Shelve** on Book to shelved (exchange 1)")
   end
 
-  it "offers a later interview's findings as additions, and leaves the existing bluebook alone" do
-    bluebook = "Hecks.bluebook \"Lending\" do\n  # mine\nend\n"
-    result = run_interview(agent: ai_script, seed: { "bluebook/lending.bluebook": bluebook, "interviews/INT-1.md": "# first\n" },
-                           keys: ["Books.", "y", "On the shelf.", "y", "done"])
+  it "offers a later interview's findings as additions, and leaves the existing bluebook alone", :aggregate_failures do
+    result = run_interview(agent: ai_script, seed: EXISTING_FILES, keys: ENOUGH_KEYS)
 
-    expect(result[:files]["bluebook/lending.bluebook"]).to eq(bluebook)
+    expect(lending_bluebook(result)).to eq(EXISTING_BLUEBOOK)
     expect(result[:files]["interviews/INT-2.md"]).to include("## Proposed additions", 'aggregate "Book" do')
     expect(result[:files]["interviews/INT-1.md"]).to eq("# first\n")
   end

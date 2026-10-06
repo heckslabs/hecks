@@ -36,14 +36,21 @@ module Hecks
       # @yield works the answer out, loading the domain
       # @yieldreturn [Array(String, Integer), nil] the text and status; nil if it runs a command
       # @return [Array(String, Integer), nil] the block's answer, or the remembered one
-      def fetch(runtime, argv, program)
-        directory = runtime.respond_to?(:directory) ? runtime.directory : nil
-        return yield unless directory && enabled?
+      def fetch(runtime, argv, program, &)
+        domain = domain_of(runtime)
+        return yield unless domain && enabled?
 
-        file = entry_path(directory, argv, program)
-        remembered = file && recall(file)
-        return remembered if remembered
+        file = entry_path(domain, argv, program)
+        (file && recall(file)) || worked_out(file, &)
+      end
 
+      # The directory of the domain the runtime describes, or nil for a runtime that names none.
+      def domain_of(runtime)
+        runtime.directory if runtime.respond_to?(:directory)
+      end
+
+      # The block's answer, remembered when it ended well.
+      def worked_out(file)
         answer = yield
         remember(file, answer) if file && answer&.last&.zero?
         answer

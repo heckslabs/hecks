@@ -34,22 +34,32 @@ RSpec.describe "```ruby skip fences in executable documentation" do
     DoctestNames.all.to_h { |path| [DoctestNames.relative(path), Doctest.parse(path).skip_fences] }
   end
 
-  it "keeps every file at or under its cap — a new skip fence must run instead" do
-    over = self.class.counts.filter_map do |file, count|
+  # One sentence for each file with more skip fences than its cap.
+  def over_cap
+    self.class.counts.filter_map do |file, count|
       cap = SKIP_FENCE_CAPS.fetch(file, 0)
       "#{file}: #{count} ```ruby skip fences, cap #{cap}" if count > cap
     end
+  end
+
+  # One sentence for each cap above the file's current count.
+  def stale_caps
+    counts = self.class.counts
+    SKIP_FENCE_CAPS.filter_map do |file, cap|
+      count = counts.fetch(file, 0)
+      "#{file}: cap #{cap}, now #{count} — set its cap to #{count}#{" (delete the entry)" if count.zero?}" if cap > count
+    end
+  end
+
+  it "keeps every file at or under its cap — a new skip fence must run instead" do
+    over = over_cap
+
     expect(over).to be_empty,
                     "#{over.join("\n")}\nmake the new fence run (```ruby / ```ruby boot) rather than raising the cap"
   end
 
   it "keeps every cap at the current count — a converted fence lowers the cap for good" do
-    counts = self.class.counts
-    stale = SKIP_FENCE_CAPS.filter_map do |file, cap|
-      count = counts.fetch(file, 0)
-      "#{file}: cap #{cap}, now #{count} — set its cap to #{count}#{" (delete the entry)" if count.zero?}" if cap > count
-    end
-    expect(stale).to be_empty, stale.join("\n")
+    expect(stale_caps).to be_empty, stale_caps.join("\n")
   end
 
   it "counts a skip fence the way the doctest parser drops it" do

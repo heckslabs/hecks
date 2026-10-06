@@ -42,14 +42,7 @@ module Hecks
 
           body = request.body.read
           verify_signature!(request, body)
-
-          event = request.get_header(EVENT_HEADER)
-          return respond(200, ok: true, event: "ping") if event == "ping"
-          return respond(400, error: "MissingEvent", message: "no #{EVENT_HEADER} header") if event.to_s.empty?
-
-          payload = parse_json(body)
-          status, result = handle_event(event, payload["action"], payload)
-          respond(status, result)
+          route(request.get_header(EVENT_HEADER), body)
         rescue InvalidSignature => e
           respond(401, error: "InvalidSignature", message: e.message)
         rescue MalformedPayload => e
@@ -57,6 +50,16 @@ module Hecks
         end
 
         private
+
+        # Answers a ping and a missing event header itself; hands any other event to the subclass.
+        def route(event, body)
+          return respond(200, ok: true, event: "ping") if event == "ping"
+          return respond(400, error: "MissingEvent", message: "no #{EVENT_HEADER} header") if event.to_s.empty?
+
+          payload = parse_json(body)
+          status, result = handle_event(event, payload["action"], payload)
+          respond(status, result)
+        end
 
         # Constant-time compare: `==` leaks how many leading bytes of a forged signature matched.
         def verify_signature!(request, body)

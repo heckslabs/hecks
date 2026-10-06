@@ -20,64 +20,72 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
 
   let(:differ) { Differ.new }
 
-  it "stays clean against a real compiled domain binary (pizzas)" do
-    binary = differ.build_rust_for("pizzas", SELF_CONSISTENCY_RUST_DIR)
-    skip "pizzas Rust feature not declared in rust/Cargo.toml" unless binary
-
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_RUST_PIZZAS, seed: 3, steps: 15)
+  # Runs `steps` through the binary and returns the live instances it reports. Not
+  # `strip_emitted_flags!`ed: the seed needs the `emitted_*` bookkeeping fields
+  # `Store::instances()` produced, and `Store::from_seed` refuses a seed missing one.
+  def live_instances(binary, steps)
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
     expect(status).to be_success
+    JSON.parse(stdout)["instances"]
+  end
 
-    # Not `strip_emitted_flags!`ed: the seed needs the `emitted_*` bookkeeping fields
-    # `Store::instances()` produced, and `Store::from_seed` refuses a seed missing one.
-    live = JSON.parse(stdout)["instances"]
+  # Builds the domain's binary and drives a generated sequence through it; returns both.
+  def domain_live(name, example_dir, seed:, steps:)
+    binary = differ.build_rust_for(name, SELF_CONSISTENCY_RUST_DIR)
+    skip "#{name} Rust feature not declared in rust/Cargo.toml" unless binary
 
-    expect(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)).to be_empty
-    expect(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)).to be_empty
+    sequence = Hecks::Fuzzing::SequenceGenerator.generate(example_dir, seed: seed, steps: steps)
+    [binary, live_instances(binary, sequence)]
+  end
+
+  def broken_fixture_live
+    binary = differ.build_rust_for("self_consistency_rust_fixture", SELF_CONSISTENCY_FIXTURE_RUST_DIR)
+    raise "fixture binary failed to build" unless binary
+
+    [binary, live_instances(binary, [])]
+  end
+
+  def rehydration_findings(binary, live) = Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)
+
+  def idempotency_findings(binary, live) = Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)
+
+  it "stays clean against a real compiled domain binary (pizzas)", :aggregate_failures do
+    binary, live = domain_live("pizzas", SELF_CONSISTENCY_RUST_PIZZAS, seed: 3, steps: 15)
+
+    expect(rehydration_findings(binary, live)).to be_empty
+    expect(idempotency_findings(binary, live)).to be_empty
   end
 
   # Pins the `emitted_*` regression: banking's `corrects` reaction adds `emitted_fee_applied`,
   # which `Store::from_seed` requires and pizzas (no `corrects`) never exercises.
-  it "stays clean against a real compiled domain binary with an emitted_* bookkeeping field (banking)" do
-    binary = differ.build_rust_for("banking", SELF_CONSISTENCY_RUST_DIR)
-    skip "banking Rust feature not declared in rust/Cargo.toml" unless binary
-
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_BANKING, seed: 5, steps: 25)
-    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
-    expect(status).to be_success
-
-    live = JSON.parse(stdout)["instances"]
+  it "carries an emitted_* bookkeeping field in the generated banking sequence" do
+    _binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 5, steps: 25)
     carries_bookkeeping_field = live.values.any? { |state| state.key?("emitted_fee_applied") }
+
     expect(carries_bookkeeping_field).to be(true),
                                          "fixture assumption broken: no record in this generated sequence " \
                                          "carries emitted_fee_applied any more"
-
-    expect(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)).to be_empty
-    expect(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)).to be_empty
   end
 
-  it "fires check_rust_rehydration against a binary whose seed door is genuinely broken" do
-    binary = differ.build_rust_for("self_consistency_rust_fixture", SELF_CONSISTENCY_FIXTURE_RUST_DIR)
-    raise "fixture binary failed to build" unless binary
+  it "stays clean against a real compiled domain binary with an emitted_* bookkeeping field (banking)", :aggregate_failures do
+    binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 5, steps: 25)
 
-    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [] }))
-    expect(status).to be_success
-    live = JSON.parse(stdout)["instances"]
+    expect(rehydration_findings(binary, live)).to be_empty
+    expect(idempotency_findings(binary, live)).to be_empty
+  end
 
-    findings = Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)
+  it "fires check_rust_rehydration against a binary whose seed door is genuinely broken", :aggregate_failures do
+    binary, live = broken_fixture_live
+    findings = rehydration_findings(binary, live)
+
     expect(findings).not_to be_empty
     expect(findings.first[:field]).to eq("rust_rehydration")
   end
 
-  it "fires check_rust_idempotency against the same genuinely broken binary" do
-    binary = differ.build_rust_for("self_consistency_rust_fixture", SELF_CONSISTENCY_FIXTURE_RUST_DIR)
-    raise "fixture binary failed to build" unless binary
+  it "fires check_rust_idempotency against the same genuinely broken binary", :aggregate_failures do
+    binary, live = broken_fixture_live
+    findings = idempotency_findings(binary, live)
 
-    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [] }))
-    expect(status).to be_success
-    live = JSON.parse(stdout)["instances"]
-
-    findings = Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)
     expect(findings).not_to be_empty
     expect(findings.first[:field]).to eq("rust_idempotency")
   end

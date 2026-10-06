@@ -71,7 +71,7 @@ RSpec.describe "hecks deploy project — smoke true", :io do
     SETTINGS
   end
 
-  it "adds only the smoke files, leaving every other generated file byte-identical" do
+  it "adds only the smoke files, leaving every other generated file byte-identical", :aggregate_failures do
     without, with = generate(world(""), world(smoke_settings))
 
     expect(with.keys - without.keys).to contain_exactly("smoke/harness.js", "smoke/workflow.yml")

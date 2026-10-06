@@ -43,9 +43,7 @@ module Hecks
       def call(workload, binary:, warmup:, iterations:)
         IO.popen([binary, "--serve"], "r+") do |pipe|
           pipe.sync = true
-          workload.setup.each { |step| ask(pipe, step.to_json_line) }
-          warmup.times { |n| workload.cycle(n).each { |step| ask(pipe, step.to_json_line) } }
-          run = measure(pipe, workload, warmup: warmup, iterations: iterations)
+          run = measured_run(pipe, workload, warmup, iterations)
           Run.new(samples: run.samples, wall_seconds: run.wall_seconds,
                   extras: { roundtrip_floor_p50_us: floor(pipe) })
         ensure
@@ -53,19 +51,29 @@ module Hecks
         end
       end
 
+      def measured_run(pipe, workload, warmup, iterations)
+        workload.setup.each { |step| ask(pipe, step.to_json_line) }
+        warmup.times { |n| workload.cycle(n).each { |step| ask(pipe, step.to_json_line) } }
+        measure(pipe, workload, warmup: warmup, iterations: iterations)
+      end
+
       def measure(pipe, workload, warmup:, iterations:)
         samples = []
         started = now
         iterations.times do |n|
-          workload.cycle(warmup + n).each do |step|
-            line = step.to_json_line
-            began = now
-            answer = round_trip(pipe, line)
-            samples << [step.verb, now - began]
-            check(answer, step.verb)
-          end
+          workload.cycle(warmup + n).each { |step| samples << timed_step(pipe, step) }
         end
         Run.new(samples: samples, wall_seconds: now - started)
+      end
+
+      # @return [Array(String, Float)] the step's verb and how long its round trip took
+      def timed_step(pipe, step)
+        line = step.to_json_line
+        began = now
+        answer = round_trip(pipe, line)
+        sample = [step.verb, now - began]
+        check(answer, step.verb)
+        sample
       end
 
       # An empty step is refused without touching the store: the cost of the pipes alone.

@@ -1,3 +1,4 @@
+require_relative "../text_template"
 require_relative "yaml_text"
 
 module Hecks
@@ -15,96 +16,29 @@ module Hecks
           end
 
           def session_secret
-            <<~YAML.chomp
-              # No explicit Name: Secrets Manager keeps a deleted secret through its recovery window,
-              # and a fixed name would make destroy followed by deploy on one branch fail.
-              SessionSecret:
-                Type: AWS::SecretsManager::Secret
-                Properties:
-                  Description: !Sub "Session secret of the ${EnvName} preview."
-                  GenerateSecretString:
-                    SecretStringTemplate: '{}'
-                    GenerateStringKey: session_secret
-                    PasswordLength: 64
-                    ExcludePunctuation: true
-            YAML
+            TextTemplate.render("preview/session_secret.tmpl").chomp
           end
 
           def container_secrets(container)
             container.secrets.map do |name|
-              <<~YAML.chomp
-                #{secret_id(container, name)}:
-                  Type: AWS::SecretsManager::Secret
-                  Properties:
-                    Description: !Sub "#{name} of the ${EnvName} preview's #{container.name} container."
-                    GenerateSecretString:
-                      SecretStringTemplate: '{}'
-                      GenerateStringKey: secret
-                      PasswordLength: 64
-                      ExcludePunctuation: true
-              YAML
+              TextTemplate.render("preview/container_secret.tmpl", id: secret_id(container, name), name: name,
+                                                                   container: container.name).chomp
             end
           end
 
           def roles(settings)
-            assume = <<~YAML.chomp
-              AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                  - Effect: Allow
-                    Principal: { Service: ecs-tasks.amazonaws.com }
-                    Action: sts:AssumeRole
-            YAML
+            assume = TextTemplate.render("preview/assume_role.tmpl").chomp
             [execution_role(assume), task_role(assume, settings)]
           end
 
           def execution_role(assume)
-            <<~YAML.chomp
-              # The execution role reads the database secret only so the one-shot task can be given
-              # its credentials as container secrets.
-              ExecutionRole:
-                Type: AWS::IAM::Role
-                Properties:
-              #{indent(assume, 4)}
-                  ManagedPolicyArns:
-                    - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-                  Policies:
-                    - PolicyName: SharedDatabaseSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource: !Ref OwningDatabaseSecretArn
-            YAML
+            TextTemplate.render("preview/execution_role.tmpl", assume: indent(assume, 4)).chomp
           end
 
           def task_role(assume, settings)
             readable = ["SessionSecret", *settings.containers.flat_map { |c| c.secrets.map { |n| secret_id(c, n) } }]
-            <<~YAML.chomp
-              # Reads the shared database secret (it connects with it and creates its database) and
-              # this preview's own secrets; nothing owned by the main stack.
-              TaskRole:
-                Type: AWS::IAM::Role
-                Properties:
-              #{indent(assume, 4)}
-                  Policies:
-                    - PolicyName: SharedDatabaseSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource: !Ref OwningDatabaseSecretArn
-                    - PolicyName: PreviewSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource:
-              #{indent(readable.map { |id| "- !Ref #{id}" }.join("\n"), 16)}
-            YAML
+            refs = readable.map { |id| "- !Ref #{id}" }.join("\n")
+            TextTemplate.render("preview/task_role.tmpl", assume: indent(assume, 4), readable: indent(refs, 16)).chomp
           end
         end
       end

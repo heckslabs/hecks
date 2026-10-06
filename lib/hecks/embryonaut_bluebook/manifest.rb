@@ -84,10 +84,18 @@ module Hecks
       end
 
       def judge(name, dir, lock, problems)
+        judge_fields(name, lock, problems)
+        judge_release(name, lock, problems)
+        judge_digest(name, dir, lock, problems)
+      end
+
+      def judge_fields(name, lock, problems)
         FIELDS.each { |field| problems << "#{name}: bluebook.lock has no #{field}" if blank?(lock[field.to_sym]) }
         problems << "#{name}: bluebook.lock names package #{lock.package}" if lock.package && lock.package != name
         problems << "#{name}: bluebook.lock has no shape" if Array(lock.shape).empty?
-        judge_release(name, lock, problems)
+      end
+
+      def judge_digest(name, dir, lock, problems)
         actual = Lock.digest_of(File.join(dir, "bluebook"))
         return if actual == lock.digest
 

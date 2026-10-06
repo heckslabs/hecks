@@ -112,11 +112,17 @@ module Hecks
 
       # Undo `plural`'s "es" after s/x/z/ch/sh before the bare-"s" rule, so "Boxes"
       # gives "Box" while "Invoices" still gives "Invoice".
-      return word[0..-3] if word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
+      return word[0..-3] if sibilant_es?(word)
 
       return word[0..-2] if word.length > 1 && word.end_with?("s")
 
       word
+    end
+
+    # @param word [String] a plural name
+    # @return [Boolean] whether it is a sibilant stem plus `plural`'s "es"
+    def sibilant_es?(word)
+      word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
     end
 
     # Derives the attribute name a reference to `type` is stored under.

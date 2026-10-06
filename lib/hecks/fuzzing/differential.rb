@@ -6,6 +6,7 @@ require_relative "self_consistency"
 require_relative "rust_gap_manifest"
 require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
+require_relative "differential/wire_comparison"
 
 module Hecks
   module Fuzzing
@@ -30,18 +31,26 @@ module Hecks
       # @return [Hash] the four row lists with tolerated verbs removed, `skipped:` (a
       #   `Set<String>` of tolerated verbs reached) and `stale:` (`Array<Hash>` divergences)
       def manifest_partition(gaps, ruby_refusals:, rust_refusals:, ruby_queries:, rust_queries:)
-        verb_of  = ->(row) { row.key?("verb") ? row["verb"] : row["query"] }
-        declared = ->(row) { gaps.not_generated?(verb_of.call(row)) }
-        stale = rust_queries.select(&declared).map do |row|
+        declared = ->(row) { gaps.not_generated?(wire_verb(row)) }
+        lists = { ruby_refusals: ruby_refusals, rust_refusals: rust_refusals,
+                  ruby_queries: ruby_queries, rust_queries: rust_queries }
+        reached = (ruby_refusals + rust_refusals + ruby_queries).select(&declared)
+        lists.transform_values { |rows| rows.reject(&declared) }
+             .merge(skipped: reached.to_set { |row| wire_verb(row) },
+                    stale:   stale_rows(gaps, rust_queries.select(&declared)))
+      end
+
+      # The verb a refusal row names, or the query a query row names.
+      def wire_verb(row) = row.key?("verb") ? row["verb"] : row["query"]
+
+      # One divergence per tolerated query the Rust binary answered anyway.
+      def stale_rows(gaps, answered)
+        answered.map do |row|
           { field: "manifest", verb: row["query"],
             detail: "#{row["query"]} is declared generated: false in manifest.json " \
                     "(#{gaps.not_generated(row["query"]).values_at("gap_class", "construct").join("/")}), " \
                     "but the Rust binary answered it — regenerate with hecks project_rust" }
         end
-        reached = (ruby_refusals + rust_refusals + ruby_queries).select(&declared)
-        { ruby_refusals: ruby_refusals.reject(&declared), rust_refusals: rust_refusals.reject(&declared),
-          ruby_queries: ruby_queries.reject(&declared), rust_queries: rust_queries.reject(&declared),
-          skipped: reached.to_set(&verb_of), stale: stale }
       end
 
       # Runs the standard property battery on a replayed history.
@@ -63,95 +72,61 @@ module Hecks
         history[:self_consistency].values.flatten(1)
       end
 
-      # rubocop:disable-next Metrics/AbcSize
-      # rubocop:disable-next Metrics/CyclomaticComplexity
-      # rubocop:disable-next Metrics/PerceivedComplexity
-      # rubocop:disable-next Metrics/MethodLength
       # @param differ [Object] duck-typed `RustConformanceHelpers` interface
       # @param domain_path [String] the domain directory to replay
       # @param steps [Array<Hash>] the step sequence replayed on both engines
       # @param binary [String] the compiled Rust conformance binary
-      # @param modes [Array<Symbol>] `:differential` (always run), `:self_consistency`,
-      #   `:properties_in_differential`, `:adapter_parity_sqlite`
-      # @param adapter_parity_sqlite [Proc, nil] the caller's comparison; `nil` skips the mode
+      # @param options [Hash] `modes:` (required), an Array of Symbols: `:differential` (always
+      #   run), `:self_consistency`, `:properties_in_differential`, `:adapter_parity_sqlite`; and
+      #   `adapter_parity_sqlite:`, the caller's comparison as a Proc, or `nil` (the default) to
+      #   skip that mode
       # @return [Hash{Symbol => Array<Hash>}] one divergence list per active mode
-      def diff(differ, domain_path, steps, binary, modes:, adapter_parity_sqlite: nil)
-        self_consistency = modes.include?(:self_consistency)
-        ruby_result    = Replay.call(domain_path, steps, self_consistency: self_consistency)
-        ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
-        ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
-        ruby_refusals  = ruby_result[:refusals].map do |r|
-          { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
-        end
-        ruby_queries  = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| Nondeterministic.strip(row, :query_row) }))
-        ruby_sagas    = JSON.parse(JSON.generate(ruby_result[:sagas]))
-        ruby_dry_runs = ruby_result[:dry_runs].map { |d| { "verb" => d[:verb].to_s, "ok" => d[:ok] } }
-
-        outcomes = {}
-        outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
-        if modes.include?(:adapter_parity_sqlite) && adapter_parity_sqlite
-          outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite.call
-        end
-
+      def diff(differ, domain_path, steps, binary, **options)
+        modes, adapter_parity = diff_options(options)
+        ruby_result = Replay.call(domain_path, steps, self_consistency: modes.include?(:self_consistency))
+        outcomes = mode_outcomes(ruby_result, modes, adapter_parity)
         stdout, status = Open3.capture2(binary, stdin_data: RustBuild::KernelInput.json(domain_path, steps))
-        unless status.success?
-          return outcomes.merge(differential: [{ field:  "process",
-                                                 detail: "rust binary exited #{status.exitstatus}: #{stdout}" }])
-        end
+        return outcomes.merge(differential: [process_failure(status, stdout)]) unless status.success?
 
-        rust_output = JSON.parse(stdout)
-        rust_live_instances = JSON.parse(JSON.generate(rust_output["instances"])) if self_consistency
+        rust_outcomes = rust_outcomes(differ, ruby_result, JSON.parse(stdout), binary, modes.include?(:self_consistency))
+        outcomes.merge(rust_outcomes)
+      end
+
+      # Splits the keywords of `diff` into the modes and the parity hook, refusing any other.
+      def diff_options(options)
+        unknown = options.keys - [:modes, :adapter_parity_sqlite]
+        raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" if unknown.any?
+
+        [options.fetch(:modes) { raise ArgumentError, "missing keyword: :modes" }, options[:adapter_parity_sqlite]]
+      end
+
+      # The `:differential` outcome, plus `:self_consistency` when that mode is active.
+      def rust_outcomes(differ, ruby_result, rust_output, binary, self_consistency)
+        live_instances = WireComparison.jsonify(rust_output["instances"]) if self_consistency
         differ.strip_emitted_flags!(rust_output["instances"])
         differ.strip_emitted_flags!(rust_output["queries"])
         differ.strip_occurred_at!(rust_output["events"])
-
-        divergences = []
-        divergences << { field: "instances", ruby: ruby_instances, rust: rust_output["instances"] } \
-          unless rust_output["instances"] == ruby_instances
-        divergences << { field: "events", ruby: ruby_events, rust: rust_output["events"] } \
-          unless rust_output["events"] == ruby_events
-
-        kept = manifest_partition(RustGapManifest.for_binary(binary),
-                                  ruby_refusals: ruby_refusals, rust_refusals: rust_output["refusals"],
-                                  ruby_queries: ruby_queries, rust_queries: rust_output["queries"])
-        differ.structural_skips.merge(kept[:skipped])
-        divergences.concat(kept[:stale])
-
-        by_kind = ->(r) { r.slice("verb", "kind") }
-        rust_refusals      = kept[:rust_refusals].map(&by_kind)
-        kept_ruby_refusals = kept[:ruby_refusals].map(&by_kind)
-        divergences << { field: "refusals", ruby: kept_ruby_refusals, rust: rust_refusals } \
-          unless rust_refusals == kept_ruby_refusals
-
-        wordless          = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
-        rust_queries      = kept[:rust_queries].map(&wordless)
-        kept_ruby_queries = kept[:ruby_queries].map(&wordless)
-        divergences << { field: "queries", ruby: kept_ruby_queries, rust: rust_queries } \
-          unless rust_queries == kept_ruby_queries
-
-        divergences << { field: "sagas", ruby: ruby_sagas, rust: rust_output["sagas"] } \
-          unless rust_output["sagas"] == ruby_sagas
-
-        cross_domain = differ.cross_domain_policy_names(rust_output)
-        kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                                  .reject { |r| cross_domain.include?(r["policy"]) }
-        rust_reactions = rust_output.fetch("reactions")
-        divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
-          unless rust_reactions == kept_ruby_reactions
-
-        rust_dry_runs = Array(rust_output["dry_runs"]).map { |d| d.slice("verb", "ok") }
-        divergences << { field: "dry_runs", ruby: ruby_dry_runs, rust: rust_dry_runs } \
-          unless rust_dry_runs == ruby_dry_runs
-        outcomes[:differential] = divergences
-
-        if self_consistency
-          outcomes[:self_consistency] =
-            self_consistency_divergences(ruby_result) +
-            SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances) +
-            SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances)
-        end
-
+        outcomes = { differential: WireComparison.differential_divergences(differ, ruby_result, rust_output, binary) }
+        outcomes[:self_consistency] = rust_self_consistency(ruby_result, binary, differ, live_instances) if self_consistency
         outcomes
+      end
+
+      # The modes that run on the Ruby side alone, before the binary is touched.
+      def mode_outcomes(ruby_result, modes, adapter_parity)
+        outcomes = {}
+        outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
+        outcomes[:adapter_parity_sqlite] = adapter_parity.call if modes.include?(:adapter_parity_sqlite) && adapter_parity
+        outcomes
+      end
+
+      def process_failure(status, stdout)
+        { field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }
+      end
+
+      def rust_self_consistency(ruby_result, binary, differ, rust_live_instances)
+        self_consistency_divergences(ruby_result) +
+          SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances) +
+          SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances)
       end
     end
   end

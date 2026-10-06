@@ -65,35 +65,51 @@ module Hecks
     # @return [Boolean, nil] true when this call loaded the chapter, nil when it was already held
     # @raise [Runtime::WiringError] if no attachable chapter has that name
     def self.load!(name)
-      paths = index.fetch(name.to_s) do
-        raise Runtime::WiringError,
-              "no attachable chapter named #{name.inspect} — known: #{index.keys.join(", ")}"
-      end
-      registry = Hecks.current_registry or
-        raise Runtime::WiringError, "attaches #{name.to_s.inspect} outside a boot: no registry is open"
+      paths = chapter_paths(name)
+      registry = open_registry(name)
       return refuse_own_chapter(registry, name.to_s) if registry.bluebook(name.to_s)
 
       load_atomically(registry, name.to_s, paths)
       true
     end
 
+    # @return [Array<String>] the files of the named chapter
+    # @raise [Runtime::WiringError] if no attachable chapter has that name
+    def self.chapter_paths(name)
+      index.fetch(name.to_s) do
+        raise Runtime::WiringError,
+              "no attachable chapter named #{name.inspect} — known: #{index.keys.join(", ")}"
+      end
+    end
+
+    # @return [Runtime::Registry] the registry the current boot is loading into
+    # @raise [Runtime::WiringError] when no boot is open
+    def self.open_registry(name)
+      Hecks.current_registry or
+        raise Runtime::WiringError, "attaches #{name.to_s.inspect} outside a boot: no registry is open"
+    end
+
     # Loads a chapter whole or not at all: a raise anywhere leaves the registry as it was, so a
     # retry loads the chapter again instead of finding a half-built one already held.
     def self.load_atomically(registry, name, paths)
-      queued = Bluebook::MetaValidator.deferred_chapters.dup
-      ports    = registry.ports.keys
-      adapters = registry.adapters.keys
+      before = { queued: Bluebook::MetaValidator.deferred_chapters.dup, ports: registry.ports.keys,
+                 adapters: registry.adapters.keys }
       Bluebook::MetaValidator.defer { paths.each { |path| Kernel.load(path) } }
       Bluebook::MetaValidator.judge_deferred!(registry)
       load_wiring(name, paths)
     rescue Exception # rubocop:disable Lint/RescueException -- rolls back, then re-raises
-      registry.forget_chapter(name)
-      Bluebook::MetaValidator.deferred_chapters.replace(queued)
-      registry.ports.delete_if { |key, _| !ports.include?(key) }
-      registry.adapters.delete_if { |key, _| !adapters.include?(key) }
+      roll_back(registry, name, before)
       raise
     end
-    private_class_method :load_atomically
+
+    # Puts the registry back as `load_atomically` found it.
+    def self.roll_back(registry, name, before)
+      registry.forget_chapter(name)
+      Bluebook::MetaValidator.deferred_chapters.replace(before[:queued])
+      registry.ports.delete_if { |key, _| !before[:ports].include?(key) }
+      registry.adapters.delete_if { |key, _| !before[:adapters].include?(key) }
+    end
+    private_class_method :chapter_paths, :open_registry, :load_atomically, :roll_back
 
     # Returns nil for a chapter this gem already loaded; raises for a chapter of the same name
     # that a user's own file declared, which `attaches` would otherwise silently take for the

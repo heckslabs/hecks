@@ -3,6 +3,7 @@
 require_relative "../deploy/fargate/cdn"
 require_relative "table"
 require_relative "edge/pattern"
+require_relative "edge/row_reader"
 require_relative "edge/checks"
 require_relative "edge/behaviours"
 require_relative "edge/rules"
@@ -79,29 +80,8 @@ module Hecks
         # @param members [Array<Hash{Symbol => Object}>] the declared rows
         # @param problems [Array<String>] collects each problem found
         # @return [Array<Struct>] the rows that carry known, well-typed fields
-        def self.build(kind, members, problems)
-          members.each_with_index.map do |member, index|
-            label = "#{OBJECTS.fetch(kind)} row #{index + 1}"
-            unknown = member.keys - FIELDS.fetch(kind).keys
-            if unknown.any?
-              problems << "#{label} has no field #{unknown.join(", ")}; fields are #{FIELDS.fetch(kind).keys.join(", ")}"
-            end
-            (REQUIRED.fetch(kind) - member.keys).each { |field| problems << "#{label} needs #{field}" }
-            typed = member.slice(*FIELDS.fetch(kind).keys).select do |field, value|
-              typed?(value, FIELDS.fetch(kind).fetch(field)) ||
-                (problems << "#{label} has #{field} #{value.inspect}; " \
-                             "#{field} is #{type_name(FIELDS.fetch(kind).fetch(field))}")
-            end
-            STRUCTS.fetch(kind).new(**typed)
-          end
-        end
+        def self.build(kind, members, problems) = RowReader.new(kind, problems).call(members)
         private_class_method :build
-
-        def self.typed?(value, type) = type == :bool ? [true, false].include?(value) : value.is_a?(type)
-        private_class_method :typed?
-
-        def self.type_name(type) = type == :bool ? "true or false" : "a #{type}"
-        private_class_method :type_name
 
         # @param records [Hash{Symbol => Array<Struct>}] the rows of each kind
         # @param table [Table] the checked route table
@@ -110,21 +90,30 @@ module Hecks
         # @param template [String, nil] the template the caller names, if any
         # @raise [Table::Invalid] naming every problem when there is one
         def initialize(records, table:, vocabulary:, problems:, template: nil)
-          @setting = records.fetch(:setting).first
-          @policies = records.fetch(:policy)
-          @upstreams = records.fetch(:upstream)
-          @rules = records.fetch(:rule)
+          assign(records)
           Checks.new(self, table.rows, vocabulary, problems, template_named: !template.nil?).call
-          if problems.empty?
-            @listener_rules = alb? ? Rules.new(self, table.rows, problems).call : []
-            built = Behaviours.new(self, table.rows, problems).call
-            @default_behaviour = built.fetch(:default)
-            @behaviours = built.fetch(:list)
-          end
+          build_outputs(table, problems) if problems.empty?
           return if problems.empty?
 
           raise Table::Invalid, "the edge is refused:\n#{problems.map { |line| "  - #{line}" }.join("\n")}"
         end
+
+        # Reads the checked rows into the accessors, then builds what the routes need from them.
+        def assign(records)
+          @setting = records.fetch(:setting).first
+          @policies = records.fetch(:policy)
+          @upstreams = records.fetch(:upstream)
+          @rules = records.fetch(:rule)
+        end
+        private :assign
+
+        def build_outputs(table, problems)
+          @listener_rules = alb? ? Rules.new(self, table.rows, problems).call : []
+          built = Behaviours.new(self, table.rows, problems).call
+          @default_behaviour = built.fetch(:default)
+          @behaviours = built.fetch(:list)
+        end
+        private :build_outputs
 
         # @return [Boolean] whether the project has a load balancer, and so listener rules; true
         #   unless the `Edge` row says `alb: false`

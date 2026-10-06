@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Codebase::Regeneration do
     described_class.call("regenerate_corpus", held, tree)
   end
 
-  it "only checks, into a scratch crate, when run with --check" do
+  it "only checks, into a scratch crate, when run with --check", :aggregate_failures do
     shell = fake_run(plan)
 
     report = regenerate({ check: { value: true }, confirm: { value: true } })
@@ -38,7 +38,7 @@ RSpec.describe Hecks::Adapters::Codebase::Regeneration do
     expect(shell.asked.first[:command].last).to eq("--check")
   end
 
-  it "regenerates into the checkout only when confirmed" do
+  it "regenerates into the checkout only when confirmed", :aggregate_failures do
     shell = fake_run(plan)
 
     report = regenerate({ confirm: { value: true } })

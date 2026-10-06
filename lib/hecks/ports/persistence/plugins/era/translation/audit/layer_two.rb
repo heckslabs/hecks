@@ -41,18 +41,8 @@ module Hecks
         # @return [void]
         def check_id_conservation!(violations, aggregate, before, after, rekeyed:)
           # A rekey changes the id set, so compare counts: a collision or a NULL id lowers it.
-          if rekeyed
-            unless before.keys.size == after.keys.size
-              violations << "#{aggregate.name}: the record count changed across a rekeying edge " \
-                            "(#{before.keys.size} before, #{after.keys.size} after) — a rekey must not " \
-                            "collide two distinct ids onto one, or drop one"
-            end
-          elsif before.keys.sort != after.keys.sort
-            gained = after.keys - before.keys
-            lost = before.keys - after.keys
-            violations << "#{aggregate.name}: the id set changed across the edge " \
-                          "(lost #{lost.sort.inspect}, gained #{gained.sort.inspect})"
-          end
+          message = rekeyed ? rekey_count_violation(aggregate, before, after) : id_set_violation(aggregate, before, after)
+          violations << message if message
         end
 
         # Records a violation for each record whose translated state diverges from the reference.
@@ -66,17 +56,14 @@ module Hecks
         # @return [void]
         def check_value_preservation!(violations, aggregate, declared, before, after)
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
-          compute_paths = declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)
+          compute_paths = compute_paths_of(declared)
 
           before.each do |id, state|
             next unless after.key?(id)
 
-            entry = Ports::Persistence::Entry.new(operation: "save", id: id, state: state.transform_keys(&:to_sym))
-            expected = strip_compute_paths(normalize(rules.translate(entry).state), compute_paths)
-            actual = strip_compute_paths(normalize(after[id]), compute_paths)
-            next if expected == actual
+            diverged = divergence(rules, id, state, after[id], compute_paths)
+            next if diverged.empty?
 
-            diverged = (expected.keys | actual.keys).reject { |key| expected[key] == actual[key] }
             violations << "#{aggregate.name}##{id}: the translated state diverges from the reference " \
                           "transform at #{diverged.sort.join(", ")}"
           end
@@ -108,6 +95,39 @@ module Hecks
             end
           end
           state
+        end
+
+        private
+
+        # The message for a rekeying edge whose record count changed, or nil.
+        def rekey_count_violation(aggregate, before, after)
+          return if before.keys.size == after.keys.size
+
+          "#{aggregate.name}: the record count changed across a rekeying edge " \
+            "(#{before.keys.size} before, #{after.keys.size} after) — a rekey must not " \
+            "collide two distinct ids onto one, or drop one"
+        end
+
+        # The message for an edge whose id set changed, or nil.
+        def id_set_violation(aggregate, before, after)
+          return if before.keys.sort == after.keys.sort
+
+          gained = after.keys - before.keys
+          lost = before.keys - after.keys
+          "#{aggregate.name}: the id set changed across the edge " \
+            "(lost #{lost.sort.inspect}, gained #{gained.sort.inspect})"
+        end
+
+        def compute_paths_of(declared)
+          declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)
+        end
+
+        # The keys at which one record's translated state differs from the reference transform.
+        def divergence(rules, id, state, translated, compute_paths)
+          entry = Ports::Persistence::Entry.new(operation: "save", id: id, state: state.transform_keys(&:to_sym))
+          expected = strip_compute_paths(normalize(rules.translate(entry).state), compute_paths)
+          actual = strip_compute_paths(normalize(translated), compute_paths)
+          (expected.keys | actual.keys).reject { |key| expected[key] == actual[key] }
         end
       end
     end

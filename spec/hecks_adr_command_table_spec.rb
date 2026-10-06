@@ -55,7 +55,8 @@ RSpec.describe "the ADR 0080 command table, every row" do
   end
 
   ALL_ROWS.each do |row|
-    it "answers #{row.script} as #{row.chapter}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(" ")}`" do
+    it "answers #{row.script} as #{row.chapter}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(" ")}`",
+       :aggregate_failures do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in #{row.chapter}"
       next if NOT_USER_FACING.include?(row.verb)
 
@@ -69,7 +70,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     expect(ALL_ROWS.map(&:section).uniq - Hecks::Tools::ToolsDoc::SECTIONS).to eq([])
   end
 
-  it "lists each command once" do
+  it "lists each command once", :aggregate_failures do
     keys = ALL_ROWS.map { |row| [row.chapter, row.aggregate, row.name, row.script] }
 
     expect(keys.uniq.size).to eq(keys.size)

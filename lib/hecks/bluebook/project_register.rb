@@ -41,58 +41,59 @@ module Hecks
       # @raise [Runtime::WiringError] if a second tenant registers the same directory while
       #   an aggregate binds to an adapter that is not `tenant_capable?`
       def register(bluebooks, registry, dispatcher, directory)
-        bluebooks.each do |bluebook|
-          refuse_unless_safe_for_second_tenant!(bluebook, registry, directory)
-          world = registry.world(bluebook.name)
-          realm = world&.realm
-          raise MissingRealm, "#{bluebook.name} in #{directory} has no world realm" if realm.to_s.empty?
-          if world.latest && bluebook.version && world.latest != bluebook.version
-            raise LatestMismatch,
-                  "#{bluebook.name} in #{directory} declares latest #{world.latest.inspect}, not #{bluebook.version.inspect}"
-          end
-
-          bluebook.aggregates.each { |aggregate| register_aggregate!(aggregate, bluebook, world, realm, directory, dispatcher) }
-          bluebook.read_models.each { |model| register_read_model!(model, bluebook, world, realm, directory, dispatcher) }
-        end
+        bluebooks.each { |bluebook| register_bluebook(bluebook, registry, dispatcher, directory) }
         self
       end
 
       private
 
-      def register_aggregate!(aggregate, bluebook, world, realm, directory, dispatcher)
-        aggregate.commands.each do |command|
-          if bluebook.version
-            add(Fqn.command(realm: realm, domain: bluebook.name, version: bluebook.version,
-                            aggregate: aggregate.hecks_name, command: command.hecks_name),
-                directory, dispatcher, command.hecks_name, bluebook.version)
-          end
-          if current?(bluebook, world)
-            add(Fqn.command(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
-                            command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version)
-          end
-        end
-        aggregate.queries.each do |query|
-          name = Naming.snake(query.name)
-          if bluebook.version
-            add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
-                          aggregate: aggregate.hecks_name, query: name), directory, dispatcher, query.name, bluebook.version)
-          end
-          if current?(bluebook, world)
-            add(Fqn.query(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
-                          query: name), directory, dispatcher, query.name, bluebook.version)
-          end
+      # The bluebook being registered and where it is registered from.
+      Context = Struct.new(:bluebook, :world, :realm, :directory, :dispatcher)
+
+      def register_bluebook(bluebook, registry, dispatcher, directory)
+        refuse_unless_safe_for_second_tenant!(bluebook, registry, directory)
+        world = registry.world(bluebook.name)
+        realm = world&.realm
+        raise MissingRealm, "#{bluebook.name} in #{directory} has no world realm" if realm.to_s.empty?
+
+        refuse_latest_mismatch!(bluebook, world, directory)
+        register_declarations(Context.new(bluebook, world, realm, directory, dispatcher))
+      end
+
+      def register_declarations(context)
+        context.bluebook.aggregates.each { |aggregate| register_aggregate!(aggregate, context) }
+        context.bluebook.read_models.each do |model|
+          register_pair!(context, :query, model.query_name, model.query_name)
         end
       end
 
-      def register_read_model!(model, bluebook, world, realm, directory, dispatcher)
-        if bluebook.version
-          add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
-                        query: model.query_name), directory, dispatcher, model.query_name, bluebook.version)
+      def refuse_latest_mismatch!(bluebook, world, directory)
+        return unless world.latest && bluebook.version && world.latest != bluebook.version
+
+        raise LatestMismatch,
+              "#{bluebook.name} in #{directory} declares latest #{world.latest.inspect}, not #{bluebook.version.inspect}"
+      end
+
+      def register_aggregate!(aggregate, context)
+        aggregate.commands.each do |command|
+          register_pair!(context, :command, command.hecks_name, command.hecks_name, aggregate: aggregate.hecks_name)
         end
-        if current?(bluebook, world)
-          add(Fqn.query(realm: realm, domain: bluebook.name, query: model.query_name),
-              directory, dispatcher, model.query_name, bluebook.version)
+        aggregate.queries.each do |query|
+          register_pair!(context, :query, Naming.snake(query.name), query.name, aggregate: aggregate.hecks_name)
         end
+      end
+
+      # Registers the versioned FQN of one command or query, then its unversioned one when the
+      # bluebook is the current version.
+      def register_pair!(context, kind, name, declared_verb, **scope)
+        bluebook = context.bluebook
+        register_fqn!(context, kind, name, declared_verb, **scope, version: bluebook.version) if bluebook.version
+        register_fqn!(context, kind, name, declared_verb, **scope) if current?(bluebook, context.world)
+      end
+
+      def register_fqn!(context, kind, name, declared_verb, **scope)
+        fqn = Fqn.public_send(kind, realm: context.realm, domain: context.bluebook.name, **scope, kind => name)
+        add(fqn, context.directory, context.dispatcher, declared_verb, context.bluebook.version)
       end
 
       # A directory's first registration is never refused; only a second one (another tenant

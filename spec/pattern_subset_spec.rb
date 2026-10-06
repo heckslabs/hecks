@@ -24,7 +24,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
       "^[[:digit:]]$"   => "posix bracket class",
       "^[[:alpha:]]+$"  => "posix bracket class"
     }.each do |pattern, construct|
-      it "refuses #{pattern} as a #{construct}" do
+      it "refuses #{pattern} as a #{construct}", :aggregate_failures do
         rejection = described_class.validate(pattern)
 
         expect(rejection).not_to be_nil, "#{pattern} should have been refused"
@@ -49,7 +49,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
     end
 
     # An escaped construct is a literal, not a violation.
-    it "reads an escaped construct as the characters it spells" do
+    it "reads an escaped construct as the characters it spells", :aggregate_failures do
       expect(described_class.validate('\(\?=')).to be_nil
       expect(described_class.validate("(?<year>[0-9]{4})")).to be_nil
       expect(described_class.validate('\0')).to be_nil
@@ -81,7 +81,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
       "a{2,}+"   => "possessive quantifier",
       "[ab]{2}+" => "possessive quantifier"
     }.each do |pattern, construct|
-      it "refuses #{pattern} as a #{construct}" do
+      it "refuses #{pattern} as a #{construct}", :aggregate_failures do
         rejection = described_class.validate(pattern)
 
         expect(rejection).not_to be_nil, "#{pattern} should have been refused"
@@ -93,27 +93,30 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
   # Verdicts come from the fixture, not from the walk, so a regression is caught against
   # what was agreed.
   describe "the recorded contract" do
-    it "reads every admitted pattern the way the fixture says" do
-      rows = JSON.parse(File.read(PATTERNS_CONTRACT))
-      expect(rows).not_to be_empty
+    def contract_rows = JSON.parse(File.read(PATTERNS_CONTRACT))
 
-      disagreements = rows.reject do |row|
-        Regexp.new(row.fetch("pattern")).match?(row.fetch("input")) == row.fetch("matches")
-      end
+    # The rows whose pattern Ruby reads differently from what the fixture says.
+    def disagreements(rows)
+      rows.reject { |row| Regexp.new(row.fetch("pattern")).match?(row.fetch("input")) == row.fetch("matches") }
+    end
 
-      expect(disagreements).to be_empty,
-                               "Ruby departs from the contract on: " \
-                               "#{disagreements.map { |r| "#{r["pattern"].inspect} against #{r["input"].inspect}" }.join(", ")}"
+    # The recorded patterns the subset refuses, each with the construct it names.
+    def refused_patterns
+      contract_rows.filter_map do |row|
+        rejection = described_class.validate(row.fetch("pattern"))
+        "#{row.fetch("pattern").inspect} (#{rejection.construct})" if rejection
+      end.uniq
+    end
+
+    it "reads every admitted pattern the way the fixture says", :aggregate_failures do
+      expect(contract_rows).not_to be_empty
+
+      departures = disagreements(contract_rows).map { |r| "#{r["pattern"].inspect} against #{r["input"].inspect}" }
+      expect(departures).to be_empty, "Ruby departs from the contract on: #{departures.join(", ")}"
     end
 
     it "only records patterns the subset admits" do
-      refused = JSON.parse(File.read(PATTERNS_CONTRACT)).filter_map do |row|
-        rejection = described_class.validate(row.fetch("pattern"))
-        "#{row.fetch("pattern").inspect} (#{rejection.construct})" if rejection
-      end
-
-      expect(refused.uniq).to be_empty,
-                              "the contract records patterns a bluebook may not say: #{refused.uniq.join(", ")}"
+      expect(refused_patterns).to be_empty, "the contract records patterns a bluebook may not say: #{refused_patterns.join(", ")}"
     end
   end
 end

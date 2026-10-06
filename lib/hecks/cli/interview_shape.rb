@@ -108,17 +108,24 @@ module Hecks
       # @param rest [Array<Hash>] its other accepted actions
       # @return [Array<String>] the lines, or none when no step and start state can be placed
       def lifecycle(steps, creating, rest)
-        births = creating.map { |action| InterviewDraft.word(action[:name]) }
-        has = ->(names, step) { names.include?(InterviewDraft.word(step[:action])) }
-        starts, moves = steps.partition { |step| has.call(births, step) }
-        heres = rest.map { |action| InterviewDraft.word(action[:name]) }
-        placed, loose = moves.partition { |step| has.call(heres, step) }
+        starts, moves = steps.partition { |step| names_action?(creating, step) }
+        placed, loose = moves.partition { |step| names_action?(rest, step) }
         placed = merged(placed)
         start = beginning(starts, placed)
         return [] if start.empty? || placed.empty?
 
+        lifecycle_block(start, placed, loose)
+      end
+
+      # @api private
+      def lifecycle_block(start, placed, loose)
         ["", "    lifecycle :status, default: #{start.inspect} do", *placed.map { |step| transition_line(step) },
          "    end", *loose.map { |step| loose_line(step) }]
+      end
+
+      # @api private
+      def names_action?(actions, step)
+        actions.map { |action| InterviewDraft.word(action[:name]) }.include?(InterviewDraft.word(step[:action]))
       end
 
       # One action for each name: an expert who refines an answer gets the same action accepted more

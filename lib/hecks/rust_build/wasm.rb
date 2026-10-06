@@ -31,13 +31,16 @@ module Hecks
         require_target!
         rust_dir = RustBuild.rust_dir
         scratch = scratch_copy(rust_dir)
-        puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
-        status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
-        raise Failure, "project_rust failed for #{domain}" unless status.zero?
-
+        regenerate(scratch, domain)
         compile(scratch)
         publish(scratch, rust_dir, File.basename(domain))
         0
+      end
+
+      def regenerate(scratch, domain)
+        puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
+        status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
+        raise Failure, "project_rust failed for #{domain}" unless status.zero?
       end
 
       # With the Rust parser and codegen, `hecks-build` runs the same steps and writes the same
@@ -94,6 +97,10 @@ module Hecks
         FileUtils.cp(File.join(target_dir, TARGET, "release", "rust.wasm"), out)
         puts "wrote #{out}"
         puts %(run it: wasmtime run #{out} < script.json)
+        publish_sidecar(scratch, dist, name)
+      end
+
+      def publish_sidecar(scratch, dist, name)
         sidecar = File.join(scratch, "src", "generated", name, "ir.json")
         return unless File.exist?(sidecar)
 

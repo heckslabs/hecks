@@ -24,7 +24,7 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
       expect(described_class.apply("#{nbsp}a < b")).to eq("#{nbsp}a < b")
     end
 
-    it "folds .length to .size only at a word boundary" do
+    it "folds .length to .size only at a word boundary", :aggregate_failures do
       expect(described_class.apply("items.length > 0")).to eq("items.size > 0")
       expect(described_class.apply("dims.length_cm > 0")).to eq("dims.length_cm > 0")
     end
@@ -54,7 +54,7 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
     # A duration written as a call on a whole number is that many seconds (ADR 0081), so a
     # lifetime reads as `issued_at + days(730) > now` and both engines see the same integer.
     describe "durations" do
-      it "folds days, hours and minutes into seconds" do
+      it "folds days, hours and minutes into seconds", :aggregate_failures do
         expect(described_class.apply("issued_at.value + days(730) > now.value"))
           .to eq("issued_at.value + 63072000 > now.value")
         expect(described_class.apply("a + hours(2) < b")).to eq("a + 7200 < b")
@@ -65,12 +65,12 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
         expect(described_class.apply("a + days( 1 ) < b")).to eq("a + 86400 < b")
       end
 
-      it "leaves a call on anything but a whole-number literal as written" do
+      it "leaves a call on anything but a whole-number literal as written", :aggregate_failures do
         expect(described_class.apply("days(n) > 0")).to eq("days(n) > 0")
         expect(described_class.apply("days(1.5) > 0")).to eq("days(1.5) > 0")
       end
 
-      it "leaves a method call and a longer name alone" do
+      it "leaves a method call and a longer name alone", :aggregate_failures do
         expect(described_class.apply("x.days(3) == 1")).to eq("x.days(3) == 1")
         expect(described_class.apply("workdays(3) > 0")).to eq("workdays(3) > 0")
       end

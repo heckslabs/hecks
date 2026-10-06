@@ -44,16 +44,19 @@ module Hecks
       # Renders a site's template from raw `arguments`, formatting each per its row.
       # Raises ArgumentError on a missing or undeclared argument, KeyError on an unknown site.
       def render_site(refusal, site, **arguments)
-        specs    = argument_rows(refusal, site)
-        declared = specs.map { |spec| spec["argument"].to_sym }
-        missing  = declared - arguments.keys
-        extra    = arguments.keys - declared
-        if missing.any? || extra.any?
-          raise ArgumentError, "#{refusal}/#{site} takes #{declared.join(", ")} — " \
-                               "missing: #{missing.join(", ")}; undeclared: #{extra.join(", ")}"
-        end
+        specs = argument_rows(refusal, site)
+        refuse_wrong_arguments!(refusal, site, specs.map { |spec| spec["argument"].to_sym }, arguments.keys)
 
         render_with(template(refusal, site), specs, arguments)
+      end
+
+      def refuse_wrong_arguments!(refusal, site, declared, offered)
+        missing = declared - offered
+        extra   = offered - declared
+        return unless missing.any? || extra.any?
+
+        raise ArgumentError, "#{refusal}/#{site} takes #{declared.join(", ")} — " \
+                             "missing: #{missing.join(", ")}; undeclared: #{extra.join(", ")}"
       end
 
       # `render_site` without the registry lookups; the Rust projection calls it with its own rows.

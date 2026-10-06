@@ -27,6 +27,28 @@ module Hecks
         # projected from is still being built (`MetaValidator.bootstrapping?`).
       RUBY
 
+      # The generated file, with `@@CALLS@@` and `@@RESOLVES@@` standing for the table rows.
+      TEMPLATE = <<~RUBY.freeze
+        #{HEADER}
+        module Hecks
+          module Bluebook
+            module DSL
+              module BootstrapTable
+                # [context, word] => the method a word's whole call forwards to.
+                CALLS = {
+        @@CALLS@@
+                }.freeze
+
+                # [word, context] => the RuleReference primitive a bare reference resolves through.
+                RESOLVES = {
+        @@RESOLVES@@
+                }.freeze
+              end
+            end
+          end
+        end
+      RUBY
+
       module_function
 
       # Projects the bootstrap fallback table; both arguments are ignored (the table is
@@ -56,12 +78,18 @@ module Hecks
       def calls(rows = live_keywords)
         rows.reject { |row| row[:calls].to_s.empty? }
             .group_by { |row| [row[:context], row[:word]] }
-            .to_h do |key, same_word|
-              targets = same_word.map { |row| row[:calls] }.uniq
-              raise Conflict, "#{key.inspect} names more than one method: #{targets.join(", ")}" if targets.size > 1
+            .to_h { |key, same_word| [key, single_target(key, same_word)] }
+      end
 
-              [key, targets.first.to_sym]
-            end
+      # @param key [Array<String>] a `[context, word]`
+      # @param same_word [Array<Hash{Symbol => String}>] the rows declaring that word
+      # @return [Symbol] the one method they all name
+      # @raise [Projections::BootstrapTable::Conflict] if they name different methods
+      def single_target(key, same_word)
+        targets = same_word.map { |row| row[:calls] }.uniq
+        raise Conflict, "#{key.inspect} names more than one method: #{targets.join(", ")}" if targets.size > 1
+
+        targets.first.to_sym
       end
 
       # `[word, context] => { resolves_via:, disambiguator: }`, in RuleReference's key order.
@@ -84,31 +112,17 @@ module Hecks
       def render(_bluebook)
         rows = live_keywords
         calls_lines = calls(rows).map { |key, target| "          #{key.inspect} => #{target.inspect}" }
-        resolves_lines = resolves(rows).map do |key, rule|
-          fields = rule.map { |name, value| "#{name}: #{value.inspect}" }.join(", ")
-          "          #{key.inspect} => { #{fields} }.freeze"
-        end
+        resolves_lines = resolves(rows).map { |key, rule| resolves_line(key, rule) }
 
-        <<~RUBY
-          #{HEADER}
-          module Hecks
-            module Bluebook
-              module DSL
-                module BootstrapTable
-                  # [context, word] => the method a word's whole call forwards to.
-                  CALLS = {
-          #{calls_lines.join(",\n")}
-                  }.freeze
+        TEMPLATE.sub("@@CALLS@@") { calls_lines.join(",\n") }.sub("@@RESOLVES@@") { resolves_lines.join(",\n") }
+      end
 
-                  # [word, context] => the RuleReference primitive a bare reference resolves through.
-                  RESOLVES = {
-          #{resolves_lines.join(",\n")}
-                  }.freeze
-                end
-              end
-            end
-          end
-        RUBY
+      # @param key [Array<String>] a `[word, context]`
+      # @param rule [Hash{Symbol => String}] its `resolves_via:` and `disambiguator:` columns
+      # @return [String] its entry in the `RESOLVES` literal
+      def resolves_line(key, rule)
+        fields = rule.map { |name, value| "#{name}: #{value.inspect}" }.join(", ")
+        "          #{key.inspect} => { #{fields} }.freeze"
       end
     end
   end

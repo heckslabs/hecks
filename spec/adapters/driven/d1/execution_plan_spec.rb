@@ -2,6 +2,51 @@ require "spec_helper"
 require "sqlite3"
 
 RSpec.describe "D1 execution-plan capabilities" do
+  # A connection that answers `batch` the way D1 classifies it, and refuses independent `execute`s.
+  class D1FakeBatchConnection
+    attr_reader :batches
+
+    def initialize
+      @batches = []
+      @ids = {}
+    end
+
+    def execute(*)
+      raise "atomic_put must use one batch, not independent execute calls"
+    end
+
+    def batch(statements)
+      @batches << statements
+      id = statements.fetch(0).fetch(1).fetch(0).to_s
+      status = @ids.key?(id) ? "replaced" : "inserted"
+      @ids[id] = true
+      [[{ "status" => status }], [], []]
+    end
+  end
+
+  # Runs each statement in a real SQLite3::Database inside a transaction, in order: the local
+  # stand-in for D1's server-side batch atomicity. Shows the SQL is valid and that the
+  # `WHERE NOT EXISTS` gating blocks both writes. No threaded race test: two threads on one
+  # SQLite3 connection would test the gem's thread-safety, not D1's batch handling.
+  class D1RealSqliteBatchConnection
+    def initialize(db) = @db = db
+
+    def execute(sql, binds = []) = @db.execute(sql, binds)
+    def get_first_row(sql, binds = []) = execute(sql, binds).first
+    def get_first_value(sql, binds = []) = get_first_row(sql, binds)&.values&.first
+
+    def batch(statements)
+      results = nil
+      @db.transaction { results = statements.map { |sql, binds| execute(sql, binds || []) } }
+      results
+    end
+  end
+
+  D1_BATCH_STATEMENTS = [
+    ["SELECT ? AS status", ["inserted"]],
+    ["INSERT INTO items (id) VALUES (?)", ["sku-1"]]
+  ].freeze
+
   def item_aggregate
     Hecks::Bluebook::DSL::BluebookBuilder.build("D1Planning") do
       vision "D1 implements the same atomic-put contract as Memory and SQLite"
@@ -17,29 +62,6 @@ RSpec.describe "D1 execution-plan capabilities" do
     end.aggregate("Item")
   end
 
-  def fake_batch_connection
-    Class.new do
-      attr_reader :batches
-
-      def initialize
-        @batches = []
-        @ids = {}
-      end
-
-      def execute(*)
-        raise "atomic_put must use one batch, not independent execute calls"
-      end
-
-      def batch(statements)
-        @batches << statements
-        id = statements.fetch(0).fetch(1).fetch(0).to_s
-        status = @ids.key?(id) ? "replaced" : "inserted"
-        @ids[id] = true
-        [[{ "status" => status }], [], []]
-      end
-    end.new
-  end
-
   def adapter_with(connection, aggregate)
     Hecks::Adapters::D1.allocate.tap do |adapter|
       adapter.instance_variable_set(:@aggregate, aggregate)
@@ -47,187 +69,163 @@ RSpec.describe "D1 execution-plan capabilities" do
     end
   end
 
-  it "uses one transactional batch and reports the database-classified insert or replacement outcome" do
-    aggregate = item_aggregate
-    connection = fake_batch_connection
-    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
-
-    first = Hecks::Runtime::Instance.new(
-      aggregate: aggregate,
-      id:        "sku-1",
-      state:     { identity: { sku: "sku-1" }, label: { value: "First" } }
-    )
-    second = Hecks::Runtime::Instance.new(
-      aggregate: aggregate,
-      id:        "sku-1",
-      state:     { identity: { sku: "sku-1" }, label: { value: "Second" } }
-    )
-
-    expect(repository.capabilities).to eq([:atomic_put])
-    expect(repository.atomic_put(first).status).to eq(:inserted)
-    expect(repository.atomic_put(second).status).to eq(:replaced)
-
-    expect(connection.batches.size).to eq(2)
-    connection.batches.each do |statements|
-      expect(statements.size).to eq(3)
-      expect(statements[0][0]).to match(/SELECT CASE WHEN EXISTS .* AS status/)
-      expect(statements[1][0]).to include('INSERT INTO "item_entries"')
-      expect(statements[2][0]).to include('INSERT OR REPLACE INTO "item"')
-    end
-  end
-
-  # Runs each statement in a real SQLite3::Database inside a transaction, in order: the local
-  # stand-in for D1's server-side batch atomicity. Shows the SQL is valid and that the
-  # `WHERE NOT EXISTS` gating blocks both writes. No threaded race test: two threads on one
-  # SQLite3 connection would test the gem's thread-safety, not D1's batch handling.
   def real_sqlite_batch_connection
     db = SQLite3::Database.new(":memory:")
     db.results_as_hash = true
-    Class.new do
-      def initialize(db) = @db = db
-
-      def execute(sql, binds = []) = @db.execute(sql, binds)
-      def get_first_row(sql, binds = []) = execute(sql, binds).first
-      def get_first_value(sql, binds = []) = get_first_row(sql, binds)&.values&.first
-
-      def batch(statements)
-        results = nil
-        @db.transaction { results = statements.map { |sql, binds| execute(sql, binds || []) } }
-        results
-      end
-    end.new(db)
+    D1RealSqliteBatchConnection.new(db)
   end
 
   def adapter_on_real_sqlite(aggregate)
-    connection = real_sqlite_batch_connection
-    adapter = adapter_with(connection, aggregate)
+    adapter = adapter_with(real_sqlite_batch_connection, aggregate)
     %i[create_aggregate_table! create_entry_table! ensure_entry_operation_column! ensure_entry_mirrors_column!].each do |setup|
       adapter.send(setup)
     end
     adapter
   end
 
-  it "insert_only: closes the round trip — one batch, and a real conflict blocks both writes" do
-    aggregate = item_aggregate
-    adapter = adapter_on_real_sqlite(aggregate)
-    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
-
-    first = Hecks::Runtime::Instance.new(
-      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
+  def item_labelled(label)
+    Hecks::Runtime::Instance.new(
+      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: label } }
     )
-    second = Hecks::Runtime::Instance.new(
-      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "Second" } }
-    )
-
-    expect(repository.atomic_put(first, insert_only: true).status).to eq(:inserted)
-    expect(adapter.entries.size).to eq(1)
-    expect(adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
-
-    # The row already exists: both gated writes must be real no-ops, not a `:conflicted`
-    # return that still writes.
-    expect(repository.atomic_put(second, insert_only: true).status).to eq(:conflicted)
-    expect(adapter.entries.size).to eq(1)
-    expect(adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
   end
 
-  it "insert_only: still issues exactly one batch, no separate existence-check round trip" do
-    aggregate = item_aggregate
-    connection = fake_batch_connection
-    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
+  let(:aggregate) { item_aggregate }
+  let(:connection) { fake_batch_connection }
+  let(:repository) { Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate)) }
 
-    instance = Hecks::Runtime::Instance.new(
-      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
-    )
+  def fake_batch_connection = D1FakeBatchConnection.new
 
-    repository.atomic_put(instance, insert_only: true)
+  describe "the fake batch connection" do
+    def put_twice = [repository.atomic_put(item_labelled("First")), repository.atomic_put(item_labelled("Second"))]
 
-    expect(connection.batches.size).to eq(1)
-    statements = connection.batches.first
-    expect(statements.size).to eq(3)
-    expect(statements[0][0]).to match(/SELECT CASE WHEN EXISTS .* THEN 'conflicted' ELSE 'inserted' END AS status/)
-    expect(statements[1][0]).to include("WHERE NOT EXISTS")
-    expect(statements[2][0]).to include("WHERE NOT EXISTS")
+    it "reports the one capability it has" do
+      expect(repository.capabilities).to eq([:atomic_put])
+    end
+
+    it "reports the database-classified insert, then replacement, outcome" do
+      expect(put_twice.map(&:status)).to eq(%i[inserted replaced])
+    end
+
+    it "uses one transactional batch for each put" do
+      put_twice
+
+      expect(connection.batches.size).to eq(2)
+    end
+
+    it "shapes each batch as an existence check, an entry insert and a snapshot replace" do
+      put_twice
+
+      expect(connection.batches.map { |statements| statements.map(&:first) }).to all(
+        match([match(/SELECT CASE WHEN EXISTS .* AS status/), a_string_including('INSERT INTO "item_entries"'),
+               a_string_including('INSERT OR REPLACE INTO "item"')])
+      )
+    end
+
+    context "with insert_only" do
+      let(:statements) { connection.batches.first }
+
+      before { repository.atomic_put(item_labelled("First"), insert_only: true) }
+
+      it "still issues exactly one batch, no separate existence-check round trip" do
+        expect(connection.batches.size).to eq(1)
+      end
+
+      it "checks for a conflict in the same batch", :aggregate_failures do
+        expect(statements.size).to eq(3)
+        expect(statements[0][0]).to match(/SELECT CASE WHEN EXISTS .* THEN 'conflicted' ELSE 'inserted' END AS status/)
+      end
+
+      it "gates both writes on the row not existing", :aggregate_failures do
+        expect(statements[1][0]).to include("WHERE NOT EXISTS")
+        expect(statements[2][0]).to include("WHERE NOT EXISTS")
+      end
+    end
+
+    it "binds a real NULL, not the JSON text \"null\", for an absent mirrors hash", :aggregate_failures do
+      repository.atomic_put(item_labelled("First"))
+
+      entry_binds = connection.batches.first[1][1]
+      expect(entry_binds).to include(nil)
+      expect(entry_binds).not_to include("null")
+    end
   end
 
-  it "binds a real NULL, not the JSON text \"null\", for an absent mirrors hash" do
-    aggregate = item_aggregate
-    connection = fake_batch_connection
-    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
+  describe "a real SQLite3 database behind the batch" do
+    let(:real_adapter) { adapter_on_real_sqlite(aggregate) }
+    let(:real_repository) { Hecks::Ports::Persistence::AppendOnly.new(real_adapter) }
 
-    instance = Hecks::Runtime::Instance.new(
-      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
-    )
-    repository.atomic_put(instance)
+    def real_db = real_adapter.instance_variable_get(:@db)
 
-    entry_binds = connection.batches.first[1][1]
-    expect(entry_binds).to include(nil)
-    expect(entry_binds).not_to include("null")
-  end
+    context "with the first insert_only put made" do
+      before { real_repository.atomic_put(item_labelled("First"), insert_only: true) }
 
-  it "stores an absent mirrors hash as a real SQL NULL through atomic_put's own batch, queryable via IS NULL" do
-    aggregate = item_aggregate
-    adapter = adapter_on_real_sqlite(aggregate)
-    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
+      it "insert_only: closes the round trip — one batch holding the first write", :aggregate_failures do
+        expect(real_adapter.entries.size).to eq(1)
+        expect(real_adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
+      end
 
-    instance = Hecks::Runtime::Instance.new(
-      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
-    )
-    repository.atomic_put(instance)
+      # The row already exists: both gated writes must be real no-ops, not a `:conflicted`
+      # return that still writes.
+      it "insert_only: a real conflict blocks both writes", :aggregate_failures do
+        status = real_repository.atomic_put(item_labelled("Second"), insert_only: true).status
 
-    connection = adapter.instance_variable_get(:@db)
-    expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
-    expect(connection.execute("SELECT mirrors FROM \"item_entries\" WHERE mirrors = 'null'")).to be_empty
-  end
+        expect(status).to eq(:conflicted)
+        expect(real_adapter.entries.size).to eq(1)
+        expect(real_adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
+      end
+    end
 
-  it "stores an absent mirrors hash as a real SQL NULL through plain #append too" do
-    aggregate = item_aggregate
-    adapter = adapter_on_real_sqlite(aggregate)
+    it "stores an absent mirrors hash as a real SQL NULL through atomic_put's own batch, queryable via IS NULL",
+       :aggregate_failures do
+      real_repository.atomic_put(item_labelled("First"))
 
-    entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "sku-1", state: { identity: { sku: "sku-1" } })
-    adapter.append(entry)
+      expect(real_db.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
+      expect(real_db.execute("SELECT mirrors FROM \"item_entries\" WHERE mirrors = 'null'")).to be_empty
+    end
 
-    connection = adapter.instance_variable_get(:@db)
-    expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
+    it "stores an absent mirrors hash as a real SQL NULL through plain #append too" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "sku-1", state: { identity: { sku: "sku-1" } })
+      real_adapter.append(entry)
+
+      expect(real_db.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
+    end
   end
 
   # One mocked HTTP round trip, asserted twice: the request sent and the rows parsed back.
-  # rubocop:disable-next RSpec/ExampleLength
-  it "encodes the connection batch as one REST request and returns each statement's rows in order" do
-    connection = Hecks::Adapters::D1::Connection.new(
-      account_id:  "account",
-      database_id: "database",
-      api_token:   "token"
-    )
-    response = double(
-      code: "200",
-      body: JSON.generate(
-        success: true,
-        result:  [
-          { success: true, results: [{ status: "inserted" }] },
-          { success: true, results: [] }
-        ]
-      )
-    )
-    http = double
-    payload = nil
+  describe "the REST connection" do
+    let(:payloads) { [] }
+    let(:rows) { d1_connection.batch(D1_BATCH_STATEMENTS) }
 
-    allow(http).to receive(:request) do |request|
-      payload = JSON.parse(request.body)
-      response
+    def d1_connection
+      Hecks::Adapters::D1::Connection.new(account_id: "account", database_id: "database", api_token: "token")
     end
-    allow(Net::HTTP).to receive(:start) { |*, &block| block.call(http) }
 
-    rows = connection.batch([
-                              ["SELECT ? AS status", ["inserted"]],
-                              ["INSERT INTO items (id) VALUES (?)", ["sku-1"]]
-                            ])
+    def batch_response
+      body = JSON.generate(success: true, result: [{ success: true, results: [{ status: "inserted" }] },
+                                                   { success: true, results: [] }])
+      double(code: "200", body: body)
+    end
 
-    expect(payload).to eq(
-      "batch" => [
-        { "sql" => "SELECT ? AS status", "params" => ["inserted"] },
-        { "sql" => "INSERT INTO items (id) VALUES (?)", "params" => ["sku-1"] }
-      ]
-    )
-    expect(rows).to eq([[{ "status" => "inserted" }], []])
+    before do
+      http = double
+      allow(http).to receive(:request) do |request|
+        payloads << JSON.parse(request.body)
+        batch_response
+      end
+      allow(Net::HTTP).to receive(:start) { |*, &block| block.call(http) }
+    end
+
+    it "encodes the connection batch as one REST request" do
+      rows
+
+      expect(payloads).to eq(
+        [{ "batch" => [{ "sql" => "SELECT ? AS status", "params" => ["inserted"] },
+                       { "sql" => "INSERT INTO items (id) VALUES (?)", "params" => ["sku-1"] }] }]
+      )
+    end
+
+    it "returns each statement's rows in order" do
+      expect(rows).to eq([[{ "status" => "inserted" }], []])
+    end
   end
 end

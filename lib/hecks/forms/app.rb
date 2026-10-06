@@ -1,20 +1,21 @@
-require "json"
 require "rack"
 require_relative "page"
-require_relative "field_shape"
 require_relative "index_renderer"
-require_relative "record_renderer"
-require_relative "command_form_renderer"
-require_relative "query_form_renderer"
-require_relative "params"
-require_relative "../doors/command_request"
-require_relative "../doors/json_door"
+require_relative "app/responses"
+require_relative "app/records"
+require_relative "app/commands"
+require_relative "app/queries"
 
 module Hecks
   module Forms
     # A Rack app that content-negotiates one route: `/Banking/Account/Overdrawn.html`
     # renders HTML, and the same path with no extension or `.json` answers JSON.
     class App
+      include Responses
+      include Records
+      include Commands
+      include Queries
+
       # Builds the Rack app for a configured app name, exposing exactly the chapters its
       # `Forms.configure` block declared.
       #
@@ -61,26 +62,33 @@ module Hecks
         segments = request.path_info.split("/").reject(&:empty?)
         return home(request) if segments.empty?
 
-        domain = segments[0]
-        refuse_unexposed(domain)
-        chapter = @registry.bluebook(domain) || raise(RouteNotFound, "no domain #{domain.inspect} loaded")
-
-        return aggregate_route(request, chapter, *split_format(segments[1])) if segments.size == 2
-
-        return verb_or_record_route(request, chapter, segments[1], *split_format(segments[2])) if segments.size == 3
-
-        if segments.size == 4
-          aggregate = chapter.aggregate(segments[1])
-          entity = aggregate&.entities&.find { |candidate| candidate.hecks_name == segments[2] }
-          entity_command = entity&.command(split_format(segments[3]).first)
-          if entity_command
-            raise RouteNotFound,
-                  "entity command routes are not supported by Forms; use a command door with " \
-                  "to.aggregate and to.entity"
-          end
+        chapter = chapter_for(segments[0])
+        case segments.size
+        when 2 then aggregate_route(request, chapter, *split_format(segments[1]))
+        when 3 then verb_or_record_route(request, chapter, segments[1], *split_format(segments[2]))
+        else unrouted(request, chapter, segments)
         end
+      end
 
+      def unrouted(request, chapter, segments)
+        refuse_entity_command if segments.size == 4 && entity_command?(chapter, segments)
         respond(404, "text/plain", "no route for #{request.path_info}")
+      end
+
+      def chapter_for(domain)
+        refuse_unexposed(domain)
+        @registry.bluebook(domain) || raise(RouteNotFound, "no domain #{domain.inspect} loaded")
+      end
+
+      def entity_command?(chapter, segments)
+        entity = chapter.aggregate(segments[1])&.entities&.find { |candidate| candidate.hecks_name == segments[2] }
+        !entity&.command(split_format(segments[3]).first).nil?
+      end
+
+      def refuse_entity_command
+        raise RouteNotFound,
+              "entity command routes are not supported by Forms; use a command door with " \
+              "to.aggregate and to.entity"
       end
 
       def refuse_unexposed(domain)
@@ -104,202 +112,6 @@ module Hecks
         return json(200, chapters.transform_values { |c| { aggregates: c.aggregates.map(&:hecks_name) } }) if format != "html"
 
         html("Exposed domains", IndexRenderer.render(chapters))
-      end
-
-      def aggregate_route(request, chapter, aggregate_name, format)
-        aggregate = find_aggregate(chapter, aggregate_name)
-        return respond(405, "text/plain", "GET only") unless request.get?
-
-        if format == "html"
-          html("#{chapter.name}::#{aggregate.hecks_name}",
-               RecordRenderer.index(registry: @registry, domain: chapter.name, aggregate: aggregate),
-               breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
-        else
-          instances = @registry.repository(chapter.name, aggregate).all
-          # `id:` is merged last so an attribute named `id` in the state cannot clobber it.
-          json(200, instances.map { |i| i.state.merge(id: i.id) })
-        end
-      end
-
-      def verb_or_record_route(request, chapter, aggregate_name, verb_or_id, format)
-        aggregate = find_aggregate(chapter, aggregate_name)
-        domain = chapter.name
-
-        # A record id is free-form and can equal a verb name ("Close"), so a GET checks for
-        # a record first. POST never views a record, so it matches the verb first.
-        if request.get? && (instance = @registry.repository(domain, aggregate).find(verb_or_id))
-          return record_route(request, domain, aggregate, verb_or_id, format, instance: instance)
-        end
-
-        if (command = aggregate.command(verb_or_id))
-          return command_route(request, domain, aggregate, command, format)
-        end
-
-        if (query = aggregate.query(verb_or_id))
-          return query_route(request, domain, aggregate, query, format)
-        end
-
-        record_route(request, domain, aggregate, verb_or_id, format)
-      end
-
-      def command_route(request, domain, aggregate, command, format)
-        action = "/#{domain}/#{aggregate.hecks_name}/#{command.hecks_name}.html"
-        return command_json(request, domain, aggregate, command) if format != "html"
-        if request.get?
-          return command_form(domain, aggregate, command, action,
-                              prefill: receiver_compatibility(request.GET, command))
-        end
-        return respond(405, "text/plain", "GET or POST only") unless request.post?
-
-        submit_command(request, domain, aggregate, command, action)
-      end
-
-      def command_form(domain, aggregate, command, action, status: 200, values: nil, error: nil, prefill: {})
-        html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}",
-             CommandFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, command: command,
-                                        action: action, values: values, error: error, prefill: prefill),
-             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
-                           [command.hecks_name, nil]],
-             status:      status)
-      end
-
-      def submit_command(request, domain, aggregate, command, action)
-        raw, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
-        # The id is free-form, so it is percent-encoded as a path segment.
-        redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.path(result.id)}.html")
-      rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
-        status = e.is_a?(Runtime::NotFound) ? 404 : 422
-        command_form(domain, aggregate, command, action, status: status, values: raw, error: e)
-      end
-
-      def command_json(request, domain, aggregate, command)
-        return json(200, command.to_h) if request.get? && request.GET.except("format").empty?
-        return respond(405, "text/plain", "GET or POST only") unless request.post?
-
-        _, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
-        # `id:` last, as in `aggregate_route`.
-        json(201, result.state.merge(id: result.id))
-      rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
-        status = e.is_a?(Runtime::NotFound) ? 404 : 422
-        json(status, { error: e.class.name.split("::").last, message: e.message })
-      end
-
-      def query_route(request, domain, aggregate, query, format)
-        return respond(405, "text/plain", "GET only") unless request.get?
-
-        params = request.GET
-        asked = params.except("format")
-        return query_json(domain, aggregate, query, asked) if format != "html"
-
-        query_html(domain, aggregate, query, asked)
-      end
-
-      def query_html(domain, aggregate, query, asked)
-        action = "/#{domain}/#{aggregate.hecks_name}/#{query.hecks_name}.html"
-        fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
-        results, error = asked.empty? ? [nil, nil] : run_query(domain, aggregate, query, fields, asked)
-        html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}",
-             QueryFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, query: query,
-                                      action: action, params: asked, results: results, error: error),
-             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
-                           [query.hecks_name, nil]],
-             status:      error ? 422 : 200)
-      end
-
-      def query_json(domain, aggregate, query, asked)
-        return json(200, query.to_h) if asked.empty?
-
-        fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
-        results, error = run_query(domain, aggregate, query, fields, asked)
-        return json(422, { error: error.class.name.split("::").last, message: error.message }) if error
-
-        # `id:` last, as in `aggregate_route`.
-        json(200, results.map { |i| i.state.merge(id: i.id) })
-      end
-
-      # `Dispatcher#query` answers plain hashes, not `Runtime::Instance`; wrapping them
-      # in `Record` gives the renderers one shape.
-      def run_query(domain, aggregate, query, fields, asked)
-        args = Params.extract(fields, asked)
-        rows = @dispatcher.query("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}", **args)
-        [rows.map { |row| Record.new(row[:id], row.except(:id)) }, nil]
-      # `Params.extract` parses a list-of-value-object line as JSON; rescuing
-      # `JSON::ParserError` turns a malformed line into a 422 rather than a 500.
-      rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
-        [nil, e]
-      end
-
-      def record_route(request, domain, aggregate, id, format, instance: nil)
-        return respond(405, "text/plain", "GET only") unless request.get?
-
-        instance ||= @registry.repository(domain, aggregate).find(id)
-        return not_found(aggregate, id, format) unless instance
-        # `id:` last, as in `aggregate_route`.
-        return json(200, instance.state.merge(id: instance.id)) if format != "html"
-
-        html("#{domain}::#{aggregate.hecks_name} #{id}",
-             RecordRenderer.show(registry: @registry, domain: domain, aggregate: aggregate, id: id),
-             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [id, nil]])
-      end
-
-      def not_found(aggregate, id, format)
-        return json(404, { error: "NotFound", message: "no #{aggregate.hecks_name} #{id}" }) if format != "html"
-
-        respond(404, "text/html; charset=utf-8",
-                Page.render(title: "not found",
-                            body:  "<h1>Not found</h1><p>No #{Escape.html(aggregate.hecks_name)} " \
-                                   "#{Escape.html(id)}.</p>"))
-      end
-
-      def find_aggregate(chapter, name)
-        chapter.aggregate(name) || raise(RouteNotFound, "#{chapter.name} has no aggregate #{name.inspect}")
-      end
-
-      def command_envelope(command, args)
-        Doors::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
-      end
-
-      def command_receiver(command) = command.creates? ? nil : :aggregate
-
-      def submitted_command(request, aggregate, command)
-        if request.media_type == "application/json"
-          raw = Doors::JsonDoor.parse(request.body.read)
-          envelope = Doors::JsonDoor.command_request(raw, receiver:        command_receiver(command),
-                                                          legacy_receiver: :id)
-          return [raw, envelope]
-        end
-
-        raw = receiver_compatibility(request.POST, command)
-        fields = CommandFormRenderer.fields_for(aggregate, command)
-        args = Params.extract(fields, raw)
-        [raw, command_envelope(command, args)]
-      end
-
-      # Existing integrations may still submit id. It remains an accepted
-      # edge spelling, but new forms expose only the receiver name to.
-      def receiver_compatibility(raw, command)
-        return raw if command.creates?
-        return raw unless raw.key?("id") && !raw.key?("to")
-
-        raw.merge("to" => raw["id"])
-      end
-
-      def html(title, body, breadcrumbs: [], status: 200)
-        respond(status, "text/html; charset=utf-8", Page.render(title: title, body: body, breadcrumbs: breadcrumbs))
-      end
-
-      def json(status, payload)
-        respond(status, "application/json", JSON.pretty_generate(payload))
-      end
-
-      def redirect(location)
-        [302, { "location" => location }, []]
-      end
-
-      def respond(status, content_type, body)
-        [status, { "content-type" => content_type }, [body]]
       end
     end
   end

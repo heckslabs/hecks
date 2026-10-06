@@ -45,19 +45,25 @@ module Hecks
         # @return [Hash{String => String}] each placeholder to the TypeScript text that replaces it
         def tokens(admin)
           setting = admin.setting
-          {
-            "__BANNER__"       => RoutesTs::BANNER,
-            "__COOKIE__"       => JSON.generate(setting.session_cookie),
+          { "__BANNER__" => RoutesTs::BANNER, **session_tokens(setting), "__ROLES__" => RoutesTs.literal(admin.roles),
+            **path_tokens(admin, setting), "__SSO_TARGET__" => setting.sso_target }
+        end
+
+        # @return [Hash{String => String}] the session cookie and host placeholders
+        def session_tokens(setting)
+          { "__COOKIE__"       => JSON.generate(setting.session_cookie),
             "__HOST_ENV__"     => JSON.generate(setting.host_env),
-            "__HOST_DEFAULT__" => JSON.generate(setting.host_default),
-            "__ROLES__"        => RoutesTs.literal(admin.roles),
-            "__ACCOUNT_PATH__" => JSON.generate(setting.account_path),
+            "__HOST_DEFAULT__" => JSON.generate(setting.host_default) }
+        end
+
+        # @return [Hash{String => String}] the account, members, endpoint and content-system path
+        #   placeholders
+        def path_tokens(admin, setting)
+          { "__ACCOUNT_PATH__" => JSON.generate(setting.account_path),
             "__MEMBERS_PATH__" => JSON.generate(setting.members_path),
             "__ENDPOINT__"     => JSON.generate(admin.cms_endpoint),
             "__CMS_PREFIX__"   => JSON.generate("#{setting.cms_base}/"),
-            "__CMS_ADMIN__"    => JSON.generate("#{setting.cms_base}/admin"),
-            "__SSO_TARGET__"   => setting.sso_target
-          }
+            "__CMS_ADMIN__"    => JSON.generate("#{setting.cms_base}/admin") }
         end
 
         def fill(text, tokens) = tokens.reduce(text) { |filled, (token, value)| filled.gsub(token, value) }

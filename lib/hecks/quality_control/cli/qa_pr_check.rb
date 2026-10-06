@@ -4,6 +4,8 @@ require_relative "../../../hecks"
 # The ledger's `persisted_by "PostgresEra"` binding needs the era plugin, which core does not load.
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../adapters/git_pr"
+require_relative "qa_pr_check/checking"
+require_relative "qa_pr_check/reporting"
 
 module Hecks
   module QualityControlCli
@@ -15,6 +17,9 @@ module Hecks
     # 2 a newly red PR, with the details on stdout. A commit's `Clearance` is minted once and never
     # re-asked; pending checks are skipped, since the CI port has no way to say "ask again later".
     class QaPrCheck
+      include Checking
+      include Reporting
+
       EXIT_OK = 0
       EXIT_ERROR = 1
       EXIT_NEWLY_RED = 2
@@ -51,29 +56,33 @@ module Hecks
       # @return [Integer] the exit status
       # @raise [SystemExit] when given arguments, or the ledger does not boot
       def call(argv)
-        unless argv.empty?
-          if %w[-h --help].include?(argv.first)
-            puts USAGE
-            return EXIT_OK
-          end
-          abort "#{USAGE}\nthis script takes no arguments — it checks every PR QualityControl::Patch or " \
-                "QualityControl::Improvement tracks as open, every time"
-        end
+        return reject_arguments(argv) unless argv.empty?
 
         # Every `gh` call goes through the `GitPr` adapter. With `--json`, gh exits 0 whatever the
         # checks say, so a failure means only that the call did not succeed.
         @git_pr = Hecks::Adapters::GitPr.new(repo_dir: Dir.pwd)
         @runtime = boot_ledger
         worklists = WORKLISTS.to_h { |w| [w, query("#{w[:aggregate]}.Open")] }
-        if worklists.values.all?(&:empty?)
-          puts "no PRs tracked as open by QualityControl::Patch or QualityControl::Improvement — nothing to check"
-          return EXIT_OK
-        end
+        return nothing_to_check if worklists.values.all?(&:empty?)
 
         check_all(worklists)
       end
 
       private
+
+      def reject_arguments(argv)
+        if %w[-h --help].include?(argv.first)
+          puts USAGE
+          return EXIT_OK
+        end
+        abort "#{USAGE}\nthis script takes no arguments — it checks every PR QualityControl::Patch or " \
+              "QualityControl::Improvement tracks as open, every time"
+      end
+
+      def nothing_to_check
+        puts "no PRs tracked as open by QualityControl::Patch or QualityControl::Improvement — nothing to check"
+        EXIT_OK
+      end
 
       def boot_ledger
         Hecks.boot(@domain_dir)
@@ -83,19 +92,16 @@ module Hecks
       end
 
       def check_all(worklists)
-        newly_red = []
-        operational_errors = []
+        @newly_red = []
+        @operational_errors = []
         worklists.each do |worklist, rows|
-          rows.each { |row| check_one_pr(row, newly_red, operational_errors, **worklist) }
+          rows.each { |row| check_one_pr(row, **worklist) }
         end
-        report_errors(operational_errors)
-        return report_newly_red(newly_red) if newly_red.any?
-        return EXIT_ERROR if operational_errors.any?
+        report_errors
+        return report_newly_red if @newly_red.any?
+        return EXIT_ERROR if @operational_errors.any?
 
-        puts
-        puts "clean — every PR QualityControl::Patch or QualityControl::Improvement tracks as open is " \
-             "either already cleared, still running, or was retired this run."
-        EXIT_OK
+        report_clean
       end
 
       def query(name, **args) = @runtime.query("QualityControl::#{name}", **args)
@@ -103,129 +109,6 @@ module Hecks
       # Reads nested row fields by `[]`, because `Hecks::Runtime::Value` does not answer `Hash#dig`.
       def field(row, *path)
         path.reduce(row) { |held, key| held.nil? ? nil : held[key] }
-      end
-
-      def clearance_for_commit(sha)
-        query("Clearance.All").find { |row| field(row, :commit, :value) == sha }
-      end
-
-      # Retires a Patch/Improvement whose PR GitHub reports merged or closed; nothing else tells
-      # the ledger. Returns true if it retired one.
-      def retire_if_settled?(view, number, label, aggregate)
-        case view[:state]
-        when "MERGED"
-          @runtime.dispatch_flat("QualityControl::#{aggregate}.Merge", { id: number })
-          puts "#{label}: merged — retired from the worklist"
-          true
-        when "CLOSED"
-          @runtime.dispatch_flat("QualityControl::#{aggregate}.Close", { id: number })
-          puts "#{label}: closed without merging — retired from the worklist"
-          true
-        else
-          false
-        end
-      end
-
-      # Runs a read against `gh`; a failure is appended to `operational_errors` and answers nil.
-      def reading_gh(label, operational_errors)
-        yield
-      rescue Hecks::Adapters::GitPr::CommandFailed => e
-        operational_errors << "#{label}: #{e.message}"
-        nil
-      end
-
-      # True when every check has finished, so a verdict is worth asking for. Pending stays out
-      # here because the CI port cannot express "ask again later".
-      def checks_settled?(number, label, citation, sha, operational_errors)
-        checks = reading_gh(label, operational_errors) { @git_pr.checks(number) }
-        return false unless checks
-
-        if checks.empty?
-          puts "#{label}, #{citation}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
-          return false
-        end
-
-        if checks.any? { |c| c[:bucket] == "pending" }
-          puts "#{label}, #{citation}, #{sha[0, 7]}: checks still running — skipping this run"
-          return false
-        end
-
-        true
-      end
-
-      # Checks one tracked PR, appending to `newly_red` or `operational_errors` in place. The live
-      # head sha is read from gh each run, since a push mints a new commit to clear.
-      def check_one_pr(row, newly_red, operational_errors, aggregate:, citation_field:, citation_label:)
-        number = field(row, :number, :value)
-        cited = field(row, citation_field)
-        citation = cited ? "#{citation_label} #{cited}" : "no #{citation_label} cited"
-        label = "#{aggregate} PR ##{number} (#{field(row, :branch, :value)})"
-
-        view = reading_gh(label, operational_errors) { @git_pr.pull_request(number) }
-        return unless view
-        return if retire_if_settled?(view, number, label, aggregate)
-
-        sha = view[:headRefOid].to_s
-        unless sha.match?(SHA_PATTERN)
-          operational_errors << "#{label}: head commit #{sha.inspect} does not look like a sha — skipping"
-          return
-        end
-
-        if (existing = clearance_for_commit(sha))
-          puts "#{label}, #{citation}, #{sha[0, 7]}: already cleared (#{existing[:status]}) — " \
-               "settled once, not re-checked"
-          return
-        end
-        return unless checks_settled?(number, label, citation, sha, operational_errors)
-
-        ask_the_ledger(sha, label, citation, number, newly_red, aggregate: aggregate)
-      end
-
-      # Starts a Clearance and asks the CI port for a verdict. ClearOnPass/RefuseOnFail settle the
-      # record synchronously, so `find` sees it straight away; a red one is appended to `newly_red`.
-      def ask_the_ledger(sha, label, citation, number, newly_red, aggregate:)
-        ::QualityControl::Clearance.start!(commit: { value: sha })
-        @runtime.dispatch_flat("QualityControl::Clearance.CI.Run", { commit: sha })
-
-        cleared = ::QualityControl::Clearance.find(sha)
-        summary = cleared.summary.to_h[:value]
-
-        if cleared.status == "green"
-          puts "#{label}, #{citation}, #{sha[0, 7]}: CLEARED — #{summary}"
-          return
-        end
-
-        puts "#{label}, #{citation}, #{sha[0, 7]}: RED — #{summary}"
-        newly_red << { aggregate: aggregate, pr: number, citation: citation, commit: sha, refusal: summary }
-      end
-
-      def report_errors(operational_errors)
-        return if operational_errors.empty?
-
-        puts
-        puts "operational error(s):"
-        operational_errors.each { |message| puts "  #{message}" }
-      end
-
-      def report_newly_red(newly_red)
-        puts
-        puts "=" * 72
-        puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch/ImprovementCiWatch already dispatched " \
-             "the matching Regress for each, by aggregate."
-        puts "An agent picks up the investigation from here: the same judgment"
-        puts "SKILL.md's own \"on a surprising check\" section describes for a sweep's"
-        puts "own find — self-contained fix with a regression test and a draft PR,"
-        puts "or leave the record for something bigger. Never re-verify from this script."
-        puts "=" * 72
-        newly_red.each do |finding|
-          puts
-          puts "aggregate: #{finding[:aggregate]}"
-          puts "citation:  #{finding[:citation]}"
-          puts "pr:        ##{finding[:pr]}"
-          puts "commit:    #{finding[:commit]}"
-          puts "refusal:   #{finding[:refusal]}"
-        end
-        EXIT_NEWLY_RED
       end
     end
   end

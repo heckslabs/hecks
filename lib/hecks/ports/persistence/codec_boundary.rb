@@ -91,17 +91,28 @@ module Hecks
         # @param klass [Class] the adapter's class
         # @return [Module] an anonymous module including `Guarded`, to `extend` onto instances
         def wrapper_for(klass)
-          WRAPPERS_LOCK.synchronize do
-            WRAPPERS[klass] ||= Module.new do
-              include Guarded
+          WRAPPERS_LOCK.synchronize { WRAPPERS[klass] ||= build_wrapper(klass) }
+        end
 
-              (klass.public_instance_methods - Object.public_instance_methods).each do |name|
-                define_method(name) do |*args, **kwargs, &block|
-                  result = CodecBoundary.within { super(*args, **kwargs, &CodecBoundary.outside_block(block)) }
-                  name == :entries ? CodecBoundary.check_entries!(self, result) : result
-                end
-              end
-            end
+        # Builds the module whose methods forward to the adapter class's own, inside the boundary.
+        #
+        # @param klass [Class] the adapter's class
+        # @return [Module] an anonymous module including `Guarded`
+        def build_wrapper(klass)
+          wrapper = Module.new { include Guarded }
+          (klass.public_instance_methods - Object.public_instance_methods).each { |name| guard_method(wrapper, name) }
+          wrapper
+        end
+
+        # Defines one guarded method on `wrapper`; `entries` answers are also checked for decoding.
+        #
+        # @param wrapper [Module] the module under construction
+        # @param name [Symbol] the adapter method to guard
+        # @return [Symbol] the defined method name
+        def guard_method(wrapper, name)
+          wrapper.define_method(name) do |*args, **kwargs, &block|
+            result = CodecBoundary.within { super(*args, **kwargs, &CodecBoundary.outside_block(block)) }
+            name == :entries ? CodecBoundary.check_entries!(self, result) : result
           end
         end
 

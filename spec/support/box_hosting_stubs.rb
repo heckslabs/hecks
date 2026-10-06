@@ -97,19 +97,27 @@ module BoxHostingStubs
   # @yield [Runner] a scratch directory with the scripts and stand-in programs installed
   def with_runner(golden_dir, real_box: false)
     Dir.mktmpdir do |dir|
-      scripts = File.join(dir, "scripts")
-      FileUtils.mkdir_p([scripts, File.join(dir, "bin")])
-      %w[deploy-service.sh smoke-after-deploy.sh].each { |f| FileUtils.cp(File.join(golden_dir, f), scripts) }
-      if real_box
-        FileUtils.cp(Dir.children(golden_dir).map { |f| File.join(golden_dir, f) }, scripts)
-      else
-        File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
-      end
-      { "aws" => AWS, "docker" => DOCKER, "gh" => GH }.each do |name, body|
-        File.write(File.join(dir, "bin", name), body)
-        File.chmod(0o755, File.join(dir, "bin", name))
-      end
+      install_scripts(dir, golden_dir, real_box)
+      install_stand_ins(dir)
       yield Runner.new(dir)
+    end
+  end
+
+  def install_scripts(dir, golden_dir, real_box)
+    scripts = File.join(dir, "scripts")
+    FileUtils.mkdir_p([scripts, File.join(dir, "bin")])
+    %w[deploy-service.sh smoke-after-deploy.sh].each { |f| FileUtils.cp(File.join(golden_dir, f), scripts) }
+    if real_box
+      FileUtils.cp(Dir.children(golden_dir).map { |f| File.join(golden_dir, f) }, scripts)
+    else
+      File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
+    end
+  end
+
+  def install_stand_ins(dir)
+    { "aws" => AWS, "docker" => DOCKER, "gh" => GH }.each do |name, body|
+      File.write(File.join(dir, "bin", name), body)
+      File.chmod(0o755, File.join(dir, "bin", name))
     end
   end
 

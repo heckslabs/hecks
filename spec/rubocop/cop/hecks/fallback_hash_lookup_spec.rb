@@ -24,20 +24,22 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
   end
 
   # Fixture rebuilding the shape field_path.rb#read once had, so the cop is proven to catch it.
-  it "flags the exact shape field_path.rb#read used to have, reconstructed as a fixture" do
-    expect_offense(<<~RUBY)
-      module Hecks
-        module QuerySpecification
-          module FieldPath
-            def self.read(current, segment)
-              sym = segment.to_sym
-              current[sym] || current[segment]
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `current[...] || current[...]` falls back to the second lookup whenever the first is falsy — but `||` cannot tell a genuinely stored `false` apart from a missing key, so a real `false` at `current[sym]` is silently discarded in favor of `current[segment]` instead of being returned. Use `current.key?(sym) ? current[sym] : current[segment]`, or a shared digger (see `key?` in `Hecks::QuerySpecification::FieldPath#read`), instead.
-            end
+  FIELD_PATH_READ_FIXTURE = <<~RUBY.freeze
+    module Hecks
+      module QuerySpecification
+        module FieldPath
+          def self.read(current, segment)
+            sym = segment.to_sym
+            current[sym] || current[segment]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `current[...] || current[...]` falls back to the second lookup whenever the first is falsy — but `||` cannot tell a genuinely stored `false` apart from a missing key, so a real `false` at `current[sym]` is silently discarded in favor of `current[segment]` instead of being returned. Use `current.key?(sym) ? current[sym] : current[segment]`, or a shared digger (see `key?` in `Hecks::QuerySpecification::FieldPath#read`), instead.
           end
         end
       end
-    RUBY
+    end
+  RUBY
+
+  it "flags the exact shape field_path.rb#read used to have, reconstructed as a fixture" do
+    expect_offense(FIELD_PATH_READ_FIXTURE)
   end
 
   it "flags the same shape as the second operand of an outer &&" do

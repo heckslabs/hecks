@@ -50,16 +50,19 @@ module Hecks
       # @return [String] each chapter's vision, and its aggregates' descriptions and commands
       def overview(runtime)
         runtime.registry.bluebooks.each_value.map do |bluebook|
-          aggregates = bluebook.aggregates.map do |aggregate|
-            commands = aggregate.commands.map { |command| "#{Naming.snake(command.hecks_name)}!" }.sort.join(", ")
-            description = aggregate.description.to_s.strip
-            lines = ["    #{aggregate.name}: #{commands}"]
-            lines << "      #{description}" unless description.empty?
-            lines.join("\n")
-          end
+          aggregates = bluebook.aggregates.map { |aggregate| aggregate_overview(aggregate) }
 
           "\n    #{bluebook.name} — #{bluebook.vision}\n#{aggregates.join("\n")}\n"
         end.join
+      end
+
+      # @api private
+      def aggregate_overview(aggregate)
+        commands = aggregate.commands.map { |command| "#{Naming.snake(command.hecks_name)}!" }.sort.join(", ")
+        description = aggregate.description.to_s.strip
+        lines = ["    #{aggregate.name}: #{commands}"]
+        lines << "      #{description}" unless description.empty?
+        lines.join("\n")
       end
 
       # @param domain [String, nil] a domain directory, or nil for the bundled pizzas domain

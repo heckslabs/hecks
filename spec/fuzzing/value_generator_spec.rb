@@ -1,7 +1,17 @@
 require "spec_helper"
 require "hecks/fuzzing/value_generator"
 
-RSpec.describe Hecks::Fuzzing::ValueGenerator do
+RSpec.describe Hecks::Fuzzing::ValueGenerator, :aggregate_failures do
+  # One draw of each numeric-or-string primitive from a single seeded stream.
+  def primitives_for(seed)
+    random = Random.new(seed)
+    [
+      described_class.string_value(random),
+      described_class.integer_value(random),
+      described_class.float_value(random)
+    ]
+  end
+
   describe "determinism" do
     it "produces the exact same value for the same seed" do
       first  = described_class.string_value(Random.new(42))
@@ -11,16 +21,10 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator do
     end
 
     it "produces the same sequence of primitives across types for the same seed" do
-      sequence = lambda do |seed|
-        random = Random.new(seed)
-        [
-          described_class.string_value(random),
-          described_class.integer_value(random),
-          described_class.float_value(random)
-        ]
-      end
+      first  = primitives_for(7)
+      second = primitives_for(7)
 
-      expect(sequence.call(7)).to eq(sequence.call(7))
+      expect(first).to eq(second)
     end
   end
 
@@ -96,13 +100,11 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator do
     end
 
     it "is case-insensitive and matches on either the value object's own name or the bare attribute name" do
-      expect(described_class.clock_or_count_shaped?("LeaseInstant value")).to be(true)
-      expect(described_class.clock_or_count_shaped?("now")).to be(true)
-      expect(described_class.clock_or_count_shaped?("expires_at")).to be(true)
-      expect(described_class.clock_or_count_shaped?("TTL")).to be(true)
-      expect(described_class.clock_or_count_shaped?(nil)).to be(false)
-      expect(described_class.clock_or_count_shaped?("TransferAmountCents value")).to be(false)
-      expect(described_class.clock_or_count_shaped?("EntrySequence value")).to be(false)
+      shaped = ["LeaseInstant value", "now", "expires_at", "TTL"]
+      unshaped = [nil, "TransferAmountCents value", "EntrySequence value"]
+
+      expect(shaped.map { |name| described_class.clock_or_count_shaped?(name) }).to all(be(true))
+      expect(unshaped.map { |name| described_class.clock_or_count_shaped?(name) }).to all(be(false))
     end
   end
 end

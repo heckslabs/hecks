@@ -21,6 +21,12 @@ module Hecks
     #
     # `--check` never writes the working tree: it runs beside the parallel suite.
     module RegenerationRun
+      # The refusal when no domain is found.
+      NO_DOMAINS = "hecks regenerate_corpus: discovered ZERO domains with committed rust/src/generated/ " \
+                   "output in Hecks::Corpus — that almost certainly means this script is running from the " \
+                   "wrong directory, or something upstream deleted rust/src/generated/ entirely. Refusing " \
+                   "to silently treat that as \"nothing to regenerate.\""
+
       module_function
 
       # Regenerates the corpus, or checks it.
@@ -35,19 +41,29 @@ module Hecks
           # A check projects into a scratch copy of the crate; the forked children inherit
           # HECKS_RUST_DIR.
           scratch = argv.include?("--check") && scratch_crate(root)
-          saved = ENV.fetch("HECKS_RUST_DIR", nil)
-          ENV["HECKS_RUST_DIR"] = scratch if scratch
-          begin
-            begin
-              regenerate(domains)
-            ensure
-              saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
-            end
-            scratch ? verdict(scratch) : 0
-          ensure
-            FileUtils.rm_rf(scratch) if scratch
-          end
+          run_plan(domains, scratch)
         end
+      end
+
+      # Regenerates the domains, then judges the scratch crate when there is one.
+      #
+      # @param domains [Array<String>] the domains, in run order
+      # @param scratch [String, false] the scratch crate of a check, removed here
+      # @return [Integer] 0, or 1 when a check finds a difference
+      def run_plan(domains, scratch)
+        with_rust_dir(scratch) { regenerate(domains) }
+        scratch ? verdict(scratch) : 0
+      ensure
+        FileUtils.rm_rf(scratch) if scratch
+      end
+
+      # Points `HECKS_RUST_DIR` at `scratch` while the block runs, then puts it back.
+      def with_rust_dir(scratch)
+        saved = ENV.fetch("HECKS_RUST_DIR", nil)
+        ENV["HECKS_RUST_DIR"] = scratch if scratch
+        yield
+      ensure
+        saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
       end
 
       # `meta` is never in the list: `Hecks::Corpus::RUST_ELSEWHERE` routes it to the check that
@@ -59,12 +75,7 @@ module Hecks
       def plan(root)
         domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{root}/") }
 
-        if domains.empty?
-          abort "hecks regenerate_corpus: discovered ZERO domains with committed rust/src/generated/ " \
-                "output in Hecks::Corpus — that almost certainly means this script is running from the " \
-                "wrong directory, or something upstream deleted rust/src/generated/ entirely. Refusing " \
-                "to silently treat that as \"nothing to regenerate.\""
-        end
+        abort NO_DOMAINS if domains.empty?
 
         puts "hecks regenerate_corpus: regenerating #{domains.size} domain(s), in this fixed order:"
         domains.each { |d| puts "  #{d}" }
@@ -115,16 +126,19 @@ module Hecks
         STDERR.reopen(writer) # rubocop:disable Style/GlobalStdStream
         $stdout = STDOUT
         $stderr = STDERR
-        status = begin
-          Hecks::RustBuild.run("project_rust", [domain], out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
-        rescue SystemExit => e
-          e.status
-        rescue StandardError => e
-          warn "#{e.class}: #{e.message}"
-          1
-        end
+        status = child_status(domain)
         $stdout.flush
         exit!(status)
+      end
+
+      # @return [Integer] the exit status of `hecks project_rust` for the domain
+      def child_status(domain)
+        Hecks::RustBuild.run("project_rust", [domain], out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
+      rescue SystemExit => e
+        e.status
+      rescue StandardError => e
+        warn "#{e.class}: #{e.message}"
+        1
       end
 
       # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks project_rust`

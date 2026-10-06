@@ -1,33 +1,10 @@
 require "spec_helper"
-require "tempfile"
+require_relative "support/inline_bluebook_boot"
 
 # Pins Float support in CommandRules::Arithmetic's increment/decrement ops: a
 # Float-typed field must not raise TypeMismatch on its own declared step.
 RSpec.describe "Float arithmetic on increment/decrement" do
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["mutation-float-arithmetic-growth-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   FLOAT_ARITHMETIC_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "FloatArithmeticGrowth" do

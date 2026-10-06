@@ -30,11 +30,11 @@ RSpec.describe Hecks::CLI::ProjectCli do
   end
 
   describe "--check" do
-    it "exits 1 for a path that is not a domain, instead of passing" do
+    it "exits 1 for a path that is not a domain, instead of passing", :aggregate_failures do
       expect { quietly { call("--check", "nowhere") } }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
     end
 
-    it "exits 1 for a launcher that is missing, and 0 once it is written" do
+    it "exits 1 for a launcher that is missing, and 0 once it is written", :aggregate_failures do
       write_domain("shelf")
 
       expect { quietly { call("--check", "shelf") } }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
@@ -42,13 +42,13 @@ RSpec.describe Hecks::CLI::ProjectCli do
       expect { quietly { call("--check", "shelf") } }.not_to raise_error
     end
 
-    it "does not take a mistyped flag for a domain path" do
+    it "does not take a mistyped flag for a domain path", :aggregate_failures do
       _, err = quietly { expect { call("--chek", "shelf") }.to raise_error(SystemExit) }
 
       expect(err).to include("unknown option --chek")
     end
 
-    it "refuses a domain path that leaves the root" do
+    it "refuses a domain path that leaves the root", :aggregate_failures do
       _, err = quietly { expect { call("--check", "../elsewhere") }.to raise_error(SystemExit) }
 
       expect(err).to include("is outside")
@@ -58,14 +58,14 @@ RSpec.describe Hecks::CLI::ProjectCli do
   describe ".launcher" do
     def source(path = "shelf", name = "Shelf", **options) = described_class.launcher(path, name, "hecks project_cli", **options)
 
-    it "writes the boot path, program and name as Ruby literals" do
+    it "writes the boot path, program and name as Ruby literals", :aggregate_failures do
       text = source("a/b", "Shelf")
 
       expect(text).to include("Hecks.boot(__dir__, install_doors: false)", %(program: "a/b/shelf"))
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 
-    it "refuses a name, path, executable or legacy command that could end its string" do
+    it "refuses a name, path, executable or legacy command that could end its string", :aggregate_failures do
       expect { source('x"; system("id"); "', "Shelf") }.to raise_error(ArgumentError, /domain path/)
       expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /chapter name/)
       expect { source("shelf", "Shelf", executable: "../out") }.to raise_error(ArgumentError, /launcher executable/)
@@ -73,7 +73,7 @@ RSpec.describe Hecks::CLI::ProjectCli do
         .to raise_error(ArgumentError, /legacy command/)
     end
 
-    it "climbs one directory out of lib for an executable at the top of the root" do
+    it "climbs one directory out of lib for an executable at the top of the root", :aggregate_failures do
       top    = source("dom", "Shelf", executable: "hecks")
       nested = source("dom", "Shelf", executable: "exe/hecks")
 
@@ -81,14 +81,14 @@ RSpec.describe Hecks::CLI::ProjectCli do
       expect(nested).to include('File.expand_path("../dom", __dir__)', 'File.expand_path("../lib", __dir__)')
     end
 
-    it "sets UTF-8 and prints a failed --wait run's record on stdout, for a chapter that opted in" do
+    it "sets UTF-8 and prints a failed --wait run's record on stdout, for a chapter that opted in", :aggregate_failures do
       text = source(opted: true)
 
       expect(text).to include("Encoding.default_external = Encoding::UTF_8", "puts text", "warn reason", "exit status")
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 
-    it "leaves the launcher of a chapter that did not opt in as every earlier generator wrote it" do
+    it "leaves the launcher of a chapter that did not opt in as every earlier generator wrote it", :aggregate_failures do
       text = source
 
       expect(text).not_to include("Encoding.default_external", "reason")

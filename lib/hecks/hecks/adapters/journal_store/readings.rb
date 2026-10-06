@@ -5,6 +5,8 @@ require "digest"
 require_relative "held_domain"
 require_relative "edge_audit"
 require_relative "compaction"
+require_relative "readings/scaffolding"
+require_relative "readings/attestation"
 
 module Hecks
   module Adapters
@@ -16,6 +18,9 @@ module Hecks
       # a domain that holds no era answers that it holds none, and only `hold_first` holds one.
       # What a reading refuses is a `Runtime::NotFound`, the refusal a launcher words as an answer.
       module Readings
+        include Scaffolding
+        include Attestation
+
         # Words the answer for a domain that holds no era.
         #
         # @param name [String] the domain's name
@@ -99,41 +104,6 @@ module Hecks
           raise Runtime::NotFound, held.incapable_reason unless held.capable?
         end
 
-        def scaffold(held, lineage, path)
-          eras = held.held_eras(lineage)
-          return Readings.no_era(held.bluebook.name, path) if eras.empty?
-
-          latest = held.named(eras.last)
-          shadow = PostgresEra::LineageManager.shadow(latest[:held_text])
-          if Runtime::StorageShape.project(shadow) == held.shape
-            return "#{held.bluebook.name} matches era #{latest[:ordinal]} — nothing to scaffold."
-          end
-
-          edge_text(held, latest, Translation::Scaffold.diff(shadow, held.bluebook))
-        end
-
-        def edge_text(held, latest, diffed)
-          label = Runtime::StorageShape.mint_hash(held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
-          edge = Translation::Scaffold::Edge.new(
-            domain: held.bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
-            label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
-          )
-          text = Translation::Scaffold.render(edge)
-          [*scaffold_notes(edge, text, diffed[:unclaimed]), text].join("\n")
-        end
-
-        def scaffold_notes(edge, text, unclaimed)
-          unresolved = text.scan(/^\s*unresolved /).size
-          notes = ["# Save as translations/#{edge.ordinal}-#{edge.label}.bluebook."]
-          notes << "# #{unresolved} unresolved: decide what each became, then boot." if unresolved.positive?
-          unclaimed.each do |name|
-            notes << "# UNCLAIMED: #{name} existed and now doesn't, and its successor is ambiguous — add " \
-                     "`aggregate \"NewName\", was: #{name.inspect}` (with its rules) or `retired #{name.inspect}`."
-          end
-          notes << "# 0 unresolved: this shape change costs one extra boot and no typing." if notes.size == 1
-          notes
-        end
-
         def audit(held, lineage, path)
           eras = held.held_eras(lineage)
           return Readings.no_era(held.bluebook.name, path) if eras.empty?
@@ -152,33 +122,6 @@ module Hecks
               "`hecks approve_translation #{path} --confirm` with the rehearsal; the mint refuses until then."
           else
             "AUDIT PASSED — review the samples above; intent is yours to approve."
-          end
-        end
-
-        def attest(held, lineage, ordinal)
-          era = raw_era(held, lineage, ordinal)
-          computed = Digest::SHA256.hexdigest(era[:held_text])
-          name = "#{held.bluebook.name} era #{ordinal}"
-          return "#{name}: the held text matches its digest — nothing to re-attest." if era[:held_digest] == computed
-
-          [
-            "#{name}: the held text does NOT match its recorded digest.",
-            "  recorded: #{era[:held_digest] || "(none)"}", "  computed: #{computed}", shape_line(held, era, ordinal),
-            "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:",
-            "─" * 72, era[:held_text], "─" * 72,
-            "Read it, then `hecks reattest #{held.bluebook.name} era=#{ordinal} --confirm` accepts it."
-          ].join("\n")
-        end
-
-        def shape_line(held, era, ordinal)
-          verdict = Translation::Reattest.shape_guard!(
-            domain: held.bluebook.name, ordinal: ordinal, text: era[:held_text], stored_hash: era[:hash],
-            stored_projection: era[:held_projection] && JSON.parse(era[:held_projection])
-          )
-          if verdict == :cosmetic
-            "  shape:    unchanged — the edit is cosmetic (the text still projects to era #{ordinal}'s minted name)"
-          else
-            "  shape:    era #{ordinal} was never named, so no shape comparison is possible — read carefully"
           end
         end
       end

@@ -20,11 +20,28 @@ module Hecks
         # @raise [NameError] if an aggregate's name is not a valid constant name
         def chapter_module(dispatcher, bluebook)
           chapter = Module.new
+          define_readers(chapter, bluebook)
+          define_projections(chapter, bluebook)
+
+          bluebook.aggregates.each do |aggregate|
+            chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
+          end
+
+          define_const_missing(chapter, bluebook)
+          chapter
+        end
+
+        private
+
+        # The chapter's vision and its aggregate names.
+        def define_readers(chapter, bluebook)
           chapter.define_singleton_method(:vision)     { bluebook.vision }
           chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
+        end
 
-          # The chapter's usage document, projected from its IR on each call so it
-          # cannot go stale.
+        # The chapter's documents and projections, each projected from its IR on every call so
+        # none can go stale.
+        def define_projections(chapter, bluebook)
           chapter.define_singleton_method(:docs) do |**options|
             Projector.call(:docs, bluebook: bluebook, options: options)
           end
@@ -34,11 +51,15 @@ module Hecks
             Projector.call(:narrate, bluebook: bluebook, options: options)
           end
 
-          # Projects the chapter's IR through a target; `out:` writes the artifact and
-          # the remaining options go to the projector (`audience:` for OIDC).
-          #
-          #   Pizzas.project(Projections::OIDC)
-          #   Pizzas.project(Projections::Shape, out: "shape.json")
+          define_project(chapter, bluebook)
+        end
+
+        # Projects the chapter's IR through a target; `out:` writes the artifact and
+        # the remaining options go to the projector (`audience:` for OIDC).
+        #
+        #   Pizzas.project(Projections::OIDC)
+        #   Pizzas.project(Projections::Shape, out: "shape.json")
+        def define_project(chapter, bluebook)
           chapter.define_singleton_method(:project) do |target, out: nil, **options|
             key      = Projector.key_for(target)
             artifact = Projector.call(key, bluebook: bluebook, options: options)
@@ -46,14 +67,12 @@ module Hecks
 
             Projector.write(artifact, out, as: Projector.emits_for(key))
           end
+        end
 
-          bluebook.aggregates.each do |aggregate|
-            chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
-          end
-
-          # Inside a hecksagon a name is a declaration: with a collector open it becomes
-          # a `BindingProxy`. Otherwise a scoped reference from a bluebook mid-declaration
-          # goes to the `ConstShim` resolver, so it resolves whether or not a facade exists.
+        # Inside a hecksagon a name is a declaration: with a collector open it becomes
+        # a `BindingProxy`. Otherwise a scoped reference from a bluebook mid-declaration
+        # goes to the `ConstShim` resolver, so it resolves whether or not a facade exists.
+        def define_const_missing(chapter, bluebook)
           chapter.define_singleton_method(:const_missing) do |name|
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector) if collector
@@ -63,8 +82,6 @@ module Hecks
 
             super(name)
           end
-
-          chapter
         end
       end
     end

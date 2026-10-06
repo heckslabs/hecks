@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "json"
-require "open3"
 require_relative "../../../hecks"
 require_relative "../../fuzzing/combination_miner"
 require_relative "../../fuzzing/domain_generator"
@@ -10,6 +8,8 @@ require_relative "../adapters/agent"
 require_relative "child"
 require_relative "../../cache_dir"
 require_relative "../../hecks/adapters/codebase/tree"
+require_relative "qa_mine_combinations/arguments"
+require_relative "qa_mine_combinations/booting"
 
 module Hecks
   module QualityControlCli
@@ -25,6 +25,9 @@ module Hecks
     # this command's report. Exit 0: all clean. 2: a finding (see
     # `.claude/skills/hecks_qa/SKILL.md`). 1: an operational error.
     class QaMineCombinations
+      include Arguments
+      include Booting
+
       EXIT_OK = 0
       EXIT_ERROR = 1
       RESULT_MARKER = "QA_GENERATED_RESULT "
@@ -66,14 +69,7 @@ module Hecks
         @options = parse(argv.dup)
         return EXIT_OK if @options == :help
 
-        @run_dir = File.join(runs_root, "run-#{Time.now.strftime("%Y%m%d-%H%M%S")}-#{Process.pid}")
-        @out_dir = @options[:from] || File.join(@run_dir, "candidates")
-        @agent_log = File.join(@run_dir, "agent.log")
-        @agent = Hecks::Adapters::Agent.new
-        @profile = confinement_profile if @options[:confine]
-        @command = @agent.command_for(@options[:agent], @profile)
-        corpus = @options[:against].empty? ? Miner.corpus_paths(@root) : @options[:against]
-        @brief = Miner.brief(corpus, root: @root, bug_titles: Miner.recent_bug_titles(@root))
+        prepare_run
         prompt = Miner.prompt(@root, @brief, count: @options[:candidates], out_dir: @out_dir)
         if @options[:brief]
           puts prompt
@@ -83,41 +79,21 @@ module Hecks
         mine(prompt)
       end
 
-      # Each flag that takes a value: the option it sets and how the value is read.
-      VALUE_FLAGS = {
-        "--candidates" => [:candidates, ->(v) { Integer(v) }], "--seeds" => [:seeds, ->(v) { Integer(v) }],
-        "--steps" => [:steps, ->(v) { Integer(v) }], "--adversarial" => [:adversarial, ->(v) { Float(v) }],
-        "--repair-rounds" => [:repair_rounds, ->(v) { Integer(v) }], "--agent" => [:agent, :itself.to_proc],
-        "--from" => [:from, ->(v) { File.expand_path(v) }]
-      }.freeze
-
       private
 
-      def parse(argv)
-        options = { candidates: 3, rust: false, seeds: 5, steps: 25, adversarial: 0.3, repair_rounds: 1,
-                    agent: nil, from: nil, brief: false, confine: false, against: [] }
-        until argv.empty?
-          arg = argv.shift
-          if %w[-h --help].include?(arg)
-            puts USAGE
-            return :help
-          end
-          parse_flag(options, arg, argv)
-        end
-        options
+      def prepare_run
+        @run_dir = File.join(runs_root, "run-#{Time.now.strftime("%Y%m%d-%H%M%S")}-#{Process.pid}")
+        @out_dir = @options[:from] || File.join(@run_dir, "candidates")
+        @agent_log = File.join(@run_dir, "agent.log")
+        @agent = Hecks::Adapters::Agent.new
+        @profile = confinement_profile if @options[:confine]
+        @command = @agent.command_for(@options[:agent], @profile)
+        @brief = mined_brief
       end
 
-      def parse_flag(options, arg, argv)
-        case arg
-        when *VALUE_FLAGS.keys
-          key, reader = VALUE_FLAGS.fetch(arg)
-          options[key] = reader.call(argv.shift)
-        when "--rust" then options[:rust] = true
-        when "--brief" then options[:brief] = true
-        when "--confine" then options[:confine] = true
-        when "--against" then options[:against] << File.expand_path(argv.shift)
-        else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
-        end
+      def mined_brief
+        corpus = @options[:against].empty? ? Miner.corpus_paths(@root) : @options[:against]
+        Miner.brief(corpus, root: @root, bug_titles: Miner.recent_bug_titles(@root))
       end
 
       def relative(path) = path.delete_prefix("#{@root}/")
@@ -144,91 +120,51 @@ module Hecks
                                           timeout: CONFINED_TIMEOUT, budget: CONFINED_BUDGET)
       end
 
-      def boot_error(candidate, boot_root)
-        dir = Hecks::Fuzzing::DomainGenerator.write(
-          { "source" => File.read(candidate[:bluebook]), "aggregates" => [], "policies" => [] },
-          File.join(boot_root, candidate[:slug])
-        )
-        output, = Open3.capture2e(*Child.argv(@root, "qa_generated_domains", "--check", dir, "--seeds", "0"),
-                                  chdir: @root)
-        line = output.lines.reverse.find { |candidate_line| candidate_line.start_with?(RESULT_MARKER) }
-        return "boot check produced no result: #{output.lines.last(5).join.strip}" unless line
-
-        result = JSON.parse(line.delete_prefix(RESULT_MARKER))
-        result["status"] == "invalid" ? result["error"] : nil
-      end
-
       def mine(prompt)
-        FileUtils.mkdir_p(@out_dir)
-        FileUtils.mkdir_p(@run_dir)
-        puts "combination miner: #{@brief["corpus"].size} corpus domain(s), " \
-             "#{@brief["unmet_pairs"].size} unmet pair(s) — #{relative(@run_dir)}"
-        unless @options[:from]
-          puts "asking the agent for #{@options[:candidates]} candidate(s) (#{@command.first}; " \
-               "log #{relative(@agent_log)})…"
-          failure = ask_agent(prompt)
-          abort "combination miner: #{failure}" if failure
-        end
-
+        [@out_dir, @run_dir].each { |dir| FileUtils.mkdir_p(dir) }
+        announce_corpus
+        ask_for_candidates(prompt) unless @options[:from]
         candidates = Miner.candidates(@out_dir)
         abort "combination miner: the agent wrote no candidates under #{relative(@out_dir)}" if candidates.empty?
 
+        valid = booted(candidates)
+        puts
+        check(valid)
+      end
+
+      def announce_corpus
+        puts "combination miner: #{@brief["corpus"].size} corpus domain(s), " \
+             "#{@brief["unmet_pairs"].size} unmet pair(s) — #{relative(@run_dir)}"
+      end
+
+      def ask_for_candidates(prompt)
+        puts "asking the agent for #{@options[:candidates]} candidate(s) (#{@command.first}; " \
+             "log #{relative(@agent_log)})…"
+        failure = ask_agent(prompt)
+        abort "combination miner: #{failure}" if failure
+      end
+
+      # The candidates that boot, once the boot report is printed.
+      def booted(candidates)
         invalid, repaired = boot_and_repair(candidates)
         report(candidates, invalid, repaired)
         valid = candidates.reject { |candidate| invalid.key?(candidate[:slug]) }
         abort "combination miner: no candidate booted — nothing to check" if valid.empty?
 
-        puts
-        check(valid)
-      end
-
-      # @return [Array(Hash, Array<String>)] the slug-to-error map of candidates that never booted,
-      #   and the slugs a repair round fixed
-      def boot_and_repair(candidates)
-        boot_root = File.join(@run_dir, "boot")
-        failures = candidates.filter_map { |candidate| (error = boot_error(candidate, boot_root)) && [candidate, error] }
-        repaired = []
-        @options[:repair_rounds].times do |round|
-          break if failures.empty? || @options[:from]
-
-          puts "repair round #{round + 1}: #{failures.size} candidate(s) did not boot — back to the agent…"
-          failure = ask_agent(Miner.repair_prompt(failures, out_dir: @out_dir))
-          abort "combination miner: #{failure}" if failure
-
-          still = failures.filter_map { |candidate, _| (error = boot_error(candidate, boot_root)) && [candidate, error] }
-          repaired.concat(failures.map { |candidate, _| candidate[:slug] } - still.map { |candidate, _| candidate[:slug] })
-          failures = still
-        end
-        [failures.to_h { |candidate, error| [candidate[:slug], error] }, repaired]
-      end
-
-      def report(candidates, invalid, repaired)
-        puts
-        candidates.each do |candidate|
-          if invalid.key?(candidate[:slug])
-            puts "  #{candidate[:slug]}: INVALID — #{invalid[candidate[:slug]]}"
-            next
-          end
-
-          pairs = begin
-            Miner.new_pairs(candidate[:dir], @brief["covered"])
-          rescue StandardError, ScriptError => e
-            ["(census failed: #{e.class})"]
-          end
-          puts "  #{candidate[:slug]}: boots#{" (repaired)" if repaired.include?(candidate[:slug])}; " \
-               "new pair(s): #{pairs.empty? ? "none" : pairs.join(", ")}"
-          first = candidate[:hypothesis].to_s.lines.map(&:strip).find { |line| !line.empty? && !line.start_with?("#") }
-          puts "    #{first}" if first
-        end
+        valid
       end
 
       def check(valid)
+        _, status = Process.wait2(Process.spawn(*Child.argv(@root, "qa_generated_domains", *check_args(valid)),
+                                                chdir: @root))
+        status.exitstatus || EXIT_ERROR
+      end
+
+      def check_args(valid)
         args = ["--start", (Time.now.to_i % 1_000_000).to_s, "--seeds", @options[:seeds].to_s,
                 "--steps", @options[:steps].to_s, "--adversarial", @options[:adversarial].to_s]
         args << "--rust" if @options[:rust]
         args.concat(valid.flat_map { |candidate| ["--source", candidate[:bluebook]] })
-        _, status = Process.wait2(Process.spawn(*Child.argv(@root, "qa_generated_domains", *args), chdir: @root))
-        status.exitstatus || EXIT_ERROR
       end
     end
   end

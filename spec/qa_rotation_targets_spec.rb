@@ -7,7 +7,7 @@ RSpec.describe "the QA rotation's own targets" do
   let(:root) { InMemoryDomain::ROOT }
   let(:targets) { Hecks::Corpus.rotation_targets(root: root) }
 
-  it "holds every example and stress domain the corpus knows, by reference and repo-relative path" do
+  it "holds every example and stress domain the corpus knows, by reference and repo-relative path", :aggregate_failures do
     expected = Hecks::Corpus.members(:example, :stress, root: root)
                             .to_h { |member| [member.stem, member.path.delete_prefix("#{root}/")] }
 

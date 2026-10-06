@@ -43,15 +43,23 @@ module Hecks
 
         def check(member, index, problems)
           label = "#{@object} row #{index + 1}"
+          check_fields(member, label, problems)
+          @defaults.merge(typed_fields(member, label, problems))
+        end
+
+        def check_fields(member, label, problems)
           unknown = member.keys - @fields.keys
           problems << "#{label} has no field #{unknown.join(", ")}; fields are #{@fields.keys.join(", ")}" if unknown.any?
           (@required - member.keys).each { |field| problems << "#{label} needs #{field}" }
-          typed = member.slice(*@fields.keys).select do |field, value|
+        end
+
+        # A field of the wrong class is recorded as a problem and kept, so the row still reads.
+        def typed_fields(member, label, problems)
+          member.slice(*@fields.keys).select do |field, value|
             kinds = Array(@fields.fetch(field))
             kinds.any? { |kind| value.is_a?(kind) } ||
               (problems << "#{label} has #{field} #{value.inspect}; it is a #{kinds.join(" or ")}")
           end
-          @defaults.merge(typed)
         end
       end
     end

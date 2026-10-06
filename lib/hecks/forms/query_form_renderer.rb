@@ -13,7 +13,11 @@ module Hecks
     # See docs/command-form-and-query-form-bluebook.md.
     module QueryFormRenderer
       # Renders one query's whole GET view as the page body.
-      def self.render(registry:, domain:, aggregate:, query:, action:, params: {}, results: nil, error: nil)
+      #
+      # @param view [Hash] `action:` (required), the form's URL path, and optionally `params:`
+      #   (the values asked for), `results:` (the records found) and `error:` (a refusal to show)
+      def self.render(registry:, domain:, aggregate:, query:, **view)
+        action = view.fetch(:action)
         fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
         reference_options = ReferenceOptions.collect(registry, domain, fields)
 
@@ -21,9 +25,9 @@ module Hecks
           #{header(domain, aggregate, query)}
           #{canonical_link(action, fields)}
           #{quick_links(action, fields)}
-          #{filter_form(action, fields, params, reference_options)}
-          #{error_banner(error)}
-          #{results_section(aggregate, results, domain)}
+          #{filter_form(action, fields, view.fetch(:params, {}), reference_options)}
+          #{error_banner(view[:error])}
+          #{results_section(aggregate, view[:results], domain)}
           #{inspect_panel(domain, aggregate, query, fields)}
         HTML
       end

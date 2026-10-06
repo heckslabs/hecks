@@ -1,5 +1,6 @@
 require_relative "evaluator"
 require_relative "resolver"
+require_relative "ast_json/emitters"
 
 module Hecks
   module Bluebook
@@ -67,18 +68,30 @@ module Hecks
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
           each_node(ast) do |node|
-            next unless node["op"] == "lookup" && node["path"].is_a?(::Array)
+            expression = unresolvable_path(node)
+            next unless expression
 
-            expression = node["path"].join(".")
-            next unless expression.match?(UNRESOLVABLE_PATH)
-
-            raise DSL::Malformed,
-                  "#{owner}'s #{word} uses #{expression.inspect}, which the expression language " \
-                  "cannot evaluate — it is not an attribute, and it is not a method the language " \
-                  "supports. Spell the test with comparisons and `&&`/`||` instead, such as " \
-                  "`value >= 100 && value <= 599` in place of `value.between?(100, 599)`"
+            raise DSL::Malformed, unresolvable_message(owner, word, expression)
           end
           ast
+        end
+
+        # @param node [Hash] one AST node
+        # @return [String, nil] the node's dotted path when it is a `lookup` the language cannot
+        #   resolve, else `nil`
+        def unresolvable_path(node)
+          return unless node["op"] == "lookup" && node["path"].is_a?(::Array)
+
+          expression = node["path"].join(".")
+          expression if expression.match?(UNRESOLVABLE_PATH)
+        end
+
+        # @return [String] the refusal for a rule that calls a method the grammar lacks
+        def unresolvable_message(owner, word, expression)
+          "#{owner}'s #{word} uses #{expression.inspect}, which the expression language " \
+            "cannot evaluate — it is not an attribute, and it is not a method the language " \
+            "supports. Spell the test with comparisons and `&&`/`||` instead, such as " \
+            "`value >= 100 && value <= 599` in place of `value.between?(100, 599)`"
         end
 
         # Every name a rule resolves at its root: the first segment of each `lookup` path, unique.
@@ -103,21 +116,11 @@ module Hecks
 
         # Emits the JSON form of one boolean-position Evaluator node.
         def emit_bool(node)
-          case node
-          when Evaluator::Or  then { "op" => "or", "left" => emit_bool(node.left), "right" => emit_bool(node.right) }
-          when Evaluator::And then { "op" => "and", "left" => emit_bool(node.left), "right" => emit_bool(node.right) }
-          when Evaluator::Not then { "op" => "not", "expr" => emit_bool(node.node) }
-          when Evaluator::Compare
-            { "op" => "compare", "cmp" => emit_comparison(node.operator),
-              "left" => emit_resolver(node.left), "right" => emit_resolver(node.right) }
-          when Evaluator::Include
-            emit_include(node)
-          when Evaluator::Resolve
-            emit_resolver(node.expr)
-          else
-            raise "unhandled evaluator node #{node.class} — no JSON rendering exists for it " \
-                  "(lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
-          end
+          _, emitter = Emitters::BOOL.find { |klass, _| node.is_a?(klass) }
+          return emitter.call(node) if emitter
+
+          raise "unhandled evaluator node #{node.class} — no JSON rendering exists for it " \
+                "(lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
         end
 
         # Emits the JSON form of one comparison operator.
@@ -132,64 +135,34 @@ module Hecks
 
         # Emits one `include` node; an empty literal haystack is `false`.
         def emit_include(node)
-          return { "op" => "include", "haystack" => emit_resolver(node.haystack), "needle" => emit_resolver(node.needle) } \
-            unless node.haystack.is_a?(Resolver::ArrayLiteral)
+          return emit_literal_include(node) if node.haystack.is_a?(Resolver::ArrayLiteral)
 
+          { "op" => "include", "haystack" => emit_resolver(node.haystack), "needle" => emit_resolver(node.needle) }
+        end
+
+        # @param node [Evaluator::Include] an `include` over a literal-array haystack
+        # @return [Hash] an or of equalities over the elements, or `false` for none
+        def emit_literal_include(node)
           return { "op" => "bool", "value" => false } if node.haystack.elements.empty?
 
-          equalities = node.haystack.elements.map do |element|
-            { "op" => "compare", "cmp" => emit_comparison(EQ), "left" => emit_resolver(node.needle),
-"right" => emit_resolver(element) }
-          end
+          equalities = node.haystack.elements.map { |element| emit_equality(node.needle, element) }
           equalities.reduce { |left, right| { "op" => "or", "left" => left, "right" => right } }
         end
 
-        # One case arm per Resolver node type, kept in one method so exhaustiveness shows at a
-        # glance.
-        # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+        # @return [Hash] the `compare` node for `needle == element`
+        def emit_equality(needle, element)
+          { "op" => "compare", "cmp" => emit_comparison(EQ), "left" => emit_resolver(needle),
+            "right" => emit_resolver(element) }
+        end
+
+        # One case arm per Resolver node type, kept in `Emitters::RESOLVER` so exhaustiveness
+        # shows at a glance.
         def emit_resolver(node)
-          case node
-          when Resolver::IntegerLiteral then { "op" => "int", "value" => node.value }
-          when Resolver::FloatLiteral   then { "op" => "float", "value" => node.value }
-          when Resolver::StringLiteral  then { "op" => "str", "value" => node.value }
-          when Resolver::BoolLiteral    then { "op" => "bool", "value" => node.value }
-          when Resolver::NilLiteral     then { "op" => "nil" }
-          # Segments, as `find.path` has, so a reader need not split a dotted string.
-          when Resolver::Lookup         then { "op" => "lookup", "path" => node.path.split(".") }
-          when Resolver::Addition       then { "op" => "add", "left" => emit_resolver(node.left), "right" => emit_resolver(node.right) }
-          when Resolver::SignTest
-            { "op" => "sign_test", "cmp" => emit_comparison(node.operator), "receiver" => emit_resolver(node.receiver) }
-          when Resolver::Empty  then { "op" => "empty", "receiver" => emit_resolver(node.receiver) }
-          when Resolver::ToS    then { "op" => "to_s", "receiver" => emit_resolver(node.receiver) }
-          when Resolver::Modulo then { "op" => "modulo", "receiver" => emit_resolver(node.receiver), "divisor" => emit_resolver(node.divisor) }
-          when Resolver::Size   then { "op" => "size", "receiver" => emit_resolver(node.receiver) }
-          when Resolver::BlockPredicate
-            { "op" => "block_predicate", "mode" => node.mode.to_s, "receiver" => emit_resolver(node.receiver),
-              "param" => node.param.to_s, "predicate" => emit_bool(node.predicate) }
-          when Resolver::Find
-            { "op" => "find", "receiver" => emit_resolver(node.receiver), "param" => node.param.to_s,
-              "predicate" => emit_bool(node.predicate), "path" => node.path.map(&:to_s) }
-          when Resolver::ArrayLiteral
-            { "op" => "array", "elements" => node.elements.map { |element| emit_resolver(element) } }
-          when Resolver::MatchesRegex
-            { "op" => "matches_regex", "receiver" => emit_resolver(node.receiver), "pattern" => node.pattern,
-"flags" => node.flags }
-          when Resolver::Presence
-            { "op" => "presence", "receiver" => emit_resolver(node.receiver), "negated" => node.negated }
-          when Resolver::Assignment
-            { "op" => "assignment", "receiver" => emit_resolver(node.receiver), "negated" => node.negated }
-          when Resolver::Split
-            { "op" => "split", "receiver" => emit_resolver(node.receiver), "separator" => node.separator }
-          when Resolver::StartsWith
-            { "op" => "starts_with", "receiver" => emit_resolver(node.receiver), "substring" => node.substring }
-          when Resolver::EndsWith
-            { "op" => "ends_with", "receiver" => emit_resolver(node.receiver), "substring" => node.substring }
-          when Resolver::First then { "op" => "first", "receiver" => emit_resolver(node.receiver) }
-          when Resolver::Last  then { "op" => "last", "receiver" => emit_resolver(node.receiver) }
-          else
-            raise "unhandled resolver node #{node.class} — no JSON rendering exists for it " \
-                  "(lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
-          end
+          _, emitter = Emitters::RESOLVER.find { |klass, _| node.is_a?(klass) }
+          return emitter.call(node) if emitter
+
+          raise "unhandled resolver node #{node.class} — no JSON rendering exists for it " \
+                "(lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
         end
       end
     end

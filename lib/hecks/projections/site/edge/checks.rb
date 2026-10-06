@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "findings"
+require_relative "route_checks"
+
 module Hecks
   module Projections
     module Site
@@ -8,9 +11,10 @@ module Hecks
         # thing that exists, no two rows claim one name or priority, and every route the edge serves
         # has the origin, the policy and, for a server behind the load balancer, the rule it needs.
         class Checks
+          include Findings
+
           LOGICAL_ID = /\A[A-Za-z][A-Za-z0-9]*\z/
           INTRINSIC = /\A!(Ref|ImportValue|Sub|GetAtt)\s+\S/
-          PRIORITIES = (1..50_000)
 
           # The id a policy reference names, or nil when it names none.
           #
@@ -42,8 +46,7 @@ module Hecks
             check_setting
             check_policies
             check_upstreams
-            check_rules
-            check_routes
+            RouteChecks.new(@edge, @rows, @vocabulary, @problems).call
           end
 
           private
@@ -53,7 +56,10 @@ module Hecks
             return problem("Edge", "has no row; declare one member with template:") unless setting
 
             check_template(setting.template) if setting.template || !@template_named
+            check_secret(setting)
+          end
 
+          def check_secret(setting)
             problem("Edge", "has secret_header but no secret_value") if setting.secret_header && !setting.secret_value
             problem("Edge", "has secret_value but no secret_header") if setting.secret_value && !setting.secret_header
           end
@@ -66,23 +72,31 @@ module Hecks
           end
 
           def check_policies
-            @edge.policies.each do |policy|
-              label = "EdgePolicy #{policy.cache_class}#{" on #{policy.origin}" if policy.origin}"
-              member_of(label, "cache_class", policy.cache_class, :cache)
-              member_of(label, "origin", policy.origin, :origin) if policy.origin
-              { cache: policy.cache, origin_request: policy.origin_request,
-                response_headers: policy.response_headers }.compact.each do |field, reference|
-                next if (reference == "none" && field != :cache) || self.class.resolve(reference)
-
-                managed = Deploy::Fargate::Cdn::MANAGED_POLICIES.keys.join(", ")
-                problem(label, "has #{field} #{reference.inspect}; use a managed name (#{managed}), " \
-                               "a policy id or an intrinsic like !Ref Name")
-              end
-            end
+            @edge.policies.each { |policy| check_policy(policy) }
             repeated(@edge.policies.map { |policy| [policy.cache_class, policy.origin] }, "EdgePolicy") do |key|
-              "#{key[0]}#{" on #{key[1]}" if key[1]}"
+              policy_name(key[0], key[1])
             end
           end
+
+          def check_policy(policy)
+            label = "EdgePolicy #{policy_name(policy.cache_class, policy.origin)}"
+            member_of(label, "cache_class", policy.cache_class, :cache)
+            member_of(label, "origin", policy.origin, :origin) if policy.origin
+            { cache: policy.cache, origin_request: policy.origin_request,
+              response_headers: policy.response_headers }.compact.each do |field, reference|
+              check_reference(label, field, reference)
+            end
+          end
+
+          def check_reference(label, field, reference)
+            return if (reference == "none" && field != :cache) || self.class.resolve(reference)
+
+            managed = Deploy::Fargate::Cdn::MANAGED_POLICIES.keys.join(", ")
+            problem(label, "has #{field} #{reference.inspect}; use a managed name (#{managed}), " \
+                           "a policy id or an intrinsic like !Ref Name")
+          end
+
+          def policy_name(cache_class, origin) = "#{cache_class}#{" on #{origin}" if origin}"
 
           def check_upstreams
             @edge.upstreams.each do |upstream|
@@ -92,70 +106,6 @@ module Hecks
             end
             repeated(@edge.upstreams.map(&:origin), "EdgeOrigin", &:itself)
           end
-
-          def check_rules
-            return check_no_alb unless @edge.alb?
-
-            problem("EdgeRule", "rows need an Edge row with listener:") if @edge.rules.any? && !@edge.setting&.listener
-            @edge.rules.each { |rule| check_rule(rule) }
-            repeated(@edge.rules.map(&:rule), "EdgeRule", &:itself)
-            repeated(@edge.rules.map(&:priority), "EdgeRule priority", &:to_s)
-          end
-
-          # With `alb: false` nothing routes by listener rule, so a rule row, or a route that names
-          # one, describes a load balancer the project says it does not have. Every route that is
-          # served by a server behind the edge still needs the origin that reaches it.
-          def check_no_alb
-            problem("EdgeRule", "rows describe a load balancer, and the Edge row says alb: false") if @edge.rules.any?
-            @rows.select(&:alb_rule).each do |row|
-              problem(row.path, "names alb_rule #{row.alb_rule}, and the Edge row says alb: false")
-            end
-            @rows.each do |row|
-              next if row.cdn || !%w[cms domain].include?(row.origin) || @edge.upstream(row.origin)
-
-              problem(row.path, "is served from #{row.origin}, which no EdgeOrigin maps, and with alb: false " \
-                                "nothing else reaches it")
-            end
-          end
-
-          def check_rule(rule)
-            label = "EdgeRule #{rule.rule}"
-            member_of(label, "origin", rule.origin, :origin)
-            problem(label, "has origin assets; the load balancer does not front the assets origin") if rule.origin == "assets"
-            problem(label, "is not a logical id") unless LOGICAL_ID.match?(rule.rule.to_s)
-            unless PRIORITIES.cover?(rule.priority.to_i)
-              problem(label, "has priority #{rule.priority}; a priority is #{PRIORITIES.first} to #{PRIORITIES.last}")
-            end
-            return if rule.origin.nil? || @edge.upstream(rule.origin)&.target_group
-
-            problem(label, "forwards to #{rule.origin}, whose EdgeOrigin names no target_group")
-          end
-
-          def check_routes
-            edge_rows = @rows.select { |row| row.cdn || row.alb_rule }
-            edge_rows.each do |row|
-              next if row.origin == "assets" && !row.cdn
-
-              problem(row.path, "has origin #{row.origin}, which no EdgeOrigin maps") unless @edge.upstream(row.origin)
-              next unless row.cdn && !@edge.policy(row.cache, row.origin)
-
-              problem(row.path, "has cache class #{row.cache} on #{row.origin}, which no EdgePolicy maps")
-            end
-            default_rows = @rows.select { |row| row.path == "/*" && row.cdn }
-            problem("the route table", "needs one row for /* : the default behaviour") if default_rows.empty?
-          end
-
-          def member_of(label, field, value, vocabulary)
-            return if @vocabulary.fetch(vocabulary).include?(value)
-
-            problem(label, "has #{field} #{value.inspect}; #{field} is one of #{@vocabulary.fetch(vocabulary).join(", ")}")
-          end
-
-          def repeated(keys, what)
-            keys.tally.each { |key, count| problem(what, "#{yield(key)} is declared #{count} times") if count > 1 }
-          end
-
-          def problem(label, text) = @problems << "#{label} #{text}"
         end
       end
     end

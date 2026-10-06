@@ -1,5 +1,6 @@
 require "fileutils"
 require_relative "../../hecks"
+require_relative "project_cli/launcher_source"
 
 module Hecks
   module CLI
@@ -17,50 +18,11 @@ module Hecks
       # Build output and other trees under a root that hold no domain a caller means.
       IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
-      # What a chapter name, a domain path and a launcher command may be made of.
-      NAME = /\A[A-Za-z][A-Za-z0-9_ ]*\z/
-      PATH = %r{\A[\w./-]+\z}
-      VERB = /\A[A-Za-z_][A-Za-z0-9_]*\z/
+      # One launcher to write: its chapter's name, its label under the root, its file, its text,
+      # the snake-cased name and the executable path its chapter's world named (nil when none).
+      Target = Struct.new(:name, :label, :file, :text, :snake, :executable)
 
-      # Set first in an opted-in launcher, before anything reads a file.
-      ENCODING = "Encoding.default_external = Encoding::UTF_8\nEncoding.default_internal = Encoding::UTF_8\n\n".freeze
-
-      # How every launcher ends.
-      PLAIN_ENDING = "status.zero? ? puts(text) : abort(text)".freeze
-
-      # How an opted-in launcher ends: a failed `--wait` run still prints its settled record.
-      OPTED_ENDING = <<~LAUNCHER_TAIL.chomp.freeze
-        # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it
-        # either way, and says why on stderr.
-        if reason
-          puts text
-          warn reason
-          exit status
-        end
-        status.zero? ? puts(text) : abort(text)
-      LAUNCHER_TAIL
-
-      # What a Memory command does when refused: say why, from the record's `refusal`.
-      MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
-        if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
-          why = begin
-            require "json"
-            JSON.parse(text).dig("state", "refusal", "value")
-          rescue JSON::ParserError
-            nil
-          end
-          warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
-        else
-          puts text
-          warn reason
-        end
-      LAUNCHER_REFUSAL
-
-      # The generator's name as an executable launcher's header states it, whoever ran it.
-      GENERATOR = "hecks project_cli".freeze
-
-      # The launcher's test for a Memory command; a trailing `!` is not part of the name.
-      RUNS_ON_MEMORY = 'MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))'.freeze
+      extend LauncherSource
 
       module_function
 
@@ -78,15 +40,27 @@ module Hecks
       #   path outside `root` or an unknown flag
       def call(argv, program:, root:, remove_stale_bin: true)
         flags, paths = argv.partition { |word| word.start_with?("-") }
-        unknown = flags - ["--check"]
-        abort "hecks project_cli: unknown option #{unknown.first} (the only option is --check)" unless unknown.empty?
+        refuse_unknown(flags)
 
         check  = flags.include?("--check")
         wanted = paths.empty? ? domains(root) : paths.map { |path| under_root(root, path) }
 
         outcomes = wanted.to_h { |path| [path, one(root, path, program, check, remove_stale_bin)] }
-        drifted  = outcomes.select { |_, outcome| outcome == :drifted }.keys
-        failed   = outcomes.select { |_, outcome| outcome == :failed }.keys
+        report(outcomes)
+      end
+
+      # @api private
+      def refuse_unknown(flags)
+        unknown = flags - ["--check"]
+        abort "hecks project_cli: unknown option #{unknown.first} (the only option is --check)" unless unknown.empty?
+      end
+
+      # Says which launchers drifted or could not be made, and exits 1 if any did.
+      #
+      # @api private
+      def report(outcomes)
+        drifted = outcomes.select { |_, outcome| outcome == :drifted }.keys
+        failed  = outcomes.select { |_, outcome| outcome == :failed }.keys
         return if drifted.empty? && failed.empty?
 
         warn "launcher out of date for: #{drifted.join(", ")}; run `hecks project_cli #{drifted.join(" ")}`" unless drifted.empty?
@@ -116,26 +90,45 @@ module Hecks
       def one(root, path, program, check, remove_stale_bin)
         runtime = Hecks.boot(File.join(root, path), install_doors: false)
         name    = runtime.registry.bluebooks.keys.first or raise "it loads no bluebook"
-        setting    = Doors::LauncherOptions.settings(runtime, name) || {}
+        setting = Doors::LauncherOptions.settings(runtime, name) || {}
+        settle(launcher_target(name, path, setting, root, program), path, root, check, remove_stale_bin)
+      rescue StandardError, LoadError => e
+        refuse(path, "cannot boot — #{e.message.lines.first.to_s.strip}")
+      end
+
+      # Checks the launcher against its file, or writes it.
+      #
+      # @api private
+      # @return [Symbol] as `one` answers
+      def settle(target, path, root, check, remove_stale_bin)
+        return skip(path, "#{target.label} is a directory") if File.directory?(target.file)
+        return :drifted if check && !(File.file?(target.file) && File.read(target.file) == target.text)
+
+        write_launcher(target, root, remove_stale_bin) unless check
+        puts "  #{target.label}  ->  #{target.name}"
+        :current
+      end
+
+      # Works out where one launcher goes and what it says.
+      #
+      # @api private
+      # @return [Target]
+      def launcher_target(name, path, setting, root, program)
         snake      = Naming.snake(name)
         executable = setting[:executable]
         label      = executable || "#{path}/#{snake}"
-        file       = File.join(root, label)
         text       = launcher(path, name, program, executable: executable, legacy: setting[:legacy],
-                          memory_commands: setting[:memory_commands], opted: !setting.empty?)
-        return skip(path, "#{label} is a directory") if File.directory?(file)
+                                                   memory_commands: setting[:memory_commands], opted: !setting.empty?)
+        Target.new(name, label, File.join(root, label), text, snake, executable)
+      end
 
-        return :drifted if check && !(File.file?(file) && File.read(file) == text)
-
-        unless check
-          File.write(file, text)
-          FileUtils.chmod("+x", file)
-          FileUtils.rm_f(File.join(root, "bin", snake)) if remove_stale_bin && !executable
-        end
-        puts "  #{label}  ->  #{name}"
-        :current
-      rescue StandardError, LoadError => e
-        refuse(path, "cannot boot — #{e.message.lines.first.to_s.strip}")
+      # Writes the launcher, makes it executable, and removes the second front door in `bin/`.
+      #
+      # @api private
+      def write_launcher(target, root, remove_stale_bin)
+        File.write(target.file, target.text)
+        FileUtils.chmod("+x", target.file)
+        FileUtils.rm_f(File.join(root, "bin", target.snake)) if remove_stale_bin && !target.executable
       end
 
       # @api private
@@ -159,178 +152,6 @@ module Hecks
            .map { |path| path.delete_prefix("#{root}/") }
            .grep_v(IGNORED)
            .uniq.sort
-      end
-
-      # The source of one launcher; names and paths go in as they are, so each must be plain.
-      # An `opted` one also sets UTF-8 and prints a failed `--wait` record on stdout.
-      # @param path [String] the domain's directory under the root
-      # @param name [String] the chapter's name
-      # @param program [String] the generator's invocation, named in the header
-      # @param executable [String, nil] the file's path under the root when it is not beside the
-      #   domain; its program name is then that file's basename, and its header names the generator
-      # @param legacy [Array<String>, nil] commands an executable hands to `Hecks::CLI` first
-      # @param memory_commands [Array<String>, nil] commands that default to Memory
-      # @param opted [Boolean] whether the chapter's world declares a `launcher` setting
-      # @return [String] the Ruby source
-      # @raise [ArgumentError] if a name, path, executable or legacy command is not plain
-      def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?)
-        plain!("chapter name", name, NAME)
-        plain!("domain path", path, PATH)
-        snake = Naming.snake(name)
-        if executable
-          plain!("launcher executable", executable, PATH)
-          if executable.split("/").include?("..")
-            raise ArgumentError, "launcher executable #{executable.inspect} must stay inside the root"
-          end
-
-          up      = "../" * File.dirname(executable).split("/").reject { |part| part == "." }.length
-          boot    = %(File.expand_path("#{up}#{path}", __dir__))
-          program = GENERATOR
-          where   = executable
-          shown   = File.basename(executable)
-        else
-          up    = "../" * path.count("/").succ
-          boot  = "__dir__"
-          where = shown = "#{path}/#{snake}"
-        end
-
-        handoff  = legacy_handoff(Array(legacy)) + memory_default(Array(memory_commands)) if executable
-        encoding = opted ? ENCODING : ""
-        ending   = opted ? OPTED_ENDING : PLAIN_ENDING
-        ending   = quiet_ending(ending) if executable && !Array(memory_commands).empty?
-
-        <<~RUBY
-          #!/usr/bin/env ruby
-
-          # #{name}'s command line — GENERATED by #{program}. Do not edit.
-          #
-          # A launcher, not a CLI: the commands, their arguments and their refusals are
-          # projected from the bluebook beside it every time this runs, so a change
-          # to the chapter shows up here without re-minting anything.
-          #
-          #   #{where}                  every command, and every question
-          #   #{where} <command> --help    what it wants, and how it refuses
-
-          #{encoding}$LOAD_PATH.unshift File.expand_path("#{up}lib", __dir__)
-          #{handoff}
-          require "hecks"
-
-          #{entry(name, boot, shown, opted, quiet: !Array(memory_commands).empty?)}
-          #{ending}
-        RUBY
-      end
-
-      # @api private
-      # @return [String] the launcher's middle: for an opted-in launcher, usage answered from the
-      #   projection and a boot only for a line that runs a command; for any other, the boot and
-      #   dispatch every launcher has always had, byte for byte
-      def entry(name, boot, shown, opted, quiet: false)
-        opted ? described_entry(name, boot, shown, quiet: quiet) : plain_entry(name, boot, shown)
-      end
-
-      # @api private
-      # @return [String] the opted-in launcher's middle
-      def described_entry(name, boot, shown, quiet: false)
-        started = "Hecks.boot_described(described, install_doors: false)"
-        started = "Hecks::Doors::LauncherOptions.quietly(hold: #{RUNS_ON_MEMORY}) { #{started} }" if quiet
-        <<~RUBY.chomp
-          # Usage is answered from the projected chapter alone: no adapter is bound and no
-          # database is opened. Only a line that runs a command boots the domain,
-          # and it boots from what the usage check already loaded.
-          domain = #{boot}
-          program = "#{shown}"
-          described = begin
-            Hecks.describe(domain)
-          rescue StandardError => e
-            abort "cannot open #{name}: \#{e.message.lines.first.strip}"
-          end
-
-          text, status, reason = Hecks::Doors::CliRunner.usage(
-            runtime: described, argv: ARGV, program: program
-          )
-          unless text
-            runtime = begin
-              #{started}
-            rescue StandardError => e
-              abort "cannot open #{name}: \#{e.message.lines.first.strip}"
-            end
-            # A question the world lists under `streams`, given `--stream`, tails until interrupted.
-            streamed = Hecks::Doors::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
-            exit streamed unless streamed.nil?
-            text, status, reason = Hecks::Doors::CliRunner.call(
-              runtime: runtime, argv: ARGV, program: program
-            )
-          end
-        RUBY
-      end
-
-      # @api private
-      # @return [String] the middle every launcher had before opted-in ones answered usage alone
-      def plain_entry(name, boot, shown)
-        <<~RUBY.chomp
-          runtime = begin
-            Hecks.boot(#{boot}, install_doors: false)
-          rescue StandardError => e
-            abort "cannot open #{name}: \#{e.message.lines.first.strip}"
-          end
-
-          text, status = Hecks::Doors::CliRunner.call(
-            runtime: runtime, argv: ARGV, program: "#{shown}"
-          )
-        RUBY
-      end
-
-      # @api private
-      def plain!(what, value, pattern)
-        return if value.to_s.match?(pattern)
-
-        raise ArgumentError, "#{what} #{value.to_s.inspect} is not a plain word or path"
-      end
-
-      # @api private
-      # @param ending [String] the launcher's closing lines
-      # @return [String] the same lines, except that a memory command prints no settled record, only
-      #   the reason it was refused: a person is at it, so the record is noise
-      def quiet_ending(ending)
-        ending.sub("  puts text\n  warn reason\n", MEMORY_REFUSAL)
-              .sub("status.zero? ? puts(text)",
-                   "exit 0 if status.zero? && MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp(\"!\"))\nstatus.zero? ? puts(text)")
-      end
-
-      # @api private
-      # @return [String] the lines that default the listed commands to Memory, or nothing
-      def memory_default(commands)
-        return "" if commands.empty?
-
-        commands.each { |command| plain!("memory command", command, VERB) }
-
-        <<~RUBY
-
-          # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
-          # A person is at them: they wait for their result, say why when they are refused, and print
-          # no record when they end well.
-          MEMORY_COMMANDS = %w[#{commands.join(" ")}].freeze
-          ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
-          ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
-        RUBY
-      end
-
-      # @api private
-      # @return [String] the lines that hand the legacy commands to `Hecks::CLI`, or nothing
-      def legacy_handoff(legacy)
-        return "" if legacy.empty?
-
-        legacy.each { |command| plain!("legacy command", command, VERB) }
-
-        <<~RUBY
-
-          # The names the gem has always shipped keep their positional forms.
-          LEGACY = %w[#{legacy.join(" ")}].freeze
-          if LEGACY.include?(ARGV.first)
-            require "hecks/cli"
-            exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
-          end
-        RUBY
       end
     end
   end

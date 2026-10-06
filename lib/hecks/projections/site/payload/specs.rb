@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "specs/wire"
 
 module Hecks
   module Projections
@@ -94,75 +95,30 @@ module Hecks
 
           def reader(agg, attr) = "#{agg.noun[0].downcase}#{agg.noun[1..]}#{attr.ts[0].upcase}#{attr.ts[1..]}From"
 
+          # The three lines between a spec's reads and its writes.
+          SPEC_MIDDLE = ["    })),",
+                         "  toInput: ({ status: _status, ...input }) => input,",
+                         "  fields: (input): Wire => ({"].freeze
+
           def spec(agg)
+            [*spec_head(agg), Wire.reads(agg), *SPEC_MIDDLE, Wire.writes(agg), *spec_tail(agg)].join("\n")
+          end
+
+          def spec_head(agg)
             var = "#{agg.noun[0].downcase}#{agg.noun[1..]}"
-            <<~TS.chomp
-              export const #{var}Spec: Spec<#{agg.noun}State, #{agg.noun}Input> = {
-                aggregate: #{agg.fqn.to_json},
-                read: (answer) =>
-                  instancesOf(answer, #{agg.fqn.to_json}).map(([#{agg.identity}, s]) => ({
-                    #{agg.identity},
-                    status: statusOf(s),
-              #{reads(agg)}
-                  })),
-                toInput: ({ status: _status, ...input }) => input,
-                fields: (input): Wire => ({
-              #{writes(agg)}
-                }),
-                create: { verb: #{agg.create[:verb].to_json}, status: #{agg.create[:status].to_json} },
-                edges: #{edges(agg.edges)},
-              };
-            TS
+            ["export const #{var}Spec: Spec<#{agg.noun}State, #{agg.noun}Input> = {",
+             "  aggregate: #{agg.fqn.to_json},",
+             "  read: (answer) =>",
+             "    instancesOf(answer, #{agg.fqn.to_json}).map(([#{agg.identity}, s]) => ({",
+             "      #{agg.identity},",
+             "      status: statusOf(s),"]
           end
 
-          def others(agg) = agg.attrs.reject { |attr| attr.name == agg.identity }
-
-          def reads(agg)
-            others(agg).map { |attr| "      #{attr.ts}: #{read(agg, attr)}," }.join("\n")
-          end
-
-          def read(agg, attr)
-            return "#{reader(agg, attr)}(s.#{attr.name})" if attr.shape == :composite
-            return "unwrapList(s.#{attr.name})" if attr.list
-            return "whole(s.#{attr.name}, #{attr.wire_key.to_json})" if attr.shape == :integer
-
-            attr.optional ? "orNull(s.#{attr.name})" : "orNull(s.#{attr.name}) ?? \"\""
-          end
-
-          def writes(agg)
-            others(agg).map { |attr| "    #{write(attr)}," }.join("\n")
-          end
-
-          def write(attr)
-            name = attr.name
-            case attr.shape
-            when :composite then composite_write(attr)
-            when :integer then optional_write(attr, "{ #{attr.wire_key}: input.#{attr.ts} }", "input.#{attr.ts} != null")
-            else
-              return "#{name}: list(input.#{attr.ts})" if attr.list
-
-              scalar_write(attr)
-            end
-          end
-
-          def composite_write(attr)
-            parts = attr.parts.map { |part| "#{part.name}: item.#{part.ts}" }.join(", ")
-            "#{attr.name}: input.#{attr.ts}.map((item) => ({ #{parts} }))"
-          end
-
-          def scalar_write(attr)
-            if attr.wire_key == "value"
-              return "#{attr.name}: wrapped(input.#{attr.ts})" unless attr.optional
-
-              return "...optionalValue(#{attr.name.to_json}, input.#{attr.ts})"
-            end
-            optional_write(attr, "{ #{attr.wire_key}: input.#{attr.ts} }", "input.#{attr.ts}")
-          end
-
-          def optional_write(attr, wire, present)
-            return "#{attr.name}: #{wire}" unless attr.optional
-
-            "...(#{present} ? { #{attr.name}: #{wire} } : {})"
+          def spec_tail(agg)
+            ["  }),",
+             "  create: { verb: #{agg.create[:verb].to_json}, status: #{agg.create[:status].to_json} },",
+             "  edges: #{edges(agg.edges)},",
+             "};"]
           end
 
           def edges(edges)

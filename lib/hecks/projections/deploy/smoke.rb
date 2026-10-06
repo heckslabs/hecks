@@ -55,19 +55,24 @@ module Hecks
         end
 
         def resolve(deploy_settings)
-          missing = REQUIRED.reject { |name| deploy_settings[setting_key(name)] }
-          unless missing.empty?
-            raise ArgumentError, "smoke true needs #{missing.map { |name| setting_key(name) }.join(", ")} " \
-                                 "in the deployed_to block; the workflow cannot be rendered without them"
-          end
-
+          require_settings!(deploy_settings)
           picked = PATTERNS.keys.to_h { |name| [name, deploy_settings.fetch(setting_key(name), DEFAULTS[name])] }
-          PATTERNS.each do |name, pattern|
-            next if picked[name].nil? || picked[name].to_s.match?(pattern)
-
-            raise ArgumentError, "#{setting_key(name)} #{picked[name].inspect} is not a value the smoke workflow can carry"
-          end
+          PATTERNS.each { |name, pattern| check_value!(name, picked[name], pattern) }
           picked
+        end
+
+        def require_settings!(deploy_settings)
+          missing = REQUIRED.reject { |name| deploy_settings[setting_key(name)] }
+          return if missing.empty?
+
+          raise ArgumentError, "smoke true needs #{missing.map { |name| setting_key(name) }.join(", ")} " \
+                               "in the deployed_to block; the workflow cannot be rendered without them"
+        end
+
+        def check_value!(name, value, pattern)
+          return if value.nil? || value.to_s.match?(pattern)
+
+          raise ArgumentError, "#{setting_key(name)} #{value.inspect} is not a value the smoke workflow can carry"
         end
 
         # The region has no `smoke_` prefix; every other setting does.

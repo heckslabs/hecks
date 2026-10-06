@@ -2,6 +2,7 @@ require_relative "../vocabulary"
 require_relative "../bluebook/attribute"
 require_relative "../naming"
 require_relative "value_object_shape"
+require_relative "text_shape"
 
 module Hecks
   # The forms surface: the `expose` DSL, the IR->HTML renderers and the Rack app (see forms.rb).
@@ -89,9 +90,7 @@ module Hecks
       # Mirrors Runtime::Value::Admission#admitted_members (same split, chapter walk and
       # discriminant rule) so a `<select>` never offers a member the runtime would refuse.
       def self.admitted_field(attribute, aggregate, common)
-        set_aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
-        chapter = aggregate.hecks_owner
-        set = set_name && chapter&.aggregate(set_aggregate_name)&.value_object(set_name)
+        set = admitted_set(attribute, aggregate)
         # undeclared — refuse-at-dispatch stays the backstop
         return primitive_field(attribute, common) unless set
 
@@ -100,10 +99,13 @@ module Hecks
         # `Value::Coercion#fields_for` expects, even though `admits:` names a set elsewhere.
         own_shape = own_value_object(attribute, aggregate)
         inner = own_shape && ValueObjectShape.sole_attribute(own_shape)
-        return options unless inner
-
-        options.path = "#{common[:path]}.#{inner.name}"
+        options.path = "#{common[:path]}.#{inner.name}" if inner
         options
+      end
+
+      def self.admitted_set(attribute, aggregate)
+        set_aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
+        set_name && aggregate.hecks_owner&.aggregate(set_aggregate_name)&.value_object(set_name)
       end
 
       def self.own_value_object(attribute, aggregate)
@@ -177,35 +179,8 @@ module Hecks
         when "TrueClass", "FalseClass"
           Field.new(**common, kind: :boolean, html_type: "checkbox")
         else
-          text_field(attribute, common)
+          TextShape.field(attribute, common)
         end
-      end
-
-      # Vocabulary::FieldHint rows (language/bluebook/vocabulary.bluebook), matched
-      # case-insensitively. hecks project_field_hints writes the Rust host's copy from the same
-      # rows.
-      HINTS = Hecks::Vocabulary.rows("FieldHint")
-                               .to_h { |row| [row["name"], Regexp.new(row["pattern"], Regexp::IGNORECASE)] }
-                               .freeze
-      EMAIL_HINT    = HINTS.fetch("email")
-      URL_HINT      = HINTS.fetch("url")
-      TEL_HINT      = HINTS.fetch("tel")
-      TEXTAREA_HINT = HINTS.fetch("textarea")
-
-      def self.text_field(attribute, common)
-        name = attribute.name.to_s
-        pattern = attribute.pattern.to_s
-        html_type = if pattern.include?("@") || name.match?(EMAIL_HINT)
-                      "email"
-                    elsif pattern.match?(/https?/i) || name.match?(URL_HINT)
-                      "url"
-                    elsif name.match?(TEL_HINT)
-                      "tel"
-                    else
-                      "text"
-                    end
-        kind = html_type == "text" && name.match?(TEXTAREA_HINT) ? :textarea : :text
-        Field.new(**common, kind: kind, html_type: html_type)
       end
     end
   end

@@ -6,13 +6,39 @@ require "hecks/fuzzing"
 
 # Resolves QA modes as enabled ∩ eligible, where eligibility is inferred from
 # the real corpus on disk, so a stale regex or manifest can only fail here.
-RSpec.describe Hecks::Fuzzing::TargetCapabilities do
+RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
   CAP_ROOT      = InMemoryDomain::ROOT
   CAP_RUST_DIR  = File.join(CAP_ROOT, "rust")
   CAP_BANKING   = File.join(CAP_ROOT, "examples/banking")
   CAP_DIRECTORY = File.join(CAP_ROOT, "examples/directory")
   CAP_PIZZAS    = File.join(CAP_ROOT, "examples/pizzas")
   CAP_CHESS     = File.join(CAP_ROOT, "examples/chess")
+
+  CAP_CARGO_TOML = <<~TOML.freeze
+    [features]
+    default = ["widget"]
+    widget = []
+
+    [package]
+    name = "rust"
+
+    [[bin]]
+    name = "rust"
+  TOML
+
+  CAP_MANAGED_PLATFORM = <<~RUBY.freeze
+    adapter = "PostgresEra"
+
+    Hecks.hecksagon "ManagedPlatform" do
+      attaches "Governance"
+      ManagedPlatform::Client.persisted_by(adapter)
+      ManagedPlatform::ManagedSite.persisted_by(adapter)
+    end
+
+    Hecks.hecksagon "Governance" do
+      Governance::RoleAssignment.persisted_by(adapter)
+    end
+  RUBY
 
   def infer(path) = described_class.infer(path, rust_dir: CAP_RUST_DIR)
 
@@ -34,30 +60,23 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
       expect(capabilities).to all(be_a(String))
     end
 
+    # `[package] name = "rust"` and `[[bin]] name = "rust"` both name a
+    # domain called `rust` outside the features table — neither may
+    # read as a feature.
+    def write_cargo_fixture(tmp)
+      rust_dir = File.join(tmp, "rust")
+      FileUtils.mkdir_p(rust_dir)
+      File.write(File.join(rust_dir, "Cargo.toml"), CAP_CARGO_TOML)
+      FileUtils.mkdir_p(File.join(tmp, "widget"))
+      FileUtils.mkdir_p(File.join(tmp, "rust_domain"))
+      rust_dir
+    end
+
     it "scopes the rust feature lookup to Cargo.toml's [features] table, never the crate's own name" do
       Dir.mktmpdir do |tmp|
-        rust_dir = File.join(tmp, "rust")
-        FileUtils.mkdir_p(rust_dir)
-        # `[package] name = "rust"` and `[[bin]] name = "rust"` both name a
-        # domain called `rust` outside the features table — neither may
-        # read as a feature.
-        File.write(File.join(rust_dir, "Cargo.toml"), <<~TOML)
-          [features]
-          default = ["widget"]
-          widget = []
+        rust_dir = write_cargo_fixture(tmp)
 
-          [package]
-          name = "rust"
-
-          [[bin]]
-          name = "rust"
-        TOML
-        widget = File.join(tmp, "widget")
-        rust   = File.join(tmp, "rust_domain")
-        FileUtils.mkdir_p(widget)
-        FileUtils.mkdir_p(rust)
-
-        expect(described_class.infer(widget, rust_dir: rust_dir)).to include("rust")
+        expect(described_class.infer(File.join(tmp, "widget"), rust_dir: rust_dir)).to include("rust")
         expect(described_class.infer(File.join(tmp, "rust"), rust_dir: rust_dir)).not_to include("rust")
       end
     end
@@ -106,20 +125,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
 
     it "reads the shape a managed-platform hecksagon has" do
-      text = <<~RUBY
-        adapter = "PostgresEra"
-
-        Hecks.hecksagon "ManagedPlatform" do
-          attaches "Governance"
-          ManagedPlatform::Client.persisted_by(adapter)
-          ManagedPlatform::ManagedSite.persisted_by(adapter)
-        end
-
-        Hecks.hecksagon "Governance" do
-          Governance::RoleAssignment.persisted_by(adapter)
-        end
-      RUBY
-      expect(postgres_era_for(text)).to be(true)
+      expect(postgres_era_for(CAP_MANAGED_PLATFORM)).to be(true)
     end
   end
 

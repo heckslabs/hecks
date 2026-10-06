@@ -1,0 +1,10 @@
+	# ONE build only -- dispatch "None" means there is no
+	# @@logical_id@@ of any kind (no cargo-lambda, no rust artifact, no
+	# verify-parity: nothing rust/host-shaped for this domain at all),
+	# so unlike every other WebFunction-carrying domain there is no
+	# second build to protect from `sam build <resource>`'s own
+	# WIPES-.aws-sam/build/-first behavior (build-@@logical_id@@'s own
+	# sibling comment on why that matters for domains that DO have one)
+	# and nothing to restore afterward.
+	sam build --use-container @@web_logical_id@@
+	$(MAKE) patch-pg-native

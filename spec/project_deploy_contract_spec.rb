@@ -59,39 +59,43 @@ RSpec.describe "hecks deploy project's stack<->bastion structural contract, in i
 
   after(:context) { FileUtils.rm_rf(@generated_dir) }
 
+  def declared_outputs(file) = @files[file][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
+
+  def filled_parameters = @files[:makefile][/--parameter-overrides (.*?) \\/, 1].to_s.scan(/(\w+)=/).flatten
+
+  def expect_queries_declared(file, queried, stack)
+    declared = declared_outputs(file)
+
+    expect(queried).not_to be_empty
+    expect(queried - declared).to eq([]),
+                                  "Makefile queries #{queried - declared} against #{stack}, but #{file}.yaml's " \
+                                  "Outputs only declares #{declared}"
+  end
+
   # Interpolation mistakes that break YAML syntax would otherwise surface only in a real
   # `sam deploy`. Short-form tags (!Sub, !Ref) parse as plain scalars under safe_load.
-  it "produces syntactically valid YAML for every generated CloudFormation template" do
+  it "produces syntactically valid YAML for every generated CloudFormation template", :aggregate_failures do
     expect { YAML.safe_load(@files[:template], aliases: true) }.not_to raise_error
     expect { YAML.safe_load(@files[:bastion], aliases: true) }.not_to raise_error
   end
 
   it "gives every Makefile OutputKey lookup against the main stack a real template.yaml Output" do
-    declared = @files[:template][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
     queried = @files[:makefile].scan(/--stack-name \$\(STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
 
-    expect(queried).not_to be_empty
-    expect(queried - declared).to eq([]),
-                                  "Makefile queries #{queried - declared} against $(STACK), but template.yaml's " \
-                                  "Outputs only declares #{declared}"
+    expect_queries_declared(:template, queried, "$(STACK)")
   end
 
   it "gives every Makefile OutputKey lookup against the bastion stack a real bastion.yaml Output" do
-    declared = @files[:bastion][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
     queried = @files[:makefile].scan(/
       --stack-name\ \$\(BASTION_STACK\)\ --query\ "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]
     /x).flatten
 
-    expect(queried).not_to be_empty
-    expect(queried - declared).to eq([]),
-                                  "Makefile queries #{queried - declared} against $(BASTION_STACK), but " \
-                                  "bastion.yaml's Outputs only declares #{declared}"
+    expect_queries_declared(:bastion, queried, "$(BASTION_STACK)")
   end
 
-  it "fills every bastion.yaml Parameter from the Makefile's --parameter-overrides, and no others" do
+  it "fills every bastion.yaml Parameter from the Makefile's --parameter-overrides, and no others", :aggregate_failures do
     declared = @files[:bastion][/^Parameters:\n(.*?)^Resources:/m, 1].to_s.scan(/^  (\w+):$/).flatten
-    overrides_line = @files[:makefile][/--parameter-overrides (.*?) \\/, 1].to_s
-    filled = overrides_line.scan(/(\w+)=/).flatten
+    filled = filled_parameters
 
     expect(declared).not_to be_empty
     expect(filled.sort).to eq(declared.sort),

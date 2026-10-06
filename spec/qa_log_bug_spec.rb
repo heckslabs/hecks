@@ -6,6 +6,9 @@ require_relative "support/qa_lib_cli"
 # `hecks quality_control log` run as a real subprocess against a disposable PostgresEra ledger
 # (spec/support/qa_ledger_fixture.rb); see qa_sweep_all_fixture.rb for why not Memory.
 RSpec.describe "hecks quality_control log", :io do
+  FLAKY_DEMONSTRATION = "ruby -e 'exit 0' # ostensibly reproduces a flaky race, not reliably".freeze
+  PROSE_DEMONSTRATION = "The button did not turn red when I clicked it a second time".freeze
+
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -14,6 +17,8 @@ RSpec.describe "hecks quality_control log", :io do
 
   after(:all) { @ledger&.tear_down! }
   before { @ledger.reset! }
+
+  let!(:sweep) { a_sweep_on_file }
 
   def a_sweep_on_file
     @ledger.boot
@@ -32,78 +37,71 @@ RSpec.describe "hecks quality_control log", :io do
            .map { |row| [row[:reference][:value], row[:sequence][:value], row[:disposition][:value]] }
   end
 
-  def reproduced_values
-    @ledger.boot.query("QualityControl::Bug.All").map { |row| row[:reproduced][:value] }
-  end
-
-  it "refuses a demonstration that passes, and logs nothing" do
-    a_sweep_on_file
-
-    stdout, stderr, status = log_bug("exit 0", "--triage", "self_contained")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the demonstration PASSED")
-    expect(stdout).not_to include("logged BUG#")
-    expect(bugs_on_file).to be_empty
-  end
-
-  it "logs a bug whose demonstration fails, already triaged" do
-    a_sweep_on_file
-
-    stdout, _stderr, status = log_bug("echo 'expected refusal, got acceptance'; exit 3", "--triage", "bigger")
-
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("demonstration failed as required (exit 3)", "expected refusal, got acceptance",
-                              "logged BUG#1 (sequence 1, bigger, reproduced=yes) against SW-1")
-    expect(bugs_on_file).to eq([["BUG#1", 1, "bigger"]])
-    expect(reproduced_values).to eq(["yes"])
-  end
-
-  # The demonstration exits 0 and is never run: `--reproduced no` skips the must-fail check.
-  it "logs a bug with --reproduced no even though the demonstration does not fail" do
-    a_sweep_on_file
-
-    stdout, _stderr, status = log_bug("ruby -e 'exit 0' # ostensibly reproduces a flaky race, not reliably",
-                                      "--triage", "bigger", "--reproduced", "no")
-
-    expect(status.exitstatus).to eq(0), stdout
-    expect(stdout).to include("reproduced=no — skipping the must-fail check",
-                              "logged BUG#1 (sequence 1, bigger, reproduced=no) against SW-1")
-    expect(bugs_on_file).to eq([["BUG#1", 1, "bigger"]])
-    expect(reproduced_values).to eq(["no"])
-  end
-
-  # `--reproduced no` drops the must-fail check but still requires code, not prose.
-  it "refuses --reproduced no when --demonstration reads like prose, not code" do
-    a_sweep_on_file
-
-    stdout, stderr, status = log_bug("The button did not turn red when I clicked it a second time",
-                                     "--triage", "bigger", "--reproduced", "no")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("doesn't look like a runnable script or command")
-    expect(stdout).not_to include("logged BUG#")
-    expect(bugs_on_file).to be_empty
-  end
-
-  it "refuses an unrecognized --reproduced value" do
-    a_sweep_on_file
-
-    _stdout, stderr, status = log_bug("exit 1", "--triage", "bigger", "--reproduced", "maybe")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("--reproduced must be one of yes|no")
-    expect(bugs_on_file).to be_empty
-  end
-
-  # Pins the mint against reusing a reference a hand-typed `log` took out of order.
-  it "mints past every sequence and every reference already on file" do
-    sweep = a_sweep_on_file
+  # Two bugs a hand-typed `log` took out of order: sequences 2 and 3, references BUG#1 and BUG#4.
+  def log_bugs_out_of_order
     %w[BUG#1 BUG#4].each_with_index do |reference, index|
       QualityControl::Bug.log!(sweep: sweep.id, reference: { value: reference }, sequence: { value: index + 2 },
                                title: { value: "t" }, demonstration: { value: "d" }, symptom: { value: "s" },
                                expectation: { value: "e" }, submitter: { value: "x" })
     end
+  end
+
+  def log_bug_for_missing_sweep
+    QaLibCli.run(@ledger, "qa_log_bug", "--sweep", "SW-nope", "--title", "t",
+                 "--demonstration", "exit 1", "--symptom", "s", "--expectation", "e",
+                 "--submitter", "x", "--triage", "bigger")
+  end
+
+  def reproduced_values
+    @ledger.boot.query("QualityControl::Bug.All").map { |row| row[:reproduced][:value] }
+  end
+
+  it "refuses a demonstration that passes, and logs nothing", :aggregate_failures do
+    stdout, stderr, status = log_bug("exit 0", "--triage", "self_contained")
+
+    expect([status.exitstatus, bugs_on_file]).to eq([1, []])
+    expect(stderr).to include("the demonstration PASSED")
+    expect(stdout).not_to include("logged BUG#")
+  end
+
+  it "logs a bug whose demonstration fails, already triaged", :aggregate_failures do
+    stdout, _stderr, status = log_bug("echo 'expected refusal, got acceptance'; exit 3", "--triage", "bigger")
+
+    expect(status.exitstatus).to eq(0), stdout
+    expect(stdout).to include("demonstration failed as required (exit 3)", "expected refusal, got acceptance",
+                              "logged BUG#1 (sequence 1, bigger, reproduced=yes) against SW-1")
+    expect([bugs_on_file, reproduced_values]).to eq([[["BUG#1", 1, "bigger"]], ["yes"]])
+  end
+
+  # The demonstration exits 0 and is never run: `--reproduced no` skips the must-fail check.
+  it "logs a bug with --reproduced no even though the demonstration does not fail", :aggregate_failures do
+    stdout, _stderr, status = log_bug(FLAKY_DEMONSTRATION, "--triage", "bigger", "--reproduced", "no")
+
+    expect(status.exitstatus).to eq(0), stdout
+    expect(stdout).to include("reproduced=no — skipping the must-fail check",
+                              "logged BUG#1 (sequence 1, bigger, reproduced=no) against SW-1")
+    expect([bugs_on_file, reproduced_values]).to eq([[["BUG#1", 1, "bigger"]], ["no"]])
+  end
+
+  # `--reproduced no` drops the must-fail check but still requires code, not prose.
+  it "refuses --reproduced no when --demonstration reads like prose, not code", :aggregate_failures do
+    stdout, stderr, status = log_bug(PROSE_DEMONSTRATION, "--triage", "bigger", "--reproduced", "no")
+
+    expect([status.exitstatus, bugs_on_file]).to eq([1, []])
+    expect(stderr).to include("doesn't look like a runnable script or command")
+    expect(stdout).not_to include("logged BUG#")
+  end
+
+  it "refuses an unrecognized --reproduced value", :aggregate_failures do
+    _stdout, stderr, status = log_bug("exit 1", "--triage", "bigger", "--reproduced", "maybe")
+
+    expect([status.exitstatus, bugs_on_file]).to eq([1, []])
+    expect(stderr).to include("--reproduced must be one of yes|no")
+  end
+
+  # Pins the mint against reusing a reference a hand-typed `log` took out of order.
+  it "mints past every sequence and every reference already on file", :aggregate_failures do
+    log_bugs_out_of_order
 
     stdout, _stderr, status = log_bug("exit 1", "--triage", "self_contained")
 
@@ -113,18 +111,17 @@ RSpec.describe "hecks quality_control log", :io do
     expect(bugs_on_file.map(&:first)).to contain_exactly("BUG#1", "BUG#4", "BUG#5")
   end
 
-  it "refuses without a triage, and without a sweep it can find" do
-    a_sweep_on_file
-
+  it "refuses without a triage", :aggregate_failures do
     _stdout, stderr, status = log_bug("exit 1")
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("--triage is required")
 
-    _stdout, stderr, status = QaLibCli.run(@ledger, "qa_log_bug", "--sweep", "SW-nope", "--title", "t",
-                                           "--demonstration", "exit 1", "--symptom", "s", "--expectation", "e",
-                                           "--submitter", "x", "--triage", "bigger")
-    expect(status.exitstatus).to eq(1)
+    expect([status.exitstatus, bugs_on_file]).to eq([1, []])
+    expect(stderr).to include("--triage is required")
+  end
+
+  it "refuses without a sweep it can find", :aggregate_failures do
+    _stdout, stderr, status = log_bug_for_missing_sweep
+
+    expect([status.exitstatus, bugs_on_file]).to eq([1, []])
     expect(stderr).to include("no such sweep")
-    expect(bugs_on_file).to be_empty
   end
 end

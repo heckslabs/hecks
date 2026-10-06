@@ -46,12 +46,12 @@ module Hecks
 
       # Unrestricted when no HECKS_DOOR_* variable is set.
       def self.from_env(env = ENV)
-        problems = setting_problems(env)
+        problems = EnvProblems.setting_problems(env)
         raise ArgumentError, problems.join("\n") unless problems.empty?
         return new(allowed_domains: nil) unless env[TOOLS_VARIABLE]
 
-        commands = env[TOOLS_VARIABLE] == COMMANDS ? split_names(env[COMMANDS_VARIABLE]) : nil
-        new(allowed_domains: split_paths(env[DOMAINS_VARIABLE]), allowed_commands: commands)
+        commands = env[TOOLS_VARIABLE] == COMMANDS ? EnvProblems.split_names(env[COMMANDS_VARIABLE]) : nil
+        new(allowed_domains: EnvProblems.split_paths(env[DOMAINS_VARIABLE]), allowed_commands: commands)
       end
 
       # Refuses to stderr, not stdout, which carries the MCP protocol.
@@ -61,49 +61,6 @@ module Hecks
         e.message.each_line { |line| stderr.puts("#{server}: refusing to start: #{line.chomp}") }
         exit(EXIT_STATUS)
       end
-
-      def self.setting_problems(env)
-        known = [TOOLS_VARIABLE, DOMAINS_VARIABLE, COMMANDS_VARIABLE]
-        problems = (env.keys.select { |name| name.start_with?(ENV_PREFIX) } - known).map do |name|
-          "environment #{name} is not accepted; the door takes only #{known.join(", ")}"
-        end
-        problems + mode_problems(env[TOOLS_VARIABLE], env[DOMAINS_VARIABLE], env[COMMANDS_VARIABLE])
-      end
-
-      def self.mode_problems(tools, domains, commands)
-        return stray_problems(domains, commands) if tools.nil?
-        unless MODES.include?(tools)
-          return ["#{TOOLS_VARIABLE}=#{tools.inspect} is not accepted; the values are #{MODES.map(&:inspect).join(" and ")}"]
-        end
-
-        problems = []
-        if split_paths(domains.to_s).empty?
-          problems << "#{TOOLS_VARIABLE}=#{tools} needs #{DOMAINS_VARIABLE}, the domains this door may read"
-        end
-        problems + command_problems(tools, commands)
-      end
-
-      def self.stray_problems(domains, commands)
-        stray = { DOMAINS_VARIABLE => domains, COMMANDS_VARIABLE => commands }.compact.keys
-        return [] if stray.empty?
-
-        ["#{stray.join(" and ")} set without #{TOOLS_VARIABLE}=#{READERS} or #{TOOLS_VARIABLE}=#{COMMANDS}; " \
-         "they only narrow a restricted door"]
-      end
-
-      def self.command_problems(tools, commands)
-        if tools == COMMANDS && split_names(commands).empty?
-          ["#{TOOLS_VARIABLE}=#{COMMANDS} needs #{COMMANDS_VARIABLE}, the commands this door may dispatch"]
-        elsif tools == READERS && !commands.nil?
-          ["#{COMMANDS_VARIABLE} is set in reader mode; it only narrows a commands door"]
-        else
-          []
-        end
-      end
-
-      def self.split_paths(value) = value.to_s.split(File::PATH_SEPARATOR).reject(&:empty?)
-
-      def self.split_names(value) = value.to_s.split(",").map(&:strip).reject(&:empty?).uniq
 
       # The named domains, resolved against Storehouse::BOOT_ROOT; nil when unrestricted.
       attr_reader :allowed_domains
@@ -194,12 +151,7 @@ module Hecks
       def admit_arguments!(args)
         return unless restricted?
 
-        each_argument(args) do |name, value|
-          refuse_argument!(name, "never passes it on: it names a host, a binary, an output or a change of state") if
-            DENIED_ARGUMENTS.include?(name)
-          admit_path!(name, value) if PATH_ARGUMENTS.include?(name)
-          admit_ref!(name, value) if REF_ARGUMENTS.include?(name)
-        end
+        ArgumentPolicy.admit!(args, mode_label)
       end
 
       # The one domain a restricted door serves, when it serves exactly one: a call may leave
@@ -220,138 +172,30 @@ module Hecks
         args.merge("domain" => default_domain)
       end
 
-      # The tool as `tools/list` shows it. A door that serves one domain makes `domain:` optional.
-      # On a commands door, `dispatch` also names the commands it serves as an enum, so a caller
-      # sees them as typed choices instead of finding out by being refused, and says what each
-      # takes and which role it declares.
+      # The tool as `tools/list` shows it; see `Presenter.present`.
       #
       # @param tool [Hash] a tool definition from `McpDoor::TOOLS`
       # @param guide [Array<String>, nil] one line per allowed command (`Storehouse.command_guide`)
       # @return [Hash] the definition, narrowed for this door
       def present(tool, guide = nil)
-        tool = domain_optional(tool) if default_domain
-        return tool unless commands_mode? && tool[:name] == "dispatch"
-
-        properties = tool[:inputSchema][:properties]
-        narrowed = properties.merge(command: with_enum(properties[:command]),
-                                    steps:   properties[:steps].merge(items: step_items(properties[:steps][:items])))
-        tool.merge(description: dispatch_description(tool[:description], guide),
-                   inputSchema: tool[:inputSchema].merge(properties: narrowed))
+        Presenter.present(self, tool, guide)
       end
 
       def notes
         return [] unless restricted?
 
-        commands_mode? ? commands_notes : reader_notes
+        commands_mode? ? Presenter.commands_notes(@allowed_domains, @allowed_commands) : Presenter.reader_notes(@allowed_domains)
       end
 
       private
 
-      # Yields every argument name with its value, descending into nested objects and lists, so
-      # `{"file" => {"value" => "x"}}` is checked the way `{"file" => "x"}` is.
-      def each_argument(args, &visit)
-        case args
-        when Hash
-          args.each do |name, value|
-            visit.call(name.to_s, value)
-            each_argument(value, &visit)
-          end
-        when Array
-          args.each { |item| each_argument(item, &visit) }
-        end
-      end
-
-      # A value written as an object of one field (`{"value" => "x"}`) is that field's value.
-      def scalar(value)
-        return value unless value.is_a?(Hash)
-
-        value.fetch("value") { value.fetch(:value, value) }
-      end
-
-      def refuse_argument!(name, why)
-        raise Runtime::TypeMismatch, "argument: #{name.inspect} is refused: this door runs in #{mode_label} and #{why}"
-      end
-
-      def admit_path!(name, value)
-        Array(scalar(value)).flat_map { |item| item.to_s.split(",") }.reject(&:empty?).each do |path|
-          next if !path.include?(":") && inside_root?(path)
-
-          refuse_argument!(name, "passes a path only when it resolves inside #{Storehouse::BOOT_ROOT} " \
-                                 "and holds no colon: #{path.inspect}")
-        end
-      end
-
-      def admit_ref!(name, value)
-        ref = scalar(value).to_s
-        return if ref.match?(PLAIN_REF) && !ref.include?("..")
-
-        refuse_argument!(name, "passes only a plain git ref: #{ref.inspect}")
-      end
-
-      def inside_root?(path)
-        root = resolve_real(Storehouse::BOOT_ROOT)
-        resolved = resolve_real(File.expand_path(path, Storehouse::BOOT_ROOT))
-        resolved == root || resolved.start_with?("#{root}#{File::SEPARATOR}")
-      end
-
-      # The real path of `path`, symlinks followed: of the whole path when it exists, else of its
-      # deepest existing parent with the missing names put back, so a link above a file that does
-      # not exist yet still shows where the file would land.
-      def resolve_real(path)
-        missing = []
-        current = File.expand_path(path)
-        until File.exist?(current)
-          parent = File.dirname(current)
-          break if parent == current
-
-          missing.unshift(File.basename(current))
-          current = parent
-        end
-        File.join(File.realpath(current), *missing)
-      end
-
-      def domain_optional(tool)
-        schema = tool[:inputSchema]
-        return tool unless schema[:properties].key?(:domain)
-
-        note = "Optional: this door serves one domain, #{default_domain}, and uses it when you leave this out."
-        properties = schema[:properties].merge(domain: schema[:properties][:domain].merge(description: note))
-        tool.merge(inputSchema: schema.merge(properties: properties, required: schema[:required] - ["domain"]))
-      end
-
-      def dispatch_description(base, guide)
-        intro = "#{base} This door dispatches only the commands below, each with the role it declares: pass " \
-                "that role as `role`. A command that takes `run` takes a key you choose, and the call answers " \
-                "the record as it stands once its reactions have run; an argument marked * is required."
-        entries = Array(guide).empty? ? allowed_commands : guide
-        ([intro] + entries.map { |entry| "- #{entry}" }).join("\n")
-      end
-
-      def with_enum(property)
-        property.merge(enum: allowed_commands)
-      end
-
-      def step_items(items)
-        items.merge(properties: items[:properties].merge(command: with_enum(items[:properties][:command])))
-      end
-
       def mode_label
         commands_mode? ? "commands mode (#{TOOLS_VARIABLE}=#{COMMANDS})" : "reader mode (#{TOOLS_VARIABLE}=#{READERS})"
-      end
-
-      def reader_notes
-        ["Reader mode (#{TOOLS_VARIABLE}=#{READERS}): serves #{READER_TOOLS.join(", ")}; " \
-         "refuses dispatch (with dry_run and steps), behaviors and every other tool.",
-         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(", ")}.",
-         "Reader mode limits reach and identifies no one; it is not authentication."]
-      end
-
-      def commands_notes
-        ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(", ")} and dispatch of only " \
-         "#{COMMANDS_VARIABLE}: #{@allowed_commands.join(", ")}; refuses behaviors and every other tool.",
-         "domain: boots only #{DOMAINS_VARIABLE}: #{@allowed_domains.join(", ")}.",
-         "Commands mode limits reach and identifies no one; role: stays self-asserted and it is not authentication."]
       end
     end
   end
 end
+
+require_relative "mcp_door_scope/env_problems"
+require_relative "mcp_door_scope/argument_policy"
+require_relative "mcp_door_scope/presenter"

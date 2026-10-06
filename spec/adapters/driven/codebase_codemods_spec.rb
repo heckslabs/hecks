@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::Codebase::Codemods do
     described_class.call(operation, held, tree)
   end
 
-  it "rehearses hoisting with --dry-run, and says nothing was kept, unless confirmed" do
+  it "rehearses hoisting with --dry-run, and says nothing was kept, unless confirmed", :aggregate_failures do
     shell = fake_run("clean (no candidates): examples/pizzas\n")
 
     report = codemod("hoist_local_givens", {}, shell)
@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::Codebase::Codemods do
     expect(shell.asked.first[:chdir]).to eq(tree.root)
   end
 
-  it "lets the script keep its edits when confirmed" do
+  it "lets the script keep its edits when confirmed", :aggregate_failures do
     shell = fake_run("APPLIED  examples/banking\n")
 
     report = codemod("hoist_local_givens", { confirm: { value: true } }, shell)

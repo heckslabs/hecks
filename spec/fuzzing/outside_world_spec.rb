@@ -5,7 +5,7 @@ require "hecks/fuzzing"
 
 # A replay checks a domain's own rules. The adapters a port or a port-answered query would reach
 # run shells and write files, so a fuzz boot asks `OutsideWorld` instead and the adapter never runs.
-RSpec.describe Hecks::Fuzzing::OutsideWorld do
+RSpec.describe Hecks::Fuzzing::OutsideWorld, :aggregate_failures do
   REACH_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Reach" do
       vision "A query an adapter answers."
@@ -49,31 +49,36 @@ RSpec.describe Hecks::Fuzzing::OutsideWorld do
     end
   RUBY
 
+  REACH_ADAPTER_DECLARATION = <<~RUBY.freeze
+    require_relative "reaching_echoer"
+
+    Hecks.adapter "ReachingEchoer" do
+      port "Echoer"
+    end
+  RUBY
+
+  # The adapter class; `MARKER_PATH` becomes the file it writes when it runs.
+  REACH_ADAPTER_CLASS = <<~RUBY.freeze
+    module Hecks
+      module Adapters
+        class ReachingEchoer
+          def initialize(aggregate: nil, settings: {}, root: nil); end
+
+          def echo(title:)
+            File.write(MARKER_PATH, title)
+            { heard: title }
+          end
+        end
+      end
+    end
+  RUBY
+
   def write_domain(dir, marker)
     FileUtils.mkdir_p(File.join(dir, "bluebook/adapters"))
     File.write(File.join(dir, "bluebook/reach.bluebook"), REACH_BLUEBOOK)
     File.write(File.join(dir, "bluebook/reach.hecksagon"), REACH_HECKSAGON)
-    File.write(File.join(dir, "bluebook/adapters/reaching_echoer.adapter"), <<~RUBY)
-      require_relative "reaching_echoer"
-
-      Hecks.adapter "ReachingEchoer" do
-        port "Echoer"
-      end
-    RUBY
-    File.write(File.join(dir, "bluebook/adapters/reaching_echoer.rb"), <<~RUBY)
-      module Hecks
-        module Adapters
-          class ReachingEchoer
-            def initialize(aggregate: nil, settings: {}, root: nil); end
-
-            def echo(title:)
-              File.write(#{marker.inspect}, title)
-              { heard: title }
-            end
-          end
-        end
-      end
-    RUBY
+    File.write(File.join(dir, "bluebook/adapters/reaching_echoer.adapter"), REACH_ADAPTER_DECLARATION)
+    File.write(File.join(dir, "bluebook/adapters/reaching_echoer.rb"), REACH_ADAPTER_CLASS.sub("MARKER_PATH", marker.inspect))
   end
 
   around do |example|

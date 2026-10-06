@@ -6,31 +6,48 @@ require "spec_helper"
 RSpec.describe "single-element value objects strictly answer .value" do
   SCALAR_VO_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/scalar_value_objects.bluebook")
 
+  def load_stickers
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+     InMemoryDomain::PRISM_ADAPTER, SCALAR_VO_BLUEBOOK].each { |file| Kernel.load(file) }
+  end
+
   def boot_stickers
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(SCALAR_VO_BLUEBOOK)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      load_stickers
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
   def sticker_aggregate
     registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(SCALAR_VO_BLUEBOOK)
-    end
+    Hecks.with_registry(registry) { load_stickers }
     registry.bluebook("ScalarValueObjects").aggregate("Sticker")
+  end
+
+  # A value object declared by hand, one `field: "Type"` pair per attribute.
+  def declared_value_object(name, **fields)
+    attributes = fields.map { |field, type| Hecks::Bluebook::Attribute.new(name: field, type: type) }
+    Hecks::Bluebook::ValueObject.declare(name: name, attributes: attributes)
+  end
+
+  def build_aggregate_in_shim(name, &body)
+    Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+      Hecks::Bluebook::DSL::AggregateBuilder.build(name, &body)
+    end
+  end
+
+  def printed_sticker(ref, price)
+    boot_stickers.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: ref, price: price)
+    ScalarValueObjects::Sticker.find(ref)
+  end
+
+  def runtime_with_two_stickers
+    runtime = boot_stickers
+    runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S5", price: 40)
+    runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S6", price: 50)
+    runtime
   end
 
   describe "the bare value_object shorthand" do
@@ -42,31 +59,20 @@ RSpec.describe "single-element value objects strictly answer .value" do
     end
 
     it "is byte-equivalent sugar for the block form's own attribute :value line" do
-      aggregate = sticker_aggregate
-      shorthand = aggregate.value_object("Shelf").to_h
-      spelled   = Hecks::Bluebook::ValueObject.declare(
-        name:       "Shelf",
-        attributes: [Hecks::Bluebook::Attribute.new(name: :value, type: "Integer")]
-      ).to_h
+      shorthand = sticker_aggregate.value_object("Shelf").to_h
+      spelled   = declared_value_object("Shelf", value: "Integer").to_h
 
       expect(shorthand).to eq(spelled)
     end
 
     it "refuses a type AND a block together — two answers to one question" do
-      expect do
-        Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
-          Hecks::Bluebook::DSL::AggregateBuilder.build("Bad") do
-            value_object("X", String) { attribute :y, Integer }
-          end
-        end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both a type .* and a block/)
+      expect { build_aggregate_in_shim("Bad") { value_object("X", String) { attribute :y, Integer } } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both a type .* and a block/)
     end
 
     it "keeps today's behavior for neither type nor block: an empty attribute list" do
       # Pinned deliberately, not endorsed: the shorthand must not change what this spelling builds.
-      aggregate = Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
-        Hecks::Bluebook::DSL::AggregateBuilder.build("Bare") { value_object "Empty" }
-      end
+      aggregate = build_aggregate_in_shim("Bare") { value_object "Empty" }
 
       expect(aggregate.value_object("Empty").attributes).to eq([])
     end
@@ -81,7 +87,7 @@ RSpec.describe "single-element value objects strictly answer .value" do
       expect(value_of("StickerRef", { value: "S1" }).value).to eq("S1")
     end
 
-    it "answers the sole attribute whatever it is actually named" do
+    it "answers the sole attribute whatever it is actually named", :aggregate_failures do
       price = value_of("Price", { amount: 7 })
 
       expect(price.value).to eq(7)
@@ -89,7 +95,7 @@ RSpec.describe "single-element value objects strictly answer .value" do
       expect(price.respond_to?(:value)).to be(true)
     end
 
-    it "aliases indexed reads and key? the same way" do
+    it "aliases indexed reads and key? the same way", :aggregate_failures do
       price = value_of("Price", { amount: 7 })
 
       expect(price[:value]).to eq(7)
@@ -101,20 +107,13 @@ RSpec.describe "single-element value objects strictly answer .value" do
       expect(value_of("Price", { amount: 7 }).with(:value, 9).to_h).to eq(amount: 9)
     end
 
-    it "serializes under the real field name, not the alias" do
+    it "serializes under the real field name, not the alias", :aggregate_failures do
       expect(value_of("Price", { amount: 7 }).to_h).to eq(amount: 7)
       expect(value_of("Price", { amount: 7 }).to_json).to eq('{"amount":7}')
     end
 
-    it "keeps the multi-attribute refusal: .value stays a NoMethodError" do
-      pair = Hecks::Runtime::Value.build(
-        Hecks::Bluebook::ValueObject.declare(
-          name:       "Pair",
-          attributes: [Hecks::Bluebook::Attribute.new(name: :a, type: "String"),
-                       Hecks::Bluebook::Attribute.new(name: :b, type: "String")]
-        ),
-        { a: "x", b: "y" }
-      )
+    it "keeps the multi-attribute refusal: .value stays a NoMethodError", :aggregate_failures do
+      pair = Hecks::Runtime::Value.build(declared_value_object("Pair", a: "String", b: "String"), { a: "x", b: "y" })
 
       expect { pair.value }.to raise_error(NoMethodError)
       expect(pair.respond_to?(:value)).to be(false)
@@ -124,11 +123,9 @@ RSpec.describe "single-element value objects strictly answer .value" do
   end
 
   describe "call-site scalar collapsing" do
-    it "collapses a bare scalar into the sole field, real name and shorthand name alike" do
-      runtime = boot_stickers
-      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S1", price: 7)
+    it "collapses a bare scalar into the sole field, real name and shorthand name alike", :aggregate_failures do
+      sticker = printed_sticker("S1", 7)
 
-      sticker = ScalarValueObjects::Sticker.find("S1")
       expect(sticker.ref.to_h).to eq(value: "S1")
       expect(sticker.price.to_h).to eq(amount: 7)
       expect(sticker.price.value).to eq(7)
@@ -150,29 +147,23 @@ RSpec.describe "single-element value objects strictly answer .value" do
     end
 
     it "still refuses a bare scalar for a genuinely multi-field value object" do
-      runtime = boot_stickers
-      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S4", price: 2)
+      boot_stickers.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S4", price: 2)
 
       # The fixture has no multi-field argument, so the refusal is pinned at the coercion
       # directly, against an ad-hoc two-field shape: auto-wrap must stay count-gated.
-      two_field = Hecks::Bluebook::ValueObject.declare(
-        name:       "Range",
-        attributes: [Hecks::Bluebook::Attribute.new(name: :lo, type: "Integer"),
-                     Hecks::Bluebook::Attribute.new(name: :hi, type: "Integer")]
-      )
-      expect { Hecks::Runtime::Value.fields_for(two_field, :range, 5) }
-        .to raise_error(Hecks::Runtime::TypeMismatch)
+      two_field = declared_value_object("Range", lo: "Integer", hi: "Integer")
+      expect { Hecks::Runtime::Value.fields_for(two_field, :range, 5) }.to raise_error(Hecks::Runtime::TypeMismatch)
     end
 
-    it "answers a bare-field query over each single-attribute shape" do
-      runtime = boot_stickers
-      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S5", price: 40)
-      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S6", price: 50)
+    it "answers a bare-field query over a single-attribute value object's own field" do
+      at_forty = runtime_with_two_stickers.query("ScalarValueObjects::Sticker.AtPrice", price: 40)
 
-      at_forty = runtime.query("ScalarValueObjects::Sticker.AtPrice", price: 40)
       expect(at_forty.map { |row| row[:ref].value }).to eq(["S5"])
+    end
 
-      by_ref = runtime.query("ScalarValueObjects::Sticker.ByRef", ref: "S6")
+    it "answers a bare-field query over a single-field reference's own field" do
+      by_ref = runtime_with_two_stickers.query("ScalarValueObjects::Sticker.ByRef", ref: "S6")
+
       expect(by_ref.map { |row| row[:price].value }).to eq([50])
     end
   end

@@ -17,6 +17,38 @@ RSpec.describe "every refusal the corpus provokes" do
     Hecks::Runtime::DOMAIN_REFUSALS.any? { |klass| error.is_a?(klass) }
   end
 
+  # Skip data/: parallel workers boot the example in place; Heki renames its .tmp mid-copy.
+  def copy_example(path, domain)
+    source = File.join(InMemoryDomain::ROOT, path)
+    FileUtils.mkdir_p(domain)
+    (Dir.children(source) - ["data"]).each { |child| FileUtils.cp_r(File.join(source, child), domain) }
+  end
+
+  def play(runtime, step)
+    args = (step["args"] || {}).transform_keys(&:to_sym)
+    if (question = step["query"])
+      runtime.query(question, **args)
+    else
+      runtime.dispatch_flat(step["verb"], **args)
+    end
+  end
+
+  # The steps whose raised error is not a domain refusal, described for the failure message.
+  def faults_from(runtime, script)
+    script.fetch("steps").filter_map do |step|
+      play(runtime, step)
+      nil
+    rescue StandardError => e
+      "#{step.key?("verb") ? step["verb"] : step["query"]} raised #{e.class}: #{e.message}" unless domain_refusal?(e)
+    end
+  end
+
+  def boot_copy(name, path, tmp)
+    domain = File.join(tmp, name)
+    copy_example(path, domain)
+    Hecks.boot(domain)
+  end
+
   CORPUS.each do |name, path|
     # Copying the tree isolates the Heki-backed "banking" store, but "pizzas" declares
     # `persisted_by("PostgresEra")` with a fixed connection string and still boots against the
@@ -27,34 +59,12 @@ RSpec.describe "every refusal the corpus provokes" do
 
       script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
-        domain = File.join(tmp, name)
-        # Skip data/: parallel workers boot the example in place; Heki renames its .tmp mid-copy.
-        source = File.join(InMemoryDomain::ROOT, path)
-        FileUtils.mkdir_p(domain)
-        (Dir.children(source) - ["data"]).each { |child| FileUtils.cp_r(File.join(source, child), domain) }
-        runtime = Hecks.boot(domain)
-
-        faults = []
-        script.fetch("steps").each do |step|
-          args = (step["args"] || {}).transform_keys(&:to_sym)
-          begin
-            if (question = step["query"])
-              runtime.query(question, **args)
-            else
-              runtime.dispatch_flat(step["verb"], **args)
-            end
-          rescue StandardError => e
-            verb_or_query = step.key?("verb") ? step["verb"] : step["query"]
-            faults << "#{verb_or_query} raised #{e.class}: #{e.message}" unless domain_refusal?(e)
-          end
-        end
-
-        expect(faults).to be_empty
+        expect(faults_from(boot_copy(name, path, tmp), script)).to be_empty
       end
     end
   end
 
-  it "catches an error the domain is NOT allowed to raise" do
+  it "catches an error the domain is NOT allowed to raise", :aggregate_failures do
     # The guard must be seen rejecting something, or it cannot be trusted to fire.
     error = Hecks::Bluebook::Expression::EvaluationError.new("a predicate blew up")
     expect(domain_refusal?(error)).to be(false)

@@ -25,18 +25,23 @@ module Hecks
       # @param chapter [Bluebook::Chapter] the loaded chapter
       # @return [String] HTML for the section's heading and aggregate list
       def self.chapter_section(name, chapter)
-        items = chapter.aggregates.map do |aggregate|
-          counts = "#{aggregate.commands.size} command#{"s" unless aggregate.commands.size == 1}, " \
-                   "#{aggregate.queries.size} quer#{aggregate.queries.size == 1 ? "y" : "ies"}"
-          <<~HTML
-            <li><a href="/#{Escape.attr(name)}/#{Escape.attr(aggregate.hecks_name)}.html">
-              <span>#{Escape.html(aggregate.hecks_name)}</span><span class="kind">#{Escape.html(counts)}</span>
-            </a></li>
-          HTML
-        end
+        items = chapter.aggregates.map { |aggregate| aggregate_item(name, aggregate) }
         <<~HTML
           <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(chapter.vision)}</span>) if chapter.vision}</h2>
           <ul class="verb-list">#{items.join}</ul>
+        HTML
+      end
+
+      # @param name [String] the domain name
+      # @param aggregate [Bluebook::Aggregate] the aggregate to link to
+      # @return [String] the list item linking to the aggregate, with its command and query counts
+      def self.aggregate_item(name, aggregate)
+        counts = "#{aggregate.commands.size} command#{"s" unless aggregate.commands.size == 1}, " \
+                 "#{aggregate.queries.size} quer#{aggregate.queries.size == 1 ? "y" : "ies"}"
+        <<~HTML
+          <li><a href="/#{Escape.attr(name)}/#{Escape.attr(aggregate.hecks_name)}.html">
+            <span>#{Escape.html(aggregate.hecks_name)}</span><span class="kind">#{Escape.html(counts)}</span>
+          </a></li>
         HTML
       end
     end

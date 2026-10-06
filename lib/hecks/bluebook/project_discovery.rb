@@ -20,15 +20,18 @@ module Hecks
       def bluebook_directories
         found = []
         Find.find(root) do |path|
-          if File.directory?(path)
-            if SKIPPED_DIRECTORIES.include?(File.basename(path))
-              Find.prune
-            elsif File.basename(path) == "bluebook" && Dir.glob(File.join(path, "*.bluebook")).any?
-              found << path
-            end
-          end
+          next unless File.directory?(path)
+
+          Find.prune if SKIPPED_DIRECTORIES.include?(File.basename(path))
+          found << path if bluebook_directory?(path)
         end
         found.sort
+      end
+
+      private
+
+      def bluebook_directory?(path)
+        File.basename(path) == "bluebook" && Dir.glob(File.join(path, "*.bluebook")).any?
       end
     end
   end

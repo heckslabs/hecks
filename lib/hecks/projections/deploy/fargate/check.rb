@@ -112,13 +112,23 @@ module Hecks
           # @raise [ArgumentError] if the value is not a list of strings or is out of size range
           def strings!(value, where, min: 0, max: nil)
             list = value.is_a?(Array) ? value : nil
-            ok = list&.all? { |item| (item.is_a?(String) || item.is_a?(Symbol)) && !item.to_s.empty? }
+            ok = list&.all? { |item| name_like?(item) }
             raise ArgumentError, "#{where} must be a list of strings, got #{value.inspect}" unless ok
-            raise ArgumentError, "#{where} needs at least #{min} entr#{min == 1 ? "y" : "ies"}" if list.size < min
-            raise ArgumentError, "#{where} takes at most #{max} entries, got #{list.size}" if max && list.size > max
 
+            check_size!(list, where, min, max)
             list.map(&:to_s)
           end
+
+          def name_like?(item)
+            (item.is_a?(String) || item.is_a?(Symbol)) && !item.to_s.empty?
+          end
+          private_class_method :name_like?
+
+          def check_size!(list, where, min, max)
+            raise ArgumentError, "#{where} needs at least #{min} entr#{min == 1 ? "y" : "ies"}" if list.size < min
+            raise ArgumentError, "#{where} takes at most #{max} entries, got #{list.size}" if max && list.size > max
+          end
+          private_class_method :check_size!
 
           # Checks that a value is a map of names to strings and returns it string-keyed.
           # A `nil` value is kept: the domain container's env setting removes a variable with it.

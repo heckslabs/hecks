@@ -78,16 +78,21 @@ module Hecks
 
       # @return [Float] the mean daily total, scaled to an average month
       def monthly_rate(days)
-        mean = days.values.sum { |services| services.values.sum } / days.size
-        mean * DAYS_IN_MONTH
+        mean_daily(days) * DAYS_IN_MONTH
       end
 
+      # @return [Float] the mean daily total across every service
+      def mean_daily(days) = days.values.sum { |services| services.values.sum } / days.size
+
       def report_line(first, last, days, budget)
-        mean = days.values.sum { |services| services.values.sum } / days.size
+        "#{first}..#{last - 1} (#{days.size} days): $#{format("%.2f", mean_daily(days))}/day, " \
+          "$#{format("%.2f", monthly_rate(days))}/month against $#{budget}; biggest: #{biggest_services(days)}"
+      end
+
+      # @return [String] the costliest services, each with its mean daily cost
+      def biggest_services(days)
         biggest = totals_by_service(days).max_by(TOP_SERVICES) { |_name, dollars| dollars }
-        named = biggest.map { |name, dollars| "#{name} $#{format("%.2f", dollars / days.size)}/day" }.join(", ")
-        "#{first}..#{last - 1} (#{days.size} days): $#{format("%.2f", mean)}/day, " \
-          "$#{format("%.2f", monthly_rate(days))}/month against $#{budget}; biggest: #{named}"
+        biggest.map { |name, dollars| "#{name} $#{format("%.2f", dollars / days.size)}/day" }.join(", ")
       end
 
       def totals_by_service(days)

@@ -1,0 +1,12 @@
+@echo "Checking whether $(STACK) already exists, and if so whether it already has Google OAuth's PublicSubnetId/BastionSubnetId outputs, before deciding whether to bridge era history now or let this deploy create them first..."
+@if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \
+	OAUTH_OUTPUTS_READY=$$(aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text 2>/dev/null); \
+	if [ -z "$$OAUTH_OUTPUTS_READY" ]; then \
+		echo "Existing stack found, but Google OAuth is newly being added -- PublicSubnetId/BastionSubnetId don't exist on it yet (sam deploy, below, is what creates them); skipping the pre-deploy bridge this one time so THIS deploy can actually run. mint-era still runs once, after sam deploy, same as a genuine first deploy."; \
+	else \
+		echo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \
+		$(MAKE) mint-era || exit 1; \
+	fi; \
+else \
+	echo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \
+fi

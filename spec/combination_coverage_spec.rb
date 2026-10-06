@@ -29,38 +29,49 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
     end
   end
 
+  # The failure message for pairs of forms that never meet; `%<pairs>s` is the pairs, one per line.
+  APART_MESSAGE = <<~WHY.freeze
+    These forms are each exercised somewhere, and never on the SAME aggregate:
+
+      %<pairs>s
+
+    A runtime can be right about each form alone and wrong about the two
+    together — that is how a command declaring an argument before a
+    cross-reference put the derived attribute order out of step, having
+    been right on every command in the corpus that declared them the other way.
+
+    Closing these is cheaper than it looks: the gaps cluster on the rare forms,
+    so enriching one aggregate that already carries a rare one usually closes
+    many pairs at once. Otherwise add an entry to ALLOWED_APART, keyed
+    "left + right" alphabetically, saying why the two need not meet.
+  WHY
+
+  RARE_FORMS = %w[composite_id two_entities composite_piece multi_emit reference_attr closed_set].freeze
+
   def held_outside?(pair)
     pair.any? { |form| HELD_OUTSIDE_THE_GOLDENS.key?(form) }
   end
 
-  it "meets every pair of forms on some aggregate, or names why it does not" do
-    covered = FormCensus.covered_pairs(aggregates)
+  def covered = FormCensus.covered_pairs(aggregates)
 
+  # Pairs of forms no aggregate meets, that are neither held outside the goldens nor excused.
+  def unnamed_pairs
     apart = FormCensus::FORMS.keys.combination(2).reject do |pair|
       covered.key?(FormCensus.pair_key(*pair)) || held_outside?(pair)
     end
-    unnamed = apart.reject { |pair| ALLOWED_APART.key?(FormCensus.pair_key(*pair)) }
+    apart.reject { |pair| ALLOWED_APART.key?(FormCensus.pair_key(*pair)) }
+  end
 
-    expect(unnamed).to be_empty, <<~WHY
-      These forms are each exercised somewhere, and never on the SAME aggregate:
+  def apart_message(pairs)
+    format(APART_MESSAGE, pairs: pairs.map { |left, right| "#{left} + #{right}" }.join("\n        "))
+  end
 
-        #{unnamed.map { |left, right| "#{left} + #{right}" }.join("\n        ")}
-
-      A runtime can be right about each form alone and wrong about the two
-      together — that is how a command declaring an argument before a
-      cross-reference put the derived attribute order out of step, having
-      been right on every command in the corpus that declared them the other way.
-
-      Closing these is cheaper than it looks: the gaps cluster on the rare forms,
-      so enriching one aggregate that already carries a rare one usually closes
-      many pairs at once. Otherwise add an entry to ALLOWED_APART, keyed
-      "left + right" alphabetically, saying why the two need not meet.
-    WHY
+  it "meets every pair of forms on some aggregate, or names why it does not" do
+    expect(unnamed_pairs).to be_empty, apart_message(unnamed_pairs)
   end
 
   # Held in both directions: an excuse the corpus has outgrown quietly stops gating.
   it "carries no excuse the corpus has outgrown" do
-    covered = FormCensus.covered_pairs(aggregates)
     stale = ALLOWED_APART.keys.select { |key| covered.key?(key) }
 
     expect(stale).to be_empty,
@@ -68,11 +79,14 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
                      "delete the ALLOWED_APART entry, the claim is tested now"
   end
 
-  it "holds outside the goldens only forms the goldens do not yet pair with everything" do
-    covered = FormCensus.covered_pairs(aggregates)
-    outgrown = HELD_OUTSIDE_THE_GOLDENS.keys.select do |form|
+  def outgrown_holds
+    HELD_OUTSIDE_THE_GOLDENS.keys.select do |form|
       (FormCensus::FORMS.keys - [form]).all? { |other| covered.key?(FormCensus.pair_key(form, other)) }
     end
+  end
+
+  it "holds outside the goldens only forms the goldens do not yet pair with everything" do
+    outgrown = outgrown_holds
 
     expect(outgrown).to be_empty,
                         "the goldens now meet every pair of #{outgrown.join(", ")} on their own — " \
@@ -87,7 +101,7 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
 
   # The measurement has to be able to fail: the corpus carries both forms, so the census must
   # see them.
-  it "sees the two forms it was blind to, on the corpus that already carried them" do
+  it "sees the two forms it was blind to, on the corpus that already carried them", :aggregate_failures do
     carrying = ->(form) { aggregates.select { |_, shows| shows[form] }.map(&:first) }
 
     expect(carrying.call("corrects")).not_to be_empty, "no golden aggregate carries a corrects mutation"
@@ -95,20 +109,17 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   end
 
   # SafeDepositBox carries the rare forms together; if this fails the walk has broken.
-  it "measures an aggregate it knows carries several rare forms at once" do
+  it "measures an aggregate it knows carries several rare forms at once", :aggregate_failures do
     box = aggregates.find { |name, _| name == "Banking::SafeDepositBox" }
     expect(box).not_to be_nil, "Banking::SafeDepositBox is gone from the goldens"
 
-    rare = %w[composite_id two_entities composite_piece multi_emit reference_attr closed_set]
-    expect(rare.select { |form| box.last[form] }).to eq(rare),
-                                                     "Banking::SafeDepositBox no longer carries #{rare.reject do |f|
-                                                       box.last[f]
-                                                     end.join(", ")}"
+    missing = RARE_FORMS.reject { |form| box.last[form] }
+    expect(missing).to be_empty, "Banking::SafeDepositBox no longer carries #{missing.join(", ")}"
   end
 
   # The same walk over a domain on disk, the path hecks quality_control judge_novelty measures
   # through.
-  it "measures a domain on disk the same way it measures a golden" do
+  it "measures a domain on disk the same way it measures a golden", :aggregate_failures do
     transfer = FormCensus.census(File.join(InMemoryDomain::ROOT, "examples/banking"))
                          .find { |name, _| name == "Banking::Transfer" }
     expect(transfer).not_to be_nil

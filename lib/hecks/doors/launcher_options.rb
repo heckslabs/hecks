@@ -74,9 +74,20 @@ module Hecks
       # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--wait` was given
       # @raise [Runtime::TypeMismatch] if `--wait=` carries something that is not a Boolean word
       def take_wait(spec, words)
-        return [words, false] unless words.any? { |word| wait_word?(word) }
-        return [words, false] if spec[:arguments].any? { |argument| argument[:path].split(".").first == "wait" }
+        return [words, false] unless words.any? { |word| wait_word?(word) } && !declares_wait?(spec)
 
+        split_wait(words)
+      end
+
+      # Whether the command declares an argument of its own named `wait`.
+      # @api private
+      def declares_wait?(spec)
+        spec[:arguments].any? { |argument| argument[:path].split(".").first == "wait" }
+      end
+
+      # The words without `--wait`, and whether it was given.
+      # @api private
+      def split_wait(words)
         wait  = false
         rest  = []
         queue = words.dup
@@ -165,14 +176,22 @@ module Hecks
       # @return [Array(Hash, String)] the arguments, and the key minted (nil when none was)
       # @raise [Runtime::NotFound] if a key is owed but no identity adapter is bound
       def run_key(runtime, spec, args, settings)
-        return [args, nil] unless settings && settings[:run_keys] && spec[:creates]
-        return [args, nil] unless spec[:arguments].any? { |argument| argument[:path] == RUN_KEY }
-        return [args, nil] if args.key?(:run) || !runtime.respond_to?(:registry)
+        return [args, nil] unless key_owed?(runtime, spec, args, settings)
 
         key = Ports::IdentityGeneration.uuid(runtime.registry)
         [args.merge(run: { value: key }), key]
       rescue Runtime::WiringError => e
         raise Runtime::NotFound, "cannot mint a run key (#{e.message.lines.first.strip}); name one with run=<key>"
+      end
+
+      # Whether the command is a creating one of an opted-in chapter, takes a run key and was
+      # given none.
+      # @api private
+      def key_owed?(runtime, spec, args, settings)
+        return false unless settings && settings[:run_keys] && spec[:creates]
+        return false unless spec[:arguments].any? { |argument| argument[:path] == RUN_KEY }
+
+        !args.key?(:run) && runtime.respond_to?(:registry)
       end
 
       # Whether a settled record sits in one of the chapter's failure states.

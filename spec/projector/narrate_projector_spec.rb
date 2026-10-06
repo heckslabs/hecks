@@ -26,7 +26,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   let(:banking)  { described_class.call(bluebook: registry.bluebook("Banking")) }
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
 
-  it "is registered under :narrate, reachable the way every projector is" do
+  it "is registered under :narrate, reachable the way every projector is", :aggregate_failures do
     expect(Hecks::Projector).to be_registered(:narrate)
     expect(Hecks::Projector.call(:narrate, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
@@ -46,7 +46,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "an aggregate" do
-    it "carries its own description and how it is identified, as sentences" do
+    it "carries its own description and how it is identified, as sentences", :aggregate_failures do
       expect(banking).to include(registry.bluebook("Banking").aggregate("Account").description)
       expect(banking).to include("Every Account is identified by its `number`.")
     end
@@ -57,14 +57,14 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "the lifecycle" do
-    it "reads as a sentence per verb, naming where it starts and where each move goes" do
+    it "reads as a sentence per verb, naming where it starts and where each move goes", :aggregate_failures do
       expect(banking).to include("starting out at `open`")
       expect(banking).to include("**FreezeAccount** moves it from `open` to `frozen`.")
     end
   end
 
   describe "a verb" do
-    it "carries its goal in the lede and names who issues it" do
+    it "carries its goal in the lede and names who issues it", :aggregate_failures do
       command = registry.bluebook("Banking").aggregate("Account").commands.find { |c| c.hecks_name == "FreezeAccount" }
       expect(banking).to include(command.goal)
       expect(banking).to match(/Issued by an? #{Regexp.escape(command.role)}\./)
@@ -73,18 +73,18 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     # The part DocsProjector's own `creates?` gets wrong for an entity verb —
     # see `Command#acts_on`'s comment. `LedgerEntry.Amend` never creates a
     # ledger entry; it corrects one that already exists.
-    it "only claims a command creates the record when it actually does" do
+    it "only claims a command creates the record when it actually does", :aggregate_failures do
       expect(banking).to match(/\*\*Open\*\*.*This is how a new Account comes into being/)
       expect(banking).not_to match(/\*\*Amend\*\*.*This is how a new LedgerEntry comes into being/)
     end
 
     describe "what it requires" do
-      it "states a lifecycle constraint positively, not as a refusal to invert" do
+      it "states a lifecycle constraint positively, not as a refusal to invert", :aggregate_failures do
         expect(banking).to include("its `status` is currently `open`")
         expect(banking).not_to include("anything other than")
       end
 
-      it "quotes a given in the chapter's own words, without the docs projector's \"not:\" prefix" do
+      it "quotes a given in the chapter's own words, without the docs projector's \"not:\" prefix", :aggregate_failures do
         given = registry.bluebook("Banking").aggregates.flat_map(&:commands)
                         .flat_map(&:givens).map(&:description).first
         expect(banking).to include(given)
@@ -106,14 +106,14 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     # **The double-quoting DocsProjector itself has** — `w[:value]` already wears
     # its own quotes or colon (`Literal.render`ed), so re-`inspect`ing it
     # prints a literal backslash. Written for readers, this must not.
-    it "renders an already-quoted filter value without a second, escaped layer of quoting" do
+    it "renders an already-quoted filter value without a second, escaped layer of quoting", :aggregate_failures do
       expect(banking).to include(%(`status` is "open"))
       expect(banking).not_to include('\\"open\\"')
     end
   end
 
   describe "an entity" do
-    it "says it is reached through its holder, in words" do
+    it "says it is reached through its holder, in words", :aggregate_failures do
       box = registry.bluebook("Banking").aggregates.find { |a| a.entities.any? }
       skip "banking declares no entities" unless box
 
@@ -124,13 +124,13 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "reactions" do
-    it "reads a policy as a sentence: what happens, and on what" do
+    it "reads a policy as a sentence: what happens, and on what", :aggregate_failures do
       expect(banking).to include("## Reactions")
       expect(banking).to include("Whenever `Account.AccountFrozen` happens, " \
                                  "`AccountFreezeReview.Open` fires on its own in Compliance")
     end
 
-    it "describes a saga by where it starts, ends and correlates, in prose" do
+    it "describes a saga by where it starts, ends and correlates, in prose", :aggregate_failures do
       skip "banking declares no saga" if registry.bluebook("Banking").process_managers.empty?
 
       saga = registry.bluebook("Banking").process_managers.first.to_h
@@ -145,7 +145,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "options" do
-    it "narrows to one aggregate, dropping the chapter frame" do
+    it "narrows to one aggregate, dropping the chapter frame", :aggregate_failures do
       only = described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Account" })
 
       expect(only).to start_with("# Account")
@@ -153,7 +153,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
       expect(only).not_to include("## Reactions")
     end
 
-    it "pushes the headings down so it can be spliced into a larger document" do
+    it "pushes the headings down so it can be spliced into a larger document", :aggregate_failures do
       nested = described_class.call(bluebook: registry.bluebook("Pizzas"), options: { heading: 2 })
 
       expect(nested).to start_with("## Pizzas")
@@ -162,14 +162,14 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "as a method on a booted domain" do
-    it "answers on the chapter, beside docs" do
+    it "answers on the chapter, beside docs", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas).to respond_to(:narrate)
       expect(Pizzas.narrate).to eq(pizzas)
     end
 
-    it "answers on an aggregate door, narrowed to that head" do
+    it "answers on an aggregate door, narrowed to that head", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas::Order.narrate).to start_with("# Order")

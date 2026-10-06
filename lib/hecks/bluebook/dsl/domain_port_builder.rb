@@ -112,19 +112,10 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if the body declares both a verb and operations,
         #   declares neither without `legacy_bare_port:`, or the port language refuses the `Port`
         def build
-          if @verb && !(@operations.empty? && @answered_queries.empty?)
-            raise Malformed,
-                  "#{@name} declares both a verb and operations — a port is one or the other, not both"
-          end
+          refuse_verb_and_operations!
+          return build_verb_port if @verb || (@legacy_bare_port && @operations.empty?)
 
-          if @verb || (@legacy_bare_port && @operations.empty?)
-            return MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal,
-                                                    answers: @answers))
-          end
-
-          if @operations.empty? && @answered_queries.empty?
-            raise Malformed, "#{@name} declares no verb and no operations, and answers no query"
-          end
+          raise Malformed, "#{@name} declares no verb and no operations, and answers no query" if body_empty?
 
           DomainPort.new(name: @name, operations: @operations, answered_queries: @answered_queries)
         end
@@ -145,6 +136,21 @@ module Hecks
           builder = new(name, owner: owner, legacy_bare_port: legacy_bare_port)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        def body_empty? = @operations.empty? && @answered_queries.empty?
+
+        def refuse_verb_and_operations!
+          return unless @verb && !body_empty?
+
+          raise Malformed,
+                "#{@name} declares both a verb and operations — a port is one or the other, not both"
+        end
+
+        def build_verb_port
+          MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal, answers: @answers))
         end
       end
     end

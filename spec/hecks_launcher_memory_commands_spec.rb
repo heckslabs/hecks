@@ -7,7 +7,7 @@ require "hecks/cli/project_cli"
 # those commands on the Memory environment unless the caller chose one (ADR 0084), so a clone's
 # first command needs no database.
 RSpec.describe "the launcher's memory commands" do
-  it "is projected into exe/hecks from the world, so the committed launcher is current" do
+  it "is projected into exe/hecks from the world, so the committed launcher is current", :aggregate_failures do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
                                              executable: "exe/hecks", memory_commands: %w[console init interview], opted: true)
 
@@ -16,7 +16,8 @@ RSpec.describe "the launcher's memory commands" do
                                "exe/hecks"))).to include("MEMORY_COMMANDS = %w[console init interview].freeze")
   end
 
-  it "makes a memory command wait for its result, and say why it was refused instead of printing the record" do
+  it "makes a memory command wait for its result, and say why it " \
+     "was refused instead of printing the record", :aggregate_failures do
     source = Hecks::CLI::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
                                              executable: "exe/hecks", memory_commands: %w[init], opted: true)
 
@@ -29,10 +30,12 @@ RSpec.describe "the launcher's memory commands" do
       .to raise_error(ArgumentError, /memory command/)
   end
 
-  it "opens the console with no database reachable and no environment variable" do
-    env = { "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1", "IRBRC" => File::NULL,
-            "HECKS_ENVIRONMENT" => nil }
-    _out, err, status = Open3.capture3(env, RbConfig.ruby, "exe/hecks", "console",
+  # An environment in which no database is reachable and no Hecks environment is chosen.
+  NO_DATABASE_ENV = { "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1", "IRBRC" => File::NULL,
+                      "HECKS_ENVIRONMENT" => nil }.freeze
+
+  it "opens the console with no database reachable and no environment variable", :aggregate_failures do
+    _out, err, status = Open3.capture3(NO_DATABASE_ENV, RbConfig.ruby, "exe/hecks", "console",
                                        stdin_data: "exit\n", chdir: InMemoryDomain::ROOT)
 
     expect(status).to be_success, err

@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-RSpec.describe "Hecks::Fuzzing::Replay" do
+RSpec.describe "Hecks::Fuzzing::Replay", :aggregate_failures do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   REPLAY_PIZZAS = File.join(ROOT_DIR, "examples/pizzas")
   REPLAY_CHESS  = File.join(ROOT_DIR, "examples/chess")
@@ -28,12 +28,14 @@ RSpec.describe "Hecks::Fuzzing::Replay" do
     expect(history[:bluebook].name).to eq("Pizzas")
   end
 
-  it "records a refusal rather than raising, for a domain refusal" do
-    bad = { "verb" => "Pizzas::Order.AddTopping",
-            "args" => { "amount" => { "value" => 3 }, "topping" => { "value" => "Basil" },
-                        "name" => "nobody-home" } }
+  def nobody_home_step
+    { "verb" => "Pizzas::Order.AddTopping",
+      "args" => { "amount" => { "value" => 3 }, "topping" => { "value" => "Basil" },
+                  "name" => "nobody-home" } }
+  end
 
-    history = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [bad])
+  it "records a refusal rather than raising, for a domain refusal" do
+    history = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [nobody_home_step])
 
     expect(history[:events]).to be_empty
     expect(history[:refusals].first[:verb]).to eq("Pizzas::Order.AddTopping")
@@ -80,29 +82,36 @@ RSpec.describe "Hecks::Fuzzing::Replay" do
       { "verb" => "Chess::Game.DeclineDraw", "args" => { "label" => { "value" => "g1" }, "by" => "white" } }
     end
 
-    it "agrees with the real refusal instead of reporting a false divergence" do
+    before do
       steps = [chess_start_step, chess_offer_draw_step, chess_decline_draw_bare_by_step]
-      history = Hecks::Fuzzing::Replay.call(REPLAY_CHESS, steps)
+      @history = Hecks::Fuzzing::Replay.call(REPLAY_CHESS, steps)
+    end
 
-      # White declining its own outstanding offer really is refused — the shared given
-      # ("a draw was actually offered, by the other side") compares draw_offer.value
-      # against the normalized by.value, both "white".
-      decline_refusal = history[:refusals].find { |refusal| refusal[:verb] == "Chess::Game.DeclineDraw" }
+    # White declining its own outstanding offer really is refused — the shared given
+    # ("a draw was actually offered, by the other side") compares draw_offer.value
+    # against the normalized by.value, both "white".
+    it "refuses the decline for real" do
+      decline_refusal = @history[:refusals].find { |refusal| refusal[:verb] == "Chess::Game.DeclineDraw" }
+
       expect(decline_refusal).not_to be_nil
       expect(decline_refusal[:kind]).to eq("Hecks::Runtime::GivenNotMet")
+    end
 
-      # build_guard_check's independent recomputation must reach the same verdict. Before
-      # normalizing its own copy of `args`, `by.value` walked the raw string ("white") as
-      # a substring lookup instead of a value-object field, silently read nil, and reported
-      # the given as satisfied — the false positive lifecycle_guard_and_given_violations_
-      # are_refused (properties_in_differential) surfaced.
-      guard_check = history[:guard_checks].find { |check| check[:verb] == "Chess::Game.DeclineDraw" }
+    # build_guard_check's independent recomputation must reach the same verdict. Before
+    # normalizing its own copy of `args`, `by.value` walked the raw string ("white") as
+    # a substring lookup instead of a value-object field, silently read nil, and reported
+    # the given as satisfied — the false positive lifecycle_guard_and_given_violations_
+    # are_refused (properties_in_differential) surfaced.
+    it "recomputes the same verdict" do
+      guard_check = @history[:guard_checks].find { |check| check[:verb] == "Chess::Game.DeclineDraw" }
+
       expect(guard_check).not_to be_nil
-      expect(guard_check[:actual_refused]).to be(true)
-      expect(guard_check[:recomputed_refused]).to be(true)
+      expect(guard_check.values_at(:actual_refused, :recomputed_refused)).to eq([true, true])
       expect(guard_check[:recomputed_kind]).to eq("Hecks::Runtime::GivenNotMet")
+    end
 
-      expect(Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to be(true)
+    it "agrees with the real refusal instead of reporting a false divergence" do
+      expect(Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(@history)).to be(true)
     end
   end
 
@@ -138,33 +147,32 @@ RSpec.describe "Hecks::Fuzzing::Replay" do
         "args" => { "name" => "b1", "label" => { "value" => "todo" }, "price" => { "name" => "widget" } } }
     end
 
+    def replay_entity_list(*steps)
+      Hecks::Fuzzing::Replay.call(REPLAY_ENTITY_LIST_MUTATIONS, open_and_add_list_steps + steps)
+    end
+
+    def after_prices(history, command)
+      trace = history[:mutation_traces].find { |t| t[:verb] == "EntityListMutations::Board.TaggedList.#{command}" }
+      trace&.dig(:after, :prices)
+    end
+
     it "agrees that AddPrice's after-state carries the value object's own default" do
-      steps = open_and_add_list_steps + [add_price_step]
-      history = Hecks::Fuzzing::Replay.call(REPLAY_ENTITY_LIST_MUTATIONS, steps)
+      history = replay_entity_list(add_price_step)
 
       expect(history[:refusals]).to be_empty
-
-      trace = history[:mutation_traces].find { |t| t[:verb] == "EntityListMutations::Board.TaggedList.AddPrice" }
-      expect(trace).not_to be_nil
       # Real dispatch's own after-state: `tier` defaulted to "standard" though no
       # command argument ever named it.
-      expect(trace[:after][:prices]).to eq([{ name: "widget", tier: "standard" }])
-
+      expect(after_prices(history, "AddPrice")).to eq([{ name: "widget", tier: "standard" }])
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
 
     it "agrees that RemovePrice's partial value still matches the fully-defaulted element" do
-      steps = open_and_add_list_steps + [add_price_step, remove_price_partial_step]
-      history = Hecks::Fuzzing::Replay.call(REPLAY_ENTITY_LIST_MUTATIONS, steps)
+      history = replay_entity_list(add_price_step, remove_price_partial_step)
 
       expect(history[:refusals]).to be_empty
-
-      trace = history[:mutation_traces].find { |t| t[:verb] == "EntityListMutations::Board.TaggedList.RemovePrice" }
-      expect(trace).not_to be_nil
       # Real dispatch really did remove it: a partial `price:` still resolves to the
       # fully-defaulted PriceTier the stored element carries.
-      expect(trace[:after][:prices]).to eq([])
-
+      expect(after_prices(history, "RemovePrice")).to eq([])
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
   end
@@ -176,19 +184,19 @@ RSpec.describe "Hecks::Fuzzing::Replay" do
   # entirely (`{}`), the shape the language's ambiguous-comparison guard cannot rule
   # out for a single-attribute value object.
   describe "paging_offset_partitions_correctly's own recomputation, against a caller-omitted query default" do
+    def open_board_and_query_steps
+      [{ "verb" => "EntityListMutations::Board.OpenBoard", "args" => { "name" => { "value" => "b1" } } },
+       { "query" => "EntityListMutations::Board.ByHighlightCount", "args" => { "count" => {} } }]
+    end
+
     it "agrees that a board with the defaulted highlight_count is eligible" do
-      steps = [{ "verb" => "EntityListMutations::Board.OpenBoard", "args" => { "name" => { "value" => "b1" } } },
-               { "query" => "EntityListMutations::Board.ByHighlightCount", "args" => { "count" => {} } }]
-      history = Hecks::Fuzzing::Replay.call(REPLAY_ENTITY_LIST_MUTATIONS, steps)
+      history = Hecks::Fuzzing::Replay.call(REPLAY_ENTITY_LIST_MUTATIONS, open_board_and_query_steps)
+      asked = history[:queries].find { |q| q[:query] == "EntityListMutations::Board.ByHighlightCount" }
 
       expect(history[:refusals]).to be_empty
-
-      asked = history[:queries].find { |q| q[:query] == "EntityListMutations::Board.ByHighlightCount" }
-      expect(asked).not_to be_nil
       # Real dispatch really did match: an omitted `count:` still resolves to
       # `ListCount`'s own default, 0 — the same value every fresh board carries.
-      expect(asked[:rows].map { |row| row[:id] }).to eq(["b1"])
-
+      expect(asked&.fetch(:rows)&.map { |row| row[:id] }).to eq(["b1"])
       expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to be(true)
     end
   end

@@ -88,15 +88,19 @@ module Hecks
         # @raise [Invalid] when a row is refused
         def initialize(members, vocabulary:, registry: nil, links: [])
           problems = []
-          builder = RowBuilder.new(vocabulary: vocabulary, registry: registry, problems: problems)
-          @rows = members.each_with_index.map { |member, index| builder.call(member, index) }
-          link_builder = LinkBuilder.new(@rows, problems)
-          @links = links.each_with_index.map { |member, index| link_builder.call(member, index) }
+          @rows = build_all(members, RowBuilder.new(vocabulary: vocabulary, registry: registry, problems: problems))
+          @links = build_all(links, LinkBuilder.new(@rows, problems))
           Checks.new(@rows, problems, links: @links).call
           return if problems.empty?
 
           raise Invalid, "the route table is refused:\n#{problems.map { |line| "  - #{line}" }.join("\n")}"
         end
+
+        # @param members [Array<Hash{Symbol => Object}>] declared rows or links
+        # @param builder [#call] a `RowBuilder` or `LinkBuilder`
+        # @return [Array<Row, Link>] what the builder makes of each, in order
+        def build_all(members, builder) = members.each_with_index.map { |member, index| builder.call(member, index) }
+        private :build_all
 
         # The navigation slots a row or link sits in.
         #

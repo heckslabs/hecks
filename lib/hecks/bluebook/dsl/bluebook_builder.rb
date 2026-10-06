@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "bluebook_builder/validation"
+require_relative "bluebook_builder/pending_givens"
 module Hecks
   module Bluebook
     module DSL
@@ -197,16 +198,7 @@ module Hecks
           # The chapter is the top of the construct chain — its constructor stamps every
           # aggregate and read model with itself as owner, so `hecks_fqn` resolves by
           # walking up to it.
-          bluebook = Bluebook::Chapter.new(name: @name, version: @version, vision: @vision,
-                                           aggregates: @aggregates,
-                                           read_models: @read_models,
-                                           policies: @aggregates.flat_map(&:policies) + @policies,
-                                           process_managers: @process_managers,
-                                           classification: @classification,
-                                           formerly_known_as: @formerly_known_as,
-                                           namespace: @namespace,
-                                           attaches_to: @attaches_to || [],
-                                           provides: @provides || [])
+          bluebook = Bluebook::Chapter.new(**chapter_identity, **chapter_constructs)
 
           # A bare chapter-given may still be pending if a file that would resolve it
           # hasn't loaded yet; deferred to `MetaValidator.judge_deferred!`, before
@@ -224,103 +216,6 @@ module Hecks
           # per-declaration givens.
           MetaValidator.call(bluebook)
         end
-
-        # The other half of a chapter-wide `given` reference — resolves every reference
-        # `AggregateBuilder#pending_chapter_given` deferred, once the chapter's files are loaded.
-        #
-        # Mutates each placeholder `Given` in place, since it's already embedded by Ruby
-        # object reference in the referencing preconditions and commands.
-        #
-        # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
-        #   precondition any aggregate in this chapter declares, is ambiguous across several
-        #   aggregates with no `declared_by:` to disambiguate, or `declared_by:` names an
-        #   aggregate that does not declare it
-        def resolve_pending_chapter_givens!
-          @chapter_pending_givens.each do |entry|
-            resolved = resolve_pending_chapter_given(entry)
-            entry[:placeholder].description = resolved.description
-            entry[:placeholder].canonical   = resolved.canonical
-            entry[:placeholder].predicate   = resolved.predicate
-            entry[:placeholder].ast         = resolved.ast
-          end
-          @chapter_pending_givens.clear
-        end
-
-        def resolve_pending_chapter_given(entry)
-          description = entry[:description]
-          candidates  = RuleReference.resolve_owner_keyed(@chapter_named_givens, description)
-
-          if entry[:declared_by]
-            candidates[entry[:declared_by]] ||
-              raise(Malformed,
-                    "#{entry[:aggregate]}'s given #{description.inspect} names no precondition " \
-                    "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
-                    "either hasn't declared #{description.inspect}, or declared_by: named the " \
-                    "wrong aggregate")
-          elsif candidates.size == 1
-            candidates.values.first
-          elsif candidates.empty?
-            raise(Malformed,
-                  "#{entry[:aggregate]}'s given #{description.inspect} names no precondition " \
-                  "any aggregate in this chapter ever declares — declare it once with a block " \
-                  "(some aggregate's own given(#{description.inspect}) { ... })")
-          else
-            raise(Malformed,
-                  "#{entry[:aggregate]}'s given #{description.inspect} is ambiguous in this " \
-                  "chapter — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
-                  "under this same description; name which one with declared_by: (e.g. " \
-                  "given(#{description.inspect}, declared_by: #{candidates.keys.first}))")
-          end
-        end
-        private :resolve_pending_chapter_given
-
-        # The entity-scoped analogue of `#resolve_pending_chapter_givens!`, resolved
-        # against `@chapter_entity_named_givens` instead.
-        #
-        # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
-        #   precondition any piece in this chapter declares, is ambiguous across several pieces
-        #   with no `declared_by:` to disambiguate, or `declared_by:` names a piece that does
-        #   not declare it
-        def resolve_pending_chapter_entity_givens!
-          @chapter_entity_pending_givens.each do |entry|
-            resolved = resolve_pending_chapter_entity_given(entry)
-            entry[:placeholder].description = resolved.description
-            entry[:placeholder].canonical   = resolved.canonical
-            entry[:placeholder].predicate   = resolved.predicate
-            entry[:placeholder].ast         = resolved.ast
-          end
-          @chapter_entity_pending_givens.clear
-        end
-
-        def resolve_pending_chapter_entity_given(entry)
-          description = entry[:description]
-          candidates  = RuleReference.resolve_owner_keyed(@chapter_entity_named_givens, description)
-
-          if entry[:declared_by]
-            candidates[entry[:declared_by]] ||
-              raise(Malformed,
-                    "#{entry[:entity]}'s given #{description.inspect} names no precondition " \
-                    "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
-                    "either hasn't declared #{description.inspect}, or declared_by: named the " \
-                    "wrong piece")
-          elsif candidates.size == 1
-            candidates.values.first
-          elsif candidates.empty?
-            raise(Malformed,
-                  "#{entry[:entity]}'s given #{description.inspect} names no precondition " \
-                  "any piece in this chapter ever declares — declare it once with a block " \
-                  "(some piece's own given(#{description.inspect}) { ... })")
-          else
-            raise(Malformed,
-                  "#{entry[:entity]}'s given #{description.inspect} is ambiguous across the " \
-                  "chapter's own pieces — #{candidates.keys.join(", ")} each declare a DIFFERENT " \
-                  "predicate under this same description; name which one with declared_by: (e.g. " \
-                  "given(#{description.inspect}, declared_by: #{candidates.keys.first.inspect}))")
-          end
-        end
-        private :resolve_pending_chapter_entity_given
 
         # Builds a `Chapter` from a `Hecks.bluebook "Name" do ... end` block, reusing one open
         # builder per chapter name so several files accumulate into it rather than replacing it.
@@ -347,6 +242,22 @@ module Hecks
           resolver = ->(const) { ConstShim::ScopedConstant.for(const) }
           ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           builder.build
+        end
+
+        private
+
+        # The chapter's own metadata.
+        def chapter_identity
+          { name: @name, version: @version, vision: @vision, classification: @classification,
+            formerly_known_as: @formerly_known_as, namespace: @namespace }
+        end
+
+        # What the chapter declares: its constructs and the contexts and capabilities it names.
+        def chapter_constructs
+          { aggregates: @aggregates, read_models: @read_models,
+            policies: @aggregates.flat_map(&:policies) + @policies,
+            process_managers: @process_managers,
+            attaches_to: @attaches_to || [], provides: @provides || [] }
         end
       end
     end

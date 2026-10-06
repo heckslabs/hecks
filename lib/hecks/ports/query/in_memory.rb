@@ -23,19 +23,27 @@ module Hecks
         # @param registry [Runtime::Registry, nil] passed to registry-aware comparisons
         # @return [Array<Runtime::Instance, Hash>] the matching records, ordered and paged
         def execute(records, declared, args = {}, registry: nil)
-          matched = records.select do |record|
-            declared.wheres.all? do |clause|
-              holds?(clause, comparable(FieldPath.dig(record, clause.field)), args, registry: registry)
-            end
-          end
-          field   = declared.order_by&.field
-          matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,
-                                   identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
+          matched = filter(records, declared, args, registry)
+          matched = order(matched, declared)
           # Offset before limit, as SQL means `LIMIT n OFFSET m`; the reverse order returns a short
           # or empty page (`limit 10, offset 10` would drop everything).
           matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset
           matched = matched.first(resolve(declared.limit.value, args).to_i) if declared.limit
           matched
+        end
+
+        def filter(records, declared, args, registry)
+          records.select do |record|
+            declared.wheres.all? do |clause|
+              holds?(clause, comparable(FieldPath.dig(record, clause.field)), args, registry: registry)
+            end
+          end
+        end
+
+        def order(matched, declared)
+          field = declared.order_by&.field
+          Ordering.apply(matched, declared.order_by, declared.null_semantics,
+                         identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
         end
 
         def holds?(clause, held, args, registry: nil)

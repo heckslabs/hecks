@@ -7,6 +7,9 @@ require_relative "codebase/ruby_child"
 require "hecks/projections/deploy/template_diff"
 require_relative "bluebook_report"
 require_relative "deploy_plans"
+require_relative "deploy_toolchain/statuses"
+require_relative "deploy_toolchain/scripts"
+require_relative "deploy_toolchain/answers"
 
 module Hecks
   module Adapters
@@ -20,68 +23,9 @@ module Hecks
     # the project it is given, wherever that is, so it needs no checkout, and neither does a
     # comparison.
     class DeployToolchain
-      # The `Hecks::Tools` tool an ask runs, by ask.
-      SCRIPTS = { generate: "project_deploy", lint: "lint_deploy_recipes", manifest: "project_oidc" }.freeze
-
-      # `hecks deploy recipe.project`'s flag for each `Recipe` field it takes.
-      GENERATE_FLAGS = { "--tenant" => :tenant, "--schema" => :schema, "--out" => :out,
-                         "--environment" => :environment }.freeze
-
-      # The file name the AwsBox projection gives the post-deploy smoke.
-      SMOKE_SCRIPT = "smoke-after-deploy.sh"
-
-      # What each status of `smoke-after-deploy.sh` means, for the reason a refusal gives.
-      SMOKE_STATUS = { 20 => "the roll did not settle", 21 => "gh missing or no repository, smoke not run",
-                       22 => "the smoke failed", 23 => "the smoke's result is unknown" }.freeze
-
-      # The file names the AwsBox projection gives the two rolls.
-      SERVICE_SCRIPT = "deploy-service.sh"
-      BOX_SCRIPT = "deploy-box.sh"
-
-      # What each status of `deploy-box.sh` means, for the reason a refusal gives.
-      BOX_STATUS = { 40 => "the box stack has no instance", 41 => "the roll did not succeed on the box",
-                     42 => "the box is not healthy after the roll" }.freeze
-
-      # What each status of `deploy-service.sh` means; it ends with the box roll's own statuses.
-      SERVICE_STATUS = { 2 => "unknown service", 30 => "the existing tag is not in ECR",
-                         31 => "the fresh tag is already in ECR", 32 => "the box's Compose file is unreadable",
-                         33 => "the box stack has no instance", 34 => "the stack has no parameter for the container",
-                         35 => "the stack update failed or did not settle",
-                         36 => "a parameter other than the container's changed",
-                         37 => "the task definition lacks the pushed image",
-                         38 => "the task definition has no such container" }.merge(BOX_STATUS).freeze
-
-      # The file names the AwsBox projection gives the data copy and its comparison.
-      RESTORE_SCRIPT = "restore-to-rds.sh"
-      VERIFY_SCRIPT = "verify-copy.sh"
-
-      # The status `verify-copy.sh` ends with when the databases differ: an answer, not a refusal.
-      DRIFT_STATUS = 50
-
-      # What each status of `restore-to-rds.sh` means, for the reason a refusal gives.
-      RESTORE_STATUS = { 60           => "a Postgres client older than 16",
-                         61           => "the target already has a schema; force=true replaces it",
-                         62           => "unexpected errors restoring a schema",
-                         DRIFT_STATUS => "the copy does not match the source" }.freeze
-
-      # The file name of the bluebook report script and of the preview script; a companion roll runs
-      # `deploy-<companion>.sh`.
-      DIFF_SCRIPT = "bluebooks-diff.sh"
-      PREVIEW_SCRIPT = "preview.sh"
-
-      # What `preview.sh` ends with: every refusal and failure is 1, a bad verb 2.
-      PREVIEW_STATUS = { 1 => "the preview script refused or failed", 2 => "usage" }.freeze
-
-      # What a roll script ends with: every refusal and failed check is 1.
-      COMPANION_STATUS = { 1 => "the roll was refused, did not succeed, or the companion is not healthy" }.freeze
-
-      # The outcome each `preview.sh` verb records; the writes among them need `confirm`.
-      PREVIEW_OUTCOMES = { "name" => "named", "url" => "located", "list" => "listed", "deploy" => "deployed",
-                           "destroy" => "destroyed", "login" => "signed_in" }.freeze
-      PREVIEW_WRITES = %w[deploy destroy login].freeze
-
-      # What `bluebooks-diff.sh` prints when it has nothing to compare.
-      DIFF_UNAVAILABLE = /^==> bluebooks: (could not read|the local domain image has no|the running domain image .* predates)/
+      include Statuses
+      include Scripts
+      include Answers
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -172,7 +116,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no script, or more than one, is found, or it ends
       #   non-zero; the message names its status and what it printed
       def smoke(**held)
-        run_script(SMOKE_SCRIPT, held, smoke_env(held), "smoke", SMOKE_STATUS)
+        run_script(Script.new(SMOKE_SCRIPT, "smoke", SMOKE_STATUS), held, smoke_env(held))
       end
 
       # Rolls one service with a project's generated `deploy-service.sh`, through
@@ -190,9 +134,9 @@ module Hecks
       def roll_service(**held)
         env = { "EXISTING_TAG" => plain(held[:existing_tag]), "LOCAL_IMAGE" => plain(held[:local_image]),
                 "SMOKE_BY_COMMAND" => "1" }.compact
-        answer = run_script(SERVICE_SCRIPT, held, env, "service roll", SERVICE_STATUS, args: [plain(held[:service])])
-        match = answer[:report][:value].match(/^==> rolled taskdef=(\S*) tag=(\S+)$/)
-        answer.merge(taskdef: wrapped(match&.[](1)), tag: wrapped(match&.[](2))).merge(carried(held, "service_roll"))
+        script = Script.new(SERVICE_SCRIPT, "service roll", SERVICE_STATUS, [plain(held[:service])])
+        answer = run_script(script, held, env)
+        answer.merge(rolled(answer[:report][:value])).merge(carried(held, "service_roll"))
       end
 
       # Rolls the whole box with a project's generated `deploy-box.sh`, through
@@ -203,7 +147,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no script, or more than one, is found, or it ends
       #   non-zero; the message names its status and what it printed
       def roll_box(**held)
-        answer = run_script(BOX_SCRIPT, held, {}, "box roll", BOX_STATUS, args: box_args(held))
+        answer = run_script(Script.new(BOX_SCRIPT, "box roll", BOX_STATUS, box_args(held)), held, {})
         answer.merge(carried(held, "box_roll")).merge(taskdef: wrapped(plain(held[:taskdef])))
       end
 
@@ -224,13 +168,8 @@ module Hecks
         plan = copy_plan(script, held)
         return copy_answer(held, "#{plan}\ndry run: nothing was run", planned: true) if plain(held[:dry_run]) == true
 
-        unless plain(held[:confirm]) == true
-          raise ConsoleCapture::Failure,
-                "refusing to restore: #{plan}\npass confirm=true to run it (dry_run=true prints this plan)"
-        end
-
-        answer = run_script(RESTORE_SCRIPT, held, copy_env(held), "restore", RESTORE_STATUS, args: copy_args(held))
-        copy_answer(held, answer[:report][:value], planned: false)
+        require_confirm(held, "restore", plan)
+        restore(held)
       end
 
       # Compares two databases with a project's generated `verify-copy.sh`, through
@@ -242,7 +181,8 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no script is found or it fails for another reason
       def compare_copy(**held)
         env = { "A_DB" => database(held[:source_db]), "B_DB" => database(held[:target_db]) }.compact
-        answer = run_script(VERIFY_SCRIPT, held, env, "verify", {}, args: copy_args(held), answering: [DRIFT_STATUS])
+        script = Script.new(VERIFY_SCRIPT, "verify", {}, copy_args(held), [DRIFT_STATUS])
+        answer = run_script(script, held, env)
         { report: answer[:report], drifted: { value: answer.key?(:status) } }
       end
 
@@ -276,15 +216,11 @@ module Hecks
       #   script ends non-zero
       def run_preview(**held)
         action = plain(held[:action]).to_s
-        script = script_for(PREVIEW_SCRIPT, plain(held[:project]), plain(held[:script]))
-        if PREVIEW_WRITES.include?(action)
-          plan = DeployPlans.preview(File.read(script), action, plain(held[:branch]))
-          return planned_answer("#{action}: #{plan}") if plain(held[:dry_run]) == true
+        planned = gate_preview(held, action)
+        return planned if planned
 
-          require_confirm(held, "#{action} a preview", plan)
-        end
         env = { "BRANCH" => plain(held[:branch]) }.compact
-        answer = run_script(PREVIEW_SCRIPT, held, env, "preview #{action}", PREVIEW_STATUS, args: [action])
+        answer = run_script(Script.new(PREVIEW_SCRIPT, "preview #{action}", PREVIEW_STATUS, [action]), held, env)
         { outcome: { value: PREVIEW_OUTCOMES.fetch(action) }, report: answer[:report], planned: { value: false } }
       end
 
@@ -302,175 +238,21 @@ module Hecks
       def roll_companion(**held)
         companion = plain(held[:companion]).to_s
         name = "deploy-#{companion}.sh"
-        script = script_for(name, plain(held[:project]), plain(held[:script]))
-        plan = DeployPlans.companion(File.read(script), companion, plain(held[:taskdef]))
+        plan = companion_plan(held, name, companion)
         return planned_answer(plan) if plain(held[:dry_run]) == true
 
         require_confirm(held, "roll #{companion}", plan)
-        answer = run_script(name, held, {}, "companion roll", COMPANION_STATUS, args: [plain(held[:taskdef])])
-        answer.merge(planned: { value: false })
+        script = Script.new(name, "companion roll", COMPANION_STATUS, [plain(held[:taskdef])])
+        run_script(script, held, {}).merge(planned: { value: false })
       end
 
       private
-
-      # A dry run's answer: the plan, and nothing run.
-      def planned_answer(plan)
-        { outcome: { value: "planned" }, report: { value: "#{plan}\ndry run: nothing was run" }, planned: { value: true } }
-      end
-
-      def require_confirm(held, what, plan)
-        return if plain(held[:confirm]) == true
-
-        raise ConsoleCapture::Failure,
-              "refusing to #{what}: #{plan}\npass confirm=true to run it (dry_run=true prints this plan)"
-      end
-
-      def diff_files(old, new)
-        report = BluebookReport.new(File.read(File.expand_path(old)), File.read(File.expand_path(new)))
-        diff_answer(report.changed? ? "changed" : "unchanged", report.text)
-      rescue SystemCallError, JSON::ParserError, TypeError, KeyError => e
-        diff_answer("unavailable", "bluebooks: could not compare #{old} and #{new} (#{e.message.lines.first.strip})")
-      end
-
-      # The script reads the registry and the local image; its report says what it found.
-      def diff_script(held)
-        text = run_script(DIFF_SCRIPT, held, {}, "bluebook diff", {}).dig(:report, :value)
-        return diff_answer("unavailable", text) if text.match?(DIFF_UNAVAILABLE)
-
-        diff_answer(text.include?("no bluebook changes.") ? "unchanged" : "changed", text)
-      rescue ConsoleCapture::Failure => e
-        diff_answer("unavailable", "bluebooks: #{e.message.lines.first.strip}; nothing to compare.")
-      end
-
-      def diff_answer(outcome, text) = { outcome: { value: outcome }, report: { value: text } }
-
-      # What a data copy's answer hands on to the policies that follow it.
-      def copy_answer(held, report, planned:)
-        carried = %i[project bastion source source_secret target target_secret source_db target_db]
-                  .to_h { |key| [key, { value: plain(held[key]).to_s }] }
-        verify = !planned && plain(held[:skip_verify]) != true
-        carried.merge(report: { value: report }, planned: { value: planned }, run_verify: { value: verify })
-      end
-
-      # A database name the record gave, or nil when it left the script's default.
-      def database(argument) = plain(argument).to_s.empty? ? nil : plain(argument)
-
-      def copy_args(held) = %i[bastion source source_secret target target_secret].map { |key| plain(held[key]) }
-
-      def copy_env(held)
-        { "FORCE" => flag(held[:force]), "SRC_DB" => database(held[:source_db]), "DST_DB" => database(held[:target_db]),
-          "VERIFY_BY_COMMAND" => "1" }.compact
-      end
-
-      # What the script would overwrite, read from the script itself (its schemas and databases).
-      def copy_plan(script, held)
-        text = File.read(script)
-        schemas = text[/^SCHEMAS="([^"]*)"/, 1].to_s.split.join(", ")
-        databases = text.match(/^SRC_DB=\$\{SRC_DB:-([^}]*)\}; DST_DB=\$\{DST_DB:-([^}]*)\}/)
-        source_db = database(held[:source_db]) || databases&.[](1)
-        target_db = database(held[:target_db]) || databases&.[](2)
-        drop = plain(held[:force]) == true ? "; force=true drops each target schema first" : ""
-        "copy schemas #{schemas} from database #{source_db} on #{plain(held[:source])} into database " \
-          "#{target_db} on #{plain(held[:target])} through bastion #{plain(held[:bastion])}, " \
-          "OVERWRITING those schemas there#{drop}"
-      end
-
-      # What a roll's answer hands on to the policies that follow it: the project to find the smoke
-      # in, whether to request the smoke (not when the record opted out or the project has no smoke
-      # script, either of which is noted on the record), and which roll asked.
-      def carried(held, kind)
-        skipped = plain(held[:skip_smoke]) == true
-        script = smoke_script?(plain(held[:project]))
-        note = "smoke skipped: skip_smoke=true" if skipped
-        note ||= "smoke skipped: no smoke script" unless script
-        { project: { value: plain(held[:project]) }, skip_smoke: { value: skipped },
-          run_smoke: { value: note.nil? }, smoke: wrapped(note), kind: { value: kind } }
-      end
-
-      # Whether the project has a generated smoke script the smoke could run.
-      def smoke_script?(project)
-        script_for(SMOKE_SCRIPT, project, nil)
-        true
-      rescue ConsoleCapture::Failure
-        false
-      end
-
-      def wrapped(text) = text.to_s.empty? ? nil : { value: text }
-
-      # What `deploy-box.sh` takes: a task definition, or `name=tag` words.
-      def box_args(held) = [plain(held[:taskdef]), *plain(held[:tags]).to_s.split].compact
-
-      # Runs one generated script, found for the record's project, from its own directory. Answers
-      # what it printed, or refuses with its status, that status's meaning and its output.
-      def run_script(name, held, env, label, statuses, args: [], answering: [])
-        script = script_for(name, plain(held[:project]), plain(held[:script]))
-        result = Shell.new.capture("bash", script, *args, env: env, chdir: File.dirname(script))
-        report = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
-        return { report: { value: report } } if result.ok?
-
-        code = result.status.exitstatus
-        return { report: { value: report }, status: code } if answering.include?(code)
-
-        raise ConsoleCapture::Failure, "#{label} ended #{code} (#{statuses.fetch(code, "unexpected")})\n#{report}"
-      end
-
-      # The script a project runs: the override, else the named one in the project itself, else the
-      # only one beneath it (not under `node_modules`, `vendor` or `.git`).
-      def script_for(name, project, override)
-        return existing_script(override) if override
-
-        root = File.expand_path(project.to_s)
-        beside = File.join(root, name)
-        return beside if File.file?(beside)
-
-        found = Dir.glob(File.join(root, "**", name)).grep_v(%r{/(node_modules|vendor|\.git)/})
-        return found.first if found.one?
-
-        raise ConsoleCapture::Failure, ambiguity(name, root, found.sort)
-      end
-
-      def ambiguity(name, root, found)
-        return "no #{name} under #{root}; generate the AwsBox recipe or pass script=<path>" if found.empty?
-
-        "#{found.size} #{name} files under #{root}; pass script=<path>: #{found.join(", ")}"
-      end
-
-      def existing_script(path)
-        script = File.expand_path(path.to_s)
-        File.file?(script) ? script : raise(ConsoleCapture::Failure, "no such script: #{script}")
-      end
-
-      # The variables the generated script reads, set only when the record asks for them.
-      def smoke_env(held)
-        { "TASKDEF" => plain(held[:taskdef]), "SKIP_POST_DEPLOY_SMOKE" => flag(held[:skip]),
-          "SMOKE_ASYNC" => flag(held[:async]), "DRY_RUN" => flag(held[:dry_run]) }.compact
-      end
-
-      def flag(argument) = plain(argument) == true ? "1" : nil
-
-      def child(ask, argv)
-        tree = Codebase::Tree.new
-        tree.require_checkout!
-        run(tree, ask, argv)
-      end
-
-      def run(tree, ask, argv)
-        result = Codebase::RubyChild.new(tree).capture(SCRIPTS.fetch(ask), *argv)
-        raise ConsoleCapture::Failure, message_of(result) unless result.ok?
-
-        { output: { value: result.out } }
-      end
 
       # A project path the tool can read from `root`: relative to it when it lies beneath it, so a
       # recipe made in a checkout names `examples/pizzas`, else absolute.
       def project_path(path, root)
         absolute = File.expand_path(path)
         absolute.start_with?("#{root}/") ? absolute.delete_prefix("#{root}/") : absolute
-      end
-
-      def message_of(result)
-        text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-        text.empty? ? "the tool ended with status #{result.status.exitstatus}" : text
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

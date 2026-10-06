@@ -37,7 +37,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
   end
 
   describe "the listings" do
-    it "asks for one group of the split, with the runtime log when there is one" do
+    it "asks for one group of the split, with the runtime log when there is one", :aggregate_failures do
       calls = command_double(Hecks::CLI::RspecShardFiles, data: "spec/a_spec.rb\nspec/b_spec.rb\n")
 
       files = query("shard_specs", { group: 2, groups: 4, runtime_log: ".github/log" }, nil)
@@ -61,7 +61,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       expect(calls.first.first).to eq([["^spec/qa", "--", "--tag", "io", "--tag", "~fuzzing"]])
     end
 
-    it "checks a committed list with --check, and a stale list is a refusal" do
+    it "checks a committed list with --check, and a stale list is a refusal", :aggregate_failures do
       calls = command_double(Hecks::CLI::RspecIoParallelFiles, status: 1, prints: "list.txt is out of date.")
 
       expect { query("list_io_parallel_specs", { exclude: "x", tags: "--tag slow", check: "list.txt" }, nil) }
@@ -77,7 +77,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
   end
 
   describe "the baseline" do
-    it "reports what it would rewrite and runs nothing unless confirmed" do
+    it "reports what it would rewrite and runs nothing unless confirmed", :aggregate_failures do
       calls = command_double(Hecks::CLI::RefreshRspecRuntimeBaseline)
 
       report = suite("refresh_runtime_baseline", { from_run: word("42") }, nil)
@@ -86,7 +86,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       expect(calls).to be_empty
     end
 
-    it "reads one CI run's timings when confirmed with a run" do
+    it "reads one CI run's timings when confirmed with a run", :aggregate_failures do
       calls = command_double(Hecks::CLI::RefreshRspecRuntimeBaseline)
 
       suite("refresh_runtime_baseline", { from_run: word("42"), confirm: word(true) }, nil)
@@ -141,7 +141,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
   describe "the committed spec list" do
     let(:held) { { exclude: word("^spec/qa"), write: word("list.txt") } }
 
-    it "counts the files it would write, and writes none, unless confirmed" do
+    it "counts the files it would write, and writes none, unless confirmed", :aggregate_failures do
       calls = command_double(Hecks::CLI::RspecIoParallelFiles, data: "spec/a_spec.rb\nspec/b_spec.rb\n")
 
       expect(suite("write_io_parallel_spec_list", held, nil))
@@ -149,7 +149,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       expect(calls.first.first.first).not_to include("--write")
     end
 
-    it "writes it with --write when confirmed" do
+    it "writes it with --write when confirmed", :aggregate_failures do
       calls = command_double(Hecks::CLI::RspecIoParallelFiles)
 
       expect(suite("write_io_parallel_spec_list", held.merge(confirm: word(true)), nil)).to eq("wrote list.txt")

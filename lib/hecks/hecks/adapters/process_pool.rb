@@ -35,6 +35,10 @@ module Hecks
       # Signals passed on to a running child's process group.
       FORWARDED = %w[INT TERM HUP QUIT].freeze
 
+      # The flags of a sweep, and the fields of the record that fill them.
+      SWEEP_FLAGS = { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers,
+                      "--adapter" => :adapter }.freeze
+
       class << self
         # @return [#call, nil] runs a child given `(command, env, chdir)` and answers a `Finished`;
         #   a spec replaces it so nothing is started
@@ -54,18 +58,9 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `report:` what the sweep printed
       # @raise [ConsoleCapture::Failure] when the sweep found something, or could not run
       def sweep(**held)
-        if plain(held[:domain]).nil? && !RustWorkspace.new.checkout?
-          raise ConsoleCapture::Failure, "name a domain (hecks fuzz <domain>): sweeping every domain " \
-                                         "needs a hecks checkout"
-        end
+        refuse_unnamed_sweep(held)
 
-        command = [RbConfig.ruby, "-I", LIB, "-e", ENTRY, "--"]
-        command << plain(held[:domain]) if plain(held[:domain])
-        { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers, "--adapter" => :adapter }.each do |flag, key|
-          command.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil?
-        end
-
-        answer(run(command))
+        answer(run([RbConfig.ruby, "-I", LIB, "-e", ENTRY, "--", *sweep_words(held)]))
       end
 
       # Starts a child, forwards interrupts to it, and waits for it to end.
@@ -79,27 +74,64 @@ module Hecks
         return starter.call(command, env, chdir) if starter
 
         output = Tempfile.new("process-pool")
-        options = { pgroup: true, out: output, err: output }
-        options[:chdir] = chdir if chdir
-        # Traps go in before the spawn, so a signal that lands while the child is starting is held
-        # and passed on the moment its pid is known, instead of orphaning it.
-        pid = nil
-        held = []
-        previous = FORWARDED.to_h do |name|
-          [name, trap(name) { pid ? forward(name, pid) : held << name }]
-        end
-        pid = spawn(env, *command, **options)
-        held.each { |name| forward(name, pid) }
-        _, status = Process.wait2(pid)
+        status = start_and_wait(command, env, spawn_options(output, chdir))
         Finished.new(File.read(output.path), status)
       rescue Errno::ENOENT => e
         Finished.new(e.message, Struct.new(:success?, :exitstatus).new(false, 127))
       ensure
-        previous&.each { |name, handler| trap(name, handler) }
         output&.close!
       end
 
       private
+
+      # The refusal for a sweep of every domain outside a checkout.
+      def refuse_unnamed_sweep(held)
+        return unless plain(held[:domain]).nil? && !RustWorkspace.new.checkout?
+
+        raise ConsoleCapture::Failure, "name a domain (hecks fuzz <domain>): sweeping every domain " \
+                                       "needs a hecks checkout"
+      end
+
+      # The words after `--`: the domain when named, then each flag the record names.
+      def sweep_words(held)
+        words = []
+        words << plain(held[:domain]) if plain(held[:domain])
+        SWEEP_FLAGS.each { |flag, key| words.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil? }
+        words
+      end
+
+      # The options a child is spawned with: its own process group, its output in `output`.
+      def spawn_options(output, chdir)
+        options = { pgroup: true, out: output, err: output }
+        options[:chdir] = chdir if chdir
+        options
+      end
+
+      # Starts the child and waits for it, passing on the signals sent to this process meanwhile.
+      # Traps go in before the spawn, so a signal that lands while the child is starting is held
+      # and passed on the moment its pid is known, instead of orphaning it.
+      #
+      # @return [Process::Status] how the child ended
+      def start_and_wait(command, env, options)
+        pid = nil
+        held = []
+        previous = trap_forwarded(held) { pid }
+        pid = spawn(env, *command, **options)
+        held.each { |name| forward(name, pid) }
+        Process.wait2(pid).last
+      ensure
+        previous&.each { |name, handler| trap(name, handler) }
+      end
+
+      # Traps every forwarded signal, answering the handlers it replaced.
+      #
+      # @param held [Array<String>] collects the signals that arrive before the pid is known
+      # @yield answers the child's pid, or nil while it is still starting
+      def trap_forwarded(held, &pid_of)
+        FORWARDED.to_h do |name|
+          [name, trap(name) { (pid = pid_of.call) ? forward(name, pid) : held << name }]
+        end
+      end
 
       def forward(name, pid)
         Process.kill(name, -pid)

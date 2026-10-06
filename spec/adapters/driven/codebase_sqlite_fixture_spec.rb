@@ -5,7 +5,7 @@ require_relative "../../support/fake_codebase_shell"
 RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
 
-  it "reports what it would rewrite and starts no script unless confirmed" do
+  it "reports what it would rewrite and starts no script unless confirmed", :aggregate_failures do
     shell = FakeCodebaseShell.new("3.40.1\n")
 
     report = described_class.new(tree, shell: shell).regenerate(confirm: false)
@@ -21,12 +21,9 @@ RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
     expect(described_class.new(tree, shell: shell).regenerate(confirm: false)).to include("sqlite3 is not installed")
   end
 
-  it "regenerates in this process, into the checkout's fixture directory, when confirmed" do
+  it "regenerates in this process, into the checkout's fixture directory, when confirmed", :aggregate_failures do
     written = []
-    regenerator = lambda do |dir:|
-      written << dir
-      "wrote #{dir}"
-    end
+    regenerator = ->(dir:) { written.push(dir) && "wrote #{dir}" }
 
     report = described_class.new(tree, shell: FakeCodebaseShell.new, regenerator: regenerator).regenerate(confirm: true)
 

@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "../../support/memory_ports"
 
 # rust/host's event and registration routes read ir.json's `registrations` key
 # instead of naming Event.Schedule and Registration.Request. That key is only
@@ -6,54 +7,55 @@ require "spec_helper"
 # held to its contract (every key, each naming a real command) and the exporter
 # answers nothing for a domain that attaches no such chapter.
 RSpec.describe "registrations capability" do
-  def event_body
-    proc do
-      identified_by :slug
+  BOOKINGS_EVENT_BODY = proc do
+    identified_by :slug
+    attribute :slug, Slug
+    value_object "Slug" do
+      attribute :value, String
+    end
+    command "Schedule" do
+      goal "schedule"
       attribute :slug, Slug
-      value_object "Slug" do
-        attribute :value, String
-      end
-      command "Schedule" do
-        goal "schedule"
-        attribute :slug, Slug
-        sets :slug
-      end
+      sets :slug
     end
   end
 
-  def registration_body
-    proc do
-      identified_by :registration_id
+  BOOKINGS_REGISTRATION_BODY = proc do
+    identified_by :registration_id
+    attribute :registration_id, RegistrationId
+    value_object "RegistrationId" do
+      attribute :value, String
+    end
+    command "Request" do
+      goal "request"
       attribute :registration_id, RegistrationId
-      value_object "RegistrationId" do
-        attribute :value, String
-      end
-      command "Request" do
-        goal "request"
-        attribute :registration_id, RegistrationId
-        sets :registration_id
-      end
+      sets :registration_id
     end
   end
 
-  def registry_with_registrations(provides: nil)
-    provides ||= { schedule: "Event.Schedule", request: "Registration.Request" }
-    event = event_body
-    registration = registration_body
+  BOOKINGS_EXPORT = {
+    provider:               "Bookings",
+    schedule:               "Bookings::Event.Schedule",
+    request:                "Bookings::Registration.Request",
+    event_aggregate:        "Bookings::Event",
+    registration_aggregate: "Bookings::Registration"
+  }.freeze
+
+  def bookings_chapter(provides)
+    Hecks.bluebook "Bookings" do
+      vision "probe"
+      supporting
+      provides "registrations", **provides
+      aggregate "Event", &BOOKINGS_EVENT_BODY
+      aggregate "Registration", &BOOKINGS_REGISTRATION_BODY
+    end
+  end
+
+  def registry_with_registrations(provides: { schedule: "Event.Schedule", request: "Registration.Request" })
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
-      Hecks.bluebook "Bookings" do
-        vision "probe"
-        supporting
-        provides "registrations", **provides
-        aggregate "Event", &event
-        aggregate "Registration", &registration
-      end
+      MemoryPorts.load!
+      bookings_chapter(provides)
     end
     registry
   end
@@ -65,15 +67,9 @@ RSpec.describe "registrations capability" do
   end
 
   it "exports the declared verbs qualified, with the event and registration aggregates named off them" do
-    registry = registry_with_registrations
+    exported = Hecks::Projector::Exporter.registrations(registry_with_registrations, "Bookings")
 
-    expect(Hecks::Projector::Exporter.registrations(registry, "Bookings")).to eq(
-      provider:               "Bookings",
-      schedule:               "Bookings::Event.Schedule",
-      request:                "Bookings::Registration.Request",
-      event_aggregate:        "Bookings::Event",
-      registration_aggregate: "Bookings::Registration"
-    )
+    expect(exported).to eq(BOOKINGS_EXPORT)
   end
 
   it "exports nothing for a domain that attaches no registrations provider" do

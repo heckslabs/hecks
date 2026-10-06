@@ -19,10 +19,65 @@ RSpec.describe Hecks::Storehouse do
   before { allow(Hecks::CacheDir).to receive(:root).and_return(cache_root) }
   after { FileUtils.rm_rf(cache_root) }
 
+  def dispatch_with(**options)
+    defaults = { command: "order.create_pizza", summary: "spec", args: pizza_args }
+    described_class.dispatch(runtime: runtime, **defaults.merge(options))
+  end
+
+  def create_pizza(**options)
+    dispatch_with(role: "Chef", **options)
+  end
+
+  def purchase(**options)
+    sale = { to: "Margherita", amount: { cents: 1200 }, customer_name: { value: "Alex" } }
+    dispatch_with(command: "order.purchase", args: sale, role: "Customer", **options)
+  end
+
+  def add_topping_step
+    { command: "order.add_topping", args: { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } } }
+  end
+
+  def add_topping
+    dispatch_with(**add_topping_step, role: "Chef")
+  end
+
+  def batch(steps, role: "Chef")
+    described_class.dispatch_batch(runtime: runtime, summary: "spec", role: role, steps: steps)
+  end
+
+  def available(**options)
+    described_class.query(runtime: runtime, question: "order.available", summary: "spec", **options)
+  end
+
+  def follow_entries
+    described_class.follow(runtime: runtime)[:entries]
+  end
+
+  def all_readers
+    readers = %i[events history follow catalog describe].map { |reader| described_class.public_send(reader, runtime: runtime) }
+    [described_class.state(runtime: runtime, aggregate: "Order", summary: "spec"), *readers]
+  end
+
+  def stock_margherita
+    create_pizza
+    add_topping
+  end
+
+  def two_pizza_steps
+    [{ command: "order.create_pizza", args: pizza_args },
+     { command: "order.create_pizza", args: pizza_args.merge(name: { value: "Diavola" }) }]
+  end
+
+  def follow_after_three_calls
+    create_pizza(summary: "one", source: "operator")
+    available(summary: "two")
+    described_class.state(runtime: runtime, aggregate: "Order", summary: "three")
+    described_class.follow(runtime: runtime)
+  end
+
   describe ".dispatch" do
-    it "issues the command and answers the record's id, state, and events" do
-      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza",
-                                        summary: "spec", args: pizza_args, role: "Chef")
+    it "issues the command and answers the record's id, state, and events", :aggregate_failures do
+      result = create_pizza
 
       expect(result[:ok]).to be true
       expect(result[:id]).to eq("Margherita")
@@ -30,18 +85,16 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:events].map { |e| e[:name] }).to eq(["PizzaCreated"])
     end
 
-    it "refuses the bare name, listing the qualified commands it knows, and takes the qualified form" do
-      bare      = described_class.dispatch(runtime: runtime, command: "create_pizza",
-                                           summary: "spec", args: pizza_args, role: "Chef")
-      qualified = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                           args: pizza_args, role: "Chef")
+    it "refuses the bare name, listing the qualified commands it knows, and takes the qualified form", :aggregate_failures do
+      bare      = create_pizza(command: "create_pizza")
+      qualified = create_pizza
 
       expect(bare[:ok]).to be false
       expect(bare[:error]).to include("no such command").and include("order.create_pizza")
       expect(qualified[:ok]).to be true
     end
 
-    it "refuses a summary-less call rather than dispatching" do
+    it "refuses a summary-less call rather than dispatching", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "", args: pizza_args)
 
       expect(result[:ok]).to be false
@@ -49,7 +102,7 @@ RSpec.describe Hecks::Storehouse do
       expect(runtime.events).to be_empty
     end
 
-    it "answers a structured refusal, not a raised error, for an unknown command" do
+    it "answers a structured refusal, not a raised error, for an unknown command", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
 
       expect(result[:ok]).to be false
@@ -57,26 +110,18 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:error]).to include("no such command")
     end
 
-    it "answers a structured refusal for a domain rule violation" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
-      described_class.dispatch(runtime: runtime, command: "order.add_topping", summary: "spec",
-                               args: { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } },
-                               role: "Chef")
-      purchase_args = { to: "Margherita", amount: { cents: 1200 }, customer_name: { value: "Alex" } }
-      sold           = described_class.dispatch(runtime: runtime, command: "order.purchase", summary: "spec",
-                                                args: purchase_args, role: "Customer")
-      purchase_again = described_class.dispatch(runtime: runtime, command: "order.purchase", summary: "spec",
-                                                args: purchase_args, role: "Customer")
+    it "answers a structured refusal for a domain rule violation", :aggregate_failures do
+      stock_margherita
+      sold           = purchase
+      purchase_again = purchase
 
       expect(sold[:ok]).to be true
-      expect(purchase_again[:ok]).to be false
-      expect(purchase_again[:error]).to be_a(String)
+      expect(purchase_again).to include(ok: false, error: be_a(String))
     end
   end
 
   describe ".query" do
-    it "answers the declared question's rows" do
+    it "answers the declared question's rows", :aggregate_failures do
       described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef")
 
@@ -86,7 +131,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:rows].map { |row| row[:id] }).to eq(["Margherita"])
     end
 
-    it "refuses an unknown question" do
+    it "refuses an unknown question", :aggregate_failures do
       result = described_class.query(runtime: runtime, question: "no_such_question", summary: "spec")
 
       expect(result[:ok]).to be false
@@ -100,7 +145,7 @@ RSpec.describe Hecks::Storehouse do
                                role: "Chef")
     end
 
-    it "answers every record when id is omitted" do
+    it "answers every record when id is omitted", :aggregate_failures do
       result = described_class.state(runtime: runtime, aggregate: "Order", summary: "spec")
 
       expect(result[:ok]).to be true
@@ -108,21 +153,21 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:records].first[:id]).to eq("Margherita")
     end
 
-    it "answers one record when id is given" do
+    it "answers one record when id is given", :aggregate_failures do
       result = described_class.state(runtime: runtime, aggregate: "Order", id: "Margherita", summary: "spec")
 
       expect(result[:ok]).to be true
       expect(result[:record][:id]).to eq("Margherita")
     end
 
-    it "refuses an id that names no record" do
+    it "refuses an id that names no record", :aggregate_failures do
       result = described_class.state(runtime: runtime, aggregate: "Order", id: "Nope", summary: "spec")
 
       expect(result[:ok]).to be false
       expect(result[:error]).to include("no Order found")
     end
 
-    it "refuses an aggregate the domain never declared" do
+    it "refuses an aggregate the domain never declared", :aggregate_failures do
       result = described_class.state(runtime: runtime, aggregate: "Calzone", summary: "spec")
 
       expect(result[:ok]).to be false
@@ -131,11 +176,10 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".catalog" do
-    it "lists every aggregate and the commands/queries each answers to" do
+    it "lists every aggregate and the commands/queries each answers to", :aggregate_failures do
       result = described_class.catalog(runtime: runtime)
 
-      expect(result[:ok]).to be true
-      expect(result[:domain]).to eq("Pizzas")
+      expect(result).to include(ok: true, domain: "Pizzas")
       order = result[:aggregates].find { |a| a[:name] == "Order" }
       expect(order[:commands]).to include("create_pizza!", "purchase!")
       expect(order[:queries]).to include("available")
@@ -143,21 +187,21 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".describe" do
-    it "answers the whole chapter's usage document when aggregate is omitted" do
+    it "answers the whole chapter's usage document when aggregate is omitted", :aggregate_failures do
       result = described_class.describe(runtime: runtime)
 
       expect(result[:ok]).to be true
       expect(result[:docs]).to include("Order")
     end
 
-    it "narrows to one aggregate's contract" do
+    it "narrows to one aggregate's contract", :aggregate_failures do
       result = described_class.describe(runtime: runtime, aggregate: "Order")
 
       expect(result[:ok]).to be true
       expect(result[:docs]).to include("CreatePizza")
     end
 
-    it "refuses an aggregate the domain never declared" do
+    it "refuses an aggregate the domain never declared", :aggregate_failures do
       result = described_class.describe(runtime: runtime, aggregate: "Calzone")
 
       expect(result[:ok]).to be false
@@ -172,7 +216,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "examples/pizzas", valid: true)
     end
 
-    it "answers valid: false, never a raised error, for a domain that cannot boot" do
+    it "answers valid: false, never a raised error, for a domain that cannot boot", :aggregate_failures do
       result = described_class.validate(domain: "examples/no_such_domain")
 
       expect(result[:ok]).to be false
@@ -180,7 +224,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:error]).to be_a(String)
     end
 
-    it "runs the static model checker and reports findings when deep: true", :io do
+    it "runs the static model checker and reports findings when deep: true", :aggregate_failures, :io do
       result = described_class.validate(domain: "examples/pizzas", deep: true)
 
       expect(result[:ok]).to be true
@@ -195,7 +239,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".dispatch with dry_run: true" do
-    it "answers would_succeed: true and persists nothing" do
+    it "answers would_succeed: true and persists nothing", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true, role: "Chef")
 
@@ -203,18 +247,15 @@ RSpec.describe Hecks::Storehouse do
       expect(described_class.state(runtime: runtime, aggregate: "Order", summary: "spec")[:count]).to eq(0)
     end
 
-    it "answers would_succeed: false with the domain's own refusal text, for a real domain rule" do
-      result = described_class.dispatch(runtime: runtime, command: "order.purchase", summary: "spec",
-                                        dry_run: true, role: "Customer",
-                                        args: { to: "Margherita", amount: { cents: 1200 },
-                                                 customer_name: { value: "Alex" } })
+    it "answers would_succeed: false with the domain's own refusal text, for a real domain rule", :aggregate_failures do
+      result = purchase(dry_run: true)
 
       expect(result[:ok]).to be true
       expect(result[:would_succeed]).to be false
       expect(result[:error]).to be_a(String)
     end
 
-    it "still answers ok: false for a request that never reaches the domain at all" do
+    it "still answers ok: false for a request that never reaches the domain at all", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec",
                                         dry_run: true)
 
@@ -231,7 +272,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:ok]).to be true
     end
 
-    it "refuses a source tag outside the closed set" do
+    it "refuses a source tag outside the closed set", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, source: "not-a-real-source")
 
@@ -242,27 +283,18 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".dispatch_batch" do
-    it "runs every step and reports ok: true only when all of them succeeded" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
+    it "runs every step and reports ok: true only when all of them succeeded", :aggregate_failures do
+      create_pizza
 
-      result = described_class.dispatch_batch(
-        runtime: runtime, summary: "spec", role: "Chef",
-        steps: [{ command: "order.add_topping",
-                  args:    { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } } }]
-      )
+      result = batch([add_topping_step])
 
       expect(result[:ok]).to be true
       expect(result[:results].length).to eq(1)
       expect(result[:results].first[:ok]).to be true
     end
 
-    it "runs every step even after an earlier one refuses, and reports ok: false overall" do
-      result = described_class.dispatch_batch(
-        runtime: runtime, summary: "spec", role: "Chef",
-        steps: [{ command: "no_such_command", args: {} },
-                { command: "order.create_pizza", args: pizza_args }]
-      )
+    it "runs every step even after an earlier one refuses, and reports ok: false overall", :aggregate_failures do
+      result = batch([{ command: "no_such_command", args: {} }, { command: "order.create_pizza", args: pizza_args }])
 
       expect(result[:ok]).to be false
       expect(result[:results].map { |r| r[:ok] }).to eq([false, true])
@@ -270,7 +302,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".domains" do
-    it "lists every real example domain under the default root" do
+    it "lists every real example domain under the default root", :aggregate_failures do
       result = described_class.domains
 
       expect(result[:ok]).to be true
@@ -285,21 +317,17 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".history" do
-    it "answers every append-only journal entry, not just current state" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
-      described_class.dispatch(runtime: runtime, command: "order.add_topping", summary: "spec",
-                               args: { to: "Margherita", topping: { value: "Basil" }, amount: { value: 1 } },
-                               role: "Chef")
+    it "answers every append-only journal entry, not just current state", :aggregate_failures do
+      create_pizza
+      add_topping
 
       result = described_class.history(runtime: runtime)
 
       expect(result[:ok]).to be true
-      expect(result[:history]["order"].length).to eq(2)
       expect(result[:history]["order"].map { |entry| entry[:operation] }).to eq(%w[save save])
     end
 
-    it "answers an empty history, not a crash, for an aggregate nothing has been written to" do
+    it "answers an empty history, not a crash, for an aggregate nothing has been written to", :aggregate_failures do
       result = described_class.history(runtime: runtime)
 
       expect(result[:ok]).to be true
@@ -308,7 +336,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".behaviors" do
-    it "runs a domain's real .behaviors suite and reports pass/fail per test" do
+    it "runs a domain's real .behaviors suite and reports pass/fail per test", :aggregate_failures do
       result = described_class.behaviors(target: "examples/pizzas")
 
       expect(result[:ok]).to be true
@@ -317,7 +345,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:counts][:errored]).to eq(0)
     end
 
-    it "refuses a target that names no file or directory" do
+    it "refuses a target that names no file or directory", :aggregate_failures do
       result = described_class.behaviors(target: "examples/no_such_target")
 
       expect(result[:ok]).to be false
@@ -332,19 +360,13 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "Pizzas", entries: [])
     end
 
-    it "tails dispatch/query/state calls made through this door, in order" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "one", args: pizza_args,
-                               source: "operator", role: "Chef")
-      described_class.query(runtime: runtime, question: "order.available", summary: "two")
-      described_class.state(runtime: runtime, aggregate: "Order", summary: "three")
-
-      result = described_class.follow(runtime: runtime)
+    it "tails dispatch/query/state calls made through this door, in order", :aggregate_failures do
+      result = follow_after_three_calls
 
       expect(result[:ok]).to be true
       expect(result[:entries].map { |e| e[:tool] }).to eq(%w[dispatch query state])
       expect(result[:entries].map { |e| e[:summary] }).to eq(%w[one two three])
-      expect(result[:entries].first[:source]).to eq("operator")
-      expect(result[:entries].first[:ok]).to be true
+      expect(result[:entries].first).to include(source: "operator", ok: true)
     end
 
     it "respects limit, keeping the most recent entries" do
@@ -355,7 +377,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:entries].map { |e| e[:summary] }).to eq(%w[q1 q2])
     end
 
-    it "records a refused call too, not only a successful one" do
+    it "records a refused call too, not only a successful one", :aggregate_failures do
       described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
 
       result = described_class.follow(runtime: runtime)
@@ -366,18 +388,17 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".dispatch with role:/actor_id:" do
-    it "checks a role-gated command against the bound caller, by string equality" do
-      wrong = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                       args: pizza_args, role: "Visitor")
-      right = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                       args: pizza_args, role: "Chef")
+    it "checks a role-gated command against the bound caller, by string equality", :aggregate_failures do
+      wrong = create_pizza(role: "Visitor")
+      right = create_pizza
 
       expect(wrong[:ok]).to be false
       expect(wrong[:error]).to match(/role/i)
       expect(right[:ok]).to be true
     end
 
-    it "refuses a role-gated command dispatched with no caller bound at all, rather than running it unchecked" do
+    it "refuses a role-gated command dispatched with no caller bound at all, rather than running it unchecked",
+       :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args)
 
@@ -398,7 +419,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:ok]).to be true
     end
 
-    it "refuses actor_id given without role" do
+    it "refuses actor_id given without role", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, actor_id: "u1")
 
@@ -420,17 +441,12 @@ RSpec.describe Hecks::Storehouse do
     # live lookup with no way to answer — `Runtime::WiringError` surfaces as
     # a structured refusal, not a raised error, same as every other
     # refusal here.
-    it "answers a structured refusal, not a raised error, when no authorization adapter can answer actor_id" do
-      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                        args: pizza_args, role: "Chef", actor_id: "u1")
+    it "answers a structured refusal, not a raised error, when no authorization adapter can answer actor_id",
+       :aggregate_failures do
+      result = create_pizza(actor_id: "u1")
 
-      expect(result[:ok]).to be false
-      expect(result[:error]).to be_a(String)
-
-      entry = described_class.follow(runtime: runtime)[:entries].first
-      expect(entry[:role]).to eq("Chef")
-      expect(entry[:actor_id]).to eq("u1")
-      expect(entry[:ok]).to be false
+      expect(result).to include(ok: false, error: be_a(String))
+      expect(follow_entries.first).to include(role: "Chef", actor_id: "u1", ok: false)
     end
   end
 
@@ -441,7 +457,7 @@ RSpec.describe Hecks::Storehouse do
   # declares `role "Chef"`; `order.purchase` declares `role "Customer"`; queries cannot
   # declare a role at all.
   describe "the identity contract — what a caller-asserted role does and does not gate" do
-    it "refuses the qualified spelling of a role-gated command with no caller, like the short one" do
+    it "refuses the qualified spelling of a role-gated command with no caller, like the short one", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args)
 
@@ -450,7 +466,7 @@ RSpec.describe Hecks::Storehouse do
       expect(runtime.events).to be_empty
     end
 
-    it "refuses a blank role rather than reading it as no restriction" do
+    it "refuses a blank role rather than reading it as no restriction", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, role: "")
 
@@ -458,7 +474,7 @@ RSpec.describe Hecks::Storehouse do
       expect(runtime.events).to be_empty
     end
 
-    it "refuses a dry run of a role-gated command with no caller, rather than answering would_succeed" do
+    it "refuses a dry run of a role-gated command with no caller, rather than answering would_succeed", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true)
 
@@ -466,19 +482,15 @@ RSpec.describe Hecks::Storehouse do
       expect(result).not_to have_key(:would_succeed)
     end
 
-    it "refuses every step of a batch that names a role-gated command with no caller, and commits none" do
-      result = described_class.dispatch_batch(
-        runtime: runtime, summary: "spec",
-        steps: [{ command: "order.create_pizza", args: pizza_args },
-                { command: "order.create_pizza", args: pizza_args.merge(name: { value: "Diavola" }) }]
-      )
+    it "refuses every step of a batch that names a role-gated command with no caller, and commits none", :aggregate_failures do
+      result = batch(two_pizza_steps, role: nil)
 
       expect(result[:ok]).to be false
       expect(result[:results].map { |r| r[:ok] }).to eq([false, false])
       expect(runtime.events).to be_empty
     end
 
-    it "logs a refused unbound dispatch with no role, so the audit trail shows who did not identify" do
+    it "logs a refused unbound dispatch with no role, so the audit trail shows who did not identify", :aggregate_failures do
       described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "no caller", args: pizza_args)
 
       entry = described_class.follow(runtime: runtime)[:entries].first
@@ -493,29 +505,19 @@ RSpec.describe Hecks::Storehouse do
       expect(forged[:ok]).to be true
     end
 
-    it "runs a query with no caller, and with a role no command declares — queries are not role-gated" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
+    it "runs a query with no caller, and with a role no command declares — queries are not role-gated", :aggregate_failures do
+      create_pizza
+      unbound  = available
+      stranger = available(role: "Nobody", actor_id: nil)
 
-      unbound  = described_class.query(runtime: runtime, question: "order.available", summary: "spec")
-      stranger = described_class.query(runtime: runtime, question: "order.available", summary: "spec",
-                                       role: "Nobody", actor_id: nil)
-
-      expect(unbound[:ok]).to be true
-      expect(unbound[:rows].length).to eq(1)
+      expect(unbound).to include(ok: true, rows: have_attributes(length: 1))
       expect(stranger[:rows]).to eq(unbound[:rows])
     end
 
-    it "answers the readers with no caller bound — they take no role and are not gated" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
+    it "answers the readers with no caller bound — they take no role and are not gated", :aggregate_failures do
+      create_pizza
 
-      answers = [described_class.state(runtime: runtime, aggregate: "Order", summary: "spec"),
-                 described_class.events(runtime: runtime),
-                 described_class.history(runtime: runtime),
-                 described_class.follow(runtime: runtime),
-                 described_class.catalog(runtime: runtime),
-                 described_class.describe(runtime: runtime)]
+      answers = all_readers
 
       expect(answers.map { |a| a[:ok] }).to all(be true)
       expect(answers.first[:count]).to eq(1)
@@ -527,7 +529,7 @@ RSpec.describe Hecks::Storehouse do
   describe ".confine!" do
     let(:root) { described_class::BOOT_ROOT }
 
-    it "resolves a relative path against the root and answers an absolute path under it" do
+    it "resolves a relative path against the root and answers an absolute path under it", :aggregate_failures do
       expect(described_class.confine!("examples/pizzas", "domain")).to eq(File.join(root, "examples/pizzas"))
       expect(described_class.confine!(root, "domain")).to eq(root)
     end
@@ -537,12 +539,13 @@ RSpec.describe Hecks::Storehouse do
         .to raise_error(Hecks::Runtime::TypeMismatch, /domain: .* resolves outside/)
     end
 
-    it "refuses an absolute path elsewhere, and a sibling directory that merely shares the root's prefix" do
+    it "refuses an absolute path elsewhere, and a sibling directory that merely shares the root's prefix", :aggregate_failures do
       expect { described_class.confine!("/tmp", "domain") }.to raise_error(Hecks::Runtime::TypeMismatch)
       expect { described_class.confine!("#{root}-sibling", "domain") }.to raise_error(Hecks::Runtime::TypeMismatch)
     end
 
-    it "makes .domains and .validate refuse a directory outside the root rather than reading or booting it" do
+    it "makes .domains and .validate refuse a directory outside the root rather than reading or booting it",
+       :aggregate_failures do
       validated = described_class.validate(domain: "/tmp/no_such_domain")
 
       expect { described_class.domains(under: "/tmp") }.to raise_error(Hecks::Runtime::TypeMismatch)
@@ -558,9 +561,8 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "Pizzas", events: [])
     end
 
-    it "answers the events a real dispatch announced, sourced from this door's own audit log" do
-      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
-                               role: "Chef")
+    it "answers the events a real dispatch announced, sourced from this door's own audit log", :aggregate_failures do
+      create_pizza
 
       result = described_class.events(runtime: runtime, aggregate: "Order", id: "Margherita")
 
@@ -587,14 +589,14 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:events]).to eq([])
     end
 
-    it "refuses id: without aggregate:" do
+    it "refuses id: without aggregate:", :aggregate_failures do
       result = described_class.events(runtime: runtime, id: "Margherita")
 
       expect(result[:ok]).to be false
       expect(result[:error]).to include("aggregate")
     end
 
-    it "refuses an aggregate the domain never declared" do
+    it "refuses an aggregate the domain never declared", :aggregate_failures do
       result = described_class.events(runtime: runtime, aggregate: "Calzone")
 
       expect(result[:ok]).to be false
@@ -603,7 +605,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe "the audit log's location" do
-    it "appends JSONL under the cache root, not the gem's own directory" do
+    it "appends JSONL under the cache root, not the gem's own directory", :aggregate_failures do
       described_class.record!("Pizzas", tool: "state", summary: "spec", source: nil, outcome: { ok: true })
 
       path = described_class.log_path("Pizzas")
@@ -612,7 +614,7 @@ RSpec.describe Hecks::Storehouse do
       expect(path).not_to start_with(File.expand_path("..", __dir__))
     end
 
-    it "still no-ops when the log cannot be written" do
+    it "still no-ops when the log cannot be written", :aggregate_failures do
       File.write(File.join(cache_root, "storehouse"), "a file where the directory should be")
 
       expect do

@@ -1,0 +1,33 @@
+# The storehouse — @@owner_domain_name@@'s own live stack Outputs,
+# looked up at deploy time (the generated Makefile's own `deploy:`
+# target) via `aws cloudformation describe-stacks`, the identical
+# pattern `Lambda`'s own generated Makefile already uses for a
+# Shared-mode domain.
+OwningVpcId:
+  Type: AWS::EC2::VPC::Id
+OwningSubnetAId:
+  Type: AWS::EC2::Subnet::Id
+OwningSubnetBId:
+  Type: AWS::EC2::Subnet::Id
+# PUBLIC subnets, NOT OwningSubnetAId/OwningSubnetBId above — a
+# real, live deploy (a shared-database stack) found the ALB placed in
+# the private pair creates successfully and reports its target
+# health as healthy (health checks run from inside the VPC), yet
+# is completely unreachable from outside it:
+# OwningSubnetAId/OwningSubnetBId have MapPublicIpOnLaunch: false
+# and no Internet Gateway route. These two — resolved from the
+# owner stack's own PublicSubnetId/BastionSubnetId Outputs,
+# MapPublicIpOnLaunch: true with a real 0.0.0.0/0 -> igw route —
+# are the pair that actually works for an internet-facing ALB.
+# Service.NetworkConfiguration below still (correctly) uses the
+# private pair for the tasks themselves — only the ALB moves.
+OwningPublicSubnetAId:
+  Type: AWS::EC2::Subnet::Id
+OwningPublicSubnetBId:
+  Type: AWS::EC2::Subnet::Id
+OwningSecurityGroupId:
+  Type: AWS::EC2::SecurityGroup::Id
+OwningDatabaseEndpoint:
+  Type: String
+OwningDatabaseSecretArn:
+  Type: String

@@ -1,0 +1,11 @@
+AlbSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    VpcId: !Ref OwningVpcId
+    GroupDescription: !Sub "@@infra_name@@ preview ${EnvName} ALB - HTTP ingress from CloudFront only"
+    SecurityGroupIngress:
+      # The AWS-managed com.amazonaws.global.cloudfront.origin-facing prefix list.
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourcePrefixListId: @@prefix_list@@

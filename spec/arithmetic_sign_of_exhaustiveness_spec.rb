@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe "CommandRules::Arithmetic#sign_of" do
   def rules = Hecks::Runtime::CommandRules.new(nil)
 
-  it "answers the declared sign for increment and decrement" do
+  it "answers the declared sign for increment and decrement", :aggregate_failures do
     expect(rules.sign_of(:increment)).to eq(1)
     expect(rules.sign_of(:decrement)).to eq(-1)
   end

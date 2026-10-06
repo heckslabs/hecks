@@ -30,7 +30,7 @@ module Hecks
             {
               host: (@uri.host unless @uri.host.to_s.empty?), port: @uri.port,
               user: decode(@uri.user), password: decode(@uri.password),
-              dbname: (database unless database.empty?), sslmode: URI.decode_www_form(@uri.query.to_s).to_h["sslmode"]
+              dbname: (database unless database.empty?), sslmode: query_params["sslmode"]
             }.compact
           end
 
@@ -46,6 +46,8 @@ module Hecks
           end
 
           private
+
+          def query_params = URI.decode_www_form(@uri.query.to_s).to_h
 
           def decode(value)
             value && URI.decode_www_form_component(value)

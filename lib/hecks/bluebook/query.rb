@@ -1,4 +1,5 @@
 require_relative "behaviour/query"
+require_relative "keyword_fields"
 
 module Hecks
   # Reopened to add `render_value`, the wire-literal rendering `emits_ir` procs use.
@@ -27,22 +28,28 @@ module Hecks
 
       attr_reader :name, :description, :attributes, :returns, :needs
 
+      # Every optional keyword and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        description: nil, attributes: [], wheres: [], order_by: nil, limit: nil, offset: nil,
+        cursor: nil, authorization: nil, null_semantics: nil, inspection: nil, returns: nil, needs: []
+      }.freeze
+
+      # The keywords the `Options` base takes; the rest belong to the query itself.
+      OPTION_KEYS = [:wheres, :order_by, :limit, :offset, :cursor, :authorization, :null_semantics,
+                     :inspection].freeze
+
       # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] defaults to
       #   `NullSemantics.default`
-      def initialize(name:, description: nil, attributes: [], wheres: [],
-                     order_by: nil, limit: nil, offset: nil, cursor: nil,
-                     authorization: nil, null_semantics: nil,
-                     inspection: nil, returns: nil, needs: [])
-        null_semantics ||= QuerySpecification::Common::NullSemantics.default
-        super(wheres: wheres, order_by: order_by, limit: limit, offset: offset, cursor: cursor,
-              authorization: authorization,
-              null_semantics: null_semantics, inspection: inspection)
+      def initialize(name:, **given)
+        fields = KeywordFields.fill(given, FIELD_DEFAULTS)
+        fields[:null_semantics] ||= QuerySpecification::Common::NullSemantics.default
+        super(**fields.slice(*OPTION_KEYS))
         @name        = name.to_s
         @hecks_name  = @name
-        @description = description
-        @attributes  = attributes
-        @returns     = returns&.to_s
-        @needs       = needs
+        @description = fields[:description]
+        @attributes  = fields[:attributes]
+        @returns     = fields[:returns]&.to_s
+        @needs       = fields[:needs]
       end
 
       # The value object a `returns` names, without the `list_of(...)` wrapper.

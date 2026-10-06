@@ -56,13 +56,12 @@ module Hecks
         # @return [Array<Symbol>] the `:as` name of each many-side head that filtering
         #   applies to; `[]` if this read model has no many-side head
         def filtered_head_names
-          many = @aggregate_heads.select { |head| head[:many] }
+          many = many_heads
           return [] if many.empty?
 
           return single_filtered_head_name(many) if many.one?
 
-          targets = (wheres.map(&:target) + [order_by&.target, limit&.target, offset&.target]).compact.uniq
-          targets.filter_map { |target| many.find { |head| head[:aggregate] == target.to_s } }.map { |head| head[:as] }
+          filtering_targets.filter_map { |target| many.find { |head| head[:aggregate] == target.to_s } }.map { |head| head[:as] }
         end
 
         # Split out only to keep `filtered_head_names` under this file's own
@@ -73,8 +72,7 @@ module Hecks
         # @return [Array<Symbol>] `[the one head's :as name]` if any filtering option is
         #   declared, else `[]`
         def single_filtered_head_name(many)
-          declared = wheres.any? || order_by || limit || offset || authorization&.tenant ||
-                     @group_by.any? || reducing?
+          declared = scoped_options? || authorization&.tenant || @group_by.any? || reducing?
           declared ? [many.first[:as]] : []
         end
 
@@ -87,20 +85,35 @@ module Hecks
         # @return [FilteredOptions] the `wheres`/`order_by`/`limit`/`offset` that apply to
         #   `head_as`, and this read model's own `null_semantics`
         def options_for(head_as)
-          many = @aggregate_heads.select { |head| head[:many] }
-          aggregate_name = @aggregate_heads.find { |head| head[:as] == head_as }&.fetch(:aggregate)
-          applies = lambda do |target|
-            target.nil? ? many.one? : target.to_s == aggregate_name
-          end
+          applies = scope_test(head_as)
 
           FilteredOptions.new(
             wheres.select { |where| applies.call(where.target) },
-            order_by && applies.call(order_by.target) ? order_by : nil,
-            limit && applies.call(limit.target) ? limit : nil,
-            offset && applies.call(offset.target) ? offset : nil,
+            scoped(order_by, applies),
+            scoped(limit, applies),
+            scoped(offset, applies),
             null_semantics
           )
         end
+
+        private
+
+        def many_heads = @aggregate_heads.select { |head| head[:many] }
+
+        def filtering_targets
+          (wheres.map(&:target) + [order_by&.target, limit&.target, offset&.target]).compact.uniq
+        end
+
+        def scoped_options? = wheres.any? || order_by || limit || offset
+
+        # An untargeted option applies to the one many-side head; a targeted one to its own.
+        def scope_test(head_as)
+          many = many_heads
+          aggregate_name = @aggregate_heads.find { |head| head[:as] == head_as }&.fetch(:aggregate)
+          ->(target) { target.nil? ? many.one? : target.to_s == aggregate_name }
+        end
+
+        def scoped(option, applies) = (option if option && applies.call(option.target))
       end
     end
   end

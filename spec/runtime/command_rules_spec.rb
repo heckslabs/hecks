@@ -13,135 +13,204 @@ RSpec.describe "the rules a command obeys" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
   def boot_banking = boot(RULES_BANKING)
   def boot_till    = boot(RULES_TILL)
 
+  def register_customer(runtime, reference)
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: reference },
+                          name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+  end
+
+  def open_account(runtime, number, customer)
+    runtime.dispatch_flat("Banking::Account.Open", customer: customer, number: { value: number },
+                          kind: { name: "current" }, daily_limit: { cents: 50_000 })
+  end
+
   def funded_account(runtime)
-    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
-                                              kind: { name: "current" }, daily_limit: { cents: 50_000 })
+    register_customer(runtime, "c")
+    open_account(runtime, "a1", "c")
     runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
-narrative: { text: "Opening" })
+                          narrative: { text: "Opening" })
+    runtime
+  end
+
+  def opened_till
+    runtime = boot_till
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
     runtime
   end
 
   def narrative = { text: "Corrected" }
 
+  let(:funded) { funded_account(boot_banking) }
+
+  def amend(runtime, cents)
+    runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
+                          number: { value: "a1" }, sequence: { value: 1 },
+                          adjustment: { cents: cents, currency: "USD" }, narrative: narrative)
+  end
+
+  def credit_account(runtime, text)
+    runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" },
+                          amount: { cents: 100, currency: "USD" }, narrative: { text: text })
+  end
+
+  def debit_account(runtime, text)
+    runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a1" },
+                          amount: { cents: 100, currency: "USD" }, narrative: { text: text })
+  end
+
+  def freeze_account(runtime, **extra)
+    runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "a1" }, **extra)
+  end
+
+  def suspend_customer(runtime)
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" }, standing: { value: "chargeback investigation" })
+  end
+
+  def apply_fee(runtime)
+    runtime.dispatch_flat("Banking::Account.ApplyFee", number: { value: "a1" },
+                          amount: { cents: 250, currency: "USD" }, narrative: narrative)
+  end
+
+  def debited_account(runtime)
+    debit_account(runtime, "second")
+    debit_account(runtime, "third")
+  end
+
+  def issue_card(runtime)
+    runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1", serial: { value: "s1" }, daily_fee: { amount: 100 })
+  end
+
+  def retire_card(runtime) = runtime.dispatch_flat("Banking::ATMCard.Retire", serial: { value: "s1" })
+
+  def retired_card(runtime)
+    issue_card(runtime)
+    runtime.dispatch_flat("Banking::ATMCard.Activate", serial: { value: "s1" })
+    runtime.dispatch_flat("Banking::ATMCard.Withdraw", serial: { value: "s1" },
+                          cents: { cents: 2000 }, narrative: { text: "Airport cash" })
+    retire_card(runtime)
+  end
+
+  def dispute_withdrawal(runtime)
+    runtime.dispatch_flat("Banking::ATMCard.Withdrawal.Dispute",
+                          serial: { value: "s1" }, sequence: { value: 1 }, narrative: { text: "Not mine" })
+  end
+
+  def authorize_card(runtime, authorisation)
+    runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1",
+                          authorisation: { value: authorisation }, amount: { cents: 500 },
+                          merchant: { value: "Merchant" })
+  end
+
+  def open_onboarding(runtime, case_id, number, customer: "c")
+    runtime.dispatch_flat("Banking::OnboardingCase.Open", customer: customer,
+                          reference: { value: case_id }, account_number: { value: number })
+  end
+
+  def reverse_entry(runtime, sequence, text = "Corrected")
+    runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                          number: { value: "a1" }, sequence: { value: sequence }, narrative: { text: text })
+  end
+
+  def request_transfer(runtime, source, destination, text)
+    runtime.dispatch_flat("Banking::Transfer.Request", reference: { value: "x1" }, source: source,
+                          destination: destination, amount: { cents: 100 }, narrative: { text: text })
+  end
+
+  def transfer_runtime(text)
+    runtime = boot_banking
+    %w[src dst].each do |number|
+      register_customer(runtime, "c-#{number}")
+      open_account(runtime, number, "c-#{number}")
+    end
+    request_transfer(runtime, "src", "dst", text)
+    runtime
+  end
+
+  def advance_transfer(runtime, *steps)
+    steps.each { |step| runtime.dispatch_flat("Banking::Transfer.#{step}", transfer: "x1") }
+  end
+
+  def transfer_status(runtime)
+    transfer = runtime.registry.bluebook("Banking").aggregate("Transfer")
+    runtime.registry.repository("Banking", transfer).find("x1")[:status]
+  end
+
+  def duplicate_credit_message
+    'Credited refused — status is "credited", and Credited moves it only from "debited"'
+  end
+
+  def refusal_from
+    yield
+    nil
+  rescue Hecks::Runtime::GivenNotMet => e
+    e
+  end
+
   describe "Integer-or-nothing arithmetic" do
     # Money is a single-field value object, so a bare scalar auto-wraps to `{ cents: "a lot" }`
     # and refuses at `check_numeric_fields`, naming the field and type.
     it "refuses a non-Integer amount on a RECORD, in so many words" do
-      runtime = boot_till
-      runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+      runtime = opened_till
 
-      expect do
-        runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: "a lot")
-      end.to raise_error(Hecks::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
+      expect { runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: "a lot") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
     end
 
     it "refuses a non-Integer amount on an ELEMENT, in the same words" do
-      runtime = funded_account(boot_banking)
-
-      expect do
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                              number: { value: "a1" }, sequence: { value: 1 },
-                              adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecks::Runtime::TypeMismatch,
-                         'Money.cents expects Integer, got "a lot"')
+      expect { amend(funded, "a lot") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
     end
 
     # An absent argument is nil, not its own name: falling through to the Symbol in
     # `resolve_source` would hand coercion `:amount` and refuse with a wrong-shape message.
-    it "says an absent OPTIONAL argument is nil, not the name of the argument" do
-      runtime = boot_till
-      runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
-
+    it "says an absent OPTIONAL argument is nil, not the name of the argument", :aggregate_failures do
       # `note` is optional, so the payload gate passes and the mutation resolves an absent arg;
       # resolving it to `:note` would refuse with a misleading "pass its fields as an object".
-      state = runtime.dispatch_flat("TillRoom::Till.TakeIn",
-                                    number: { value: "till-1" }, amount: { cents: 300 }).state
+      state = opened_till.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 300 }).state
 
       expect(state[:note]).to be_nil
       expect(state[:balance].to_h).to eq(cents: 300)
     end
 
     it "refuses an absent REQUIRED argument at the gate, before any rule runs" do
-      runtime = funded_account(boot_banking)
-
-      expect do
-        runtime.dispatch_flat("Banking::Account.Credit",
-                              number: { value: "a1" }, narrative: { text: "No amount at all" })
-      end.to raise_error(Hecks::Runtime::AbsentArgument,
-                         "Credit was not given amount — it takes amount, narrative")
+      expect { funded.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, narrative: { text: "No amount" }) }
+        .to raise_error(Hecks::Runtime::AbsentArgument, "Credit was not given amount — it takes amount, narrative")
     end
 
     # An unset total reads as zero (`current ||= 0`); an absent amount is a caller's mistake.
     # Conflating them would let an absent amount increment by zero and succeed.
     it "still starts an unset total at zero" do
-      runtime = funded_account(boot_banking)
-      state   = runtime.dispatch_flat("Banking::Account.ApplyFee",
-                                      number: { value: "a1" }, amount: { cents: 250, currency: "USD" },
-                                      narrative: narrative)
-                       .state
+      state = apply_fee(funded).state
 
       expect(state[:fees_cents].to_h).to eq(cents: 250, currency: "USD")
     end
 
-    it "moves an element by exactly what it was told" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                            number: { value: "a1" }, sequence: { value: 1 },
-                            adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
+    it "moves an element by exactly what it was told", :aggregate_failures do
+      amend(funded, 500)
 
-      entry = runtime.query("Banking::Account.LedgerEntry.Reversed")
-      expect(entry).to be_empty
-
-      state = runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                                    number: { value: "a1" }, sequence: { value: 1 },
-                                    adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
-                     .state
-      expect(state[:ledger].first[:amount].to_h).to eq(cents: 10_300, currency: "USD")
+      expect(funded.query("Banking::Account.LedgerEntry.Reversed")).to be_empty
+      expect(amend(funded, -200).state[:ledger].first[:amount].to_h).to eq(cents: 10_300, currency: "USD")
     end
 
     it "decrements an element by the same rule, not a sign it invented" do
-      runtime = funded_account(boot_banking)
-      state   = runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                                      number: { value: "a1" }, sequence: { value: 1 },
-                                      adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
-                       .state
+      state = amend(funded, -1_000).state
 
       expect(state[:ledger].first[:amount].to_h).to eq(cents: 9_000, currency: "USD")
     end
 
     it "refuses an amendment that would make an entry negative" do
-      runtime = funded_account(boot_banking)
-
-      expect do
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                              number: { value: "a1" }, sequence: { value: 1 },
-                              adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecks::Runtime::GivenNotMet,
-                         "Amend refused — an amendment leaves a non-negative amount")
+      expect { amend(funded, -10_001) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Amend refused — an amendment leaves a non-negative amount")
     end
 
-    it "carries the failing comparison's own operands as #detail, off #message" do
-      runtime = funded_account(boot_banking)
-
-      error = nil
-      begin
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                              number: { value: "a1" }, sequence: { value: 1 },
-                              adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
-      rescue Hecks::Runtime::GivenNotMet => e
-        error = e
-      end
+    it "carries the failing comparison's own operands as #detail, off #message", :aggregate_failures do
+      error = refusal_from { amend(funded, -10_001) }
 
       expect(error.message).to eq("Amend refused — an amendment leaves a non-negative amount")
       expect(error.detail).to eq("left: -1, right: 0")
@@ -151,80 +220,49 @@ narrative: { text: "Opening" })
 
   describe "the state machine" do
     it "refuses a move an AGGREGATE's machine does not admit" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
+      freeze_account(funded, id: "a1")
 
       # A real lifecycle guard (`command "FreezeAccount", from: "open"`, ADR 0025) runs in
       # `enforce_givens`; an already-frozen account is refused by state name.
-      expect do
-        runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
-      end.to raise_error(Hecks::Runtime::LifecycleRefused,
-                         'FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"')
+      expect { freeze_account(funded, id: "a1") }
+        .to raise_error(Hecks::Runtime::LifecycleRefused,
+                        'FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"')
     end
 
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
-                            number: { value: "a1" }, sequence: { value: 1 }, narrative: narrative)
+      reverse_entry(funded, 1)
 
       # Amend's `given("entry is posted")` pre-empts the entity's lifecycle machine
       # (`admissible_transition` runs after `enforce_givens`): GivenNotMet, not LifecycleRefused.
-      expect do
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Amend",
-                              number: { value: "a1" }, sequence: { value: 1 },
-                              adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Amend refused — entry is posted")
+      expect { amend(funded, 100) }.to raise_error(Hecks::Runtime::GivenNotMet, "Amend refused — entry is posted")
     end
 
     it "does not settle a transfer until its destination credit is recorded" do
-      runtime = boot_banking
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c-src" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", number: { value: "src" }, customer: "c-src",
-                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c-dst" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", number: { value: "dst" }, customer: "c-dst",
-                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch_flat("Banking::Transfer.Request",
-                            reference: { value: "x1" }, source: "src", destination: "dst",
-                            amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
-      runtime.dispatch_flat("Banking::Transfer.Debited", transfer: "x1")
+      runtime = transfer_runtime("A transfer waiting for credit")
+      advance_transfer(runtime, "Debited")
 
       # ADR 0025: Settle's `from: "credited"` guard refuses (LifecycleRefused) before any credit.
-      expect do
-        runtime.dispatch_flat("Banking::Transfer.Settle", transfer: "x1")
-      end.to raise_error(Hecks::Runtime::LifecycleRefused,
-                         'Settle refused — status is "debited", and Settle moves it only from "credited"')
+      expect { advance_transfer(runtime, "Settle") }
+        .to raise_error(Hecks::Runtime::LifecycleRefused,
+                        'Settle refused — status is "debited", and Settle moves it only from "credited"')
     end
 
-    it "refuses duplicate and out-of-order transfer legs without changing their state" do
-      runtime = boot_banking
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c-src" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", number: { value: "src" }, customer: "c-src",
-                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c-dst" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", number: { value: "dst" }, customer: "c-dst",
-                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch_flat("Banking::Transfer.Request",
-                            reference: { value: "x1" }, source: "src", destination: "dst",
-                            amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
+    it "refuses an out-of-order transfer leg" do
+      runtime = transfer_runtime("An ordered transfer")
 
       # ADR 0025: both commands guard with `from:`; each out-of-order point is LifecycleRefused.
-      expect { runtime.dispatch_flat("Banking::Transfer.Settle", transfer: "x1") }
+      expect { advance_transfer(runtime, "Settle") }
         .to raise_error(Hecks::Runtime::LifecycleRefused,
                         'Settle refused — status is "requested", and Settle moves it only from "credited"')
+    end
 
-      runtime.dispatch_flat("Banking::Transfer.Debited", transfer: "x1")
-      runtime.dispatch_flat("Banking::Transfer.Credited", transfer: "x1")
+    it "refuses a duplicate transfer leg without changing the transfer's state", :aggregate_failures do
+      runtime = transfer_runtime("An ordered transfer")
+      advance_transfer(runtime, "Debited", "Credited")
 
-      expect { runtime.dispatch_flat("Banking::Transfer.Credited", transfer: "x1") }
-        .to raise_error(Hecks::Runtime::LifecycleRefused,
-                        'Credited refused — status is "credited", and Credited moves it only from "debited"')
-      expect(runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Transfer"))
-                    .find("x1")[:status]).to eq("credited")
+      expect { advance_transfer(runtime, "Credited") }
+        .to raise_error(Hecks::Runtime::LifecycleRefused, duplicate_credit_message)
+      expect(transfer_status(runtime)).to eq("credited")
     end
   end
 
@@ -232,49 +270,26 @@ narrative: { text: "Opening" })
   # `CommandRules::References#dereference` resolves it into a plain Hash before evaluation,
   # for a declared reference, a command's reference argument, and the two-hop chain.
   describe "dereferencing a related record's field in given/ensures" do
-    it "reads a stored aggregate-level reference's field, live — not a snapshot taken at dispatch time" do
-      runtime = funded_account(boot_banking)
+    it "reads a stored aggregate-level reference's field, live — not a snapshot taken at dispatch time", :aggregate_failures do
+      expect { credit_account(funded, "before") }.not_to raise_error
 
-      expect do
-        runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" },
-                         amount: { cents: 100, currency: "USD" }, narrative: { text: "before" })
-      end.not_to raise_error
+      suspend_customer(funded)
 
-      runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" },
-                                                         standing:  { value: "chargeback investigation" })
-
-      expect do
-        runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" },
-                         amount: { cents: 100, currency: "USD" }, narrative: { text: "after" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Credit refused — customer is active")
+      expect { credit_account(funded, "after") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Credit refused — customer is active")
     end
 
     it "reads a command-level reference argument's field (one hop)" do
-      runtime = funded_account(boot_banking)
-
-      expect do
-        runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1",
-                         serial: { value: "s1" }, daily_fee: { amount: 100 })
-      end.not_to raise_error
+      expect { issue_card(funded) }.not_to raise_error
     end
 
-    it "chains through a command-level reference into ITS OWN aggregate-level reference (two hops)" do
-      runtime = funded_account(boot_banking)
+    it "chains through a command-level reference into ITS OWN aggregate-level reference (two hops)", :aggregate_failures do
+      expect { authorize_card(funded, "auth1") }.not_to raise_error
 
-      expect do
-        runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth1" }, amount: { cents: 500 },
-                         merchant: { value: "Merchant" })
-      end.not_to raise_error
+      suspend_customer(funded)
 
-      runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" },
-                                                         standing:  { value: "chargeback investigation" })
-
-      expect do
-        runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth2" }, amount: { cents: 500 },
-                         merchant: { value: "Merchant" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — customer is active")
+      expect { authorize_card(funded, "auth2") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — customer is active")
     end
 
     it "leaves a command with no reference-typed attributes at all untouched" do
@@ -285,72 +300,42 @@ narrative: { text: "Opening" })
     # An aliased command-level reference (`reference_to Customer, as: :customer`) hydrates under
     # its raw id argument's name; the dereferenced Hash must win, or `customer.status` digs into
     # the id string and raises TypeError.
-    it "resolves an ALIASED command-level reference over its own raw id argument" do
-      runtime = funded_account(boot_banking)
+    it "resolves an ALIASED command-level reference over its own raw id argument", :aggregate_failures do
+      expect { open_onboarding(funded, "case-1", "a2") }.not_to raise_error
 
-      expect do
-        runtime.dispatch_flat("Banking::OnboardingCase.Open", customer: "c",
-                         reference: { value: "case-1" }, account_number: { value: "a2" })
-      end.not_to raise_error
+      suspend_customer(funded)
 
-      runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" },
-                                                         standing:  { value: "chargeback investigation" })
-
-      expect do
-        runtime.dispatch_flat("Banking::OnboardingCase.Open", customer: "c",
-                         reference: { value: "case-2" }, account_number: { value: "a3" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Open refused — customer is active")
+      expect { open_onboarding(funded, "case-2", "a3") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Open refused — customer is active")
     end
 
     # An id that does not resolve must be a clean refusal (here NotFound from
     # `resolve_references`), never a TypeError from digging into a garbage id string.
     it "refuses a dangling aliased reference by name, not with a TypeError from inside the guard" do
-      runtime = funded_account(boot_banking)
-
-      expect do
-        runtime.dispatch_flat("Banking::OnboardingCase.Open", customer: "no-such-customer",
-                         reference: { value: "case-3" }, account_number: { value: "a4" })
-      end.to raise_error(Hecks::Runtime::NotFound)
+      expect { open_onboarding(funded, "case-3", "a4", customer: "no-such-customer") }
+        .to raise_error(Hecks::Runtime::NotFound)
     end
 
     # An entity command's given/ensures reaching its parent (`parent.status`,
     # `parent.customer.status`); `parent` is structural, so it needs its own hydration path.
-    it "resolves an entity command's parent.customer.status, live" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a1" },
-                       amount: { cents: 100, currency: "USD" }, narrative: { text: "second" })
-      runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a1" },
-                       amount: { cents: 100, currency: "USD" }, narrative: { text: "third" })
+    it "resolves an entity command's parent.customer.status, live", :aggregate_failures do
+      debited_account(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
-                              number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "before" })
-      end.not_to raise_error
+      expect { reverse_entry(funded, 2, "before") }.not_to raise_error
 
-      runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" },
-                                                         standing:  { value: "chargeback investigation" })
+      suspend_customer(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
-                              number: { value: "a1" }, sequence: { value: 3 }, narrative: { text: "after" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — customer is active")
+      expect { reverse_entry(funded, 3, "after") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — customer is active")
     end
 
     # `Withdrawal.Dispute`'s "card is not retired" given must read `parent.status`; a bare `status`
     # is nil on Withdrawal, so `nil != "retired"` is always true and never refuses.
     it "resolves an entity command's parent.status — Withdrawal.Dispute on a card that has since been retired" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1",
-                       serial: { value: "s1" }, daily_fee: { amount: 100 })
-      runtime.dispatch_flat("Banking::ATMCard.Activate", serial: { value: "s1" })
-      runtime.dispatch_flat("Banking::ATMCard.Withdraw", serial: { value: "s1" },
-                       cents: { cents: 2000 }, narrative: { text: "Airport cash" })
-      runtime.dispatch_flat("Banking::ATMCard.Retire", serial: { value: "s1" })
+      retired_card(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::ATMCard.Withdrawal.Dispute",
-                              serial: { value: "s1" }, sequence: { value: 1 }, narrative: { text: "Not mine" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Dispute refused — card is not retired")
+      expect { dispute_withdrawal(funded) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Dispute refused — card is not retired")
     end
   end
 
@@ -358,68 +343,49 @@ narrative: { text: "Opening" })
   # bare account, aliased cross-aggregate reference, and an own-record status/state guard.
   describe "the ported customer/account status guards" do
     it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c" },
-                                                         standing:  { value: "chargeback investigation" })
+      suspend_customer(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1",
-                         serial: { value: "s1" }, daily_fee: { amount: 100 })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Issue refused — customer is active")
+      expect { issue_card(funded) }.to raise_error(Hecks::Runtime::GivenNotMet, "Issue refused — customer is active")
     end
 
     it "refuses on a bare ACCOUNT status guard — CardPayment.Authorize against a frozen account" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "a1" })
+      freeze_account(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth1" }, amount: { cents: 500 },
-                         merchant: { value: "Merchant" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — account is open")
+      expect { authorize_card(funded, "auth1") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — account is open")
     end
 
     it "refuses on an ALIASED cross-aggregate reference's status guard — Transfer.Request from a frozen source" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a2" },
-                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "a1" })
+      open_account(funded, "a2", "c")
+      freeze_account(funded)
 
-      expect do
-        runtime.dispatch_flat("Banking::Transfer.Request", reference: { value: "x1" },
-                         source: "a1", destination: "a2", amount: { cents: 100 },
-                         narrative: { text: "From a frozen source" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Request refused — source account is open")
+      expect { request_transfer(funded, "a1", "a2", "From a frozen source") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Request refused — source account is open")
     end
 
     it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — " \
        "ATMCard.Retire on an already-retired card" do
-      runtime = funded_account(boot_banking)
-      runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1",
-                       serial: { value: "s1" }, daily_fee: { amount: 100 })
-      runtime.dispatch_flat("Banking::ATMCard.Retire", serial: { value: "s1" })
+      issue_card(funded)
+      retire_card(funded)
 
       # ADR 0025: `Retire` guards on `from: ["issued", "active"]`; the refusal is LifecycleRefused.
-      expect do
-        runtime.dispatch_flat("Banking::ATMCard.Retire", serial: { value: "s1" })
-      end.to raise_error(Hecks::Runtime::LifecycleRefused,
-                         'Retire refused — status is "retired", and Retire moves it only from "issued" or "active"')
+      expect { retire_card(funded) }
+        .to raise_error(Hecks::Runtime::LifecycleRefused,
+                        'Retire refused — status is "retired", and Retire moves it only from "issued" or "active"')
     end
   end
 
   describe "the rules have one home" do
-    it "leaves each interpreter with one verb" do
-      surface = lambda do |klass|
-        klass.public_instance_methods(false).sort - [:registry]
-      end
+    def surface(klass) = klass.public_instance_methods(false).sort - [:registry]
 
-      expect(surface[Hecks::Runtime::CommandInterpreter]).to eq([:call])
-      expect(surface[Hecks::Runtime::EntityInterpreter]).to  eq([:call])
+    it "leaves each interpreter with one verb", :aggregate_failures do
+      expect(surface(Hecks::Runtime::CommandInterpreter)).to eq([:call])
+      expect(surface(Hecks::Runtime::EntityInterpreter)).to  eq([:call])
       # `reference_call` is the query oracle's second entry: the interpreter's own evaluation,
       # skipping the adapter's native hook, so the fuzzer can diff the two answers.
-      expect(surface[Hecks::Runtime::QueryInterpreter]).to   eq([:call, :reference_call])
-      expect(surface[Hecks::Runtime::PolicyInterpreter]).to  eq([:react])
-      expect(surface[Hecks::Runtime::SagaInterpreter]).to    eq([:advance])
+      expect(surface(Hecks::Runtime::QueryInterpreter)).to   eq([:call, :reference_call])
+      expect(surface(Hecks::Runtime::PolicyInterpreter)).to  eq([:react])
+      expect(surface(Hecks::Runtime::SagaInterpreter)).to    eq([:advance])
     end
   end
 end

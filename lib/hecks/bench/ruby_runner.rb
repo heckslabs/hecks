@@ -21,13 +21,15 @@ module Hecks
         load_dependencies
         schema = "bench_#{Process.pid}_#{rand(1 << 32).to_s(16)}"
         quietly_for_postgres do
-          boot(workload, adapter, schema) do |runtime|
-            workload.setup.each { |step| dispatch(runtime, step) }
-            measure(runtime, workload, warmup: warmup, iterations: iterations)
-          end
+          boot(workload, adapter, schema) { |runtime| run_workload(runtime, workload, warmup, iterations) }
         end
       ensure
         drop_schema(schema) if schema && POSTGRES_ADAPTERS.include?(adapter)
+      end
+
+      def run_workload(runtime, workload, warmup, iterations)
+        workload.setup.each { |step| dispatch(runtime, step) }
+        measure(runtime, workload, warmup: warmup, iterations: iterations)
       end
 
       def boot(workload, adapter, schema)
@@ -52,10 +54,13 @@ module Hecks
         GC.start
         samples = []
         started = now
-        iterations.times do |n|
-          workload.cycle(warmup + n).each { |step| samples << [step.verb, time { dispatch(runtime, step) }] }
-        end
+        iterations.times { |n| samples.concat(timed_cycle(runtime, workload.cycle(warmup + n))) }
         Run.new(samples: samples, wall_seconds: now - started)
+      end
+
+      # @return [Array<Array(String, Float)>] each step's verb and how long its dispatch took
+      def timed_cycle(runtime, steps)
+        steps.map { |step| [step.verb, time { dispatch(runtime, step) }] }
       end
 
       def dispatch(runtime, step)

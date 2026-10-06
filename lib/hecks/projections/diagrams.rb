@@ -1,4 +1,7 @@
 require_relative "../projector"
+require_relative "diagrams/structure"
+require_relative "diagrams/dispatch"
+require_relative "diagrams/statecharts"
 
 module Hecks
   module Projections
@@ -20,47 +23,11 @@ module Hecks
       # @return [Hash{String => String}] each diagram's filename (such as
       #   `"relationships.mmd"`) mapped to its rendered Mermaid source
       def call(bluebook:, options: {})
-        files = {}
-
-        holders_with_lifecycle(bluebook).each do |holder|
-          files["#{holder.hecks_name}_lifecycle.mmd"] = lifecycle_diagram(bluebook, holder)
-        end
-
-        if (diagram = relationship_diagram(bluebook))
-          files["relationships.mmd"] = diagram
-        end
-
-        if (diagram = dispatch_diagram(bluebook))
-          files["dispatch.mmd"] = diagram
-        end
-
-        if (diagram = roles_diagram(bluebook))
-          files["roles.mmd"] = diagram
-        end
-
-        if (diagram = ports_diagram(bluebook))
-          files["ports.mmd"] = diagram
-        end
-
-        if (diagram = read_model_diagram(bluebook))
-          files["read_models.mmd"] = diagram
-        end
-
-        holders(bluebook).each do |holder|
-          next if holder.commands.empty? && holder.queries.empty?
-
-          files["#{holder.hecks_name}_surface.mmd"] = surface_diagram(bluebook, holder)
-        end
-
-        bluebook.process_managers.each do |saga|
-          files["#{saga.hecks_name}_saga.mmd"] = saga_diagram(bluebook, saga)
-        end
-
-        if (diagram = frameworks_diagram(bluebook, options[:hecksagon]))
-          files["frameworks.mmd"] = diagram
-        end
-
-        files
+        files = lifecycle_files(bluebook)
+        files.merge!(whole_domain_files(bluebook))
+        files.merge!(surface_files(bluebook))
+        files.merge!(saga_files(bluebook))
+        files.merge!({ "frameworks.mmd" => frameworks_diagram(bluebook, options[:hecksagon]) }.compact)
       end
 
       # Every aggregate and entity in this domain, flattened into one list.
@@ -79,226 +46,33 @@ module Hecks
         HEADER
       end
 
-      def lifecycle_diagram(bluebook, holder)
-        lifecycle = holder.lifecycle
-        edges = lifecycle.transitions.flat_map do |command_name, transition|
-          Array(transition.from).map { |from_state| "    #{from_state} --> #{transition.target}: #{command_name}" }
-        end
-
-        subject = "#{holder.hecks_name}'s own declared lifecycle (field: #{lifecycle.field})"
-        <<~MERMAID
-          #{header(bluebook.name, subject)}stateDiagram-v2
-              [*] --> #{lifecycle.default}
-          #{edges.join("\n")}
-        MERMAID
-      end
-
-      # `has_many`/`has_one` read from the owning side; `belongs_to`/`reference_to` read
-      # from the target's side, since a bare reference does not promise uniqueness.
-      def relationship_diagram(bluebook)
-        edges = holders(bluebook).flat_map do |holder|
-          holder.attributes.select(&:reference?).map { |attribute| relationship_edge(holder, attribute) }
-        end
-        return nil if edges.empty?
-
-        subject = "#{bluebook.name}'s own declared reference_to/belongs_to/has_many/has_one attributes"
-        "#{header(bluebook.name, subject)}erDiagram\n#{edges.join("\n")}\n"
-      end
-
-      def relationship_edge(holder, attribute)
-        target = attribute.type.target_name
-        case attribute.relationship
-        when "has_many"
-          %(    #{holder.hecks_name} ||--o{ #{target} : "#{attribute.name}")
-        when "has_one"
-          %(    #{holder.hecks_name} ||--#{attribute.optional? ? "o|" : "||"} #{target} : "#{attribute.name}")
-        when "belongs_to", "reference_to"
-          %(    #{target} #{attribute.optional? ? "|o" : "||"}--o{ #{holder.hecks_name} : "#{attribute.name}")
-        end
-      end
-
-      def dispatch_diagram(bluebook)
-        lines = []
-
-        holders(bluebook).each do |holder|
-          holder.commands.each do |command|
-            command.emits.each { |event| lines << emits_edge(holder, command, event) }
-          end
-        end
-
-        bluebook.policies.each { |policy| lines << trigger_edge(policy) }
-
-        lines.compact!
-        return nil if lines.empty?
-
-        subject = "#{bluebook.name}'s own declared commands' emits and policies' on/trigger"
+      # The header and a left-to-right flowchart of the distinct `lines`.
+      def flowchart(bluebook, subject, lines)
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
-      def emits_edge(holder, command, event)
-        %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|emits| #{event_node(event)})
-      end
-
-      # `on_event` may be aggregate-qualified while `emits` never is, so match on the bare tail.
-      def trigger_edge(policy)
-        bare_event = policy.on_event.to_s.split(".").last
-        aggregate_name, command_name = policy.trigger_command.to_s.split(".", 2)
-        label = policy.target_domain ? "triggers in #{policy.target_domain}" : "triggers"
-        %(    #{event_node(bare_event)} -->|#{label}| #{command_node(aggregate_name, command_name)})
-      end
-
-      # Qualified by aggregate since two aggregates may share a command name.
-      def command_node(aggregate_name, command_name)
-        %(cmd_#{aggregate_name}_#{command_name}(["#{aggregate_name}.#{command_name}"]))
-      end
-
-      def event_node(event_name) = %(evt_#{event_name}{{"#{event_name}"}})
-
-      def roles_diagram(bluebook)
-        lines = holders(bluebook).flat_map do |holder|
-          holder.commands.select(&:role).map { |command| role_edge(holder, command) }
-        end
-        return nil if lines.empty?
-
-        subject = "#{bluebook.name}'s own declared command roles"
-        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
-      end
-
-      def role_edge(holder, command)
-        %(    #{role_node(command.role)} -->|issues| #{command_node(holder.hecks_name, command.hecks_name)})
-      end
-
-      def role_node(role_name) = %(#{role_id(role_name)}((#{role_name})))
-
-      # A role is free text ("Back office"), so only its id is sanitized; the label keeps the text.
-      def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, "_")}"
-
-      # Walks `bluebook.aggregates`, not `holders`: an entity has no `ports` method.
-      def ports_diagram(bluebook)
-        lines = bluebook.aggregates.flat_map do |holder|
-          holder.ports.flat_map { |port| port.operations.map { |operation| port_edges(holder, port, operation) } }
-        end.flatten
-
-        return nil if lines.empty?
-
-        subject = "#{bluebook.name}'s own declared port operations (which aggregate exposes each, its to:, and its emits)"
-        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
-      end
-
-      def port_edges(holder, port, operation)
-        op = port_operation_node(holder.hecks_name, port.name, operation.hecks_name)
-        edges = ["    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|exposes| #{op}"]
-        edges << "    #{op} -->|to: #{operation.to}| #{operation.to}[(#{operation.to})]" if operation.to
-        operation.emits.each { |event| edges << "    #{op} -->|emits| #{event_node(event)}" }
-        edges
-      end
-
-      def port_operation_node(aggregate_name, port_name, operation_name)
-        id = "op_#{aggregate_name}_#{port_name}_#{operation_name}"
-        %(#{id}[/"#{port_name}.#{operation_name}"/])
-      end
-
-      def read_model_diagram(bluebook)
-        lines = bluebook.read_models.flat_map { |read_model| read_model_edges(read_model) }
-        return nil if lines.empty?
-
-        subject = "#{bluebook.name}'s own declared read_models and the aggregates each is assembled from"
-        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
-      end
-
-      def read_model_edges(read_model)
-        shape = read_model.to_h
-        node = %(rm_#{shape[:name]}[["#{read_model_label(shape)}"]])
-        Array(shape[:aggregate_heads]).map do |head|
-          # Quoted because an unquoted `[` in an edge label (`accounts[]`) breaks Mermaid's parser.
-          label = head[:many] ? "#{head[:as]}[]" : head[:as]
-          %(    #{head[:aggregate]}[(#{head[:aggregate]})] -->|"#{label}"| #{node})
+      def lifecycle_files(bluebook)
+        holders_with_lifecycle(bluebook).to_h do |holder|
+          ["#{holder.hecks_name}_lifecycle.mmd", Statecharts.lifecycle_diagram(bluebook, holder)]
         end
       end
 
-      def read_model_label(shape)
-        return "#{shape[:name]} (count)" if shape[:count]
-        return "#{shape[:name]} (median: #{shape[:median_field]})" if shape[:median_field]
-
-        shape[:name]
+      # The diagrams of which there is at most one a domain, left out when it has no data for them.
+      def whole_domain_files(bluebook)
+        { "relationships.mmd" => Structure.relationship_diagram(bluebook),
+          "dispatch.mmd"      => Dispatch.dispatch_diagram(bluebook),
+          "roles.mmd"         => Structure.roles_diagram(bluebook),
+          "ports.mmd"         => Structure.ports_diagram(bluebook),
+          "read_models.mmd"   => Structure.read_model_diagram(bluebook) }.compact
       end
 
-      def surface_diagram(bluebook, holder)
-        lines = holder.commands.map do |command|
-          "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}"
-        end
-        lines += holder.commands.flat_map do |command|
-          command.mutations.map do |mutation|
-            mutation_edge(holder, command, mutation)
-          end
-        end
-        lines += holder.queries.map do |query|
-          "    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|asks| #{query_node(holder.hecks_name, query.hecks_name)}"
-        end
-
-        subject = "#{holder.hecks_name}'s own declared commands (and what each writes) and queries"
-        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      def surface_files(bluebook)
+        surfaced = holders(bluebook).reject { |holder| holder.commands.empty? && holder.queries.empty? }
+        surfaced.to_h { |holder| ["#{holder.hecks_name}_surface.mmd", Dispatch.surface_diagram(bluebook, holder)] }
       end
 
-      def query_node(aggregate_name, query_name)
-        %(qry_#{aggregate_name}_#{query_name}{"#{aggregate_name}.#{query_name}"})
-      end
-
-      def mutation_edge(holder, command, mutation)
-        shape = mutation.to_h
-        label = mutation_label(shape)
-        target = attribute_node(holder.hecks_name, shape[:target])
-        %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|"#{label}"| #{target})
-      end
-
-      def mutation_label(shape)
-        verb = "#{shape[:op]}s"
-        # Keyed on `fields:` being present, not on a list of multi-binding ops.
-        detail = shape[:fields] ? shape[:fields].keys.join(", ") : mutation_source_detail(shape[:source])
-        "#{verb}: #{detail}"
-      end
-
-      # A literal can contain `"`, which breaks the label's `|"..."|` quoting; swap it for `'`.
-      def mutation_source_detail(source)
-        case source[:kind]
-        when "literal"  then "'#{source[:value].to_s.tr('"', "'")}'"
-        when "argument" then source[:name]
-        else
-          source[:kind]
-        end
-      end
-
-      def attribute_node(holder_name, attribute_name)
-        %(attr_#{holder_name}_#{attribute_name}[#{attribute_name}])
-      end
-
-      def saga_diagram(bluebook, saga)
-        edges = saga.handlers.map { |handler| saga_edge(handler, saga) }
-
-        subject = "#{saga.hecks_name}'s own declared states and what each transition dispatches " \
-                  "(starts on #{saga.starts_on}, ends on #{saga.ends_on})"
-        <<~MERMAID
-          #{header(bluebook.name, subject)}stateDiagram-v2
-              [*] --> #{saga.states.first}
-          #{edges.join("\n")}
-        MERMAID
-      end
-
-      # `saga` is needed only for the `REFUSED` edge, whose compensating dispatches are
-      # derived from the forward dispatches' `compensates`, not written on the handler.
-      def saga_edge(handler, saga)
-        label = handler.event_type
-        # Derived compensations first, matching the order `SagaInterpreter#unwind` runs them.
-        dispatched = handler.event_type == Bluebook::ProcessManager::REFUSED ? derived_compensations(saga) : []
-        dispatched += handler.dispatches.map(&:command_name)
-        label += " / dispatches #{dispatched.join(", ")}" unless dispatched.empty?
-
-        "    #{handler.from_state} --> #{handler.to_state}: #{label}"
-      end
-
-      # Listed in declaration order; at refusal the runtime fires them newest first.
-      def derived_compensations(saga)
-        saga.handlers.flat_map { |handler| handler.dispatches.filter_map { |dispatch| dispatch.compensates&.command_name } }
+      def saga_files(bluebook)
+        bluebook.process_managers.to_h { |saga| ["#{saga.hecks_name}_saga.mmd", Statecharts.saga_diagram(bluebook, saga)] }
       end
 
       # `hecksagon` is a separate argument because `bluebook` carries no reference to it;
@@ -306,13 +80,16 @@ module Hecks
       def frameworks_diagram(bluebook, hecksagon)
         return nil unless hecksagon
 
-        lines = hecksagon.member_chapters.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
-        lines += bluebook.policies.filter_map(&:target_domain).uniq
-                         .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
+        lines = framework_edges(bluebook, hecksagon)
         return nil if lines.empty?
 
-        subject = "#{bluebook.name}'s own declared attaches and cross-domain policy targets"
-        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+        flowchart(bluebook, "#{bluebook.name}'s own declared attaches and cross-domain policy targets", lines)
+      end
+
+      def framework_edges(bluebook, hecksagon)
+        attached = hecksagon.member_chapters.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
+        attached + bluebook.policies.filter_map(&:target_domain).uniq
+                           .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
       end
 
       def domain_edge(from, label, to, dotted:)

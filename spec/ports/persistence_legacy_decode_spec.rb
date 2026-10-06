@@ -12,7 +12,10 @@ require_relative "../support/postgres_probe"
 RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   def fixture = PersistenceLegacyFixture
 
-  def account
+  let(:account_ir) { fixture.aggregate("Account") }
+  let(:card_payment_ir) { fixture.aggregate("CardPayment") }
+
+  let(:account) do
     {
       customer:        "CUST-1",
       number:          { value: "ACC-1" },
@@ -34,7 +37,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
 
   # No `account_customer_status` key from any adapter: the projected field was never
   # seeded, and a NULL projected-only column reads back absent.
-  def card_payment
+  let(:card_payment) do
     {
       account:        "ACC-1",
       disputed_by:    nil,
@@ -67,9 +70,6 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  let(:account_ir) { fixture.aggregate("Account") }
-  let(:card_payment_ir) { fixture.aggregate("CardPayment") }
-
   describe "Heki (snapshot + journal)" do
     it "decodes the snapshot DEEP — value-object members and entity-list elements included" do
       adapter = fixture.heki_adapter(account_ir, @dir)
@@ -81,7 +81,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect(decoded_state { adapter.find("AUTH-1") }).to eq(card_payment)
     end
 
-    it "decodes journal entries to the same shape as the snapshot" do
+    it "decodes journal entries to the same shape as the snapshot", :aggregate_failures do
       expect(entry_states(fixture.heki_adapter(account_ir, @dir))).to eq([account])
       expect(entry_states(fixture.heki_adapter(card_payment_ir, @dir))).to eq([card_payment])
     end
@@ -96,19 +96,19 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect(decoded_state { fixture.sqlite_adapter(card_payment_ir, @dir).find("AUTH-1") }).to eq(card_payment)
     end
 
-    it "decodes journal entries to the same shape as its own head" do
+    it "decodes journal entries to the same shape as its own head", :aggregate_failures do
       expect(entry_states(fixture.sqlite_adapter(account_ir, @dir))).to eq([account])
       expect(entry_states(fixture.sqlite_adapter(card_payment_ir, @dir))).to eq([card_payment])
     end
   end
 
   describe "D1 (rows, SQLite behind its HTTP transport)" do
-    it "decodes head columns DEEP (Sqlite::Codec, shared), the projected field absent" do
+    it "decodes head columns DEEP (Sqlite::Codec, shared), the projected field absent", :aggregate_failures do
       expect(decoded_state { fixture.d1_adapter(account_ir).find("ACC-1") }).to eq(account)
       expect(decoded_state { fixture.d1_adapter(card_payment_ir).find("AUTH-1") }).to eq(card_payment)
     end
 
-    it "decodes journal entries to the same shape as its own head" do
+    it "decodes journal entries to the same shape as its own head", :aggregate_failures do
       expect(entry_states(fixture.d1_adapter(account_ir))).to eq([account])
       expect(entry_states(fixture.d1_adapter(card_payment_ir))).to eq([card_payment])
     end
@@ -116,7 +116,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
 
   # The codecs alone, over the exact rows `pg` returned; no connection needed.
   describe "Postgres / PostgresEra codecs (rows as pg returned them)" do
-    it "Postgres decodes head rows DEEP, the projected field's NULL column absent" do
+    it "Postgres decodes head rows DEEP, the projected field's NULL column absent", :aggregate_failures do
       rows = fixture.read_json("postgres/rows.json")
       codec = ->(ir) { fixture.codec(Hecks::Adapters::Postgres, ir) }
 
@@ -124,7 +124,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect(codec.call(card_payment_ir).send(:decode, rows.dig("card_payment", "head", 0))).to eq(card_payment)
     end
 
-    it "PostgresEra decodes head_snapshot state DEEP, the projected field absent" do
+    it "PostgresEra decodes head_snapshot state DEEP, the projected field absent", :aggregate_failures do
       rows = fixture.read_json("postgres_era/rows.json")
       codec = ->(ir) { fixture.codec(Hecks::Adapters::PostgresEra, ir) }
 
@@ -135,10 +135,11 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   end
 
   describe "Memory (copies through the codec)" do
-    it "hands back a DEEP copy in the same canonical shape, sharing no object with what was saved" do
-      adapter = Hecks::Adapters::Memory.new(aggregate: card_payment_ir)
-      saved = fixture.instances.find { |instance| instance.aggregate.name == "CardPayment" }
+    let(:saved) { fixture.instances.find { |instance| instance.aggregate.name == "CardPayment" } }
 
+    it "hands back a DEEP copy in the same canonical shape, sharing no object with what was saved",
+       :aggregate_failures do
+      adapter = Hecks::Adapters::Memory.new(aggregate: card_payment_ir)
       state = decoded_state { adapter.save(saved) }
       expect(state).to eq(card_payment)
       expect(state[:amount]).not_to equal(saved.state[:amount])
@@ -182,26 +183,20 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       end
     end
 
+    def expect_find_and_entries(adapter, id, expected)
+      expect(decoded_state { adapter.find(id) }).to eq(expected)
+      expect(entry_states(adapter)).to eq([expected])
+    end
+
     it "Postgres: restored rows decode deep on find AND on entries" do
-      adapter = fixture.postgres_adapter(account_ir, databases[:postgres])
-
-      expect(decoded_state { adapter.find("ACC-1") }).to eq(account)
-      expect(entry_states(adapter)).to eq([account])
-
-      payments = fixture.postgres_adapter(card_payment_ir, databases[:postgres])
-      expect(decoded_state { payments.find("AUTH-1") }).to eq(card_payment)
-      expect(entry_states(payments)).to eq([card_payment])
+      expect_find_and_entries(fixture.postgres_adapter(account_ir, databases[:postgres]), "ACC-1", account)
+      expect_find_and_entries(fixture.postgres_adapter(card_payment_ir, databases[:postgres]), "AUTH-1", card_payment)
     end
 
     it "PostgresEra: restored journal + head_snapshot decode deep on find AND on entries" do
-      adapter = fixture.postgres_era_adapter(account_ir, databases[:postgres_era])
-
-      expect(decoded_state { adapter.find("ACC-1") }).to eq(account)
-      expect(entry_states(adapter)).to eq([account])
-
-      payments = fixture.postgres_era_adapter(card_payment_ir, databases[:postgres_era])
-      expect(decoded_state { payments.find("AUTH-1") }).to eq(card_payment)
-      expect(entry_states(payments)).to eq([card_payment])
+      expect_find_and_entries(fixture.postgres_era_adapter(account_ir, databases[:postgres_era]), "ACC-1", account)
+      expect_find_and_entries(fixture.postgres_era_adapter(card_payment_ir, databases[:postgres_era]), "AUTH-1",
+                              card_payment)
     end
   end
 end

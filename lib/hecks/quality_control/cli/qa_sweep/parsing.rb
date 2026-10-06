@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "parsing/validation"
+
 module Hecks
   module QualityControlCli
     class QaSweep
@@ -10,6 +12,8 @@ module Hecks
       # ledger boots, so `adversarial`, `self_consistency`, `role_draw` and `dry_run` stay nil
       # until then.
       module Parsing
+        include Validation
+
         # Each flag that reads a value, and the setting it fills.
         VALUE_SETTINGS = { "--role-draw" => :role_draw, "--dry-run" => :dry_run, "--adversarial" => :adversarial,
                            "--seeds" => :seeds_override, "--steps" => :steps_override }.freeze
@@ -26,22 +30,29 @@ module Hecks
         # @return [Symbol, nil] `:help` once the usage is printed, else nil
         # @raise [SystemExit] with the usage when a flag or combination is refused
         def parse_arguments(argv)
+          reset_settings
+          until argv.empty?
+            arg = argv.shift
+            return show_usage if %w[-h --help].include?(arg)
+
+            parse_flag(arg, argv)
+          end
+          validate_arguments
+          nil
+        end
+
+        def reset_settings
           @target_ref = @seeds_override = @steps_override = nil
           @all_mode = @persistence_parity_mode = @skip_parity_wave = @release_mode = false
           @adversarial = @self_consistency = @role_draw = @dry_run = nil
           # `--modes` (or its alias `--persistence-parity`); nil means the dial decides.
           @explicit_modes = nil
           @release_notes = nil
-          until argv.empty?
-            arg = argv.shift
-            if %w[-h --help].include?(arg)
-              puts USAGE
-              return :help
-            end
-            parse_flag(arg, argv)
-          end
-          validate_arguments
-          nil
+        end
+
+        def show_usage
+          puts USAGE
+          :help
         end
 
         def parse_flag(arg, argv)
@@ -62,18 +73,22 @@ module Hecks
 
         def parse_other_flag(arg, argv)
           case arg
-          when "--persistence-parity"
-            @persistence_parity_mode = true
-            @explicit_modes = %i[persistence_parity]
-          when "--modes"
-            @explicit_modes = parse_modes(argv.shift)
-            @persistence_parity_mode = @explicit_modes == %i[persistence_parity]
-          when "--notes"
-            @release_notes = argv.shift
-            abort "#{USAGE}\n--notes needs the text a person concluded" unless @release_notes
+          when "--persistence-parity" then use_modes(%i[persistence_parity])
+          when "--modes" then use_modes(parse_modes(argv.shift))
+          when "--notes" then read_notes(argv.shift)
           when "--self-consistency" then @self_consistency = parse_boolean(arg, argv.shift)
           else record_target(arg)
           end
+        end
+
+        def use_modes(modes)
+          @explicit_modes = modes
+          @persistence_parity_mode = modes == %i[persistence_parity]
+        end
+
+        def read_notes(value)
+          @release_notes = value
+          abort "#{USAGE}\n--notes needs the text a person concluded" unless @release_notes
         end
 
         def record_target(arg)
@@ -123,51 +138,6 @@ module Hecks
           when "false" then false
           else abort "#{USAGE}\n#{flag} must be true or false, got #{value.inspect}"
           end
-        end
-
-        def validate_arguments
-          if @seeds_override && @seeds_override < 1
-            abort "#{USAGE}\n--seeds must be at least 1 — Sweep.Conclude refuses a sweep that checked nothing"
-          end
-          abort "#{USAGE}\n--steps must be at least 1" if @steps_override && @steps_override < 1
-          if @all_mode && @target_ref
-            abort "#{USAGE}\n--all sweeps every waiting target itself — it does not take a target-reference " \
-                  "(got #{@target_ref.inspect})"
-          end
-
-          # `--all --persistence-parity` forces the parity wave on; narrowing every child to that
-          # one mode would abort each ineligible target. A single named target still narrows to that
-          # mode.
-          @force_parity_wave = @all_mode && @persistence_parity_mode
-          if @force_parity_wave
-            @persistence_parity_mode = false
-            @explicit_modes = nil
-          end
-          validate_parity_and_release
-        end
-
-        def validate_parity_and_release
-          if @persistence_parity_mode && !@target_ref
-            abort "#{USAGE}\n--persistence-parity needs an explicit target-reference — it never auto-picks " \
-                  "from the rotation, since only a PostgresEra-bound domain gains anything from this " \
-                  "comparison at all (`resolved modes:` on any single-target run says whether a target qualifies)"
-          end
-          validate_release if @release_mode
-          abort "#{USAGE}\n--notes only means something with --release" if @release_notes && !@release_mode
-        end
-
-        def validate_release
-          unless @target_ref
-            abort "#{USAGE}\n--release needs an explicit target-reference — the suspended target a person is " \
-                  "putting back"
-          end
-          unless @release_notes
-            abort "#{USAGE}\n--release needs --notes — what a person concluded is the one thing this script " \
-                  "cannot supply"
-          end
-          return unless @all_mode || @persistence_parity_mode
-
-          abort "#{USAGE}\n--release is its own mode — it does not combine with --all or --persistence-parity"
         end
       end
     end

@@ -1,4 +1,5 @@
 require "digest"
+require_relative "ddl"
 
 module Hecks
   module Adapters
@@ -16,38 +17,25 @@ module Hecks
           # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so
           # the bookkeeping column is healed on every boot.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
-          # Same healing for declared attributes: existing rows get NULL, as an unset
-          # optional attribute would.
+          add_missing_columns!
+          ensure_indexes!
+        end
+
+        # Same healing for declared attributes: existing rows get NULL, as an unset
+        # optional attribute would.
+        def add_missing_columns!
           persisted_fields.each do |field|
             @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS " \
                      "#{quote_ident(field[:name])} #{field[:sql_type]}")
           end
-          ensure_indexes!
         end
 
         def create_entry_table!
-          @db.exec(<<~SQL)
-            CREATE TABLE IF NOT EXISTS #{quoted_entry_table} (
-              sequence     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-              aggregate_id text NOT NULL,
-              operation    text NOT NULL DEFAULT 'save',
-              state        jsonb NOT NULL,
-              mirrors      jsonb
-            )
-          SQL
+          @db.exec(format(Ddl::ENTRY_TABLE, table: quoted_entry_table))
         end
 
         def create_event_table!
-          @db.exec(<<~SQL)
-            CREATE TABLE IF NOT EXISTS events (
-              id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-              name         text NOT NULL,
-              aggregate    text NOT NULL,
-              aggregate_id text NOT NULL,
-              payload      jsonb,
-              occurred_at  text
-            )
-          SQL
+          @db.exec(Ddl::EVENTS)
           # Backs #events_for's per-record lookup (a `corrects` command's history read).
           @db.exec(
             "CREATE INDEX IF NOT EXISTS hecks_events_aggregate_id_idx ON events (aggregate, aggregate_id)"
@@ -58,30 +46,14 @@ module Hecks
         # already had projected into it — shared across every aggregate, since it is keyed
         # by table name rather than declared per aggregate.
         def create_checkpoint_table!
-          @db.exec(<<~SQL)
-            CREATE TABLE IF NOT EXISTS hecks_checkpoints (
-              aggregate_table text PRIMARY KEY,
-              last_sequence   bigint NOT NULL DEFAULT 0
-            )
-          SQL
+          @db.exec(Ddl::CHECKPOINTS)
           # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so
           # the bookkeeping column is healed on every boot, same as create_aggregate_table!.
           @db.exec("ALTER TABLE hecks_checkpoints ADD COLUMN IF NOT EXISTS compacted_through bigint NOT NULL DEFAULT 0")
         end
 
         def create_saga_table!
-          @db.exec(<<~SQL)
-            CREATE TABLE IF NOT EXISTS hecks_saga_instances (
-              domain               text NOT NULL,
-              process_manager      text NOT NULL,
-              correlation          text NOT NULL,
-              state                text NOT NULL,
-              memory               jsonb NOT NULL,
-              completed_compensations  jsonb NOT NULL DEFAULT '[]'::jsonb,
-              updated_at           timestamptz NOT NULL DEFAULT now(),
-              PRIMARY KEY (domain, process_manager, correlation)
-            )
-          SQL
+          @db.exec(Ddl::SAGA_INSTANCES)
           # Heals a table created before this column existed.
           @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb " \
                    "NOT NULL DEFAULT '[]'::jsonb")

@@ -30,18 +30,22 @@ RSpec.describe "exe/hecks" do
     expect(legacy).to eq(Hecks::CLI::COMMANDS.keys)
   end
 
-  it "answers --help for every command and question of the command table" do
-    names  = @cli[:names][:command].keys + @cli[:names][:question].keys
-    failed = (names - Hecks::CLI::COMMANDS.keys).reject do |name|
+  # The names, outside the shipped ones, whose `--help` the launcher does not answer.
+  def unanswered(names)
+    (names - Hecks::CLI::COMMANDS.keys).reject do |name|
       _out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [name, "--help"], program: "hecks")
       status.zero?
     end
-
-    expect(names).not_to be_empty
-    expect(failed).to eq([])
   end
 
-  it "answers --help for the shipped names through Hecks::CLI" do
+  it "answers --help for every command and question of the command table", :aggregate_failures do
+    names = @cli[:names][:command].keys + @cli[:names][:question].keys
+
+    expect(names).not_to be_empty
+    expect(unanswered(names)).to eq([])
+  end
+
+  it "answers --help for the shipped names through Hecks::CLI", :aggregate_failures do
     Hecks::CLI::COMMANDS.each_key do |name|
       out = StringIO.new
       expect(Hecks::CLI.start([name, "--help"], out: out)).to eq(0)

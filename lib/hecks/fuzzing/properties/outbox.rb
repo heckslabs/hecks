@@ -28,18 +28,22 @@ module Hecks
           on = row.dig(:event, :name)
 
           case row[:status]
-          when "pending", "claimed"
-            ["outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) never drained inline — status stayed " \
-             "#{row[:status].inspect} though delivery is inline by contract (Runtime::Outbox's own header)"]
-          when "failed"
-            ["outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) failed to deliver: #{row[:error]} — " \
-             "a domain refusal never reaches this far; a failed row names a defect in the relay's own consumer " \
-             "resolution"]
-          when "delivered"
-            outbox_delivered_policy_offenders(row, on, trace, bluebooks)
-          else
-            []
+          when "pending", "claimed" then [undrained_message(row, on)]
+          when "failed"             then [failed_message(row, on)]
+          when "delivered"          then outbox_delivered_policy_offenders(row, on, trace, bluebooks)
+          else []
           end
+        end
+
+        def undrained_message(row, on)
+          "outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) never drained inline — status stayed " \
+            "#{row[:status].inspect} though delivery is inline by contract (Runtime::Outbox's own header)"
+        end
+
+        def failed_message(row, on)
+          "outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) failed to deliver: #{row[:error]} — " \
+            "a domain refusal never reaches this far; a failed row names a defect in the relay's own consumer " \
+            "resolution"
         end
 
         # Offending messages for a delivered `policy:` row that has no `reaction_log` entry.
@@ -50,21 +54,34 @@ module Hecks
           return [] unless kind == "policy"
 
           home, name = fqn.to_s.split("::", 2)
-          return [] if trace[:reactions].any? { |entry| entry[:policy] == name && entry[:on] == on }
+          return [] if reacted?(trace, name, on)
 
           policy = bluebooks[home]&.policies&.find { |candidate| candidate.name == name }
-          # Undeclared policy: inconclusive, not a mismatch.
-          return [] unless policy
-          # Fan-out counts belong to fanout_dispatches_once_per_matching_row.
-          return [] if policy.fans_out?
+          return [] unless dropped_reaction_suspected?(policy, row[:event])
 
-          held = independently_re_evaluate_policy_where(policy, row[:event])
-          # False or inconclusive (the where raised): never a mismatch.
-          return [] if held != true
+          [dropped_reaction_message(row, on)]
+        end
 
-          ["outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) drained as delivered, but no matching " \
-           "reaction_log entry exists and the policy's own where clause independently re-evaluates true — " \
-           "PolicyInterpreter#deliver only ever returns nil (no reaction_log entry) when where does not hold"]
+        def reacted?(trace, policy_name, on)
+          trace[:reactions].any? { |entry| entry[:policy] == policy_name && entry[:on] == on }
+        end
+
+        def dropped_reaction_message(row, on)
+          "outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) drained as delivered, but no matching " \
+            "reaction_log entry exists and the policy's own where clause independently re-evaluates true — " \
+            "PolicyInterpreter#deliver only ever returns nil (no reaction_log entry) when where does not hold"
+        end
+
+        # Whether a delivered policy row with no reaction should have produced one.
+        #
+        # An undeclared policy is inconclusive, not a mismatch; fan-out counts belong to
+        # fanout_dispatches_once_per_matching_row; a `where` that is false, or raised, is never a
+        # mismatch.
+        def dropped_reaction_suspected?(policy, event)
+          return false unless policy
+          return false if policy.fans_out?
+
+          independently_re_evaluate_policy_where(policy, event) == true
         end
 
         # Re-evaluates the policy's `where` against the row's recorded payload.

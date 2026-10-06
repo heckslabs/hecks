@@ -31,13 +31,27 @@ RSpec.describe Hecks::Release::Runner::CleanTree do
   end
 
   describe "the gem step" do
-    it "refuses to push a gem from a tree with a stray file, before building anything" do
-      commands.answer(*ignored, stdout: "!! lib/leftover.rb\n")
+    let(:publisher) do
       console = Hecks::Release::Runner::Console.new(input: StringIO.new, out: StringIO.new, err: StringIO.new)
-      publisher = Hecks::Release::Runner::GemPublisher.new(root: Dir.pwd, commands: commands, console: console)
+      Hecks::Release::Runner::GemPublisher.new(root: Dir.pwd, commands: commands, console: console)
+    end
 
+    before { commands.answer(*ignored, stdout: "!! lib/leftover.rb\n") }
+
+    it "refuses to push a gem from a tree with a stray file" do
       expect { publisher.publish!("9.9.9", dry_run: false) }
         .to raise_error(Hecks::Release::Runner::Refusal, %r{lib/leftover\.rb})
+    end
+
+    def attempt_publish
+      publisher.publish!("9.9.9", dry_run: false)
+    rescue Hecks::Release::Runner::Refusal
+      nil
+    end
+
+    it "builds nothing before refusing a stray file" do
+      attempt_publish
+
       expect(commands.runs).to be_empty
     end
   end

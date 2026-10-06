@@ -34,7 +34,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Registry, :io do
       expect(registry.check.to_s).to eq("note widgets: no release tag yet (1.0.0 unreleased)\nversions ok")
     end
 
-    it "passes a package whose files are those of its latest release" do
+    it "passes a package whose files are those of its latest release", :aggregate_failures do
       released("1.0.0")
 
       expect(registry.check).to be_ok
@@ -112,20 +112,24 @@ RSpec.describe Hecks::EmbryonautBluebook::Registry, :io do
   end
 
   describe "#release" do
-    it "tags the version, with the changelog section as the tag message, and reports the push command" do
+    def push_report
+      head = repo.git("rev-parse", "--short", "HEAD").strip
+      "Tagged widgets-v1.0.0 at #{head}. Publish it with:\n  git push origin widgets-v1.0.0"
+    end
+
+    def tag_message = repo.git("tag", "-l", "--format=%(contents)", "widgets-v1.0.0").strip
+
+    it "tags the version, with the changelog section as the tag message, and reports the push command", :aggregate_failures do
       publish("1.0.0", changelog: "## 1.0.0\n\nFirst line.\n\nSecond line.\n\n## 0.9.0\n\nOlder.\n")
 
       tagged = registry.release("widgets")
 
-      expect(tagged.tag).to eq("widgets-v1.0.0")
-      expect(tagged.to_s).to eq("Tagged widgets-v1.0.0 at #{repo.git("rev-parse", "--short", "HEAD").strip}. " \
-                                "Publish it with:\n  git push origin widgets-v1.0.0")
-      expect(repo.git("cat-file", "-t", "widgets-v1.0.0").strip).to eq("tag")
-      expect(repo.git("tag", "-l", "--format=%(contents)", "widgets-v1.0.0").strip)
-        .to eq("widgets 1.0.0\n\nFirst line.\n\nSecond line.")
+      expect([tagged.tag, repo.git("cat-file", "-t", "widgets-v1.0.0").strip]).to eq(%w[widgets-v1.0.0 tag])
+      expect(tagged.to_s).to eq(push_report)
+      expect(tag_message).to eq("widgets 1.0.0\n\nFirst line.\n\nSecond line.")
     end
 
-    it "never pushes: a repository with no remote tags without complaint" do
+    it "never pushes: a repository with no remote tags without complaint", :aggregate_failures do
       publish("1.0.0")
 
       expect(registry.release("widgets").tag).to eq("widgets-v1.0.0")
@@ -169,7 +173,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Registry, :io do
         .to raise_error(Hecks::Vendoring::Error, "the bluebook files are identical to widgets-v1.0.0; nothing to release")
     end
 
-    it "refuses a package the registry does not have, a bad version and a bad name" do
+    it "refuses a package the registry does not have, a bad version and a bad name", :aggregate_failures do
       publish("1.0")
 
       expect { registry.release("gadgets") }.to raise_error(Hecks::Vendoring::Error, "no gadgets/bluebook.yml")

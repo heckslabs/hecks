@@ -31,6 +31,9 @@ module Hecks
 
       SANDBOX = "/usr/bin/sandbox-exec"
 
+      # The keywords `new` takes besides the four lists, with what each defaults to.
+      LIMIT_DEFAULTS = { timeout: nil, budget: nil, confinement: :sandbox }.freeze
+
       # @return [Array<String>] the tools the agent is given
       attr_reader :tools
       # @return [Array<String>] the directories the agent may write, besides the temp directory
@@ -50,26 +53,19 @@ module Hecks
       # @param writable [Array<String>] directories the agent may write
       # @param network [Symbol] one of `NETWORKS`
       # @param env [Array<String>] environment variable names to pass through
-      # @param timeout [Integer, nil] seconds the run may take
-      # @param budget [Float, nil] dollars the run may spend
-      # @param confinement [Symbol] one of `CONFINEMENTS`; `network` applies to the sandbox only
+      # @param limits [Hash] `timeout:` (Integer, nil) seconds the run may take, `budget:`
+      #   (Float, nil) dollars it may spend, `confinement:` one of `CONFINEMENTS` (`network`
+      #   applies to the sandbox only)
       # @raise [ArgumentError] when `network` or `confinement` is not one it knows
-      def initialize(tools: [], writable: [], network: :none, env: [], timeout: nil, budget: nil,
-                     confinement: :sandbox)
-        unless NETWORKS.include?(network)
-          raise ArgumentError, "network must be one of #{NETWORKS.inspect}, not #{network.inspect}"
-        end
-        unless CONFINEMENTS.include?(confinement)
-          raise ArgumentError, "confinement must be one of #{CONFINEMENTS.inspect}, not #{confinement.inspect}"
-        end
-
+      def initialize(tools: [], writable: [], network: :none, env: [], **limits)
+        limits = LIMIT_DEFAULTS.merge(reject_unknown(limits))
+        ensure_known(:network, NETWORKS, network)
+        ensure_known(:confinement, CONFINEMENTS, limits[:confinement])
         @tools = tools.dup.freeze
         @writable = writable.dup.freeze
         @network = network
         @env = env.dup.freeze
-        @timeout = timeout
-        @budget = budget
-        @confinement = confinement
+        @timeout, @budget, @confinement = limits.values_at(:timeout, :budget, :confinement)
       end
 
       # @return [Boolean] whether this profile is enforced by the operating system's sandbox
@@ -149,6 +145,19 @@ module Hecks
                           '(allow network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))']
         else ["(deny network*)"]
         end
+      end
+
+      def reject_unknown(limits)
+        unknown = limits.keys - LIMIT_DEFAULTS.keys
+        return limits if unknown.empty?
+
+        raise ArgumentError, "unknown keyword#{"s" if unknown.size > 1}: #{unknown.map(&:inspect).join(", ")}"
+      end
+
+      def ensure_known(name, allowed, value)
+        return if allowed.include?(value)
+
+        raise ArgumentError, "#{name} must be one of #{allowed.inspect}, not #{value.inspect}"
       end
 
       def real(path)

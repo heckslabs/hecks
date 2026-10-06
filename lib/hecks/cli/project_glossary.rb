@@ -23,21 +23,31 @@ module Hecks
         domain_path  = argv[0] or abort usage
         chapter_name = argv[1] or abort usage
 
-        domain  = File.expand_path(domain_path, Dir.pwd)
-        runtime = Hecks.boot(domain)
-        chapter = runtime.registry.bluebook(chapter_name)
-
-        markings = runtime.registry.pending_privacy_markings.select do |marking|
-          marking[:domain].to_s.start_with?("#{chapter_name}::")
-        end
-
-        written = Projector.write(
-          Projector.call(:glossary, bluebook: chapter, options: { markings: markings }),
-          File.join(domain, "glossary"), as: :files
-        )
+        written = write_glossary(File.expand_path(domain_path, Dir.pwd), chapter_name)
 
         puts "wrote #{written.size} file(s):"
         written.each { |path| puts "  #{path}" }
+      end
+
+      # @api private
+      # @return [Array<String>] the files written under the domain's `glossary/` folder
+      def write_glossary(domain, chapter_name)
+        runtime = Hecks.boot(domain)
+        chapter = runtime.registry.bluebook(chapter_name)
+
+        Projector.write(
+          Projector.call(:glossary, bluebook: chapter, options: { markings: markings_for(runtime, chapter_name) }),
+          File.join(domain, "glossary"), as: :files
+        )
+      end
+
+      # The privacy markings the deployment declared for fields of one chapter.
+      #
+      # @api private
+      def markings_for(runtime, chapter_name)
+        runtime.registry.pending_privacy_markings.select do |marking|
+          marking[:domain].to_s.start_with?("#{chapter_name}::")
+        end
       end
     end
   end

@@ -15,16 +15,9 @@ module Hecks
         def initialize(name, was: nil)
           raise Malformed, "an aggregate translation needs a name" if name.to_s.empty?
 
-          @name      = name
-          @was       = was
-          @renames   = {}
-          @moves     = []
-          @converts  = []
-          @drops     = []
-          @retypes   = []
-          @computes  = []
-          @rekeys    = []
-          @backfills = []
+          @name = name
+          @was  = was
+          start_rule_lists
         end
 
         # Declares a field rename with no other change: same path, new name.
@@ -172,6 +165,17 @@ module Hecks
 
         private
 
+        def start_rule_lists
+          @renames   = {}
+          @moves     = []
+          @converts  = []
+          @drops     = []
+          @retypes   = []
+          @computes  = []
+          @rekeys    = []
+          @backfills = []
+        end
+
         def unresolved_message(name, candidates)
           return identity_unresolved_message if name.to_sym == :identity
 
@@ -212,9 +216,7 @@ module Hecks
         # @param to [String, Symbol] the destination era
         # @raise [Bluebook::DSL::Malformed] if `domain`, `from`, or `to` is empty
         def initialize(domain, from:, to:)
-          raise Malformed, "a translation names no domain" if domain.to_s.empty?
-          raise Malformed, "#{domain}'s translation says nothing about its origin era (from:)" if from.to_s.empty?
-          raise Malformed, "#{domain}'s translation says nothing about its destination era (to:)" if to.to_s.empty?
+          refuse_blank_era_pair!(domain, from, to)
 
           @domain     = domain
           @from       = from
@@ -267,6 +269,14 @@ module Hecks
           builder = new(domain, from: from, to: to)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        def refuse_blank_era_pair!(domain, from, to)
+          raise Malformed, "a translation names no domain" if domain.to_s.empty?
+          raise Malformed, "#{domain}'s translation says nothing about its origin era (from:)" if from.to_s.empty?
+          raise Malformed, "#{domain}'s translation says nothing about its destination era (to:)" if to.to_s.empty?
         end
       end
     end

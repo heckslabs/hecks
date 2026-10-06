@@ -98,21 +98,41 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
   end
 
-  def with_scratch(&)
-    Dir.mktmpdir { |dir| yield Scratch.new(dir, golden) }
+  # A scratch directory with the stand-in programs for each example, named by `scratch`.
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @scratch = Scratch.new(dir, golden)
+      example.run
+    end
   end
 
-  # Runs the verb with the stand-in programs first on PATH, as the generated scripts find them.
-  def command(scratch, verb, *argv, env: {})
-    settings = { "PATH" => "#{File.join(scratch.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => scratch.dir }
-    saved = ENV.to_h.slice(*settings.merge(env).keys)
-    ENV.update(settings.merge(env))
-    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", verb, scratch.project, *argv, "--wait"])
-    [JSON.parse(out), status]
-  ensure
-    settings.merge(env).each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
+  attr_reader :scratch
+
+  # Runs the block with the stand-in programs first on PATH, as the generated scripts find them.
+  def stub_settings(env)
+    { "PATH" => "#{File.join(scratch.dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => scratch.dir }.merge(env)
   end
+
+  def with_stub_environment(env)
+    settings = stub_settings(env)
+    saved = ENV.to_h.slice(*settings.keys)
+    ENV.update(settings)
+    yield
+  ensure
+    settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
+  end
+
+  def command(verb, *argv, env: {})
+    with_stub_environment(env) do
+      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                 argv: ["deploy", verb, scratch.project, *argv, "--wait"])
+      [JSON.parse(out), status]
+    end
+  end
+
+  def restore(*flags, **options) = command("data_copy.restore", *COPY_ARGS, *flags, **options)
+
+  def verify(**options) = command("data_copy.verify", *COPY_ARGS, **options)
 
   def verification_status(json)
     out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
@@ -120,9 +140,13 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
     JSON.parse(out).first&.fetch("status")
   end
 
-  def tunnels(scratch) = scratch.calls.grep(/\Aaws ssm start-session/).size
+  def tunnels = scratch.calls.grep(/\Aaws ssm start-session/).size
 
-  it "declares both aggregates in the Deploy chapter, joined by policies" do
+  def pg_dumps = scratch.calls.grep(/\Apg_dump/)
+
+  def refusal_of(json) = json.dig("state", "refusal", "value")
+
+  it "declares both aggregates in the Deploy chapter, joined by policies", :aggregate_failures do
     chapter = @hecks.registry.bluebook("Deploy")
 
     expect(chapter.aggregate("DataCopy").commands.map(&:hecks_name))
@@ -131,165 +155,187 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
   end
 
   describe "data_copy.restore" do
-    it "refuses without confirm=true, names what it would overwrite, and touches nothing" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS)
+    it "refuses without confirm=true and exits 1", :aggregate_failures do
+      json, status = restore
 
-        expect(status).to eq(1)
-        expect(json.dig("state", "status")).to eq("flagged")
-        expect(json.dig("state", "refusal", "value")).to include(
-          "refusing to restore", "schemas widgets, widgets_cms", "database widgetdb on new.db.example",
-          "OVERWRITING", "confirm=true"
-        )
-        expect(scratch.calls).to be_empty
-        expect(verification_status(json)).to be_nil
-      end
+      expect(status).to eq(1)
+      expect(json.dig("state", "status")).to eq("flagged")
     end
 
-    it "prints the plan for dry_run=true, runs nothing and requests no verification" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "dry_run=true", "force=true")
+    it "names what it would overwrite when it refuses without confirm=true" do
+      json, = restore
 
-        expect(status).to eq(0)
-        expect(json.dig("state", "status")).to eq("planned")
-        expect(json.dig("state", "report", "value")).to include("schemas widgets, widgets_cms", "force=true drops",
-                                                                "dry run: nothing was run")
-        expect(scratch.calls).to be_empty
-        expect(verification_status(json)).to be_nil
-      end
+      expect(refusal_of(json)).to include("refusing to restore", "schemas widgets, widgets_cms",
+                                          "database widgetdb on new.db.example", "OVERWRITING", "confirm=true")
     end
 
-    it "copies each schema, then the policy verifies, and one run key covers both" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true")
+    it "touches nothing when it refuses without confirm=true", :aggregate_failures do
+      json, = restore
 
-        expect(status).to eq(0), json.to_json
-        expect(json.dig("state", "status")).to eq("verified")
-        expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
-        expect(scratch.calls.grep(/\Apg_dump/).map { |c| c[/--schema=(\S+)/, 1] }).to eq(%w[widgets widgets_cms])
-        expect(verification_status(json)).to eq("verified")
-        expect(tunnels(scratch)).to eq(4), "the script verified a second time"
-      end
+      expect(scratch.calls).to be_empty
+      expect(verification_status(json)).to be_nil
     end
 
-    it "marks the copy drifted, and exits 1, when the databases differ afterwards" do
-      with_scratch do |scratch|
+    it "prints the plan for dry_run=true", :aggregate_failures do
+      json, status = restore("dry_run=true", "force=true")
+
+      expect(status).to eq(0)
+      expect(json.dig("state", "status")).to eq("planned")
+      expect(json.dig("state", "report", "value")).to include("schemas widgets, widgets_cms", "force=true drops",
+                                                              "dry run: nothing was run")
+    end
+
+    it "runs nothing and requests no verification for dry_run=true", :aggregate_failures do
+      json, = restore("dry_run=true", "force=true")
+
+      expect(scratch.calls).to be_empty
+      expect(verification_status(json)).to be_nil
+    end
+
+    it "copies each schema" do
+      restore("confirm=true")
+
+      expect(pg_dumps.map { |c| c[/--schema=(\S+)/, 1] }).to eq(%w[widgets widgets_cms])
+    end
+
+    it "verifies by policy once copied", :aggregate_failures do
+      json, status = restore("confirm=true")
+
+      expect(status).to eq(0), json.to_json
+      expect(json.dig("state", "status")).to eq("verified")
+      expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
+      expect(verification_status(json)).to eq("verified")
+    end
+
+    it "covers the copy and the verification with one run key" do
+      restore("confirm=true")
+
+      expect(tunnels).to eq(4), "the script verified a second time"
+    end
+
+    context "when the databases differ afterwards" do
+      before do
         scratch.databases(counts: "widgets.orders|5\n", target_counts: "widgets.orders|4\n", shape: "widgets r|3\n")
+      end
 
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true")
+      it "marks the copy drifted and exits 1", :aggregate_failures do
+        json, status = restore("confirm=true")
 
         expect(status).to eq(1)
         expect(json.dig("state", "status")).to eq("drifted")
-        expect(json.dig("state", "refusal", "value")).to include("row counts differ")
+        expect(refusal_of(json)).to include("row counts differ")
+      end
+
+      it "records the drift as the verification's verdict" do
+        json, = restore("confirm=true")
+
         expect(verification_status(json)).to eq("drifted")
       end
     end
 
-    it "leaves the verification out for skip_verify=true" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true", "skip_verify=true")
+    it "leaves the verification out for skip_verify=true", :aggregate_failures do
+      json, status = restore("confirm=true", "skip_verify=true")
 
-        expect(status).to eq(0)
-        expect(json.dig("state", "status")).to eq("restored")
-        expect(tunnels(scratch)).to eq(2)
-        expect(verification_status(json)).to be_nil
-      end
+      expect(status).to eq(0)
+      expect(json.dig("state", "status")).to eq("restored")
+      expect(tunnels).to eq(2)
+      expect(verification_status(json)).to be_nil
     end
 
-    it "flags a target that already has the schemas as exit 61, copying nothing" do
-      with_scratch do |scratch|
-        scratch.target_has_schema(1)
+    context "when the target already has the schemas" do
+      before { scratch.target_has_schema(1) }
 
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true")
+      it "flags it as exit 61", :aggregate_failures do
+        json, status = restore("confirm=true")
 
         expect(status).to eq(1)
         expect(json.dig("state", "status")).to eq("flagged")
-        expect(json.dig("state", "refusal", "value")).to include("restore ended 61", "re-run with FORCE=1")
-        expect(scratch.calls.grep(/\Apg_dump/)).to be_empty
+        expect(refusal_of(json)).to include("restore ended 61", "re-run with FORCE=1")
       end
-    end
 
-    it "drops the target schemas first for force=true" do
-      with_scratch do |scratch|
-        scratch.target_has_schema(1)
+      it "copies nothing" do
+        restore("confirm=true")
 
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true", "force=true")
+        expect(pg_dumps).to be_empty
+      end
+
+      it "drops the target schemas first for force=true", :aggregate_failures do
+        json, status = restore("confirm=true", "force=true")
 
         expect(status).to eq(0), json.to_json
         expect(scratch.calls.grep(/psql target drop schema "widgets"/)).not_to be_empty
-        expect(scratch.calls.grep(/\Apg_dump/).size).to eq(2)
+        expect(pg_dumps.size).to eq(2)
       end
     end
 
-    it "flags restore errors other than the known one as exit 62, and runs no verification" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true",
-                               env: { "STUB_RESTORE_ERROR" => "1" })
+    it "flags restore errors other than the known one as exit 62, and runs no verification", :aggregate_failures do
+      json, status = restore("confirm=true", env: { "STUB_RESTORE_ERROR" => "1" })
 
-        expect(status).to eq(1)
-        expect(json.dig("state", "refusal", "value")).to include("restore ended 62", "permission denied")
-        expect(verification_status(json)).to be_nil
-      end
+      expect(status).to eq(1)
+      expect(refusal_of(json)).to include("restore ended 62", "permission denied")
+      expect(verification_status(json)).to be_nil
     end
 
-    it "refuses a project with no restore script, naming script=<path>" do
-      with_scratch do |scratch|
-        FileUtils.rm(File.join(scratch.project, "restore-to-rds.sh"))
+    it "refuses a project with no restore script, naming script=<path>", :aggregate_failures do
+      FileUtils.rm(File.join(scratch.project, "restore-to-rds.sh"))
 
-        json, status = command(scratch, "data_copy.restore", *COPY_ARGS, "confirm=true")
+      json, status = restore("confirm=true")
 
-        expect(status).to eq(1)
-        expect(json.dig("state", "refusal", "value")).to include("no restore-to-rds.sh", "script=<path>")
-      end
+      expect(status).to eq(1)
+      expect(refusal_of(json)).to include("no restore-to-rds.sh", "script=<path>")
     end
 
-    it "refuses a bastion that is not an instance id" do
-      with_scratch do |scratch|
-        out, status = Hecks::Doors::CliRunner.call(
-          runtime: @hecks, program: "hecks",
-          argv: ["deploy", "data_copy.restore", scratch.project, *COPY_ARGS.drop(1), "bastion=not-one", "--wait"]
-        )
+    it "refuses a bastion that is not an instance id", :aggregate_failures do
+      argv = ["deploy", "data_copy.restore", scratch.project, *COPY_ARGS.drop(1), "bastion=not-one", "--wait"]
+      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
-        expect(status).not_to eq(0)
-        expect(out).to include("Bastion")
-      end
+      expect(status).not_to eq(0)
+      expect(out).to include("Bastion")
     end
   end
 
   describe "data_copy.verify" do
-    it "compares the databases on its own and records a match" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.verify", *COPY_ARGS)
+    it "compares the databases on its own and records a match", :aggregate_failures do
+      json, status = verify
 
-        expect(status).to eq(0), json.to_json
-        expect(json.dig("state", "status")).to eq("verified")
-        expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
-        expect(verification_status(json)).to eq("verified")
-        expect(scratch.calls.grep(/\Apg_dump/)).to be_empty
-      end
+      expect(status).to eq(0), json.to_json
+      expect(json.dig("state", "status")).to eq("verified")
+      expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
     end
 
-    it "records drifted, with the differing counts, and exits 1" do
-      with_scratch do |scratch|
-        scratch.databases(counts: "widgets.orders|5\n", target_counts: "widgets.orders|9\n", shape: "widgets r|3\n")
+    it "records the match as the verdict, and copies nothing", :aggregate_failures do
+      json, = verify
 
-        json, status = command(scratch, "data_copy.verify", *COPY_ARGS)
+      expect(verification_status(json)).to eq("verified")
+      expect(pg_dumps).to be_empty
+    end
+
+    context "when the databases differ" do
+      before do
+        scratch.databases(counts: "widgets.orders|5\n", target_counts: "widgets.orders|9\n", shape: "widgets r|3\n")
+      end
+
+      it "records drifted, with the differing counts, and exits 1", :aggregate_failures do
+        json, status = verify
 
         expect(status).to eq(1)
         expect(json.dig("state", "status")).to eq("drifted")
-        expect(json.dig("state", "refusal", "value")).to include("FAIL: row counts differ", "widgets.orders")
+        expect(refusal_of(json)).to include("FAIL: row counts differ", "widgets.orders")
+      end
+
+      it "records the drift as the verdict" do
+        json, = verify
+
         expect(verification_status(json)).to eq("drifted")
       end
     end
 
-    it "records flagged, not drifted, when the comparison cannot be made" do
-      with_scratch do |scratch|
-        json, status = command(scratch, "data_copy.verify", *COPY_ARGS, env: { "STUB_AWS_FAIL" => "1" })
+    it "records flagged, not drifted, when the comparison cannot be made", :aggregate_failures do
+      json, status = verify(env: { "STUB_AWS_FAIL" => "1" })
 
-        expect(status).to eq(1)
-        expect(json.dig("state", "status")).to eq("flagged")
-        expect(json.dig("state", "refusal", "value")).to include("verify ended 255", "aws: unreachable")
-      end
+      expect(status).to eq(1)
+      expect(json.dig("state", "status")).to eq("flagged")
+      expect(refusal_of(json)).to include("verify ended 255", "aws: unreachable")
     end
   end
 end

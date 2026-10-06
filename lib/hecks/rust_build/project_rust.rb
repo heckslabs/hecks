@@ -22,11 +22,6 @@ module Hecks
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
     class ProjectRust
-      # The optional attachments `rust/host` reads from `ir.json`, each omitted when nothing
-      # attached provides it: exporter method, then the key it is written under.
-      SEAMS = %i[authorization membership identity newsletter newsletter_issues payments
-                 registrations payment_connection].freeze
-
       # @param argv [Array<String>] the domain's directory
       # @return [Integer] the exit status
       # @raise [Failure] when the domain's name cannot be a Rust module and Cargo feature name
@@ -64,105 +59,40 @@ module Hecks
       end
 
       def generate
-        load_registry
-        @rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(RustBuild::ROOT, "rust"))
-        @out_root = File.join(@rust_dir, "src/generated")
-        FileUtils.mkdir_p(@out_root)
-        build_target_ir
+        loader = DomainLoader.new(@domain).call
+        @registry = loader.registry
+        @domain_name = loader.domain_name
+        prepare_output
+        @ir = TargetIr.new(@registry, @domain_name, loader.bluebook_dir).call
         FileUtils.rm_rf(File.join(@out_root, "active"))
         generate_with_codegen
         write_root_mod
         sync_cargo_features
       end
 
+      def prepare_output
+        @rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(RustBuild::ROOT, "rust"))
+        @out_root = File.join(@rust_dir, "src/generated")
+        FileUtils.mkdir_p(@out_root)
+      end
+
       # `hecks-codegen` is the generator; this process only builds the IR it reads from the live
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
         meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
-        chapters = (@registry.bluebooks.keys - [@domain_name]).map do |name|
-          ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
-          CodegenRun::Chapter.new(name.downcase, "#{@domain} (#{attachment(name, vendored)})", json_shaped(ir))
-        end
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: json_shaped(meta), chapters: chapters,
+          rust_dir: @rust_dir, out_root: @out_root, meta: TargetIr.json_shaped(meta), chapters: chapters,
           target: CodegenRun::Chapter.new(@mod_name, @domain, @ir)
         ).call
       end
 
-      # Round-trips a value through JSON so generators see the string-keyed shape a real `ir.json`
-      # carries, never live Ruby symbols.
-      def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
-
-      # `root:` is the domain's own directory: a domain that declares `attaches ... from: :vendor`
-      # resolves its vendored chapters beneath it.
-      def load_registry
-        @registry = Hecks::Runtime::Registry.new(root: File.expand_path(@domain))
-        Hecks.with_registry(@registry) do
-          lib = File.expand_path("..", __dir__)
-          %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
-             adapters/driven/prism.adapter adapters/driven/postgres_era.adapter].each do |file|
-            Kernel.load(File.join(lib, file))
-          end
-          @bluebook_dir = File.join(@domain, "bluebook")
-          Hecks::Adapters::Folder.new.load_bluebooks(@bluebook_dir)
-          load_siblings
-          load_environment
+      def chapters
+        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
+        (@registry.bluebooks.keys - [@domain_name]).map do |name|
+          ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
+          label = "#{@domain} (#{attachment(name, vendored)})"
+          CodegenRun::Chapter.new(name.downcase, label, TargetIr.json_shaped(ir))
         end
-        @domain_name = @registry.bluebooks.keys.first
-      end
-
-      # Translation edges, hecksagons (whose `attaches` loads a framework chapter into the
-      # same registry) and worlds (whose `default_adapter` binds what a hecksagon leaves out), in
-      # the order the language loads them.
-      def load_siblings
-        Dir[File.join(@bluebook_dir, "translations", "*.bluebook")].each { |file| Kernel.load(file) }
-        Dir.glob(File.join(@bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
-        Dir.glob(File.join(@bluebook_dir, "*.world")).each { |file| Kernel.load(file) }
-      end
-
-      # Production is the default environment when `environments/production.hecksagon` exists
-      # (`rust/host` is the production runtime); `HECKS_PROJECT_ENVIRONMENT` overrides it.
-      def load_environment
-        environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT") do
-          File.exist?(File.join(@bluebook_dir, "environments", "production.hecksagon")) ? "production" : nil
-        end
-        return if environment.nil? || environment.empty?
-
-        folder = Hecks::Adapters::Folder.new
-        folder.load_each(@bluebook_dir, [File.join("environments", "#{environment}.hecksagon")])
-        folder.load_each(@bluebook_dir, [File.join("environments", "#{environment}.world")])
-      end
-
-      # The target's IR, with the binding facts that ride beside it (they are not shape facts, so
-      # `bluebook.to_h` never mentions them).
-      def build_target_ir
-        exporter = Hecks::Projector::Exporter
-        @ir = json_shaped(exporter.call(@registry).fetch(@domain_name))
-        @ir[:lineage] = json_shaped(exporter.lineage(@registry, @domain_name))
-        @ir[:persistence] = json_shaped(exporter.persistence(@registry, @domain_name))
-        seams = SEAMS.to_h { |seam| [seam, exporter.public_send(seam, @registry, @domain_name)] }
-        seams.each { |seam, value| @ir[seam] = json_shaped(value) unless value.empty? }
-        if !seams[:membership].empty? && seams[:identity].empty?
-          raise Failure, "#{@domain_name} provides membership but not identity — rust/host Google sign-in " \
-                         "cannot register or link an identity from ir.json. Attach Identity " \
-                         "(`attaches \"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
-                         "hecksagon, not a deploy-time guess, names the identity verbs."
-        end
-        add_edges_and_source
-      end
-
-      # Edges carry their own precompiled SQL, so a boot-time mint only executes it. Committed
-      # approvals sit beside the edges. The source text is verbatim: the era's integrity digest is
-      # the SHA256 of it, not of anything re-derived from the parsed IR.
-      def add_edges_and_source
-        edges = Hecks::Projector::Exporter.translations(@registry).select { |edge| edge[:domain] == @domain_name }
-        @ir[:translations] = json_shaped(edges)
-        approvals = Hecks::Translation::ApprovalFile.read_all(@bluebook_dir)
-        @ir[:approvals] = json_shaped(approvals) unless approvals.empty?
-        @ir[:source_text] = Hecks::Runtime::EraCheck.source_text_for(
-          @registry.bluebooks.fetch(@domain_name), @bluebook_dir, registry: @registry
-        )
       end
 
       # How the target attached a chapter, across every hecksagon the registry loaded: a chapter a
@@ -230,3 +160,5 @@ end
 
 require_relative "project_rust/root_mod"
 require_relative "project_rust/codegen_run"
+require_relative "project_rust/domain_loader"
+require_relative "project_rust/target_ir"

@@ -25,7 +25,8 @@ module Hecks
       # @param runtime [Runtime, nil] a booted SME chapter to use instead of booting one
       # @return [String] the report that was printed, or "" when nothing was written
       # @raise [ArgumentError] when the name or adapter is refused, or a file would be replaced
-      def call(name:, adapter: nil, dir: nil, expert: nil, use_ai: true, input: $stdin, output: $stdout, agent: nil, runtime: nil)
+      def call(name:, adapter: nil, dir: nil, expert: nil, use_ai: true, input: $stdin, output: $stdout, agent: nil, # rubocop:disable Metrics/ParameterLists -- one keyword per setting the command takes
+               runtime: nil)
         DomainStub.support_files(name: name, adapter: adapter)
         target = File.expand_path(dir || DomainStub.directory(name), Dir.pwd)
         expert = who(expert, input, output)
@@ -34,7 +35,14 @@ module Hecks
                                       subject: name, expert: expert).call
         return "" unless result.status == :concluded
 
-        report(target, DomainWriter.write!(files(result.interview, adapter, target), target))
+        write_domain(result.interview, adapter, target, output)
+      end
+
+      # Writes the files the interview decided and prints the report.
+      #
+      # @api private
+      def write_domain(interview, adapter, target, output)
+        report(target, DomainWriter.write!(files(interview, adapter, target), target))
           .tap { |text| output.puts(text) }
       end
 
@@ -74,13 +82,16 @@ module Hecks
         where = target.delete_prefix("#{Dir.pwd}/")
         lines = ["wrote #{written.length} #{written.length == 1 ? "file" : "files"} in #{where}/:"] +
                 written.sort.map { |path| "  #{path}" }
-        lines << "" << "next:"
+        (lines + next_steps(written, where)).join("\n")
+      end
+
+      # @api private
+      def next_steps(written, where)
         if written.any? { |path| path.start_with?("bluebook/") }
-          lines << "  hecks docs #{where}/bluebook" << "  hecks console subject=#{where}"
+          ["", "next:", "  hecks docs #{where}/bluebook", "  hecks console subject=#{where}"]
         else
-          lines << "  merge the proposed additions in #{where}/#{written.first} into the domain's bluebook"
+          ["", "next:", "  merge the proposed additions in #{where}/#{written.first} into the domain's bluebook"]
         end
-        lines.join("\n")
       end
     end
   end

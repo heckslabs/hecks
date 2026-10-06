@@ -29,7 +29,7 @@ RSpec.describe Hecks::Tools::CommentStyle, ".main and .code_changed_since" do
   end
 
   describe "`--`" do
-    it "reads what follows as paths, so a path named like a flag cannot switch the mode" do
+    it "reads what follows as paths, so a path named like a flag cannot switch the mode", :aggregate_failures do
       File.write("a.rb", "# HELLO there\nx = 1\n")
 
       expect { quiet { described_class.main(["--check", "--", "--fix", "a.rb"]) } }
@@ -59,7 +59,7 @@ RSpec.describe Hecks::Tools::CommentStyle, ".main and .code_changed_since" do
 
     def changed(*paths, ref: "HEAD") = described_class::Run.new(paths, baseline: {}).code_changed_since(ref)
 
-    it "treats a comment-only edit as unchanged, by relative or absolute path" do
+    it "treats a comment-only edit as unchanged, by relative or absolute path", :aggregate_failures do
       File.write("a.rb", "# two\nx = 1\n")
 
       expect(changed("a.rb")).to eq([])

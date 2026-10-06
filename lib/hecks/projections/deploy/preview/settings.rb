@@ -57,8 +57,11 @@ module Hecks
           def assign_names(raw, main)
             prefix_default = "#{main.fetch(:stack_prefix)}-#{infra_name}-preview".downcase.gsub(/[^a-z0-9-]+/, "-")
             @prefix = pick(raw, :prefix, prefix_default, PREFIX_PATTERN)
-            alb_default = "#{infra_name.downcase.gsub(/[^a-z0-9]/, "")[0, 8]}pv"
-            @alb_prefix = pick(raw, :alb_prefix, alb_default, ALB_PREFIX_PATTERN)
+            @alb_prefix = pick(raw, :alb_prefix, "#{infra_name.downcase.gsub(/[^a-z0-9]/, "")[0, 8]}pv", ALB_PREFIX_PATTERN)
+            assign_stacks(raw, main)
+          end
+
+          def assign_stacks(raw, main)
             @owner_stack = pick(raw, :owner_stack, main[:owner_stack] || stack_name, STACK_PATTERN)
             @database_stack = pick(raw, :database_stack, owner_stack, STACK_PATTERN)
             @database_endpoint_output = pick(raw, :database_endpoint_output, "DatabaseEndpoint", OUTPUT_PATTERN)

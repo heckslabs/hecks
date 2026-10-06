@@ -55,25 +55,10 @@ module Hecks
       # @raise [ArgumentError] if `raw` is missing a required key, declares an unknown
       #   key, or gives a value the wrong type for its dial
       def initialize(raw, path)
-        missing = EXPECTED_TYPES.keys - raw.keys
-        raise ArgumentError, "#{path} is missing #{missing.sort.join(", ")}" if missing.any?
-
-        extra = raw.keys - EXPECTED_TYPES.keys
-        if extra.any?
-          raise ArgumentError,
-                "#{path} declares unknown key(s) #{extra.sort.join(", ")} — " \
-                "no QaDial row of the Vocabulary chapter declares them"
-        end
-
+        check_keys!(raw, path)
         EXPECTED_TYPES.each do |key, expected|
           value = raw.fetch(key)
-          expected_classes = Array(expected)
-          unless expected_classes.any? { |klass| value.is_a?(klass) }
-            raise ArgumentError,
-                  "#{path}: #{key} must be a #{expected_classes.map(&:name).join(" or ")}, " \
-                  "got #{value.class} (#{value.inspect})"
-          end
-
+          check_type!(path, key, expected, value)
           instance_variable_set(:"@#{key}", value)
         end
 
@@ -82,6 +67,27 @@ module Hecks
       end
 
       private
+
+      def check_keys!(raw, path)
+        missing = EXPECTED_TYPES.keys - raw.keys
+        raise ArgumentError, "#{path} is missing #{missing.sort.join(", ")}" if missing.any?
+
+        extra = raw.keys - EXPECTED_TYPES.keys
+        return unless extra.any?
+
+        raise ArgumentError,
+              "#{path} declares unknown key(s) #{extra.sort.join(", ")} — " \
+              "no QaDial row of the Vocabulary chapter declares them"
+      end
+
+      def check_type!(path, key, expected, value)
+        expected_classes = Array(expected)
+        return if expected_classes.any? { |klass| value.is_a?(klass) }
+
+        raise ArgumentError,
+              "#{path}: #{key} must be a #{expected_classes.map(&:name).join(" or ")}, " \
+              "got #{value.class} (#{value.inspect})"
+      end
 
       # YAML cannot spell a Symbol value, and IsolatedBoot case-matches adapters by symbol.
       def symbolize_adapter_parity_pairs!(path)

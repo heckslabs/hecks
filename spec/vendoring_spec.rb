@@ -24,7 +24,7 @@ RSpec.describe Hecks::Vendoring do
                         glob: "*.bluebook", **overrides, &)
   end
 
-  it "exports only the top-level files matching the glob, keeping the subtree's own name" do
+  it "exports only the top-level files matching the glob, keeping the subtree's own name", :aggregate_failures do
     seed
 
     result = pin
@@ -34,7 +34,7 @@ RSpec.describe Hecks::Vendoring do
     expect(result.dir).to eq(File.join(into, "bluebook"))
   end
 
-  it "records the full commit id in the marker" do
+  it "records the full commit id in the marker", :aggregate_failures do
     commit = seed
 
     result = pin
@@ -43,10 +43,22 @@ RSpec.describe Hecks::Vendoring do
     expect(File.read(File.join(into, "VENDORED_COMMIT"))).to eq("#{commit}\n")
   end
 
-  it "exports the commit, never the working tree or a later commit" do
-    first = seed
+  # A later commit of widgets.bluebook in the source repository.
+  def commit_second_version
     repo.write("widgets/bluebook/widgets.bluebook" => "second\n")
     repo.commit
+  end
+
+  # Files already in the destination that the source does not have.
+  def leave_stale_files
+    FileUtils.mkdir_p(File.join(into, "bluebook"))
+    File.write(File.join(into, "bluebook", "stale.bluebook"), "stale\n")
+    File.write(File.join(into, "bluebook.lock"), "old lock\n")
+  end
+
+  it "exports the commit, never the working tree or a later commit" do
+    first = seed
+    commit_second_version
     repo.write("widgets/bluebook/widgets.bluebook" => "uncommitted\n")
 
     pin(ref: first)
@@ -56,9 +68,7 @@ RSpec.describe Hecks::Vendoring do
 
   it "replaces what was there, dropping files the source no longer has" do
     seed
-    FileUtils.mkdir_p(File.join(into, "bluebook"))
-    File.write(File.join(into, "bluebook", "stale.bluebook"), "stale\n")
-    File.write(File.join(into, "bluebook.lock"), "old lock\n")
+    leave_stale_files
 
     pin
 
@@ -73,11 +83,10 @@ RSpec.describe Hecks::Vendoring do
     expect(File.read(File.join(into, "notes.txt"))).to match(/\A2 files at \h{7}\n\z/)
   end
 
-  it "leaves the existing directory alone when the block refuses" do
+  it "leaves the existing directory alone when the block refuses", :aggregate_failures do
     seed
     pin
-    repo.write("widgets/bluebook/widgets.bluebook" => "second\n")
-    repo.commit
+    commit_second_version
 
     expect { pin { raise Hecks::Vendoring::Error, "no" } }.to raise_error(Hecks::Vendoring::Error, "no")
     expect(File.read(File.join(into, "bluebook", "widgets.bluebook"))).to eq("first\n")
@@ -89,7 +98,7 @@ RSpec.describe Hecks::Vendoring do
     expect { pin(ref: "nope") }.to raise_error(Hecks::Vendoring::Error, /no commit "nope"/)
   end
 
-  it "refuses a subtree with no matching file, without creating the destination" do
+  it "refuses a subtree with no matching file, without creating the destination", :aggregate_failures do
     seed
 
     expect { pin(subtree: "widgets/spec", glob: "*.bluebook") }

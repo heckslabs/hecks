@@ -43,21 +43,25 @@ module Hecks
       # @param env [Hash{String => String}] the runner's environment
       # @return [Boolean] whether the gated job should run
       def touched?(gate, root:, env:)
-        base = base_of(gate, root: root, env: env)
-        if base.nil? || base.empty? || base == NO_COMMIT
-          explain(gate, "no usable base to diff against")
-          return true
-        end
-
-        changed = changed_files(base, env.fetch("GITHUB_SHA", "HEAD"), root: root)
-        if changed.nil?
-          explain(gate, "git diff itself failed")
+        changed, reason = change_set(gate, root: root, env: env)
+        if reason
+          explain(gate, reason)
           return true
         end
         return false if changed.empty?
 
         matches = changed.map { |path| path.match?(Regexp.new(gate.fetch("pattern"))) }
         gate.fetch("mode") == "touches" ? matches.any? : matches.any?(false)
+      end
+
+      # @return [Array(Array<String>, nil), Array(nil, String)] the changed paths, or the reason the
+      #   change cannot be confirmed
+      def change_set(gate, root:, env:)
+        base = base_of(gate, root: root, env: env)
+        return [nil, "no usable base to diff against"] if base.nil? || base.empty? || base == NO_COMMIT
+
+        changed = changed_files(base, env.fetch("GITHUB_SHA", "HEAD"), root: root)
+        changed.nil? ? [nil, "git diff itself failed"] : [changed, nil]
       end
 
       # The commit the change is measured against: a pull request's base, or a merge group's
@@ -68,12 +72,15 @@ module Hecks
       def base_of(gate, root:, env:)
         event = event_of(env)
         base = event.dig("pull_request", "base", "sha").to_s
-        if env["GITHUB_EVENT_NAME"] == "merge_group"
-          target = event.dig("merge_group", "base_ref").to_s.delete_prefix("refs/heads/")
-          base = git(root, "merge-base", "origin/#{target}", env.fetch("GITHUB_SHA", "HEAD"))&.strip.to_s
-        end
+        base = merge_base_of(event, root, env) if env["GITHUB_EVENT_NAME"] == "merge_group"
         base = event["before"].to_s if base.empty? && env["GITHUB_EVENT_NAME"] == "push" && gate["push"] == "before_sha"
         base
+      end
+
+      # @return [String] the merge-base of the merge group's target branch and the run's head
+      def merge_base_of(event, root, env)
+        target = event.dig("merge_group", "base_ref").to_s.delete_prefix("refs/heads/")
+        git(root, "merge-base", "origin/#{target}", env.fetch("GITHUB_SHA", "HEAD"))&.strip.to_s
       end
 
       # @return [Hash] the run's event payload, empty when it cannot be read

@@ -3,6 +3,7 @@
 require "json"
 require_relative "mcp_stdio_guard"
 require_relative "query_ir"
+require_relative "query_ir_mcp/tools"
 
 module Hecks
   # The MCP server that exposes `Hecks::QueryIR`'s queries as tools, over newline-delimited
@@ -13,69 +14,6 @@ module Hecks
   module QueryIrMcp
     # The MCP protocol revision the server speaks.
     PROTOCOL_VERSION = "2024-11-05"
-
-    # The three tools, as an MCP client lists them.
-    TOOLS = [
-      {
-        name:        "query_ir_constructs",
-        description: "For a bluebook IR construct (Aggregate, Entity, Command, Query, ValueObject, Policy, " \
-                     "ReadModel, ProcessManager, Bluebook) or all of them, the real structural diff between " \
-                     "what the Ruby class emits and what the self-hosted meta-domain declares for it. Use " \
-                     "this instead of reading entity.rb/entity.bluebook (or the equivalent pair for another " \
-                     "construct) by hand to check whether a new IR field has been fully propagated.",
-        inputSchema: {
-          type:       "object",
-          properties: {
-            names: {
-              type:        "array",
-              items:       { type: "string" },
-              description: "Construct names to check (e.g. [\"Entity\"]). Omit or leave empty for all constructs."
-            }
-          }
-        }
-      },
-      {
-        name:        "query_ir_duplicates",
-        description: "Every given/ensures/invariant DECLARATION across the real corpus " \
-                     "(banking/pizzas/compliance) and the self-hosted meta-domain, grouped by (kind, " \
-                     "description, canonical predicate), reporting every group with more than one " \
-                     "independently-declared rule (already-deduped references, which share the same " \
-                     "underlying rule object, are excluded). Use this to find real corpus duplication " \
-                     "before proposing a new 'declared once, referenced by name' resolution rule.",
-        inputSchema: {
-          type:       "object",
-          properties: {
-            domains:      {
-              type:        "array",
-              items:       { type: "string" },
-              description: "Real example domain directories to scan (e.g. [\"examples/banking\"]). Omit for " \
-                           "every real example domain."
-            },
-            include_meta: {
-              type:        "boolean",
-              description: "Include the self-hosted meta-domain (lib/hecks/language/bluebook). Defaults to true."
-            }
-          }
-        }
-      },
-      {
-        name:        "query_ir_impact",
-        description: "For one construct/field pair, which of the six propagation touchpoints " \
-                     ".claude/skills/bluebook-construct-creator/SKILL.md walks in prose already show signs " \
-                     "of it, and which don't: the meta-domain grammar, docs/resolution-rules/, " \
-                     "Assembly::Contracts, Reconstruction's hand-typed aggregate(row)/entity(row) (only " \
-                     "applicable to Aggregate/Entity), the fuzzer's FEATURE_COVERAGE/" \
-                     "GUARANTEED_BY_CONSTRUCTION, and the Rust mirror. Advisory, not a gate.",
-        inputSchema: {
-          type:       "object",
-          properties: {
-            name:  { type: "string", description: "Construct name (e.g. \"Aggregate\")." },
-            field: { type: "string", description: "The field name to check (e.g. \"preconditions\")." }
-          },
-          required:   %w[name field]
-        }
-      }
-    ].freeze
 
     module_function
 
@@ -119,16 +57,24 @@ module Hecks
     # @return [Hash] the MCP tool result
     def call_tool(name, arguments)
       case name
-      when "query_ir_constructs"
-        tool_result(QueryIR.format_constructs(QueryIR.constructs(Array(arguments["names"]))))
+      when "query_ir_constructs" then tool_result(constructs(arguments))
       when "query_ir_duplicates" then tool_result(duplicates(arguments))
-      when "query_ir_impact"
-        tool_result(QueryIR.format_impact_preview(QueryIR.impact_preview(arguments["name"], arguments["field"])))
+      when "query_ir_impact" then tool_result(impact(arguments))
       else
         tool_result("no such tool: #{name.inspect} - known: #{TOOLS.map { |t| t[:name] }.join(", ")}", error: true)
       end
     rescue ArgumentError, Runtime::TypeMismatch => e
       tool_result(e.message, error: true)
+    end
+
+    # @api private
+    def constructs(arguments)
+      QueryIR.format_constructs(QueryIR.constructs(Array(arguments["names"])))
+    end
+
+    # @api private
+    def impact(arguments)
+      QueryIR.format_impact_preview(QueryIR.impact_preview(arguments["name"], arguments["field"]))
     end
 
     # @api private
@@ -170,15 +116,25 @@ module Hecks
     # @api private
     def handle(request, output)
       id = request["id"]
-      params = request["params"] || {}
       case request["method"]
       when "initialize" then result(output, id, initialized)
       when "notifications/initialized" then nil
       when "tools/list" then result(output, id, { tools: TOOLS })
-      when "tools/call" then result(output, id, call_tool(params["name"], params["arguments"] || {}))
+      when "tools/call" then result(output, id, tools_call(request["params"]))
       when "ping" then result(output, id, {})
-      else error(output, id, -32_601, "Method not found: #{request["method"]}") unless id.nil?
+      else method_not_found(output, id, request["method"])
       end
+    end
+
+    # @api private
+    def tools_call(params)
+      params ||= {}
+      call_tool(params["name"], params["arguments"] || {})
+    end
+
+    # @api private
+    def method_not_found(output, id, method)
+      error(output, id, -32_601, "Method not found: #{method}") unless id.nil?
     end
 
     # @api private

@@ -40,8 +40,14 @@ module Hecks
       end
 
       def environment_block(environment)
+        lines = environment_lines(environment)
+        lines << "- Postgres: #{environment[:postgres]}" if environment[:postgres]
+        lines.join("\n")
+      end
+
+      def environment_lines(environment)
         load = environment[:load_average]
-        lines = [
+        [
           "- CPU: #{environment[:cpu]} (#{environment[:cores]} cores), #{environment[:memory_gib]} GiB",
           "- OS: #{environment[:os]}",
           "- Ruby: #{environment[:ruby]} (YJIT #{environment[:yjit] ? "on" : "off"})",
@@ -49,8 +55,6 @@ module Hecks
           "- Hecks: #{environment[:hecks]} at #{environment[:commit]}",
           "- Load average (1 min) before and after: #{load[:before]} and #{load[:after]}"
         ]
-        lines << "- Postgres: #{environment[:postgres]}" if environment[:postgres]
-        lines.join("\n")
       end
 
       def configuration_block(config)

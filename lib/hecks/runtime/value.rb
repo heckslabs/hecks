@@ -3,6 +3,10 @@ require_relative "../rendering"
 require_relative "value/invariant_violation"
 require_relative "value/field_checks"
 require_relative "value/coercion"
+require_relative "value/references"
+require_relative "value/validation"
+require_relative "value/flags"
+require_relative "value/identifiers"
 require_relative "value/entity_list_coercion"
 require_relative "value/admission"
 
@@ -14,6 +18,10 @@ module Hecks
     class Value
       extend FieldChecks
       extend Coercion
+      extend References
+      extend Validation
+      extend Flags
+      extend Identifiers
       extend EntityListCoercion
       extend Admission
 
@@ -104,17 +112,21 @@ module Hecks
       #   more than one
       def self.materialize_unwrapped(value)
         case value
-        when self
-          sole = value.value_object.sole_attribute
-          return materialize_unwrapped(value[sole.name]) if sole
-
-          # Not `value.to_h`: it materializes nested values to Hashes, ending the recursion.
-          value.value_object.attributes.to_h { |attr| [attr.name, materialize_unwrapped(value[attr.name])] }
+        when self then unwrap_value_object(value)
         when Array then value.map { |item| materialize_unwrapped(item) }
         when Hash then value.transform_values { |item| materialize_unwrapped(item) }
         else value
         end
       end
+
+      def self.unwrap_value_object(value)
+        sole = value.value_object.sole_attribute
+        return materialize_unwrapped(value[sole.name]) if sole
+
+        # Not `value.to_h`: it materializes nested values to Hashes, ending the recursion.
+        value.value_object.attributes.to_h { |attr| [attr.name, materialize_unwrapped(value[attr.name])] }
+      end
+      private_class_method :unwrap_value_object
 
       # Reduces an append-only `list_of` sub-log to its current state: the latest row per `key`.
       # Grouping only; what counts as removed, and the ordering, belong to the caller.

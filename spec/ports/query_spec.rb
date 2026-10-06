@@ -5,13 +5,16 @@ RSpec.describe Hecks::Ports::Query do
     Hecks::Bluebook::Query.new(name: "Accounts")
   end
 
-  it "uses an adapter's single native query hook" do
-    adapter = Class.new do
+  let(:native_adapter) do
+    Class.new do
       def query(specification, args, context:)
         [specification.name, args, context[:domain]]
       end
     end.new
-    repository = Struct.new(:adapter).new(adapter)
+  end
+
+  it "uses an adapter's single native query hook" do
+    repository = Struct.new(:adapter).new(native_adapter)
 
     expect(described_class.execute(repository, specification, { limit: 5 }, context: { domain: "Banking" }))
       .to eq(["Accounts", { limit: 5 }, "Banking"])
@@ -21,18 +24,24 @@ RSpec.describe Hecks::Ports::Query do
     expect(described_class.execute(Object.new, specification)).to be_nil
   end
 
-  it "rejects contradictory pagination before an adapter is called" do
-    specification = Hecks::Bluebook::Query.new(
-      name:   "Accounts",
-      offset: Hecks::QuerySpecification::Common::OffsetSpec.new(value: 5),
-      cursor: Hecks::QuerySpecification::Common::CursorSpec.new(value: "next")
-    )
-    adapter = Struct.new(:called) do
-      def query(*) = self.called = true
-    end.new(false)
+  describe "contradictory pagination" do
+    let(:specification) do
+      Hecks::Bluebook::Query.new(
+        name:   "Accounts",
+        offset: Hecks::QuerySpecification::Common::OffsetSpec.new(value: 5),
+        cursor: Hecks::QuerySpecification::Common::CursorSpec.new(value: "next")
+      )
+    end
+    let(:adapter) do
+      Struct.new(:called) do
+        def query(*) = self.called = true
+      end.new(false)
+    end
 
-    expect { described_class.execute(adapter, specification) }
-      .to raise_error(described_class::Unsupported, /cursor and offset/)
-    expect(adapter.called).to be(false)
+    it "is rejected before an adapter is called", :aggregate_failures do
+      expect { described_class.execute(adapter, specification) }
+        .to raise_error(described_class::Unsupported, /cursor and offset/)
+      expect(adapter.called).to be(false)
+    end
   end
 end

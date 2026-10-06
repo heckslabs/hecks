@@ -97,15 +97,19 @@ RSpec.describe "hecks smoke_http", :io do
       case [request[:method], request[:target]]
       when ["GET", "/health"] then [200, "ok"]
       when ["GET", "/state"] then [200, JSON.generate(count: events.size)]
-      when ["POST", "/hooks"]
-        next [400, "bad signature"] unless verified?(request, scheme: scheme, header: header)
-
-        id = JSON.parse(request[:body])["id"]
-        events << id unless counting && events.include?(id)
-        [200, "ok"]
+      when ["POST", "/hooks"] then record_delivery(request, events, scheme: scheme, header: header, counting: counting)
       else [404, "no"]
       end
     end
+  end
+
+  # Answers a delivery to /hooks: 400 for a bad signature, otherwise 200 after recording its event.
+  def record_delivery(request, events, scheme:, header:, counting:)
+    return [400, "bad signature"] unless verified?(request, scheme: scheme, header: header)
+
+    id = JSON.parse(request[:body])["id"]
+    events << id unless counting && events.include?(id)
+    [200, "ok"]
   end
 
   def run_script(receiver, *args, secret: SMOKE_HTTP_SECRET)
@@ -119,9 +123,14 @@ RSpec.describe "hecks smoke_http", :io do
     @receiver&.stop
   end
 
-  it "passes a receiver that verifies signatures and treats a repeat delivery as idempotent" do
-    @receiver = correct_receiver
-    stdout, stderr, status = run_script(@receiver, "--health-path", "/health", "--state-path", "/state")
+  # Runs the script against `receiver`, which the example's cleanup stops.
+  def run_against(receiver, *args)
+    @receiver = receiver
+    run_script(receiver, *args)
+  end
+
+  it "passes a receiver that verifies signatures and treats a repeat delivery as idempotent", :aggregate_failures do
+    stdout, stderr, status = run_against(correct_receiver, "--health-path", "/health", "--state-path", "/state")
 
     expect(stderr).to eq("")
     expect(status).to be_success
@@ -129,7 +138,7 @@ RSpec.describe "hecks smoke_http", :io do
     expect(stdout.scan("... ok").size).to eq(6)
   end
 
-  it "delivers the signed payload twice and the bad ones once each" do
+  it "delivers the signed payload twice and the bad ones once each", :aggregate_failures do
     @receiver = correct_receiver
     run_script(@receiver)
 
@@ -147,42 +156,51 @@ RSpec.describe "hecks smoke_http", :io do
     end
   end
 
-  it "takes the payload from a file" do
+  # Runs the script against a correct receiver with the payload in a file; answers the status and
+  # the bodies the receiver saw.
+  def run_with_payload_file
     @receiver = correct_receiver
     Dir.mktmpdir do |dir|
       file = File.join(dir, "event.json")
       File.write(file, JSON.generate(id: "from-file", type: "x"))
       _stdout, _stderr, status = run_script(@receiver, "--payload-file", file)
-
-      expect(status).to be_success
+      [status, @receiver.seen.map { |request| request[:body] }]
     end
-    expect(@receiver.seen.map { |request| request[:body] }).to include(JSON.generate(id: "from-file", type: "x"))
   end
 
-  it "fails a receiver that accepts a delivery it should have refused" do
-    @receiver = FakeReceiver.new { |_request| [200, "ok"] }
-    stdout, _stderr, status = run_script(@receiver)
+  it "takes the payload from a file", :aggregate_failures do
+    status, bodies = run_with_payload_file
+
+    expect(status).to be_success
+    expect(bodies).to include(JSON.generate(id: "from-file", type: "x"))
+  end
+
+  SMOKE_HTTP_ACCEPTING_FAILURES = [
+    "a delivery with no signature is refused... FAILED",
+    "a delivery signed with the wrong secret is refused... FAILED",
+    "a delivery whose body changed after signing is refused... FAILED",
+    "a correctly signed delivery is accepted... ok",
+    "SMOKE HTTP FAILED (3)"
+  ].freeze
+
+  it "fails a receiver that accepts a delivery it should have refused", :aggregate_failures do
+    stdout, _stderr, status = run_against(FakeReceiver.new { |_request| [200, "ok"] })
 
     expect(status.exitstatus).to eq(1)
-    expect(stdout).to include("a delivery with no signature is refused... FAILED")
-    expect(stdout).to include("a delivery signed with the wrong secret is refused... FAILED")
-    expect(stdout).to include("a delivery whose body changed after signing is refused... FAILED")
-    expect(stdout).to include("a correctly signed delivery is accepted... ok")
-    expect(stdout).to include("SMOKE HTTP FAILED (3)")
+    expect(stdout).to include(*SMOKE_HTTP_ACCEPTING_FAILURES)
   end
 
-  it "fails a receiver that counts a repeated delivery twice" do
-    @receiver = correct_receiver(counting: false)
-    stdout, _stderr, status = run_script(@receiver, "--state-path", "/state")
+  it "fails a receiver that counts a repeated delivery twice", :aggregate_failures do
+    stdout, _stderr, status = run_against(correct_receiver(counting: false), "--state-path", "/state")
 
     expect(status.exitstatus).to eq(1)
-    expect(stdout).to include("the state changed on a repeated delivery")
-    expect(stdout).to include("SMOKE HTTP FAILED (1)")
+    expect(stdout).to include("the state changed on a repeated delivery", "SMOKE HTTP FAILED (1)")
   end
 
-  it "fails a receiver that errors on a repeated delivery, and one whose health route is down" do
+  # Down on /health, 400 for a bad signature, and an error for a second correctly signed delivery.
+  def duplicate_erroring_receiver
     seen_signed = 0
-    @receiver = FakeReceiver.new do |request|
+    FakeReceiver.new do |request|
       next [503, "down"] if request[:target] == "/health"
 
       good = verified?(request, scheme: "timestamped")
@@ -191,32 +209,41 @@ RSpec.describe "hecks smoke_http", :io do
 
       seen_signed > 1 ? [500, "duplicate"] : [200, ""]
     end
-    stdout, _stderr, status = run_script(@receiver, "--health-path", "/health")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stdout).to include("GET /health answers 200... FAILED: expected 200, got 503")
-    expect(stdout).to include("accepted again, not an error... FAILED: expected 2xx, got 500")
   end
 
-  it "runs every check even when the first ones fail" do
-    @receiver = FakeReceiver.new { |_request| [500, "broken"] }
-    stdout, _stderr, status = run_script(@receiver)
+  it "fails a receiver that errors on a repeated delivery, and one whose health route is down", :aggregate_failures do
+    stdout, _stderr, status = run_against(duplicate_erroring_receiver, "--health-path", "/health")
+
+    expect(status.exitstatus).to eq(1)
+    expect(stdout).to include("GET /health answers 200... FAILED: expected 200, got 503",
+                              "accepted again, not an error... FAILED: expected 2xx, got 500")
+  end
+
+  it "runs every check even when the first ones fail", :aggregate_failures do
+    stdout, _stderr, status = run_against(FakeReceiver.new { |_request| [500, "broken"] })
 
     expect(status.exitstatus).to eq(1)
     expect(stdout).to include("SMOKE HTTP FAILED (5)")
   end
 
-  it "refuses to run without a secret, a path, or with an unknown scheme" do
+  it "refuses to run without a secret", :aggregate_failures do
     stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "" }, "--path", "/hooks")
+
     expect(status).not_to be_success
     expect(stdout).to eq("")
     expect(stderr).to include("no signing secret")
+  end
 
+  it "refuses to run without a path", :aggregate_failures do
     _stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "s" })
+
     expect(status).not_to be_success
     expect(stderr).to include("no webhook path")
+  end
 
+  it "refuses to run with an unknown scheme", :aggregate_failures do
     _stdout, stderr, status = smoke_http({ "SMOKE_WEBHOOK_SECRET" => "s" }, "--path", "/x", "--scheme", "md5")
+
     expect(status).not_to be_success
     expect(stderr).to include("unknown scheme \"md5\"")
   end

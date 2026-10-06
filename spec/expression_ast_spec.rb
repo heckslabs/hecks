@@ -76,40 +76,89 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
   let(:irs) { @irs }
 
-  it "carries `ast` on every rule row of every corpus chapter, derived from that row's own canonical" do
+  # One sentence for each rule row whose `ast` is missing or is not derived from its own canonical.
+  def rule_ast_problems(rows)
+    rows.flat_map do |name, path, row|
+      label = "#{name} #{path.join(".")}"
+      next ["#{label} has no ast"] unless row.key?(:ast)
+
+      derived = ExprAstJson.emit_predicate(row[:canonical])
+      row[:ast] == derived ? [] : ["#{label}: ast is not ExprAstJson.emit_predicate(canonical)"]
+    end
+  end
+
+  # One sentence for each policy whose `where_ast` is missing or disagrees with its `where`.
+  def policy_ast_problems(policies)
+    policies.flat_map do |name, policy|
+      label = "#{name} policy #{policy[:name]}"
+      next ["#{label} has no where_ast"] unless policy.key?(:where_ast)
+
+      expected = policy[:where] && ExprAstJson.emit_predicate(policy[:where])
+      policy[:where_ast] == expected ? [] : ["#{label}: where_ast disagrees with where"]
+    end
+  end
+
+  # Whether the ast survives a trip through JSON text unchanged.
+  def plain_json?(ast)
+    once = JSON.generate(ast)
+    JSON.generate(JSON.parse(once)) == once && JSON.parse(once) == ast
+  end
+
+  def outcome_of
+    { ok: yield }
+  rescue Hecks::Bluebook::Expression::EvaluationError => e
+    { refused: e.message }
+  end
+
+  def read_ast(expr) = Hecks::Bluebook::Expression::AstReader.read_predicate(ExprAstJson.emit_predicate(expr))
+
+  # Each expression whose text and whose ast, read back and interpreted, answer differently.
+  def ast_disagreements
+    state = ExprAstGenerator.synthetic_state
+    attrs = ExprAstGenerator.synthetic_attrs
+    ExprAstGenerator.all_predicates.filter_map do |expr|
+      via_text = outcome_of { ExprAstEvaluator.call(expr, state, attrs) }
+      via_ast  = outcome_of { ExprAstEvaluator.interpret(read_ast(expr), state, attrs) }
+      [expr, via_text, via_ast] unless via_text == via_ast
+    end
+  end
+
+  def disagreement_message(disagreements)
+    lines = disagreements.first(10).map { |e, t, a| "  #{e}\n    text: #{t.inspect}\n    ast:  #{a.inspect}" }
+    "#{disagreements.size} expression(s) mean something different as ast:\n#{lines.join("\n")}"
+  end
+
+  # Each expression the generator spells that the ast emitter crashes on.
+  def emit_crashes
+    ExprAstGenerator.all_predicates.filter_map do |expr|
+      ExprAstJson.emit_predicate(expr)
+      nil
+    rescue StandardError => e
+      [expr, e.class, e.message]
+    end
+  end
+
+  it "carries `ast` on every rule row of every corpus chapter, derived from that row's own canonical", :aggregate_failures do
     rows = irs.flat_map { |name, ir| rule_rows(ir).map { |path, row| [name, path, row] } }
     expect(rows.size).to be > 100
 
-    rows.each do |name, path, row|
-      expect(row).to have_key(:ast), "#{name} #{path.join(".")} has no ast"
-      expect(row[:ast]).to eq(ExprAstJson.emit_predicate(row[:canonical])),
-                           "#{name} #{path.join(".")}: ast is not ExprAstJson.emit_predicate(canonical)"
-    end
+    expect(rule_ast_problems(rows)).to be_empty
   end
 
-  it "carries `where_ast` on every policy, nil exactly when there is no `where`" do
+  it "carries `where_ast` on every policy, nil exactly when there is no `where`", :aggregate_failures do
     policies = irs.flat_map { |name, ir| ir.fetch(:policies, []).map { |p| [name, p] } }
     expect(policies.count { |_, p| p[:where] }).to be > 0
 
-    policies.each do |name, policy|
-      expect(policy).to have_key(:where_ast), "#{name} policy #{policy[:name]} has no where_ast"
-      expected = policy[:where] && ExprAstJson.emit_predicate(policy[:where])
-      expect(policy[:where_ast]).to eq(expected), "#{name} policy #{policy[:name]}: where_ast disagrees with where"
-    end
+    expect(policy_ast_problems(policies)).to be_empty
   end
 
   it "is plain, deterministic JSON" do
-    irs.each_value do |ir|
-      rule_rows(ir).map(&:last).each do |row|
-        once  = JSON.generate(row[:ast])
-        twice = JSON.generate(JSON.parse(once))
-        expect(twice).to eq(once)
-        expect(JSON.parse(once)).to eq(row[:ast])
-      end
-    end
+    asts = irs.values.flat_map { |ir| rule_rows(ir).map { |_, row| row[:ast] } }
+
+    expect(asts.reject { |ast| plain_json?(ast) }).to be_empty
   end
 
-  it "uses only the closed op roster, with paths as segment arrays" do
+  it "uses only the closed op roster, with paths as segment arrays", :aggregate_failures do
     asts = irs.values.flat_map { |ir| rule_rows(ir).map { |_, row| row[:ast] } }
     expect(asts.flat_map { |ast| ops_in(ast) }.uniq - ExprAstJson::OPS).to be_empty
 
@@ -126,37 +175,14 @@ RSpec.describe "the structured expression AST every rule row carries" do
   end
 
   it "carries the whole meaning: reading the ast back and interpreting it answers what the text answers" do
-    state = ExprAstGenerator.synthetic_state
-    attrs = ExprAstGenerator.synthetic_attrs
+    disagreements = ast_disagreements
 
-    outcome = lambda do |&block|
-      { ok: block.call }
-    rescue Hecks::Bluebook::Expression::EvaluationError => e
-      { refused: e.message }
-    end
-
-    disagreements = ExprAstGenerator.all_predicates.filter_map do |expr|
-      via_text = outcome.call { ExprAstEvaluator.call(expr, state, attrs) }
-      via_ast  = outcome.call do
-        ExprAstEvaluator.interpret(Hecks::Bluebook::Expression::AstReader.read_predicate(ExprAstJson.emit_predicate(expr)),
-                                   state, attrs)
-      end
-      [expr, via_text, via_ast] unless via_text == via_ast
-    end
-
-    expect(disagreements).to be_empty, "#{disagreements.size} expression(s) mean something different as ast:\n" +
-                                       disagreements.first(10).map { |e, t, a|
-                                         "  #{e}\n    text: #{t.inspect}\n    ast:  #{a.inspect}"
-                                       }.join("\n")
+    expect(disagreements).to be_empty, disagreement_message(disagreements)
   end
 
   it "emits an ast for every well-typed expression the bounded-exhaustive generator can spell" do
-    crashes = ExprAstGenerator.all_predicates.filter_map do |expr|
-      ExprAstJson.emit_predicate(expr)
-      nil
-    rescue StandardError => e
-      [expr, e.class, e.message]
-    end
+    crashes = emit_crashes
+
     expect(crashes).to be_empty, crashes.first(10).inspect
   end
 end

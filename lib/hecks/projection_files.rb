@@ -3,6 +3,8 @@
 require "fileutils"
 require "json"
 require "tempfile"
+require_relative "projection_files/texts"
+require_relative "projection_files/expression_tables"
 
 module Hecks
   # What each `project_*` generator of the language writes, held as data: absolute path to text.
@@ -37,6 +39,9 @@ module Hecks
     # Names of the projections, in the order a full regeneration runs them.
     NAMES = %i[model vocabulary rust_vocabulary reserved_names parser_table bootstrap_table
                field_hints expression_tables reference].freeze
+
+    extend Texts
+    extend ExpressionTables
 
     module_function
 
@@ -124,17 +129,22 @@ module Hecks
     # @raise [Refused] if a vocabulary declares no members
     def reserved_names(root)
       require "hecks/vocabulary"
-      consts = RESERVED_TABLES.map do |const, vocabulary|
-        words = Hecks::Vocabulary.fetch(vocabulary)
-        raise Refused, "vocabulary #{vocabulary} declares no members" if words.empty?
-
-        lines = words.map { |word| "    #{word.inspect}," }.join("\n")
-        "/// The `#{vocabulary}` vocabulary, #{words.size} entries.\n" \
-          "pub const #{const}: &[&str] = &[\n#{lines}\n];"
-      end
-      text = reserved_names_text(consts)
+      text = reserved_names_text(RESERVED_TABLES.map { |const, vocabulary| reserved_constant(const, vocabulary) })
       targets = %w[rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs]
       Result.new(targets.to_h { |target| [File.join(root, target), text] }, [])
+    end
+
+    # @param const [String] the Rust constant's name
+    # @param vocabulary [String] the vocabulary its words come from
+    # @return [String] the Rust `pub const` listing every word
+    # @raise [Refused] if the vocabulary declares no members
+    def reserved_constant(const, vocabulary)
+      words = Hecks::Vocabulary.fetch(vocabulary)
+      raise Refused, "vocabulary #{vocabulary} declares no members" if words.empty?
+
+      lines = words.map { |word| "    #{word.inspect}," }.join("\n")
+      "/// The `#{vocabulary}` vocabulary, #{words.size} entries.\n" \
+        "pub const #{const}: &[&str] = &[\n#{lines}\n];"
     end
 
     # @param root [String] the checkout
@@ -162,22 +172,6 @@ module Hecks
       Result.new({ File.join(root, "rust/host/src/field_hints.rs") => field_hints_text(hints) }, [])
     end
 
-    # @param root [String] the checkout
-    # @return [Result] `lib/hecks/bluebook/expression/projection.json`
-    # @raise [Refused] if an admitted operator has no declared algebra, or the projection drops an
-    #   operator the language's own guards evaluate through
-    def expression_tables(root)
-      require "hecks"
-      require "hecks/grammar"
-      operators = expression_operators(Grammar.expression)
-      dropped = Grammar.self_bearing_operators.except(*operators.map { |row| row[:symbol] })
-      raise Refused, dropped_message(dropped) unless dropped.empty?
-
-      dispatcher = Grammar.expression
-      text = "#{JSON.pretty_generate(operators: operators, normalisations: Grammar.admitted_normalisations(dispatcher))}\n"
-      Result.new({ File.join(root, "lib/hecks/bluebook/expression/projection.json") => text }, [])
-    end
-
     # The DSL reference pages and the README regions generated from the same declarations.
     #
     # @param root [String] the checkout
@@ -202,84 +196,6 @@ module Hecks
     # @return [Bluebook::Aggregate] the Bluebook chapter, which every projection reads
     def chapter
       Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-    end
-
-    # @param dispatcher [Object] the expression dispatcher
-    # @return [Array<Hash>] each admitted operator, with the algebra a comparison declares
-    # @raise [Refused] if a comparison has no declared algebra
-    def expression_operators(dispatcher)
-      vocabulary = chapter.aggregates.find { |aggregate| aggregate.name == "Vocabulary" }
-      algebra = vocabulary.value_objects.find { |value_object| value_object.hecks_name == "Comparison" }
-                          .members.to_h { |row| [row.to_h.values.first, row.to_h] }
-      Grammar.admitted_operators(dispatcher).map do |op|
-        row = { symbol: op[:symbol], category: op[:category], precedence: op[:precedence], arity: op[:arity] }
-        next row unless op[:category] == "comparison"
-
-        declared = algebra.fetch(op[:symbol]) do
-          raise Refused, "#{op[:symbol]} is admitted but Vocabulary::Comparison declares no algebra for it"
-        end
-        row.merge(compares_less_than: declared[:compares_less_than],
-                  compares_equal: declared[:compares_equal], negated: declared[:negated])
-      end
-    end
-
-    # @param dropped [Hash{String => Array<String>}] operator to the guards evaluating through it
-    # @return [String] one line for each operator a projection would strand
-    def dropped_message(dropped)
-      dropped.map do |symbol, sites|
-        "#{symbol} is self-bearing — the language's own predicates evaluate through it " \
-          "(#{sites.first(3).join("; ")}) — rewrite those guards before retiring it"
-      end.join("\n")
-    end
-
-    # @param consts [Array<String>] the rendered Rust constants
-    # @return [String] the whole `reserved_names.rs`
-    def reserved_names_text(consts)
-      <<~RUST
-        // GENERATED by hecks project_reserved_names from the RustReservedWord and
-        // CargoReservedName vocabularies (lib/hecks/language/bluebook/
-        // vocabulary.bluebook). Do not hand-edit — re-run hecks project_reserved_names.
-
-        #{consts.join("\n\n")}
-      RUST
-    end
-
-    # @param hints [Array<Hash>] the rows of `Vocabulary::FieldHint`
-    # @return [String] the whole `field_hints.rs`
-    def field_hints_text(hints)
-      consts = hints.map { |hint| field_hint_constant(hint) }.join("\n")
-      <<~RUST
-        // GENERATED by hecks project_field_hints from Vocabulary::FieldHint
-        // (lib/hecks/language/bluebook/vocabulary.bluebook). Do not
-        // hand-edit — re-run hecks project_field_hints instead.
-        //
-        // web.rs's `text_field` matches these in the SAME precedence Ruby's
-        // own `text_field` does: EMAIL_HINT, then URL_HINT, then TEL_HINT —
-        // against `html_type`, first match wins — then, only if `html_type`
-        // stayed "text", TEXTAREA_HINT against `kind`.
-
-        use regex::Regex;
-        use std::sync::LazyLock;
-
-        #{consts}
-      RUST
-    end
-
-    # @param hint [Hash] one `FieldHint` row: its name, pattern and what it resolves to
-    # @return [String] the Rust `static` for it
-    def field_hint_constant(hint)
-      name = "#{hint[:name].upcase}_HINT"
-      <<~RUST
-        /// #{hint[:name].capitalize} hint, resolving to `#{hint[:resolves_to]}` on a match —
-        /// Vocabulary::FieldHint's own declared pattern, unmodified (the
-        /// same text `Regexp#source` reads off FieldShape's own
-        /// #{name}, which is built from this same row).
-        /// `(?i)` up front is this crate's spelling
-        /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
-        /// on both sides, never partially.
-        pub static #{name}: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r#"(?i)#{hint[:pattern]}"#).expect("declared field-hint pattern must compile"));
-      RUST
     end
   end
 end

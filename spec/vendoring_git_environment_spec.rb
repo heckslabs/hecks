@@ -42,7 +42,7 @@ RSpec.describe Hecks::Vendoring::GitEnvironment do
   end
 
   describe ".clean" do
-    it "unsets every variable that pins git to a repository, and nothing else" do
+    it "unsets every variable that pins git to a repository, and nothing else", :aggregate_failures do
       expect(described_class.clean.keys).to match_array(described_class::INHERITED)
       expect(described_class.clean.values.uniq).to eq([nil])
     end
@@ -61,7 +61,7 @@ RSpec.describe Hecks::Vendoring::GitEnvironment do
   describe "a scratch repository built while the hook's variables are inherited" do
     before { poisoned }
 
-    it "commits into the scratch repository and never into the inherited one" do
+    it "commits into the scratch repository and never into the inherited one", :aggregate_failures do
       repo = RegistryRepo.new(File.join(scratch, "source"))
       repo.write("widgets/bluebook/widgets.bluebook" => "first\n")
       sha = repo.commit
@@ -70,14 +70,17 @@ RSpec.describe Hecks::Vendoring::GitEnvironment do
       expect(decoy_commits).to eq("0")
     end
 
-    it "pins and exports the scratch repository's files" do
+    def pinned_two_files
       repo = RegistryRepo.new(File.join(scratch, "source"))
       repo.write("widgets/bluebook/widgets.bluebook" => "first\n", "widgets/bluebook/other.bluebook" => "other\n")
       repo.commit
       into = File.join(scratch, "project", "vendor", "widgets")
+      result = Hecks::Vendoring.pin(from: repo.path, ref: "main", subtree: "widgets/bluebook", into: into, glob: "*.bluebook")
+      [result, into]
+    end
 
-      result = Hecks::Vendoring.pin(from: repo.path, ref: "main", subtree: "widgets/bluebook", into: into,
-                                    glob: "*.bluebook")
+    it "pins and exports the scratch repository's files", :aggregate_failures do
+      result, into = pinned_two_files
 
       expect(result.files).to eq(%w[other.bluebook widgets.bluebook])
       expect(Dir.children(File.join(into, "bluebook")).sort).to eq(%w[other.bluebook widgets.bluebook])

@@ -40,10 +40,10 @@ module Hecks
           @adapter = adapter
           required = %i[append project entries]
           missing = required.reject { |method| adapter.respond_to?(method) }
-          unless missing.empty?
-            raise Runtime::WiringError,
-                  "#{adapter.class} does not implement append-only persistence: #{missing.join(", ")}"
-          end
+          return if missing.empty?
+
+          raise Runtime::WiringError,
+                "#{adapter.class} does not implement append-only persistence: #{missing.join(", ")}"
         end
 
         # Reads one record's current projected state from the adapter.
@@ -228,7 +228,7 @@ module Hecks
         # @return [Boolean] true when a record was found and deleted, false when there was
         #   none and nothing was journaled
         # @raise [Runtime::WiringError] when the adapter's `append` or `project` refuses
-        def delete(id)
+        def delete(id) # rubocop:disable Naming/PredicateMethod -- the repository port's verb, answering whether a record existed
           return false unless find(id)
 
           entry = Entry.new(operation: "delete", id: id.to_s, state: nil)

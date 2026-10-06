@@ -1,11 +1,13 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
-require "tempfile"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/era_registry_loading"
 
 # `PostgresEra#reset!` raises rather than silently deleting nothing when the journal's
 # force-RLS policies admit no DELETE. Needs a non-superuser owner: superusers bypass RLS.
 RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io do
+  include EraRegistryLoading
+
   RESET_DB = "hecks_reset_spec".freeze
   RESET_OWNER = "hecks_reset_spec_owner".freeze
 
@@ -59,21 +61,6 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     scrub.close
   end
 
-  def load_registry(source)
-    registry = Hecks::Runtime::Registry.new
-    loading = Hecks::Ports::Loading.bootstrap
-    file = Tempfile.new(["reset-", ".bluebook"])
-    file.write(source)
-    file.flush
-    Hecks.with_registry(registry) do
-      loading.load_library
-      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-    end
-    registry
-  ensure
-    file&.close!
-  end
-
   def check!
     registry = load_registry(RESET_SPEC_SOURCE)
     bluebook = registry.bluebooks.values.first
@@ -96,28 +83,42 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     adapter.save(instance)
   end
 
-  it "raises a WiringError instead of silently deleting nothing, when RLS admits no DELETE" do
-    registry = check!
-    adapter = adapter_for(registry)
-    write_a_record(adapter, registry)
-    expect(adapter.find("a1")).not_to be_nil
+  let(:registry) { check! }
+  let(:adapter) { adapter_for(registry) }
 
-    expect { adapter.reset! }.to raise_error(Hecks::Runtime::WiringError, /FORCE ROW LEVEL SECURITY|DELETE policy/)
+  context "when RLS admits no DELETE" do
+    before { write_a_record(adapter, registry) }
+
+    it "raises a WiringError instead of silently deleting nothing" do
+      expect { adapter.reset! }.to raise_error(Hecks::Runtime::WiringError, /FORCE ROW LEVEL SECURITY|DELETE policy/)
+    end
 
     # A silent no-op would leave the record behind; it must still be there.
-    expect(adapter.find("a1")).not_to be_nil
+    it "leaves the record in place", :aggregate_failures do
+      expect(adapter.find("a1")).not_to be_nil
+      expect { adapter.reset! }.to raise_error(Hecks::Runtime::WiringError)
+      expect(adapter.find("a1")).not_to be_nil
+    end
   end
 
-  it "does not raise, and genuinely clears the journal, for a role that bypasses RLS" do
-    registry = check!
+  context "with a role that bypasses RLS" do
     # The ambient connection is the local default user, commonly a superuser, which bypasses RLS.
-    aggregate = registry.bluebooks.values.first.aggregate("Acct")
-    ambient_adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })
-    write_a_record(ambient_adapter, registry, id: "a2")
-    expect(ambient_adapter.entries).not_to be_empty
+    let(:ambient_adapter) do
+      aggregate = registry.bluebooks.values.first.aggregate("Acct")
+      Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })
+    end
+
+    before { write_a_record(ambient_adapter, registry, id: "a2") }
+
+    it "does not raise" do
+      expect { ambient_adapter.reset! }.not_to raise_error
+    end
 
     # `entries` reads the journal directly, unlike `find`, which reads a derived head.
-    expect { ambient_adapter.reset! }.not_to raise_error
-    expect(ambient_adapter.entries).to be_empty
+    it "genuinely clears the journal", :aggregate_failures do
+      expect(ambient_adapter.entries).not_to be_empty
+      ambient_adapter.reset!
+      expect(ambient_adapter.entries).to be_empty
+    end
   end
 end

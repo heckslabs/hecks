@@ -17,7 +17,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     end
   end
 
-  def seed(runtime)
+  def register_customers(runtime)
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
 
@@ -25,9 +25,11 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     # customer, so suspending c1 would empty the account-comparator tests.
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c2" },
                      name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
+  end
 
-    # a(300), b(500), c(1000, later frozen), d(0, later closed): strictly below, exactly at,
-    # strictly above, and the zero balance closure requires.
+  # a(300), b(500), c(1000, later frozen), d(0, later closed): strictly below, exactly at,
+  # strictly above, and the zero balance closure requires.
+  def open_accounts(runtime)
     [["a", 300], ["b", 500], ["c", 1000], ["d", 0]].each do |number, cents|
       runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: number },
                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
@@ -38,7 +40,9 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     end
     runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "c" })
     runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "d" })
+  end
 
+  def authorize_payments_and_suspend_c2(runtime)
     runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
                                                         amount: { cents: 4200 }, merchant: { value: "Risky Co" },
                                                         tags: [{ value: "high_risk" }])
@@ -47,6 +51,12 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
 
     runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c2" },
                                                        standing:  { value: "chargeback investigation" })
+  end
+
+  def seed(runtime)
+    register_customers(runtime)
+    open_accounts(runtime)
+    authorize_payments_and_suspend_c2(runtime)
     runtime
   end
 

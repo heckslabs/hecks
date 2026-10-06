@@ -143,20 +143,39 @@ module Hecks
       # @raise [ArgumentError] if `approved_by` is blank or `approved_at` is not a time, or if the
       #   edge needs a rehearsal and none that passed was given
       def build(edge:, approved_by:, approved_at:, rehearsal: nil)
-        unless attributed?("approved_by" => approved_by, "approved_at" => approved_at)
-          raise ArgumentError, "an approval names who approved it (approved_by, your git identity) " \
-                               "and when (approved_at, an ISO 8601 time)"
-        end
-
-        if needs_rehearsal?(edge) && !rehearsed?(rehearsal)
-          raise ArgumentError, "an edge with a compute or rekey rule is approved on a rehearsal that passed: " \
-                               "name the snapshot, the host version, the result (pass) and when it ran"
-        end
+        refuse_unattributed!(approved_by, approved_at)
+        refuse_unrehearsed!(edge, rehearsal)
 
         document = { "edge" => edge_name(edge), "edge_digest" => edge_digest(edge),
                      "approved_by" => approved_by, "approved_at" => approved_at }
         document["rehearsal"] = rehearsal.slice(*REHEARSAL_KEYS) if rehearsal
         document
+      end
+
+      # Refuses an approval that does not say who approved it and when.
+      #
+      # @param approved_by [String] who approved it
+      # @param approved_at [String] when, as an ISO 8601 UTC time
+      # @return [void]
+      # @raise [ArgumentError] if either is blank or malformed
+      def refuse_unattributed!(approved_by, approved_at)
+        return if attributed?("approved_by" => approved_by, "approved_at" => approved_at)
+
+        raise ArgumentError, "an approval names who approved it (approved_by, your git identity) " \
+                             "and when (approved_at, an ISO 8601 time)"
+      end
+
+      # Refuses the approval of a compute or rekey edge that carries no passing rehearsal.
+      #
+      # @param edge [Bluebook::Translation] the parsed translation edge
+      # @param rehearsal [Hash{String => String}, nil] the rehearsal block
+      # @return [void]
+      # @raise [ArgumentError] if the edge needs a rehearsal and none that passed was given
+      def refuse_unrehearsed!(edge, rehearsal)
+        return unless needs_rehearsal?(edge) && !rehearsed?(rehearsal)
+
+        raise ArgumentError, "an edge with a compute or rekey rule is approved on a rehearsal that passed: " \
+                             "name the snapshot, the host version, the result (pass) and when it ran"
       end
 
       # Writes an edge's approval file, replacing an earlier approval of the same edge.
@@ -217,10 +236,19 @@ module Hecks
 
         digest = edge_digest(edge)
         stale = read_all(directory).find do |approval|
-          approval["edge_digest"] == digest && attributed?(approval) && rehearsed?(approval["rehearsal"]) &&
-            !host_compatible?(approval["rehearsal"], host_version)
+          approval["edge_digest"] == digest && stale_host?(approval, host_version)
         end
         host_refusal(stale["rehearsal"], host_version) if stale
+      end
+
+      # Whether an attributed approval's passing rehearsal ran on an incompatible host.
+      #
+      # @param approval [Hash{String => Object}] one parsed approval
+      # @param host_version [String] the running host's release
+      # @return [Boolean]
+      def stale_host?(approval, host_version)
+        attributed?(approval) && rehearsed?(approval["rehearsal"]) &&
+          !host_compatible?(approval["rehearsal"], host_version)
       end
     end
   end

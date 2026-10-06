@@ -20,12 +20,23 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     )
   end
 
-  def assign(runtime, actor:, role:)
+  def assign(runtime, actor:, role:, starts_at: "2026-01-01")
     runtime.dispatch_flat(
       "Governance::RoleAssignment.Assign",
       actor_id: { value: actor }, role_name: { value: role },
-      scope: { value: "Branch-1" }, starts_at: { value: "2026-01-01" }
+      scope: { value: "Branch-1" }, starts_at: { value: starts_at }
     )
+  end
+
+  def suspend_customer(customer, as_role:)
+    Hecks.as_caller(role: as_role) do
+      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+    end
+  end
+
+  def standing_of(customer)
+    aggregate = business.registry.bluebook("Banking").aggregate("Customer")
+    business.registry.repository("Banking", aggregate).find(customer.instance.id).state[:standing][:value]
   end
 
   def grant_transition(runtime, from:, to:, starts_at: "2026-01-01")
@@ -86,11 +97,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
 
     it "fails closed for a starts_at that does not parse as a time, once as_of is given" do
-      business.dispatch_flat(
-        "Governance::RoleAssignment.Assign",
-        actor_id: { value: "officer-2" }, role_name: { value: "Compliance officer" },
-        scope: { value: "Branch-1" }, starts_at: { value: "not-a-real-date" }
-      )
+      assign(business, actor: "officer-2", role: "Compliance officer", starts_at: "not-a-real-date")
 
       expect(
         described_class.holds_role?(business.registry, actor_id: "officer-2", role: "Compliance officer",
@@ -127,36 +134,34 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
   end
 
-  it "gates a real role-checked Banking dispatch, end to end through the port" do
-    customer = register_customer(business)
-    assign(business, actor: "officer-1", role: "Compliance officer")
+  context "with a Compliance officer assigned" do
+    before { assign(business, actor: "officer-1", role: "Compliance officer") }
 
-    allowed = Hecks::Ports::Authorization.holds_role?(
-      business.registry, actor_id: "officer-1", role: "Compliance officer"
-    )
-    expect(allowed).to be(true)
-
-    result = Hecks.as_caller(role: "Compliance officer") do
-      business.dispatch_flat(
-        "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
-      )
+    it "answers true through the port, for a real role-checked Banking dispatch" do
+      expect(
+        Hecks::Ports::Authorization.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
+      ).to be(true)
     end
 
-    expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
+    it "gates a real role-checked Banking dispatch, end to end through the port" do
+      result = suspend_customer(register_customer(business), as_role: "Compliance officer")
+
+      expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
+    end
   end
 
-  it "the app-level check refuses before any dispatch, when the port says no" do
-    customer = register_customer(business)
-
-    allowed = Hecks::Ports::Authorization.holds_role?(
-      business.registry, actor_id: "nobody", role: "Compliance officer"
-    )
-    expect(allowed).to be(false)
+  describe "the app-level check" do
+    it "refuses before any dispatch, when the port says no" do
+      expect(
+        Hecks::Ports::Authorization.holds_role?(business.registry, actor_id: "nobody", role: "Compliance officer")
+      ).to be(false)
+    end
 
     # No `as_caller` and no dispatch: with no ambient caller the runtime's role check is inert,
     # so it is the port's "no" that must stop the app before it gets here.
-    expect(business.registry.repository("Banking", business.registry.bluebook("Banking").aggregate("Customer"))
-      .find(customer.instance.id).state[:standing][:value]).to eq("good")
+    it "leaves the customer's standing as it was" do
+      expect(standing_of(register_customer(business))).to eq("good")
+    end
   end
 
   describe "#live_role_for" do
@@ -203,26 +208,39 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
   end
 
-  it "act_as through the port: a granted transition lets one role act as another, then restores" do
-    grant_transition(business, from: "Branch clerk", to: "Compliance officer")
-    customer = register_customer(business)
+  describe "act_as through the port: a granted transition lets one role act as another" do
+    before { grant_transition(business, from: "Branch clerk", to: "Compliance officer") }
 
-    Hecks.as_caller(role: "Branch clerk") do
-      allowed = Hecks::Ports::Authorization.authorized_as?(
-        business.registry, from_role: "Branch clerk", to_role: "Compliance officer"
-      )
-      expect(allowed).to be(true)
-
-      suspended = Hecks.as_caller(role: "Compliance officer") do
-        business.dispatch_flat(
-          "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
+    def clerk_authorized_as_officer?
+      Hecks.as_caller(role: "Branch clerk") do
+        Hecks::Ports::Authorization.authorized_as?(
+          business.registry, from_role: "Branch clerk", to_role: "Compliance officer"
         )
       end
-      expect(suspended.events.map(&:name)).to eq(["CustomerSuspended"])
+    end
 
-      # Restored: "Branch clerk" may Register, so this succeeds only if the role went back.
-      registered = register_customer(business, reference: "C-2")
-      expect(registered.events.map(&:name)).to eq(["CustomerRegistered"])
+    it "authorizes the transition" do
+      expect(clerk_authorized_as_officer?).to be(true)
+    end
+
+    it "lets the clerk suspend a customer as a Compliance officer" do
+      customer = register_customer(business)
+      suspended = Hecks.as_caller(role: "Branch clerk") { suspend_customer(customer, as_role: "Compliance officer") }
+
+      expect(suspended.events.map(&:name)).to eq(["CustomerSuspended"])
+    end
+
+    def act_as_officer_then_register_as_clerk
+      customer = register_customer(business)
+      Hecks.as_caller(role: "Branch clerk") do
+        suspend_customer(customer, as_role: "Compliance officer")
+        register_customer(business, reference: "C-2")
+      end
+    end
+
+    # Restored: "Branch clerk" may Register, so this succeeds only if the role went back.
+    it "restores the clerk's own role afterwards" do
+      expect(act_as_officer_then_register_as_clerk.events.map(&:name)).to eq(["CustomerRegistered"])
     end
   end
 end

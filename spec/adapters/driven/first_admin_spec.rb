@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
 
   def people = runtime.query("Crew::Person.All").map { |row| Hecks::Doors::JsonDoor.materialize(row) }
 
-  it "admits the person and grants the role the grant is gated to" do
+  it "admits the person and grants the role the grant is gated to", :aggregate_failures do
     result = bootstrap.call(email: "ada@example.com", name: "Ada")
 
     expect(result.to_s).to eq("Granted Admin access to ada@example.com (admitted first)")
@@ -28,13 +28,17 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
     expect(people.first.fetch(:name)).to eq(value: "ada")
   end
 
-  it "grants a person who was admitted already without admitting them again" do
+  def admit_ada_beforehand
     # Boot first: the lazy runtime would otherwise load the chapters inside the Admin caller,
     # and their own Declare commands are refused for the role they were not gated to.
     runtime
     Hecks.as_caller(role: "Admin") do
       runtime.dispatch("Crew::Person.Admit", with: { email: { value: "ada@example.com" }, name: { value: "Ada L" } })
     end
+  end
+
+  it "grants a person who was admitted already without admitting them again", :aggregate_failures do
+    admit_ada_beforehand
 
     result = bootstrap.call(email: "ada@example.com", name: "Ignored")
 
@@ -42,12 +46,12 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
     expect(people).to contain_exactly(include(name: { value: "Ada L" }, role: { value: "Admin" }))
   end
 
-  it "grants the role it is asked for" do
+  it "grants the role it is asked for", :aggregate_failures do
     expect(bootstrap.call(email: "ada@example.com", role: "Owner").role).to eq("Owner")
     expect(people.first.fetch(:role)).to eq(value: "Owner")
   end
 
-  it "refuses once an administrator exists, naming them, and changes nothing" do
+  it "refuses once an administrator exists, naming them, and changes nothing", :aggregate_failures do
     bootstrap.call(email: "ada@example.com")
 
     expect { bootstrap.call(email: "grace@example.com") }

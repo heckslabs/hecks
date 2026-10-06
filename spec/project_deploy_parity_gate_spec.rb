@@ -52,12 +52,12 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     after(:context) { FileUtils.rm_rf(@generated_dir) }
 
-    it "declares a verify-parity-<LogicalId> target" do
+    it "declares a verify-parity-<LogicalId> target", :aggregate_failures do
       expect(@makefile).to match(/^\.PHONY: verify-parity-\w+$/)
       expect(@makefile).to match(/^verify-parity-\w+:$/)
     end
 
-    it "runs hecks check_conformance against $(WASM) — the exact artifact build-<LogicalId> just produced" do
+    it "runs hecks check_conformance against $(WASM) — the exact artifact build-<LogicalId> just produced", :aggregate_failures do
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
       expect(target_body).to include("exe/hecks build.check_conformance")
       expect(target_body).to include("--wait")
@@ -69,7 +69,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       expect(deploy_body).to match(/\$\(MAKE\) verify-parity-\w+/)
     end
 
-    it "warns loudly, rather than silently skipping, when this domain has no spec/corpus/<name>.json fixture yet" do
+    it "warns loudly, rather than silently skipping, when this domain has no spec/corpus/<name>.json fixture yet",
+       :aggregate_failures do
       # This fixture has no spec/corpus/parity_gate_spec_fixture.json, so the recipe
       # must name what is missing rather than no-op.
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
@@ -123,7 +124,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     # Pairs roster's corpus with pizzas' artifact, whose dispatch table knows none of
     # roster's event names, so the comparison must diverge.
-    it "fails (non-zero exit) when the artifact is a genuinely different, deliberately-mismatched compiled domain" do
+    it "fails (non-zero exit) when the artifact is a genuinely different, deliberately-mismatched compiled domain",
+       :aggregate_failures do
       stdout, stderr, status = rust_conformance("examples/roster", ROSTER_FIXTURE, @pizzas_wasm)
       expect(status).not_to be_success
       expect(stdout + stderr).to include("mismatch")

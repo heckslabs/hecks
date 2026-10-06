@@ -26,6 +26,9 @@ RSpec.describe Hecks::Adapters::Heki do
     built
   end
 
+  # A second adapter over the same directory, as a fresh boot would open it.
+  def reopened_adapter = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+
   describe "the adapter contract" do
     it "answers nil for an id it never stored" do
       expect(adapter.find("ghost")).to be_nil
@@ -40,14 +43,17 @@ RSpec.describe Hecks::Adapters::Heki do
       expect([found.id, found[:name].to_h, found[:customer_name].to_h]).to eq(["p1", { value: "Margherita" }, { value: "Ada" }])
     end
 
-    it "keeps every write and reads the last entry" do
+    def journalled_names
+      File.readlines("#{adapter.path}.journal", chomp: true)
+          .map { |line| JSON.parse(line).fetch("state").fetch("name").fetch("value") }
+    end
+
+    it "keeps every write and reads the last entry", :aggregate_failures do
       adapter.save(instance("p1", name: { value: "First" }))
       adapter.save(instance("p1", name: { value: "Second" }))
 
-      expect(adapter.count).to eq(1)
-      expect(adapter.find("p1")[:name].to_h).to eq(value: "Second")
-      entries = File.readlines("#{adapter.path}.journal", chomp: true).map { |line| JSON.parse(line) }
-      expect(entries.map { |entry| entry.fetch("state").fetch("name").fetch("value") }).to eq(%w[First Second])
+      expect([adapter.count, adapter.find("p1")[:name].to_h]).to eq([1, { value: "Second" }])
+      expect(journalled_names).to eq(%w[First Second])
     end
 
     it "lists what it holds, in id order" do
@@ -57,7 +63,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(adapter.all.map(&:id)).to eq(["p1", "p2"])
     end
 
-    it "deletes, and says whether there was anything to delete" do
+    it "deletes, and says whether there was anything to delete", :aggregate_failures do
       adapter.save(instance("p1", name: { value: "Doomed" }))
 
       expect(adapter.delete("p1")).to be true
@@ -87,7 +93,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(File.exist?(File.join(@dir, "order.heki"))).to be true
     end
 
-    it "#project answers a Runtime::Instance on save, like every other adapter" do
+    it "#project answers a Runtime::Instance on save, like every other adapter", :aggregate_failures do
       entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { name: { value: "Margherita" } })
       projected = adapter.project(entry)
 
@@ -95,13 +101,18 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(projected.id).to eq("p1")
     end
 
-    it "#project answers the removed Runtime::Instance on delete, or nil when none was held" do
+    # Saves a record, then deletes it through `append` and `project`; answers the entry and what
+    # `project` answered. `append` comes before `project`, as `#delete` does; `#project` alone would
+    # let the journalled save entry resurrect the record on the next `read`'s `replay_journal`.
+    def project_a_deletion
       adapter.save(instance("p1", name: { value: "Doomed" }))
-      # `append` before `project`, as `#delete` does; `#project` alone would let the journalled
-      # save entry resurrect the record on the next `read`'s `replay_journal`.
       delete_entry = Hecks::Ports::Persistence::Entry.new(operation: "delete", id: "p1", state: nil)
       adapter.append(delete_entry)
-      deleted = adapter.project(delete_entry)
+      [delete_entry, adapter.project(delete_entry)]
+    end
+
+    it "#project answers the removed Runtime::Instance on delete, or nil when none was held", :aggregate_failures do
+      delete_entry, deleted = project_a_deletion
 
       expect(deleted).to be_a(Hecks::Runtime::Instance)
       expect(deleted.id).to eq("p1")
@@ -110,19 +121,25 @@ RSpec.describe Hecks::Adapters::Heki do
   end
 
   describe "crash safety and concurrency" do
-    it "writes the snapshot through a temp file and rename, never in place" do
-      adapter.save(instance("p1", name: { value: "First" }))
-      original = File.binread(adapter.path)
+    context "when the rename of a snapshot fails" do
+      before do
+        adapter.save(instance("p1", name: { value: "First" }))
+        @original = File.binread(adapter.path)
+        allow(File).to receive(:rename).and_raise("boom")
+      end
 
-      allow(File).to receive(:rename).and_raise("boom")
-      expect { adapter.save(instance("p2", name: { value: "Second" })) }.to raise_error("boom")
+      it "writes the snapshot through a temp file and rename, never in place", :aggregate_failures do
+        expect { adapter.save(instance("p2", name: { value: "Second" })) }.to raise_error("boom")
+        # The rename never happened, so the snapshot is untouched.
+        expect(File.binread(adapter.path)).to eq(@original)
+      end
 
-      # The rename never happened, so the snapshot is untouched.
-      expect(File.binread(adapter.path)).to eq(original)
+      it "leaves the journal append for a fresh boot to replay", :aggregate_failures do
+        expect { adapter.save(instance("p2", name: { value: "Second" })) }.to raise_error("boom")
 
-      # The journal append landed before the snapshot write; a fresh boot replays it.
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.find("p2")[:name].to_h).to eq(value: "Second")
+        # The journal append landed before the snapshot write; a fresh boot replays it.
+        expect(reopened_adapter.find("p2")[:name].to_h).to eq(value: "Second")
+      end
     end
 
     it "leaves no temp file behind after a successful save" do
@@ -137,85 +154,124 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(File.exist?("#{adapter.path}.lock")).to be true
     end
 
-    it "survives concurrent writers without any of them clobbering another's record" do
-      skip "no fork on this platform" unless Process.respond_to?(:fork)
+    context "with forked writers" do
+      before { skip "no fork on this platform" unless Process.respond_to?(:fork) }
 
-      ids = (1..8).to_a
-      pids = ids.map do |i|
-        fork do
-          described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-                         .save(instance("p#{i}", name: { value: "V#{i}" }))
+      def fork_ids = (1..8).to_a
+
+      def write_from_forks
+        pids = fork_ids.map do |i|
+          fork { reopened_adapter.save(instance("p#{i}", name: { value: "V#{i}" })) }
         end
+        pids.each { |pid| Process.waitpid(pid) }
       end
-      pids.each { |pid| Process.waitpid(pid) }
 
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.all.map(&:id)).to eq(ids.map { |i| "p#{i}" }.sort)
-      # Every journal line parses; none was split by a concurrent append.
-      expect { reopened.entries }.not_to raise_error
+      it "survives concurrent writers without any of them clobbering another's record", :aggregate_failures do
+        write_from_forks
+
+        expect(reopened_adapter.all.map(&:id)).to eq(fork_ids.map { |i| "p#{i}" }.sort)
+        # Every journal line parses; none was split by a concurrent append.
+        expect { reopened_adapter.entries }.not_to raise_error
+      end
     end
   end
 
   describe "#compact! — explicit, opt-in journal compaction" do
-    it "discards the journal without losing any current state, across many writes and ids" do
-      ids = (1..5).to_a
-      ids.each do |i|
-        3.times { |version| adapter.save(instance("p#{i}", name: { value: "v#{i}.#{version}" })) }
+    def journal_path = "#{adapter.path}.journal"
+
+    def records_of(store) = store.all.map { |record| [record.id, record[:name].to_h] }
+
+    context "with many writes across several ids and a delete" do
+      before do
+        (1..5).each do |i|
+          3.times { |version| adapter.save(instance("p#{i}", name: { value: "v#{i}.#{version}" })) }
+        end
+        adapter.delete("p3")
+        @expected = records_of(adapter)
       end
-      adapter.delete("p3")
 
-      journal_path = "#{adapter.path}.journal"
-      expect(File.size(journal_path)).to be > 0
-      expect(adapter.entries.length).to eq((ids.length * 3) + 1) # 3 saves per id + 1 delete
+      it "holds a journal with every write and the delete", :aggregate_failures do
+        expect(File.size(journal_path)).to be > 0
+        expect(adapter.entries.length).to eq((5 * 3) + 1) # 3 saves per id + 1 delete
+      end
 
-      expected = adapter.all.map { |record| [record.id, record[:name].to_h] }
+      it "discards the journal", :aggregate_failures do
+        adapter.compact!
 
-      adapter.compact!
+        expect(adapter.entries).to eq([])
+        expect(File.size(journal_path)).to eq(0)
+      end
 
-      expect(adapter.entries).to eq([])
-      expect(File.size(journal_path)).to eq(0)
-      expect(adapter.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
+      it "loses no current state" do
+        adapter.compact!
+
+        expect(records_of(adapter)).to eq(@expected)
+      end
 
       # A fresh boot replaying the emptied journal must match the pre-compaction state.
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
-      expect(reopened.find("p3")).to be_nil
+      it "lets a fresh boot match the pre-compaction state", :aggregate_failures do
+        adapter.compact!
+
+        expect(records_of(reopened_adapter)).to eq(@expected)
+        expect(reopened_adapter.find("p3")).to be_nil
+      end
     end
 
-    it "writes the snapshot through the same atomic temp-file-plus-rename `write` already uses" do
-      adapter.save(instance("p1", name: { value: "First" }))
-      adapter.save(instance("p1", name: { value: "Second" }))
+    context "when the snapshot rename fails during compaction" do
+      before do
+        adapter.save(instance("p1", name: { value: "First" }))
+        adapter.save(instance("p1", name: { value: "Second" }))
+        allow(File).to receive(:rename).and_raise("boom")
+      end
 
-      allow(File).to receive(:rename).and_raise("boom")
-      expect { adapter.compact! }.to raise_error("boom")
+      it "writes the snapshot through the same atomic temp-file-plus-rename `write` already uses" do
+        expect { adapter.compact! }.to raise_error("boom")
+      end
 
       # No rename means no truncate: the journal stays full and a fresh boot recovers from it.
-      expect(File.read("#{adapter.path}.journal")).not_to be_empty
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+      it "keeps the journal full, and a fresh boot recovers from it", :aggregate_failures do
+        expect { adapter.compact! }.to raise_error("boom")
+
+        expect(File.read(journal_path)).not_to be_empty
+        expect(reopened_adapter.find("p1")[:name].to_h).to eq(value: "Second")
+      end
     end
 
-    it "recovers correctly from a crash simulated between the snapshot write succeeding and the journal truncate running" do
-      adapter.save(instance("p1", name: { value: "First" }))
-      adapter.save(instance("p1", name: { value: "Second" }))
+    context "when a crash comes between the snapshot write succeeding and the journal truncate running" do
+      before do
+        adapter.save(instance("p1", name: { value: "First" }))
+        adapter.save(instance("p1", name: { value: "Second" }))
+        # Only the truncate step crashes; the now-redundant journal lines replay idempotently.
+        allow(adapter).to receive(:truncate_journal!).and_raise("simulated crash mid-truncate")
+      end
 
-      # Only the truncate step crashes; the now-redundant journal lines replay idempotently.
-      allow(adapter).to receive(:truncate_journal!).and_raise("simulated crash mid-truncate")
-      expect { adapter.compact! }.to raise_error("simulated crash mid-truncate")
+      def crash_compaction = expect { adapter.compact! }.to(raise_error("simulated crash mid-truncate"))
 
-      expect(File.read("#{adapter.path}.journal")).not_to be_empty
+      it "raises the crash, and leaves the journal in place", :aggregate_failures do
+        crash_compaction
 
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
-      expect(reopened.count).to eq(1)
+        expect(File.read(journal_path)).not_to be_empty
+      end
+
+      it "recovers correctly on a fresh boot", :aggregate_failures do
+        crash_compaction
+
+        expect(reopened_adapter.find("p1")[:name].to_h).to eq(value: "Second")
+        expect(reopened_adapter.count).to eq(1)
+      end
 
       # The half-crashed attempt leaves the journal still compactable.
-      reopened.compact!
-      expect(reopened.entries).to eq([])
-      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+      it "leaves the journal still compactable", :aggregate_failures do
+        crash_compaction
+        reopened = reopened_adapter
+        reopened.compact!
+
+        expect(reopened.entries).to eq([])
+        expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+      end
     end
 
-    it "is a no-op-safe call on a store that was never written to" do
+    it "is a no-op-safe call on a store that was never written to", :aggregate_failures do
       expect { adapter.compact! }.not_to raise_error
       expect(adapter.count).to eq(0)
       expect(adapter.entries).to eq([])
@@ -223,10 +279,11 @@ RSpec.describe Hecks::Adapters::Heki do
 
     it "reuses save/delete's own with_lock, not a separate, unsynchronized path" do
       adapter.save(instance("p1", name: { value: "First" }))
-
-      expect(adapter).to receive(:with_lock).once.and_call_original
+      allow(adapter).to receive(:with_lock).and_call_original
 
       adapter.compact!
+
+      expect(adapter).to have_received(:with_lock).once
     end
   end
 
@@ -252,7 +309,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(adapter.each_saga.to_a).to eq([])
     end
 
-    it "writes a sibling file, not the aggregate's own store" do
+    it "writes a sibling file, not the aggregate's own store", :aggregate_failures do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
 
       expect(File.exist?(File.join(@dir, "hecks_saga_instances.heki"))).to be true
@@ -275,7 +332,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "recovered", {}, []]])
     end
 
-    it "isolates sagas by domain within one shared directory" do
+    it "isolates sagas by domain within one shared directory", :aggregate_failures do
       other = described_class.new(aggregate: aggregate, settings: { dir: ".", domain: "OtherDomain" }, root: @dir)
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
       other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
@@ -300,21 +357,25 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(bytes[4, 4].unpack1("N")).to eq(2)
     end
 
-    it "holds zlib-compressed JSON keyed by id, after the 8-byte header" do
+    it "holds zlib-compressed JSON keyed by id, after the 8-byte header", :aggregate_failures do
       store = JSON.parse(Zlib::Inflate.inflate(bytes[8..]))
 
       expect(store.keys).to eq(%w[p1 p2])
       expect(store["p1"]["name"]).to eq({ "value" => "Margherita" })
     end
 
-    it "writes ids in sorted order, so the same records give the same bytes" do
-      first = bytes
-
+    # Starts the store over, then writes the same two records in the opposite order.
+    def rewrite_in_reverse_order
       FileUtils.rm_f(File.join(@dir, "order.heki"))
       FileUtils.rm_f(File.join(@dir, "order.heki.journal"))
-      rewritten = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      rewritten = reopened_adapter
       rewritten.save(instance("p2", name: { value: "Marinara" }))
       rewritten.save(instance("p1", name: { value: "Margherita" }))
+    end
+
+    it "writes ids in sorted order, so the same records give the same bytes" do
+      first = bytes
+      rewrite_in_reverse_order
 
       expect(File.binread(File.join(@dir, "order.heki"))).to eq(first)
     end
@@ -322,7 +383,7 @@ RSpec.describe Hecks::Adapters::Heki do
 
   describe "resolve_path" do
     # `dir: :default` (a bare Symbol) must behave like no `dir` setting; `File.join` raises on it.
-    it "treats a bare :default Symbol the same as no dir setting at all" do
+    it "treats a bare :default Symbol the same as no dir setting at all", :aggregate_failures do
       defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
       absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)
 

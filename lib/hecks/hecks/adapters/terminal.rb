@@ -52,14 +52,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the door
       #   refused to start, and said why on stderr
       def serve(**held)
-        argv = plain(held[:stdio]) ? ["--stdio"] : []
-        server = self.class.server
-        if server
-          server.call(argv)
-        else
-          require "hecks/cli/mcp"
-          CLI::Mcp.call(argv)
-        end
+        run_door(plain(held[:stdio]) ? ["--stdio"] : [])
 
         { output: { value: "mcp door closed" } }
       rescue SystemExit => e
@@ -82,6 +75,17 @@ module Hecks
       end
 
       private
+
+      # Hands the process to the server a spec set, or else to the real MCP door.
+      def run_door(argv)
+        server = self.class.server
+        if server
+          server.call(argv)
+        else
+          require "hecks/cli/mcp"
+          CLI::Mcp.call(argv)
+        end
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

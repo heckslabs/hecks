@@ -127,10 +127,14 @@ module Hecks
         $stdout, $stderr = saved
       end
 
-      def finish(tool, argv)
+      def load_tool(tool)
         file, constant = TOOLS.fetch(tool)
         require_relative file
-        RustBuild.const_get(constant).call(argv)
+        RustBuild.const_get(constant)
+      end
+
+      def finish(tool, argv)
+        load_tool(tool).call(argv)
       rescue Failure => e
         warn e.message
         1

@@ -1,0 +1,5 @@
+LogGroup:
+  Type: AWS::Logs::LogGroup
+  Properties:
+    LogGroupName: !Sub "/ecs/@@prefix@@-${EnvName}"
+    RetentionInDays: @@retention_days@@

@@ -33,33 +33,32 @@ module Hecks
         current = steps
         chunk = [current.length / 2, 1].max
         loop do
-          changed = false
-          index = 0
-          while index < current.length
-            return current if meter.exhausted?
+          swept = sweep(current, chunk, meter, &reproduces)
+          changed = swept.length < current.length
+          current = swept
+          return current if meter.exhausted? || (chunk == 1 && !changed)
 
-            candidate = current[0...index] + (current[(index + chunk)..] || [])
-            if candidate.empty?
-              index += chunk
-              next
-            end
+          chunk = [chunk / 2, 1].max
+        end
+      end
 
-            if meter.try { reproduces.call(candidate) }
-              current = candidate
-              changed = true
-            else
-              index += chunk
-            end
-          end
-
-          if chunk > 1
-            chunk = [chunk / 2, 1].max
-          elsif !changed
-            break
+      # One pass removing `chunk` steps at a time; a removal that still reproduces is kept.
+      #
+      # @return [Array<Hash>] the surviving steps
+      def sweep(current, chunk, meter, &reproduces)
+        index = 0
+        while index < current.length && !meter.exhausted?
+          candidate = without_chunk(current, index, chunk)
+          if !candidate.empty? && meter.try { reproduces.call(candidate) }
+            current = candidate
+          else
+            index += chunk
           end
         end
         current
       end
+
+      def without_chunk(steps, index, chunk) = steps[0...index] + (steps[(index + chunk)..] || [])
 
       def drop_arguments(steps, meter, &reproduces)
         steps.each_index do |position|
@@ -69,14 +68,19 @@ module Hecks
           original.each_key do |key|
             return steps if meter.exhausted?
 
-            step      = steps[position]
-            trimmed   = args_of(step).reject { |name, _| name == key }
-            candidate = steps.map(&:dup)
-            candidate[position] = step.merge("args" => trimmed)
+            candidate = without_argument(steps, position, key)
             steps = candidate if meter.try { reproduces.call(candidate) }
           end
         end
         steps
+      end
+
+      # A copy of `steps` whose step at `position` lacks the argument `key`.
+      def without_argument(steps, position, key)
+        step = steps[position]
+        candidate = steps.map(&:dup)
+        candidate[position] = step.merge("args" => args_of(step).reject { |name, _| name == key })
+        candidate
       end
 
       # `key?` first, never `||`, which cannot tell a stored `false` from an absent key.

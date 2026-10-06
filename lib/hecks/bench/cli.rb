@@ -11,6 +11,19 @@ module Hecks
       DEFAULTS = { domains: %w[pizzas banking], targets: Suite::TARGETS, warmup: 200, iterations: 1000,
                    runs: 3 }.freeze
 
+      # Each flag: which hash its value lands in (`:values` for the configuration, `:extras` for
+      # the output choices), the key it sets, and its `OptionParser` arguments.
+      FLAGS = [
+        [:values, :domains, ["--domain NAMES", Array, "pizzas, banking (default: both)"]],
+        [:values, :targets, ["--targets NAMES", Array, "#{Suite::TARGETS.join(", ")} (default: all)"]],
+        [:values, :iterations, ["--iterations N", Integer, "timed cycles per run (default #{DEFAULTS[:iterations]})"]],
+        [:values, :warmup, ["--warmup N", Integer, "discarded cycles before timing (default #{DEFAULTS[:warmup]})"]],
+        [:values, :runs, ["--runs N", Integer, "fresh boots per target, median reported (default #{DEFAULTS[:runs]})"]],
+        [:extras, :rust_binary, ["--rust-binary PATH", "use this `rust` binary instead of building one"]],
+        [:extras, :format, ["--format FORMAT", %w[markdown json], "markdown (default) or json"]],
+        [:extras, :output, ["--output PATH", "also write the full JSON result here"]]
+      ].freeze
+
       module_function
 
       # Runs the benchmark described by `argv` and prints its report.
@@ -41,20 +54,10 @@ module Hecks
       def parser(values, extras)
         OptionParser.new do |opts|
           opts.banner = "usage: hecks bench [options]"
-          opts.on("--domain NAMES", Array, "pizzas, banking (default: both)") { |v| values[:domains] = v }
-          opts.on("--targets NAMES", Array, "#{Suite::TARGETS.join(", ")} (default: all)") { |v| values[:targets] = v }
-          opts.on("--iterations N", Integer, "timed cycles per run (default #{DEFAULTS[:iterations]})") do |v|
-            values[:iterations] = v
+          FLAGS.each do |store, key, spec|
+            target = store == :values ? values : extras
+            opts.on(*spec) { |v| target[key] = v }
           end
-          opts.on("--warmup N", Integer, "discarded cycles before timing (default #{DEFAULTS[:warmup]})") do |v|
-            values[:warmup] = v
-          end
-          opts.on("--runs N", Integer, "fresh boots per target, median reported (default #{DEFAULTS[:runs]})") do |v|
-            values[:runs] = v
-          end
-          opts.on("--rust-binary PATH", "use this `rust` binary instead of building one") { |v| extras[:rust_binary] = v }
-          opts.on("--format FORMAT", %w[markdown json], "markdown (default) or json") { |v| extras[:format] = v }
-          opts.on("--output PATH", "also write the full JSON result here") { |v| extras[:output] = v }
         end
       end
     end

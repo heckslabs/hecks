@@ -23,11 +23,14 @@ module Hecks
       # @return [Integer] 0, or 1 when `--check` finds a region out of date
       # @raise [SystemExit] when a workflow has no marked region for a gate
       def main(argv, root: Tools::ROOT)
-        stale = projection(root).reject { |path, text| File.read(path) == text }.keys
+        files = projection(root)
+        stale = files.reject { |path, text| File.read(path) == text }.keys
         return report(stale, root) if argv.include?("--check")
 
-        stale.each { |path| File.write(path, projection(root).fetch(path)) }
-        stale.each { |path| puts "wrote #{path.delete_prefix("#{root}/")}" }
+        stale.each do |path|
+          File.write(path, files.fetch(path))
+          puts "wrote #{path.delete_prefix("#{root}/")}"
+        end
         puts "ci_gates: #{gates.size} gates, every region current" if stale.empty?
         0
       end
@@ -85,26 +88,37 @@ module Hecks
       # @return [String] the marked region: the detector job that answers `touched`
       def job(gate)
         name = gate.fetch("name")
-        [
-          "  # BEGIN GENERATED ci_gate #{name} (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.",
-          "  #{name}:",
-          "    runs-on: ubuntu-latest",
-          "    timeout-minutes: 10",
-          *job_condition(gate),
-          "    outputs:",
-          "      touched: ${{ steps.diff.outputs.touched }}",
-          "    steps:",
-          "      - uses: actions/checkout@v4",
-          "        with:",
-          "          # Full history: the diff needs both endpoints present as real objects.",
-          "          fetch-depth: 0",
-          "      - uses: ./.github/actions/setup-ruby",
-          "      - uses: ./.github/actions/hecks-environment",
-          "      - id: diff",
-          "        name: #{quoted(gate.fetch("label"))}",
-          "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
-          "  # END GENERATED ci_gate #{name}"
-        ].join("\n")
+        [*job_header(gate, name), *JOB_BODY, *job_footer(gate, name)].join("\n")
+      end
+
+      # The job's static middle: its outputs and the steps up to the one that decides.
+      JOB_BODY = [
+        "    outputs:",
+        "      touched: ${{ steps.diff.outputs.touched }}",
+        "    steps:",
+        "      - uses: actions/checkout@v4",
+        "        with:",
+        "          # Full history: the diff needs both endpoints present as real objects.",
+        "          fetch-depth: 0",
+        "      - uses: ./.github/actions/setup-ruby",
+        "      - uses: ./.github/actions/hecks-environment",
+        "      - id: diff"
+      ].freeze
+
+      # @return [Array<String>] the marker, the job's name and runner, and its condition
+      def job_header(gate, name)
+        ["  # BEGIN GENERATED ci_gate #{name} (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.",
+         "  #{name}:",
+         "    runs-on: ubuntu-latest",
+         "    timeout-minutes: 10",
+         *job_condition(gate)]
+      end
+
+      # @return [Array<String>] the deciding step and the closing marker
+      def job_footer(gate, name)
+        ["        name: #{quoted(gate.fetch("label"))}",
+         "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
+         "  # END GENERATED ci_gate #{name}"]
       end
 
       # @param gate [Hash{String => String}] a `CiGate` row

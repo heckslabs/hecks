@@ -33,10 +33,15 @@ module Hecks
           return true.tap { preview(tag, facts.sha, local) } if @dry_run
           return false unless @console.confirm?(question(tag, facts.sha, local, note))
 
-          create(tag, facts.sha) unless local
+          change_tag(tag, facts.sha, local)
+          true
+        end
+
+        # Creates the tag if it is missing and pushes it, which this run then reports as a change.
+        def change_tag(tag, sha, local)
+          create(tag, sha) unless local
           push(tag)
           @changed = true
-          true
         end
 
         # @param tag [String] the tag, such as `v3.0.0`

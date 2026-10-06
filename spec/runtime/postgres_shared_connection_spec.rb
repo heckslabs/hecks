@@ -21,19 +21,72 @@ RSpec.describe "Postgres shares one connection across a domain's aggregates", :i
     admin&.close
   end
 
+  PG_THING_BODY = proc do
+    value_object("Name") { attribute :value, String }
+    attribute :name, Name
+    identified_by :name
+  end
+
   def many_aggregate_domain(count)
     Hecks.bluebook "Sprawl" do
       vision "Many aggregates, one connection."
       core
 
-      count.times do |index|
-        aggregate "Thing#{index}" do
-          value_object("Name") { attribute :value, String }
-          attribute :name, Name
-          identified_by :name
-        end
-      end
+      count.times { |index| aggregate("Thing#{index}", &PG_THING_BODY) }
     end
+  end
+
+  def backend_pid(adapter) = adapter.pg_exec("SELECT pg_backend_pid()")[0]["pg_backend_pid"]
+
+  def terminate_connections
+    admin = PG.connect(dbname: "postgres")
+    admin.exec_params(
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+      [PG_SHARED_CONN_DB]
+    )
+    admin.close
+  end
+
+  # Plain Postgres does not create the schema it is pointed at.
+  def create_tenant_schema
+    scrub = PG.connect(owner_url)
+    scrub.exec("CREATE SCHEMA tenant_b")
+    scrub.close
+  end
+
+  def hold_transaction(adapter, inside, release)
+    adapter.send(:transaction) do
+      inside << true
+      release.pop
+      raise "abort"
+    end
+  rescue RuntimeError
+    nil
+  end
+
+  # Runs a statement on one adapter while another's transaction is held open.
+  #
+  # @return [Array] whether the statement was still blocked mid-transaction, and its answer afterward
+  def count_while_transaction_open(holder_adapter, other_adapter)
+    inside = Queue.new
+    release = Queue.new
+    holder = Thread.new { hold_transaction(holder_adapter, inside, release) }
+    inside.pop
+    other = Thread.new { other_adapter.count }
+    sleep 0.2
+    blocked = other.alive?
+    release << true
+    holder.join
+    [blocked, other.value]
+  end
+
+  def exit_status_of_forked_boot(domain)
+    child = fork do
+      adapters_for(domain, database: owner_url).each(&:count)
+      GC.start
+      exit(0)
+    end
+    Process.wait2(child).last
   end
 
   def adapters_for(domain, settings)
@@ -70,103 +123,63 @@ RSpec.describe "Postgres shares one connection across a domain's aggregates", :i
 
   after { Hecks::Adapters::PostgresSharedConnection.close_all! }
 
-  it "holds a handful of connections however many aggregates boot" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      adapters = adapters_for(many_aggregate_domain(PG_AGGREGATE_COUNT), database: owner_url)
-
-      expect(adapters.size).to eq(PG_AGGREGATE_COUNT)
-      expect(connections_to_spec_database).to be <= 3
-      expect(Hecks::Adapters::PostgresSharedConnection.open_count).to eq(1)
-    end
+  around do |example|
+    Hecks.with_registry(Hecks::Runtime::Registry.new) { example.run }
   end
 
-  it "keeps the shared connection working: one adapter reads what another wrote" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      first, second = adapters_for(many_aggregate_domain(2), database: owner_url)
-      first.save_saga(process_manager: "Flow", correlation: "c1", state: "open", memory: { n: 1 })
+  it "holds a handful of connections however many aggregates boot", :aggregate_failures do
+    adapters = adapters_for(many_aggregate_domain(PG_AGGREGATE_COUNT), database: owner_url)
 
-      expect(second.each_saga.to_a).to eq([["Flow", "c1", "open", { n: 1 }, []]])
-      expect(second.count).to eq(0)
-    end
+    expect(adapters.size).to eq(PG_AGGREGATE_COUNT)
+    expect(connections_to_spec_database).to be <= 3
+    expect(Hecks::Adapters::PostgresSharedConnection.open_count).to eq(1)
+  end
+
+  it "keeps the shared connection working: one adapter reads what another wrote", :aggregate_failures do
+    first, second = adapters_for(many_aggregate_domain(2), database: owner_url)
+    first.save_saga(process_manager: "Flow", correlation: "c1", state: "open", memory: { n: 1 })
+
+    expect(second.each_saga.to_a).to eq([["Flow", "c1", "open", { n: 1 }, []]])
+    expect(second.count).to eq(0)
   end
 
   it "gives a different schema its own connection" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      domain = many_aggregate_domain(2)
-      # Plain Postgres does not create the schema it is pointed at.
-      scrub = PG.connect(owner_url)
-      scrub.exec("CREATE SCHEMA tenant_b")
-      scrub.close
-      adapters_for(domain, database: owner_url)
-      adapters_for(domain, database: owner_url, schema: "tenant_b")
+    domain = many_aggregate_domain(2)
+    create_tenant_schema
+    adapters_for(domain, database: owner_url)
+    adapters_for(domain, database: owner_url, schema: "tenant_b")
 
-      expect(Hecks::Adapters::PostgresSharedConnection.open_count).to eq(2)
-    end
+    expect(Hecks::Adapters::PostgresSharedConnection.open_count).to eq(2)
   end
 
-  it "does not let one thread's statements join another thread's transaction" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      first, second = adapters_for(many_aggregate_domain(2), database: owner_url)
-      inside = Queue.new
-      release = Queue.new
-      holder = Thread.new do
-        first.send(:transaction) do
-          inside << true
-          release.pop
-          raise "abort"
-        end
-      rescue RuntimeError
-        nil
-      end
-      inside.pop
-      other = Thread.new { second.count }
-      sleep 0.2
-      expect(other.alive?).to be(true)
-      release << true
-      holder.join
+  it "does not let one thread's statements join another thread's transaction", :aggregate_failures do
+    first, second = adapters_for(many_aggregate_domain(2), database: owner_url)
 
-      expect(other.value).to eq(0)
-    end
+    blocked, value = count_while_transaction_open(first, second)
+
+    expect(blocked).to be(true)
+    expect(value).to eq(0)
   end
 
-  it "replaces a dead connection once for every adapter that trips on it" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      adapters = adapters_for(many_aggregate_domain(3), database: owner_url)
-      admin = PG.connect(dbname: "postgres")
-      admin.exec_params(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
-        [PG_SHARED_CONN_DB]
-      )
-      admin.close
+  it "replaces a dead connection once for every adapter that trips on it", :aggregate_failures do
+    adapters = adapters_for(many_aggregate_domain(3), database: owner_url)
+    terminate_connections
 
-      expect { adapters.first.pg_exec("SELECT 1") }.to raise_error(PG::Error)
-      expect(adapters.map(&:count)).to eq([0, 0, 0])
-      expect(connections_to_spec_database).to be <= 2
-    end
+    expect { adapters.first.pg_exec("SELECT 1") }.to raise_error(PG::Error)
+    expect(adapters.map(&:count)).to eq([0, 0, 0])
+    expect(connections_to_spec_database).to be <= 2
   end
 
-  it "keeps the parent's connection alive when a forked child boots adapters and exits" do
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      domain = many_aggregate_domain(2)
-      adapters = adapters_for(domain, database: owner_url)
-      parent_pid = adapters.first.pg_exec("SELECT pg_backend_pid()")[0]["pg_backend_pid"]
+  describe "a forked child" do
+    let(:domain) { many_aggregate_domain(2) }
+    let(:adapters) { adapters_for(domain, database: owner_url) }
 
-      child = fork do
-        adapters_for(domain, database: owner_url).each(&:count)
-        GC.start
-        exit(0)
-      end
-      _, status = Process.wait2(child)
+    it "keeps the parent's connection alive when it boots adapters and exits", :aggregate_failures do
+      parent_pid = backend_pid(adapters.first)
 
-      expect(status.success?).to be(true)
+      expect(exit_status_of_forked_boot(domain).success?).to be(true)
       expect(adapters.map(&:count)).to eq([0, 0])
-      expect(adapters.first.pg_exec("SELECT pg_backend_pid()")[0]["pg_backend_pid"]).to eq(parent_pid)
+      expect(backend_pid(adapters.first)).to eq(parent_pid)
     end
   end
 end

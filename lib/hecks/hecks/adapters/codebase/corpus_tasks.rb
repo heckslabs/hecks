@@ -131,13 +131,18 @@ module Hecks
         def coverage(tree)
           modules = Corpus.generated_modules(root: tree.root)
           pending = Corpus::RUST_COVERAGE_PENDING
-          unknown = pending.keys - modules
-          raise ConsoleCapture::Failure, "pending names #{unknown.join(", ")}, with no generated module" if unknown.any?
+          refuse_unknown_pending(pending.keys - modules)
 
           lines, problems = judge(modules, pending, coverage_results(modules, tree))
           raise ConsoleCapture::Failure, [*lines, "", *problems].join("\n") if problems.any?
 
           [*lines, "#{modules.size} generated modules checked"].join("\n")
+        end
+
+        # @param unknown [Array<String>] the pending names that match no generated module
+        # @raise [ConsoleCapture::Failure] when there are any
+        def refuse_unknown_pending(unknown)
+          raise ConsoleCapture::Failure, "pending names #{unknown.join(", ")}, with no generated module" if unknown.any?
         end
 
         # @param modules [Array<String>] the generated modules
@@ -148,15 +153,24 @@ module Hecks
           problems = []
           lines = modules.map do |name|
             passed, output = results.fetch(name)
-            if pending.key?(name)
-              problems << "#{name} passes now - delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
-              "#{name}: pending (#{passed ? "NOW PASSES" : "still fails"}) - #{pending[name]}"
-            else
-              problems << "#{name} failed:\n#{output}" unless passed
-              "#{name}: #{passed ? "ok" : "FAILED"}"
-            end
+            problem, line = pending.key?(name) ? pending_verdict(name, passed, pending[name]) : verdict(name, passed, output)
+            problems << problem if problem
+            line
           end
           [lines, problems]
+        end
+
+        # @return [Array(String, String)] the problem (nil when none) and the line for a module
+        #   known to fail
+        def pending_verdict(name, passed, why)
+          [("#{name} passes now - delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed),
+           "#{name}: pending (#{passed ? "NOW PASSES" : "still fails"}) - #{why}"]
+        end
+
+        # @return [Array(String, String)] the problem (nil when none) and the line for a module
+        #   that must pass
+        def verdict(name, passed, output)
+          [("#{name} failed:\n#{output}" unless passed), "#{name}: #{passed ? "ok" : "FAILED"}"]
         end
 
         # @param modules [Array<String>] the generated modules

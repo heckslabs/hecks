@@ -21,24 +21,30 @@ RSpec.describe "the guides" do
                            "DoctestNames::UNGATED_STATUS_DOCS with the same kind of reason its neighbors carry"
   end
 
+  def no_fence_message(path)
+    "#{File.basename(path)} has no executable ```ruby fence — it currently proves nothing " \
+      "it claims; give it at least one real example (a ```ruby skip fence is display-only " \
+      "and does not count)"
+  end
+
+  # Skips the guide when the machine lacks what it needs: Postgres, or the pizzas era history.
+  def skip_when_unavailable(guide, path)
+    skip "no reachable Postgres — start one to run this guide" if guide.postgres && !Doctest.postgres_available?
+    return unless File.basename(path) == "schema-evolution.md" && !Doctest.pizzas_history_available?
+
+    skip "documents examples/pizzas' own real era-1→2 migration — only present on a machine " \
+         "that actually lived through it, not a fresh hecks_pizzas database"
+  end
+
   DoctestNames.guides.each do |path|
     # Parsed at collection time so the postgres pragma can set `io: true` before the example runs.
-    guide = Doctest.parse(path)
-
-    it "#{File.basename(path)} says nothing its examples cannot back", io: guide.postgres do
+    it "#{File.basename(path)} says nothing its examples cannot back", :aggregate_failures, io: Doctest.parse(path).postgres do
+      guide = Doctest.parse(path)
       # Vacuous-pass guard: a guide with no executable fence (`ruby skip` doesn't count) fails
       # instead of passing with nothing to run.
-      expect(guide.blocks).not_to be_empty,
-                                  "#{File.basename(path)} has no executable ```ruby fence — it currently proves nothing " \
-                                  "it claims; give it at least one real example (a ```ruby skip fence is display-only " \
-                                  "and does not count)"
+      expect(guide.blocks).not_to be_empty, no_fence_message(path)
 
-      skip "no reachable Postgres — start one to run this guide" if guide.postgres && !Doctest.postgres_available?
-      if File.basename(path) == "schema-evolution.md" && !Doctest.pizzas_history_available?
-        skip "documents examples/pizzas' own real era-1→2 migration — only present on a machine " \
-             "that actually lived through it, not a fresh hecks_pizzas database"
-      end
-
+      skip_when_unavailable(guide, path)
       expect(Doctest.run(path)).to be(true)
     end
   end

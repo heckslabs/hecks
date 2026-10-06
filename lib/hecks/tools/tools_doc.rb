@@ -106,15 +106,32 @@ module Hecks
       # @param skip [Array<String>] arguments not to spell, because the row documents them itself
       # @return [Array<String>] each argument as the launcher spells it
       def argument_words(spec, skip: [])
-        named = by_attribute(spec[:arguments].reject do |argument|
-          argument[:minted] || skip.include?(argument[:path].split(".").first)
-        end)
-        # The launcher reads a bare word as the first argument, when that is not a flag.
-        bare = named.first unless named.empty? || named.first[:type] == "Boolean"
+        named = spelled_arguments(spec, skip)
+        bare = bare_argument(named)
         flags, plain = (named - [bare].compact).partition { |argument| argument[:type] == "Boolean" }
-        [*(bracket(bare, "<#{bare[:path]}>") if bare),
+        [*bare_word(bare),
          *plain.map { |argument| bracket(argument, "#{argument[:path]}=") },
          *flags.map { |argument| flag_word(argument) }]
+      end
+
+      # @return [Array<String>] the bare argument as the launcher spells it, none without one
+      def bare_word(bare) = bare ? [bracket(bare, "<#{bare[:path]}>")] : []
+
+      # @return [Array<Hash>] the arguments the launcher spells, per attribute
+      def spelled_arguments(spec, skip)
+        by_attribute(spec[:arguments].reject { |argument| skipped?(argument, skip) })
+      end
+
+      # @return [Boolean] whether the launcher mints the argument itself, or the row documents it
+      def skipped?(argument, skip)
+        argument[:minted] || skip.include?(argument[:path].split(".").first)
+      end
+
+      # The launcher reads a bare word as the first argument, when that is not a flag.
+      #
+      # @return [Hash, nil] the argument spelled bare
+      def bare_argument(named)
+        named.first unless named.empty? || named.first[:type] == "Boolean"
       end
 
       # A one-field value object's `x.value` leaf is spelled as the attribute, `x`; a value object
@@ -170,15 +187,17 @@ module Hecks
         # @raise [SystemExit] when the row names no command or query
         def spec_for(row)
           chapter = %w[Custodian Codebase].include?(row["section"]) ? "Hecks" : row["section"]
-          cli = projection(chapter)
           name = "#{Naming.snake(row["aggregate"])}.#{row["verb"]}"
-          command = cli[:commands][cli[:names][:command][name]]
-          question = cli[:questions][cli[:names][:question][name]]
-          spec = command || question or abort "tools_doc: #{chapter} has no command or query #{name}"
+          spec = find_spec(projection(chapter), name) or abort "tools_doc: #{chapter} has no command or query #{name}"
           [spec, words(chapter, name, row)]
         end
 
         private
+
+        # @return [Hash, nil] the projected command, or else the query, of that name
+        def find_spec(cli, name)
+          cli[:commands][cli[:names][:command][name]] || cli[:questions][cli[:names][:question][name]]
+        end
 
         def projection(chapter)
           @projections[chapter] ||= begin
@@ -191,12 +210,16 @@ module Hecks
         # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
         def words(chapter, name, row)
-          settings = Doors::LauncherOptions.settings(@runtime, chapter) || {}
-          route = (settings[:names] || {}).key(name)
-          route ||= row["verb"] if chapter == "Hecks" && Array(settings[:legacy]).include?(row["verb"])
+          route = route_for(Doors::LauncherOptions.settings(@runtime, chapter) || {}, chapter, name, row)
           return [route] if route
 
           [*(Naming.snake(chapter) unless chapter == "Hecks"), name]
+        end
+
+        # @return [String, nil] the one word the launcher routes the name by, when it has one
+        def route_for(settings, chapter, name, row)
+          route = (settings[:names] || {}).key(name)
+          route || (row["verb"] if chapter == "Hecks" && Array(settings[:legacy]).include?(row["verb"]))
         end
       end
     end

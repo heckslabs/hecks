@@ -1,11 +1,20 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/concurrency_gap_domain"
 
 # Two forked processes dispatching against one PostgresEra aggregate are serialized by its
 # cross-process advisory lock (ADR 0036). Forks, not threads: threads share `AggregateLock`.
 RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :io do
   ERA_CONCURRENCY_DATABASE = "hecks_postgres_era_concurrency_spec".freeze
+  ERA_GAP_VISION = "The smallest domain that exercises PostgresEra's cross-process write lock.".freeze
+
+  # The four pipes the racers and the example talk over, as read and write ends: callbacks
+  # are relayed over pipes, since an in-process Queue does not cross a fork.
+  EraRacePipes = Struct.new(:outcome_read, :outcome_write, :paused_read, :paused_write,
+                            :entered_read, :entered_write, :resume_read, :resume_write) do
+    def self.open = new(*Array.new(4) { IO.pipe }.flatten)
+  end
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -30,75 +39,26 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
   end
 
   # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
-
-      Hecks.bluebook "EraConcurrencyGap" do
-        vision "The smallest domain that exercises PostgresEra's cross-process write lock."
-
-        aggregate "Account" do
-          description "One numbered account and its own balance in cents."
-
-          identified_by :number
-
-          attribute :number,  AccountNumber
-          attribute :balance, Money, default: { cents: 0 }
-
-          value_object "AccountNumber" do
-            attribute :value, String
-          end
-
-          value_object "Money" do
-            attribute :cents, Integer
-            invariant("a balance is never negative") { cents >= 0 }
-          end
-
-          command "Open" do
-            goal "Start a fresh account with an opening balance"
-
-            attribute :number,  AccountNumber
-            attribute :balance, Money
-
-            sets :number
-            sets :balance
-
-            emits "AccountOpened"
-          end
-
-          command "Debit" do
-            goal "Take cents out of the account, if the balance covers it"
-
-            reference_to Account
-            attribute :amount, Money
-
-            given("the balance covers it") { balance.cents >= amount.cents }
-
-            sets :balance, decrement: :amount
-
-            emits "AccountDebited"
-          end
-        end
-      end
-
-      Hecks.hecksagon("EraConcurrencyGap") do
-        EraConcurrencyGap::Account.persisted_by("PostgresEra")
-      end
-      Hecks.world("EraConcurrencyGap") do
-        persisted_by("PostgresEra") { database(ERA_CONCURRENCY_DATABASE) }
-      end
+      load_ports
+      ConcurrencyGapDomain.declare("EraConcurrencyGap", vision: ERA_GAP_VISION)
+      Hecks.hecksagon("EraConcurrencyGap") { EraConcurrencyGap::Account.persisted_by("PostgresEra") }
+      Hecks.world("EraConcurrencyGap") { persisted_by("PostgresEra") { database(ERA_CONCURRENCY_DATABASE) } }
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  def load_ports
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end
 
   def account_repository(dispatcher)
@@ -106,22 +66,28 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     dispatcher.registry.repository("EraConcurrencyGap", aggregate)
   end
 
-  # Pauses the adapter's first `lock_writes!` call once it holds the advisory lock. Only the
-  # first call is gated because `append` re-takes the lock inside its own transaction.
-  # Callbacks are relayed over pipes, since an in-process Queue does not cross a fork.
-  def gate_first_lock(adapter, on_entry:, on_paused:, wait_for_resume:)
+  # Pauses the adapter's first `lock_writes!` call once it holds the advisory lock, running
+  # `on_pause` there. Only the first call is gated because `append` re-takes the lock inside
+  # its own transaction.
+  def gate_first_lock(adapter, on_entry:, on_pause:)
     gated_once = false
     original = adapter.method(:lock_writes!)
     adapter.define_singleton_method(:lock_writes!) do
       on_entry.call unless gated_once
       result = original.call
-      unless gated_once
-        gated_once = true
-        on_paused.call
-        wait_for_resume.call
-      end
+      return result if gated_once
+
+      gated_once = true
+      on_pause.call
       result
     end
+  end
+
+  def debit_outcome(dispatcher)
+    dispatcher.dispatch_flat("EraConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
+    "succeeded"
+  rescue Hecks::Runtime::GivenNotMet
+    "refused"
   end
 
   # One forked racer: boots its own Dispatcher, gates its first `lock_writes!` per `gate_opts`,
@@ -131,75 +97,71 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
       close.each(&:close)
       dispatcher = boot
       gate_first_lock(account_repository(dispatcher).adapter, **gate_opts)
-      outcome =
-        begin
-          dispatcher.dispatch_flat("EraConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
-          "succeeded"
-        rescue Hecks::Runtime::GivenNotMet
-          "refused"
-        end
-      outcome_write.write("#{label}:#{outcome}\n")
+      outcome_write.write("#{label}:#{debit_outcome(dispatcher)}\n")
       outcome_write.close
     end
   end
 
-  # rubocop:disable-next RSpec/ExampleLength
-  it "admits exactly one of two concurrent cross-process Debits that together would overdraw the account" do
-    seed = boot
-    seed.dispatch_flat("EraConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
+  # Tells the example the first racer holds the lock, then waits to be told to go on.
+  def pause_first_racer(pipes)
+    pipes.paused_write.write("1")
+    pipes.paused_write.close
+    pipes.resume_read.read(1)
+  end
 
-    outcome_read,  outcome_write  = IO.pipe
-    paused_read,   paused_write   = IO.pipe
-    entered_read,  entered_write  = IO.pipe
-    resume_read,   resume_write   = IO.pipe
-
-    first_pid = fork_debit_racer(
-      "first", outcome_write,
-      close:           [outcome_read, paused_read, entered_read, entered_write, resume_write],
-      on_entry:        -> {},
-      on_paused:       lambda {
-        paused_write.write("1")
-        paused_write.close
-      },
-      wait_for_resume: -> { resume_read.read(1) }
+  def fork_first_racer(pipes)
+    fork_debit_racer(
+      "first", pipes.outcome_write,
+      close:    [pipes.outcome_read, pipes.paused_read, pipes.entered_read, pipes.entered_write, pipes.resume_write],
+      on_entry: -> {},
+      on_pause: -> { pause_first_racer(pipes) }
     )
+  end
 
-    # Fork the second racer only once the first holds the lock, or arrival order is a race.
-    raise "first process never signalled paused" unless paused_read.wait_readable(10)
-
-    paused_read.read(1)
-
-    second_pid = fork_debit_racer(
-      "second", outcome_write,
-      close:           [outcome_read, paused_write, resume_read, resume_write],
-      on_entry:        -> { entered_write.write("1") },
-      on_paused:       -> {},
-      wait_for_resume: -> {}
+  def fork_second_racer(pipes)
+    fork_debit_racer(
+      "second", pipes.outcome_write,
+      close:    [pipes.outcome_read, pipes.paused_write, pipes.resume_read, pipes.resume_write],
+      on_entry: -> { pipes.entered_write.write("1") },
+      on_pause: -> {}
     )
+  end
 
-    [paused_write, entered_write, resume_read, outcome_write].each(&:close)
+  # Forks the first racer, and the second only once the first holds the lock (or arrival order
+  # is a race), then drops the parent's copies of the ends only the racers use.
+  def start_racers(pipes)
+    first_pid = fork_first_racer(pipes)
+    await_readable(pipes.paused_read, "first process never signalled paused")
+    pipes.paused_read.read(1)
+    second_pid = fork_second_racer(pipes)
+    [pipes.paused_write, pipes.entered_write, pipes.resume_read, pipes.outcome_write].each(&:close)
+    [first_pid, second_pid]
+  end
 
-    raise "second process never even entered lock_writes!" unless entered_read.wait_readable(10)
+  def await_readable(io, message)
+    raise message unless io.wait_readable(10)
+  end
 
-    # Resume the first racer while the second waits on the lock: exactly one may be admitted,
-    # the other refused against the committed balance.
-    resume_write.write("go")
-    resume_write.close
+  # Resumes the first racer while the second waits on the lock, and answers `{ label => outcome }`.
+  def finish_race(pipes, pids)
+    await_readable(pipes.entered_read, "second process never even entered lock_writes!")
+    pipes.resume_write.write("go")
+    pipes.resume_write.close
+    pids.each { |pid| Process.wait(pid) }
+    Array.new(2) { pipes.outcome_read.readline.chomp.split(":") }.to_h
+  end
 
-    Process.wait(first_pid)
-    Process.wait(second_pid)
+  let(:results) do
+    boot.dispatch_flat("EraConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
+    pipes = EraRacePipes.open
+    finish_race(pipes, start_racers(pipes))
+  end
 
-    results = {}
-    2.times do
-      who, what = outcome_read.readline.chomp.split(":")
-      results[who] = what
-    end
-
+  # Exactly one may be admitted, the other refused against the committed balance: a $10,000
+  # account cannot honor two $6,000 debits, and a lost update would persist only one.
+  it "admits exactly one of two concurrent cross-process Debits that together would overdraw the account",
+     :aggregate_failures do
     expect(results.values.sort).to eq(%w[refused succeeded])
-
-    verify = boot
-    account = account_repository(verify).find("a")
-    # A $10,000 account cannot honor two $6,000 debits; a lost update would persist only one.
-    expect(account[:balance].to_h[:cents]).to eq(4_000)
+    expect(account_repository(boot).find("a")[:balance].to_h[:cents]).to eq(4_000)
   end
 end

@@ -4,17 +4,28 @@ require "hecks/fuzzing/shrinker"
 # `Hecks::Fuzzing::Shrinker` never replays anything itself — every
 # example here hands it a pure block standing in for "does this candidate
 # still reproduce", so what is pinned is the minimization contract alone.
-RSpec.describe Hecks::Fuzzing::Shrinker do
+RSpec.describe Hecks::Fuzzing::Shrinker, :aggregate_failures do
   def step(verb, **args) = { "verb" => verb, "args" => args.transform_keys(&:to_s) }
+
+  def open_before_close?(candidate)
+    verbs = candidate.map { |s| s["verb"] }
+    verbs.include?("Open") && verbs.include?("Close") && verbs.index("Open") < verbs.index("Close")
+  end
+
+  # A reproduction check that logs every candidate it is asked about and wants `verb` kept.
+  def recording_check(log, verb)
+    lambda do |candidate|
+      log << candidate
+      candidate.any? { |s| s["verb"] == verb }
+    end
+  end
 
   describe ".call" do
     it "reduces to exactly the steps the finding needs, wherever they sit" do
       steps = (0...25).map { |i| step("Verb#{i}", a: i) }
       needed = %w[Verb3 Verb17]
 
-      result = described_class.call(steps) do |candidate|
-        (needed - candidate.map { |s| s["verb"] }).empty?
-      end
+      result = described_class.call(steps) { |candidate| (needed - candidate.map { |s| s["verb"] }).empty? }
 
       expect(result.steps.map { |s| s["verb"] }).to eq(needed)
       expect(result.exhausted).to be(false)
@@ -23,10 +34,7 @@ RSpec.describe Hecks::Fuzzing::Shrinker do
     it "keeps an order-dependent pair in its original order" do
       steps = [step("Open"), step("Noise"), step("Close"), step("Noise2")]
 
-      result = described_class.call(steps) do |candidate|
-        verbs = candidate.map { |s| s["verb"] }
-        verbs.include?("Open") && verbs.include?("Close") && verbs.index("Open") < verbs.index("Close")
-      end
+      result = described_class.call(steps) { |candidate| open_before_close?(candidate) }
 
       expect(result.steps.map { |s| s["verb"] }).to eq(%w[Open Close])
     end
@@ -41,10 +49,7 @@ RSpec.describe Hecks::Fuzzing::Shrinker do
 
     it "never offers an empty candidate" do
       offered = []
-      described_class.call([step("A"), step("B")]) do |candidate|
-        offered << candidate
-        true
-      end
+      described_class.call([step("A"), step("B")]) { |candidate| true.tap { offered << candidate } }
 
       expect(offered).to all(satisfy { |candidate| !candidate.empty? })
     end
@@ -64,15 +69,10 @@ RSpec.describe Hecks::Fuzzing::Shrinker do
       steps = (0...30).map { |i| step("Verb#{i}", x: i) }
       checked = []
 
-      result = described_class.call(steps, budget: 3) do |candidate|
-        checked << candidate
-        candidate.any? { |s| s["verb"] == "Verb29" }
-      end
+      result = described_class.call(steps, budget: 3, &recording_check(checked, "Verb29"))
 
-      expect(result.attempts).to eq(3)
-      expect(result.exhausted).to be(true)
+      expect([result.attempts, result.exhausted, checked.size]).to eq([3, true, 3])
       expect(result.steps.map { |s| s["verb"] }).to include("Verb29")
-      expect(checked.size).to eq(3)
     end
 
     it "returns the original unchanged when nothing smaller reproduces" do

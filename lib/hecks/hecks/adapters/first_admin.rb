@@ -52,13 +52,10 @@ module Hecks
       # @raise [Runtime::NotFound] when the domain has no membership chapter, the email is not an
       #   email, or an administrator already exists
       def call(email:, name: nil, role: nil)
-        raise Runtime::NotFound, "#{email.inspect} is not an email address" unless email.to_s.match?(/\A[^\s@]+@[^\s@]+\z/)
+        raise Runtime::NotFound, "#{email.inspect} is not an email address" unless email?(email)
 
         provider = membership_provider
-        verbs    = verbs_of(provider)
-        gate     = gated_role(provider, verbs.fetch(:grant))
-        people   = rows(verbs.fetch(:people))
-        refuse_if_administered!(people, [gate, *OWNER_ROLES].uniq)
+        verbs, gate, people = check_unadministered(provider)
 
         admitted = people.none? { |person| person.dig(:email, :value) == email }
         admit(provider, verbs.fetch(:admit), email, name || email[/\A[^@]+/]) if admitted
@@ -67,6 +64,18 @@ module Hecks
       end
 
       private
+
+      def email?(email) = email.to_s.match?(/\A[^\s@]+@[^\s@]+\z/)
+
+      # The membership verbs, the role the grant is gated to and the people held, once no
+      # administrator is found among them.
+      def check_unadministered(provider)
+        verbs  = verbs_of(provider)
+        gate   = gated_role(provider, verbs.fetch(:grant))
+        people = rows(verbs.fetch(:people))
+        refuse_if_administered!(people, [gate, *OWNER_ROLES].uniq)
+        [verbs, gate, people]
+      end
 
       def membership_provider
         domain = @registry.bluebooks.values.first&.name
@@ -83,9 +92,14 @@ module Hecks
       # The role a verb's command declares, which the dispatch must assert to be let through.
       def gated_role(provider, verb)
         aggregate, command = verb.split("::").last.split(".")
-        found = provider.aggregates.find { |candidate| candidate.hecks_name == aggregate }
-                        &.commands&.find { |candidate| candidate.hecks_name == command }
+        found = declared_command(provider, aggregate, command)
         found&.role&.to_s or raise Runtime::NotFound, "#{verb} declares no role to bootstrap as"
+      end
+
+      # The command the provider's aggregate declares, or nil when either is not declared.
+      def declared_command(provider, aggregate, command)
+        holder = provider.aggregates.find { |candidate| candidate.hecks_name == aggregate }
+        holder&.commands&.find { |candidate| candidate.hecks_name == command }
       end
 
       def refuse_if_administered!(people, roles)

@@ -1,0 +1,39 @@
+# Run by preview.sh (`aws ecs run-task`) after the images are pushed and before the
+# service scales up: the database instance is reachable only from inside the VPC, so
+# this is the one place a laptop-driven deploy can run CREATE DATABASE. Idempotent.
+DbInitTaskDefinition:
+  Type: AWS::ECS::TaskDefinition
+  Properties:
+    Family: !Sub "@@prefix@@-${EnvName}-dbinit"
+    RequiresCompatibilities: [FARGATE]
+    NetworkMode: awsvpc
+    Cpu: "256"
+    Memory: "512"
+    RuntimePlatform:
+      CpuArchitecture: ARM64
+      OperatingSystemFamily: LINUX
+    ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+    TaskRoleArn: !GetAtt TaskRole.Arn
+    ContainerDefinitions:
+      - Name: dbinit
+        Image: @@image@@
+        Essential: true
+        Command:
+          - sh
+          - -c
+          - |
+@@script@@
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Ref LogGroup
+            awslogs-region: !Ref AWS::Region
+            awslogs-stream-prefix: dbinit
+        Environment:
+          - Name: DB_HOST
+            Value: !Ref OwningDatabaseEndpoint
+          - Name: TARGET_DB
+            Value: !Ref DbName
+          - Name: PROTECTED_DATABASES
+            Value: @@protected@@
+@@secrets@@

@@ -2,6 +2,7 @@
 
 require "uri"
 require_relative "console_capture"
+require_relative "pg_admin/ownership"
 
 module Hecks
   module Adapters
@@ -13,6 +14,8 @@ module Hecks
     # creates the ledger database itself: PostgresEra provisions the tables it needs on first
     # connect, and an operator makes the database with `createdb`.
     class PgAdmin
+      include Ownership
+
       # The role the QA ledger connects as when none is named.
       DEFAULT_ROLE = "hecks_qa"
 
@@ -99,19 +102,20 @@ module Hecks
       def drop_database(**held)
         database = named(held)
         refuse_to_drop!(database)
-        with(dbname: "postgres") do |admin|
-          if exists?(admin, database)
-            admin.exec_params("SELECT pg_terminate_backend(pid) FROM pg_stat_activity " \
-                              "WHERE datname = $1 AND pid <> pg_backend_pid()", [database])
-            admin.exec("DROP DATABASE #{admin.quote_ident(database)}")
-            { report: { value: "dropped database #{database}" } }
-          else
-            { report: { value: "no database #{database}" } }
-          end
-        end
+        with(dbname: "postgres") { |admin| drop_if_exists(admin, database) }
       end
 
       private
+
+      # Ends the sessions on the database and drops it, or reports that it is not there.
+      def drop_if_exists(admin, database)
+        return { report: { value: "no database #{database}" } } unless exists?(admin, database)
+
+        admin.exec_params("SELECT pg_terminate_backend(pid) FROM pg_stat_activity " \
+                          "WHERE datname = $1 AND pid <> pg_backend_pid()", [database])
+        admin.exec("DROP DATABASE #{admin.quote_ident(database)}")
+        { report: { value: "dropped database #{database}" } }
+      end
 
       def refuse_to_drop!(database)
         if SYSTEM_DATABASES.include?(database.downcase) || configured_databases.include?(database)
@@ -138,83 +142,6 @@ module Hecks
         raise ConsoleCapture::Failure, "no database named" if database.to_s.empty?
 
         database
-      end
-
-      def ensure_role(admin, role, done, skipped)
-        found = admin.exec_params("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = $1", [role])
-        if found.ntuples.zero?
-          # CREATE ROLE has no IF NOT EXISTS, and concurrent creates can lose on the catalog
-          # index (unique_violation) as well as on duplicate_object, so the block rescues both.
-          admin.exec(<<~SQL)
-            DO $$ BEGIN
-              CREATE ROLE #{admin.quote_ident(role)} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
-            EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
-            END $$
-          SQL
-          done << "created role #{role} (LOGIN, no SUPERUSER, no BYPASSRLS)"
-        elsif found[0]["rolsuper"] == "t" || found[0]["rolbypassrls"] == "t"
-          kind = found[0]["rolsuper"] == "t" ? "a superuser" : "a BYPASSRLS role"
-          raise ConsoleCapture::Failure,
-                "role #{role} already exists as #{kind}: the era write-fence cannot bind it. " \
-                "Pick another role, or ALTER ROLE #{role} NOSUPERUSER NOBYPASSRLS first."
-        else
-          skipped << "role #{role} exists, ordinary"
-        end
-      end
-
-      def hand_over_database(admin, database, role, done, skipped)
-        owner = admin.exec_params(
-          "SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = $1", [database]
-        )
-        if owner.ntuples.zero?
-          raise ConsoleCapture::Failure,
-                "no database #{database}: createdb it first (PostgresEra provisions every table it " \
-                "needs on first connect, never the database itself)"
-        elsif owner[0]["owner"] == role
-          skipped << "database #{database} already owned by #{role}"
-        else
-          admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{admin.quote_ident(role)}")
-          done << "database #{database}: owner #{owner[0]["owner"]} -> #{role}"
-        end
-      end
-
-      def hand_over_contents(db, role, done)
-        quoted = db.quote_ident(role)
-        schema = db.exec("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname = 'public'")
-        if schema.ntuples.positive? && schema[0]["owner"] != role
-          db.exec("ALTER SCHEMA public OWNER TO #{quoted}")
-          done << "schema public: owner #{schema[0]["owner"]} -> #{role}"
-        end
-
-        relations = db.exec_params(<<~SQL, [role])
-          SELECT c.relname, c.relkind, pg_get_userbyid(c.relowner) AS owner
-          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-          WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'S', 'v', 'm') AND pg_get_userbyid(c.relowner) <> $1
-          ORDER BY c.relkind, c.relname
-        SQL
-        relations.each do |row|
-          db.exec("ALTER #{KINDS.fetch(row["relkind"])} #{db.quote_ident(row["relname"])} OWNER TO #{quoted}")
-        end
-        done << "#{relations.ntuples} relation(s) in public -> #{role}" if relations.ntuples.positive?
-
-        functions = db.exec_params(<<~SQL, [role])
-          SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
-          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-          WHERE n.nspname = 'public' AND pg_get_userbyid(p.proowner) <> $1
-          ORDER BY p.proname
-        SQL
-        functions.each do |row|
-          db.exec("ALTER FUNCTION #{db.quote_ident(row["proname"])}(#{row["args"]}) OWNER TO #{quoted}")
-        end
-        done << "#{functions.ntuples} function(s) in public -> #{role}" if functions.ntuples.positive?
-      end
-
-      def ledger_report(database, role, done, skipped)
-        lines = ["#{database} is #{role}'s"]
-        done.each { |line| lines << "  did:     #{line}" }
-        skipped.each { |line| lines << "  already: #{line}" }
-        lines << "  bind it: database \"postgres://#{role}@localhost/#{database}\"" if done.any?
-        lines.join("\n")
       end
 
       def exists?(admin, database)

@@ -37,21 +37,50 @@ RSpec.describe "every list the language declares, filled more than once" do
                      "needs hold at most one row until a second fact is admitted."
   }.freeze
 
+  UNMEASURED_WHY = <<~WHY.freeze
+    The language declares these as lists and no golden carries a key by that
+    name, so their plurality cannot be measured at all:
+
+      %<list>s
+
+    Either the IR does not carry the field — say so in `contracts.rb`'s
+    `derived:` column, which is where that fact belongs — or the wire spells it
+    differently, which is a defect: add it to WIRE_SPELLING and read the note
+    there about why the entry should not exist.
+  WHY
+
+  LONELY_WHY = <<~WHY.freeze
+    These lists are declared by the language and never filled with more than one
+    anywhere in the corpus, and nothing says why:
+
+      %<list>s
+
+    A list the corpus only ever fills with one is indistinguishable from a scalar,
+    so a runtime that reads the first element passes every check there is. That is
+    how `identified_by` hid a parser that could not read a second path at all.
+
+    Either add a corpus member that fills it twice — spec/corpus/domains/ exists
+    for exactly this, and `market` was added for exactly this — or add an entry to
+    ALLOWED_SINGLETON saying what is untested and why.
+  WHY
+
+  # Records in `max` the longest list each key holds anywhere under `node`.
+  def record_maxima(node, max)
+    case node
+    when Hash
+      node.each do |key, held|
+        max[key] = [max[key], held.length].max if held.is_a?(Array)
+        record_maxima(held, max)
+      end
+    when Array then node.each { |held| record_maxima(held, max) }
+    end
+  end
+
   # The corpus is every frozen IR, the same set `ir_golden_spec` walks.
   def observed_maxima
     max = Hash.new(0)
-    walk = lambda do |node|
-      case node
-      when Hash
-        node.each do |key, held|
-          max[key] = [max[key], held.length].max if held.is_a?(Array)
-          walk.call(held)
-        end
-      when Array then node.each { |held| walk.call(held) }
-      end
-    end
     Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].each do |file|
-      walk.call(JSON.parse(File.read(file)))
+      record_maxima(JSON.parse(File.read(file)), max)
     end
     max
   end
@@ -90,36 +119,13 @@ RSpec.describe "every list the language declares, filled more than once" do
   it "names every declared list the wire does not carry under any name" do
     unmeasured = list_coverage[:unmeasured]
 
-    expect(unmeasured).to be_empty, <<~WHY
-      The language declares these as lists and no golden carries a key by that
-      name, so their plurality cannot be measured at all:
-
-        #{unmeasured.join("\n        ")}
-
-      Either the IR does not carry the field — say so in `contracts.rb`'s
-      `derived:` column, which is where that fact belongs — or the wire spells it
-      differently, which is a defect: add it to WIRE_SPELLING and read the note
-      there about why the entry should not exist.
-    WHY
+    expect(unmeasured).to be_empty, format(UNMEASURED_WHY, list: unmeasured.join("\n        "))
   end
 
   it "fills every declared list with more than one, or names why it does not" do
     unnamed = list_coverage[:lonely].reject { |entry| ALLOWED_SINGLETON.key?(entry.split(".").last) }
 
-    expect(unnamed).to be_empty, <<~WHY
-      These lists are declared by the language and never filled with more than one
-      anywhere in the corpus, and nothing says why:
-
-        #{unnamed.join("\n        ")}
-
-      A list the corpus only ever fills with one is indistinguishable from a scalar,
-      so a runtime that reads the first element passes every check there is. That is
-      how `identified_by` hid a parser that could not read a second path at all.
-
-      Either add a corpus member that fills it twice — spec/corpus/domains/ exists
-      for exactly this, and `market` was added for exactly this — or add an entry to
-      ALLOWED_SINGLETON saying what is untested and why.
-    WHY
+    expect(unnamed).to be_empty, format(LONELY_WHY, list: unnamed.join("\n        "))
   end
 
   # Holds the allowlist to the corpus both ways: an entry the corpus now covers is stale.

@@ -104,29 +104,33 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
 
   # Snapshot before dispatch, as `Replay.call` does: the oracle must read the state the
   # real query saw, not what the fan-out's own `Account.Review` dispatches already mutated.
-  def flag(runtime, customer_id, risk)
+  def account_snapshot(runtime)
     account = runtime.registry.bluebook("Fanout").aggregate("Account")
-    snapshot = { ["Fanout", "Account"] =>
-                                          runtime.registry.repository("Fanout", account).all.to_h do |record|
-                                            [record.id, record.state.dup]
-                                          end }
+    records = runtime.registry.repository("Fanout", account).all
+    { ["Fanout", "Account"] => records.to_h { |record| [record.id, record.state.dup] } }
+  end
 
+  def flag(runtime, customer_id, risk)
+    snapshot = account_snapshot(runtime)
     mark = runtime.reactions.size
     result = runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
     Hecks::Fuzzing::Replay.fan_out_findings(runtime, snapshot, result.events, runtime.reactions[mark..])
   end
 
-  it "recomputes the SAME row-id set the real dispatch actually fanned out over" do
+  # A booted runtime holding two accounts of customer c1 and one of customer c2.
+  def booted_with_two_customers
     runtime = boot_fanout
     open_two_accounts_for(runtime, "c1")
     runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+    runtime
+  end
 
-    findings = flag(runtime, "c1", "high")
+  def review_finding(**row_ids) = hash_including(policy: "ReviewOnFlag", on: "Flagged", **row_ids)
 
-    expect(findings).to contain_exactly(
-      hash_including(policy: "ReviewOnFlag", on: "Flagged",
-                     expected_row_ids: ["c1-a1", "c1-a2"], actual_row_ids: ["c1-a1", "c1-a2"])
-    )
+  it "recomputes the SAME row-id set the real dispatch actually fanned out over" do
+    findings = flag(booted_with_two_customers, "c1", "high")
+
+    expect(findings).to contain_exactly(review_finding(expected_row_ids: ["c1-a1", "c1-a2"], actual_row_ids: ["c1-a1", "c1-a2"]))
   end
 
   it "expects nothing (nil, not empty) when the where clause does not hold, and nothing was dispatched" do
@@ -135,17 +139,11 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
 
     findings = flag(runtime, "c1", "low")
 
-    expect(findings).to contain_exactly(
-      hash_including(policy: "ReviewOnFlag", on: "Flagged", expected_row_ids: nil, actual_row_ids: [])
-    )
+    expect(findings).to contain_exactly(review_finding(expected_row_ids: nil, actual_row_ids: []))
   end
 
   it "excludes another customer's account from the expected set, matching the real query's own where" do
-    runtime = boot_fanout
-    open_two_accounts_for(runtime, "c1")
-    runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
-
-    findings = flag(runtime, "c1", "high")
+    findings = flag(booted_with_two_customers, "c1", "high")
 
     expect(findings.first[:expected_row_ids]).not_to include("c2-a1")
   end

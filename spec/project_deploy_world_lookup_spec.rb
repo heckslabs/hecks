@@ -22,27 +22,25 @@ RSpec.describe "hecks deploy project world lookup", :io do
       .to eq(File.join(root, "qa", "bluebook", "quality_control.world"))
   end
 
-  it "picks the world named after the chapter the hecksagon attaches among several" do
-    Dir.mktmpdir do |dir|
-      domain = write_domain(dir, worlds:    %w[governance quality_control],
-                                 hecksagon: %(Hecks::Chapters.load!("QualityControl")\n))
+  # Yields a scratch domain written with the given worlds (and hecksagon), removed afterwards.
+  def with_domain(**options)
+    Dir.mktmpdir { |dir| yield write_domain(dir, **options) }
+  end
 
+  it "picks the world named after the chapter the hecksagon attaches among several" do
+    with_domain(worlds: %w[governance quality_control], hecksagon: %(Hecks::Chapters.load!("QualityControl")\n)) do |domain|
       expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))
     end
   end
 
   it "takes the sole world when it is not named after the directory" do
-    Dir.mktmpdir do |dir|
-      domain = write_domain(dir, worlds: %w[only_one])
-
+    with_domain(worlds: %w[only_one]) do |domain|
       expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "only_one.world"))
     end
   end
 
-  it "refuses to guess among several worlds when none is attached by name" do
-    Dir.mktmpdir do |dir|
-      domain = write_domain(dir, worlds: %w[governance quality_control])
-
+  it "refuses to guess among several worlds when none is attached by name", :aggregate_failures do
+    with_domain(worlds: %w[governance quality_control]) do |domain|
       expect { recipe.world_file_for(domain) }
         .to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
         .and output(/does not exist/).to_stderr

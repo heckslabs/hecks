@@ -109,9 +109,7 @@ RSpec.describe "the DSL surface is fully covered" do
 
   COVERED.each do |label, (subject, declared)|
     it "#{label} has no method without a test" do
-      actual = subject.public_instance_methods(false) - PLUMBING
-      actual -= %i[collector collector=]
-
+      actual = subject.public_instance_methods(false) - PLUMBING - %i[collector collector=]
       undeclared = actual - declared
 
       expect(undeclared).to be_empty,
@@ -153,18 +151,20 @@ RSpec.describe "the DSL surface is fully covered" do
     expect(actual).to eq(%i[active? resolver resolver= with].sort)
   end
 
+  def method_missing_hosts
+    [Hecks::Bluebook::DSL::WorldBuilder, Hecks::Bluebook::DSL::SettingsCollector,
+     Hecks::Bluebook::DSL::BindingProxy, Hecks::Bluebook::DSL::WorldConstProxy]
+  end
+
+  def expect_answers_to_anything(klass)
+    expect(klass.public_instance_methods(false)).to include(:method_missing),
+                                                    "#{klass} should answer to anything"
+    expect(klass.private_instance_methods(false)).to include(:respond_to_missing?),
+                                                     "#{klass} lies to respond_to? without this"
+  end
+
   it "every method_missing has a matching respond_to_missing?" do
-    [
-      Hecks::Bluebook::DSL::WorldBuilder,
-      Hecks::Bluebook::DSL::SettingsCollector,
-      Hecks::Bluebook::DSL::BindingProxy,
-      Hecks::Bluebook::DSL::WorldConstProxy
-    ].each do |klass|
-      expect(klass.public_instance_methods(false)).to include(:method_missing),
-                                                      "#{klass} should answer to anything"
-      expect(klass.private_instance_methods(false)).to include(:respond_to_missing?),
-                                                       "#{klass} lies to respond_to? without this"
-    end
+    method_missing_hosts.each { |klass| expect_answers_to_anything(klass) }
   end
 
   it "builds no runtime surface at all — the door is the facade's, at bind" do

@@ -3,6 +3,7 @@
 require "hecks"
 require "json"
 require_relative "../tools"
+require_relative "era_reattest/reporting"
 
 module Hecks
   module Tools
@@ -13,6 +14,8 @@ module Hecks
     #   hecks reattest <domain> <era ordinal> [--accept]
     module EraReattest
       USAGE = "usage: hecks reattest <domain> <era ordinal> [--accept]"
+
+      extend Reporting
 
       module_function
 
@@ -57,20 +60,25 @@ module Hecks
       def open_lineage(registry, bluebook)
         first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
-        capable =
-          begin
-            adapter_class = registry.adapter_class(adapter_name)
-            adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
-          rescue StandardError
-            false
-          end
         # Only a lineage-capable adapter holds era texts.
-        unless capable
+        unless lineage_capable?(registry, adapter_name)
           abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
                 "there is no frozen text to re-attest."
         end
 
         settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
+        ensured_lineage(bluebook, settings)
+      end
+
+      def lineage_capable?(registry, adapter_name)
+        adapter_class = registry.adapter_class(adapter_name)
+        adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
+      rescue StandardError
+        false
+      end
+
+      # @return [Object] the domain's lineage, with its base tables ensured
+      def ensured_lineage(bluebook, settings)
         db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
         lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
@@ -82,19 +90,19 @@ module Hecks
         text = era[:held_text]
         stored = era[:held_digest]
         computed = Digest::SHA256.hexdigest(text)
-        if stored == computed
-          puts "#{bluebook.name} era #{ordinal}: the held text matches its digest — nothing to re-attest."
-          return 0
-        end
+        return matches_digest(bluebook, ordinal) if stored == computed
 
-        puts "#{bluebook.name} era #{ordinal}: the held text does NOT match its recorded digest."
-        puts "  recorded: #{stored || "(none)"}"
-        puts "  computed: #{computed}"
+        report_mismatch(bluebook, ordinal, stored, computed)
         return 1 unless shape_unchanged?(bluebook, era, ordinal, text)
 
         show(text)
         return refuse_without_accept unless accept
 
+        attest(lineage, ordinal)
+      end
+
+      # @return [Integer] 0
+      def attest(lineage, ordinal)
         fresh = lineage.reattest!(ordinal)
         puts
         puts "ATTESTED: era #{ordinal} re-frozen as #{fresh[0, 12]}… — the old and new digests are recorded."
@@ -105,18 +113,7 @@ module Hecks
       #
       # @return [Boolean] false after printing the refusal
       def shape_unchanged?(bluebook, era, ordinal, text)
-        stored_projection = era[:held_projection] && JSON.parse(era[:held_projection])
-        verdict = Hecks::Translation::Reattest.shape_guard!(
-          domain: bluebook.name, ordinal: ordinal, text: text,
-          stored_hash: era[:hash], stored_projection: stored_projection
-        )
-        case verdict
-        when :cosmetic
-          puts "  shape:    unchanged — the edit is cosmetic (the text still projects to era #{ordinal}'s " \
-               "minted name)"
-        when :unnamed
-          puts "  shape:    era #{ordinal} was never named, so no shape comparison is possible — read carefully"
-        end
+        report_shape(shape_verdict(bluebook, era, ordinal, text), ordinal)
         true
       rescue Hecks::Runtime::WiringError => e
         puts
@@ -124,22 +121,14 @@ module Hecks
         false
       end
 
-      # @return [void]
-      def show(text)
-        puts
-        puts "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:"
-        puts "─" * 72
-        puts text
-        puts "─" * 72
-      end
-
-      # @return [Integer] 1
-      def refuse_without_accept
-        puts
-        puts "REFUSED: nothing changed. If you have read the text above and accept it as this era's"
-        puts "frozen source, run again with --accept. The attestation (old digest, new digest, when)"
-        puts "goes on the record either way you decide."
-        1
+      # @return [Symbol, nil] what the shape guard found, `:cosmetic` or `:unnamed`
+      # @raise [Hecks::Runtime::WiringError] when the held text changed the era's shape
+      def shape_verdict(bluebook, era, ordinal, text)
+        stored_projection = era[:held_projection] && JSON.parse(era[:held_projection])
+        Hecks::Translation::Reattest.shape_guard!(
+          domain: bluebook.name, ordinal: ordinal, text: text,
+          stored_hash: era[:hash], stored_projection: stored_projection
+        )
       end
     end
   end

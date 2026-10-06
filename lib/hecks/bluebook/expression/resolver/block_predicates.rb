@@ -27,6 +27,10 @@ module Hecks
         # Every suffix that opens a `{ |x| ... }` block; `.find` builds a `Find`, not a mode.
         BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + ["find"]).freeze
 
+        # Receiver text, suffix and block parameter of an opener, up to the first body character.
+        BLOCK_OPENER_PATTERN =
+          /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join("|")})\s*\{\s*\|(\w+)\|\s*/m
+
         # `.all?`/`.any?`/`.none?`/`.find` — matched last among the suffix rules, before the
         # `Lookup` catch-all, since a block's predicate can contain almost any leaf expression.
         #
@@ -39,59 +43,39 @@ module Hecks
         # @return [Find, BlockPredicate, nil] the parsed node, or nil when `expr` does
         #   not open a `.all?`/`.any?`/`.none?`/`.find` block, or its brace never closes
         def parse_block_opener(expr)
-          pattern = /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join("|")})\s*\{\s*\|(\w+)\|\s*/m
-          header = expr.match(pattern)
+          header = expr.match(BLOCK_OPENER_PATTERN)
           return nil unless header
 
-          receiver_text = header[1]
-          suffix = header[2]
-          param = header[3]
-          body_start = header.end(0)
-          body_end = matching_brace(expr, body_start)
+          body_end = matching_brace(expr, header.end(0))
           return nil unless body_end
 
-          predicate = Evaluator.parse(expr[body_start...body_end].strip)
+          predicate = Evaluator.parse(expr[header.end(0)...body_end].strip)
+          rest = expr[(body_end + 1)..].strip
+          return find_node(header, predicate, rest) if header[2] == "find"
 
-          if suffix == "find"
-            trailing = expr[(body_end + 1)..].strip
-            return nil unless trailing.empty? || trailing.start_with?(".")
-
-            Find.new(receiver: parse(receiver_text), param: param, predicate: predicate,
-                     path: trailing.empty? ? [] : trailing[1..].split("."))
-          else
-            return nil unless expr[(body_end + 1)..].strip.empty?
-
-            BlockPredicate.new(mode: BLOCK_PREDICATE_MODES.fetch(suffix), receiver: parse(receiver_text),
-                               param: param, predicate: predicate)
-          end
+          block_predicate_node(header, predicate, rest)
         end
 
-        # The index of the `}` closing the `{` the caller's header match already consumed
-        # (depth starts at 1). Quote-aware, so a `}` inside a quoted substring never counts.
-        #
-        # @param expr [String] the text to scan
-        # @param start [Integer] the index just after the opening `{`, where depth is 1
-        # @return [Integer, nil] the index of the matching `}`, or nil if `expr` runs
-        #   out before depth returns to 0
-        def matching_brace(expr, start)
-          depth = 1
-          quote = nil
-          index = start
-          while index < expr.length
-            char = expr[index]
-            if quote
-              quote = nil if char == quote
-            elsif ['"', "'"].include?(char)
-              quote = char
-            elsif char == "{"
-              depth += 1
-            elsif char == "}"
-              depth -= 1
-              return index if depth.zero?
-            end
-            index += 1
-          end
-          nil
+        # @param header [MatchData] the opener match: receiver text, suffix, block parameter
+        # @param predicate [Object] the parsed block body
+        # @param rest [String] the text after the closing brace
+        # @return [Find, nil] the node, or nil unless `rest` is empty or a dotted path
+        def find_node(header, predicate, rest)
+          return nil unless rest.empty? || rest.start_with?(".")
+
+          Find.new(receiver: parse(header[1]), param: header[3], predicate: predicate,
+                   path: rest.empty? ? [] : rest[1..].split("."))
+        end
+
+        # @param header [MatchData] the opener match: receiver text, suffix, block parameter
+        # @param predicate [Object] the parsed block body
+        # @param rest [String] the text after the closing brace
+        # @return [BlockPredicate, nil] the node, or nil unless the block ends `expr`
+        def block_predicate_node(header, predicate, rest)
+          return nil unless rest.empty?
+
+          BlockPredicate.new(mode: BLOCK_PREDICATE_MODES.fetch(header[2]), receiver: parse(header[1]),
+                             param: header[3], predicate: predicate)
         end
 
         # `.all?`/`.any?`/`.none?` over an already-interpreted `collection`: runs the

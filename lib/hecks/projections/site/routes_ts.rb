@@ -3,6 +3,9 @@
 require "json"
 require_relative "../../projector"
 require_relative "table"
+require_relative "routes_ts/helpers"
+require_relative "routes_ts/navigation"
+require_relative "routes_ts/listings"
 
 module Hecks
   module Projections
@@ -51,7 +54,7 @@ module Hecks
         def render(table)
           rows = table.rows
           [BANNER, header, routes(rows), types, switches(rows), redirects(rows), middleware(rows),
-           navigation(table), search(rows), sources(rows), helpers].join("\n\n") << "\n"
+           Navigation.render(table), Listings.search(rows), Listings.sources(rows), helpers].join("\n\n") << "\n"
         end
 
         # @param rows [Array<Table::Row>] the table's rows
@@ -77,12 +80,22 @@ module Hecks
         end
 
         def route_fields(row)
-          fields = { path: row.path, kind: row.kind, render: row.render, auth: row.auth, methods: row.verbs,
-                     cache: row.cache, origin: row.origin, source: row.source, indexable: row.indexable,
-                     switch: blank_to_nil(row.switch), off: row.off, preview: row.preview,
-                     label: blank_to_nil(row.label), seo: blank_to_nil(row.seo), redirectTo: row.redirect_to }
+          fields = { **route_identity(row), **route_serving(row), **route_page(row) }
           fields[:seoTitle] = row.seo_title if row.seo_title
           fields
+        end
+
+        def route_identity(row)
+          { path: row.path, kind: row.kind, render: row.render, auth: row.auth, methods: row.verbs }
+        end
+
+        def route_serving(row)
+          { cache: row.cache, origin: row.origin, source: row.source, indexable: row.indexable }
+        end
+
+        def route_page(row)
+          { switch: blank_to_nil(row.switch), off: row.off, preview: row.preview,
+            label: blank_to_nil(row.label), seo: blank_to_nil(row.seo), redirectTo: row.redirect_to }
         end
 
         def switches(rows)
@@ -114,174 +127,7 @@ module Hecks
           TS
         end
 
-        # The navigation arrays hold every entry that has a slot, a switched-off page's too: an
-        # entry of an off page carries its `switch` and `on: false`, and the site drops it while
-        # `pageIsOn(switch)` is false. An entry of a page that is on carries neither.
-        def navigation(table)
-          items = table.rows + table.links
-          [nav_const("NAV_DESKTOP", "The desktop navigation: a page with no group is its own entry; a group holds its pages.",
-                     desktop(items)),
-           nav_const("NAV_MOBILE", "The mobile navigation, in its own order.", mobile(items)),
-           nav_const("NAV_FOOTER", "The footer columns, left to right, each with its links.", footer(items)),
-           nav_const("NAV_ADMIN", "The admin navigation: each admin page under its key.", admin(items))].join("\n\n")
-        end
-
-        def nav_const(name, comment, entries)
-          body = entries.map { |entry| "  #{literal(entry)}," }
-          "// #{comment}\nexport const #{name} = #{body.empty? ? "[]" : "[\n#{body.join("\n")}\n]"} as const;"
-        end
-
-        # One link: a row's or a link's path and label, the fragment a link names, and for a page
-        # that is off the switch that turns it on.
-        def entry(item, **before)
-          link = { **before, path: item.path, label: item.label }
-          link[:fragment] = item.fragment if item.respond_to?(:fragment) && item.fragment
-          link.merge!(switch: item.switch, on: false) if item.off
-          link
-        end
-
-        def order_key(item, order) = [order, item.path, item.respond_to?(:fragment) ? item.fragment.to_s : ""]
-
-        def desktop(items)
-          entries = []
-          items.reject { |item| item.nav_order.nil? }.sort_by { |item| order_key(item, item.nav_order) }.each do |item|
-            group = item.nav_group
-            slot = group && entries.find { |candidate| candidate[:group] == group }
-            slot ? slot[:items] << entry(item) : entries << { group: group, items: [entry(item)] }
-          end
-          entries
-        end
-
-        def mobile(items)
-          items.reject { |item| item.mobile_order.nil? }.sort_by { |item| order_key(item, item.mobile_order) }
-               .map { |item| item.mobile_heading ? entry(item, heading: item.mobile_heading) : entry(item) }
-        end
-
-        def footer(items)
-          columns = items.select(&:footer_column).sort_by { |item| order_key(item, item.footer_order) }.group_by(&:footer_column)
-          columns.sort_by { |name, group| [group.first.footer_order, name] }
-                 .map { |name, group| { column: name, items: group.map { |item| entry(item) } } }
-        end
-
-        def admin(items)
-          items.select(&:admin_key).sort_by { |item| [item.admin_order, item.admin_key] }
-               .map { |item| entry(item, key: item.admin_key) }
-        end
-
-        def search(rows)
-          sitemap = live(rows).select { |row| row.indexable && !row.path.match?(/[:*]/) }.map(&:path).sort
-          hidden = rows.reject { |row| row.indexable || row.path == CATCH_ALL }.flat_map { |row| [row.path, *row.aliases] }.sort
-          <<~TS.chomp
-            // The paths a sitemap lists: indexable pages with no parameter. A collection's pages are listed
-            // from its entries, through `collectionPages`.
-            export const SITEMAP_PATHS = #{literal(sitemap)} as const;
-
-            // The routes a search engine is kept away from: every route that is not indexable.
-            export const NOT_FOR_SEARCH = #{literal(hidden)} as const;
-
-            // robots.txt `Disallow` prefixes: each non-public route up to its first parameter.
-            export const ROBOTS_DISALLOW = #{literal(robots(live(rows)))} as const;
-          TS
-        end
-
-        def robots(rows)
-          prefixes = rows.reject { |row| row.auth == "public" }.map { |row| robots_prefix(row.path) }
-          prefixes = (prefixes + ["#{PREVIEW_PREFIX}/"]).uniq.sort
-          prefixes.reject { |prefix| prefixes.any? { |other| other != prefix && prefix.start_with?(other) } }
-        end
-
-        def robots_prefix(path)
-          head = path.split("/").take_while { |part| !part.match?(/\A[:*]/) }.join("/")
-          head == path ? path : "#{head}/"
-        end
-
-        def sources(rows)
-          globals = sourced(rows, "global:", &:path)
-          collections = sourced(rows, "collection:") { |row| { path: row.path, indexable: row.indexable } }
-          previews = rows.select { |row| row.source.match?(/\A(global|collection):/) }
-                         .to_h { |row| [row.source, { path: row.path, draft: row.preview == "draft" }] }.sort.to_h
-          <<~TS.chomp
-            // A CMS global's slug to the page that shows it.
-            export const globalPages = #{literal(globals)} as const;
-
-            // A CMS collection's name to the page that shows one of its entries, and whether the sitemap lists them.
-            export const collectionPages = #{literal(collections)} as const;
-
-            const PREVIEWS: Readonly<Record<string, { readonly path: string; readonly draft: boolean }>> = #{literal(previews)};
-          TS
-        end
-
-        def sourced(rows, prefix)
-          rows.select { |row| row.source.start_with?(prefix) }
-              .to_h { |row| [row.source.delete_prefix(prefix), yield(row)] }.sort.to_h
-        end
-
-        def helpers = [path_helpers, page_helpers].join("\n\n")
-
-        def path_helpers
-          <<~'TS'.chomp
-            /** Drops a trailing `.html` and a trailing slash, so `/about.html`, `/about/` and `/about` are one path. */
-            export function stripHtml(pathname: string): string {
-              const bare = pathname.endsWith(".html") ? pathname.slice(0, -".html".length) : pathname;
-              return bare.length > 1 && bare.endsWith("/") ? bare.slice(0, -1) : bare;
-            }
-
-            function toRegExp(pattern: string): RegExp {
-              const source = stripHtml(pattern)
-                .split("/")
-                .map((part) =>
-                  part.startsWith(":")
-                    ? "[^/]+"
-                    : part
-                        .split("*")
-                        .map((piece) => piece.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
-                        .join(".*"),
-                )
-                .join("/");
-              return new RegExp("^" + source + "$");
-            }
-
-            /**
-             * Whether a pathname is one a route pattern describes, with or without `.html`. A `:name` is one
-             * segment; a `*` is any run of characters, `/` included, wherever it stands, as in a CDN's path
-             * pattern: `/pay/*` matches `/pay/7` and `/admin*` matches `/admin`, `/admin-inbox` and `/admin/x`.
-             */
-            export function matchesPath(pattern: string, pathname: string): boolean {
-              return toRegExp(pattern).test(stripHtml(pathname));
-            }
-          TS
-        end
-
-        def page_helpers
-          <<~'TS'.chomp
-            /** Whether a page is on: true for an id no row switches off, and for an id no row names. */
-            export function pageIsOn(id: string): boolean {
-              return Object.prototype.hasOwnProperty.call(SWITCHES, id) ? SWITCHES[id] : true;
-            }
-
-            /** Whether a pathname belongs to a switched-off page, with or without `.html`. */
-            export function isOffPath(pathname: string): boolean {
-              return MIDDLEWARE.off.paths.some((pattern) => matchesPath(pattern, pathname));
-            }
-
-            /** Whether a search engine is kept away from a pathname. */
-            export function notForSearch(pathname: string): boolean {
-              return NOT_FOR_SEARCH.some((pattern) => matchesPath(pattern, pathname));
-            }
-
-            /** The URL that previews a CMS source (`global:<slug>` or `collection:<name>`), under the preview prefix when it is a draft. */
-            export function previewUrl(source: string, slug?: string): string {
-              const entry = PREVIEWS[source];
-              if (entry === undefined) throw new Error(`no route has the source ${source}`);
-              let path = entry.path;
-              if (path.includes(":")) {
-                if (slug === undefined) throw new Error(`${source} previews one entry: pass its slug`);
-                path = path.replace(/:[A-Za-z_]\w*/, encodeURIComponent(slug));
-              }
-              return entry.draft ? MIDDLEWARE.preview.prefix + stripHtml(path) : path;
-            }
-          TS
-        end
+        def helpers = Helpers.text
 
         def blank_to_nil(text) = text.nil? || text.empty? ? nil : text
 
@@ -289,11 +135,17 @@ module Hecks
         # @return [String] the TypeScript literal for it: objects with bare keys, on one line
         def literal(value)
           case value
+          when Array then "[#{value.map { |item| literal(item) }.join(", ")}]"
+          when Hash then "{ #{value.map { |key, item| "#{key_literal(key)}: #{literal(item)}" }.join(", ")} }".sub("{  }", "{}")
+          else scalar_literal(value)
+          end
+        end
+
+        def scalar_literal(value)
+          case value
           when nil then "null"
           when true, false, Integer then value.to_s
           when String then JSON.generate(value)
-          when Array then "[#{value.map { |item| literal(item) }.join(", ")}]"
-          when Hash then "{ #{value.map { |key, item| "#{key_literal(key)}: #{literal(item)}" }.join(", ")} }".sub("{  }", "{}")
           else raise ArgumentError, "no TypeScript literal for #{value.inspect}"
           end
         end

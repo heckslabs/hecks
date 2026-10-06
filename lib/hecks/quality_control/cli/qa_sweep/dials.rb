@@ -17,14 +17,23 @@ module Hecks
         # Dials are read after boot because the bluebook defines them; a dial-less fixture ledger
         # runs the adversarial layer off and self-consistency on.
         def read_dials
+          read_sampling_dials
+          read_loop_dials
+          read_limit_dials
+        end
+
+        def read_sampling_dials
           @adversarial ||= dial(:ADVERSARIAL_FRACTION, 0.0).to_f
+          # Same off-without-a-dial default as the adversarial layer.
+          @role_draw ||= dial(:ROLE_DRAW_PROBABILITY, 0.0).to_f
+          @dry_run ||= dial(:DRY_RUN_FRACTION, 0.0).to_f
           # Remembered before defaulting: the alias below applies only when the flag was typed, so
           # an explicit `--modes ruby_only` stays exclusive.
           @self_consistency_explicit = !@self_consistency.nil?
           @self_consistency = dial(:SELF_CONSISTENCY_CHECKS, true) if @self_consistency.nil?
-          # Same off-without-a-dial default as the adversarial layer.
-          @role_draw ||= dial(:ROLE_DRAW_PROBABILITY, 0.0).to_f
-          @dry_run ||= dial(:DRY_RUN_FRACTION, 0.0).to_f
+        end
+
+        def read_loop_dials
           # The loop's identity: `held_by` on claims, `engineer` on sweeps, and the literal
           # `WaivedBy` refuses.
           @engineer = dial(:AUTOMATED_ENGINEER, "qa_sweep")
@@ -32,6 +41,9 @@ module Hecks
           @guided_generation = dial(:GUIDED_GENERATION, false)
           @corpus_splice_probability = dial(:CORPUS_SPLICE_PROBABILITY, 0.5)
           @favor_rare_verbs = dial(:FAVOR_RARE_VERBS, 3)
+        end
+
+        def read_limit_dials
           @max_parallel = dial(:SWEEP_MAX_PARALLEL, 4)
           @shrink_budget = dial(:SHRINK_BUDGET, 200)
           @structural_boundary = dial(:STRUCTURAL_REFUSAL_BOUNDARY, [])
@@ -47,18 +59,19 @@ module Hecks
         # stays exact.
         def resolve_enabled_modes
           @enabled_modes = @explicit_modes || dial_modes
-          if @self_consistency_explicit || @explicit_modes.nil?
-            @enabled_modes = if @self_consistency
-                               @enabled_modes | [:self_consistency]
-                             else
-                               @enabled_modes - [:self_consistency]
-                             end
-          end
+          apply_self_consistency if @self_consistency_explicit || @explicit_modes.nil?
           # `--all --persistence-parity` forces the wave on regardless of the dial.
           @enabled_modes |= [:persistence_parity] if @force_parity_wave
+          refuse_unrunnable_modes
+        end
 
-          # Refuse modes with no implementation before claiming, so `resolved modes:` never
-          # advertises coverage nobody wrote.
+        def apply_self_consistency
+          @enabled_modes = @self_consistency ? @enabled_modes | [:self_consistency] : @enabled_modes - [:self_consistency]
+        end
+
+        # Refuse modes with no implementation before claiming, so `resolved modes:` never
+        # advertises coverage nobody wrote.
+        def refuse_unrunnable_modes
           unrunnable = @enabled_modes - Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES
           return if unrunnable.empty?
 

@@ -128,19 +128,13 @@ module Hecks
       def fallback_source_files(bluebook, directory, domain_files, registry)
         vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name)
         framework_path = Framework.members[bluebook.name]
-        attached = Chapters.index.fetch(bluebook.name, [])
+        return [framework_path] if framework_path
+        return vendored_source_for(directory, vendored_name) if vendored_name
 
-        if attached.any? && !framework_path && !vendored_name
-          attached
-        elsif domain_files.size == 1 && !framework_path && !vendored_name
-          domain_files
-        elsif framework_path
-          [framework_path]
-        elsif vendored_name
-          vendored_source_for(directory, vendored_name)
-        else
-          []
-        end
+        attached = Chapters.index.fetch(bluebook.name, [])
+        return attached if attached.any?
+
+        domain_files.size == 1 ? domain_files : []
       end
 
       # Recovers the vendored package name behind a bluebook, if some hecksagon vendored it.
@@ -196,17 +190,25 @@ module Hecks
         adapter_name = adapter_for(registry, bluebook.name, first)
         return unless lineage_capable?(registry, adapter_name)
 
-        unless current_text
-          raise WiringError,
-                "cannot boot #{bluebook.name}: bound to a lineage-capable adapter, but no source file for " \
-                "it could be found (checked #{directory.inspect} and the framework registry)"
-        end
+        refuse_missing_source!(bluebook, directory) unless current_text
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
         registry.adapter_class(adapter_name).era_check!(
           registry: registry, bluebook: bluebook, current_text: current_text, settings: settings,
           directory: directory
         )
+      end
+
+      # Refuses the boot of a lineage-bound bluebook whose source file was not found.
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook being checked
+      # @param directory [String, nil] the domain's bluebook directory, named in the message
+      # @return [void]
+      # @raise [Runtime::WiringError] always
+      def refuse_missing_source!(bluebook, directory)
+        raise WiringError,
+              "cannot boot #{bluebook.name}: bound to a lineage-capable adapter, but no source file for " \
+              "it could be found (checked #{directory.inspect} and the framework registry)"
       end
 
       # Refuses the boot when one bluebook's compute rule is bound away from Postgres.

@@ -46,61 +46,14 @@ RSpec.describe "the installed hecks gem", :io do
     [out, err, status.exitstatus]
   end
 
-  it "runs from a directory that is not a hecks checkout" do
-    expect(File.exist?(File.join(@project, "hecks.gemspec"))).to be(false)
-    expect(Dir.glob(File.join(@home, "gems/hecks-*/hecks.gemspec"))).to be_empty
+  # The launcher prints the record on stdout whether the build ended or faulted; the failure
+  # state goes to stderr, after it.
+  def launcher_record(out, err, code)
+    JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}"))
   end
 
-  it "lists its commands for --help" do
-    out, err, code = hecks("--help")
-
-    expect(code).to eq(0), err
-    expect(out).to include("hecks <command>!", "  build:\n", "build_wasm!", "  regeneration_run:\n", "regenerate_corpus!")
-  end
-
-  it "prints a domain's IR as JSON for `ir`" do
-    out, err, code = hecks("ir", ".")
-
-    expect(code).to eq(0), err
-    expect(JSON.parse(out)).to have_key("Banking")
-  end
-
-  it "prints a domain's stores as JSON for `stores`" do
-    out, err, code = hecks("stores", ".")
-
-    expect(code).to eq(0), err
-    expect(JSON.parse(out)).to have_key("customer")
-  end
-
-  it "answers `stores` without a domain with a usage line, not a backtrace" do
-    _out, err, code = hecks("stores")
-
-    expect(code).not_to eq(0)
-    expect(err).to include("usage:")
-    expect(err).not_to include("IndexError")
-  end
-
-  it "refuses `build_wasm` without its arguments by name" do
-    _out, err, code = hecks("build.build_wasm")
-
-    expect(code).to eq(1)
-    expect(err).to include("BuildWasm was not given domain")
-  end
-
-  it "answers `build_wasm --help` with the command's shape" do
-    out, err, code = hecks("build.build_wasm", "--help")
-
-    expect(code).to eq(0), err
-    expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain.value")
-  end
-
-  it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal" do
-    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
-    # The launcher prints the record on stdout whether the build ended or faulted; the failure
-    # state goes to stderr, after it.
-    record = JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}"))
-
-    expect(record.fetch("events")).to include("WasmBuildRequested")
+  # A build that exited 0 did not fault; one that did not names the missing toolchain piece.
+  def expect_wasm_outcome(record, code)
     if code.zero?
       expect(record.dig("state", "status")).not_to eq("faulted")
     else
@@ -108,7 +61,63 @@ RSpec.describe "the installed hecks gem", :io do
     end
   end
 
-  it "refuses a Codebase command with 'needs a hecks checkout'" do
+  it "runs from a directory that is not a hecks checkout", :aggregate_failures do
+    expect(File.exist?(File.join(@project, "hecks.gemspec"))).to be(false)
+    expect(Dir.glob(File.join(@home, "gems/hecks-*/hecks.gemspec"))).to be_empty
+  end
+
+  it "lists its commands for --help", :aggregate_failures do
+    out, err, code = hecks("--help")
+
+    expect(code).to eq(0), err
+    expect(out).to include("hecks <command>!", "  build:\n", "build_wasm!", "  regeneration_run:\n", "regenerate_corpus!")
+  end
+
+  it "prints a domain's IR as JSON for `ir`", :aggregate_failures do
+    out, err, code = hecks("ir", ".")
+
+    expect(code).to eq(0), err
+    expect(JSON.parse(out)).to have_key("Banking")
+  end
+
+  it "prints a domain's stores as JSON for `stores`", :aggregate_failures do
+    out, err, code = hecks("stores", ".")
+
+    expect(code).to eq(0), err
+    expect(JSON.parse(out)).to have_key("customer")
+  end
+
+  it "answers `stores` without a domain with a usage line, not a backtrace", :aggregate_failures do
+    _out, err, code = hecks("stores")
+
+    expect(code).not_to eq(0)
+    expect(err).to include("usage:")
+    expect(err).not_to include("IndexError")
+  end
+
+  it "refuses `build_wasm` without its arguments by name", :aggregate_failures do
+    _out, err, code = hecks("build.build_wasm")
+
+    expect(code).to eq(1)
+    expect(err).to include("BuildWasm was not given domain")
+  end
+
+  it "answers `build_wasm --help` with the command's shape", :aggregate_failures do
+    out, err, code = hecks("build.build_wasm", "--help")
+
+    expect(code).to eq(0), err
+    expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain.value")
+  end
+
+  it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal", :aggregate_failures do
+    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
+    record = launcher_record(out, err, code)
+
+    expect(record.fetch("events")).to include("WasmBuildRequested")
+    expect_wasm_outcome(record, code)
+  end
+
+  it "refuses a Codebase command with 'needs a hecks checkout'", :aggregate_failures do
     out, err, code = hecks("regeneration_run.regenerate_corpus")
 
     expect(code).to eq(0), err
