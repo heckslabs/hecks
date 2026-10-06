@@ -1,6 +1,6 @@
 name: CI postgres io parallel (reusable)
 
-# Group 2 (part 3 of 3) of the ci.yml split: the skip-gate detector and the 8-way shard
+# Group 2 (part 3 of 3) of the ci.yml split: the skip-gate detector and the 12-way shard
 # matrix behind the `rspec_postgres_io_parallel` required check.
 
 on:
@@ -83,10 +83,10 @@ jobs:
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
         run: bundle exec exe/hecks query test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
 
-  # Matrix of 8 one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
+  # Matrix of 12 one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.
   #
-  # Every leg computes the identical 8-way split (`-n 8`, same committed baseline) and
+  # Every leg computes the identical 12-way split (`-n 12`, same committed baseline) and
   # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
   #
   # One process per leg is load-bearing: hecks quality_control sweep.create_ledger_role creates the cluster-global
@@ -113,9 +113,9 @@ jobs:
       # A regression in one shard should not cancel the others.
       fail-fast: false
       matrix:
-        # Must match the `-n 8` below: both are the group count, and `--only-group` is
+        # Must match the `-n 12` below: both are the group count, and `--only-group` is
         # 1-indexed against it. The slowest single file (~150s) is the floor on shard time.
-        group: [1, 2, 3, 4, 5, 6, 7, 8]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     env:
       PGHOST: localhost
@@ -145,11 +145,11 @@ jobs:
           IO_FILES=()
           while IFS= read -r line; do IO_FILES+=("$line"); done < .github/postgres_io_spec_files.txt
           bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 8 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
+            -n 12 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
             --runtime-log .github/postgres_io_runtime_baseline.log \
             -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
-      # Uploaded, never restored: hecks refresh_runtime_baseline from_run= needs all eight
+      # Uploaded, never restored: hecks refresh_runtime_baseline from_run= needs all twelve
       # legs' logs from one run. Grouping never reads it.
       - name: Upload this group's runtime log (for hecks refresh_runtime_baseline from_run=)
         if: always()
