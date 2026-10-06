@@ -409,6 +409,14 @@ RSpec.describe "the admin sign-in module" do
       expect(boot.index("PAYLOAD_SECRET_ARN")).to be < boot.index('await import("./server.js")')
     end
 
+    it "logs in to the database as the user and port the secret names, postgres on 5432 when it names none" do
+      boot = root_files.fetch("/work/root/cms/deploy-aws/boot.mjs")
+      user_and_port = 'const { username = "postgres", password, port = 5432 } = await secretJson(process.env.DB_SECRET_ARN)'
+      url = "${encodeURIComponent(username)}:${encodeURIComponent(password)}@${DB_HOST}:${port}/${DB_NAME}"
+
+      expect(boot).to include(user_and_port).and include(url)
+    end
+
     it "builds an image from the row's node version, port and heap", :aggregate_failures do
       image = root_files.fetch("/work/root/cms/Dockerfile")
 
