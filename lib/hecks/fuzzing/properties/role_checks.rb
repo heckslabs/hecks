@@ -24,7 +24,7 @@ module Hecks
           offenders.empty? || offenders.uniq.join("; ")
         end
 
-        # One message when `check`'s outcome contradicts its grants; nil when consistent or inconclusive.
+        # A message when `check`'s outcome contradicts its grants; nil when consistent or unclear.
         def role_check_offender(check)
           held = role_held?(check)
           return refused_message(check) if held && check[:outcome] == UNAUTHORIZED

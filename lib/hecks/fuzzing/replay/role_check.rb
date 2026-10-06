@@ -8,7 +8,7 @@ module Hecks
         module_function
 
         # The caller and live grants for one step; nil for any step with no identified caller, no
-        # declared role, or no authorization provider (those are string-compared, not grant-checked).
+        # declared role, or no authorization provider (those compare role strings, not grants).
         #
         # @param runtime [Hecks::Runtime] the booted runtime the step will dispatch against
         # @param step [Hash] a replay step, string-keyed
