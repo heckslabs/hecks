@@ -18,51 +18,62 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     registry
   end
 
-  def declare_console
-    Hecks.bluebook "Console" do
-      aggregate "Session" do
-        identified_by :id
-        attribute :id, Id
-        value_object "Id" do
-          attribute :value, String
-          invariant("an id is present") { !value.to_s.empty? }
-        end
-        command "Open" do
-          goal "open a session"
-          attribute :id, Id
-          sets :id
-          emits "Opened"
-        end
+  CONSOLE_BLUEBOOK = proc do
+    aggregate "Session" do
+      identified_by :id
+      attribute :id, Id
+      value_object "Id" do
+        attribute :value, String
+        invariant("an id is present") { !value.to_s.empty? }
       end
+      command "Open" do
+        goal "open a session"
+        attribute :id, Id
+        sets :id
+        emits "Opened"
+      end
+    end
+  end
+
+  def declare_console = Hecks.bluebook("Console", &CONSOLE_BLUEBOOK)
+
+  def console_hexagon(name)
+    Hecks.hecksagon "Console" do
+      attaches name
+      Console::Session.persisted_by("Memory")
+    end
+  end
+
+  def sibling_hexagon(name)
+    Hecks.hecksagon name do
+      persisted_by "Memory"
     end
   end
 
   def attach(name, sibling: true)
     registry_with do
       declare_console
-      Hecks.hecksagon "Console" do
-        attaches name
-        Console::Session.persisted_by("Memory")
-      end
-      if sibling
-        Hecks.hecksagon name do
-          persisted_by "Memory"
-        end
-      end
+      console_hexagon(name)
+      sibling_hexagon(name) if sibling
     end
   end
 
-  it "loads the chapter, records it, marks it bounded, and boots with its sibling hecksagon" do
+  it "loads the chapter and records it", :aggregate_failures do
     registry = attach("Deploy")
 
     expect(registry.bluebook("Deploy")).not_to be_nil
     expect(registry.hecksagon("Console").member_chapters).to eq(["Deploy"])
     expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Deploy", source: "gem" }])
+  end
+
+  it "marks the chapter bounded, and boots with its sibling hecksagon", :aggregate_failures do
+    registry = attach("Deploy")
+
     expect(registry.bounded?("Deploy")).to be true
     expect { registry.verify! }.not_to raise_error
   end
 
-  it "attaches the Site chapter, with the closed sets a route table is read against" do
+  it "attaches the Site chapter, with the closed sets a route table is read against", :aggregate_failures do
     registry = attach("Site")
 
     expect(registry.bluebook("Site").aggregate("Route")).not_to be_nil
@@ -86,7 +97,7 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
   describe "a chapter that ships its ports and adapters" do
     let(:registry) { attach("QualityControl") }
 
-    it "declares the chapter's ports on its aggregates" do
+    it "declares the chapter's ports on its aggregates", :aggregate_failures do
       quality_control = registry.bluebook("QualityControl")
 
       expect(quality_control.aggregate("Ticket").port("IssueTracker")).not_to be_nil

@@ -34,23 +34,27 @@ module Hecks
       # @return [String, nil] the pinned binary, or nil when Cargo.toml declares no such feature
       # @raise [BuildFailed] when the build fails (memoized too)
       def build_rust_for(domain_feature, rust_dir)
-        cache = NativeBuild.cache
         key = [rust_dir, domain_feature, sources_digest(rust_dir)]
-        if cache.key?(key)
-          raise cache[key] if cache[key].is_a?(BuildFailed)
+        return replay(NativeBuild.cache[key]) if NativeBuild.cache.key?(key)
 
-          return cache[key]
-        end
+        build_and_cache(key, domain_feature, rust_dir)
+      end
 
+      def replay(answer)
+        raise answer if answer.is_a?(BuildFailed)
+
+        answer
+      end
+
+      def build_and_cache(key, domain_feature, rust_dir)
+        cache = NativeBuild.cache
         manifest = File.read(File.join(rust_dir, "Cargo.toml"))
         return cache[key] = nil unless manifest =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
 
-        begin
-          cache[key] = build_and_pin(domain_feature, rust_dir)
-        rescue BuildFailed => e
-          cache[key] = e
-          raise
-        end
+        cache[key] = build_and_pin(domain_feature, rust_dir)
+      rescue BuildFailed => e
+        cache[key] = e
+        raise
       end
 
       # Fingerprints what a build reads: every `.rs`, `.toml` and `Cargo.lock` file under the
@@ -100,18 +104,18 @@ module Hecks
         _stdout, stderr, status = Open3.capture3(*command, chdir: rust_dir)
         return if status.success?
 
-        raise BuildFailed, "`#{command.join(' ')}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \
+        raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \
                            "#{domain_feature} is declared in Cargo.toml, so this is a build failure, " \
                            "not a missing feature:\n#{stderr}"
       rescue SystemCallError => e
-        raise BuildFailed, "`#{command.join(' ')}` could not run in #{rust_dir}: #{e.message}"
+        raise BuildFailed, "`#{command.join(" ")}` could not run in #{rust_dir}: #{e.message}"
       end
 
       # `cargo build` always writes the same path; it is pinned per feature while the lock is held.
       def pin(rust_dir, domain_feature, command)
         binary = File.join(rust_dir, "target", "debug", "rust")
         unless File.executable?(binary)
-          raise BuildFailed, "`#{command.join(' ')}` succeeded in #{rust_dir} but left no executable at #{binary}"
+          raise BuildFailed, "`#{command.join(" ")}` succeeded in #{rust_dir} but left no executable at #{binary}"
         end
 
         pinned = File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")

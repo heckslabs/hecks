@@ -5,6 +5,68 @@ require "hecks/codemod"
 # Ruby DSL builders consult the self-hosted grammar table, as Rust's parser `word_gate` does.
 # Uses a synthetic bluebook so a regression shows even if the real corpus skips a branch.
 RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
+  WORD_GATE_UNTOUCHED = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Untouched", version: "v1" do
+      aggregate "Box" do
+        attribute :label, Label
+        identified_by :label
+
+        value_object "Label" do
+          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+        end
+
+        command "Open" do
+          emits "Opened"
+        end
+
+        lifecycle :status, default: "open" do
+        end
+      end
+    end
+  BLUEBOOK
+
+  WORD_GATE_WRONG_CONTEXT = <<~BLUEBOOK.freeze
+    Hecks.bluebook "WrongContext", version: "v1" do
+      aggregate "Box" do
+        attribute :label, Label
+        identified_by :label
+        median :label
+
+        value_object "Label" do
+          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+        end
+
+        command "Open" do
+          emits "Opened"
+        end
+
+        lifecycle :status, default: "open" do
+        end
+      end
+    end
+  BLUEBOOK
+
+  WORD_GATE_TYPO = <<~BLUEBOOK.freeze
+    Hecks.bluebook "GenuineTypo", version: "v1" do
+      aggregate "Box" do
+        attribute :label, Label
+        identified_by :label
+        giv3n("nope")
+
+        value_object "Label" do
+          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+        end
+
+        command "Open" do
+          emits "Opened"
+        end
+
+        lifecycle :status, default: "open" do
+        end
+      end
+    end
+  BLUEBOOK
+
   def load(source)
     Dir.mktmpdir do |dir|
       path = File.join(dir, "smoke.bluebook")
@@ -15,25 +77,7 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
 
   it "leaves every currently-valid word untouched — Ruby's own method lookup finds " \
      "an existing builder method first, this module never even sees the call" do
-    registry = load(<<~BLUEBOOK)
-      Hecks.bluebook "Untouched", version: "v1" do
-        aggregate "Box" do
-          attribute :label, Label
-          identified_by :label
-
-          value_object "Label" do
-            attribute :value, String, pattern: '[^ \\t\\n\\r]'
-          end
-
-          command "Open" do
-            emits "Opened"
-          end
-
-          lifecycle :status, default: "open" do
-          end
-        end
-      end
-    BLUEBOOK
+    registry = load(WORD_GATE_UNTOUCHED)
 
     expect(registry.bluebooks.values.first.aggregates.first.hecks_name).to eq("Box")
   end
@@ -41,55 +85,14 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
   it "refuses a word admitted SOMEWHERE, just not in this context, naming the " \
      "legal words this context actually admits — read live off the grammar table, " \
      "not a hand-copied list" do
-    expect do
-      load(<<~BLUEBOOK)
-        Hecks.bluebook "WrongContext", version: "v1" do
-          aggregate "Box" do
-            attribute :label, Label
-            identified_by :label
-            median :label
-
-            value_object "Label" do
-              attribute :value, String, pattern: '[^ \\t\\n\\r]'
-            end
-
-            command "Open" do
-              emits "Opened"
-            end
-
-            lifecycle :status, default: "open" do
-            end
-          end
-        end
-      BLUEBOOK
-    end.to raise_error(Hecks::Bluebook::DSL::Malformed,
-                       /'median' is not a word Aggregate admits — legal words here: .*identified_by/)
+    expect { load(WORD_GATE_WRONG_CONTEXT) }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed,
+                      /'median' is not a word Aggregate admits — legal words here: .*identified_by/)
   end
 
   it "falls through to Ruby's own NoMethodError for a word the grammar knows " \
      "nothing about anywhere — an unrelated typo stays an ordinary, unconfusing error" do
-    expect do
-      load(<<~BLUEBOOK)
-        Hecks.bluebook "GenuineTypo", version: "v1" do
-          aggregate "Box" do
-            attribute :label, Label
-            identified_by :label
-            giv3n("nope")
-
-            value_object "Label" do
-              attribute :value, String, pattern: '[^ \\t\\n\\r]'
-            end
-
-            command "Open" do
-              emits "Opened"
-            end
-
-            lifecycle :status, default: "open" do
-            end
-          end
-        end
-      BLUEBOOK
-    end.to raise_error(NoMethodError, /giv3n/)
+    expect { load(WORD_GATE_TYPO) }.to raise_error(NoMethodError, /giv3n/)
   end
 
   it "does not shadow public_instance_methods with method_missing/respond_to_missing? — " \

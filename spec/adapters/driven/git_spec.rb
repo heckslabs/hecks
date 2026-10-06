@@ -23,7 +23,7 @@ RSpec.describe Hecks::Adapters::Git, :io do
     repo.tag("widgets-v#{version}")
   end
 
-  it "runs git in a directory and answers what it said" do
+  it "runs git in a directory and answers what it said", :aggregate_failures do
     release("1.0.0")
 
     result = adapter.capture("tag", "--list", chdir: repo.path)
@@ -32,18 +32,24 @@ RSpec.describe Hecks::Adapters::Git, :io do
     expect(result.out).to eq("widgets-v1.0.0\n")
   end
 
-  it "is not redirected by an inherited GIT_DIR" do
-    release("1.0.0")
+  def with_inherited_git_dir(path)
     saved = ENV.fetch("GIT_DIR", nil)
-    ENV["GIT_DIR"] = File.join(scratch, "elsewhere")
-
-    expect(adapter.capture("rev-parse", "--git-dir", chdir: repo.path)).to be_ok
+    ENV["GIT_DIR"] = path
+    yield
   ensure
     saved ? ENV["GIT_DIR"] = saved : ENV.delete("GIT_DIR")
   end
 
+  it "is not redirected by an inherited GIT_DIR" do
+    release("1.0.0")
+
+    with_inherited_git_dir(File.join(scratch, "elsewhere")) do
+      expect(adapter.capture("rev-parse", "--git-dir", chdir: repo.path)).to be_ok
+    end
+  end
+
   describe "#pin" do
-    it "vendors a release and reports what it pinned" do
+    it "vendors a release and reports what it pinned", :aggregate_failures do
       release("1.2.0")
 
       answer = adapter.pin(package: { value: "widgets@1.2.0" }, from: { value: repo.path }, root: { value: root })
@@ -93,31 +99,42 @@ RSpec.describe Hecks::Adapters::Git, :io do
   end
 
   describe "#verify" do
-    it "answers the manifest of the vendored packages, with the project's own commit" do
-      release("1.2.0")
-      adapter.pin(package: { value: "widgets@1.2.0" }, from: { value: repo.path }, root: { value: root })
-      project = RegistryRepo.new(root)
-      project.commit("vendored")
+    def pin_widgets(version)
+      release(version)
+      adapter.pin(package: { value: "widgets@#{version}" }, from: { value: repo.path }, root: { value: root })
+    end
 
-      manifest = JSON.parse(adapter.verify(root: { value: root }).fetch(:text))
+    def manifest = JSON.parse(adapter.verify(root: { value: root }).fetch(:text))
 
-      expect(manifest.dig("built_from", "commit")).to eq(project.git("rev-parse", "HEAD").strip)
-      expect(manifest.dig("built_from", "dirty")).to be(false)
-      expect(manifest.dig("bluebooks", "widgets", "tag")).to eq("widgets-v1.2.0")
+    context "with the vendored packages committed in the project" do
+      let(:project) { RegistryRepo.new(root) }
+
+      before do
+        pin_widgets("1.2.0")
+        project.commit("vendored")
+      end
+
+      it "answers the project's own commit" do
+        expect(manifest.dig("built_from", "commit")).to eq(project.git("rev-parse", "HEAD").strip)
+      end
+
+      it "says the tree is not dirty" do
+        expect(manifest.dig("built_from", "dirty")).to be(false)
+      end
+
+      it "names the tag of each vendored package" do
+        expect(manifest.dig("bluebooks", "widgets", "tag")).to eq("widgets-v1.2.0")
+      end
     end
 
     it "says the tree is dirty and the commit unknown outside a repository" do
-      release("1.0.0")
-      adapter.pin(package: { value: "widgets@1.0.0" }, from: { value: repo.path }, root: { value: root })
-
-      manifest = JSON.parse(adapter.verify(root: { value: root }).fetch(:text))
+      pin_widgets("1.0.0")
 
       expect(manifest.fetch("built_from")).to eq("commit" => "unknown", "dirty" => false)
     end
 
     it "refuses with each disagreement" do
-      release("1.0.0")
-      adapter.pin(package: { value: "widgets@1.0.0" }, from: { value: repo.path }, root: { value: root })
+      pin_widgets("1.0.0")
       File.write(File.join(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook"), "#\n", mode: "a")
 
       expect { adapter.verify(root: { value: root }) }
@@ -138,15 +155,25 @@ RSpec.describe Hecks::Adapters::Git, :io do
       release("1.0.0")
     end
 
-    it "tags what the registry's rules allow, and says how to publish it" do
+    def commit_next_widgets_release
       repo.write("widgets/CHANGELOG.md"              => "## 1.1.0\n\nMore.\n\n## 1.0.0\n\nFirst.\n",
                  "widgets/bluebook.yml"              => "name: widgets\nversion: 1.1.0\nsummary: Widgets.\n",
                  "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(extra_attribute: true))
       repo.commit("widgets 1.1.0")
+    end
+
+    it "tags what the registry's rules allow, and says how to publish it" do
+      commit_next_widgets_release
 
       answer = adapter.tag(package: { value: "widgets" }, root: { value: repo.path })
 
       expect(answer.dig(:report, :value)).to end_with("git push origin widgets-v1.1.0")
+    end
+
+    it "passes the check once what the registry's rules allow is tagged" do
+      commit_next_widgets_release
+      adapter.tag(package: { value: "widgets" }, root: { value: repo.path })
+
       expect(adapter.check(root: { value: repo.path }).fetch(:text)).to eq("versions ok")
     end
 
@@ -155,7 +182,7 @@ RSpec.describe Hecks::Adapters::Git, :io do
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "widgets-v1.0.0 already exists")
     end
 
-    it "refuses a check naming each package at fault, and a directory that is no repository" do
+    it "refuses a check naming each package at fault, and a directory that is no repository", :aggregate_failures do
       repo.write("widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook(description: "Reworded."))
       repo.commit("reworded")
 

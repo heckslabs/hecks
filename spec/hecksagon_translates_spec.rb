@@ -2,7 +2,7 @@ require "spec_helper"
 
 # `translates` in a hecksagon builds the same Policy a bluebook `policy` block would.
 RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
-  def declare_foreign
+  DECLARE_TRANSLATES_FOREIGN = lambda do
     Hecks.bluebook "TranslatesForeign" do
       aggregate "Thing" do
         identified_by :id
@@ -23,7 +23,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     end
   end
 
-  def declare_local
+  DECLARE_TRANSLATES_LOCAL = lambda do
     Hecks.bluebook "TranslatesLocal" do
       aggregate "Echo" do
         identified_by :id
@@ -44,7 +44,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     end
   end
 
-  def wire_hecksagons
+  WIRE_TRANSLATES_HECKSAGONS = lambda do
     Hecks.hecksagon "TranslatesForeign" do
       TranslatesForeign::Thing.persisted_by("Memory")
     end
@@ -64,21 +64,19 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
 
-      declare_foreign
-      declare_local
-      wire_hecksagons
+      DECLARE_TRANSLATES_FOREIGN.call
+      DECLARE_TRANSLATES_LOCAL.call
+      WIRE_TRANSLATES_HECKSAGONS.call
     end
 
     registry.verify!
     [Hecks::Runtime::Dispatcher.new(registry), registry]
   end
 
-  it "builds a real Policy attached to the named chapter" do
+  it "builds a real Policy attached to the named chapter", :aggregate_failures do
     _dispatcher, registry = boot
 
     policy = registry.bluebook("TranslatesLocal").policies.find { |p| p.name == "EchoOnThingFired" }
@@ -88,7 +86,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     expect(policy.trigger_command).to eq("Echo.Register")
   end
 
-  it "fires for real: a foreign command's event triggers the local command" do
+  it "fires for real: a foreign command's event triggers the local command", :aggregate_failures do
     dispatcher, registry = boot
 
     dispatcher.dispatch("TranslatesForeign::Thing.Fire", to: "x1", with: { id: { value: "x1" } })

@@ -38,22 +38,36 @@ module Hecks
       # @param error [Exception, nil] the refusal to show in the banner; nil for a fresh form
       # @param prefill [Hash{String => String}] values the caller arrived with, by dotted path
       # @return [String] the HTML page body, without the surrounding page chrome
-      def self.render(registry:, domain:, aggregate:, command:, action:, values: nil, error: nil, prefill: {})
+      def self.render(registry:, domain:, aggregate:, command:, **form)
         all_fields = fields_for(aggregate, command)
-        reference_options = ReferenceOptions.collect(registry, domain, all_fields)
-        shown_values = values || prefill
+        fields_html = fields_markup(registry, domain, all_fields, form)
+        action = form.fetch(:action)
+        cancel = "/#{domain}/#{aggregate.hecks_name}"
+        [header(domain, aggregate, command), error_banner(form[:error]),
+         form_markup(action, fields_html, command, cancel).chomp,
+         inspect_panel(domain, aggregate, command, action, all_fields)].join("\n").concat("\n")
+      end
 
+      # @param form [Hash] the submission being re-shown: `values:`, `error:` and `prefill:`
+      # @return [String] every field's HTML, populated from the submission or the prefill
+      def self.fields_markup(registry, domain, fields, form)
+        reference_options = ReferenceOptions.collect(registry, domain, fields)
+        shown_values = form[:values] || form.fetch(:prefill, {})
+        fields.map do |f|
+          FieldRenderer.render(f, values: shown_values, errors: field_errors(form[:error]), reference_options: reference_options)
+        end.join
+      end
+
+      # @return [String] the `<form>` element: the fields, the submit button and the cancel link
+      def self.form_markup(action, fields_html, command, cancel)
         <<~HTML
-          #{header(domain, aggregate, command)}
-          #{error_banner(error)}
           <form method="post" action="#{Escape.attr(action)}" novalidate>
-            #{all_fields.map { |f| FieldRenderer.render(f, values: shown_values, errors: field_errors(error), reference_options: reference_options) }.join}
+            #{fields_html}
             <div class="actions">
               <button type="submit">#{Escape.html(command.hecks_name)}</button>
-              <a class="button secondary" href="#{Escape.attr("/#{domain}/#{aggregate.hecks_name}")}">Cancel</a>
+              <a class="button secondary" href="#{Escape.attr(cancel)}">Cancel</a>
             </div>
           </form>
-          #{inspect_panel(domain, aggregate, command, action, all_fields)}
         HTML
       end
 
@@ -63,7 +77,7 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate] the aggregate whose records the picker offers
       # @return [Forms::Field] a `:reference` field at path `"to"` targeting `aggregate`
       def self.identity_field(aggregate)
-        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(', ')})",
+        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(", ")})",
                   kind: :reference, html_type: "text", target_aggregate: aggregate,
                   help: "The record this command acts on.")
       end
@@ -107,7 +121,7 @@ module Hecks
 
         <<~HTML
           <div class="error-banner" role="alert">
-            <p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — #{Escape.html(error.message)}</p>
+            <p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — #{Escape.html(error.message)}</p>
           </div>
         HTML
       end
@@ -134,17 +148,44 @@ module Hecks
       def self.inspect_panel(domain, aggregate, command, action, fields)
         verb = "#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}"
         paths = Params.paths(fields)
-        curl = <<~SH.strip
+        inspect_head(verb, command, curl_snippet(action, paths)) + inspect_tail(command, paths)
+      end
+
+      # @param action [String] URL path the form posts to
+      # @param paths [Array<String>] the dotted field paths the request carries
+      # @return [String] the `curl` call equivalent to submitting the form
+      def self.curl_snippet(action, paths)
+        <<~SH.strip
           curl -X POST '#{action}' \\
             #{paths.map { |path| "-d '#{path}=...'" }.join(" \\\n  ")}
         SH
+      end
+
+      # @param command [Bluebook::Command] the command whose emitted events are listed
+      # @return [String] the events as `<code>` items, or a note that none are declared
+      def self.emitted_events(command)
+        return "<em>nothing declared</em>" if command.emits.empty?
+
+        command.emits.map { |e| "<code>#{Escape.html(e)}</code>" }.join(", ")
+      end
+
+      # @return [String] the first half of the inspect panel: the summary, emitted events and the
+      #   `curl` snippet
+      def self.inspect_head(verb, command, curl)
         <<~HTML
           <details class="inspect">
             <summary>Inspect — #{Escape.html(verb)}</summary>
-            <p>Emits: #{command.emits.empty? ? '<em>nothing declared</em>' : command.emits.map { |e| "<code>#{Escape.html(e)}</code>" }.join(', ')}</p>
-            <p>Equivalent request (as <code>curl</code>) — every field is <code>#{Escape.html('name.path')}</code>-encoded, form or JSON alike:</p>
+            <p>Emits: #{emitted_events(command)}</p>
+            <p>Equivalent request (as <code>curl</code>) — every field is <code>#{Escape.html("name.path")}</code>-encoded, form or JSON alike:</p>
             <div class="link-row"><code id="curl-snippet">#{Escape.html(curl)}</code><button type="button" class="copy" data-copy="#curl-snippet">copy</button></div>
-            <p>Fields this command takes: #{paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(', ')}</p>
+        HTML
+      end
+
+      # @return [String] the second half of the inspect panel: the field paths and the command's
+      #   declaration as JSON
+      def self.inspect_tail(command, paths)
+        <<~HTML
+            <p>Fields this command takes: #{paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(", ")}</p>
             <p>The command's own declaration, as the runtime holds it:</p>
             <pre>#{Escape.html(JSON.pretty_generate(command.to_h))}</pre>
           </details>

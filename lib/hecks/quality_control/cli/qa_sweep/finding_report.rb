@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
+require_relative "finding_report/shrunk"
+
 module Hecks
   module QualityControlCli
     class QaSweep
       # What a sweep prints when a check surprised: the header, the reproduction, every divergence
       # and the generated and shrunk steps, so an agent can decide from the report alone.
       module FindingReport
+        include Shrunk
+
         private
 
         # @param surprise [Hash] the surprising seed's result: `seed`, `steps`, `checks`, `plan` and
@@ -26,6 +30,12 @@ module Hecks
           puts
           puts "=" * 72
           puts "FOUND SOMETHING — sweep #{@sweep_reference} left OPEN, target #{@target_reference} SUSPENDED."
+          print_finding_instructions
+          puts "=" * 72
+          puts
+        end
+
+        def print_finding_instructions
           puts "No Bug was logged (that needs a real failing-test demonstration, which"
           puts "needs judgment this script does not have — hecks quality_control log is the door)"
           puts "and the sweep was not concluded. The ledger's own SuspendOnSurprise"
@@ -35,29 +45,37 @@ module Hecks
           puts "An agent decides from here: self-contained fix with a regression test"
           puts "and a PR (hecks quality_control patch.open), or a Bug left open for something bigger."
           puts "Never waived here, never filed upstream from here."
-          puts "=" * 72
-          puts
         end
 
         def print_finding_facts(surprise)
+          print_identity_facts
+          print_run_facts(surprise)
+          print_reproduction(surprise) if surprise[:seed]
+          puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(", ")}"
+          puts
+        end
+
+        def print_identity_facts
           puts "domain:      #{@target_path} (#{@domain_path})"
           puts "target:      #{@target_reference}"
           puts "sweep:       #{@sweep_reference} (id #{@sweep.id})"
-          puts "mode:        #{@mode} (active modes: #{@active_modes.join(', ')}; " \
-               "capabilities: #{@capabilities.join(', ')})"
-          puts "seed:        #{surprise[:seed] || 'n/a (once-per-sweep check)'}"
+          puts "mode:        #{@mode} (active modes: #{@active_modes.join(", ")}; " \
+               "capabilities: #{@capabilities.join(", ")})"
+        end
+
+        def print_run_facts(surprise)
+          puts "seed:        #{surprise[:seed] || "n/a (once-per-sweep check)"}"
           puts "steps:       #{@steps_per_sequence}"
           puts "adversarial: #{@adversarial}"
           puts "role-draw:   #{@role_draw}"
           puts "dry-run:     #{@dry_run}"
           puts "streak:      clean_streak was #{@current_streak} going into this pass"
-          if surprise[:seed]
-            puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{@domain_path.inspect}, " \
-                 "seed: #{surprise[:seed]}, steps: #{@steps_per_sequence}, adversarial: #{@adversarial}, " \
-                 "role_draw: #{@role_draw}, dry_run: #{@dry_run}#{plan_arguments(surprise[:plan])})"
-          end
-          puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(', ')}"
-          puts
+        end
+
+        def print_reproduction(surprise)
+          puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{@domain_path.inspect}, " \
+               "seed: #{surprise[:seed]}, steps: #{@steps_per_sequence}, adversarial: #{@adversarial}, " \
+               "role_draw: #{@role_draw}, dry_run: #{@dry_run}#{plan_arguments(surprise[:plan])})"
         end
 
         def print_surprised_check(check)
@@ -69,13 +87,15 @@ module Hecks
           # One generic printer for every divergence shape (ruby/rust, memory/postgres_era,
           # live/rehydrated): print every key except the field and the redundant
           # domain/aggregate/type.
-          check[:divergences].each do |divergence|
-            label = [divergence[:field], divergence[:domain], divergence[:aggregate], divergence[:type]]
-                    .compact.join(" ")
-            puts "-- #{label} --"
-            divergence.except(:field, :domain, :aggregate, :type).each { |key, value| puts "#{key}: #{value.inspect}" }
-            puts
-          end
+          check[:divergences].each { |divergence| print_divergence(divergence) }
+        end
+
+        def print_divergence(divergence)
+          label = [divergence[:field], divergence[:domain], divergence[:aggregate], divergence[:type]]
+                  .compact.join(" ")
+          puts "-- #{label} --"
+          divergence.except(:field, :domain, :aggregate, :type).each { |key, value| puts "#{key}: #{value.inspect}" }
+          puts
         end
 
         # Lists every step in order with its `adversarial` metadata, so a divergence's verb matches
@@ -86,28 +106,7 @@ module Hecks
             label = %w[verb query dry_run].filter_map { |key| step[key] if step.key?(key) }.first
             mutation = step["adversarial"] ? JSON.generate(step["adversarial"]) : "(not mutated)"
             puts "#{index}: #{label}  #{mutation}"
-            puts "   args: #{JSON.generate(step['args'])}" if step["adversarial"]
-          end
-          puts
-        end
-
-        def print_shrunk(shrunk, seed)
-          path = write_shrunk!(shrunk, seed)
-          budget = shrunk[:exhausted] ? ", budget exhausted — may shrink further" : ""
-          puts "shrunk:      [#{shrunk[:mode]}] #{shrunk[:original_size]} -> #{shrunk[:steps].size} step(s) " \
-               "(#{shrunk[:attempts]} candidate checks#{budget})"
-          puts "file:        #{path.delete_prefix("#{@root}/")}"
-          replay =
-            if %i[differential self_consistency].include?(shrunk[:mode]) && @binary
-              "hecks check_conformance domain=#{@domain_path} script=#{path} artifact=#{@binary}"
-            else
-              "hecks run #{@domain_path} #{path}"
-            end
-          puts "replay:      #{replay}"
-          puts "-- shrunk steps [#{shrunk[:mode]}] --"
-          shrunk[:steps].each_with_index do |step, index|
-            kind = %w[verb query dry_run].find { |key| step.key?(key) }
-            puts "#{index}: #{"#{kind} " unless kind == 'verb'}#{step[kind]}  args: #{JSON.generate(step['args'])}"
+            puts "   args: #{JSON.generate(step["args"])}" if step["adversarial"]
           end
           puts
         end

@@ -49,7 +49,7 @@ module ReleaseSpecSupport
       @hooks.each { |prefix, block| block.call(argv) if argv.first(prefix.size) == prefix }
       return unless @failures.any? { |prefix| argv.first(prefix.size) == prefix }
 
-      raise Hecks::Release::Runner::CommandFailed, "`#{argv.first(2).join(' ')}` failed"
+      raise Hecks::Release::Runner::CommandFailed, "`#{argv.first(2).join(" ")}` failed"
     end
 
     # Lists the commands that changed something.

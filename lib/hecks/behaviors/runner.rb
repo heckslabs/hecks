@@ -29,17 +29,8 @@ module Hecks
       #   a raised exception, or the file loading without calling `Hecks.behaviors`
       def parse(path)
         path = File.expand_path(path)
-        previous_path = loading_path
-        self.loading_path = path
-        self.last_suite = nil
-
-        begin
-          Kernel.load(path)
-        rescue StandardError, ScriptError => e
-          return ParseResult.new(path: path, suite: nil, parse_error: "#{e.class}: #{e.message}")
-        ensure
-          self.loading_path = previous_path
-        end
+        error = load_behaviors(path)
+        return ParseResult.new(path: path, suite: nil, parse_error: error) if error
 
         suite = last_suite
         return ParseResult.new(path: path, suite: nil, parse_error: "file loaded but called no Hecks.behaviors") unless suite
@@ -89,6 +80,24 @@ module Hecks
           failed:       runs.count { |r| r.status == :fail },
           errored:      runs.count { |r| r.status == :error }
         }
+      end
+
+      private
+
+      # `Kernel.load`s the file with `loading_path` pointing at it.
+      #
+      # @param path [String] the `.behaviors` file's absolute path
+      # @return [String, nil] the raised exception described as `"Class: message"`, nil on success
+      def load_behaviors(path)
+        previous_path = loading_path
+        self.loading_path = path
+        self.last_suite = nil
+        Kernel.load(path)
+        nil
+      rescue StandardError, ScriptError => e
+        "#{e.class}: #{e.message}"
+      ensure
+        self.loading_path = previous_path
       end
     end
   end

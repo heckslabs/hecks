@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "pg"
+require_relative "qa_postgres_role/ownership"
 
 module Hecks
   module QualityControlCli
@@ -11,6 +12,8 @@ module Hecks
     #   hecks quality_control sweep.create_ledger_role <database> [--role <role>]   # role defaults
     # to hecks_qa
     class QaPostgresRole
+      include Ownership
+
       USAGE = "usage: hecks quality_control create_ledger_role <database> [--role <role>]"
 
       # `relkind` of each relation to the word `ALTER` takes for it. Partitions are their own
@@ -39,16 +42,39 @@ module Hecks
       # @return [Integer] the exit status
       # @raise [SystemExit] when the role is a superuser or `BYPASSRLS`, or the database is missing
       def call(argv)
-        argv = argv.dup
-        role = "hecks_qa"
-        if (index = argv.index("--role"))
-          role = argv[index + 1] or return usage("--role needs a name")
-          argv.slice!(index, 2)
-        end
-        database = argv.shift
-        return usage("no database named") if database.to_s.empty?
-        return usage("unexpected argument #{argv.first.inspect}") unless argv.empty?
+        database, role = parse(argv.dup)
+        provision(database, role)
+        0
+      rescue UsageError => e
+        usage(e.message)
+      end
 
+      private
+
+      # Raised for a wrong command line; `call` answers it with the usage line and status 1.
+      class UsageError < StandardError; end
+
+      def parse(argv)
+        role = take_role(argv)
+        database = argv.shift
+        raise UsageError, "no database named" if database.to_s.empty?
+        raise UsageError, "unexpected argument #{argv.first.inspect}" unless argv.empty?
+
+        [database, role]
+      end
+
+      def take_role(argv)
+        index = argv.index("--role")
+        return "hecks_qa" unless index
+
+        role = argv[index + 1]
+        raise UsageError, "--role needs a name" unless role
+
+        argv.slice!(index, 2)
+        role
+      end
+
+      def provision(database, role)
         done = []
         skipped = []
         admin = PG.connect(dbname: "postgres")
@@ -57,10 +83,7 @@ module Hecks
         admin.close
         take_contents(database, role, done)
         report(database, role, done, skipped)
-        0
       end
-
-      private
 
       def usage(message)
         @err.puts "hecks quality_control create_ledger_role: #{message}"
@@ -71,81 +94,53 @@ module Hecks
       def create_role(admin, role, done, skipped)
         attrs = admin.exec_params("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = $1", [role])
         if attrs.ntuples.zero?
-          # CREATE ROLE has no IF NOT EXISTS. Concurrent creates can lose on the catalog index
-          # (unique_violation) rather than duplicate_object, so the block rescues both.
-          admin.exec(<<~SQL)
-            DO $$ BEGIN
-              CREATE ROLE #{admin.quote_ident(role)} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
-            EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
-            END $$
-          SQL
+          insert_role(admin, role)
           done << "created role #{role} (LOGIN, no SUPERUSER, no BYPASSRLS)"
         elsif attrs[0]["rolsuper"] == "t" || attrs[0]["rolbypassrls"] == "t"
-          admin.close
-          abort "hecks quality_control create_ledger_role: role #{role} already exists as " \
-                "#{attrs[0]['rolsuper'] == 't' ? 'a superuser' : 'a BYPASSRLS role'} — the era write-fence " \
-                "cannot bite it, which is the exact state this script exists to end. Pick another role, or " \
-                "ALTER ROLE #{role} NOSUPERUSER NOBYPASSRLS first."
+          refuse_privileged_role(admin, role, attrs[0])
         else
           skipped << "role #{role} exists, ordinary"
         end
       end
 
+      # CREATE ROLE has no IF NOT EXISTS. Concurrent creates can lose on the catalog index
+      # (unique_violation) rather than duplicate_object, so the block rescues both.
+      def insert_role(admin, role)
+        admin.exec(<<~SQL)
+          DO $$ BEGIN
+            CREATE ROLE #{admin.quote_ident(role)} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
+          END $$
+        SQL
+      end
+
+      def refuse_privileged_role(admin, role, attrs)
+        admin.close
+        abort "hecks quality_control create_ledger_role: role #{role} already exists as " \
+              "#{attrs["rolsuper"] == "t" ? "a superuser" : "a BYPASSRLS role"} — the era write-fence " \
+              "cannot bite it, which is the exact state this script exists to end. Pick another role, or " \
+              "ALTER ROLE #{role} NOSUPERUSER NOBYPASSRLS first."
+      end
+
       def take_database(admin, database, role, done, skipped)
-        owner = admin.exec_params(
-          "SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = $1", [database]
-        )
-        if owner.ntuples.zero?
-          admin.close
-          abort "hecks quality_control create_ledger_role: no database #{database} — createdb it first (PostgresEra provisions " \
-                "every table it needs on first connect, never the database itself)"
-        end
-        if owner[0]["owner"] == role
+        owner = database_owner(admin, database)
+        if owner == role
           skipped << "database #{database} already owned by #{role}"
         else
           admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{admin.quote_ident(role)}")
-          done << "database #{database}: owner #{owner[0]['owner']} -> #{role}"
+          done << "database #{database}: owner #{owner} -> #{role}"
         end
       end
 
-      def take_contents(database, role, done)
-        db = PG.connect(dbname: database)
-        quoted_role = db.quote_ident(role)
-        schema_owner = db.exec("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname = 'public'")
-        if schema_owner.ntuples.positive? && schema_owner[0]["owner"] != role
-          db.exec("ALTER SCHEMA public OWNER TO #{quoted_role}")
-          done << "schema public: owner #{schema_owner[0]['owner']} -> #{role}"
-        end
-        take_relations(db, role, quoted_role, done)
-        take_functions(db, role, quoted_role, done)
-        db.close
-      end
+      def database_owner(admin, database)
+        rows = admin.exec_params(
+          "SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = $1", [database]
+        )
+        return rows[0]["owner"] unless rows.ntuples.zero?
 
-      # relkind: r table, p partitioned table, S sequence, v view, m matview.
-      def take_relations(db, role, quoted_role, done)
-        relations = db.exec_params(<<~SQL, [role])
-          SELECT c.relname, c.relkind, pg_get_userbyid(c.relowner) AS owner
-          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-          WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'S', 'v', 'm') AND pg_get_userbyid(c.relowner) <> $1
-          ORDER BY c.relkind, c.relname
-        SQL
-        relations.each do |row|
-          db.exec("ALTER #{KINDS.fetch(row['relkind'])} #{db.quote_ident(row['relname'])} OWNER TO #{quoted_role}")
-        end
-        done << "#{relations.ntuples} relation(s) in public -> #{role}" if relations.ntuples.positive?
-      end
-
-      def take_functions(db, role, quoted_role, done)
-        functions = db.exec_params(<<~SQL, [role])
-          SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
-          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-          WHERE n.nspname = 'public' AND pg_get_userbyid(p.proowner) <> $1
-          ORDER BY p.proname
-        SQL
-        functions.each do |row|
-          db.exec("ALTER FUNCTION #{db.quote_ident(row['proname'])}(#{row['args']}) OWNER TO #{quoted_role}")
-        end
-        done << "#{functions.ntuples} function(s) in public -> #{role}" if functions.ntuples.positive?
+        admin.close
+        abort "hecks quality_control create_ledger_role: no database #{database} — createdb it first (PostgresEra provisions " \
+              "every table it needs on first connect, never the database itself)"
       end
 
       def report(database, role, done, skipped)

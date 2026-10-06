@@ -76,48 +76,63 @@ RSpec.describe "Postgres atomic_put persistence", :io do
     )
   end
 
-  it "atomically appends and projects while reporting insert versus replacement" do
-    aggregate = item_aggregate
-    stored = repository(aggregate)
+  let(:aggregate) { item_aggregate }
+  let(:stored) { repository(aggregate) }
 
+  it "reports the capabilities it has" do
     expect(stored.capabilities).to eq(%i[atomic_put optimistic_concurrency])
-    expect(stored.atomic_put(item(aggregate, "First")).status).to eq(:inserted)
-    expect(stored.atomic_put(item(aggregate, "Second")).status).to eq(:replaced)
-    expect(stored.entries.size).to eq(2)
-    expect(stored.find("sku-1").state[:label].to_h).to eq(value: "Second")
   end
 
-  it "serializes concurrent first writers so exactly one observes insertion" do
-    aggregate = item_aggregate
-    stores = [repository(aggregate), repository(aggregate)]
+  it "reports an insert for the first put of an identity" do
+    expect(stored.atomic_put(item(aggregate, "First")).status).to eq(:inserted)
+  end
+
+  it "reports a replacement for the second put of an identity" do
+    stored.atomic_put(item(aggregate, "First"))
+
+    expect(stored.atomic_put(item(aggregate, "Second")).status).to eq(:replaced)
+  end
+
+  it "appends every put, and finds the latest" do
+    stored.atomic_put(item(aggregate, "First"))
+    stored.atomic_put(item(aggregate, "Second"))
+
+    expect([stored.entries.size, stored.find("sku-1").state[:label].to_h]).to eq([2, { value: "Second" }])
+  end
+
+  # One writer that waits for `start` before it puts, so both writers put at the same moment.
+  def racing_writer(stored, label, ready, start)
+    Thread.new do
+      ready << true
+      start.pop
+      stored.atomic_put(item(aggregate, label)).status
+    end
+  end
+
+  # Releases two writers at once; answers what each one's put reported.
+  def put_concurrently(stores)
     ready = Queue.new
     start = Queue.new
-
-    threads = stores.zip(%w[First Second]).map do |stored, label|
-      Thread.new do
-        ready << true
-        start.pop
-        stored.atomic_put(item(aggregate, label)).status
-      end
-    end
+    threads = stores.zip(%w[First Second]).map { |stored, label| racing_writer(stored, label, ready, start) }
     2.times { ready.pop }
     2.times { start << true }
-
-    expect(threads.map(&:value)).to contain_exactly(:inserted, :replaced)
-    expect(stores.first.entries.size).to eq(2)
-    expect(stores.first.find("sku-1").state[:label].to_h.fetch(:value))
-      .to(satisfy { |value| %w[First Second].include?(value) })
+    threads.map(&:value)
   ensure
     threads&.each { |thread| thread.join if thread.alive? }
   end
 
-  it "rolls the journal append back when projection fails" do
-    aggregate = item_aggregate
-    stored = repository(aggregate)
+  it "serializes concurrent first writers so exactly one observes insertion", :aggregate_failures do
+    stores = [repository(aggregate), repository(aggregate)]
+
+    expect(put_concurrently(stores)).to contain_exactly(:inserted, :replaced)
+    expect(stores.first.entries.size).to eq(2)
+    expect(stores.first.find("sku-1").state[:label].to_h.fetch(:value)).to(satisfy { |value| %w[First Second].include?(value) })
+  end
+
+  it "rolls the journal append back when projection fails", :aggregate_failures do
     stored.adapter.define_singleton_method(:project) { |_entry| raise "projection failed" }
 
-    expect { stored.atomic_put(item(aggregate, "Never committed")) }
-      .to raise_error(RuntimeError, "projection failed")
+    expect { stored.atomic_put(item(aggregate, "Never committed")) }.to raise_error(RuntimeError, "projection failed")
     expect(stored.entries).to be_empty
     expect(stored.find("sku-1")).to be_nil
   end

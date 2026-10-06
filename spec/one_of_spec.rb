@@ -3,14 +3,18 @@ require "spec_helper"
 RSpec.describe "one_of" do
   ONE_OF_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
+  def load_ports
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
   def boot_banking
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_ports
       load_bluebook_files(ONE_OF_BANKING)
       Hecks::Runtime::Loader.bind_runtime(
         Hecks::Runtime::Dispatcher.new(registry)
@@ -18,53 +22,41 @@ RSpec.describe "one_of" do
     end
   end
 
-  it "admits a declared member" do
-    runtime = boot_banking
+  def register_customer(runtime, reference: "c", email: "a@example.com")
+    runtime.dispatch_flat(
+      "Banking::Customer.Register",
+      reference: { value: reference }, name: { given: "A", family: "Customer" }, email: { address: email }
+    )
+  end
 
-    expect do
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
-                                                kind: { name: "savings" }, daily_limit: { cents: 10_000 })
-    end.not_to raise_error
+  # Boots banking, registers a customer, and opens an account of the given kind and daily limit.
+  def open_account_as(kind, cents)
+    runtime = boot_banking
+    register_customer(runtime)
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
+                                                   kind: { name: kind }, daily_limit: { cents: cents })
+  end
+
+  it "admits a declared member" do
+    expect { open_account_as("savings", 10_000) }.not_to raise_error
   end
 
   it "refuses a value outside the set, naming the set" do
-    runtime = boot_banking
-
-    expect do
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
-                                                kind: { name: "gold" }, daily_limit: { cents: 10_000 })
-    end.to raise_error(Hecks::Runtime::InvariantViolation,
-                       'AccountKind admits "current", "savings", "reserve" — got "gold"')
+    expect { open_account_as("gold", 10_000) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, 'AccountKind admits "current", "savings", "reserve" — got "gold"')
   end
 
   # Uses DailyLimit because it is an Integer field: patterns apply only to String, so
   # no `pattern:` check shadows its invariant (EmailAddress and CustomerNumber have one).
   it "judges an object payload's invariants at the same door" do
-    runtime = boot_banking
-
-    expect do
-      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
-                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
-                                                kind: { name: "current" }, daily_limit: { cents: -1 })
-    end.to raise_error(Hecks::Runtime::InvariantViolation,
-                       'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
+    expect { open_account_as("current", -1) }
+      .to raise_error(Hecks::Runtime::InvariantViolation,
+                      'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
   end
 
   it "judges an object payload's patterns at the same door" do
-    runtime = boot_banking
-
-    expect do
-      runtime.dispatch_flat("Banking::Customer.Register",
-                            reference: { value: "CUST-0009" },
-                            name:      { given: "No", family: "Route" },
-                            email:     { address: "nowhere" })
-    end.to raise_error(Hecks::Runtime::TypeMismatch,
-                       'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
+    expect { register_customer(boot_banking, reference: "CUST-0009", email: "nowhere") }
+      .to raise_error(Hecks::Runtime::TypeMismatch, 'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
 
   # Pins that every column of a multi-column member row is checked, not only the

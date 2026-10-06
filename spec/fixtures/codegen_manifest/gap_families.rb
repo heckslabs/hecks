@@ -1,6 +1,10 @@
+require_relative "ir_builders"
+
 # Plants one ungeneratable construct per skip family into a copy of banking's IR,
 # so the planted-gaps spec freezes hecks-codegen's `construct` choices for each.
 module ManifestGapFamilies
+  extend ManifestIrBuilders
+
   module_function
 
   # Every construct `call` plants; the spec checks each lands in the manifest.
@@ -17,23 +21,39 @@ module ManifestGapFamilies
   def call(domain_ir)
     customer = domain_ir[:aggregates].find { |aggregate| aggregate[:name] == "Customer" }
     entity = domain_ir[:aggregates].flat_map { |aggregate| aggregate[:entities] }.first
-    customer[:queries].push(*gap_queries)
-    customer[:commands].push(*gap_commands)
-    customer[:ports] = Array(customer[:ports]) + [port("Gateway", "Ping", [attribute("blob", "Mystery")])]
+    plant_customer_gaps(customer)
     domain_ir[:aggregates] << ghost_aggregate(customer, entity)
     domain_ir[:read_models].push(*gap_read_models(entity[:name]))
     domain_ir
   end
 
-  def gap_queries
+  def plant_customer_gaps(customer)
+    customer[:queries].push(*gap_queries)
+    customer[:commands].push(*gap_commands)
+    customer[:ports] = Array(customer[:ports]) + [port("Gateway", "Ping", [attribute("blob", "Mystery")])]
+  end
+
+  def gap_queries = query_shape_gaps + where_gaps + query_option_gaps
+
+  def query_shape_gaps
     [
       query("GapCursor", [active], cursor: { field: "reference" }),
       query("GapIndexHints", [active], index_hints: ["status"]),
-      query("GapNoWheres", []),
+      query("GapNoWheres", [])
+    ]
+  end
+
+  def where_gaps
+    [
       query("GapUnknownField", [where_clause("nope", "eq", "\"x\"")]),
       query("GapHop", [where_clause("nope/status", "eq", "\"x\"")]),
       query("GapNoneInState", [where_clause("status", "none_in_state", "\"x\"")]),
-      query("GapOrderedString", [where_clause("status", "gt", "\"x\"")]),
+      query("GapOrderedString", [where_clause("status", "gt", "\"x\"")])
+    ]
+  end
+
+  def query_option_gaps
+    [
       query("GapOrderBy", [active], order_by: { field: "nope", direction: "asc" }),
       query("GapLimit", [active], limit: { value: "lots" }),
       query("GapOffset", [active], offset: { value: "lots" }),
@@ -41,14 +61,26 @@ module ManifestGapFamilies
     ]
   end
 
-  def gap_commands
+  def gap_commands = mutation_source_gaps + mutation_operator_gaps + mutation_target_gaps
+
+  def mutation_source_gaps
     [
       command("GapFrobnicate", [mutation("status", "frobnicate", argument("status"))]),
       command("GapStateSource", [mutation("name", "set", { kind: "state", name: "nope" })]),
-      command("GapLiteral", [mutation("name", "set", literal(42))]),
+      command("GapLiteral", [mutation("name", "set", literal(42))])
+    ]
+  end
+
+  def mutation_operator_gaps
+    [
       command("GapArithmetic", [mutation("name", "increment", argument("amount"), sign: "+")], [attribute("amount", "Integer")]),
       command("GapClamp", [mutation("name", "clamp", literal([1, 2]))]),
-      command("GapBridge", [mutation("name", "set", argument("emails"))], [attribute("emails", "EmailAddress", list: true)]),
+      command("GapBridge", [mutation("name", "set", argument("emails"))], [attribute("emails", "EmailAddress", list: true)])
+    ]
+  end
+
+  def mutation_target_gaps
+    [
       command("GapRemove", [mutation("name", "remove", argument("name"))], [attribute("name", "PersonName")]),
       command("GapReverses", [mutation("CustomerRegistered", "corrects", literal({ reverses: true }))])
     ]
@@ -78,39 +110,5 @@ module ManifestGapFamilies
       read_model("GapHeadHop", [head("Account", "accounts")], wheres: [where_clause("nope/status", "eq", "\"x\"")]),
       read_model("GapEntityHead", [head(entity_name, "entries")], wheres: [where_clause("status", "eq", "\"x\"")])
     ]
-  end
-
-  def active = where_clause("status", "eq", "\"active\"")
-
-  def where_clause(field, operator, value) = { field: field, op: operator, value: value }
-
-  def mutation(target, operator, source, sign: "") = { target: target, op: operator, sign: sign, source: source }
-
-  def argument(name) = { kind: "argument", name: name }
-
-  def literal(value) = { kind: "literal", value: value }
-
-  def head(aggregate, as_name) = { aggregate: aggregate, as: as_name, many: true }
-
-  def port(name, operation, attributes) = { name: name, operations: [{ name: operation, attributes: attributes, emits: [] }] }
-
-  def deep_copy(value) = Marshal.load(Marshal.dump(value))
-
-  def query(name, wheres, **options)
-    { name: name, description: nil, attributes: [], wheres: wheres, order_by: nil, limit: nil }.merge(options)
-  end
-
-  def command(name, mutations, attributes = [])
-    { name: name, role: nil, goal: nil, references: nil, attributes: attributes, givens: [], ensures: [],
-      mutations: mutations, emits: [], from: nil, provenance: nil }
-  end
-
-  def read_model(name, heads, **options)
-    { name: name, description: nil, reference_name: nil, reference_target: nil, query_name: name.downcase,
-      wheres: [], order_by: nil, limit: nil, aggregate_heads: heads, group_by: [] }.merge(options)
-  end
-
-  def attribute(name, type, list: false)
-    { name: name, type: type, list: list, default: nil, optional: false, pattern: nil, admits: nil, relationship: nil }
   end
 end

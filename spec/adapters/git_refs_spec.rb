@@ -21,7 +21,7 @@ RSpec.describe Hecks::Adapters::Git do
 
   def sh(dir, *command)
     out, status = Open3.capture2e(*command, chdir: dir)
-    raise "#{command.join(' ')}: #{out}" unless status.success?
+    raise "#{command.join(" ")}: #{out}" unless status.success?
 
     out.strip
   end
@@ -33,41 +33,57 @@ RSpec.describe Hecks::Adapters::Git do
     sh(@work, "git", "rev-parse", "HEAD")
   end
 
+  def remote(ref) = git.remote_head(ref, chdir: @work)
+
+  def ancestor?(older, newer) = git.ancestor?(older, newer, chdir: @work)
+
+  def failure = Hecks::Adapters::ConsoleCapture::Failure
+
   describe "#remote_head" do
-    it "answers the commit a remote branch names, and nil for one it lacks" do
+    it "answers the commit a remote branch names" do
       first = commit!("one")
       sh(@work, "git", "push", "origin", "main")
 
-      expect(git.remote_head("refs/heads/main", chdir: @work)).to eq(first)
-      expect(git.remote_head("refs/heads/stable", chdir: @work)).to be_nil
+      expect(remote("refs/heads/main")).to eq(first)
+    end
+
+    it "answers nil for a branch the remote lacks" do
+      commit!("one")
+
+      expect(remote("refs/heads/stable")).to be_nil
     end
   end
 
   describe "#ancestor?" do
-    it "is true along history, false across it, and true for a commit and itself" do
+    it "is true along history, false across it, and true for a commit and itself", :aggregate_failures do
       first = commit!("one")
       second = commit!("two")
 
-      expect(git.ancestor?(first, second, chdir: @work)).to be(true)
-      expect(git.ancestor?(second, first, chdir: @work)).to be(false)
-      expect(git.ancestor?(first, first, chdir: @work)).to be(true)
+      expect(ancestor?(first, second)).to be(true)
+      expect(ancestor?(second, first)).to be(false)
+      expect(ancestor?(first, first)).to be(true)
     end
 
-    it "refuses a name that is a flag or reaches past a ref" do
-      expect { git.ancestor?("--all", "HEAD", chdir: @work) }.to raise_error(/not a ref name/)
-      expect { git.ancestor?("HEAD", "a..b", chdir: @work) }.to raise_error(/not a ref name/)
+    it "refuses a name that is a flag or reaches past a ref", :aggregate_failures do
+      expect { ancestor?("--all", "HEAD") }.to raise_error(/not a ref name/)
+      expect { ancestor?("HEAD", "a..b") }.to raise_error(/not a ref name/)
     end
   end
 
   describe "#fast_forward" do
-    it "makes a branch on the remote, then moves it forward" do
+    it "makes a branch on the remote" do
       first = commit!("one")
       git.fast_forward(first, "stable", chdir: @work)
-      expect(git.remote_head("refs/heads/stable", chdir: @work)).to eq(first)
 
+      expect(remote("refs/heads/stable")).to eq(first)
+    end
+
+    it "moves a branch forward" do
+      git.fast_forward(commit!("one"), "stable", chdir: @work)
       second = commit!("two")
       git.fast_forward(second, "stable", chdir: @work)
-      expect(git.remote_head("refs/heads/stable", chdir: @work)).to eq(second)
+
+      expect(remote("refs/heads/stable")).to eq(second)
     end
 
     it "is refused, never forced, when the commit does not contain the branch's head" do
@@ -75,33 +91,32 @@ RSpec.describe Hecks::Adapters::Git do
       commit!("two")
       sh(@work, "git", "push", "origin", "HEAD:refs/heads/stable")
       sh(@work, "git", "checkout", "-b", "side", first)
-      side = commit!("side")
 
-      expect do
-        git.fast_forward(side, "stable", chdir: @work)
-      end.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refused/)
+      expect { git.fast_forward(commit!("side"), "stable", chdir: @work) }.to raise_error(failure, /refused/)
     end
   end
 
   describe "#move_tag" do
-    it "creates a tag, leaves it be when current, and moves it forward" do
+    it "creates a tag, then leaves it be when current", :aggregate_failures do
       first = commit!("one")
+
       expect(git.move_tag("edge", first, chdir: @work)).to eq(:created)
       expect(git.move_tag("edge", first, chdir: @work)).to eq(:current)
+    end
 
+    it "moves a tag forward", :aggregate_failures do
+      git.move_tag("edge", commit!("one"), chdir: @work)
       second = commit!("two")
+
       expect(git.move_tag("edge", second, chdir: @work)).to eq(:moved)
-      expect(git.remote_head("refs/tags/edge", chdir: @work)).to eq(second)
+      expect(remote("refs/tags/edge")).to eq(second)
     end
 
     it "refuses to move a tag backward or sideways" do
       first = commit!("one")
-      second = commit!("two")
-      git.move_tag("edge", second, chdir: @work)
+      git.move_tag("edge", commit!("two"), chdir: @work)
 
-      expect do
-        git.move_tag("edge", first, chdir: @work)
-      end.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /does not contain/)
+      expect { git.move_tag("edge", first, chdir: @work) }.to raise_error(failure, /does not contain/)
     end
   end
 end

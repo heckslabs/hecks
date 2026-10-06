@@ -5,7 +5,7 @@ require "hecks/fuzzing"
 # leaves a comparison only by being declared there, with its reason. These
 # examples keep that true in both directions — no call site re-derives its
 # own except-list, and no declared field outlives the thing that produced it.
-RSpec.describe Hecks::Fuzzing::Nondeterministic do
+RSpec.describe Hecks::Fuzzing::Nondeterministic, :aggregate_failures do
   NONDETERMINISTIC_ROOT     = InMemoryDomain::ROOT
   NONDETERMINISTIC_PIZZAS   = File.join(NONDETERMINISTIC_ROOT, "examples/pizzas")
   NONDETERMINISTIC_FUZZ_DIR = File.join(NONDETERMINISTIC_ROOT, "lib/hecks/fuzzing")
@@ -28,22 +28,27 @@ RSpec.describe Hecks::Fuzzing::Nondeterministic do
     end
   end
 
+  # The `file:line excludes name` lines for every literal `.except(...)` naming a declared field.
+  def except_list_offenders(file, names)
+    File.readlines(file).each_with_index.filter_map do |line, index|
+      next if line.lstrip.start_with?("#")
+
+      listed = line.scan(/\.except\(([^)]*)\)/).flatten.join(" ")
+      hit = names.find { |name| listed.match?(/(?::|["'])#{Regexp.escape(name)}\b/) }
+      "#{file.delete_prefix("#{NONDETERMINISTIC_ROOT}/")}:#{index + 1} excludes #{hit}" if hit
+    end
+  end
+
+  def declare_message(offenders)
+    "declare these in Hecks::Fuzzing::Nondeterministic::FIELDS and strip by group:\n#{offenders.join("\n")}"
+  end
+
   it "has no literal except-list of a declared field anywhere else under lib/hecks/fuzzing" do
     names = described_class.all_names.map(&:to_s)
     files = Dir[File.join(NONDETERMINISTIC_FUZZ_DIR, "**/*.rb")] - [NONDETERMINISTIC_HOME]
-    offenders = files.flat_map do |file|
-      File.readlines(file).each_with_index.filter_map do |line, index|
-        next if line.lstrip.start_with?("#")
+    offenders = files.flat_map { |file| except_list_offenders(file, names) }
 
-        listed = line.scan(/\.except\(([^)]*)\)/).flatten.join(" ")
-        hit = names.find { |name| listed.match?(/(?::|["'])#{Regexp.escape(name)}\b/) }
-        "#{file.delete_prefix("#{NONDETERMINISTIC_ROOT}/")}:#{index + 1} excludes #{hit}" if hit
-      end
-    end
-
-    expect(offenders).to be_empty,
-                         "declare these in Hecks::Fuzzing::Nondeterministic::FIELDS and strip by group:\n" \
-                         "#{offenders.join("\n")}"
+    expect(offenders).to be_empty, declare_message(offenders)
   end
 
   it "has a locator for exactly the declared groups" do
@@ -66,21 +71,27 @@ RSpec.describe Hecks::Fuzzing::Nondeterministic do
 
   # A stale tolerance fails: every declared field must actually appear, on
   # its declared shape, in a real replayed history.
-  it "declares only fields a real replay actually produces" do
+  def replayed_histories
     histories = (1..5).map do |seed|
       steps = Hecks::Fuzzing::SequenceGenerator.generate(NONDETERMINISTIC_PIZZAS, seed: seed, steps: 25)
       Hecks::Fuzzing::Replay.call(NONDETERMINISTIC_PIZZAS, steps)
     end
     histories << Hecks::Fuzzing::Replay.call(File.join(NONDETERMINISTIC_ROOT, "examples/banking"), banking_outbox_steps)
+  end
 
-    described_class::FIELDS.each do |group, fields|
-      shapes = histories.flat_map { |history| NONDETERMINISTIC_LOCATORS.fetch(group).call(history) }.compact
-      fields.each_key do |name|
-        expect(shapes.any? { |shape| shape.key?(name) }).to be(true),
-                                                            "#{group}.#{name} is declared nondeterministic but no " \
-                                                            "replayed history produced it — a stale tolerance"
-      end
+  def expect_group_produced(group, fields, histories)
+    shapes = histories.flat_map { |history| NONDETERMINISTIC_LOCATORS.fetch(group).call(history) }.compact
+    fields.each_key do |name|
+      expect(shapes.any? { |shape| shape.key?(name) }).to be(true),
+                                                          "#{group}.#{name} is declared nondeterministic but no " \
+                                                          "replayed history produced it — a stale tolerance"
     end
+  end
+
+  it "declares only fields a real replay actually produces" do
+    histories = replayed_histories
+
+    described_class::FIELDS.each { |group, fields| expect_group_produced(group, fields, histories) }
   end
 
   it "strips exactly one group's fields and nothing else" do

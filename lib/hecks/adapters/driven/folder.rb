@@ -57,6 +57,15 @@ module Hecks
           load_each(directory, DOMAIN_ORDER)
         end
 
+        load_overlay(directory, environment)
+      end
+
+      # Loads an environment's `.hecksagon` then `.world` overlay files, when present.
+      #
+      # @param directory [String] the directory holding the `environments/` folder
+      # @param environment [String, nil] the environment name; nil loads nothing
+      # @return [void]
+      def load_overlay(directory, environment)
         return unless environment
 
         load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
@@ -86,21 +95,22 @@ module Hecks
       # @return [void]
       def load_selected(files, environment: nil)
         bluebooks, rest = files.partition { |f| f.end_with?(".bluebook") }
-
-        if bluebooks.any?
-          Bluebook::MetaValidator.defer { bluebooks.sort.each { |f| Kernel.load(f) } }
-          Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
-        end
-
+        load_selected_bluebooks(bluebooks)
         %w[.hecksagon .world].each do |ext|
           rest.select { |f| f.end_with?(ext) }.sort.each { |f| Kernel.load(f) }
         end
+        load_overlay(File.dirname(files.first), environment) if environment
+      end
 
-        return unless environment
+      # Loads the given bluebook files as one deferred group, judged once after all are loaded.
+      #
+      # @param bluebooks [Array<String>] bluebook file paths; none means nothing loads
+      # @return [void]
+      def load_selected_bluebooks(bluebooks)
+        return if bluebooks.empty?
 
-        directory = File.dirname(files.first)
-        load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
-        load_each(directory, [File.join("environments", "#{environment}.world")])
+        Bluebook::MetaValidator.defer { bluebooks.sort.each { |f| Kernel.load(f) } }
+        Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.

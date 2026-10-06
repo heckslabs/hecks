@@ -52,19 +52,20 @@ module Hecks
       def project(root, path)
         runtime = Hecks.boot(File.join(root, path), install_doors: false)
         name    = runtime.registry.bluebooks.keys.first
+        return warn("  #{path}: no bluebook found — skipped") unless name
 
-        unless name
-          warn "  #{path}: no bluebook found — skipped"
-          return
-        end
-
-        bluebook = runtime.registry.bluebook(name)
-        out      = File.join(root, path, "oidc.json")
-
-        Hecks::Projector.write(Hecks::Projector.call(:oidc, bluebook: bluebook), out)
+        write_manifest(runtime.registry, name, File.join(root, path, "oidc.json"))
         puts "  #{path}/oidc.json  <-  #{name}"
       rescue StandardError => e
         warn "  #{path}: cannot project — #{e.message.lines.first.strip}"
+      end
+
+      # @param registry [Hecks::Runtime::Registry] the booted registry
+      # @param name [String] the bluebook to project
+      # @param out [String] where the manifest goes
+      # @return [void]
+      def write_manifest(registry, name, out)
+        Hecks::Projector.write(Hecks::Projector.call(:oidc, bluebook: registry.bluebook(name)), out)
       end
     end
   end

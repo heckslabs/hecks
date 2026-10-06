@@ -52,22 +52,30 @@ module Hecks
         Hecks::Codemod.each_command(registry) do |construct, command|
           command.mutations.select { |m| m.op == :append }.each do |mutation|
             element = Hecks::Codemod.element_construct_for(construct, mutation.target)
-            next unless element
-
-            mutation.source.each do |field, value|
-              next unless value.is_a?(Symbol) && value.to_s == field.to_s
-
-              local = command.attributes.find { |attr| attr.name.to_s == field.to_s }
-              next unless local
-
-              owner_attr = Hecks::Codemod.owner_attribute(element, field)
-              next unless identical_attribute?(local, owner_attr)
-
-              found << Candidate.new(command_name: command.hecks_name, field: field.to_s, type: local.type)
-            end
+            found.concat(appended_candidates(command, mutation, element)) if element
           end
         end
         found
+      end
+
+      # @param command [Object] a command construct
+      # @param mutation [Object] one of its `append:` mutations
+      # @param element [Object] the element the mutation appends to
+      # @return [Array<Candidate>] the fields the mutation copies from same-named attributes
+      def appended_candidates(command, mutation, element)
+        mutation.source.filter_map do |field, value|
+          next unless value.is_a?(Symbol) && value.to_s == field.to_s
+
+          candidate_for(command, element, field)
+        end
+      end
+
+      # @return [Candidate, nil] the command's own attribute, when the element declares the same one
+      def candidate_for(command, element, field)
+        local = command.attributes.find { |attr| attr.name.to_s == field.to_s }
+        return unless local && identical_attribute?(local, Hecks::Codemod.owner_attribute(element, field))
+
+        Candidate.new(command_name: command.hecks_name, field: field.to_s, type: local.type)
       end
 
       # @param text [String] a bluebook's source

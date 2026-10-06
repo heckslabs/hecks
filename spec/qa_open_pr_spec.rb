@@ -71,7 +71,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
-           out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
+           out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
   def head = `git -C #{@repo} rev-parse HEAD`.strip
@@ -90,9 +90,10 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     File.write(File.join(@repo, ".git/info/exclude"), ".fake_gh.*\n")
   end
 
-  def open_pr(*args)
-    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
-            "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state }
+  # Runs qa_open_pr against the ledger with the fake gh first on PATH; `extra_env` adds to the environment.
+  def open_pr(*args, extra_env: {})
+    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch("PATH")}", "QA_REPO_DIR" => @repo,
+            "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state }.merge(extra_env)
     QaLibCli.run(@ledger, "qa_open_pr", *args, env: env)
   end
 
@@ -111,6 +112,12 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     bug.fix!(reference: { value: "BUG#1" }, commit: { value: commit })
   end
 
+  # A branch named `name` whose head commit fixes BUG#1.
+  def fixed_bug_on(name)
+    on_branch(name)
+    a_fixed_bug(commit: head)
+  end
+
   def patches_on_file
     @ledger.boot.query("QualityControl::Patch.All")
            .map { |row| [row[:number][:value], row[:commit][:value], row[:opened_at][:value]] }
@@ -121,112 +128,134 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
            .map { |row| [row[:number][:value], row[:status], row[:commit].to_h[:value], row[:angle]] }
   end
 
-  it "refuses a branch outside the practice's prefix, before touching gh or the ledger" do
-    on_branch("loop-parity/old-habit")
-    a_fixed_bug(commit: head)
-
-    _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the branch is one this practice recognises as its own")
-    expect(gh_calls).to be_empty
-    expect(patches_on_file).to be_empty
-  end
-
-  it "refuses a bug that is not fixed" do
-    on_branch("qa/logged-only")
-    a_fixed_bug(commit: nil)
-
-    _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the bug is fixed", %(BUG#1 is "logged"))
-    expect(gh_calls).to be_empty
-  end
-
-  it "refuses a fix commit that is not on HEAD" do
-    on_branch("qa/wrong-commit")
-    a_fixed_bug(commit: "deadbeef1")
-
-    _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("is not an ancestor of HEAD")
-    expect(gh_calls).to be_empty
-  end
-
-  it "opens the PR, records it with its head commit and the time, and queues auto-merge" do
-    on_branch("qa/bug-1")
-    a_fixed_bug(commit: head)
-    before = Time.now.to_i
-
-    stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "BUG#1: refuse the alias")
-
-    expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
-    expect(gh_calls.map { |c| c.split[0, 2].join(" ") }).to eq(["pr view", "pr create", "pr view", "pr merge"])
-    expect(gh_calls.grep(/^pr create/).first).to include("--head qa/bug-1", "--title BUG#1: refuse the alias")
-    expect(gh_calls.grep(/^pr create/).first).not_to include("--draft")
-    expect(gh_calls.grep(/^pr merge/).first).to include("777 --auto --squash")
-    expect(stdout).to include("recorded Patch #777 for BUG#1", "auto-merge queued for #777")
-
-    number, commit, opened_at = patches_on_file.first
-    expect([number, commit]).to eq([777, head])
-    expect(opened_at).to be >= before
-  end
-
-  # Second run: the PR is already open and its number on file, so nothing repeats.
-  it "is idempotent on a PR already open and a number already recorded" do
-    on_branch("qa/bug-1")
-    a_fixed_bug(commit: head)
-    open_pr("--bug", "BUG#1", "--title", "BUG#1: refuse the alias")
-
-    stdout, _stderr, status = open_pr("--bug", "BUG#1", "--title", "BUG#1: refuse the alias")
-
-    expect(status.exitstatus).to eq(0)
-    expect(stdout).to include("already open", "already recorded")
-    expect(gh_calls.count { |c| c.start_with?("pr create") }).to eq(1)
-    expect(patches_on_file.size).to eq(1)
-  end
-
-  it "records deliberate work as an Improvement, landed, citing an investigating angle" do
-    on_branch("qa/angle-1")
-    @ledger.boot
-    angle = QualityControl::Angle.propose!(reference: { value: "ANGLE-1" }, premise: { value: "x" * 60 },
-                                           citation: { value: "BUG#1" }, proposer: { value: "x" },
-                                           now: { value: 1 })
-
-    _stdout, stderr, status = open_pr("--improvement", "--angle", "ANGLE-1", "--title", "qa: build it")
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the angle is under investigation", %(ANGLE-1 is "proposed"))
-
-    angle.investigate!
-    stdout, stderr, status = open_pr("--improvement", "--angle", "ANGLE-1", "--title", "qa: build it")
-
-    expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
-    expect(improvements_on_file).to eq([[777, "landed", head, "ANGLE-1"]])
-  end
-
-  it "refuses a fix commit that is on HEAD but was never pushed" do
-    on_branch("qa/unpushed")
+  # A branch whose head commit fixes BUG#1 but was never pushed to the remote.
+  def fixed_bug_unpushed_on(name)
+    on_branch(name)
     File.write(File.join(@repo, "later.rb"), "later\n")
     git("add", ".")
     git("commit", "-qm", "unpushed fix")
     a_fixed_bug(commit: head)
+  end
 
-    _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
+  # What a crash between `Improvement.open!` and `land!` leaves on file.
+  def leave_improvement_opened(branch)
+    @ledger.boot
+    QualityControl::Improvement.open!(number: { value: 777 }, url: { value: "https://example.com/pull/777" },
+                                      branch: { value: branch }, title: { value: "qa: build it" },
+                                      now: { value: Time.now.to_i })
+  end
 
-    expect(status.exitstatus).to eq(1)
+  def open_bug_pr(title = "fix") = open_pr("--bug", "BUG#1", "--title", title)
+
+  def open_angle_pr = open_pr("--improvement", "--angle", "ANGLE-1", "--title", "qa: build it")
+
+  it "refuses a branch outside the practice's prefix, before touching gh or the ledger", :aggregate_failures do
+    fixed_bug_on("loop-parity/old-habit")
+
+    _stdout, stderr, status = open_bug_pr
+
+    expect([status.exitstatus, gh_calls, patches_on_file]).to eq([1, [], []])
+    expect(stderr).to include("the branch is one this practice recognises as its own")
+  end
+
+  it "refuses a bug that is not fixed", :aggregate_failures do
+    on_branch("qa/logged-only")
+    a_fixed_bug(commit: nil)
+
+    _stdout, stderr, status = open_bug_pr
+
+    expect([status.exitstatus, gh_calls]).to eq([1, []])
+    expect(stderr).to include("the bug is fixed", %(BUG#1 is "logged"))
+  end
+
+  it "refuses a fix commit that is not on HEAD", :aggregate_failures do
+    on_branch("qa/wrong-commit")
+    a_fixed_bug(commit: "deadbeef1")
+
+    _stdout, stderr, status = open_bug_pr
+
+    expect([status.exitstatus, gh_calls]).to eq([1, []])
+    expect(stderr).to include("is not an ancestor of HEAD")
+  end
+
+  context "with a fixed bug on a pushed branch" do
+    before { fixed_bug_on("qa/bug-1") }
+
+    def open_fix = open_bug_pr("BUG#1: refuse the alias")
+
+    it "opens the PR for the branch and queues auto-merge", :aggregate_failures do
+      stdout, stderr, status = open_fix
+
+      expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
+      expect(gh_calls.map { |c| c.split[0, 2].join(" ") }).to eq(["pr view", "pr create", "pr view", "pr merge"])
+      expect(gh_calls.grep(/^pr create/).first).to include("--head qa/bug-1", "--title BUG#1: refuse the alias")
+      expect(gh_calls.grep(/^pr merge/).first).to include("777 --auto --squash")
+    end
+
+    it "opens it ready for review, not as a draft, and says what it recorded", :aggregate_failures do
+      stdout, = open_fix
+
+      expect(gh_calls.grep(/^pr create/).first).not_to include("--draft")
+      expect(stdout).to include("recorded Patch #777 for BUG#1", "auto-merge queued for #777")
+    end
+
+    it "records the PR with its head commit and the time", :aggregate_failures do
+      before = Time.now.to_i
+      open_fix
+
+      number, commit, opened_at = patches_on_file.first
+      expect([number, commit]).to eq([777, head])
+      expect(opened_at).to be >= before
+    end
+
+    # Second run: the PR is already open and its number on file, so nothing repeats.
+    it "is idempotent on a PR already open and a number already recorded", :aggregate_failures do
+      open_fix
+      stdout, _stderr, status = open_fix
+
+      expect(stdout).to include("already open", "already recorded")
+      expect([status.exitstatus, gh_calls.count { |c| c.start_with?("pr create") }, patches_on_file.size]).to eq([0, 1, 1])
+    end
+  end
+
+  context "with a proposed angle" do
+    before do
+      on_branch("qa/angle-1")
+      @ledger.boot
+      @angle = QualityControl::Angle.propose!(reference: { value: "ANGLE-1" }, premise: { value: "x" * 60 },
+                                              citation: { value: "BUG#1" }, proposer: { value: "x" },
+                                              now: { value: 1 })
+    end
+
+    it "refuses to record an Improvement until the angle is under investigation", :aggregate_failures do
+      _stdout, stderr, status = open_angle_pr
+
+      expect(status.exitstatus).to eq(1)
+      expect(stderr).to include("the angle is under investigation", %(ANGLE-1 is "proposed"))
+    end
+
+    it "records deliberate work as an Improvement, landed, citing an investigating angle", :aggregate_failures do
+      @angle.investigate!
+      stdout, stderr, status = open_angle_pr
+
+      expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
+      expect(improvements_on_file).to eq([[777, "landed", head, "ANGLE-1"]])
+    end
+  end
+
+  it "refuses a fix commit that is on HEAD but was never pushed", :aggregate_failures do
+    fixed_bug_unpushed_on("qa/unpushed")
+
+    _stdout, stderr, status = open_bug_pr
+
+    expect([status.exitstatus, gh_calls]).to eq([1, []])
     expect(stderr).to include("not an ancestor of the pushed origin/qa/unpushed")
-    expect(gh_calls).to be_empty
   end
 
   # A crash between `Improvement.open!` and `land!` leaves the record opened; a rerun lands it.
-  it "completes the landing of an Improvement a crashed run left opened" do
+  it "completes the landing of an Improvement a crashed run left opened", :aggregate_failures do
     on_branch("qa/angle-2")
-    @ledger.boot
-    QualityControl::Improvement.open!(number: { value: 777 }, url: { value: "https://example.com/pull/777" },
-                                      branch: { value: "qa/angle-2" }, title: { value: "qa: build it" },
-                                      now: { value: Time.now.to_i })
+    leave_improvement_opened("qa/angle-2")
 
     stdout, stderr, status = open_pr("--improvement", "--title", "qa: build it")
 
@@ -236,25 +265,28 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
 
   # `pr_cap_per_day` is 0 (uncapped) in the real qa/settings.yml, so this example points
   # `HECKS_QA_SETTINGS_PATH` at a copy derived from it with the dial set to 1.
-  it "refuses one more PR than the day's quota allows" do
-    on_branch("qa/capped")
-    a_fixed_bug(commit: head)
-    @ledger.boot
-    QualityControl::DailyQuota.open!.take!(cap: { value: 1 })
+  context "with the day's quota spent" do
+    before do
+      fixed_bug_on("qa/capped")
+      @ledger.boot
+      QualityControl::DailyQuota.open!.take!(cap: { value: 1 })
+    end
 
-    capped_settings = File.join(Dir.mktmpdir("qa_open_pr_capped"), "settings.yml")
-    real = File.read(File.join(InMemoryDomain::ROOT, "qa/settings.yml"))
-    expect(real).to include("pr_cap_per_day: 0")
-    File.write(capped_settings, real.sub("pr_cap_per_day: 0", "pr_cap_per_day: 1"))
+    # A copy of qa/settings.yml with the day's PR cap set to 1.
+    def capped_settings
+      path = File.join(Dir.mktmpdir("qa_open_pr_capped"), "settings.yml")
+      real = File.read(File.join(InMemoryDomain::ROOT, "qa/settings.yml"))
+      expect(real).to include("pr_cap_per_day: 0")
+      File.write(path, real.sub("pr_cap_per_day: 0", "pr_cap_per_day: 1"))
+      path
+    end
 
-    env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
-            "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state,
-            "HECKS_QA_SETTINGS_PATH" => capped_settings }
-    _stdout, stderr, status = QaLibCli.run(@ledger, "qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)
+    it "refuses one more PR than the day's quota allows", :aggregate_failures do
+      _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "one too many",
+                                        extra_env: { "HECKS_QA_SETTINGS_PATH" => capped_settings })
 
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("the day's cap is not spent", "PR_CAP_PER_DAY is 1")
-    expect(gh_calls).to be_empty
-    expect(patches_on_file).to be_empty
+      expect([status.exitstatus, gh_calls, patches_on_file]).to eq([1, [], []])
+      expect(stderr).to include("the day's cap is not spent", "PR_CAP_PER_DAY is 1")
+    end
   end
 end

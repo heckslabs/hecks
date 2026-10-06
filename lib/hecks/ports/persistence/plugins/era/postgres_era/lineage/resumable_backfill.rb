@@ -39,34 +39,34 @@ module Hecks
           # One chunk, one transaction. Progress is re-read under the lock: a concurrent booter may
           # have committed this chunk while we waited.
           def run_chunk!(target, source_sql:, upsert:)
-            progress = backfill_progress(target)
-            return true if progress[:completed]
+            return true if backfill_progress(target)[:completed]
 
             completed = false
             nested_transaction("hecks_backfill_chunk") do
               # Prefix is disjoint from the ordinal/era/head-snapshot lock keys, so a chunk
               # never blocks a write or a mint.
               @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_field_cache:' || $1))", [target])
-              progress = backfill_progress(target)
-              if progress[:completed]
-                completed = true
-                next
-              end
-
-              rows = @db.exec(source_sql.call(progress[:cursor]))
-              if rows.ntuples.zero?
-                upsert_backfill_progress!(target, cursor: progress[:cursor], completed: true)
-                completed = true
-                next
-              end
-
-              upsert.call(rows)
-              completed = rows.ntuples < CHUNK_SIZE
-              # `PG::Result#[]` rejects negative indexes, so index the last row explicitly.
-              last_cursor = rows[rows.ntuples - 1]["id"]
-              upsert_backfill_progress!(target, cursor: last_cursor, completed: completed)
+              completed = fill_chunk!(target, source_sql, upsert)
             end
             completed
+          end
+
+          # Reads the next chunk under the lock, upserts it and advances the cursor; answers
+          # whether the backfill is now complete.
+          def fill_chunk!(target, source_sql, upsert)
+            progress = backfill_progress(target)
+            return true if progress[:completed]
+
+            rows = @db.exec(source_sql.call(progress[:cursor]))
+            upsert.call(rows) unless rows.ntuples.zero?
+            completed = rows.ntuples < CHUNK_SIZE
+            upsert_backfill_progress!(target, cursor: last_id(rows, progress[:cursor]), completed: completed)
+            completed
+          end
+
+          # `PG::Result#[]` rejects negative indexes, so index the last row explicitly.
+          def last_id(rows, fallback)
+            rows.ntuples.zero? ? fallback : rows[rows.ntuples - 1]["id"]
           end
 
           # `PG::Result#[]` raises IndexError out of range, so check `ntuples.zero?` before `[0]`.

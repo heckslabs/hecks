@@ -9,8 +9,6 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
 
   let(:scratch) { Dir.mktmpdir("hecks-verdict-cache") }
   let(:gem_root) { File.expand_path("..", __dir__) }
-  let(:accepted) { { refusals: [], declaration: { name: "Probe", aggregates: [{ "a" => :b, 1 => nil }] } } }
-  let(:refused) { { refusals: ["Probe is not well formed"] } }
 
   before do
     cache.reset!
@@ -22,22 +20,24 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     FileUtils.rm_rf(scratch)
   end
 
+  # The child process's program: it counts the chapters judged for real and digests every IR.
+  VERDICT_CACHE_BOOT_SCRIPT = <<~RUBY.freeze
+    require "hecks"; require "json"; require "digest"
+    Hecks::Bluebook::MetaValidator.singleton_class.prepend(Module.new do
+      def hold(bluebook) = ($holds = ($holds || 0) + 1) && super
+    end)
+    registry = Hecks::Bluebook::MetaValidator.grammar_registry
+    irs = registry.bluebooks.sort.map { |name, chapter| [name, JSON.generate(chapter.to_h)] }
+    puts JSON.generate(holds: $holds || 0, ir: Digest::SHA256.hexdigest(irs.to_json),
+                       verdicts: Hecks::Bluebook::MetaValidator.verdicts.keys.sort)
+  RUBY
+
   # Boots the grammar registry in a fresh Ruby process against `cache_root` and reports how many
   # chapters it judged for real plus a digest of every judged chapter's IR.
   def boot_child(cache_root, env = {})
-    script = <<~RUBY
-      require "hecks"; require "json"; require "digest"
-      Hecks::Bluebook::MetaValidator.singleton_class.prepend(Module.new do
-        def hold(bluebook) = ($holds = ($holds || 0) + 1) && super
-      end)
-      registry = Hecks::Bluebook::MetaValidator.grammar_registry
-      irs = registry.bluebooks.sort.map { |name, chapter| [name, JSON.generate(chapter.to_h)] }
-      puts JSON.generate(holds: $holds || 0, ir: Digest::SHA256.hexdigest(irs.to_json),
-                         verdicts: Hecks::Bluebook::MetaValidator.verdicts.keys.sort)
-    RUBY
     child_env = { "XDG_CACHE_HOME" => cache_root, "HECKS_ENVIRONMENT" => "memory" }.merge(env)
-    out, err, status = Open3.capture3(child_env, RbConfig.ruby, "-I", File.join(gem_root, "lib"), "-e", script,
-                                      chdir: gem_root)
+    argv = [RbConfig.ruby, "-I", File.join(gem_root, "lib"), "-e", VERDICT_CACHE_BOOT_SCRIPT]
+    out, err, status = Open3.capture3(child_env, *argv, chdir: gem_root)
     raise "child failed: #{err}" unless status.success?
 
     JSON.parse(out.lines.last)
@@ -45,12 +45,29 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
 
   def cache_files(cache_root) = Dir.glob(File.join(cache_root, "hecks", "hecks_verdict_cache", "verdicts-*.json"))
 
+  def accepted = { refusals: [], declaration: { name: "Probe", aggregates: [{ "a" => :b, 1 => nil }] } }
+
+  def refused = { refusals: ["Probe is not well formed"] }
+
+  # Records a verdict, writes it, and forgets what memory holds, so only the file remains.
+  def written_cache
+    cache.record("k1", accepted)
+    cache.flush
+    cache.reset!
+  end
+
+  def uncached_boots = Array.new(2) { boot_child(scratch, "HECKS_VERDICT_CACHE" => "off") }
+
   describe "across processes" do
-    it "writes on a cold boot, then a fresh process reads it and judges nothing, to an identical IR" do
+    it "writes a cache file on a cold boot that judges something", :aggregate_failures do
       cold = boot_child(scratch)
+
       expect(cache_files(scratch).size).to eq(1)
       expect(cold["holds"]).to be > 0
+    end
 
+    it "reads it in a fresh process, judging nothing, to an identical IR", :aggregate_failures do
+      cold = boot_child(scratch)
       warm = boot_child(scratch)
 
       expect(warm["holds"]).to eq(0)
@@ -58,11 +75,15 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(warm["verdicts"]).to eq(cold["verdicts"])
     end
 
-    it "judges for real and writes nothing when HECKS_VERDICT_CACHE=off" do
-      first = boot_child(scratch, "HECKS_VERDICT_CACHE" => "off")
-      second = boot_child(scratch, "HECKS_VERDICT_CACHE" => "off")
+    it "writes nothing when HECKS_VERDICT_CACHE=off" do
+      uncached_boots
 
       expect(cache_files(scratch)).to be_empty
+    end
+
+    it "judges for real when HECKS_VERDICT_CACHE=off", :aggregate_failures do
+      first, second = uncached_boots
+
       expect(second["holds"]).to eq(first["holds"])
       expect(second["holds"]).to be > 0
       expect(second["ir"]).to eq(first["ir"])
@@ -91,14 +112,18 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(cache.digest_of(lib)).not_to eq(before)
     end
 
-    it "changes when a file is added or renamed" do
+    it "changes when a file is renamed" do
       before = cache.digest_of(lib)
       File.rename(File.join(lib, "hecks", "a.rb"), File.join(lib, "hecks", "c.rb"))
-      renamed = cache.digest_of(lib)
+
+      expect(cache.digest_of(lib)).not_to eq(before)
+    end
+
+    it "changes when a file is added" do
+      before = cache.digest_of(lib)
       File.write(File.join(lib, "hecks", "d.rb"), "")
 
-      expect(renamed).not_to eq(before)
-      expect(cache.digest_of(lib)).not_to eq(renamed)
+      expect(cache.digest_of(lib)).not_to eq(before)
     end
 
     it "covers the running library, so an edit under lib/ selects another file" do
@@ -155,27 +180,21 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     end
 
     it "serves nothing from a file another user could have written" do
-      cache.record("k1", accepted)
-      cache.flush
-      cache.reset!
+      written_cache
       File.chmod(0o666, cache.path)
 
       expect(cache.seed).to eq({})
     end
 
     it "serves nothing from a directory another user could write to" do
-      cache.record("k1", accepted)
-      cache.flush
-      cache.reset!
+      written_cache
       File.chmod(0o777, cache.dir)
 
       expect(cache.seed).to eq({})
     end
 
     it "serves nothing when the file belongs to someone else" do
-      cache.record("k1", accepted)
-      cache.flush
-      cache.reset!
+      written_cache
       stranger = instance_double(File::Stat, owned?: false, mode: 0o100600)
       allow(File).to receive(:stat).and_call_original
       allow(File).to receive(:stat).with(cache.path).and_return(stranger)
@@ -183,14 +202,18 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(cache.seed).to eq({})
     end
 
-    it "removes only stale files of other code digests when writing" do
+    def stale_and_fresh_files
       FileUtils.mkdir_p(cache.dir)
       old = File.join(cache.dir, "verdicts-old.json")
       fresh = File.join(cache.dir, "verdicts-fresh.json")
       [old, fresh].each { |file| File.write(file, "{}") }
       aged = Time.now - (2 * described_class::STALE_AFTER)
       File.utime(aged, aged, old)
+      [old, fresh]
+    end
 
+    it "removes only stale files of other code digests when writing" do
+      old, fresh = stale_and_fresh_files
       cache.record("k1", accepted)
       cache.flush
 
@@ -199,35 +222,39 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
   end
 
   describe "when it cannot be used" do
-    it "does not raise or write when the directory is unwritable" do
+    def block_cache_directory
       blocker = File.join(scratch, "blocker")
       File.write(blocker, "a file where a directory is needed")
       allow(described_class).to receive(:dir).and_return(File.join(blocker, "verdicts"))
+    end
 
+    it "does not raise or write when the directory is unwritable", :aggregate_failures do
+      block_cache_directory
       cache.record("k1", accepted)
 
       expect { cache.flush }.not_to raise_error
       expect(cache.seed).to eq({})
     end
 
-    it "is off when HECKS_VERDICT_CACHE=off: nothing is read, recorded or written" do
-      cache.record("k1", accepted)
+    # Writes a verdict with the cache switched off, then yields while it is still off.
+    def write_while_off
+      ENV["HECKS_VERDICT_CACHE"] = "off"
+      cache.record("k2", accepted)
       cache.flush
-      cache.reset!
+      yield
+    ensure
+      ENV.delete("HECKS_VERDICT_CACHE")
+    end
 
-      begin
-        ENV["HECKS_VERDICT_CACHE"] = "off"
-        cache.record("k2", accepted)
-        cache.flush
-
+    it "is off when HECKS_VERDICT_CACHE=off: nothing is read, recorded or written", :aggregate_failures do
+      written_cache
+      write_while_off do
         expect(cache.seed).to eq({})
         expect(cache.entries).to eq({})
-      ensure
-        ENV.delete("HECKS_VERDICT_CACHE")
       end
     end
 
-    it "leaves the cache alone when a verdict cannot be encoded" do
+    it "leaves the cache alone when a verdict cannot be encoded", :aggregate_failures do
       cache.record("k1", { refusals: [Object.new] })
 
       expect { cache.flush }.not_to raise_error

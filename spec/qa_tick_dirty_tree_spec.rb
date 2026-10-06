@@ -7,7 +7,7 @@ require_relative "support/qa_tick_fixture"
 RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_dirty_tree_spec"
 
-  it "refuses a dirty tree before running anything" do
+  it "refuses a dirty tree before running anything", :aggregate_failures do
     File.write(File.join(@repo, "scratch.txt"), "uncommitted\n")
 
     stdout, stderr, status = tick

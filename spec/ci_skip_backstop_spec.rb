@@ -23,7 +23,7 @@ RSpec.describe CiSkipBackstop do
   end
 
   (described_class::ALLOWED + described_class::UNROUTED_BUGS).each do |entry|
-    it "#{entry.call_site}: #{entry.literal[0, 50]}… is still a live skip call site its pattern matches" do
+    it "#{entry.call_site}: #{entry.literal[0, 50]}… is still a live skip call site its pattern matches", :aggregate_failures do
       expect(call_site_live?(entry)).to be(true),
                                         "#{entry.call_site} no longer holds a skip saying #{entry.literal.inspect} — " \
                                         "delete this entry"
@@ -32,7 +32,7 @@ RSpec.describe CiSkipBackstop do
   end
 
   described_class::ALLOWED.each do |entry|
-    it "#{entry.call_site}: its destination #{entry.workflow} #{entry.job} exists and runs that spec file" do
+    it "#{entry.call_site}: its destination #{entry.workflow} #{entry.job} exists and runs that spec file", :aggregate_failures do
       matches = self.class.jobs.fetch(entry.job, []).select { |file, _| file == entry.workflow }
       expect(matches).not_to be_empty, "no job #{entry.job} in .github/workflows/#{entry.workflow}"
       expect(self.class.run_text(matches.first.last)).to include(entry.call_site)
@@ -41,27 +41,30 @@ RSpec.describe CiSkipBackstop do
   end
 
   described_class::UNROUTED_BUGS.each do |entry|
-    it "#{entry.call_site}: the bug names the real CI jobs it skips in, and why" do
+    it "#{entry.call_site}: the bug names the real CI jobs it skips in, and why", :aggregate_failures do
       entry.jobs.each { |job| expect(self.class.jobs).to have_key(job) }
       expect(entry.why.to_s.strip).not_to be_empty
     end
   end
 
-  it "fails a pending example whose reason no table accounts for, and passes one that is accounted for" do
-    result = Struct.new(:status, :pending_message, :pending_exception)
-    example = Struct.new(:execution_result, :location, :full_description)
-    stray = example.new(result.new(:pending, "x", nil), "./spec/x_spec.rb:1", "x")
-    known = example.new(result.new(:pending, described_class::UNROUTED_BUGS.first.literal, nil), "./spec/y_spec.rb:1", "y")
-    passed = example.new(result.new(:passed, nil, nil), "./spec/z_spec.rb:1", "z")
+  # A stand-in for an RSpec example that ended `status`, described by the stem of its spec file.
+  def fake_example(status, message, location, exception = nil)
+    result = Struct.new(:status, :pending_message, :pending_exception).new(status, message, exception)
+    Struct.new(:execution_result, :location, :full_description)
+          .new(result, location, File.basename(location).delete_suffix("_spec.rb:1"))
+  end
+
+  it "fails a pending example whose reason no table accounts for, and passes one that is accounted for", :aggregate_failures do
+    stray = fake_example(:pending, "x", "./spec/x_spec.rb:1")
+    known = fake_example(:pending, described_class::UNROUTED_BUGS.first.literal, "./spec/y_spec.rb:1")
+    passed = fake_example(:passed, nil, "./spec/z_spec.rb:1")
 
     expect(described_class.offenders([stray, known, passed]).size).to eq(1)
     expect(described_class.offenders([stray]).first).to include("./spec/x_spec.rb:1", "skipped: x")
   end
 
   it "passes a `pending` example that ran and failed as expected — a shrink-only pending table entry is a live check" do
-    result = Struct.new(:status, :pending_message, :pending_exception)
-    example = Struct.new(:execution_result, :location, :full_description)
-    ran = example.new(result.new(:pending, "BUG#32: not ported yet", RuntimeError.new("expected")), "./spec/p_spec.rb:1", "p")
+    ran = fake_example(:pending, "BUG#32: not ported yet", "./spec/p_spec.rb:1", RuntimeError.new("expected"))
 
     expect(described_class.offenders([ran])).to be_empty
   end

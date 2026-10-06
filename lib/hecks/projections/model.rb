@@ -59,7 +59,7 @@ module Hecks
           # Generated — projected from the language's own #{name} aggregate.
           # Do not edit: the holding half is rendered, and #{host.fetch(:behaviour)}
           # is where anything hand-written belongs.
-          require_relative "behaviour/#{File.basename(host.fetch(:file), '.rb')}"
+          require_relative "behaviour/#{File.basename(host.fetch(:file), ".rb")}"
 
           module Hecks
             module Bluebook
@@ -103,13 +103,15 @@ module Hecks
       #   `Deviations` marks as parent-ref, judge-only, off-the-wire, dynamic-tail,
       #   folded, or unpacked
       def emitted_fields(bluebook, name)
-        bluebook.aggregate(name).attributes.map(&:name)
-                .reject { |f| Deviations.parent_ref?(f) } -
-          Deviations.judge_only(name) -
-          Deviations.off_the_wire(name) -
-          Deviations.dynamic_tail(name) -
-          Deviations.folded(name).values.flatten -
-          Deviations.unpacked(name).keys
+        declared = bluebook.aggregate(name).attributes.map(&:name).reject { |f| Deviations.parent_ref?(f) }
+        declared - omitted_fields(name)
+      end
+
+      # @param name [String] the construct's name
+      # @return [Array<Symbol>] the fields `Deviations` keeps out of `emits_ir`, whatever the reason
+      def omitted_fields(name)
+        Deviations.judge_only(name) + Deviations.off_the_wire(name) + Deviations.dynamic_tail(name) +
+          Deviations.folded(name).values.flatten + Deviations.unpacked(name).keys
       end
 
       # Renders the `attr_reader` line for every emitted field, plus an `attr_accessor`
@@ -118,17 +120,21 @@ module Hecks
       # @param host [Hash{Symbol => Object}] the construct's `HOST` entry
       # @return [String] the rendered reader/accessor lines, one construct's worth
       def readers(host)
-        lines = ["attr_reader #{host.fetch(:readers).map { |r| ":#{r}" }.join(', ')}"]
+        lines = ["attr_reader #{host.fetch(:readers).map { |r| ":#{r}" }.join(", ")}"]
         accessors = host.fetch(:accessors, [])
         return lines.join("\n") if accessors.empty?
 
         # The off-the-wire reason is emitted so the comment survives regeneration.
         reasons = Deviations::OFF_THE_WIRE.fetch(host.fetch(:construct, ""), {})
-        (lines + accessors.map do |a|
-          why = reasons[a]
-          (why ? "\n# #{a.to_s.capitalize}, declared and deliberately off the wire\n# #{wrap(why)}\n" : "") +
-            "attr_accessor :#{a}"
-        end).join("\n")
+        (lines + accessors.map { |a| accessor_line(a, reasons[a]) }).join("\n")
+      end
+
+      # @param accessor [Symbol] a field kept off the wire
+      # @param why [String, nil] the reason it is, when `Deviations` gives one
+      # @return [String] its `attr_accessor`, led by the reason as a comment
+      def accessor_line(accessor, why)
+        note = why ? "\n# #{accessor.to_s.capitalize}, declared and deliberately off the wire\n# #{wrap(why)}\n" : ""
+        "#{note}attr_accessor :#{accessor}"
       end
 
       # Renders the `initialize` that assigns every declared field, coerced as `HOST`

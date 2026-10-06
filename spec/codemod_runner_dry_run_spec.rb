@@ -30,14 +30,19 @@ RSpec.describe Hecks::Codemod::Runner, "#run" do
 
   after { FileUtils.remove_entry(@dir) }
 
-  it "judges the edit without writing the file in a dry run, and still counts it applied" do
+  # The results of a dry run and the paths `File.write` was asked to write during it.
+  def dry_run_with_writes
     written = []
     allow(File).to receive(:write).and_wrap_original do |original, path, *rest, **options|
       written << path
       original.call(path, *rest, **options)
     end
 
-    results = runner.run(dry_run: true)
+    [runner.run(dry_run: true), written]
+  end
+
+  it "judges the edit without writing the file in a dry run, and still counts it applied", :aggregate_failures do
+    results, written = dry_run_with_writes
 
     expect(results[:applied].map { |row| row[:file] }).to eq([@file])
     expect(written).not_to include(@file)

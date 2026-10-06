@@ -25,6 +25,10 @@ module Hecks
       # into a committed file. Seconds can arrive in exponent form (`9.69e-05`).
       RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+)?)\z}
 
+      # What a `--from-run` refresh works with: the checkout, the CI run, where its artifacts
+      # download to, and where progress goes.
+      Download = Struct.new(:root, :run_id, :dir, :out)
+
       module_function
 
       # Refreshes the baselines from a CI run or a local run.
@@ -110,22 +114,34 @@ module Hecks
         dir = File.join(root, "tmp/ci-runtime-#{run_id}")
         FileUtils.rm_rf(dir)
 
-        written = families(root).count do |prefix, family|
-          system("gh", "run", "download", run_id, "-R", REPO, "-p", "#{prefix}-*", "-D", dir,
-                 out: File::NULL, err: File::NULL)
-          logs = Dir[File.join(dir, "#{prefix}-*", "*.log")]
-          legs = logs.map { |path| File.basename(File.dirname(path)) }.uniq.size
-          if legs == family[:legs]
-            write_baseline(root, family[:baseline], baseline_lines(logs), out)
-            true
-          else
-            warn "skipping #{family[:baseline]}: run #{run_id} has #{legs} of #{family[:legs]} #{prefix}-* artifacts"
-            false
-          end
-        end
+        download = Download.new(root, run_id, dir, out)
+        written = families(root).count { |prefix, family| refresh_family(download, prefix, family) }
         return unless written.zero?
 
         abort "hecks refresh_runtime_baseline: run #{run_id} had no complete artifact family — nothing written"
+      end
+
+      # Downloads one artifact family and writes its baseline when every leg uploaded a log.
+      #
+      # @api private
+      # @return [Boolean] whether the family was complete and written
+      def refresh_family(download, prefix, family)
+        logs = download_logs(download, prefix)
+        legs = logs.map { |path| File.basename(File.dirname(path)) }.uniq.size
+        complete = legs == family[:legs]
+        if complete
+          write_baseline(download.root, family[:baseline], baseline_lines(logs), download.out)
+        else
+          warn "skipping #{family[:baseline]}: run #{download.run_id} has #{legs} of #{family[:legs]} #{prefix}-* artifacts"
+        end
+        complete
+      end
+
+      # @api private
+      def download_logs(download, prefix)
+        system("gh", "run", "download", download.run_id, "-R", REPO, "-p", "#{prefix}-*", "-D", download.dir,
+               out: File::NULL, err: File::NULL)
+        Dir[File.join(download.dir, "#{prefix}-*", "*.log")]
       end
 
       # @param root [String] the checkout

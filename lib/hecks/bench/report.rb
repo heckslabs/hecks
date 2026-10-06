@@ -29,7 +29,7 @@ module Hecks
         cells = [entry[:domain], entry[:target], number(median[:throughput_per_s], 0),
                  "#{number(low, 0)} to #{number(high, 0)}", number(median[:p50_us], 1),
                  number(median[:p99_us], 1), number(median[:drift], 2)]
-        "| #{cells.join(' | ')} |"
+        "| #{cells.join(" | ")} |"
       end
 
       def number(value, places)
@@ -40,22 +40,26 @@ module Hecks
       end
 
       def environment_block(environment)
-        load = environment[:load_average]
-        lines = [
-          "- CPU: #{environment[:cpu]} (#{environment[:cores]} cores), #{environment[:memory_gib]} GiB",
-          "- OS: #{environment[:os]}",
-          "- Ruby: #{environment[:ruby]} (YJIT #{environment[:yjit] ? 'on' : 'off'})",
-          "- Rust: #{environment[:rustc]}; #{environment[:cargo]}",
-          "- Hecks: #{environment[:hecks]} at #{environment[:commit]}",
-          "- Load average (1 min) before and after: #{load[:before]} and #{load[:after]}"
-        ]
+        lines = environment_lines(environment)
         lines << "- Postgres: #{environment[:postgres]}" if environment[:postgres]
         lines.join("\n")
       end
 
+      def environment_lines(environment)
+        load = environment[:load_average]
+        [
+          "- CPU: #{environment[:cpu]} (#{environment[:cores]} cores), #{environment[:memory_gib]} GiB",
+          "- OS: #{environment[:os]}",
+          "- Ruby: #{environment[:ruby]} (YJIT #{environment[:yjit] ? "on" : "off"})",
+          "- Rust: #{environment[:rustc]}; #{environment[:cargo]}",
+          "- Hecks: #{environment[:hecks]} at #{environment[:commit]}",
+          "- Load average (1 min) before and after: #{load[:before]} and #{load[:after]}"
+        ]
+      end
+
       def configuration_block(config)
         "Warmup #{config[:warmup]} cycles, then #{config[:iterations]} timed cycles per run, " \
-          "median of #{config[:runs]} run(s), domains: #{config[:domains].join(', ')}."
+          "median of #{config[:runs]} run(s), domains: #{config[:domains].join(", ")}."
       end
 
       def floor_block(results)
@@ -63,7 +67,7 @@ module Hecks
                         .map { |entry| "#{entry[:domain]} #{number(entry[:median][:roundtrip_floor_p50_us], 1)} us" }
         return nil if floors.empty?
 
-        "Rust pipe round-trip floor (p50, a step refused at once): #{floors.join(', ')}."
+        "Rust pipe round-trip floor (p50, a step refused at once): #{floors.join(", ")}."
       end
 
       def skipped_block(skipped)

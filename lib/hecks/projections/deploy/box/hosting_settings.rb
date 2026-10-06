@@ -38,7 +38,7 @@ module Hecks
 
             unless flag
               stray = WORDS.select { |word| settings.key?(word) }
-              raise ArgumentError, "#{stray.join(', ')} only apply with hosting_scripts true" unless stray.empty?
+              raise ArgumentError, "#{stray.join(", ")} only apply with hosting_scripts true" unless stray.empty?
 
               return nil
             end

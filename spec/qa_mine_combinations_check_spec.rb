@@ -8,7 +8,7 @@ require_relative "support/qa_mine_combinations_helpers"
 RSpec.describe "hecks quality_control mine_combinations, checking a candidate" do
   include QaMineCombinationsHelpers
 
-  it "checks what the agent wrote through qa_generated_domains --source, and exits with its verdict" do
+  it "checks what the agent wrote through qa_generated_domains --source, and exits with its verdict", :aggregate_failures do
     out, status = run_miner("--candidates", "1", "--seeds", "1", "--steps", "4")
 
     expect(status.exitstatus).to eq(0), out

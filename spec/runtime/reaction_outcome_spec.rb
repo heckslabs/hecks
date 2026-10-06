@@ -15,6 +15,13 @@ RSpec.describe Hecks::Runtime::ReactionOutcome do
     described_class.blocking(entries, event_of: ->(entry) { events[entry] }).map { |row| row[:trigger] }
   end
 
+  def logged_registry
+    registry = Hecks::Runtime::Registry.new
+    registry.log_reaction(accept_refused, event: first_event)
+    registry.log_reaction(note_delivered, event: second_event)
+    registry
+  end
+
   it "passes a refusal whose sibling policy answered the same event instance with another command" do
     expect(blocked([accept_refused, note_delivered],
                    accept_refused => first_event, note_delivered => first_event)).to eq([])
@@ -30,10 +37,8 @@ RSpec.describe Hecks::Runtime::ReactionOutcome do
     expect(blocked([accept_refused, note_delivered])).to eq([])
   end
 
-  it "reads the event a registry logged each reaction with, leaving the record's own keys alone" do
-    registry = Hecks::Runtime::Registry.new
-    registry.log_reaction(accept_refused, event: first_event)
-    registry.log_reaction(note_delivered, event: second_event)
+  it "reads the event a registry logged each reaction with, leaving the record's own keys alone", :aggregate_failures do
+    registry = logged_registry
 
     expect(registry.reaction_log.first.keys).to eq(%i[policy on trigger delivered reason])
     expect(described_class.blocking(registry.reaction_log, event_of: registry.method(:reaction_event)).size).to eq(1)

@@ -11,42 +11,59 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
 
   AstJson = Hecks::Bluebook::Expression::AstJson
 
-  it "has fixtures, and every fixture's expect_ast is exactly what AstJson.emit_predicate answers today" do
-    expect(GRAMMAR_FIXTURES).not_to be_empty
+  CITE_G_CLAUSE = "a ruby_only grammar fixture must cite the G-clause that catalogues why hecks-parse isn't held to it".freeze
 
-    GRAMMAR_FIXTURES.each do |path|
-      fixture = JSON.parse(File.read(path))
+  def self.fixture_of(path) = JSON.parse(File.read(path))
+
+  def self.ruby_only?(path) = fixture_of(path).fetch("ruby_only", false)
+
+  def fixture_of(path) = self.class.fixture_of(path)
+
+  # One sentence for each fixture whose frozen expect_ast AstJson no longer answers.
+  def drift_messages
+    GRAMMAR_FIXTURES.filter_map do |path|
+      fixture = fixture_of(path)
       live = JSON.parse(JSON.generate(AstJson.emit_predicate(fixture.fetch("canonical"))))
-      expect(live).to eq(fixture.fetch("expect_ast")), "#{File.basename(path)}: AstJson.emit_predicate(canonical) " \
-                                                       "has drifted from the fixture's own frozen expect_ast — " \
-                                                       "re-review and re-freeze, don't just copy the new answer over"
+      next if live == fixture.fetch("expect_ast")
+
+      "#{File.basename(path)}: AstJson.emit_predicate(canonical) has drifted from the fixture's own frozen " \
+        "expect_ast — re-review and re-freeze, don't just copy the new answer over"
     end
   end
 
-  it "names every ruby_only fixture as a known, catalogued gap — never a silent one" do
-    ruby_only = GRAMMAR_FIXTURES.select { |path| JSON.parse(File.read(path)).fetch("ruby_only", false) }
+  # The [holds, problem] checks of a ruby_only fixture: its note must cite G11 and name a gap, and its
+  # reason must name the same gap id the note catalogues, so it cannot drift.
+  def ruby_only_checks(fixture)
+    gap_ids = fixture.fetch("note").scan(/KNOWN GAP \((G\d+)/).flatten
+    reason = fixture["ruby_only_reason"].to_s
+    [[fixture.fetch("note").include?("G11"), CITE_G_CLAUSE],
+     [!reason.strip.empty?, "ruby_only with no ruby_only_reason"],
+     [!gap_ids.empty?, "its note names no KNOWN GAP (Gnn) id"]] +
+      gap_ids.map { |id| [reason.include?("KNOWN GAP #{id}"), "ruby_only_reason must reference the KNOWN GAP id #{id}"] }
+  end
+
+  # What is wrong with a ruby_only fixture's note and reason.
+  def ruby_only_problems(path)
+    ruby_only_checks(fixture_of(path)).reject(&:first).map { |_, problem| "#{File.basename(path)}: #{problem}" }
+  end
+
+  # A reason on a fixture that is not ruby_only is a leftover.
+  def stray_reasons
+    GRAMMAR_FIXTURES.reject { |path| self.class.ruby_only?(path) }.select { |path| fixture_of(path).key?("ruby_only_reason") }
+                    .map { |path| "#{File.basename(path)}: a reason on a fixture that isn't ruby_only" }
+  end
+
+  it "has fixtures, and every fixture's expect_ast is exactly what AstJson.emit_predicate answers today", :aggregate_failures do
+    expect(GRAMMAR_FIXTURES).not_to be_empty
+    expect(drift_messages).to be_empty
+  end
+
+  it "names every ruby_only fixture as a known, catalogued gap — never a silent one", :aggregate_failures do
+    ruby_only = GRAMMAR_FIXTURES.select { |path| self.class.ruby_only?(path) }
     expect(ruby_only).not_to be_empty
 
-    ruby_only.each do |path|
-      fixture = JSON.parse(File.read(path))
-      expect(fixture.fetch("note")).to include("G11"), "#{File.basename(path)}: a ruby_only grammar fixture must " \
-                                                       "cite the G-clause that catalogues why hecks-parse isn't " \
-                                                       "held to it"
-      # The reason must name the same gap id the note catalogues, so it can't drift.
-      gap_ids = fixture.fetch("note").scan(/KNOWN GAP \((G\d+)/).flatten
-      reason = fixture["ruby_only_reason"].to_s
-      expect(reason.strip).not_to be_empty, "#{File.basename(path)}: ruby_only with no ruby_only_reason"
-      expect(gap_ids).not_to be_empty, "#{File.basename(path)}: its note names no KNOWN GAP (Gnn) id"
-      gap_ids.each do |id|
-        expect(reason).to include("KNOWN GAP #{id}"),
-                          "#{File.basename(path)}: ruby_only_reason must reference the KNOWN GAP id #{id}"
-      end
-    end
-
-    GRAMMAR_FIXTURES.reject { |path| JSON.parse(File.read(path)).fetch("ruby_only", false) }.each do |path|
-      expect(JSON.parse(File.read(path))).not_to have_key("ruby_only_reason"),
-                                                 "#{File.basename(path)}: a reason on a fixture that isn't ruby_only"
-    end
+    expect(ruby_only.flat_map { |path| ruby_only_problems(path) }).to be_empty
+    expect(stray_reasons).to be_empty
   end
 
   describe "hecks-parse held to it", :io do
@@ -125,52 +142,57 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
       Open3.capture3(GRAMMAR_BINARY, "chapter", "--chapter", "GrammarCorpusHost", *paths)
     end
 
+    # The host bluebook with the fixture's own name and canonical text filled in.
+    def self.host_source(path, fixture)
+      HOST_BLUEBOOK.sub("TMPL_DESCRIPTION", File.basename(path, ".json"))
+                   .sub("TMPL_CANONICAL", fixture.fetch("canonical"))
+    end
+
     # [ast, nil] on a clean parse, [nil, failure text] otherwise.
     def self.hecks_parse_ast(path, fixture)
-      source = HOST_BLUEBOOK.sub("TMPL_DESCRIPTION", File.basename(path, ".json"))
-                            .sub("TMPL_CANONICAL", fixture.fetch("canonical"))
-
       Dir.mktmpdir do |dir|
         bluebook_path = File.join(dir, "grammar_corpus_host.bluebook")
-        File.write(bluebook_path, source)
+        File.write(bluebook_path, host_source(path, fixture))
 
         stdout, stderr, status = run_chapter(bluebook_path)
         next [nil, "hecks-parse chapter failed:\n#{stderr}\n#{stdout}"] unless status.success?
 
-        ir = JSON.parse(stdout)
-        [ir.fetch("aggregates").first.fetch("commands").first.fetch("givens").first.fetch("ast"), nil]
+        [JSON.parse(stdout).fetch("aggregates").first.fetch("commands").first.fetch("givens").first.fetch("ast"), nil]
       end
+    end
+
+    # One line of the non-gating report: what hecks-parse does with a ruby_only fixture.
+    def self.verdict_line(path)
+      ast, failure = hecks_parse_ast(path, fixture_of(path))
+      verdict = if failure then "hecks-parse refused it"
+                elsif ast == fixture_of(path).fetch("expect_ast") then "NOW MATCHES Ruby — drop ruby_only"
+                else "still differs"
+                end
+      "  #{File.basename(path)}: #{verdict}"
+    end
+
+    def divergence_message(fixture)
+      "hecks-parse's own ast for `#{fixture.fetch("canonical")}` diverges from Ruby's — " \
+        "see docs/semantics/bluebook-grammar.md for the G-clause this pins"
     end
 
     GRAMMAR_FIXTURES.each do |path|
       # ruby_only fixtures are covered by the non-gating report below.
-      next if JSON.parse(File.read(path)).fetch("ruby_only", false)
+      next if ruby_only?(path)
 
-      it "#{File.basename(path, '.json')}: hecks-parse's own ast matches Ruby's" do
-        fixture = JSON.parse(File.read(path))
+      it "#{File.basename(path, ".json")}: hecks-parse's own ast matches Ruby's", :aggregate_failures do
+        fixture = fixture_of(path)
         ast, failure = self.class.hecks_parse_ast(path, fixture)
         expect(failure).to be_nil, failure
-        expect(ast).to eq(fixture.fetch("expect_ast")),
-                       "hecks-parse's own ast for `#{fixture.fetch('canonical')}` diverges " \
-                       "from Ruby's — see docs/semantics/bluebook-grammar.md for the G-clause " \
-                       "this pins"
+        expect(ast).to eq(fixture.fetch("expect_ast")), divergence_message(fixture)
       end
     end
 
     # Non-gating: a ruby_only fixture that now matches is a closed gap whose flag can be dropped.
     it "reports which ruby_only fixtures hecks-parse now parses to Ruby's tree (non-gating)" do
-      ruby_only = GRAMMAR_FIXTURES.select { |path| JSON.parse(File.read(path)).fetch("ruby_only", false) }
-      lines = ruby_only.map do |path|
-        fixture = JSON.parse(File.read(path))
-        ast, failure = self.class.hecks_parse_ast(path, fixture)
-        verdict = if failure then "hecks-parse refused it"
-                  elsif ast == fixture.fetch("expect_ast") then "NOW MATCHES Ruby — drop ruby_only"
-                  else "still differs"
-                  end
-        "  #{File.basename(path)}: #{verdict}"
-      end
+      lines = GRAMMAR_FIXTURES.select { |path| self.class.ruby_only?(path) }.map { |path| self.class.verdict_line(path) }
       RSpec.configuration.reporter.message("ruby_only grammar fixtures against hecks-parse:\n#{lines.join("\n")}")
-      expect(lines.size).to eq(ruby_only.size)
+      expect(lines.size).to eq(GRAMMAR_FIXTURES.count { |path| self.class.ruby_only?(path) })
     end
   end
 end

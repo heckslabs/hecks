@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts, :io do
 
   def git(*args, dir: work)
     out, err, status = Open3.capture3(identity, "git", *args, chdir: dir)
-    raise "git #{args.join(' ')} failed: #{err}" unless status.success?
+    raise "git #{args.join(" ")} failed: #{err}" unless status.success?
 
     out.strip
   end
@@ -48,14 +48,15 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts, :io do
                              tag_state: { value: "none" }, head: { value: git("rev-parse", "HEAD") })
   end
 
-  it "finds an unpushed commit, an untracked file, and a tag at the release commit" do
+  it "finds an untracked file, and a tag at the release commit" do
     File.write(File.join(work, "notes.txt"), "x")
     git("tag", "-a", "v9.9.9", "-m", "Release 9.9.9")
 
-    found = facts.gather("publish")
-    expect(found).to include(clean: { value: false }, tag_state: { value: "at_release_commit" })
+    expect(facts.gather("publish")).to include(clean: { value: false }, tag_state: { value: "at_release_commit" })
+  end
 
-    File.delete(File.join(work, "notes.txt"))
+  it "finds an unpushed commit, and a tag left behind at an earlier commit" do
+    git("tag", "-a", "v9.9.9", "-m", "Release 9.9.9")
     File.write(File.join(work, "more.txt"), "y")
     git("add", ".")
     git("commit", "-q", "-m", "more")

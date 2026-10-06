@@ -4,7 +4,7 @@ require_relative "../../fixtures/sequential_identity"
 RSpec.describe Hecks::Adapters::SequentialIdentity do
   before { described_class.reset! }
 
-  it "counts up from 1, deterministically" do
+  it "counts up from 1, deterministically", :aggregate_failures do
     expect(described_class.uuid).to eq("1")
     expect(described_class.uuid).to eq("2")
     expect(described_class.uuid).to eq("3")

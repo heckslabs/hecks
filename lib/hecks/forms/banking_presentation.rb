@@ -36,6 +36,11 @@ module Hecks
         end
         Hecks::Adapters::Folder.new.load_bluebooks(File.join(root, "examples/banking/bluebook"))
         Kernel.load(File.join(root, "lib/hecks/forms/examples/banking_console.bluebook"))
+        persist_in_memory
+      end
+
+      # @api private
+      def persist_in_memory
         Hecks.hecksagon("Banking") do
           attaches "Governance"
           AGGREGATES.each { |name| ::Banking.const_get(name).persisted_by("Memory") }

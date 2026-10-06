@@ -58,7 +58,17 @@ module Hecks
         end
 
         def listener_rule(setting, rule)
-          paths = rule.fetch(:paths)
+          conditions = listener_conditions(setting, rule.fetch(:paths))
+          [
+            "#{rule.fetch(:rule)}:", "  Type: AWS::ElasticLoadBalancingV2::ListenerRule", "  Properties:",
+            "    ListenerArn: #{setting.listener}", "    Priority: #{rule.fetch(:priority)}",
+            *("    Conditions:" unless conditions.empty?), *conditions,
+            "    Actions:", "      - Type: forward", "        TargetGroupArn: #{rule.fetch(:target_group)}"
+          ].join("\n") << "\n"
+        end
+
+        # The path and secret-header conditions of a listener rule; the website's rule has no path.
+        def listener_conditions(setting, paths)
           conditions = []
           unless paths == ["/*"]
             conditions.push("      - Field: path-pattern", "        Values: #{Deploy::Fargate::Yaml.flow_list(paths)}")
@@ -68,12 +78,7 @@ module Hecks
                             "          HttpHeaderName: #{setting.secret_header}",
                             "          Values: #{Deploy::Fargate::Yaml.flow_list([setting.secret_value])}")
           end
-          [
-            "#{rule.fetch(:rule)}:", "  Type: AWS::ElasticLoadBalancingV2::ListenerRule", "  Properties:",
-            "    ListenerArn: #{setting.listener}", "    Priority: #{rule.fetch(:priority)}",
-            *("    Conditions:" unless conditions.empty?), *conditions,
-            "    Actions:", "      - Type: forward", "        TargetGroupArn: #{rule.fetch(:target_group)}"
-          ].join("\n") << "\n"
+          conditions
         end
       end
     end

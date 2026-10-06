@@ -26,6 +26,20 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
   # file at the path it is eval'd under.
   def fixture_path(dir, name) = File.join(dir, "#{name}.bluebook")
 
+  # Writes `source` to a real file named `name` in a throwaway directory and yields its path.
+  def with_fixture(name, source)
+    Dir.mktmpdir do |dir|
+      path = fixture_path(dir, name)
+      File.write(path, source)
+      yield path
+    end
+  end
+
+  # Shadow-parses `source` from a real file and yields the bluebook it reads.
+  def shadow_parsed(name, source)
+    with_fixture(name, source) { |path| yield Hecks::Runtime::EraGuard.shadow_parse(source, path) }
+  end
+
   def eval_live(source, path)
     registry = Hecks::Runtime::Registry.new
     loading  = Hecks::Ports::Loading.bootstrap
@@ -37,37 +51,24 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
   end
 
   it "still refuses an empty vision in LIVE source, unchanged" do
-    Dir.mktmpdir do |dir|
-      path = fixture_path(dir, "live")
-      File.write(path, EMPTY_VISION)
-
+    with_fixture("live", EMPTY_VISION) do |path|
       expect { eval_live(EMPTY_VISION, path) }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /a vision says something/)
     end
   end
 
-  it "parses the identical text through shadow_parse, where a live boot would refuse it" do
-    Dir.mktmpdir do |dir|
-      path = fixture_path(dir, "shadow")
-      File.write(path, EMPTY_VISION)
-
-      bluebook = Hecks::Runtime::EraGuard.shadow_parse(EMPTY_VISION, path)
-
+  it "parses the identical text through shadow_parse, where a live boot would refuse it", :aggregate_failures do
+    shadow_parsed("shadow", EMPTY_VISION) do |bluebook|
       expect(bluebook.hecks_name).to eq("ShadowParseFixture")
       expect(bluebook.aggregate("Thing").attribute(:name)).not_to be_nil
     end
   end
 
   it "never leaks the flag past shadow_parse's own call — the next live boot refuses again" do
-    Dir.mktmpdir do |dir|
-      shadow_path = fixture_path(dir, "shadow2")
-      live_path   = fixture_path(dir, "live2")
-      File.write(shadow_path, EMPTY_VISION)
-      File.write(live_path, EMPTY_VISION)
+    shadow_parsed("shadow2", EMPTY_VISION) { |bluebook| bluebook }
 
-      Hecks::Runtime::EraGuard.shadow_parse(EMPTY_VISION, shadow_path)
-
-      expect { eval_live(EMPTY_VISION, live_path) }
+    with_fixture("live2", EMPTY_VISION) do |path|
+      expect { eval_live(EMPTY_VISION, path) }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /a vision says something/)
     end
   end
@@ -78,15 +79,11 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
   describe "a dotted-hop (`/`) where clause" do
     HOP_CHAIN_SOURCE = File.read(File.join(__dir__, "fixtures/hop_chain.bluebook")).freeze
 
-    it "parses cleanly through shadow_parse, on the normal-parse branch, with no legacy fallback needed" do
-      Dir.mktmpdir do |dir|
-        path = fixture_path(dir, "hop_chain")
-        File.write(path, HOP_CHAIN_SOURCE)
-
-        bluebook = Hecks::Runtime::EraGuard.shadow_parse(HOP_CHAIN_SOURCE, path)
+    it "parses cleanly through shadow_parse, on the normal-parse branch, with no legacy fallback needed", :aggregate_failures do
+      shadow_parsed("hop_chain", HOP_CHAIN_SOURCE) do |bluebook|
+        query = bluebook.aggregate("Proposal").query("AwaitingReplyFromActiveClients")
 
         expect(bluebook.hecks_name).to eq("HopChain")
-        query = bluebook.aggregate("Proposal").query("AwaitingReplyFromActiveClients")
         expect(query.wheres.map(&:field)).to include("engagement/client/status")
       end
     end
@@ -133,25 +130,29 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       end
     BLUEBOOK
 
-    it "still refuses the pre-ADR-0025 dot spelling of the same hop, under both live and shadow parse" do
-      Dir.mktmpdir do |dir|
-        live_path = fixture_path(dir, "dotted_hop_live")
-        File.write(live_path, DOTTED_HOP_SOURCE)
-
-        expect { eval_live(DOTTED_HOP_SOURCE, live_path) }
+    it "still refuses the pre-ADR-0025 dot spelling of the same hop under live parse" do
+      with_fixture("dotted_hop_live", DOTTED_HOP_SOURCE) do |path|
+        expect { eval_live(DOTTED_HOP_SOURCE, path) }
           .to raise_error(Hecks::Bluebook::DSL::Malformed, /client\.status.*never declares/m)
+      end
+    end
 
-        shadow_path = fixture_path(dir, "dotted_hop_shadow")
-        File.write(shadow_path, DOTTED_HOP_SOURCE)
-
-        expect { Hecks::Runtime::EraGuard.shadow_parse(DOTTED_HOP_SOURCE, shadow_path) }
+    it "still refuses the pre-ADR-0025 dot spelling of the same hop under shadow parse" do
+      with_fixture("dotted_hop_shadow", DOTTED_HOP_SOURCE) do |path|
+        expect { Hecks::Runtime::EraGuard.shadow_parse(DOTTED_HOP_SOURCE, path) }
           .to raise_error(Hecks::Bluebook::DSL::Malformed, /client\.status.*never declares/m)
       end
     end
   end
 
   describe "MetaValidator.while_shadow_parsing" do
-    it "is off by default, and restores itself even when the block raises" do
+    def seen_inside_block
+      seen = nil
+      Hecks::Bluebook::MetaValidator.while_shadow_parsing { seen = Hecks::Bluebook::MetaValidator.shadow_parsing? }
+      seen
+    end
+
+    it "is off by default, and restores itself even when the block raises", :aggregate_failures do
       expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
 
       expect { Hecks::Bluebook::MetaValidator.while_shadow_parsing { raise "boom" } }
@@ -160,13 +161,8 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
     end
 
-    it "is on for exactly the span of its own block" do
-      seen_inside = nil
-      Hecks::Bluebook::MetaValidator.while_shadow_parsing do
-        seen_inside = Hecks::Bluebook::MetaValidator.shadow_parsing?
-      end
-
-      expect(seen_inside).to be(true)
+    it "is on for exactly the span of its own block", :aggregate_failures do
+      expect(seen_inside_block).to be(true)
       expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
     end
   end

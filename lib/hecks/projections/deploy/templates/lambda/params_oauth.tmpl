@@ -1,0 +1,13 @@
+# Lambda Function URLs get a random, un-derivable hostname at
+# creation -- @@web_logical_id@@'s own GOOGLE_REDIRECT_URI can't
+# reference `!GetAtt @@web_logical_id@@Url.FunctionUrl` from inside
+# @@web_logical_id@@'s OWN Environment (that's a real circular
+# dependency CloudFormation rejects: the value doesn't exist until
+# the function+URL do). Resolved OUTSIDE the stack instead --
+# `make deploy`'s own recipe looks up the CURRENTLY deployed
+# Function URL (empty on a true first deploy, before the URL
+# exists at all) and passes it as `--parameter-overrides`; every
+# deploy after the first self-heals this correctly.
+WebRedirectBaseUrl:
+  Type: String
+  Default: ""

@@ -7,7 +7,7 @@ RSpec.describe "the QA rotation's own targets" do
   let(:root) { InMemoryDomain::ROOT }
   let(:targets) { Hecks::Corpus.rotation_targets(root: root) }
 
-  it "holds every example and stress domain the corpus knows, by reference and repo-relative path" do
+  it "holds every example and stress domain the corpus knows, by reference and repo-relative path", :aggregate_failures do
     expected = Hecks::Corpus.members(:example, :stress, root: root)
                             .to_h { |member| [member.stem, member.path.delete_prefix("#{root}/")] }
 
@@ -22,7 +22,7 @@ RSpec.describe "the QA rotation's own targets" do
   it "names a path that really holds a bluebook, for every one of them" do
     missing = targets.reject { |_, path| Hecks::Corpus.bluebook_files(File.join(root, path)) }
 
-    expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(', ')}"
+    expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(", ")}"
   end
 
   # Fails if someone re-types the membership in the seeder instead of reading the corpus.

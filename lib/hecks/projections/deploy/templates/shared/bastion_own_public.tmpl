@@ -1,0 +1,41 @@
+# A new public subnet, not the RDS's own private ones --
+# those have no internet route at all, and the SSM agent
+# needs to reach AWS's own SSM endpoints over HTTPS.
+# 10.0.99.0/24 is picked to sit outside the main template's
+# own 10.0.1.0/24 and 10.0.2.0/24 ranges inside the same /16 VPC.
+BastionSubnet:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref VpcId
+    CidrBlock: 10.0.99.0/24
+    AvailabilityZone: !Select [1, !GetAZs '']
+    MapPublicIpOnLaunch: true
+
+BastionInternetGateway:
+  Type: AWS::EC2::InternetGateway
+
+BastionVpcGatewayAttachment:
+  Type: AWS::EC2::VPCGatewayAttachment
+  Properties:
+    VpcId: !Ref VpcId
+    InternetGatewayId: !Ref BastionInternetGateway
+
+BastionRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    VpcId: !Ref VpcId
+
+BastionInternetRoute:
+  Type: AWS::EC2::Route
+  DependsOn: BastionVpcGatewayAttachment
+  Properties:
+    RouteTableId: !Ref BastionRouteTable
+    DestinationCidrBlock: 0.0.0.0/0
+    GatewayId: !Ref BastionInternetGateway
+
+BastionSubnetRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+    SubnetId: !Ref BastionSubnet
+    RouteTableId: !Ref BastionRouteTable
+

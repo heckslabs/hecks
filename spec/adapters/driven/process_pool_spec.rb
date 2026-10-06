@@ -8,7 +8,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
 
   after { described_class.starter = nil }
 
-  it "answers what a child wrote, stdout and stderr together, and how it ended" do
+  it "answers what a child wrote, stdout and stderr together, and how it ended", :aggregate_failures do
     finished = pool.run(["sh", "-c", "echo out; echo err >&2; exit 3"])
 
     expect(finished.output).to include("out").and include("err")
@@ -24,7 +24,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     end
   end
 
-  it "answers a program that is not installed as a failure with a reason, not a raise" do
+  it "answers a program that is not installed as a failure with a reason, not a raise", :aggregate_failures do
     finished = pool.run(["no-such-program-anywhere"])
 
     expect(finished).not_to be_ok
@@ -37,7 +37,9 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     expect(finished.output.size).to eq(300_000)
   end
 
-  it "passes an interrupt on to the child, so stopping the launcher stops its workers", :io do
+  # Starts a long child, then interrupts this process as its launcher would be; answers how it
+  # ended.
+  def run_child_then_interrupt
     started = Queue.new
     runner = Thread.new do
       started << true
@@ -46,20 +48,29 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     started.pop
     sleep 0.5
     Process.kill("TERM", Process.pid)
+    runner.value
+  end
 
-    finished = runner.value
+  it "passes an interrupt on to the child, so stopping the launcher stops its workers", :aggregate_failures, :io do
+    finished = run_child_then_interrupt
+
     expect(finished).not_to be_ok
     expect(finished.status.signaled?).to be(true)
   end
 
+  # Raises `name` against this process just before the child is spawned.
+  def signal_before_spawn(name)
+    real = Process.method(:spawn)
+    allow(pool).to receive(:spawn) do |*args, **opts|
+      Process.kill(name, Process.pid)
+      sleep 0.05
+      real.call(*args, **opts)
+    end
+  end
+
   %w[INT TERM HUP QUIT].each do |name|
-    it "forwards a #{name} that arrives while the child is still being spawned" do
-      real = Process.method(:spawn)
-      allow(pool).to receive(:spawn) do |*args, **opts|
-        Process.kill(name, Process.pid)
-        sleep 0.05
-        real.call(*args, **opts)
-      end
+    it "forwards a #{name} that arrives while the child is still being spawned", :aggregate_failures do
+      signal_before_spawn(name)
 
       finished = pool.run(["sh", "-c", "sleep 30"])
 
@@ -68,11 +79,12 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     end
   end
 
+  def trapped_handlers = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
+
   it "restores the previous signal handlers afterwards" do
-    before = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
+    before = trapped_handlers
     pool.run(["true"])
-    after = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
-    expect(after.values).to all(eq("DEFAULT"))
+    expect(trapped_handlers.values).to all(eq("DEFAULT"))
   ensure
     before&.each { |name, handler| trap(name, handler) }
   end
@@ -88,23 +100,30 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     end
 
     let(:clean) { described_class::Finished.new("CLEAN\n", Struct.new(:success?, :exitstatus).new(true, 0)) }
+    let!(:asked) { start_with(clean) }
 
-    it "runs the fuzz tool with the flags the record holds, and answers its report" do
-      asked = start_with(clean)
+    context "with every flag held" do
+      let(:answer) do
+        pool.sweep(domain: { value: "domains/pizzas" }, seeds: { value: 5 }, steps: { value: 7 },
+                   workers: { value: 2 }, adapter: { value: "sqlite" })
+      end
+      let(:command) { answer && asked.first.fetch(:command) }
 
-      answer = pool.sweep(domain: { value: "domains/pizzas" }, seeds: { value: 5 }, steps: { value: 7 },
-                          workers: { value: 2 }, adapter: { value: "sqlite" })
+      it "runs the fuzz tool as a script over this checkout's lib", :aggregate_failures do
+        expect(command[1..3]).to eq(["-I", described_class::LIB, "-e"])
+        expect(command[4]).to include('Hecks::Tools.script("fuzz", ARGV)')
+      end
 
-      command = asked.first.fetch(:command)
-      expect(command[1..3]).to eq(["-I", described_class::LIB, "-e"])
-      expect(command[4]).to include('Hecks::Tools.script("fuzz", ARGV)')
-      expect(command.drop(6)).to eq(%w[domains/pizzas --seeds 5 --steps 7 --workers 2 --adapter sqlite])
-      expect(answer).to eq(report: { value: "CLEAN\n" })
+      it "passes the flags the record holds, and the domain first" do
+        expect(command.drop(6)).to eq(%w[domains/pizzas --seeds 5 --steps 7 --workers 2 --adapter sqlite])
+      end
+
+      it "answers its report" do
+        expect(answer).to eq(report: { value: "CLEAN\n" })
+      end
     end
 
     it "leaves out a flag the record does not hold" do
-      asked = start_with(clean)
-
       pool.sweep(domain: { value: "domains/pizzas" })
 
       expect(asked.first.fetch(:command).drop(6)).to eq(["domains/pizzas"])
@@ -117,10 +136,9 @@ RSpec.describe Hecks::Adapters::ProcessPool do
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "FUZZ FOUND SOMETHING.")
     end
 
-    it "refuses to sweep every domain outside a hecks checkout, and names how to sweep one" do
-      # rubocop:disable-next RSpec/AnyInstance
-      allow_any_instance_of(Hecks::Adapters::RustWorkspace).to receive(:checkout?).and_return(false)
-      asked = start_with(clean)
+    it "refuses to sweep every domain outside a hecks checkout, and names how to sweep one", :aggregate_failures do
+      outside = instance_double(Hecks::Adapters::RustWorkspace, checkout?: false)
+      allow(Hecks::Adapters::RustWorkspace).to receive(:new).and_return(outside)
 
       expect { pool.sweep }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /name a domain/)
       expect(asked).to be_empty

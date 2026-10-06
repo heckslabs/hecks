@@ -169,33 +169,40 @@ RSpec.describe "qa_sweep concurrency", :io do
     QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
   end
 
-  it "runs its own seat, one [concurrency] Check per seed, and reports clean when the real lock holds" do
-    identify_target!("concurrency", @target_domain_relpath)
+  # Identifies a fresh target and runs a concurrency-only sweep on it; returns the process result.
+  def run_concurrency_sweep(reference, seeds:, steps:)
+    identify_target!(reference, @target_domain_relpath)
+    run_qa_sweep(reference, "--modes", "concurrency", "--seeds", seeds, "--steps", steps)
+  end
 
-    stdout, stderr, status = run_qa_sweep("concurrency", "--modes", "concurrency", "--seeds", "1", "--steps", "10")
+  def recorded_sweep
+    Hecks.boot(@fixture_dir)
+    QualityControl::Sweep.all.first
+  end
+
+  it "runs its own seat, one [concurrency] Check per seed, and reports clean when the real lock holds", :aggregate_failures do
+    stdout, stderr, status = run_concurrency_sweep("concurrency", seeds: "1", steps: "10")
 
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
-    expect(stdout).to include("resolved modes: concurrency (capabilities=postgres_era,sqlite)")
-    expect(stdout).to include("seed 1: held (concurrency)")
-    expect(stdout).to include("clean — concurrency concluded and released.")
+    expect(stdout).to include("resolved modes: concurrency (capabilities=postgres_era,sqlite)", "seed 1: held (concurrency)",
+                              "clean — concurrency concluded and released.")
+  end
 
-    Hecks.boot(@fixture_dir)
-    sweep = QualityControl::Sweep.all.first
+  it "records the sweep it ran, with a [concurrency] Check per seed", :aggregate_failures do
+    run_concurrency_sweep("concurrency", seeds: "1", steps: "10")
+    sweep = recorded_sweep
+
     expect(sweep).not_to be_nil
-    subjects = sweep.checks.map { |c| c[:subject][:value] }
-    expect(subjects).to include(a_string_starting_with("[concurrency]"))
+    expect(sweep.checks.map { |c| c[:subject][:value] }).to include(a_string_starting_with("[concurrency]"))
   end
 
   # Asking for more seeds than the cap yields exactly the cap, with a note saying so.
-  it "clamps --seeds down to QualityControlDials::CONCURRENCY_SEED_CAP" do
-    identify_target!("concurrency-cap", @target_domain_relpath)
-
-    stdout, _stderr, status = run_qa_sweep("concurrency-cap", "--modes", "concurrency", "--seeds", "50", "--steps", "5")
+  it "clamps --seeds down to QualityControlDials::CONCURRENCY_SEED_CAP", :aggregate_failures do
+    stdout, _stderr, status = run_concurrency_sweep("concurrency-cap", seeds: "50", steps: "5")
 
     expect(status.exitstatus).to eq(0)
-    expect(stdout).to include("note: --seeds 50 exceeds QualityControlDials::CONCURRENCY_SEED_CAP")
-    expect(stdout).to include("resolved depth: seeds=3")
-    expect(stdout).to include("seed 3: held (concurrency)")
+    expect(stdout).to include("note: --seeds 50 exceeds QualityControlDials::CONCURRENCY_SEED_CAP", "resolved depth: seeds=3",
+                              "seed 3: held (concurrency)")
     expect(stdout).not_to include("seed 4:")
   end
 end

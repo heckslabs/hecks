@@ -15,6 +15,13 @@ RSpec.describe Hecks::Runtime::Value do
       repository.find(pizza.id).state[:toppings]
     end
 
+    # An append-only log: a later row with `amount: -1` is a removal sentinel for its key.
+    def removal_log_rows
+      value_object = pizza_toppings.first.value_object
+      [{ name: "headlamp", amount: 1 }, { name: "stove", amount: 2 }, { name: "headlamp", amount: -1 }]
+        .map { |facts| described_class.build(value_object, facts) }
+    end
+
     def repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Order"))
 
     it "keeps only the last row for each distinct key, in the order it last appeared" do
@@ -45,14 +52,7 @@ RSpec.describe Hecks::Runtime::Value do
     # The append-only log with a removal sentinel (`position == -1`): `.latest_by` only
     # groups, the caller supplies the meaning.
     it "supports the append-only-log-with-a-removal-sentinel pattern, grouping only — the caller still interprets" do
-      vo = pizza_toppings.first.value_object
-      rows = [
-        described_class.build(vo, { name: "headlamp", amount: 1 }),
-        described_class.build(vo, { name: "stove", amount: 2 }),
-        described_class.build(vo, { name: "headlamp", amount: -1 })
-      ]
-
-      current = described_class.latest_by(rows, :name).reject { |row| row.amount == -1 }
+      current = described_class.latest_by(removal_log_rows, :name).reject { |row| row.amount == -1 }
 
       expect(current.map(&:name)).to eq(["stove"])
     end

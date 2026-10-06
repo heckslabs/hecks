@@ -46,7 +46,7 @@ RSpec.describe Hecks::RustBuild::Host do
     end
   end
 
-  it "stages the host, the module and the IR under the domain's name, for the machine's own target" do
+  it "stages the host, the module and the IR under the domain's name, for the machine's own target", :aggregate_failures do
     expect(build).to eq(0)
 
     expect(Dir.children(stage).sort).to eq(%w[shelf-host shelf.ir.json shelf.wasm])
@@ -54,15 +54,20 @@ RSpec.describe Hecks::RustBuild::Host do
     expect(File.executable?(File.join(stage, "shelf-host"))).to be(true)
   end
 
-  it "builds the module first, then compiles rust/host in release for the target, writing to the target dir" do
-    module_args = nil
-    allow(Hecks::RustBuild::Wasm).to receive(:call) { |argv| (module_args = argv) && 0 }
+  RUST_HOST_CROSS_CARGO = ["rustup", "run", "stable", "cargo", "build", "--release", "--target", "aarch64-unknown-linux-gnu",
+                           "--bin", "bootstrap"].freeze
+
+  it "builds the module first" do
     build("--target=aarch64-unknown-linux-gnu", "CARGO_TARGET_DIR" => File.join(dir, "cache"))
 
-    expect(module_args).to eq(["domains/shelf"])
+    expect(Hecks::RustBuild::Wasm).to have_received(:call).with(["domains/shelf"])
+  end
+
+  it "then compiles rust/host in release for the target, writing to the target dir", :aggregate_failures do
+    build("--target=aarch64-unknown-linux-gnu", "CARGO_TARGET_DIR" => File.join(dir, "cache"))
     command, options = cargo_calls.fetch(0)
-    expect(command).to eq(%w[rustup run stable cargo build --release --target aarch64-unknown-linux-gnu
-                             --bin bootstrap])
+
+    expect(command).to eq(RUST_HOST_CROSS_CARGO)
     expect(options[:chdir]).to eq(File.join(workspace, "host"))
     expect(options[:env]).to include("CARGO_TARGET_DIR" => File.join(dir, "cache"))
   end
@@ -93,7 +98,7 @@ RSpec.describe Hecks::RustBuild::Host do
   context "when the target is not installed" do
     let(:installed) { "aarch64-apple-darwin\n" }
 
-    it "refuses with the exact rustup command, before building anything" do
+    it "refuses with the exact rustup command, before building anything", :aggregate_failures do
       allow(Hecks::RustBuild::Wasm).to receive(:call).and_raise("the module was built")
       expect { build("--target=aarch64-unknown-linux-gnu") }
         .to raise_error(Hecks::RustBuild::Failure,
@@ -117,7 +122,7 @@ RSpec.describe Hecks::RustBuild::Host do
     expect { build }.to raise_error(Hecks::RustBuild::Failure, %r{rustup isn't installed.*https://rustup\.rs})
   end
 
-  it "stops with the module's refusal and builds no host when the module does not build" do
+  it "stops with the module's refusal and builds no host when the module does not build", :aggregate_failures do
     allow(Hecks::RustBuild::Wasm).to receive(:call).and_raise(Hecks::RustBuild::Failure, "wasm32-wasip1 isn't installed")
 
     expect { build }.to raise_error(Hecks::RustBuild::Failure, /wasm32-wasip1 isn't installed/)

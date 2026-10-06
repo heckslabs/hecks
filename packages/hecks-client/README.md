@@ -13,8 +13,15 @@ token the host signs (`verifyAccountToken`). Each is described below.
 
 The host answers this protocol on any path but `/` when it runs with
 `HECKS_SERVE_MODE=1` (`rust/host`). The client posts to `<url>/dispatch`. The
-protocol has no authentication: use it server to server on a private network,
-never from a browser.
+protocol has no authentication of its own, and since hecks 2.8.0 the host
+accepts it only from a peer on the same machine. A request from any other
+address is answered by the host's web layer instead (a `401`, or a redirect to
+`/login`), not dispatched. So this client works from the same host as the
+hecks host, such as a sidecar. It does not work across a network, and it is
+never for a browser. It sends no session cookie or token, and there is no
+supported remote programmatic access until the signed tokens in
+[ADR 0077](../../docs/decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md)
+land.
 
 ## Install
 

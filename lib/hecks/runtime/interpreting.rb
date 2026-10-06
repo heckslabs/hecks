@@ -38,12 +38,15 @@ module Hecks
       # @param args [Hash{Symbol => Object}] the arguments the caller passed
       # @return [Hash{Symbol => Object}] `args`, with each absent defaulted argument filled
       def fill_defaults(command, args)
-        absent = command.attributes.reject do |attribute|
-          attribute.default.nil? || args.key?(attribute.name.to_sym) || args.key?(attribute.name.to_s)
-        end
+        absent = command.attributes.reject { |attribute| attribute.default.nil? || passed?(args, attribute) }
         return args if absent.empty?
 
         args.merge(absent.to_h { |attribute| [attribute.name.to_sym, attribute.default] })
+      end
+
+      # Whether the caller passed `attribute`, under either spelling of its name.
+      def passed?(args, attribute)
+        args.key?(attribute.name.to_sym) || args.key?(attribute.name.to_s)
       end
 
       # Logged after the step's work, so trace order is completion order.
@@ -92,12 +95,17 @@ module Hecks
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
-          Value.refuse_object_reference(command, attribute, normalized[attribute.name])
-          # A has_many argument mirrors the aggregate's reference list, which words its own refusal.
-          reference_list = aggregate.attribute(attribute.name)&.reference?
-          Value.refuse_scalar_list(command, attribute, normalized[attribute.name]) unless reference_list
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name], argument: true)
+          normalized[attribute.name] = coerce_argument(aggregate, command, attribute, normalized[attribute.name])
         end
+      end
+
+      # One declared argument through the reference gate, the list gate, then coercion.
+      def coerce_argument(aggregate, command, attribute, value)
+        Value.refuse_object_reference(command, attribute, value)
+        # A has_many argument mirrors the aggregate's reference list, which words its own refusal.
+        reference_list = aggregate.attribute(attribute.name)&.reference?
+        Value.refuse_scalar_list(command, attribute, value) unless reference_list
+        Value.for_attribute(aggregate, attribute, value, argument: true)
       end
 
       # Coercion only; the unknown/absent-argument refusals are separate dispatch steps.

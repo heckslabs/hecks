@@ -28,22 +28,12 @@ module Hecks
       # @raise [RuntimeError] when the sha is malformed, `gh` is missing or fails, no checks
       #   exist, any are incomplete, or any failed
       def run(commit:, **)
-        sha = sha_of(commit)
-        raise "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
-
-        runs = check_runs(sha)
-
-        raise "gh reports no checks at all against #{sha}" if runs.empty?
-
-        # Refuse rather than answer on an incomplete run; asking again once it settles is safe.
-        incomplete = runs.reject { |run| run["status"] == "completed" }
-        raise "checks against #{sha} are still running — asked before they settled" if incomplete.any?
-
+        sha = valid_sha(commit)
+        runs = settled_runs(sha)
         failing = runs.reject { |run| PASSING.include?(run["conclusion"]) }
-        return { summary: { value: "#{runs.length} checks, all green (#{sha[0, 7]})" } } if failing.empty?
+        raise failure_message(failing, runs, sha) unless failing.empty?
 
-        raise "#{failing.length} of #{runs.length} checks failed against #{sha[0, 7]}: " \
-              "#{failing.map { |run| run['name'] }.join(', ')}"
+        { summary: { value: "#{runs.length} checks, all green (#{sha[0, 7]})" } }
       end
 
       # Where each named check stands against a commit, for a caller that must tell a check that is
@@ -56,15 +46,36 @@ module Hecks
       #   not completed) or `:missing` (not reported at all)
       # @raise [RuntimeError] when the sha is malformed or `gh` is missing or fails
       def states(commit:, names:)
-        sha = sha_of(commit)
-        raise "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
-
-        reported = check_runs(sha).group_by { |run| run["name"] }
+        reported = check_runs(valid_sha(commit)).group_by { |run| run["name"] }
         latest = reported.transform_values { |runs| runs.max_by { |run| run["id"].to_i } }
         names.to_h { |name| [name, state_of(latest[name])] }
       end
 
       private
+
+      def valid_sha(commit)
+        sha = sha_of(commit)
+        raise "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
+
+        sha
+      end
+
+      # The check runs against `sha`, once none is still running.
+      def settled_runs(sha)
+        runs = check_runs(sha)
+        raise "gh reports no checks at all against #{sha}" if runs.empty?
+
+        # Refuse rather than answer on an incomplete run; asking again once it settles is safe.
+        incomplete = runs.reject { |run| run["status"] == "completed" }
+        raise "checks against #{sha} are still running — asked before they settled" if incomplete.any?
+
+        runs
+      end
+
+      def failure_message(failing, runs, sha)
+        "#{failing.length} of #{runs.length} checks failed against #{sha[0, 7]}: " \
+          "#{failing.map { |run| run["name"] }.join(", ")}"
+      end
 
       def state_of(run)
         return :missing unless run

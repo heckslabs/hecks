@@ -8,19 +8,28 @@ require_relative "support/recording_commands"
 # Drives Hecks::Release::Runner against a recorder instead of real git, gem,
 # npm, curl or op, and a scratch directory instead of the repository. Nothing
 # here touches the network, Postgres or a real registry.
-RSpec.describe Hecks::Release::Runner do
-  let(:version) { "9.9.9" }
-  let(:sha) { "a" * 40 }
-  let(:other_sha) { "b" * 40 }
-  let(:tag) { "v#{version}" }
-  let(:root) { Dir.mktmpdir("hecks-release-spec") }
-  let(:commands) { ReleaseSpecSupport::RecordingCommands.new(sha: sha, version: version) }
-  let(:out) { StringIO.new }
-  let(:err) { StringIO.new }
+RSpec.describe Hecks::Release::Runner, :aggregate_failures do
   # CI publishes after this many 15-second pauses; nil means it never does.
   let(:arrives_after) { 1 }
-  let(:pauses) { [] }
   let(:on_pause) { ->(_count) {} }
+
+  def version = "9.9.9"
+
+  def sha = "a" * 40
+
+  def other_sha = "b" * 40
+
+  def tag = "v#{version}"
+
+  def root = (@root ||= Dir.mktmpdir("hecks-release-spec"))
+
+  def commands = (@commands ||= ReleaseSpecSupport::RecordingCommands.new(sha: sha, version: version))
+
+  def out = (@out ||= StringIO.new)
+
+  def err = (@err ||= StringIO.new)
+
+  def pauses = (@pauses ||= [])
 
   before do
     FileUtils.mkdir_p(File.join(root, "lib/hecks"))
@@ -38,7 +47,13 @@ RSpec.describe Hecks::Release::Runner do
   after { FileUtils.remove_entry(root) }
 
   def release(input: "", **flags)
-    options = described_class::Options.new(**flags)
+    described_class.new(root: root, options: described_class::Options.new(**flags), commands: commands,
+                        input: StringIO.new(input), out: out, err: err, **pacing).call
+  end
+
+  # The pause and clock the runner polls with: each pause is recorded, advances the clock, and
+  # lets the scripted npm answer arrive once enough have passed.
+  def pacing
     clock = 0
     pause = lambda do |seconds|
       pauses << seconds
@@ -46,20 +61,23 @@ RSpec.describe Hecks::Release::Runner do
       on_pause.call(pauses.size)
       published_npm! if arrives_after && pauses.size >= arrives_after
     end
-    runner = described_class.new(root: root, options: options, commands: commands,
-                                 input: StringIO.new(input), out: out, err: err,
-                                 pause: pause, now: -> { clock })
-    runner.call
+    { pause: pause, now: -> { clock } }
   end
 
   # The vault's `op run` for the gem push and for the npm publish, by the env file each names.
   def gem_push = ["op", "run", "--env-file=release/gem_push.env"]
 
-  def npm_publish = ["op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}"]
+  def npm_publish = ["op", "run", "--env-file=#{File.join(root, "release/npm_publish.env")}"]
+
+  def run_for(prefix) = commands.runs.find { |c| c.argv.first(prefix.size) == prefix }
 
   def gem_pushed? = commands.runs.any? { |c| c.argv.first(3) == gem_push }
 
   def npm_published? = commands.runs.any? { |c| c.argv.first(3) == npm_publish }
+
+  def nothing_published?
+    [commands.ran?("git", "push"), commands.ran?("git", "tag"), npm_published?, gem_pushed?].none?
+  end
 
   def published_gem!
     commands.answer("curl", "-fsS", stdout: JSON.generate([{ "number" => version }, { "number" => "0.0.1" }]))
@@ -71,6 +89,10 @@ RSpec.describe Hecks::Release::Runner do
 
   def install_dependencies!
     FileUtils.mkdir_p(File.join(root, "packages/hecks-client/node_modules"))
+  end
+
+  def remove_workflow!
+    FileUtils.rm_f(File.join(root, ".github/workflows/publish-client.yml"))
   end
 
   describe "preflight" do
@@ -141,14 +163,16 @@ RSpec.describe Hecks::Release::Runner do
       expect(err.string).to include("npm not found on PATH", "brew install node")
     end
 
-    it "requires op for a real release but not for a dry run" do
+    it "requires op for a real release" do
       commands.answer("op", "--version", success: false)
 
       expect(release(yes: true)).to eq(1)
       expect(err.string).to include("op not found on PATH", "brew install 1password-cli")
+    end
 
-      err.truncate(0)
-      commands.calls.clear
+    it "does not require op for a dry run" do
+      commands.answer("op", "--version", success: false)
+
       expect(release(yes: true, dry_run: true)).to eq(0)
       expect(commands.argvs.map(&:first)).not_to include("op")
     end
@@ -175,15 +199,18 @@ RSpec.describe Hecks::Release::Runner do
       expect(out.string).to include("@hecks/client #{version} is already on npm; skipping.")
     end
 
-    it "has nothing to publish once both are out, and still tags" do
-      published_gem!
-      published_npm!
+    context "when both are already out" do
+      before do
+        published_gem!
+        published_npm!
+      end
 
-      expect(release(yes: true)).to eq(0)
-      expect(out.string).to include("Nothing to publish for #{version}.")
-      expect(gem_pushed?).to be(false)
-      expect(npm_published?).to be(false)
-      expect(commands.ran?("git", "tag")).to be(true)
+      it "has nothing to publish, and still tags" do
+        expect(release(yes: true)).to eq(0)
+        expect(out.string).to include("Nothing to publish for #{version}.")
+        expect([gem_pushed?, npm_published?]).to eq([false, false])
+        expect(commands.ran?("git", "tag")).to be(true)
+      end
     end
 
     it "refuses instead of guessing when npm fails for a reason other than a missing version" do
@@ -258,38 +285,45 @@ RSpec.describe Hecks::Release::Runner do
   end
 
   describe "the order of the steps" do
-    it "tags, then publishes the gem, then publishes the package" do
-      install_dependencies!
-      release(yes: true, npm_local: true)
+    before { install_dependencies! }
 
-      steps = commands.runs.map(&:argv).filter_map do |argv|
+    def steps
+      commands.runs.map(&:argv).filter_map do |argv|
         if argv[0, 2] == %w[git tag] then :tag
         elsif argv[0, 2] == %w[git push] then :push
         elsif argv.first(3) == gem_push then :gem
         elsif argv.first(3) == npm_publish then :npm
         end
       end
+    end
+
+    it "tags, then publishes the gem, then publishes the package" do
+      release(yes: true, npm_local: true)
+
       expect(steps).to eq(%i[tag push gem npm])
     end
 
     it "builds and pushes the gem in-process through the vault, from the repository root" do
-      install_dependencies!
       release(yes: true)
+      push = run_for(gem_push)
 
-      build = commands.runs.find { |c| c.argv == %w[gem build hecks.gemspec] }
-      push = commands.runs.find { |c| c.argv.first(3) == gem_push }
       expect(push.argv).to eq([*gem_push, "--", "gem", "push", "hecks-#{version}.gem"])
-      expect([build.chdir, push.chdir]).to eq([root, root])
+      expect([run_for(%w[gem build hecks.gemspec]), push].map(&:chdir)).to eq([root, root])
       expect(commands.argvs.flatten).not_to include(File.join(root, "hecks publish_gem"))
     end
+  end
 
-    it "runs npm ci first only when node_modules is missing" do
+  describe "installing the client's dependencies" do
+    it "runs npm ci first when node_modules is missing" do
       release(yes: true, npm_local: true)
+
       expect(commands.argvs).to include(%w[npm ci])
+    end
 
-      commands.calls.clear
-      install_dependencies!
+    it "does not run npm ci when node_modules is already there" do
+      FileUtils.mkdir_p(File.join(root, "packages/hecks-client/node_modules"))
       release(yes: true, npm_local: true)
+
       expect(commands.argvs).not_to include(%w[npm ci])
     end
   end
@@ -297,26 +331,54 @@ RSpec.describe Hecks::Release::Runner do
   describe "the npm step" do
     before { install_dependencies! }
 
-    it "publishes through op run with a throwaway user config that holds only a placeholder" do
+    def record_userconfig
       seen = {}
       commands.on_run(*npm_publish) do |argv|
         path = argv[argv.index("--userconfig") + 1]
-        seen[:path] = path
-        seen[:content] = File.read(path)
-        seen[:mode] = File.stat(path).mode & 0o777
+        seen.update(path: path, content: File.read(path), mode: File.stat(path).mode & 0o777)
+      end
+      seen
+    end
+
+    def approval_notice
+      "npm will print an approval link; open it and approve with your security key or passkey. " \
+        "This step waits for you."
+    end
+
+    context "when publishing from here" do
+      before do
+        @seen = record_userconfig
+        @code = release(yes: true, npm_only: true, npm_local: true)
       end
 
-      expect(release(yes: true, npm_only: true, npm_local: true)).to eq(0)
+      it "succeeds" do
+        expect(@code).to eq(0)
+      end
 
-      call = commands.runs.find { |c| c.argv.first(3) == npm_publish }
-      expect(call.argv).to eq(
-        ["op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}", "--",
-         "npm", "publish", "--access", "public", "--auth-type=web", "--userconfig", seen[:path]]
-      )
-      expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))
-      expect(seen[:content]).to eq("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n")
-      expect(seen[:mode]).to eq(0o600)
-      expect(File.exist?(seen[:path])).to be(false)
+      it "publishes through op run with a throwaway user config, from the package directory" do
+        call = run_for(npm_publish)
+
+        expect(call.argv).to eq(
+          [*npm_publish, "--", "npm", "publish", "--access", "public", "--auth-type=web", "--userconfig", @seen[:path]]
+        )
+        expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))
+      end
+
+      it "holds only a placeholder in the user config, readable by its owner alone" do
+        expect(@seen[:content]).to eq("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n")
+        expect(@seen[:mode]).to eq(0o600)
+      end
+
+      it "deletes the user config afterwards" do
+        expect(File.exist?(@seen[:path])).to be(false)
+      end
+
+      it "uses npm's web authentication and does not capture the publish output, so the approval link shows" do
+        captured = commands.calls.select { |c| c.kind == :capture }.map(&:argv)
+
+        expect(run_for(npm_publish).argv).to include("--auth-type=web")
+        expect(captured.none? { |argv| argv.include?("publish") || argv.include?("run") }).to be(true)
+      end
     end
 
     it "deletes the user config when the publish fails" do
@@ -328,25 +390,13 @@ RSpec.describe Hecks::Release::Runner do
       expect(File.exist?(path)).to be(false)
     end
 
-    it "uses npm's web authentication and does not capture the publish output, so the approval link shows" do
-      release(yes: true, npm_only: true, npm_local: true)
-
-      publish = commands.runs.find { |c| c.argv.first(3) == npm_publish }
-      expect(publish.argv).to include("--auth-type=web")
-      captured = commands.calls.select { |c| c.kind == :capture }.map(&:argv)
-      expect(captured.none? { |argv| argv.include?("publish") || argv.include?("run") }).to be(true)
-    end
-
     it "says before publishing that npm will print an approval link and the step waits" do
       printed_before_publish = nil
       commands.on_run(*npm_publish) { printed_before_publish = out.string.dup }
 
       release(yes: true, npm_only: true, npm_local: true)
 
-      expect(printed_before_publish).to include(
-        "npm will print an approval link; open it and approve with your security key or passkey. " \
-        "This step waits for you."
-      )
+      expect(printed_before_publish).to include(approval_notice)
     end
 
     it "prints the exact resume command when npm fails after the gem is published" do
@@ -370,15 +420,30 @@ RSpec.describe Hecks::Release::Runner do
   describe "CI publishing the client (the default npm step)" do
     before { install_dependencies! }
 
-    it "tells the person CI publishes from the tag, publishes nothing locally, and reports success" do
-      expect(release(yes: true)).to eq(0)
+    def resume_advice
+      ["Timed out after 10 minutes", "gh run list --workflow publish-client.yml",
+       "gh workflow run publish-client.yml -f tag=v#{version}", "hecks publish --npm-only --confirm",
+       "hecks publish --npm-only --npm-local --confirm"]
+    end
 
-      expect(out.string).to include(
-        "CI publishes @hecks/client #{version} from the tag (.github/workflows/publish-client.yml)",
-        "@hecks/client #{version} is on npm."
-      )
-      expect(npm_published?).to be(false)
-      expect(commands.argvs.map { |argv| argv.first(2) }).not_to include(%w[npm publish], %w[npm ci])
+    context "when the tag is pushed" do
+      before { @code = release(yes: true) }
+
+      it "reports success" do
+        expect(@code).to eq(0)
+      end
+
+      it "tells the person CI publishes from the tag" do
+        expect(out.string).to include(
+          "CI publishes @hecks/client #{version} from the tag (.github/workflows/publish-client.yml)",
+          "@hecks/client #{version} is on npm."
+        )
+      end
+
+      it "publishes nothing locally" do
+        expect(npm_published?).to be(false)
+        expect(commands.argvs.map { |argv| argv.first(2) }).not_to include(%w[npm publish], %w[npm ci])
+      end
     end
 
     context "with the order recorded" do
@@ -423,20 +488,27 @@ RSpec.describe Hecks::Release::Runner do
     context "when it never appears" do
       let(:arrives_after) { nil }
 
-      it "gives up after 10 minutes with the run to look at and how to resume" do
-        expect(release(yes: true)).to eq(1)
+      before { @code = release(yes: true) }
 
-        expect(pauses.size).to eq(40)
-        expect(pauses.sum).to eq(600)
-        expect(err.string).to include(
-          "Timed out after 10 minutes", "gh run list --workflow publish-client.yml",
-          "gh workflow run publish-client.yml -f tag=v#{version}", "hecks publish --npm-only --confirm",
-          "hecks publish --npm-only --npm-local --confirm"
-        )
+      it "gives up with the gem published" do
+        expect(@code).to eq(1)
         expect(gem_pushed?).to be(true)
       end
 
-      it "does not wait under --no-wait, and says how to check" do
+      it "gives up after 10 minutes of 15-second polls" do
+        expect(pauses.size).to eq(40)
+        expect(pauses.sum).to eq(600)
+      end
+
+      it "names the run to look at and how to resume" do
+        expect(err.string).to include(*resume_advice)
+      end
+    end
+
+    context "when it never appears and --no-wait is given" do
+      let(:arrives_after) { nil }
+
+      it "does not wait, and says how to check" do
         expect(release(yes: true, no_wait: true)).to eq(0)
 
         expect(pauses).to be_empty
@@ -445,7 +517,7 @@ RSpec.describe Hecks::Release::Runner do
     end
 
     it "refuses before tagging when the workflow is not in the checkout, pointing at --npm-local" do
-      FileUtils.rm_f(File.join(root, ".github/workflows/publish-client.yml"))
+      remove_workflow!
 
       expect(release(yes: true)).to eq(1)
       expect(err.string).to include(".github/workflows/publish-client.yml is not in this checkout", "--npm-local")
@@ -453,14 +525,14 @@ RSpec.describe Hecks::Release::Runner do
     end
 
     it "does not need the workflow for --npm-local" do
-      FileUtils.rm_f(File.join(root, ".github/workflows/publish-client.yml"))
+      remove_workflow!
 
       expect(release(yes: true, npm_local: true)).to eq(0)
       expect(npm_published?).to be(true)
     end
 
     it "does not need the workflow once npm already has the version" do
-      FileUtils.rm_f(File.join(root, ".github/workflows/publish-client.yml"))
+      remove_workflow!
       published_npm!
 
       expect(release(yes: true)).to eq(0)
@@ -553,10 +625,7 @@ RSpec.describe Hecks::Release::Runner do
     it "pushes nothing when the publish question is answered no, since the tag push starts CI's npm publish" do
       expect(release(input: "n\n")).to eq(1)
 
-      expect(commands.ran?("git", "push")).to be(false)
-      expect(commands.ran?("git", "tag")).to be(false)
-      expect(npm_published?).to be(false)
-      expect(gem_pushed?).to be(false)
+      expect(nothing_published?).to be(true)
       expect(err.string).to include("Aborted; nothing was published.")
     end
 
@@ -586,38 +655,51 @@ RSpec.describe Hecks::Release::Runner do
   end
 
   describe "--dry-run" do
-    it "checks and builds but never tags, pushes, publishes or calls op" do
-      install_dependencies!
-      commands.on_run("gem", "build") { File.write(File.join(root, "hecks-#{version}.gem"), "gem") }
+    before { install_dependencies! }
 
-      expect(release(dry_run: true, npm_local: true)).to eq(0)
+    def built_gem = File.join(root, "hecks-#{version}.gem")
 
-      expect(commands.argvs.map(&:first)).not_to include("op")
-      expect(commands.ran?("git", "tag")).to be(false)
-      expect(commands.ran?("git", "push")).to be(false)
-      expect(commands.argvs).to include(%w[gem build hecks.gemspec])
-      expect(commands.argvs).to include(%w[npm publish --dry-run --access public])
-      expect(File.exist?(File.join(root, "hecks-#{version}.gem"))).to be(false)
-      expect(out.string).to include("Would create annotated tag #{tag}", "Would push #{tag} to origin", "Dry run complete")
-      expect(out.string).not_to include("[y/N]")
-    end
+    context "when the release is complete" do
+      before do
+        commands.on_run("gem", "build") { File.write(built_gem, "gem") }
+        @code = release(dry_run: true, npm_local: true)
+      end
 
-    it "runs npm publish --dry-run from the package directory, where it needs no auth" do
-      install_dependencies!
-      release(dry_run: true, npm_local: true)
+      it "checks and builds without tagging, pushing or calling op" do
+        expect(@code).to eq(0)
+        expect(commands.argvs.map(&:first)).not_to include("op")
+        expect(commands.ran?("git", "tag")).to be(false)
+        expect(commands.ran?("git", "push")).to be(false)
+      end
 
-      call = commands.runs.find { |c| c.argv.first(3) == %w[npm publish --dry-run] }
-      expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))
-      expect(call.argv).not_to include("--userconfig")
+      it "builds the gem and dry-runs the npm publish, never publishing" do
+        expect(commands.argvs).to include(%w[gem build hecks.gemspec])
+        expect(commands.argvs).to include(%w[npm publish --dry-run --access public])
+      end
+
+      it "deletes the built gem" do
+        expect(File.exist?(built_gem)).to be(false)
+      end
+
+      it "says what it would do and asks nothing" do
+        expect(out.string).to include("Would create annotated tag #{tag}", "Would push #{tag} to origin", "Dry run complete")
+        expect(out.string).not_to include("[y/N]")
+      end
+
+      it "runs npm publish --dry-run from the package directory, where it needs no auth" do
+        call = run_for(%w[npm publish --dry-run])
+
+        expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))
+        expect(call.argv).not_to include("--userconfig")
+      end
     end
 
     it "deletes the built gem even when the build fails" do
-      install_dependencies!
-      commands.on_run("gem", "build") { File.write(File.join(root, "hecks-#{version}.gem"), "partial") }
+      commands.on_run("gem", "build") { File.write(built_gem, "partial") }
       commands.fail_run("gem", "build")
 
       expect(release(dry_run: true)).to eq(1)
-      expect(File.exist?(File.join(root, "hecks-#{version}.gem"))).to be(false)
+      expect(File.exist?(built_gem)).to be(false)
     end
 
     it "still refuses on a failed preflight" do
@@ -629,6 +711,8 @@ RSpec.describe Hecks::Release::Runner do
   end
 
   describe "secrets" do
+    def call_values = commands.calls.flat_map { |call| call.argv + call.env.values.compact }
+
     it "are only referenced, never held, by release/npm_publish.env" do
       env_file = File.join(InMemoryDomain::ROOT, "release/npm_publish.env")
       assignments = File.readlines(env_file, chomp: true).reject { |line| line.strip.empty? || line.start_with?("#") }
@@ -637,14 +721,21 @@ RSpec.describe Hecks::Release::Runner do
       expect(assignments).to all(match(%r{\A[A-Z_]+="op://[^"]+"\z}))
     end
 
-    it "never appear in an argument or environment value" do
-      install_dependencies!
-      release(yes: true, npm_local: true)
+    context "with a release run" do
+      before do
+        install_dependencies!
+        release(yes: true, npm_local: true)
+      end
 
-      values = commands.calls.flat_map { |call| call.argv + call.env.values.compact }
-      expect(values).not_to be_empty
-      expect(values.grep(/npm_[A-Za-z0-9]{10,}|rubygems_[A-Za-z0-9]{10,}|_authToken=(?!\$\{NODE_AUTH_TOKEN\})/)).to be_empty
-      expect(commands.calls.flat_map { |call| call.env.values.compact }).to be_empty
+      it "never appear in an argument or environment value" do
+        expect(call_values).not_to be_empty
+        token = /npm_[A-Za-z0-9]{10,}|rubygems_[A-Za-z0-9]{10,}|_authToken=(?!\$\{NODE_AUTH_TOKEN\})/
+        expect(call_values.grep(token)).to be_empty
+      end
+
+      it "are never passed through an environment value" do
+        expect(commands.calls.flat_map { |call| call.env.values.compact }).to be_empty
+      end
     end
   end
 end

@@ -34,7 +34,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".snake" do
     cases("snake").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.snake(row["in"])).to eq(row["out"])
       end
     end
@@ -42,7 +42,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".demodulise" do
     cases("demodulise").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.demodulise(row["in"])).to eq(row["out"])
       end
     end
@@ -50,7 +50,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".reference_key" do
     cases("reference_key").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.reference_key(row["in"]).to_s).to eq(row["out"])
       end
     end
@@ -62,7 +62,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".split_dotted" do
     cases("split_dotted").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.split_dotted(row["in"])).to eq(row["out"])
       end
     end
@@ -70,7 +70,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".qualifier" do
     cases("qualifier").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.qualifier(row["in"])).to eq(row["out"])
       end
     end
@@ -78,7 +78,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".unqualified" do
     cases("unqualified").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.unqualified(row["in"])).to eq(row["out"])
       end
     end
@@ -86,7 +86,7 @@ RSpec.describe Hecks::Naming do
 
   describe ".split_verb" do
     cases("split_verb").each do |row|
-      it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
+      it "#{row["in"].inspect} becomes #{row["out"].inspect}" do
         expect(described_class.split_verb(row["in"])).to eq(row["out"])
       end
     end
@@ -95,30 +95,30 @@ RSpec.describe Hecks::Naming do
   # Not in the shared contract (nor is `.plural`); pinned directly because `has_many Invoices`
   # must resolve to the Invoice aggregate.
   describe ".singularize" do
-    it "turns ies into y" do
+    it "turns ies into y", :aggregate_failures do
       expect(described_class.singularize("Invoices")).to eq("Invoice")
       expect(described_class.singularize("Stories")).to eq("Story")
     end
 
-    it "drops a trailing s" do
+    it "drops a trailing s", :aggregate_failures do
       expect(described_class.singularize("Tasks")).to eq("Task")
       expect(described_class.singularize("Boards")).to eq("Board")
     end
 
     # `.plural` adds "es" after s/x/z/ch/sh; undoing it wrongly resolves Box to a phantom "Boxe".
-    it "undoes plural's -es rule for a word ending in s/x/z/ch/sh" do
+    it "undoes plural's -es rule for a word ending in s/x/z/ch/sh", :aggregate_failures do
       expect(described_class.singularize("Boxes")).to eq("Box")
       expect(described_class.singularize("Churches")).to eq("Church")
       expect(described_class.singularize("Wishes")).to eq("Wish")
       expect(described_class.singularize("Buzzes")).to eq("Buzz")
     end
 
-    it "leaves a word with no recognised suffix alone" do
+    it "leaves a word with no recognised suffix alone", :aggregate_failures do
       expect(described_class.singularize("Sheep")).to eq("Sheep")
       expect(described_class.singularize("Children")).to eq("Children")
     end
 
-    it "survives the degenerate inputs" do
+    it "survives the degenerate inputs", :aggregate_failures do
       expect(described_class.singularize("")).to eq("")
       expect(described_class.singularize("s")).to eq("s")
     end

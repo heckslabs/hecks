@@ -20,13 +20,17 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
       "bypass_actors" => [{ "actor_id" => 15_368, "actor_type" => "Integration", "bypass_mode" => "always" }],
       "rules" => [{ "type" => "deletion" }, { "type" => "non_fast_forward" }, { "type" => "update" }] }
   end
-  let(:list) { ["api", "repos/{owner}/{repo}/rulesets?per_page=100"] }
-  let(:one) { ["api", "repos/{owner}/{repo}/rulesets/7"] }
+
+  def list = ["api", "repos/{owner}/{repo}/rulesets?per_page=100"]
+
+  def one = ["api", "repos/{owner}/{repo}/rulesets/7"]
+
+  def write(method, path) = ["api", "--method", method, path, "--input", "-"]
 
   def reply(args, body) = replies[args] = [JSON.generate(body), "", true]
 
   describe "#named" do
-    it "answers the ruleset of that name, in full, and nil when the repository has none" do
+    it "answers the ruleset of that name, in full", :aggregate_failures do
       reply(list, [{ "id" => 7 }])
       reply(one, projected.merge("id" => 7))
 
@@ -42,9 +46,9 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
   end
 
   describe "#apply" do
-    it "creates the ruleset when GitHub has none, sending the projection as the body" do
+    it "creates the ruleset when GitHub has none, sending the projection as the body", :aggregate_failures do
       reply(list, [])
-      replies[["api", "--method", "POST", "repos/{owner}/{repo}/rulesets", "--input", "-"]] = ["{}", "", true]
+      replies[write("POST", "repos/{owner}/{repo}/rulesets")] = ["{}", "", true]
 
       expect(rulesets.apply(projected)).to eq(:created)
       expect(JSON.parse(calls.last.last)).to eq(projected)
@@ -53,13 +57,18 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
     it "updates the ruleset of that name when GitHub has one" do
       reply(list, [{ "id" => 7 }])
       reply(one, projected.merge("id" => 7))
-      replies[["api", "--method", "PUT", "repos/{owner}/{repo}/rulesets/7", "--input", "-"]] = ["{}", "", true]
+      replies[write("PUT", "repos/{owner}/{repo}/rulesets/7")] = ["{}", "", true]
 
       expect(rulesets.apply(projected)).to eq(:updated)
     end
   end
 
   describe "#differences" do
+    def differing
+      projected.merge("enforcement" => "disabled", "bypass_actors" => [], "rules" => [{ "type" => "deletion" }],
+                      "conditions" => { "ref_name" => { "include" => ["refs/heads/main"] } })
+    end
+
     it "is empty when the live ruleset agrees over what a lane projects, whatever else GitHub adds" do
       live = projected.merge("id" => 7, "source" => "heckslabs/hecks", "current_user_can_bypass" => "never")
 
@@ -70,17 +79,13 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
       expect(rulesets.differences(projected, nil)).to eq(["lane-stable: GitHub has no such ruleset"])
     end
 
-    it "names each part that differs" do
-      live = projected.merge("enforcement" => "disabled", "bypass_actors" => [],
-                             "rules" => [{ "type" => "deletion" }],
-                             "conditions" => { "ref_name" => { "include" => ["refs/heads/main"] } })
+    def each_difference
+      [/enforcement is "disabled" on GitHub, "active" in the model/, %r{it guards \["refs/heads/main"\] on GitHub},
+       /bypass actors are \[\] on GitHub/, /rules are \["deletion"\] on GitHub/].map { |text| a_string_matching(text) }
+    end
 
-      expect(rulesets.differences(projected, live)).to contain_exactly(
-        a_string_matching(/enforcement is "disabled" on GitHub, "active" in the model/),
-        a_string_matching(%r{it guards \["refs/heads/main"\] on GitHub}),
-        a_string_matching(/bypass actors are \[\] on GitHub/),
-        a_string_matching(/rules are \["deletion"\] on GitHub/)
-      )
+    it "names each part that differs" do
+      expect(rulesets.differences(projected, differing)).to match_array(each_difference)
     end
   end
 end

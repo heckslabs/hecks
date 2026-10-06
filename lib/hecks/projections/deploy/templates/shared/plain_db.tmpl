@@ -1,0 +1,16 @@
+@@db_id@@:
+  Type: AWS::RDS::DBInstance
+  DeletionPolicy: Snapshot
+  UpdateReplacePolicy: Snapshot
+  Properties:
+    Engine: postgres
+    EngineVersion: "16.14"
+    DBInstanceClass: db.t4g.micro
+    AllocatedStorage: "20"
+    StorageEncrypted: true
+    DBName: @@db_name@@
+    MasterUsername: postgres
+    ManageMasterUserPassword: true
+    PubliclyAccessible: false
+    DBSubnetGroupName: !Ref @@db_id@@SubnetGroup
+    VPCSecurityGroups: [!Ref @@db_id@@SecurityGroup]

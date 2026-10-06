@@ -31,17 +31,35 @@ module Hecks
         # @raise [Runtime::WiringError] if no loaded translation leads one label to the next
         def edge_chain(registry, bluebook, eras, current_label)
           labels = eras.map { |era| era[:label] } + [current_label]
-          (0...(labels.size - 1)).map do |index|
-            step = registry.translations.find do |t|
-              t.domain == bluebook.name && t.from == labels[index] && t.to == labels[index + 1]
-            end
-            unless step
-              raise Runtime::WiringError,
-                    "cannot boot #{bluebook.name}: the edge chain is broken at era #{index + 1} — no translation " \
-                    "leads #{labels[index]} to #{labels[index + 1]}; restore bluebook/translations/"
-            end
+          labels.each_cons(2).with_index.map do |(from, to), index|
+            step = edge_between(registry, bluebook, from, to)
+            refuse_broken_chain!(bluebook, index, from, to) unless step
             { translation: step }
           end
+        end
+
+        # Finds the loaded translation that leads one shape label to the next.
+        #
+        # @param registry [Runtime::Registry] the registry whose `translations` are searched
+        # @param bluebook [Bluebook::Chapter] the domain; only edges for its name count
+        # @param from [String] the shape label the edge leaves
+        # @param to [String] the shape label the edge reaches
+        # @return [Bluebook::Translation, nil] the edge, or nil when none is loaded
+        def edge_between(registry, bluebook, from, to)
+          registry.translations.find { |t| t.domain == bluebook.name && t.from == from && t.to == to }
+        end
+
+        # Refuses a boot whose edge chain has a gap.
+        #
+        # @param bluebook [Bluebook::Chapter] the domain, named in the message
+        # @param index [Integer] the zero-based step with no translation
+        # @param from [String] the shape label the missing edge would leave
+        # @param to [String] the shape label the missing edge would reach
+        # @raise [Runtime::WiringError] always
+        def refuse_broken_chain!(bluebook, index, from, to)
+          raise Runtime::WiringError,
+                "cannot boot #{bluebook.name}: the edge chain is broken at era #{index + 1} — no translation " \
+                "leads #{from} to #{to}; restore bluebook/translations/"
         end
 
         # Parses a held era's bluebook text into a throwaway registry, not the live one.

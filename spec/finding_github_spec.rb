@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::FindingGithub do
 
   def gh_call(*arguments) = ["gh", *arguments, "--repo", "acme/widgets"]
 
-  it "opens an issue and answers its number" do
+  it "opens an issue and answers its number", :aggregate_failures do
     stub_gh(out: "https://github.com/acme/widgets/issues/42\n")
 
     answer = adapter.open_issue(title: { value: "A gap" }, body: { value: "details" })
@@ -51,17 +51,19 @@ RSpec.describe Hecks::Adapters::FindingGithub do
     expect(calls).to eq([gh_call("issue", "close", "7", "--reason", "not planned")])
   end
 
-  it "refuses every ask when no repository is named, and calls nothing" do
-    expect(Open3).not_to receive(:capture3)
+  it "refuses every ask when no repository is named, and calls nothing", :aggregate_failures do
+    stub_gh
     stub_const("ENV", ENV.to_h.except(described_class::REPOSITORY_VARIABLE))
 
     expect { described_class.new.open_issue(title: "t", body: "b") }.to raise_error(/no repository named/)
+    expect(calls).to be_empty
   end
 
-  it "refuses an ask that needs an issue the finding never got" do
-    expect(Open3).not_to receive(:capture3)
+  it "refuses an ask that needs an issue the finding never got", :aggregate_failures do
+    stub_gh
 
     expect { adapter.reopen_issue(title: "t") }.to raise_error(/no GitHub issue yet/)
+    expect(calls).to be_empty
   end
 
   it "raises with what gh printed when it exits non-zero" do

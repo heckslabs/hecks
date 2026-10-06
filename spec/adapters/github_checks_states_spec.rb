@@ -38,9 +38,10 @@ RSpec.describe Hecks::Adapters::GithubChecks, "#states" do
     expect(adapter.states(commit: sha, names: ["rspec"])).to eq("rspec" => :passed)
   end
 
-  it "refuses a malformed sha before asking GitHub" do
-    expect(Open3).not_to receive(:capture3)
+  it "refuses a malformed sha before asking GitHub", :aggregate_failures do
+    allow(Open3).to receive(:capture3)
 
     expect { adapter.states(commit: "main; rm -rf /", names: ["rspec"]) }.to raise_error(/not a commit sha/)
+    expect(Open3).not_to have_received(:capture3)
   end
 end

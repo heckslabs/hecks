@@ -20,12 +20,12 @@ RSpec.describe "Rendering.describe" do
       .to eq('{"given":"Annie","family":"Easley"}')
   end
 
-  it "still renders a bare Hash/Array via JSON, not the value-object branch" do
+  it "still renders a bare Hash/Array via JSON, not the value-object branch", :aggregate_failures do
     expect(Hecks::Rendering.describe({ cents: 100 })).to eq('{"cents":100}')
     expect(Hecks::Rendering.describe([1, 2])).to eq("[1,2]")
   end
 
-  it "renders nil and a plain scalar exactly as before" do
+  it "renders nil and a plain scalar exactly as before", :aggregate_failures do
     expect(Hecks::Rendering.describe(nil)).to eq("nil")
     expect(Hecks::Rendering.describe(42)).to eq("42")
     expect(Hecks::Rendering.describe("plain")).to eq('"plain"')

@@ -9,6 +9,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
   end
 
   let(:business) { runtime }
+  let!(:customer) { register_customer(business) }
 
   def register_customer(runtime, reference: "C-1")
     runtime.dispatch_flat(
@@ -47,62 +48,61 @@ RSpec.describe "the OIDC client projection's integration layer" do
     Hecks.as_caller(role: role, &block)
   end
 
-  it "resolves a verified (issuer, subject), checks the role, and dispatches — the full path" do
-    customer = register_customer(business)
+  # An identity "id-1" linked to the (issuer, subject) pairs, holding the officer role unless `granted` is false.
+  def identity_linked_to(*pairs, granted: true)
     identity = register_identity(business, identity_id: "id-1")
-    link_external(business, identity_id: identity.instance.id, key: "google:sub-1", issuer: "google", subject: "sub-1")
-    grant(business, actor: identity.instance.id, role: "Compliance officer")
-
-    result = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+    pairs.each do |issuer, subject|
+      link_external(business, identity_id: identity.instance.id, key: "#{issuer}:#{subject}", issuer: issuer, subject: subject)
     end
+    grant(business, actor: identity.instance.id, role: "Compliance officer") if granted
+    identity
+  end
+
+  def as_officer(issuer, subject, &block)
+    authenticated_dispatch(business.registry, issuer: issuer, subject: subject, role: "Compliance officer", &block)
+  end
+
+  def suspend(customer)
+    business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+  end
+
+  def reinstate(customer) = business.dispatch_flat("Banking::Customer.Reinstate", id: customer.instance.id)
+
+  def standing_of(customer)
+    aggregate = business.registry.bluebook("Banking").aggregate("Customer")
+    business.registry.repository("Banking", aggregate).find(customer.instance.id).state[:standing][:value]
+  end
+
+  it "resolves a verified (issuer, subject), checks the role, and dispatches — the full path" do
+    identity_linked_to(%w[google sub-1])
+
+    result = as_officer("google", "sub-1") { suspend(customer) }
 
     expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
   end
 
-  it "refuses before any dispatch when the (issuer, subject) resolves to no linked identity" do
-    customer = register_customer(business)
-
-    expect { authenticated_dispatch(business.registry, issuer: "google", subject: "forged", role: "Compliance officer") {} }
-      .to raise_error(/unknown identity/)
-
-    expect(business.registry.repository("Banking", business.registry.bluebook("Banking").aggregate("Customer"))
-      .find(customer.instance.id).state[:standing][:value]).to eq("good")
+  it "refuses before any dispatch when the (issuer, subject) resolves to no linked identity", :aggregate_failures do
+    expect { as_officer("google", "forged") { nil } }.to raise_error(/unknown identity/)
+    expect(standing_of(customer)).to eq("good")
   end
 
-  it "refuses before any dispatch when the resolved identity holds no matching role" do
-    customer = register_customer(business)
-    identity = register_identity(business, identity_id: "id-1")
-    link_external(business, identity_id: identity.instance.id, key: "google:sub-1", issuer: "google", subject: "sub-1")
-    # No RoleAssignment granted at all.
+  it "refuses before any dispatch when the resolved identity holds no matching role", :aggregate_failures do
+    identity_linked_to(%w[google sub-1], granted: false)
 
-    expect { authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") {} }
-      .to raise_error(/not authorized/)
-
-    expect(business.registry.repository("Banking", business.registry.bluebook("Banking").aggregate("Customer"))
-      .find(customer.instance.id).state[:standing][:value]).to eq("good")
+    expect { as_officer("google", "sub-1") { nil } }.to raise_error(/not authorized/)
+    expect(standing_of(customer)).to eq("good")
   end
 
   it "lets more than one external identifier authenticate as the same identity" do
-    customer = register_customer(business)
-    identity = register_identity(business, identity_id: "id-1")
-    link_external(business, identity_id: identity.instance.id, key: "google:sub-1", issuer: "google", subject: "sub-1")
-    link_external(business, identity_id: identity.instance.id, key: "microsoft:sub-1", issuer: "microsoft", subject: "sub-1")
-    grant(business, actor: identity.instance.id, role: "Compliance officer")
+    identity_linked_to(%w[google sub-1], %w[microsoft sub-1])
+    via_google = as_officer("google", "sub-1") { suspend(customer) }
+    via_microsoft = as_officer("microsoft", "sub-1") { reinstate(customer) }
 
-    via_google = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
-    end
-    via_microsoft = authenticated_dispatch(business.registry, issuer: "microsoft", subject: "sub-1",
-role: "Compliance officer") do
-      business.dispatch_flat("Banking::Customer.Reinstate", id: customer.instance.id)
-    end
-
-    expect(via_google.events.map(&:name)).to eq(["CustomerSuspended"])
-    expect(via_microsoft.events.map(&:name)).to eq(["CustomerReinstated"])
+    expect([via_google, via_microsoft].map { |result| result.events.map(&:name) })
+      .to eq([["CustomerSuspended"], ["CustomerReinstated"]])
   end
 
-  it "stores no password anywhere in Identity or ExternalIdentifier" do
+  it "stores no password anywhere in Identity or ExternalIdentifier", :aggregate_failures do
     bluebook = business.registry.bluebook("Identity")
 
     expect(bluebook.aggregate("Identity").attributes.map(&:name)).to eq([:identity_id])

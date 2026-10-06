@@ -20,7 +20,7 @@ module Hecks
             args = plan.task_definition ? "$(if $(TASKDEF),taskdef=$(TASKDEF))" : "$(if $(TAGS),tags=\"$(TAGS)\")"
             direct = "bash ./deploy-box.sh $(#{variable})"
             direct += " || exit $$?; TASKDEF=\"$(TASKDEF)\" bash ./smoke-after-deploy.sh" if plan.hosting
-            "\t#{call(command: 'box_roll.run', args: args, direct: direct)}"
+            "\t#{call(command: "box_roll.run", args: args, direct: direct)}"
           end
 
           # @param command [String] the Deploy command, such as `box_roll.run`

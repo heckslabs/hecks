@@ -34,16 +34,22 @@ module Hecks
           path = File.expand_path(file, @tree.root)
           raise ConsoleCapture::Failure, "no such spec file #{file}" unless File.file?(path)
 
+          report = run_example(path, example)
+          raise ConsoleCapture::Failure, "the test runner printed nothing for #{file}" if report.empty?
+
+          report
+        end
+
+        private
+
+        # What the runner printed for the example, when it passed.
+        def run_example(path, example)
           out = StringIO.new
           status = Dir.chdir(@tree.root) { runner.call(["--example", example, path], out, out) }
           raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
-          out.string.strip.tap do |report|
-            raise ConsoleCapture::Failure, "the test runner printed nothing for #{file}" if report.empty?
-          end
+          out.string.strip
         end
-
-        private
 
         def runner
           return self.class.runner if self.class.runner

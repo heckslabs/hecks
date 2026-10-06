@@ -18,25 +18,28 @@ module Hecks
           record_grant(args) if catalog[:grant_verbs].include?(entry[:verb])
 
           populator = populator_for_entry(catalog, entry)
-          return unless populator
+          record_appended(populator, args) if populator
+        end
 
+        # Records the element an append added: its predicted identity, and the caller-supplied
+        # identity tuple.
+        def record_appended(populator, args)
           key = append_pool_key(populator, args)
-
-          # Auto-minted identities land at count-so-far + 1; an explicit one is
-          # read back from the args this generator supplied.
-          new_id =
-            if populator[:identity_argument]
-              ValueGenerator.scalar_of(args[populator[:identity_argument].to_s])
-            else
-              (@entity_known_ids[key].size + 1).to_s
-            end
-          @entity_known_ids[key] << new_id
+          @entity_known_ids[key] << minted_identity(populator, key, args)
 
           # Keep the caller-supplied identity tuple whole so the duplicate-identity
           # mutation can offer it again under the same parent.
           return if populator[:identity_arguments].empty?
 
           @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
+        end
+
+        # Auto-minted identities land at count-so-far + 1; an explicit one is
+        # read back from the args this generator supplied.
+        def minted_identity(populator, key, args)
+          return ValueGenerator.scalar_of(args[populator[:identity_argument].to_s]) if populator[:identity_argument]
+
+          (@entity_known_ids[key].size + 1).to_s
         end
 
         # Records a grant that took effect: `actor_id` now holds `role_name`, which
@@ -51,18 +54,19 @@ module Hecks
         # one scalar per owning hop (none for an aggregate-level append).
         def append_pool_key(populator, args)
           parent_scalar = identity_scalar_of(populator[:aggregate], args)
-          owner_scalars = populator[:owner_chain].map do |piece|
-            ValueGenerator.scalar_of(args[(piece.identified_by || :id).to_s])
-          end
           entity_pool_key(populator[:aggregate].hecks_name,
                           populator[:owner_chain].map(&:hecks_name) + [populator[:entity].hecks_name],
-                          [parent_scalar] + owner_scalars)
+                          [parent_scalar] + owner_scalars(populator, args))
+        end
+
+        def owner_scalars(populator, args)
+          populator[:owner_chain].map { |piece| ValueGenerator.scalar_of(args[(piece.identified_by || :id).to_s]) }
         end
 
         # `"Agg.Board#w1"` for a depth-1 pool, `"Agg.Board.Card#w1/1"` one hop
         # deeper. Depth-1 keys must stay stable for pinned seeds.
         def entity_pool_key(aggregate_name, chain_names, scalars)
-          "#{aggregate_name}.#{chain_names.join('.')}##{scalars.join('/')}"
+          "#{aggregate_name}.#{chain_names.join(".")}##{scalars.join("/")}"
         end
 
         # The scalar the step's aggregate identity resolves to. A composite identity

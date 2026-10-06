@@ -34,10 +34,7 @@ module Hecks
 
         def judge!
           domain = @world.domain
-          send_to("World::World.Declare", domain, domain: v(domain),
-                  realm: v(@world.realm), latest: v(@world.latest),
-                  default_database: v(@world.default_database),
-                  default_adapter: v(@world.default_adapter))
+          declare_world(domain)
 
           Hash(@world.settings).each do |verb, values|
             # the DSL records each binding twice — once by verb, once by
@@ -46,6 +43,13 @@ module Hecks
 
             judge_wiring(domain, verb, values)
           end
+        end
+
+        def declare_world(domain)
+          send_to("World::World.Declare", domain, domain: v(domain),
+                  realm: v(@world.realm), latest: v(@world.latest),
+                  default_database: v(@world.default_database),
+                  default_adapter: v(@world.default_adapter))
         end
 
         def judge_wiring(domain, verb, values)

@@ -5,7 +5,8 @@ require "spec_helper"
 RSpec.describe "World#for_binding" do
   # Needs a Heki-bound and a Memory-bound aggregate under the same verb to reproduce the leak.
   # rubocop:disable-next RSpec/ExampleLength
-  it "answers {} for an adapter the world configured nothing for, even when a sibling adapter under the same verb has settings" do
+  it "answers {} for an adapter the world configured nothing for, even when a sibling adapter under the same verb has settings",
+     :aggregate_failures do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)

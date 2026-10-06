@@ -1,13 +1,15 @@
 require "hecks"
 
 RSpec.describe Hecks::Ports::Authorization do
+  def load_in_memory_ports
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |path| Kernel.load(path) }
+  end
+
   def registry_with(*adapter_paths, &extra)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_in_memory_ports
       Kernel.load(File.expand_path("../../lib/hecks/ports/authorization.port", __dir__))
       adapter_paths.each { |path| Kernel.load(path) }
       extra&.call

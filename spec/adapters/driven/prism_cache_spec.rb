@@ -20,7 +20,8 @@ RSpec.describe Hecks::Adapters::Prism, ".forget" do
     expect(described_class.block_node_at(@file, 1)).to be_a(Prism::BlockNode)
   end
 
-  it "leaves no index entry for a tree forgotten while its index is being built" do
+  # Runs `block_node_at` while a second thread forgets the file halfway through the index build.
+  def index_while_forgetting
     forgetter = nil
     real = described_class.method(:blocks_by_line)
     allow(described_class).to receive(:blocks_by_line) do |tree|
@@ -28,9 +29,12 @@ RSpec.describe Hecks::Adapters::Prism, ".forget" do
       sleep 0.2
       real.call(tree)
     end
-
     described_class.block_node_at(@file, 1)
     forgetter.join(5)
+  end
+
+  it "leaves no index entry for a tree forgotten while its index is being built", :aggregate_failures do
+    index_while_forgetting
 
     expect(described_class::TREES).to be_empty
     expect(described_class::BLOCKS_BY_LINE).to be_empty

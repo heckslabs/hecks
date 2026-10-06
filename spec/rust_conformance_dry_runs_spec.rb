@@ -32,7 +32,7 @@ RSpec.describe "rust conformance dry_runs", :io do
     end
   end
 
-  it "fails on a dry-run split, naming dry_runs and nothing else" do
+  it "fails on a dry-run split, naming dry_runs and nothing else", :aggregate_failures do
     output, status = run_script([{ dry_run: "QaSweepAllDryRunFixture::Gate.Open", args: { reference: { value: "north" } } }],
                                 binary)
 
@@ -41,14 +41,14 @@ RSpec.describe "rust conformance dry_runs", :io do
                               "__qa_sweep_all_spec_phantom_dry_run__")
   end
 
-  it "still matches a script with no dry run at all" do
+  it "still matches a script with no dry run at all", :aggregate_failures do
     output, status = run_script([], binary)
 
     expect(status.exitstatus).to eq(0), output
     expect(output).to include("matches.")
   end
 
-  it "leaves dry_runs out of Ruby's printed result when the script has none" do
+  it "leaves dry_runs out of Ruby's printed result when the script has none", :aggregate_failures do
     output, status = run_script([])
 
     expect(status.exitstatus).to eq(0), output

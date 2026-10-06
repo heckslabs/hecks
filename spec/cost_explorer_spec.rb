@@ -26,7 +26,7 @@ RSpec.describe Hecks::Adapters::CostExplorer do
 
   def check(budget: 75, since: "2026-10-05") = adapter.measure(budget: { value: budget }, since: { value: since })
 
-  it "answers a one-line report when the monthly rate is within the budget" do
+  it "answers a one-line report when the monthly rate is within the budget", :aggregate_failures do
     stub_aws(rows: [day("2026-10-05", RDS: 1.2, EC2: 0.9, WAF: 0.3), day("2026-10-06", RDS: 1.2, EC2: 0.9, WAF: 0.3)])
 
     answer = check
@@ -36,15 +36,17 @@ RSpec.describe Hecks::Adapters::CostExplorer do
                                                "biggest: RDS $1.20/day, EC2 $0.90/day, WAF $0.30/day")
   end
 
+  def expected_cost_call
+    ["aws", "ce", "get-cost-and-usage", "--time-period", "Start=2026-10-05,End=2026-10-07", "--granularity", "DAILY",
+     "--metrics", "UnblendedCost", "--group-by", "Type=DIMENSION,Key=SERVICE", "--output", "json"]
+  end
+
   it "asks for the daily cost by service from the first day up to today, which is left out" do
     stub_aws(rows: [day("2026-10-05", RDS: 2.0)])
 
     check
 
-    expect(calls.first).to eq(
-      ["aws", "ce", "get-cost-and-usage", "--time-period", "Start=2026-10-05,End=2026-10-07", "--granularity", "DAILY",
-       "--metrics", "UnblendedCost", "--group-by", "Type=DIMENSION,Key=SERVICE", "--output", "json"]
-    )
+    expect(calls.first).to eq(expected_cost_call)
   end
 
   it "refuses with the figures when the monthly rate is over the budget" do
@@ -59,7 +61,7 @@ RSpec.describe Hecks::Adapters::CostExplorer do
     expect(adapter.measure(budget: 75, since: "2026-10-06")[:report][:value]).to include("(1 days)")
   end
 
-  it "refuses when no complete day has passed since the day" do
+  it "refuses when no complete day has passed since the day", :aggregate_failures do
     stub_aws
 
     expect { check(since: "2026-10-07") }.to raise_error(RuntimeError, /no complete day since 2026-10-07/)

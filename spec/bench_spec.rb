@@ -30,8 +30,12 @@ RSpec.describe Hecks::Bench do
     path
   end
 
+  def with_fake_binary(answer)
+    Dir.mktmpdir("bench_spec") { |dir| yield fake_serve_binary(dir, answer) }
+  end
+
   describe Hecks::Bench::Stats do
-    it "takes nearest-rank percentiles, so every figure is a latency that happened" do
+    it "takes nearest-rank percentiles, so every figure is a latency that happened", :aggregate_failures do
       samples = (1..100).map(&:to_f).shuffle
 
       expect(described_class.percentile(samples, 0.5)).to eq(50.0)
@@ -40,7 +44,7 @@ RSpec.describe Hecks::Bench do
       expect(described_class.percentile([], 0.5)).to be_nil
     end
 
-    it "averages the two middle values of an even list for the median" do
+    it "averages the two middle values of an even list for the median", :aggregate_failures do
       expect(described_class.median([3, 1, 2])).to eq(2.0)
       expect(described_class.median([4, 1, 3, 2])).to eq(2.5)
     end
@@ -51,7 +55,7 @@ RSpec.describe Hecks::Bench do
       expect(summary).to include(count: 3, p50_us: 2000.0, max_us: 3000.0, mean_us: 2000.0)
     end
 
-    it "measures drift as the last tenth's p50 over the first tenth's" do
+    it "measures drift as the last tenth's p50 over the first tenth's", :aggregate_failures do
       seconds = Array.new(10, 1.0) + Array.new(80, 1.5) + Array.new(10, 3.0)
 
       expect(described_class.drift(seconds)).to eq(3.0)
@@ -68,7 +72,7 @@ RSpec.describe Hecks::Bench do
       end
     end
 
-    it "renders a step as one JSON line and symbolizes only the top-level argument keys" do
+    it "renders a step as one JSON line and symbolizes only the top-level argument keys", :aggregate_failures do
       step = described_class.pizzas.cycle(0).first
 
       expect(JSON.parse(step.to_json_line)).to eq("verb" => step.verb, "args" => step.args)
@@ -82,7 +86,7 @@ RSpec.describe Hecks::Bench do
   end
 
   describe Hecks::Bench::Suite do
-    it "refuses a configuration that cannot be measured before booting anything" do
+    it "refuses a configuration that cannot be measured before booting anything", :aggregate_failures do
       expect { described_class.call(tiny(targets: %w[ruby:heki]), log: quiet) }
         .to raise_error(ArgumentError, /unknown target "ruby:heki"/)
       expect { described_class.call(tiny(iterations: 0), log: quiet) }.to raise_error(ArgumentError, /at least 1/)
@@ -90,37 +94,70 @@ RSpec.describe Hecks::Bench do
         .to raise_error(ArgumentError, /exactly one --domain/)
     end
 
+    def memory_and_sqlite_result
+      described_class.call(tiny(domains: %w[pizzas banking], targets: %w[ruby:memory ruby:sqlite]), log: quiet)
+    end
+
+    def expect_run_commands(entry)
+      workload = Hecks::Bench::Workload.fetch(entry[:domain])
+
+      expect(entry[:runs].first[:commands]).to eq(3 * workload.commands_per_cycle)
+    end
+
+    def expect_median_shape(entry)
+      median = entry[:median]
+
+      expect(median[:throughput_per_s]).to be_positive
+      expect(median[:p99_us]).to be >= median[:p50_us]
+    end
+
+    def expect_verbs_measured(entry)
+      verbs = Hecks::Bench::Workload.fetch(entry[:domain]).cycle(0).map(&:verb).uniq
+
+      expect(entry[:median][:by_verb].keys).to eq(verbs)
+    end
+
     it "measures the Ruby runtime on Memory and Sqlite for both domains" do
-      config = tiny(domains: %w[pizzas banking], targets: %w[ruby:memory ruby:sqlite])
-      result = described_class.call(config, log: quiet)
+      result = memory_and_sqlite_result
 
       expect(result[:results].map { |entry| [entry[:domain], entry[:target]] }).to contain_exactly(
         %w[pizzas ruby:memory], %w[pizzas ruby:sqlite], %w[banking ruby:memory], %w[banking ruby:sqlite]
       )
-      result[:results].each do |entry|
-        run = entry[:runs].first
-        expect(run[:commands]).to eq(3 * Hecks::Bench::Workload.fetch(entry[:domain]).commands_per_cycle)
-        expect(entry[:median][:throughput_per_s]).to be_positive
-        expect(entry[:median][:p99_us]).to be >= entry[:median][:p50_us]
-        expect(entry[:median][:by_verb].keys).to eq(Hecks::Bench::Workload.fetch(entry[:domain]).cycle(0).map(&:verb).uniq)
+    end
+
+    it "runs three cycles of commands, and a sane median, for every measured target" do
+      memory_and_sqlite_result[:results].each do |entry|
+        expect_run_commands(entry)
+        expect_median_shape(entry)
+        expect_verbs_measured(entry)
       end
     end
 
-    it "skips a Postgres target with the reason instead of failing when no server answers" do
-      reason = "no Postgres server is reachable (connection refused); start one"
-      allow(Hecks::Bench::PostgresProbe).to receive(:unavailable_reason).and_return(reason)
-      log = quiet
+    def postgres_unavailable_reason = "no Postgres server is reachable (connection refused); start one"
 
-      result = described_class.call(tiny(targets: %w[ruby:memory ruby:postgres ruby:postgres_era]), log: log)
+    def result_with_postgres_unavailable(log)
+      allow(Hecks::Bench::PostgresProbe).to receive(:unavailable_reason).and_return(postgres_unavailable_reason)
+      described_class.call(tiny(targets: %w[ruby:memory ruby:postgres ruby:postgres_era]), log: log)
+    end
+
+    it "skips a Postgres target with the reason instead of failing when no server answers", :aggregate_failures do
+      result = result_with_postgres_unavailable(quiet)
+      reason = postgres_unavailable_reason
 
       expect(result[:results].map { |entry| entry[:target] }).to eq(%w[ruby:memory])
       expect(result[:skipped]).to eq([{ target: "ruby:postgres", reason: reason },
                                       { target: "ruby:postgres_era", reason: reason }])
-      expect(log.string).to include("skip ruby:postgres: #{reason}")
-      expect(Hecks::Bench::Report.markdown(result)).to include("Skipped:", "- ruby:postgres_era: #{reason}")
     end
 
-    it "measures Postgres when a server answers", :io do
+    it "says which Postgres targets it skipped, in the log and in the report", :aggregate_failures do
+      log = quiet
+      result = result_with_postgres_unavailable(log)
+
+      expect(log.string).to include("skip ruby:postgres: #{postgres_unavailable_reason}")
+      expect(Hecks::Bench::Report.markdown(result)).to include("Skipped:", "- ruby:postgres_era: #{postgres_unavailable_reason}")
+    end
+
+    it "measures Postgres when a server answers", :aggregate_failures, :io do
       skip "no local Postgres" unless PostgresProbe.available?
 
       result = described_class.call(tiny(targets: %w[ruby:postgres ruby:postgres_era]), log: quiet)
@@ -131,16 +168,18 @@ RSpec.describe Hecks::Bench do
   end
 
   describe Hecks::Bench::RustRunner do
-    it "times a round trip per step against a binary that speaks the serve protocol" do
-      Dir.mktmpdir("bench_spec") do |dir|
-        binary = fake_serve_binary(dir, '{"ok":true,"events":[]}')
-        workload = Hecks::Bench::Workload.pizzas
-
-        run = described_class.call(workload, binary: binary, warmup: 1, iterations: 2)
-
-        expect(run.samples.map(&:first)).to eq(workload.cycle(0).map(&:verb) * 2)
-        expect(run.summary).to include(:roundtrip_floor_p50_us)
+    def timed_run(workload)
+      with_fake_binary('{"ok":true,"events":[]}') do |binary|
+        described_class.call(workload, binary: binary, warmup: 1, iterations: 2)
       end
+    end
+
+    it "times a round trip per step against a binary that speaks the serve protocol", :aggregate_failures do
+      workload = Hecks::Bench::Workload.pizzas
+      run = timed_run(workload)
+
+      expect(run.samples.map(&:first)).to eq(workload.cycle(0).map(&:verb) * 2)
+      expect(run.summary).to include(:roundtrip_floor_p50_us)
     end
 
     it "refuses to time a workload the binary does not accept" do
@@ -152,7 +191,7 @@ RSpec.describe Hecks::Bench do
       end
     end
 
-    it "says why it cannot run when there is neither a toolchain nor a binary" do
+    it "says why it cannot run when there is neither a toolchain nor a binary", :aggregate_failures do
       expect(described_class.unavailable_reason(binary: "/nonexistent/rust")).to include("does not exist")
       allow(Hecks::Bench::Environment).to receive(:capture).with("cargo", "-V").and_return("unknown")
 
@@ -170,21 +209,24 @@ RSpec.describe Hecks::Bench do
   end
 
   describe Hecks::Bench::CLI do
-    it "prints a Markdown report and writes the full JSON result" do
+    def with_json_run
       Dir.mktmpdir("bench_spec") do |dir|
         out = quiet
         path = File.join(dir, "bench.json")
+        argv = %w[--domain pizzas --targets ruby:memory --iterations 2 --warmup 1 --runs 1 --output] + [path]
+        yield described_class.run(argv, out: out, err: quiet), out, path
+      end
+    end
 
-        status = described_class.run(%w[--domain pizzas --targets ruby:memory --iterations 2 --warmup 1 --runs 1
-                                        --output] + [path], out: out, err: quiet)
-
+    it "prints a Markdown report and writes the full JSON result", :aggregate_failures do
+      with_json_run do |status, out, path|
         expect(status).to eq(0)
         expect(out.string).to include("| pizzas | ruby:memory |", "CPU:", "Ruby: ruby")
         expect(JSON.parse(File.read(path))).to include("environment", "config", "results", "skipped")
       end
     end
 
-    it "answers a usage error with status 2 and a sentence, not a stack trace" do
+    it "answers a usage error with status 2 and a sentence, not a stack trace", :aggregate_failures do
       err = quiet
 
       expect(described_class.run(%w[--targets ruby:heki], out: quiet, err: err)).to eq(2)

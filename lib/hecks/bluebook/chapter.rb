@@ -1,5 +1,6 @@
 require_relative "behaviour/chapter"
 require_relative "capabilities"
+require_relative "keyword_fields"
 require_relative "../ir"
 
 module Hecks
@@ -58,29 +59,36 @@ module Hecks
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
                   :classification, :read_models, :ports, :formerly_known_as, :namespace, :attaches_to, :provides
 
+      # Every optional field and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        version: nil, vision: nil, aggregates: [], policies: [], process_managers: [],
+        classification: nil, read_models: [], formerly_known_as: nil, namespace: nil,
+        attaches_to: [], provides: []
+      }.freeze
+
       # @param policies [Array<Bluebook::Policy>] every reaction declared across the
       #   chapter's own aggregates, hoisted here
       # @param classification [String, Symbol, nil] whether this chapter is central to
       #   its project's own domain model, or `nil` if undeclared
-      def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
-                     process_managers: [], classification: nil, read_models: [], formerly_known_as: nil,
-                     namespace: nil, attaches_to: [], provides: [])
-        @policies         = policies
-        @process_managers = process_managers
+      def initialize(name:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @name       = name.to_s
         @hecks_name = @name
         @hecks_root = true
-        @version    = version&.to_s
-        @vision     = vision
-        @aggregates = aggregates
-        @read_models = read_models
-        @classification = classification&.to_s
-        @formerly_known_as = formerly_known_as&.to_s
-        @namespace   = namespace&.to_s
-        @attaches_to = Array(attaches_to).map(&:to_s)
-        @provides    = Array(provides).map { |row| Provision.from(row) }
+        coerce_fields
         settle
       end
+
+      # Holds every optional field as the text or rows its reader answers.
+      def coerce_fields
+        @version           = @version&.to_s
+        @classification    = @classification&.to_s
+        @formerly_known_as = @formerly_known_as&.to_s
+        @namespace         = @namespace&.to_s
+        @attaches_to       = Array(@attaches_to).map(&:to_s)
+        @provides          = Array(@provides).map { |row| Provision.from(row) }
+      end
+      private :coerce_fields
     end
   end
 end

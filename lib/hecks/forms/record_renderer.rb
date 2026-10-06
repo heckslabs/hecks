@@ -41,12 +41,20 @@ module Hecks
         current = aggregate.lifecycle && state[aggregate.lifecycle.field]
         <<~HTML
           <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}")} <span class="mono">#{Escape.html(id)}</span></h1>
-          #{%(<span class="badge role">#{Escape.html(aggregate.lifecycle.field)}: #{Escape.html(current)}</span>) if current}
+          #{lifecycle_badge(aggregate, current)}
           #{state_table(state)}
           <h2>Commands</h2>
           #{command_links(domain, aggregate, id, current)}
           #{query_links(domain, aggregate)}
         HTML
+      end
+
+      # @return [String, nil] the badge naming the lifecycle field and its state; nil when the
+      #   record has no lifecycle state
+      def self.lifecycle_badge(aggregate, current)
+        return unless current
+
+        %(<span class="badge role">#{Escape.html(aggregate.lifecycle.field)}: #{Escape.html(current)}</span>)
       end
 
       def self.state_table(state)
@@ -70,13 +78,16 @@ module Hecks
         commands = aggregate.commands.reject(&:creates?).select { |cmd| applies?(aggregate, cmd, current_state) }
         return "<p><em>No commands act on an existing #{Escape.html(aggregate.hecks_name)}.</em></p>" if commands.empty?
 
-        items = commands.map do |cmd|
-          # The id is free-form, so it is percent-encoded as a query value.
-          href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.url(id)}"
-          %(<li><a href="#{Escape.attr(href)}"><span>#{Escape.html(cmd.hecks_name)}</span>) \
-            "<span class=\"kind\">#{Escape.html(cmd.goal.to_s)}</span></a></li>"
-        end
+        items = commands.map { |cmd| command_item(domain, aggregate, cmd, id) }
         %(<ul class="verb-list">#{items.join}</ul>)
+      end
+
+      # @return [String] the list item linking to the command's form, addressed to record `id`
+      def self.command_item(domain, aggregate, cmd, id)
+        # The id is free-form, so it is percent-encoded as a query value.
+        href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.url(id)}"
+        %(<li><a href="#{Escape.attr(href)}"><span>#{Escape.html(cmd.hecks_name)}</span>) \
+          "<span class=\"kind\">#{Escape.html(cmd.goal.to_s)}</span></a></li>"
       end
 
       def self.applies?(aggregate, command, current_state)
@@ -89,10 +100,7 @@ module Hecks
       def self.query_links(domain, aggregate)
         return "" if aggregate.queries.empty?
 
-        items = aggregate.queries.map do |query|
-          %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{query.hecks_name}.html">) \
-            "<span>#{Escape.html(query.hecks_name)}</span><span class=\"kind\">query</span></a></li>"
-        end
+        items = aggregate.queries.map { |query| verb_item(domain, aggregate, query, "query") }
         %(<h2>Queries</h2><ul class="verb-list">#{items.join}</ul>)
       end
 
@@ -100,16 +108,17 @@ module Hecks
         commands = aggregate.commands.reject(&:creates?)
         return "" if commands.empty? && aggregate.queries.empty?
 
-        cmd_items = commands.map do |c|
-          %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{c.hecks_name}.html">) \
-            "<span>#{Escape.html(c.hecks_name)}</span><span class=\"kind\">command</span></a></li>"
-        end
-        query_items = aggregate.queries.map do |q|
-          %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{q.hecks_name}.html">) \
-            "<span>#{Escape.html(q.hecks_name)}</span><span class=\"kind\">query</span></a></li>"
-        end
+        cmd_items = commands.map { |c| verb_item(domain, aggregate, c, "command") }
+        query_items = aggregate.queries.map { |q| verb_item(domain, aggregate, q, "query") }
         %(<h2>Every command &amp; query on #{Escape.html(aggregate.hecks_name)}</h2>) \
           "<ul class=\"verb-list\">#{(cmd_items + query_items).join}</ul>"
+      end
+
+      # @param kind [String] the word shown beside the verb, `"command"` or `"query"`
+      # @return [String] the list item linking to the verb's own page
+      def self.verb_item(domain, aggregate, verb, kind)
+        %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{verb.hecks_name}.html">) \
+          "<span>#{Escape.html(verb.hecks_name)}</span><span class=\"kind\">#{kind}</span></a></li>"
       end
     end
   end

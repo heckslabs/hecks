@@ -1,6 +1,7 @@
 require_relative "../../naming"
 require_relative "../statements"
 require_relative "sensitivity"
+require_relative "sentences/value_objects"
 
 module Hecks
   module Projections
@@ -9,9 +10,15 @@ module Hecks
       # mechanically from one declared fact, and a fact with no plain phrasing gets none.
       # Links come only from declared structure, never from searching prose.
       module Sentences
-        TYPE_WORDS = {
-          "Integer" => "a whole number", "Float" => "a number", "String" => "text",
-          "Boolean" => "yes or no", "TrueClass" => "yes or no", "FalseClass" => "yes or no"
+        # The one sentence each kind of term other than an entity or value object carries.
+        SINGLES = {
+          command:    ->(facts, _index) { command_sentence(facts[:command]) },
+          query:      ->(facts, _index) { facts[:query].description },
+          event:      ->(facts, index) { event_sentence(facts, index) },
+          policy:     ->(facts, index) { policy_sentence(facts[:policy], index) },
+          saga:       ->(facts, index) { saga_sentence(facts[:saga], index) },
+          role:       ->(facts, index) { role_sentence(facts[:commands], index) },
+          read_model: ->(facts, _index) { facts[:read_model].description }
         }.freeze
 
         module_function
@@ -20,15 +27,14 @@ module Hecks
           facts = entry.facts
           case entry.kind
           when :entity       then holder_paragraphs(facts[:entity])
-          when :value_object then value_object_paragraphs(facts[:value_object], index, entry.within, facts.fetch(:sensitive, {}))
-          when :command      then [command_sentence(facts[:command])]
-          when :query        then [facts[:query].description]
-          when :event        then [event_sentence(facts, index)]
-          when :policy       then [policy_sentence(facts[:policy], index)]
-          when :saga         then [saga_sentence(facts[:saga], index)]
-          when :role         then [role_sentence(facts[:commands], index)]
-          when :read_model   then [facts[:read_model].description]
+          when :value_object then value_object_paragraphs(entry, index)
+          else [SINGLES.fetch(entry.kind).call(facts, index)]
           end.compact
+        end
+
+        def value_object_paragraphs(entry, index)
+          facts = entry.facts
+          ValueObjects.paragraphs(facts[:value_object], index, entry.within, facts.fetch(:sensitive, {}))
         end
 
         def holder_paragraphs(holder)
@@ -38,63 +44,10 @@ module Hecks
         def lifecycle_sentence(lifecycle)
           states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
           "Starts out #{spoken(lifecycle.default)}. " \
-            "Can be #{Naming.to_sentence_list(states.map { |state| spoken(state) }, conj: 'or')}."
+            "Can be #{Naming.to_sentence_list(states.map { |state| spoken(state) }, conj: "or")}."
         end
 
         def spoken(state) = state.to_s.tr("_", " ")
-
-        def value_object_paragraphs(value_object, index, within, sensitive = {})
-          rules = value_object.invariants.map { |invariant| Statements.invariant_statement(invariant) }
-          [value_object_sentence(value_object, index, within, sensitive), rules_line(rules)].compact
-        end
-
-        # A one-field object whose field is just "value" reads as its type ("Text.").
-        def value_object_sentence(value_object, index, within, sensitive = {})
-          return closed_set_sentence(value_object.members) if value_object.closed_set?
-          return "A marker with no details of its own." if value_object.attributes.empty?
-
-          only = value_object.attributes.first
-          if value_object.attributes.size == 1 && only.name.to_s == "value"
-            return "#{upper_first(type_words(only, index, within))}."
-          end
-
-          fields = value_object.attributes.map { |field| field_phrase(field, index, within, sensitive[field.name.to_s]) }
-          "Made up of #{Naming.to_sentence_list(fields)}."
-        end
-
-        # "amount (a whole number)", or "medications (text, PHI)" when marked sensitive.
-        def field_phrase(field, index, within, marking = nil)
-          detail = [type_words(field, index, within), (Sensitivity.tag(marking) if marking)].compact.join(", ")
-          "#{Naming.words(field.name).downcase} (#{detail})"
-        end
-
-        def type_words(field, index, within)
-          type  = field.type.to_s
-          inner = TYPE_WORDS[type] || index.link(:value_object, type, within: within)
-          field.list? ? "a list of #{inner}" : inner
-        end
-
-        # A multi-field row leads with its first field and keeps the rest beside it,
-        # so no row loses what makes it distinct.
-        def closed_set_sentence(members)
-          if members.first && members.first.size > 1
-            rows = members.map do |row|
-              lead, *rest = row.map { |field, value| [field, value] }
-              "#{lead.last} (#{rest.map { |field, value| "#{Naming.words(field).downcase} #{value}" }.join(', ')})"
-            end
-            "One of: #{rows.join('; ')}."
-          else
-            "One of #{Naming.to_sentence_list(members.flat_map(&:values).uniq.map(&:to_s), conj: 'or')}."
-          end
-        end
-
-        # Kept apart from the definition sentence, where a reader would miss a rule.
-        def rules_line(rules)
-          return nil if rules.empty?
-
-          clauses = rules.map { |rule| lower_first(rule.sub(/\.\z/, "")) }
-          "Always true: #{clauses.join('; ')}."
-        end
 
         def command_sentence(command)
           parts = []
@@ -105,7 +58,7 @@ module Hecks
 
         def event_sentence(facts, index)
           raisers = command_links(facts[:raised_by], index)
-          sentence = "Recorded after #{Naming.to_sentence_list(raisers, conj: 'or')}."
+          sentence = "Recorded after #{Naming.to_sentence_list(raisers, conj: "or")}."
           reactions = facts[:policies].map { |policy| index.link(:policy, policy.name) }
           sentence += " Prompts #{Naming.to_sentence_list(reactions)}." unless reactions.empty?
           sentence
@@ -114,14 +67,7 @@ module Hecks
         # A cross-domain trigger (`across "Compliance"`) is spoken as words with the
         # domain named, since there is nothing here to link to.
         def policy_sentence(policy, index)
-          holder, command = split_trigger(policy.trigger_command)
-          asked = if policy.target_domain
-                    "#{Naming.words(holder)} is asked to #{Naming.words(command).downcase}, " \
-                      "in #{Naming.words(policy.target_domain)}"
-                  else
-                    "#{index.link(:aggregate, holder)} is asked to #{index.link(:command, command, within: holder)}"
-                  end
-          sentence = "When #{index.link(:event, bare(policy.on_event))} happens, #{asked}"
+          sentence = "When #{index.link(:event, bare(policy.on_event))} happens, #{asked_phrase(policy, index)}"
           if policy.for_each
             query_holder, query = split_trigger(policy.for_each)
             sentence += ", once for each row of #{index.link(:query, query, within: query_holder)}"
@@ -129,11 +75,22 @@ module Hecks
           "#{sentence}."
         end
 
+        # What the policy asks of whom, linked unless the trigger crosses into another domain.
+        def asked_phrase(policy, index)
+          holder, command = split_trigger(policy.trigger_command)
+          if policy.target_domain
+            "#{Naming.words(holder)} is asked to #{Naming.words(command).downcase}, " \
+              "in #{Naming.words(policy.target_domain)}"
+          else
+            "#{index.link(:aggregate, holder)} is asked to #{index.link(:command, command, within: holder)}"
+          end
+        end
+
         def saga_sentence(shape, index)
           sentence = "Begins when #{index.link(:event, bare(shape[:starts_on]))} happens " \
                      "and ends when #{index.link(:event, bare(shape[:ends_on]))} happens."
           states = Array(shape[:states]).map { |state| spoken(state) }
-          sentence += " Along the way it can be #{Naming.to_sentence_list(states, conj: 'or')}." unless states.empty?
+          sentence += " Along the way it can be #{Naming.to_sentence_list(states, conj: "or")}." unless states.empty?
           sentence
         end
 
@@ -148,12 +105,16 @@ module Hecks
         def command_links(issues, index)
           issues = issues.uniq { |holder, command| [holder.hecks_name, command.hecks_name] }
           repeated = issues.map { |_holder, command| command.hecks_name }.tally.select { |_name, count| count > 1 }
-          issues.map do |holder, command|
-            label = if repeated.key?(command.hecks_name)
-                      "#{Naming.words(command.hecks_name)} (#{Naming.words(holder.hecks_name).downcase})"
-                    end
-            index.link(:command, command.hecks_name, within: holder.hecks_name, label: label)
-          end
+          issues.map { |holder, command| command_link(holder, command, index, repeated.key?(command.hecks_name)) }
+        end
+
+        def command_link(holder, command, index, shared)
+          label = holder_label(holder, command) if shared
+          index.link(:command, command.hecks_name, within: holder.hecks_name, label: label)
+        end
+
+        def holder_label(holder, command)
+          "#{Naming.words(command.hecks_name)} (#{Naming.words(holder.hecks_name).downcase})"
         end
 
         def split_trigger(dotted)

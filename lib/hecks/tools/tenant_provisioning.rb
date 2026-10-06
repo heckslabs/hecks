@@ -56,11 +56,9 @@ module Hecks
       def parse(argv)
         options = { adapter: "PostgresEra" }
         OptionParser.new do |parser|
-          parser.on("--domain=NAME")   { |v| options[:domain] = v }
-          parser.on("--realm=NAME")    { |v| options[:realm] = v }
-          parser.on("--schema=NAME")   { |v| options[:schema] = v }
-          parser.on("--database=NAME") { |v| options[:database] = v }
-          parser.on("--adapter=NAME")  { |v| options[:adapter] = v }
+          %i[domain realm schema database adapter].each do |flag|
+            parser.on("--#{flag}=NAME") { |v| options[flag] = v }
+          end
         end.parse!(argv)
 
         %i[domain realm schema database].each do |flag|
@@ -83,32 +81,38 @@ module Hecks
       def provision(slug, options, domain_directory)
         lib_hecks  = File.expand_path("..", __dir__)
         dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_doors: false)
-        facts = {
-          slug:      { value: slug },
-          domain:    { value: options[:domain] },
-          realm:     { value: options[:realm] },
-          schema:    { value: options[:schema] },
-          database:  { value: options[:database] },
-          adapter:   { value: options[:adapter] },
-          directory: { value: domain_directory }
-        }
+        provision_tenant(dispatcher, slug, tenant_facts(slug, options, domain_directory))
+        refuse_if_refused(dispatcher, slug)
 
-        begin
-          dispatcher.dry_run?("Deploy::Tenant.Provision", **facts)
-          dispatcher.dispatch("Deploy::Tenant.Provision", to: slug, with: facts)
-        rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
-          abort "tenant #{slug.inspect} is invalid: #{e.message}"
-        end
+        puts "wrote #{File.join(domain_directory, "environments", "#{slug}.world")}"
+        dispatcher
+      end
 
+      # @return [Hash{Symbol => Hash}] each fact of the `Tenant.Provision` command, as a value
+      def tenant_facts(slug, options, domain_directory)
+        values = { slug: slug }.merge(options.slice(:domain, :realm, :schema, :database, :adapter))
+                               .merge(directory: domain_directory)
+        values.transform_values { |value| { value: value } }
+      end
+
+      # Dry-runs `Tenant.Provision` to validate the shape, then dispatches it.
+      #
+      # @raise [SystemExit] when the declared shape is refused
+      def provision_tenant(dispatcher, slug, facts)
+        dispatcher.dry_run?("Deploy::Tenant.Provision", **facts)
+        dispatcher.dispatch("Deploy::Tenant.Provision", to: slug, with: facts)
+      rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
+        abort "tenant #{slug.inspect} is invalid: #{e.message}"
+      end
+
+      # @raise [SystemExit] when the port refused the provisioning
+      def refuse_if_refused(dispatcher, slug)
         tenant = dispatcher.registry.bluebook("Deploy").aggregate("Tenant")
         record = dispatcher.registry.repository("Deploy", tenant).find(slug)
         refused = record&.state&.dig(:refusal)
         refused = refused[:value] if refused.is_a?(Hash)
         record&.state&.dig(:status) == "refused" and
           abort "provisioning #{slug.inspect} was refused: #{refused}"
-
-        puts "wrote #{File.join(domain_directory, 'environments', "#{slug}.world")}"
-        dispatcher
       end
 
       # Boots the domain under the tenant's overlay (which also provisions the schema, since
@@ -125,17 +129,27 @@ module Hecks
         target = Hecks.boot(domain_directory, environment: slug, install_doors: false)
         puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
-        target.registry.bluebooks.each_key do |name|
-          Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(target.registry, name)
-        end
+        refuse_unless_tenant_capable(target.registry)
 
         # A refused reaction never raises, so the record itself is the proof.
-        tenant = dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))
-                           .find(slug)
-        tenant or abort "provisioning succeeded but #{slug.inspect} was never registered in Tenancy — " \
-                        "check registry.reaction_log for a silently refused Register"
+        tenancy_record(dispatcher, slug) or abort "provisioning succeeded but #{slug.inspect} was never " \
+                                                  "registered in Tenancy — " \
+                                                  "check registry.reaction_log for a silently refused Register"
 
         puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — registered under realm #{options[:realm].inspect}"
+      end
+
+      # @raise [SystemExit] when a bluebook of the registry is not tenant capable
+      def refuse_unless_tenant_capable(registry)
+        registry.bluebooks.each_key do |name|
+          Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(registry, name)
+        end
+      end
+
+      # @return [Object, nil] the tenant's record in Tenancy
+      def tenancy_record(dispatcher, slug)
+        dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))
+                  .find(slug)
       end
     end
   end

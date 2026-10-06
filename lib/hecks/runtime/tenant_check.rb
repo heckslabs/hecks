@@ -15,18 +15,23 @@ module Hecks
         return unless bluebook
 
         offender = bluebook.aggregates.find do |aggregate|
-          adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, domain, aggregate).adapter
-          !tenant_capable?(registry, adapter_name)
+          !tenant_capable?(registry, bound_adapter(registry, domain, aggregate))
         end
         return unless offender
 
-        adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, domain, offender).adapter
-        raise WiringError,
-              "#{domain}::#{offender.hecks_name} is bound to #{adapter_name}, which is not " \
-              "tenant_capable? — booting #{domain} for more than one tenant would share " \
-              "#{adapter_name}'s own storage across tenants that must never see each other's data. " \
-              "Bind a tenant-capable adapter (Memory, PostgresEra with its own schema: per tenant), " \
-              "or keep #{domain} single-tenant."
+        raise WiringError, ungoverned_wording(domain, offender, bound_adapter(registry, domain, offender))
+      end
+
+      def bound_adapter(registry, domain, aggregate)
+        Ports::Persistence::BindingPolicy.resolve(registry, domain, aggregate).adapter
+      end
+
+      def ungoverned_wording(domain, offender, adapter_name)
+        "#{domain}::#{offender.hecks_name} is bound to #{adapter_name}, which is not " \
+          "tenant_capable? — booting #{domain} for more than one tenant would share " \
+          "#{adapter_name}'s own storage across tenants that must never see each other's data. " \
+          "Bind a tenant-capable adapter (Memory, PostgresEra with its own schema: per tenant), " \
+          "or keep #{domain} single-tenant."
       end
 
       # Same defensive shape as EraCheck#lineage_capable? — a class that

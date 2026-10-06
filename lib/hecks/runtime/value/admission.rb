@@ -18,22 +18,9 @@ module Hecks
         #   admitted values of the first attribute and the one offered
         def admit_member(value_object, fields)
           return if value_object.members.empty?
-
-          discriminant = value_object.attributes.first.name
-          offered      = fields[discriminant]
-          admitted     = value_object.members.map { |member| member[discriminant].to_s }
           return if value_object.members.any? { |member| member_matches?(member, fields) }
 
-          raise InvariantViolation,
-                RefusalWording.render_site("InvariantViolation", "closed_set_member",
-                                           type: value_object.hecks_name,
-                                           admitted: admitted, offered: offered.inspect)
-        end
-
-        # Compares every declared field, not only the first: a multi-column `member` row is a
-        # whole tuple, so a matching first column with a wrong second is not a member.
-        private def member_matches?(member, fields)
-          member.all? { |field, value| fields[field].to_s == value.to_s }
+          refuse_non_member!(value_object, fields)
         end
 
         # Checks a value against the closed set its attribute names with `admits:`.
@@ -72,10 +59,7 @@ module Hecks
         # @raise [Runtime::InvariantViolation] if `admits` is not qualified, no chapter is
         #   reachable from `owner`, or the chapter declares no such aggregate or value object
         def admitted_members(owner, attribute)
-          aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
-          chapter = chapter_of(owner)
-          set     = set_name && chapter&.aggregate(aggregate_name)&.value_object(set_name)
-
+          set = declared_set(owner, attribute)
           unless set
             raise InvariantViolation,
                   RefusalWording.render_site("InvariantViolation", "undeclared_set",
@@ -110,8 +94,33 @@ module Hecks
           fields.size == 1 ? fields.values.first : value
         end
 
+        private
+
+        def refuse_non_member!(value_object, fields)
+          discriminant = value_object.attributes.first.name
+          admitted     = value_object.members.map { |member| member[discriminant].to_s }
+          raise InvariantViolation,
+                RefusalWording.render_site("InvariantViolation", "closed_set_member",
+                                           type: value_object.hecks_name,
+                                           admitted: admitted, offered: fields[discriminant].inspect)
+        end
+
+        # Compares every declared field, not only the first: a multi-column `member` row is a
+        # whole tuple, so a matching first column with a wrong second is not a member.
+        def member_matches?(member, fields)
+          member.all? { |field, value| fields[field].to_s == value.to_s }
+        end
+
+        # The value object `attribute.admits` names (`"Aggregate::Set"`), when the chapter declares
+        # it.
+        def declared_set(owner, attribute)
+          aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
+          chapter = chapter_of(owner)
+          set_name && chapter&.aggregate(aggregate_name)&.value_object(set_name)
+        end
+
         # Applies `admits:` to value-object fields too, which never pass through `for_attribute`.
-        private def check_admitted(value_object, fields)
+        def check_admitted(value_object, fields)
           value_object.attributes.each do |attribute|
             next unless attribute.admits
 

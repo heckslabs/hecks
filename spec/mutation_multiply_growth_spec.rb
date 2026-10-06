@@ -4,27 +4,31 @@ require "tempfile"
 # Real dispatch coverage for the `multiply` mutation op: `current * amount`,
 # the scaling counterpart to increment/decrement's add/subtract (i106).
 RSpec.describe "mutation op multiply" do
+  MULTIPLY_SPEC_FILES = [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+                         InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].freeze
+
+  # Loads the ports and adapters, evaluates the bluebook `source` read from `path`, and declares the
+  # hecksagon `hecksagon_name` with `binds`, all into `registry`.
+  def load_multiply_domain(registry, source, path, hecksagon_name, &binds)
+    Hecks::Bluebook::MetaValidator.while_disabled do
+      Hecks.with_registry(registry) do
+        MULTIPLY_SPEC_FILES.each { |file| Kernel.load(file) }
+        Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+        Hecks.hecksagon(hecksagon_name, &binds)
+      end
+    end
+  end
+
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["mutation-multiply-growth-", ".bluebook"])
     file.write(source)
     file.flush
 
     registry = Hecks::Runtime::Registry.new
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
+    load_multiply_domain(registry, source, file.path, hecksagon_name, &binds)
 
     registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(
-      Hecks::Runtime::Dispatcher.new(registry)
-    )
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   ensure
     file&.close!
   end

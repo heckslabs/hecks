@@ -14,6 +14,13 @@ RSpec.describe Hecks::Ports::AccessControl do
     registry
   end
 
+  def registry_with_two_adapters
+    registry_with do
+      Hecks.adapter("FirstAccessControl") { port "access_control" }
+      Hecks.adapter("SecondAccessControl") { port "access_control" }
+    end
+  end
+
   describe "adapter resolution" do
     it "refuses when no adapter implements the port" do
       registry = registry_with
@@ -23,10 +30,7 @@ RSpec.describe Hecks::Ports::AccessControl do
     end
 
     it "refuses to choose between more than one bound adapter" do
-      registry = registry_with do
-        Hecks.adapter("FirstAccessControl") { port "access_control" }
-        Hecks.adapter("SecondAccessControl") { port "access_control" }
-      end
+      registry = registry_with_two_adapters
 
       expect { described_class.available_roles(registry) }
         .to raise_error(Hecks::Runtime::WiringError, /FirstAccessControl, SecondAccessControl/)

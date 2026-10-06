@@ -2,13 +2,15 @@ require "hecks"
 require_relative "../fixtures/sequential_identity"
 
 RSpec.describe Hecks::Ports::IdentityGeneration do
+  def load_in_memory_ports
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |path| Kernel.load(path) }
+  end
+
   def registry_with(*adapter_paths)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_in_memory_ports
       Kernel.load(File.expand_path("../../lib/hecks/ports/identity_generation.port", __dir__))
       adapter_paths.each { |path| Kernel.load(path) }
     end
@@ -40,59 +42,73 @@ RSpec.describe Hecks::Ports::IdentityGeneration do
   end
 
   describe "against a real creating command" do
+    def declare_pizzas
+      Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+      Hecks.hecksagon("Pizzas") do
+        attaches "Governance"
+        Pizzas::Order.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
+      end
+    end
+
     def boot_pizzas
       registry = registry_with(SEQUENTIAL_ADAPTER)
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Hecks.hecksagon("Pizzas") do
-          attaches "Governance"
-          Pizzas::Order.persisted_by("Memory")
-        end
-        Hecks.hecksagon("Governance") do
-          Governance::RoleAssignment.persisted_by("Memory")
-          Governance::RoleTransition.persisted_by("Memory")
-        end
-      end
+      Hecks.with_registry(registry) { declare_pizzas }
       registry.verify!
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
     let(:pizza_args) { { pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } } }
 
+    def create_pizza(runtime, id)
+      runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: id }, **pizza_args)
+    end
+
+    before { Hecks::Adapters::SequentialIdentity.reset! }
+
     it "mints an identity a creating command can use directly — an ordinary string, nothing special" do
-      Hecks::Adapters::SequentialIdentity.reset!
       runtime = boot_pizzas
 
       minted = described_class.uuid(runtime.registry)
-      result = runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
 
-      expect(result.instance.id).to eq(minted)
+      expect(create_pizza(runtime, minted).instance.id).to eq(minted)
     end
 
-    it "replay never re-invokes the adapter — the recorded id round-trips instead of being re-minted" do
-      Hecks::Adapters::SequentialIdentity.reset!
-
+    describe "replay never re-invokes the adapter — the recorded id round-trips instead of being re-minted" do
       # **First, live dispatch** — the adapter is called once, and the minted
       # value becomes an ordinary argument from here on.
-      first_runtime = boot_pizzas
-      minted        = described_class.uuid(first_runtime.registry)
-      first_runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
-
-      # The next real mint should be "2" — proving nothing else touched the
-      # adapter during that one dispatch.
-      expect(Hecks::Adapters::SequentialIdentity.uuid).to eq("2")
-      Hecks::Adapters::SequentialIdentity.reset!
+      let(:minted) do
+        first_runtime = boot_pizzas
+        described_class.uuid(first_runtime.registry).tap { |id| create_pizza(first_runtime, id) }
+      end
 
       # Replay — a completely fresh boot, the same recorded args (exactly
-      # what a corpus script or a captured fuzz-replay step holds; this
-      # spec never calls the adapter again to get them).
-      replay_runtime = boot_pizzas
-      replayed       = replay_runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
+      # what a corpus script or a captured fuzz-replay step holds; these
+      # specs never call the adapter again to get them).
+      def replay
+        recorded = minted
+        Hecks::Adapters::SequentialIdentity.reset!
+        create_pizza(boot_pizzas, recorded)
+      end
 
-      expect(replayed.instance.id).to eq(minted)
-      # The adapter's own counter is untouched by replay — the next real
-      # mint is still "1", the same value a reset-and-first-call gives.
-      expect(Hecks::Adapters::SequentialIdentity.uuid).to eq("1")
+      it "touches the adapter once for the live dispatch, so the next real mint is 2" do
+        minted
+
+        expect(Hecks::Adapters::SequentialIdentity.uuid).to eq("2")
+      end
+
+      it "replays the recorded id" do
+        expect(replay.instance.id).to eq(minted)
+      end
+
+      it "leaves the adapter's counter untouched by replay, so the next real mint is still 1" do
+        replay
+
+        expect(Hecks::Adapters::SequentialIdentity.uuid).to eq("1")
+      end
     end
   end
 end

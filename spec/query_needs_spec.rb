@@ -11,65 +11,70 @@ RSpec.describe "a query that needs a fact" do
     def now = (2 * 86_400) + 100
   end
 
-  def declare_pilot
-    Hecks.bluebook "QueryNeedsPilot" do
-      aggregate "Link" do
+  QUERY_NEEDS_PILOT = proc do
+    aggregate "Link" do
+      attribute :ref, Ref
+      attribute :expires_at, Instant, optional: true
+      attribute :day, Day, optional: true
+      identified_by :ref
+
+      value_object("Ref")     { attribute :value, String }
+      value_object("Instant") { attribute :value, Integer }
+      value_object("Day")     { attribute :value, Integer }
+
+      command "Issue" do
         attribute :ref, Ref
-        attribute :expires_at, Instant, optional: true
-        attribute :day, Day, optional: true
-        identified_by :ref
+        attribute :expires_at, Instant
+        attribute :day, Day
+        sets :ref
+        sets :expires_at
+        sets :day
+        emits Issued
+      end
 
-        value_object("Ref")     { attribute :value, String }
-        value_object("Instant") { attribute :value, Integer }
-        value_object("Day")     { attribute :value, Integer }
+      query "Expired" do
+        attribute :now, Instant
+        needs :now
+        where("expires_at.value": { lte: :now })
+        order_by :ref
+      end
 
-        command "Issue" do
-          attribute :ref, Ref
-          attribute :expires_at, Instant
-          attribute :day, Day
-          sets :ref
-          sets :expires_at
-          sets :day
-          emits Issued
-        end
+      query "IssuedToday" do
+        attribute :today, Day
+        needs :today
+        where("day.value": :today)
+        order_by :ref
+      end
 
-        query "Expired" do
-          attribute :now, Instant
-          needs :now
-          where("expires_at.value": { lte: :now })
-          order_by :ref
-        end
-
-        query "IssuedToday" do
-          attribute :today, Day
-          needs :today
-          where("day.value": :today)
-          order_by :ref
-        end
-
-        # No `needs`: the caller must name the time.
-        query "ExpiredAsOf" do
-          attribute :now, Instant
-          where("expires_at.value": { lte: :now })
-          order_by :ref
-        end
+      # No `needs`: the caller must name the time.
+      query "ExpiredAsOf" do
+        attribute :now, Instant
+        where("expires_at.value": { lte: :now })
+        order_by :ref
       end
     end
+  end
+
+  def load_adapters
+    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+  end
+
+  def declare_pilot
+    Hecks.bluebook("QueryNeedsPilot", &QUERY_NEEDS_PILOT)
+    stub_const("Hecks::Adapters::QueryNeedsClock", QueryNeedsFixedClock)
+    Hecks.adapter("QueryNeedsClock") { port "clock" }
+    Hecks.hecksagon("QueryNeedsPilot") { QueryNeedsPilot::Link.persisted_by("Memory") }
   end
 
   def boot_pilot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-
+      load_adapters
       declare_pilot
-      stub_const("Hecks::Adapters::QueryNeedsClock", QueryNeedsFixedClock)
-      Hecks.adapter("QueryNeedsClock") { port "clock" }
-      Hecks.hecksagon("QueryNeedsPilot") { QueryNeedsPilot::Link.persisted_by("Memory") }
     end
 
     registry.verify!
@@ -99,7 +104,7 @@ RSpec.describe "a query that needs a fact" do
     expect(refs(runtime.query("QueryNeedsPilot::Link.IssuedToday"))).to eq(%w[late mid])
   end
 
-  it "leaves a query without `needs` to its caller: nothing is filled from the clock" do
+  it "leaves a query without `needs` to its caller: nothing is filled from the clock", :aggregate_failures do
     expect(refs(runtime.query("QueryNeedsPilot::Link.ExpiredAsOf"))).to eq([])
     expect(refs(runtime.query("QueryNeedsPilot::Link.ExpiredAsOf", now: { value: 172_900 }))).to eq(%w[mid old])
   end
@@ -107,11 +112,23 @@ RSpec.describe "a query that needs a fact" do
   describe "the builder" do
     def build(&block) = Hecks::Bluebook::DSL::QueryBuilder.build("Ask", &block)
 
-    it "records a declared fact on the query and emits it" do
-      query = build do
+    def query_needing_now
+      build do
         attribute :now, Integer
         needs :now
       end
+    end
+
+    def build_declaring_now_twice
+      build do
+        attribute :now, Integer
+        needs :now
+        needs :now
+      end
+    end
+
+    it "records a declared fact on the query and emits it", :aggregate_failures do
+      query = query_needing_now
 
       expect(query.needs).to eq([:now])
       expect(query.to_h[:needs]).to eq([{ fact: "now" }])
@@ -126,13 +143,7 @@ RSpec.describe "a query that needs a fact" do
     end
 
     it "refuses a fact declared twice" do
-      expect do
-        build do
-          attribute :now, Integer
-          needs :now
-          needs :now
-        end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /twice/)
+      expect { build_declaring_now_twice }.to raise_error(Hecks::Bluebook::DSL::Malformed, /twice/)
     end
 
     it "refuses a need with no attribute to fill" do

@@ -16,7 +16,7 @@ RSpec.describe "README current-release claims" do
     stale = claimed.reject { |version| version == Hecks::VERSION }
 
     expect(stale).to be_empty,
-                     "README says #{stale.uniq.join(', ')} but Hecks::VERSION is " \
+                     "README says #{stale.uniq.join(", ")} but Hecks::VERSION is " \
                      "#{Hecks::VERSION} — update every 'Current release:' line in README.md"
   end
 end

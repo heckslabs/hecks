@@ -32,21 +32,24 @@ module Hecks
       # @raise [NameError] if a chapter or aggregate name is not a valid constant name
       def install(dispatcher)
         dispatcher.registry.bluebooks.each_value do |bluebook|
-          next if attached_chapter?(dispatcher.registry, bluebook)
-
-          chapter = chapter_module(dispatcher, bluebook)
-          Namespace.install(*placement(bluebook), chapter)
-          # A namespaced chapter keeps its aggregates inside its namespace: top-level
-          # shortcuts would bring back the collisions the namespace exists to avoid.
-          next if bluebook.namespace
-
-          bluebook.aggregates.each do |aggregate|
-            next if aggregate.hecks_name == bluebook.name
-
-            Namespace.install(Object, aggregate.hecks_name, chapter.const_get(aggregate.hecks_name, false))
-          end
+          install_chapter(dispatcher, bluebook) unless attached_chapter?(dispatcher.registry, bluebook)
         end
         dispatcher
+      end
+
+      # Installs one chapter's module, and the top-level shortcut of each of its aggregates.
+      def install_chapter(dispatcher, bluebook)
+        chapter = chapter_module(dispatcher, bluebook)
+        Namespace.install(*placement(bluebook), chapter)
+        # A namespaced chapter keeps its aggregates inside its namespace: top-level
+        # shortcuts would bring back the collisions the namespace exists to avoid.
+        return if bluebook.namespace
+
+        bluebook.aggregates.each do |aggregate|
+          next if aggregate.hecks_name == bluebook.name
+
+          Namespace.install(Object, aggregate.hecks_name, chapter.const_get(aggregate.hecks_name, false))
+        end
       end
 
       # Whether `bluebook` is a gem chapter that a hecksagon attached rather than a domain's own.

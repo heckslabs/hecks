@@ -26,22 +26,11 @@ module Hecks
         # because frozen era text still writes it. Only the wrapper passes a block.
         def one_of_impl(*values, &block)
           unless block
-            # An empty one_of names a closed set with nothing in it; refuse rather than no-op.
-            if values.empty?
-              raise Malformed,
-                    "#{@name}'s one_of names no values — one_of(\"a\", \"b\") takes at least one, or " \
-                    "give the attribute its own one_of: [...] for a named closed set"
-            end
-
+            refuse_empty_one_of!(values)
             return super(*values)
           end
 
-          unless MetaValidator.shadow_parsing?
-            raise Malformed,
-                  "#{@name}'s one_of do ... end wrapper is gone — give the single attribute its " \
-                  "own one_of: [...], or write bare member lines with no wrapper for a multi-field set"
-          end
-
+          refuse_one_of_wrapper!
           @closed_set = true
           instance_eval(&block)
         end
@@ -78,12 +67,7 @@ module Hecks
         public
 
         def build
-          if @inline_closed_set_field && attributes.size > 1
-            raise Malformed,
-                  "#{@name}'s one_of: on :#{@inline_closed_set_field} only works when it is the " \
-                  "value object's only attribute — #{attributes.size} declared here; write bare " \
-                  "member lines instead for a multi-field set"
-          end
+          refuse_multi_field_inline_set!
 
           ValueObject.declare(
             name: @name, attributes: attributes,
@@ -99,6 +83,32 @@ module Hecks
         end
 
         private
+
+        # An empty one_of names a closed set with nothing in it; refuse rather than no-op.
+        def refuse_empty_one_of!(values)
+          return unless values.empty?
+
+          raise Malformed,
+                "#{@name}'s one_of names no values — one_of(\"a\", \"b\") takes at least one, or " \
+                "give the attribute its own one_of: [...] for a named closed set"
+        end
+
+        def refuse_one_of_wrapper!
+          return if MetaValidator.shadow_parsing?
+
+          raise Malformed,
+                "#{@name}'s one_of do ... end wrapper is gone — give the single attribute its " \
+                "own one_of: [...], or write bare member lines with no wrapper for a multi-field set"
+        end
+
+        def refuse_multi_field_inline_set!
+          return unless @inline_closed_set_field && attributes.size > 1
+
+          raise Malformed,
+                "#{@name}'s one_of: on :#{@inline_closed_set_field} only works when it is the " \
+                "value object's only attribute — #{attributes.size} declared here; write bare " \
+                "member lines instead for a multi-field set"
+        end
 
         # Private callback `attribute` invokes for `one_of:`. A single-field set names exactly one
         # field; a second one would leave it ambiguous which field each member line belongs to.

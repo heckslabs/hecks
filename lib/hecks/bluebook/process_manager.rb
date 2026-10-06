@@ -1,5 +1,6 @@
 require_relative "behaviour/process_manager"
 require_relative "../ir"
+require_relative "keyword_fields"
 
 module Hecks
   module Bluebook
@@ -33,7 +34,7 @@ module Hecks
     Saga = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
       def undoes = compensations.map(&:command_name)
 
-      def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
+      def to_s = "#{trigger} → #{to_state} (#{undoes.join(", ")})"
     end
 
     # The built form of a `process_manager "Name" do ... end` block, made by
@@ -59,18 +60,18 @@ module Hecks
 
       attr_reader :name, :correlates_by, :starts_on, :ends_on, :states, :handlers
 
+      # Every optional keyword and what it holds when the declaration omits it.
+      FIELD_DEFAULTS = {
+        correlates_by: nil, starts_on: nil, ends_on: nil, states: [], handlers: []
+      }.freeze
+
       # @param correlates_by [Symbol, nil] the payload field that correlates a triggering
       #   event to an instance
       # @param starts_on [String, nil] the event that starts a new instance
       # @param ends_on [String, nil] the event that ends an instance
-      def initialize(name:, correlates_by: nil, starts_on: nil, ends_on: nil,
-                     states: [], handlers: [])
-        @name          = name.to_s
-        @correlates_by = correlates_by
-        @starts_on     = starts_on
-        @ends_on       = ends_on
-        @states        = states
-        @handlers      = handlers
+      def initialize(name:, **given)
+        KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
+        @name = name.to_s
       end
     end
   end

@@ -11,6 +11,29 @@ Push with `git push`, not `jj git push` — jj bypasses git hooks, so
 attestation) wouldn't run. Colocation keeps bookmarks synced to git
 branches, so plain `git push` still works.
 
+## Running specs
+
+Run a spec file through the launcher, which is the sanctioned path (see "Use the
+hecks binary" below):
+
+```sh
+HECKS_ENVIRONMENT=memory exe/hecks test_suite_run.run_spec_example! \
+  file.value=spec/doc_banners_spec.rb "example.value= " --wait
+```
+
+`example.value` filters on the full example description; a single space matches
+every example. The report ends with the example and failure counts. Without
+`HECKS_ENVIRONMENT=memory` it needs a local Postgres `hecks` database. The memory
+environment changes some behavior: two guide examples that retry a payment
+(`commands.md`, `policies-and-process-managers.md`) fail under it.
+
+A session isolated in a git worktree has had `bundle exec` with the spec runner
+refused with "too complex to verify that it stays inside the worktree", while
+`cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
+script body that merely named the runner or git were refused too, so the guard
+may be matching on the command text. Use the launcher form above, not a wrapper
+script around the refused command.
+
 Comments you write in this repository's Ruby (`lib/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
 
@@ -41,6 +64,30 @@ current list of what this repo can do.
   (projections, regeneration, style checks, model_check, smoke tests).
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
+
+## RuboCop is strict: it runs at its defaults
+
+`.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`
+lists, so every other cop runs at the RuboCop default, new cops included. The pre-push gate and CI
+run it over the whole repository, specs too, and one offense blocks the push. Write code that
+passes the first time:
+
+- **Metrics are on.** A method is at most 10 lines, with ABC size 17, cyclomatic complexity 7 and
+  at most 5 parameters; a class or module is at most 100 lines. Do not write one long method and
+  a `# rubocop:disable`: extract named helpers or a collaborator class, because the extraction is
+  usually the better design. Raising a limit in `.rubocop.yml` needs an ADR 0091 entry; do not do it
+  to land a change.
+- **Specs are held to it as well.** An example is at most 5 lines and holds one expectation, so a
+  multi-step example is tagged `:aggregate_failures` (see `spec/hecks_codebase_adr_rows_spec.rb`)
+  and its setup goes into a helper method; at most 5 `let`s per group (a plain method is not
+  counted); prefer `receive` and `have_received` over a bare expectation on a message
+  (`RSpec/MessageSpies`).
+- **Style is set, not chosen.** Double quotes everywhere, including inside interpolation
+  (`"#{lane["name"]}"`, never `'name'`), table-aligned hashes, and 130 columns for code.
+- **Check before you push:** `bundle exec rubocop <files>` while you work, `bundle exec rubocop`
+  for the whole tree, and `bundle exec rubocop -a <files>` for the offenses it can fix itself (it
+  fixes style, not metrics). Run it in a clean checkout before you call work done: a `.gitignore`
+  entry can hide a file in your tree that a fresh clone will not have.
 
 ## Two lanes: `main` takes pushes, `stable` is promoted
 

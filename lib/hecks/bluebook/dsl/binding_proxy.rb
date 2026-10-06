@@ -25,23 +25,7 @@ module Hecks
           aggregate_ir = Hecks.current_registry.bluebook(domain)&.aggregate(aggregate_name) or
             raise Malformed, "#{@fqn} declares no such aggregate — a port needs one to belong to"
 
-          # ConstShim's resolver is one global for the whole dynamic extent; without
-          # swapping it here, a bare `Pizza` inside `reference_to Pizza` would resolve
-          # to another BindingProxy instead of a plain name.
-          built = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, owner: aggregate_name, &block) }
-
-          # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port`
-          # registers — it belongs to no aggregate IR the way an operations-shaped
-          # `DomainPort` does, so it takes the registry's `add_port` directly.
-          if built.is_a?(Port)
-            Hecks.current_registry.add_port(built)
-            return self
-          end
-
-          built.operations.each do |operation|
-            operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = aggregate_ir }
-          end
-          aggregate_ir.add_port(built)
+          register_port(build_port(name, aggregate_name, block), aggregate_ir)
           self
         end
 
@@ -64,6 +48,27 @@ module Hecks
         def respond_to_missing?(_name, _include_private = false) = true
 
         def to_s = @fqn
+
+        private
+
+        # ConstShim's resolver is one global for the whole dynamic extent; without
+        # swapping it here, a bare `Pizza` inside `reference_to Pizza` would resolve
+        # to another BindingProxy instead of a plain name.
+        def build_port(name, aggregate_name, body)
+          ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, owner: aggregate_name, &body) }
+        end
+
+        # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port`
+        # registers — it belongs to no aggregate IR the way an operations-shaped
+        # `DomainPort` does, so it takes the registry's `add_port` directly.
+        def register_port(built, aggregate_ir)
+          return Hecks.current_registry.add_port(built) if built.is_a?(Port)
+
+          built.operations.each do |operation|
+            operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = aggregate_ir }
+          end
+          aggregate_ir.add_port(built)
+        end
       end
 
       # What a Privacy-marking chain resolves to after its first bare segment — each
@@ -80,7 +85,7 @@ module Hecks
           return record_marking(name.delete_prefix("has_"), readable_by) if name.start_with?("has_")
 
           if !args.empty? || !kwargs.empty? || block
-            raise Malformed, "#{@fqn}.#{@path.join('.')}.#{name} — an attribute path chain takes no " \
+            raise Malformed, "#{@fqn}.#{@path.join(".")}.#{name} — an attribute path chain takes no " \
                              "arguments except a terminal has_<category>(readable_by:)"
           end
 
@@ -89,7 +94,7 @@ module Hecks
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        def to_s = "#{@fqn}.#{@path.join('.')}"
+        def to_s = "#{@fqn}.#{@path.join(".")}"
 
         private
 

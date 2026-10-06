@@ -70,25 +70,33 @@ jobs:
           name: host
           crate-root: rust/host
 
-      # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm.
-      # rust/dist is gitignored, so build both here.
       - uses: ./.github/actions/wasm-toolchain
-
-      - name: Build banking + checkout_fixture wasm
-        run: |
-          bundle exec exe/hecks build.build_wasm domain=examples/banking --wait
-          bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
-          # hecks build_wasm regenerates tracked rust/src/generated +
-          # rust/Cargo.toml as a side effect; put them back.
-          git checkout -- rust/src/generated rust/Cargo.toml
-          git clean -fdq rust/src/generated
 
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
       # role; the postgres action already trusts loopback TCP.
       - name: Create a superuser role for the runner user
         run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
 
-      # `bundle exec` lets the Ruby mint fixtures (spawned as plain `ruby`) load `pg`.
+      # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm, read at run
+      # time only (rust/dist is gitignored). So build both in the background while the
+      # test binaries compile, then run the tests once both are done.
+      - name: "Build wasm in the background, compile tests"
+        run: |
+          (
+            bundle exec exe/hecks build.build_wasm domain=examples/banking --wait &&
+            bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+          ) > "$RUNNER_TEMP/wasm.log" 2>&1 &
+          wasm_pid=$!
+          # `bundle exec` lets the Ruby mint fixtures (spawned as plain `ruby`) load `pg`.
+          (cd rust/host && bundle exec cargo test --no-run)
+          if ! wait "$wasm_pid"; then cat "$RUNNER_TEMP/wasm.log"; exit 1; fi
+          cat "$RUNNER_TEMP/wasm.log"
+          # hecks build_wasm regenerates tracked rust/src/generated +
+          # rust/Cargo.toml as a side effect; put them back. Tests read
+          # rust/src/generated/*/ir.json, so this must finish before they run.
+          git checkout -- rust/src/generated rust/Cargo.toml
+          git clean -fdq rust/src/generated
+
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test
 

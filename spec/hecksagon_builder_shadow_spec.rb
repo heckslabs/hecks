@@ -17,38 +17,56 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   before do
     require_relative "../lib/hecks/release/gem_pin"
     allow(Hecks).to receive(:current_registry).and_return(registry)
+    @real = Hecks::Release
   end
 
-  it "shows a chapter loaded by `attaches` the real module, and shadows again afterwards" do
-    real = Hecks::Release
+  def missing_constant_error
+    Hecks::NotAnAggregate
+  rescue NameError => e
+    e
+  end
+
+  # Stubs the chapter load to record what a chapter loaded by `attaches` sees; answers the record.
+  def record_chapter_load
     seen = {}
     allow(Hecks::Chapters).to receive(:load!) do |_name|
       seen[:defined] = Hecks.const_defined?(:Release, false)
       seen[:module]  = Hecks.const_get(:Release)
-      seen[:missing] = begin
-        Hecks::NotAnAggregate
-      rescue NameError => e
-        e
-      end
+      seen[:missing] = missing_constant_error
     end
-    after_attach = nil
-
-    builder.build("Hecks") do
-      attaches "Bluebook"
-      after_attach = Hecks.const_defined?(:Release, false)
-    end
-
-    expect(seen[:defined]).to be(true)
-    expect(seen[:module]).to equal(real)
-    expect(seen[:missing]).to be_a(NameError)
-    expect(after_attach).to be(false)
-    expect(Hecks::Release).to equal(real)
+    seen
   end
 
-  it "leaves the real modules in place after a build that raises" do
-    real = Hecks::Release
+  # Builds a hecksagon that attaches a chapter; answers whether the real module is visible
+  # right after.
+  def release_visible_after_attach
+    visible = nil
+    builder.build("Hecks") do
+      attaches "Bluebook"
+      visible = Hecks.const_defined?(:Release, false)
+    end
+    visible
+  end
+
+  it "shows a chapter loaded by `attaches` the real module", :aggregate_failures do
+    seen = record_chapter_load
+    release_visible_after_attach
+
+    expect(seen[:defined]).to be(true)
+    expect(seen[:module]).to equal(@real)
+    expect(seen[:missing]).to be_a(NameError)
+  end
+
+  it "shadows the real module again once the attach is done", :aggregate_failures do
+    record_chapter_load
+
+    expect(release_visible_after_attach).to be(false)
+    expect(Hecks::Release).to equal(@real)
+  end
+
+  it "leaves the real modules in place after a build that raises", :aggregate_failures do
     expect { builder.build("Hecks") { raise "boom" } }.to raise_error("boom")
-    expect(Hecks::Release).to equal(real)
+    expect(Hecks::Release).to equal(@real)
   end
 
   it "keeps the build's state on its own thread" do

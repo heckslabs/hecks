@@ -25,14 +25,7 @@ module Hecks
       #   to resolve which function to call; nil falls further back to `domain`
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
-        domain =
-          if settings.key?(:domain)
-            settings[:domain]
-          elsif settings.key?("domain")
-            settings["domain"]
-          else
-            aggregate.name
-          end
+        domain = setting(settings, :domain, aggregate.name)
         region = setting(settings, :region, "us-east-1")
         # Explicit function name, for deployments whose function is not `hecks-<domain>`.
         function = setting(settings, :function, nil)

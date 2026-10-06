@@ -25,11 +25,12 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     raise "cargo build did not produce #{HECKS_BUILD_BINARY}" unless File.executable?(HECKS_BUILD_BINARY)
   end
 
-  # What only the live registry can supply to `hecks project_rust`: persistence bindings, the optional
-  # seams `rust/host` reads, translation edges and the verbatim source text. `hecks-parse` reads
-  # none of them, so `ir.json` (and `metadata.rs`, which embeds it) match only without them.
-  # `lineage` is not among them: `hecks-build` derives it from the hecksagon and world text, and the
-  # two must agree on which aggregates are lineage-capable (compliance binds three through its world).
+  # What only the live registry can supply to `hecks project_rust`: persistence bindings, the
+  # optional seams `rust/host` reads, translation edges and the verbatim source text.
+  # `hecks-parse` reads none of them, so `ir.json` (and `metadata.rs`, which embeds it) match only
+  # without them. `lineage` is not among them: `hecks-build` derives it from the hecksagon and
+  # world text, and the two must agree on which aggregates are lineage-capable (compliance binds
+  # three through its world).
   HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity newsletter newsletter_issues
                                 payments registrations payment_connection translations approvals
                                 source_text].freeze
@@ -84,45 +85,57 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     Dir.glob(File.join(dir, "*")).select { |path| File.file?(path) }.map { |path| File.basename(path) }.sort
   end
 
+  # Copies the generated output of `dirs` into a fresh scratch directory and answers its path.
+  def snapshot_generated(dirs)
+    Dir.mktmpdir("hecks-build-pipeline-spec-ruby").tap do |snapshot|
+      dirs.each { |dir| FileUtils.cp_r(File.join(HB_GENERATED_ROOT, dir), File.join(snapshot, dir)) }
+    end
+  end
+
+  def file_list_problem(dir, ruby_files, rust_files)
+    return if rust_files == ruby_files
+
+    "#{dir}: hecks-build's own file list differs from hecks project_rust's — " \
+      "ruby: #{ruby_files.inspect}, hecks-build: #{rust_files.inspect}"
+  end
+
+  def text_problems(dir, ruby_dir, rust_dir, basenames)
+    basenames.filter_map do |basename|
+      ruby_text = comparable_text(ruby_dir, basename)
+      next if ruby_text.nil? || comparable_text(rust_dir, basename) == ruby_text
+
+      "#{dir}/#{basename}: hecks-build's output does not byte-match hecks project_rust's"
+    end
+  end
+
+  # What differs between the Ruby snapshot of `dir` and what hecks-build generated, as messages.
+  def dir_problems(dir, snapshot)
+    ruby_dir = File.join(snapshot, dir)
+    rust_dir = File.join(HB_GENERATED_ROOT, dir)
+    ruby_files = files_in(ruby_dir)
+    [file_list_problem(dir, ruby_files, files_in(rust_dir)), *text_problems(dir, ruby_dir, rust_dir, ruby_files)].compact
+  end
+
+  CARGO_SYNC_PROBLEM = "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match hecks project_rust's".freeze
+
+  # Runs both pipelines for `domain` and answers what differs between them, as messages.
+  def pipeline_differences(domain, dirs)
+    run_project_rust!(domain)
+    snapshot = snapshot_generated(dirs)
+    ruby_cargo_toml = File.read(HB_CARGO_TOML)
+    run_hecks_build!(domain)
+    problems = dirs.flat_map { |dir| dir_problems(dir, snapshot) }
+    # Both commands sync the `default =` feature in rust/Cargo.toml to the same target.
+    problems << CARGO_SYNC_PROBLEM unless File.read(HB_CARGO_TOML) == ruby_cargo_toml
+    problems
+  ensure
+    FileUtils.remove_entry(snapshot) if snapshot
+  end
+
   HB_PARITY_DOMAINS.each do |domain, dirs|
     # One end-to-end claim per domain: splitting would re-run both real pipelines for each part.
-    # rubocop:disable-next RSpec/ExampleLength
     it "#{domain}: hecks-build's own generated output matches hecks project_rust's, byte for byte" do
-      run_project_rust!(domain)
-
-      ruby_snapshot = Dir.mktmpdir("hecks-build-pipeline-spec-ruby")
-      dirs.each { |dir| FileUtils.cp_r(File.join(HB_GENERATED_ROOT, dir), File.join(ruby_snapshot, dir)) }
-      ruby_cargo_toml = File.read(HB_CARGO_TOML)
-
-      run_hecks_build!(domain)
-
-      dirs.each do |dir|
-        ruby_dir = File.join(ruby_snapshot, dir)
-        rust_dir = File.join(HB_GENERATED_ROOT, dir)
-
-        ruby_files = files_in(ruby_dir)
-        rust_files = files_in(rust_dir)
-        expect(rust_files).to eq(ruby_files),
-                              "#{dir}: hecks-build's own file list differs from hecks project_rust's — " \
-                              "ruby: #{ruby_files.inspect}, hecks-build: #{rust_files.inspect}"
-
-        ruby_files.each do |basename|
-          ruby_text = comparable_text(ruby_dir, basename)
-          rust_text = comparable_text(rust_dir, basename)
-          next if ruby_text.nil?
-
-          expect(rust_text).to eq(ruby_text),
-                               "#{dir}/#{basename}: hecks-build's output does not byte-match hecks project_rust's"
-        end
-      end
-
-      # Both commands sync the `default =` feature in rust/Cargo.toml to the same target.
-      hecks_build_cargo_toml = File.read(HB_CARGO_TOML)
-      expect(hecks_build_cargo_toml).to eq(ruby_cargo_toml),
-                                        "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match " \
-                                        "hecks project_rust's"
-    ensure
-      FileUtils.remove_entry(ruby_snapshot) if ruby_snapshot
+      expect(pipeline_differences(domain, dirs)).to be_empty
     end
   end
 
@@ -134,16 +147,18 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
       raise "hecks-build #{domain} --wasm failed:\n#{err}" unless status.success?
     end
 
-    it "produces the identical .wasm hecks-build --wasm produces directly, not the Ruby generator's own build" do
-      domain = "examples/pizzas"
-      dist_wasm = File.join(HB_ROOT, "rust", "dist", "pizzas.wasm")
+    def dist_wasm = File.join(HB_ROOT, "rust", "dist", "pizzas.wasm")
 
-      run_hecks_build_wasm!(domain)
-      direct_wasm = File.binread(dist_wasm)
-
+    def run_project_wasm_opted_in!(domain)
       env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
       _out, err, status = Open3.capture3(env, *RepoTool.argv("project_wasm"), domain, chdir: HB_ROOT)
       raise "hecks build_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
+    end
+
+    it "produces the identical .wasm hecks-build --wasm produces directly, not the Ruby generator's own build" do
+      run_hecks_build_wasm!("examples/pizzas")
+      direct_wasm = File.binread(dist_wasm)
+      run_project_wasm_opted_in!("examples/pizzas")
 
       expect(File.binread(dist_wasm)).to eq(direct_wasm)
     end

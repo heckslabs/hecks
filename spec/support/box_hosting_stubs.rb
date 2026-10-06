@@ -97,19 +97,27 @@ module BoxHostingStubs
   # @yield [Runner] a scratch directory with the scripts and stand-in programs installed
   def with_runner(golden_dir, real_box: false)
     Dir.mktmpdir do |dir|
-      scripts = File.join(dir, "scripts")
-      FileUtils.mkdir_p([scripts, File.join(dir, "bin")])
-      %w[deploy-service.sh smoke-after-deploy.sh].each { |f| FileUtils.cp(File.join(golden_dir, f), scripts) }
-      if real_box
-        FileUtils.cp(Dir.children(golden_dir).map { |f| File.join(golden_dir, f) }, scripts)
-      else
-        File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
-      end
-      { "aws" => AWS, "docker" => DOCKER, "gh" => GH }.each do |name, body|
-        File.write(File.join(dir, "bin", name), body)
-        File.chmod(0o755, File.join(dir, "bin", name))
-      end
+      install_scripts(dir, golden_dir, real_box)
+      install_stand_ins(dir)
       yield Runner.new(dir)
+    end
+  end
+
+  def install_scripts(dir, golden_dir, real_box)
+    scripts = File.join(dir, "scripts")
+    FileUtils.mkdir_p([scripts, File.join(dir, "bin")])
+    %w[deploy-service.sh smoke-after-deploy.sh].each { |f| FileUtils.cp(File.join(golden_dir, f), scripts) }
+    if real_box
+      FileUtils.cp(Dir.children(golden_dir).map { |f| File.join(golden_dir, f) }, scripts)
+    else
+      File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
+    end
+  end
+
+  def install_stand_ins(dir)
+    { "aws" => AWS, "docker" => DOCKER, "gh" => GH }.each do |name, body|
+      File.write(File.join(dir, "bin", name), body)
+      File.chmod(0o755, File.join(dir, "bin", name))
     end
   end
 
@@ -141,7 +149,7 @@ module BoxHostingStubs
     #
     # @param name [String] the task definition, such as "widget-platform:5"
     # @param tags [Hash{String => String}] container => image tag
-    def pin_task_definition(name, tags) = File.write(File.join(dir, "pin_#{name.tr(':', '_')}"), JSON.generate(tags))
+    def pin_task_definition(name, tags) = File.write(File.join(dir, "pin_#{name.tr(":", "_")}"), JSON.generate(tags))
 
     # @return [Array<String>] the calls the stand-ins recorded, oldest first
     def calls
@@ -155,7 +163,7 @@ module BoxHostingStubs
     # @param script [String] the script's name
     # @return [Array(String, String, Process::Status)] stdout, stderr and status
     def run(script, *, env: {})
-      Open3.capture3({ "PATH" => "#{File.join(dir, 'bin')}:#{ENV.fetch('PATH')}", "STUB_DIR" => dir,
+      Open3.capture3({ "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir,
                        "SETTLE_CHECK_INTERVAL_SECS" => "1", "SETTLE_TIMEOUT_SECS" => "6",
                        "SSM_POLL_SECS" => "0.1" }.merge(env),
                      "bash", File.join(dir, "scripts", script), *)

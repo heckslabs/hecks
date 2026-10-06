@@ -77,21 +77,26 @@ module Hecks
       # Refuses expectations that would pass silently: an empty `expect`, `count:` on a command,
       # or `emits:` on a query (neither runner reads those). Checked at build time.
       def validate_expect!
-        if @expect.empty?
-          raise Malformed, "test #{@description.inspect} has no `expect` — say what this " \
-                           "example proves (ok:, refused:, emits:, count:, or a field name)"
-        end
-
-        if @kind == :command && @expect.key?(:count)
-          raise Malformed, "test #{@description.inspect}: `expect count:` only applies to " \
-                           "queries — a command has no row count to check"
-        end
-
-        if @kind == :query && @expect.key?(:emits)
-          raise Malformed, "test #{@description.inspect}: `expect emits:` only applies to " \
-                           "commands — a query never dispatches, so it never emits"
-        end
+        problem = expect_problem
+        raise Malformed, "test #{@description.inspect}#{problem}" if problem
       end
+
+      # @return [String, nil] what is wrong with the expectations, worded to follow the test's
+      #   description; nil when they are fine
+      def expect_problem
+        return expect_empty_problem if @expect.empty?
+        return ": `expect count:` only applies to queries — a command has no row count to check" if misplaced?(:command, :count)
+
+        ": `expect emits:` only applies to commands — a query never dispatches, so it never emits" if misplaced?(:query, :emits)
+      end
+
+      def expect_empty_problem
+        " has no `expect` — say what this example proves (ok:, refused:, emits:, count:, or a field name)"
+      end
+
+      # @return [Boolean] whether the test is of `kind` and expects `key`, which only the other
+      #   kind can satisfy
+      def misplaced?(kind, key) = @kind == kind && @expect.key?(key)
     end
 
     # The top-level `Hecks.behaviors` receiver; builds a `BehaviorsSuite` (ir.rb).

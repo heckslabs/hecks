@@ -1,0 +1,116 @@
+PiiAccessLogsBucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    # `BucketOwnerPreferred`, not the newer `BucketOwnerEnforced`
+    # default — CloudFront's own classic access-log delivery
+    # (`Logging:`, on PiiDistribution below) still authorizes itself
+    # via a canned ACL (`AccessControlTranslation` between accounts is
+    # a distinct, newer mechanism this bucket has no other account to
+    # need), which an ACLs-disabled bucket refuses outright.
+    OwnershipControls:
+      Rules:
+        - ObjectOwnership: BucketOwnerPreferred
+    AccessControl: LogDeliveryWrite
+    LifecycleConfiguration:
+      Rules:
+        - Id: ExpirePiiAccessLogs
+          Status: Enabled
+          ExpirationInDays: 365
+
+PiiResponseHeadersPolicy:
+  Type: AWS::CloudFront::ResponseHeadersPolicy
+  Properties:
+    ResponseHeadersPolicyConfig:
+      Name: !Sub "${AWS::StackName}-pii-headers"
+      SecurityHeadersConfig:
+        StrictTransportSecurity:
+          AccessControlMaxAgeSec: 63072000
+          IncludeSubdomains: true
+          Override: true
+        ContentTypeOptions:
+          Override: true
+        FrameOptions:
+          FrameOption: DENY
+          Override: true
+        ReferrerPolicy:
+          ReferrerPolicy: same-origin
+          Override: true
+        XSSProtection:
+          ModeBlock: true
+          Protection: true
+          Override: true
+
+PiiWebAcl:
+  Type: AWS::WAFv2::WebACL
+  Properties:
+    Name: !Sub "${AWS::StackName}-pii-waf"
+    Scope: CLOUDFRONT
+    DefaultAction:
+      Allow: {}
+    VisibilityConfig:
+      SampledRequestsEnabled: true
+      CloudWatchMetricsEnabled: true
+      MetricName: !Sub "${AWS::StackName}PiiWebAcl"
+    Rules:
+      - Name: AWSManagedRulesCommonRuleSet
+        Priority: 0
+        OverrideAction:
+          None: {}
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: AWS
+            Name: AWSManagedRulesCommonRuleSet
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          CloudWatchMetricsEnabled: true
+          MetricName: !Sub "${AWS::StackName}PiiCommonRuleSet"
+      - Name: AWSManagedRulesKnownBadInputsRuleSet
+        Priority: 1
+        OverrideAction:
+          None: {}
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: AWS
+            Name: AWSManagedRulesKnownBadInputsRuleSet
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          CloudWatchMetricsEnabled: true
+          MetricName: !Sub "${AWS::StackName}PiiKnownBadInputs"
+
+@@origin_access_control@@
+PiiDistribution:
+  Type: AWS::CloudFront::Distribution
+  Properties:
+    DistributionConfig:
+      Enabled: true
+      HttpVersion: http2
+      WebACLId: !GetAtt PiiWebAcl.Arn
+      Restrictions:
+        GeoRestriction:
+          RestrictionType: @@geo_restriction_type@@
+          Locations:@@geo_locations@@
+      Logging:
+        Bucket: !GetAtt PiiAccessLogsBucket.RegionalDomainName
+        IncludeCookies: false
+        Prefix: cloudfront/
+      Origins:
+        - Id: PiiOrigin
+          # `!Select [2, !Split ["/", ...]]` — the standard AWS-documented
+          # way to pull the bare hostname out of a Function URL's own
+          # `https://<id>.lambda-url.<region>.on.aws/` shape for use as a
+          # CustomOriginConfig DomainName, which admits no scheme or path.
+          DomainName: !Select [2, !Split ["/", !GetAtt @@fronted_logical_id@@Url.FunctionUrl]]
+          CustomOriginConfig:
+            OriginProtocolPolicy: https-only
+            OriginSSLProtocols: [TLSv1.2]
+@@oac_reference@@
+      DefaultCacheBehavior:
+        TargetOriginId: PiiOrigin
+        ViewerProtocolPolicy: redirect-to-https
+        AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+        CachedMethods: [GET, HEAD]
+        CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+        OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        ResponseHeadersPolicyId: !Ref PiiResponseHeadersPolicy
+
+@@invoke_permission@@

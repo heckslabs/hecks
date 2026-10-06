@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::Codebase::GemRegistry do
 
   after { FileUtils.remove_entry(root) }
 
-  it "lists a version as published when RubyGems does" do
+  it "lists a version as published when RubyGems does", :aggregate_failures do
     commands.answer("curl", "-fsS", stdout: JSON.generate([{ "number" => "1.0.0" }]))
 
     expect(registry.published?("1.0.0")).to be(true)
@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::Codebase::GemRegistry do
     expect(commands.argvs.first).to eq(["curl", "-fsS", described_class::VERSIONS_URL])
   end
 
-  it "refuses when RubyGems cannot be reached, and when it answers with something else" do
+  it "refuses when RubyGems cannot be reached, and when it answers with something else", :aggregate_failures do
     commands.answer("curl", "-fsS", success: false, stderr: "curl: (6) Could not resolve host")
     expect { registry.published?("1.0.0") }.to raise_error(refusal, /could not list published hecks versions/)
 
@@ -30,7 +30,7 @@ RSpec.describe Hecks::Adapters::Codebase::GemRegistry do
     expect { registry.published?("1.0.0") }.to raise_error(refusal, /something other than a version list/)
   end
 
-  it "builds the gem to prove it builds, and deletes the file" do
+  it "builds the gem to prove it builds, and deletes the file", :aggregate_failures do
     commands.on_run("gem", "build") { File.write(gem_file, "gem") }
 
     registry.build_only!("1.0.0")
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::Codebase::GemRegistry do
     expect(File).not_to exist(gem_file)
   end
 
-  it "builds, pushes through the vault with the push key, and deletes the file" do
+  it "builds, pushes through the vault with the push key, and deletes the file", :aggregate_failures do
     commands.on_run("gem", "build") { File.write(gem_file, "gem") }
 
     registry.push!("1.0.0")
@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::Codebase::GemRegistry do
     expect(File).not_to exist(gem_file)
   end
 
-  it "deletes the file even when the push fails" do
+  it "deletes the file even when the push fails", :aggregate_failures do
     commands.on_run("gem", "build") { File.write(gem_file, "gem") }
     commands.fail_run("op")
 

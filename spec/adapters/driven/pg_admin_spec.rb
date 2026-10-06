@@ -57,41 +57,72 @@ RSpec.describe Hecks::Adapters::PgAdmin do
         "FROM pg_namespace" => [{ "owner" => "postgres" }] }
     end
 
-    it "creates the role, takes over the database and the schema, and says how to bind it" do
-      report = admin.create_ledger_role(database: { value: "ledger" })[:report][:value]
+    let(:report) { admin.create_ledger_role(database: { value: "ledger" })[:report][:value] }
+
+    it "creates the role" do
+      report
 
       expect(sql).to include(a_string_matching(/CREATE ROLE "hecks_qa" LOGIN NOSUPERUSER NOBYPASSRLS/))
+    end
+
+    it "takes over the database and the schema", :aggregate_failures do
+      report
+
       expect(sql).to include('ALTER DATABASE "ledger" OWNER TO "hecks_qa"')
       expect(sql).to include('ALTER SCHEMA public OWNER TO "hecks_qa"')
+    end
+
+    it "says how to bind it" do
       expect(report).to include("created role hecks_qa").and include("bind it: database \"postgres://hecks_qa@localhost/ledger\"")
     end
 
-    it "moves each relation and function to the role, by the keyword its kind takes" do
-      answers["FROM pg_class"] = [{ "relname" => "events", "relkind" => "r", "owner" => "me" },
-                                  { "relname" => "seq", "relkind" => "S", "owner" => "me" }]
-      answers["FROM pg_proc"] = [{ "proname" => "fence", "args" => "text", "owner" => "me" }]
+    context "with relations and functions someone else owns" do
+      let(:report) { admin.create_ledger_role(database: "ledger", role: "auditor")[:report][:value] }
 
-      report = admin.create_ledger_role(database: "ledger", role: "auditor")[:report][:value]
+      before do
+        answers["FROM pg_class"] = [{ "relname" => "events", "relkind" => "r", "owner" => "me" },
+                                    { "relname" => "seq", "relkind" => "S", "owner" => "me" }]
+        answers["FROM pg_proc"] = [{ "proname" => "fence", "args" => "text", "owner" => "me" }]
+      end
 
-      expect(sql).to include('ALTER TABLE "events" OWNER TO "auditor"', 'ALTER SEQUENCE "seq" OWNER TO "auditor"',
-                             'ALTER FUNCTION "fence"(text) OWNER TO "auditor"')
-      expect(report).to include("2 relation(s) in public").and include("1 function(s) in public")
+      it "moves each to the role, by the keyword its kind takes" do
+        report
+
+        expect(sql).to include('ALTER TABLE "events" OWNER TO "auditor"', 'ALTER SEQUENCE "seq" OWNER TO "auditor"',
+                               'ALTER FUNCTION "fence"(text) OWNER TO "auditor"')
+      end
+
+      it "counts them in its report" do
+        expect(report).to include("2 relation(s) in public").and include("1 function(s) in public")
+      end
     end
 
-    it "changes nothing when the role already owns the database and is ordinary" do
-      answers["FROM pg_roles"] = [{ "rolsuper" => "f", "rolbypassrls" => "f" }]
-      answers["FROM pg_database"] = [{ "owner" => "hecks_qa" }]
-      answers["FROM pg_namespace"] = [{ "owner" => "hecks_qa" }]
+    context "when the role already owns the database and is ordinary" do
+      let(:report) { admin.create_ledger_role(database: "ledger")[:report][:value] }
 
-      report = admin.create_ledger_role(database: "ledger")[:report][:value]
+      before do
+        answers["FROM pg_roles"] = [{ "rolsuper" => "f", "rolbypassrls" => "f" }]
+        answers["FROM pg_database"] = [{ "owner" => "hecks_qa" }]
+        answers["FROM pg_namespace"] = [{ "owner" => "hecks_qa" }]
+      end
 
-      expect(sql.grep(/\A(ALTER|CREATE)/)).to be_empty
-      expect(report).to include("already: role hecks_qa exists, ordinary")
-                    .and include("already: database ledger already owned by hecks_qa")
-      expect(report).not_to include("bind it")
+      it "changes nothing" do
+        report
+
+        expect(sql.grep(/\A(ALTER|CREATE)/)).to be_empty
+      end
+
+      it "says so" do
+        expect(report).to include("already: role hecks_qa exists, ordinary")
+                      .and include("already: database ledger already owned by hecks_qa")
+      end
+
+      it "does not say how to bind it" do
+        expect(report).not_to include("bind it")
+      end
     end
 
-    it "refuses a role the era write-fence cannot bind" do
+    it "refuses a role the era write-fence cannot bind", :aggregate_failures do
       answers["FROM pg_roles"] = [{ "rolsuper" => "t", "rolbypassrls" => "f" }]
 
       expect { admin.create_ledger_role(database: "ledger") }
@@ -99,7 +130,7 @@ RSpec.describe Hecks::Adapters::PgAdmin do
       expect(sql.grep(/ALTER/)).to be_empty
     end
 
-    it "refuses a database that does not exist, and never creates it" do
+    it "refuses a database that does not exist, and never creates it", :aggregate_failures do
       answers["FROM pg_database"] = []
 
       expect { admin.create_ledger_role(database: "nope") }
@@ -113,7 +144,7 @@ RSpec.describe Hecks::Adapters::PgAdmin do
     end
 
     it "answers a server error as a refusal with its reason" do
-      described_class.connector = ->(dbname:) { raise IOError, "connection refused" }
+      described_class.connector = ->(**) { raise IOError, "connection refused" }
 
       expect { admin.create_ledger_role(database: "ledger") }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /postgres: connection refused/)
@@ -121,14 +152,14 @@ RSpec.describe Hecks::Adapters::PgAdmin do
   end
 
   describe "#create_database" do
-    it "creates a database that is not there" do
+    it "creates a database that is not there", :aggregate_failures do
       report = admin.create_database(database: "scratch_1")[:report][:value]
 
       expect(sql).to include('CREATE DATABASE "scratch_1"')
       expect(report).to eq("created database scratch_1")
     end
 
-    it "reports one that exists instead of creating it again" do
+    it "reports one that exists instead of creating it again", :aggregate_failures do
       answers["FROM pg_database"] = [{ "?column?" => "1" }]
 
       expect(admin.create_database(database: "scratch_1")[:report][:value]).to eq("database scratch_1 already exists")
@@ -137,7 +168,7 @@ RSpec.describe Hecks::Adapters::PgAdmin do
   end
 
   describe "#drop_database" do
-    it "ends other sessions, then drops" do
+    it "ends other sessions, then drops", :aggregate_failures do
       answers["FROM pg_database"] = [{ "?column?" => "1" }]
 
       report = admin.drop_database(database: "scratch_1")[:report][:value]
@@ -146,7 +177,7 @@ RSpec.describe Hecks::Adapters::PgAdmin do
       expect(report).to eq("dropped database scratch_1")
     end
 
-    it "refuses a name that is not a scratch database, before connecting" do
+    it "refuses a name that is not a scratch database, before connecting", :aggregate_failures do
       %w[hecks_ledger production scratch scratch_ postgres template1 scratch-1].each do |name|
         expect { admin.drop_database(database: name) }
           .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refusing to drop #{name}/)
@@ -154,29 +185,40 @@ RSpec.describe Hecks::Adapters::PgAdmin do
       expect(sql).to be_empty
     end
 
-    it "refuses the ledger or production database the environment names, even under a scratch name" do
-      { "PGDATABASE" => "scratch_live", "HECKS_LEDGER_DATABASE" => "scratch_ledger",
-        "DATABASE_URL" => "postgres://u:p@host:5432/scratch_prod" }.each do |variable, value|
-        stub_const("ENV", ENV.to_h.merge(variable => value))
-        name = value.split("/").last
+    PG_ADMIN_LEDGER_ENV = {
+      "PGDATABASE" => "scratch_live", "HECKS_LEDGER_DATABASE" => "scratch_ledger",
+      "DATABASE_URL" => "postgres://u:p@host:5432/scratch_prod"
+    }.freeze
 
-        expect { admin.drop_database(database: name) }
+    def drop_under_env(variable, value)
+      stub_const("ENV", ENV.to_h.merge(variable => value))
+      admin.drop_database(database: value.split("/").last)
+    end
+
+    it "refuses the ledger or production database the environment names, even under a scratch name",
+       :aggregate_failures do
+      PG_ADMIN_LEDGER_ENV.each do |variable, value|
+        expect { drop_under_env(variable, value) }
           .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /ledger, production or a system database/)
       end
       expect(sql).to be_empty
     end
 
-    it "says so when there is nothing to drop" do
+    it "says so when there is nothing to drop", :aggregate_failures do
       expect(admin.drop_database(database: "scratch_gone")[:report][:value]).to eq("no database scratch_gone")
       expect(sql.grep(/DROP/)).to be_empty
     end
   end
 
-  it "closes every connection it opens, even when a step raises" do
-    connections = []
+  def track_connections(connections)
     described_class.connector = lambda do |dbname:|
       FakePgConnection.new(dbname, { "FROM pg_database" => [] }, log).tap { |connection| connections << connection }
     end
+  end
+
+  it "closes every connection it opens, even when a step raises", :aggregate_failures do
+    connections = []
+    track_connections(connections)
 
     expect { admin.create_ledger_role(database: "nope") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure)
     expect(connections).to all(have_attributes(closed: true))

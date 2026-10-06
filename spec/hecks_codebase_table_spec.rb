@@ -140,8 +140,24 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
+  # The names of the runs a listing query answers.
+  def runs_listed(query) = JSON.parse(launch([query]).first).map { |run| run.dig("run", "value") }
+
+  def accept_of(aggregate_name)
+    @bluebook.aggregate(aggregate_name).commands.find { |command| command.hecks_name == "Accept" }
+  end
+
+  # Runs the examples tagged `:outside_checkout` in a directory that is not a hecks checkout.
+  around(:each, :outside_checkout) do |example|
+    Dir.mktmpdir("not_a_checkout") do |dir|
+      Dir.mkdir(File.join(dir, "lib"))
+      Hecks::Adapters::Codebase::Tree.root = dir
+      example.run
+    end
+  end
+
   CODEBASE_ROWS.each do |row|
-    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.verb}`" do
+    it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.verb}`", :aggregate_failures do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
       out, status = launch([row.qualified, "--help"])
@@ -150,54 +166,37 @@ RSpec.describe "the Codebase rows of the ADR command table" do
       expect(out).to start_with(row.qualified)
     end
 
-    it "refuses `hecks #{row.verb}` outside a hecks checkout" do
-      Dir.mktmpdir("not_a_checkout") do |dir|
-        Dir.mkdir(File.join(dir, "lib"))
-        Hecks::Adapters::Codebase::Tree.root = dir
+    it "refuses `hecks #{row.verb}` outside a hecks checkout", :aggregate_failures, :outside_checkout do
+      argv = [row.qualified, *row.args, ("run=outside-#{row.verb}" unless row.query)].compact
+      out, status = launch(argv)
 
-        argv = [row.qualified, *row.args, ("run=outside-#{row.verb}" unless row.query)].compact
-        out, status = launch(argv)
-
-        expect(out).to include("needs a hecks checkout")
-        expect(status).to eq(row.query ? 1 : 0)
-        expect(out).not_to include('"status": "completed"')
-      end
+      expect(out).to include("needs a hecks checkout")
+      expect(status).to eq(row.query ? 1 : 0)
+      expect(out).not_to include('"status": "completed"')
     end
   end
 
-  it "leaves a run the checkout rule refused as a faulted record that the aggregate's query lists" do
-    Dir.mktmpdir("not_a_checkout") do |dir|
-      Dir.mkdir(File.join(dir, "lib"))
-      Hecks::Adapters::Codebase::Tree.root = dir
+  it "leaves a run the checkout rule refused as a faulted record that the aggregate's query lists",
+     :aggregate_failures, :outside_checkout do
+    out, status = launch(["language_run.project_vocabulary", "run=refused-1", "--wait"])
+    row = JSON.parse(out).fetch("state")
 
-      out, status = launch(["language_run.project_vocabulary", "run=refused-1", "--wait"])
-      row = JSON.parse(out).fetch("state")
-
-      expect(status).to eq(1)
-      expect(row.fetch("status")).to eq("faulted")
-      expect(row.dig("refusal", "value")).to include("needs a hecks checkout")
-      expect(JSON.parse(launch(["language_run.language_faulted"]).first).map { |run| run.dig("run", "value") })
-        .to include("refused-1")
-    end
+    expect([status, row.fetch("status")]).to eq([1, "faulted"])
+    expect(row.dig("refusal", "value")).to include("needs a hecks checkout")
+    expect(runs_listed("language_run.language_faulted")).to include("refused-1")
   end
 
   %w[publish publish_gem].each do |verb|
-    it "leaves `hecks #{verb}` outside a checkout as a faulted run that publishing_faulted lists" do
-      Dir.mktmpdir("not_a_checkout") do |dir|
-        Dir.mkdir(File.join(dir, "lib"))
-        Hecks::Adapters::Codebase::Tree.root = dir
+    it "leaves `hecks #{verb}` outside a checkout as a faulted run that publishing_faulted lists",
+       :aggregate_failures, :outside_checkout do
+      out, status = launch(["publishing_run.#{verb}", "run=refused-#{verb}", "--wait"])
 
-        out, status = launch(["publishing_run.#{verb}", "run=refused-#{verb}", "--wait"])
-
-        expect(status).to eq(1)
-        expect(JSON.parse(out).dig("state", "status")).to eq("faulted")
-        expect(JSON.parse(launch(["publishing_run.publishing_faulted"]).first).map { |run| run.dig("run", "value") })
-          .to include("refused-#{verb}")
-      end
+      expect([status, JSON.parse(out).dig("state", "status")]).to eq([1, "faulted"])
+      expect(runs_listed("publishing_run.publishing_faulted")).to include("refused-#{verb}")
     end
   end
 
-  it "lists every command of the table once, and gives each aggregate at least one row" do
+  it "lists every command of the table once, and gives each aggregate at least one row", :aggregate_failures do
     expect(CODEBASE_ROWS.map { |row| [row.aggregate, row.name] }.uniq.size).to eq(CODEBASE_ROWS.size)
     expect(CODEBASE_ROWS.select(&:renamed).map(&:renamed)).to all(be_a(String))
     expect(CODEBASE_ROWS.map(&:verb).uniq.size).to eq(CODEBASE_ROWS.size)
@@ -205,12 +204,11 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     expect(CODEBASE_ROWS.map(&:aggregate) - CODEBASE_AGGREGATES).to be_empty
   end
 
-  it "guards every command of every Codebase aggregate with the one checkout rule" do
-    codebase = CODEBASE_AGGREGATES.map { |name| @bluebook.aggregate(name) }
-    codebase.each do |aggregate|
-      accept = aggregate.commands.find { |command| command.hecks_name == "Accept" }
+  it "guards every command of every Codebase aggregate with the one checkout rule", :aggregate_failures do
+    CODEBASE_AGGREGATES.each do |name|
+      accept = accept_of(name)
 
-      expect(accept).not_to be_nil, "#{aggregate.hecks_name} has no Accept"
+      expect(accept).not_to be_nil, "#{name} has no Accept"
       expect(accept.givens.join).to include("needs a hecks checkout")
     end
   end

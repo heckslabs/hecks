@@ -1,6 +1,7 @@
 require "digest"
 require "fileutils"
 require_relative "../../cache_dir"
+require_relative "syntax_boot/disk_cache"
 
 module Hecks
   module Bluebook
@@ -10,6 +11,8 @@ module Hecks
       #
       #   SyntaxBoot.call # => { keywords: [...], arguments: [...] }
       module SyntaxBoot
+        extend DiskCache
+
         module_function
 
         # Memoized per grammar-registry chapter set (identity, not a "ready"
@@ -31,73 +34,6 @@ module Hecks
           @call = result
           @call_chapters = chapters
           result
-        end
-
-        # `equal?`, not `==` — chapter identity, not value equality, is the
-        # fact this cache key tracks.
-        def same_chapters?(cached, current)
-          cached.size == current.size &&
-            cached.zip(current).all? do |(cached_name, cached_chapter), (name, chapter)|
-              cached_name == name && cached_chapter.equal?(chapter)
-            end
-        end
-
-        # Cross-process persistence for the same build `call` already memoizes
-        # in-process, keyed by chapter name (not identity, which means nothing
-        # across processes) plus a content hash of every grammar file `boot`
-        # can read from — so a source edit anywhere in that set misses the
-        # cache rather than silently serving a stale table.
-        def cache_dir = Hecks::CacheDir.path("hecks_syntax_boot_cache")
-
-        def disk_cache_enabled? = ENV["HECKS_SYNTAX_BOOT_CACHE"] != "off"
-
-        # Fails toward a real boot, never toward a wrong table: a missing
-        # file, a corrupt blob, or a permission error just misses the cache.
-        def read_disk_cache(chapters)
-          return nil unless disk_cache_enabled?
-
-          path = disk_cache_path(chapters)
-          return nil unless File.exist?(path)
-
-          Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own process-local cache, never external input
-        rescue StandardError
-          nil
-        end
-
-        # Writes to a PID-suffixed temp file and renames it into place, so a
-        # concurrent writer's rename can only overwrite with identical
-        # content, never leave a torn file for a concurrent reader.
-        def write_disk_cache(chapters, result)
-          return unless disk_cache_enabled?
-
-          path = disk_cache_path(chapters)
-          FileUtils.mkdir_p(cache_dir)
-          tmp_path = "#{path}.#{Process.pid}.tmp"
-          File.binwrite(tmp_path, Marshal.dump(result))
-          File.rename(tmp_path, path)
-        rescue StandardError
-          nil
-        end
-
-        def disk_cache_path(chapters)
-          File.join(cache_dir, "#{disk_cache_key(chapters)}.marshal")
-        end
-
-        def disk_cache_key(chapters)
-          names = chapters.map { |name, _chapter| name }
-          Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}:#{VerdictCache.code_digest}")
-        end
-
-        # The key also carries `VerdictCache.code_digest` (all of `lib/`), so an
-        # edit to Ruby that builds or judges the grammar misses too.
-        #
-        # Covers every chapter's grammar files, not just the core ones —
-        # coarser than strictly necessary, but under-covering this set would
-        # let a stale table survive a real grammar edit.
-        def grammar_content_digest
-          files = (MetaValidator::GRAMMAR_FILES + MetaValidator::WORLD_GRAMMAR + MetaValidator::HECKSAGON_GRAMMAR +
-                    Dir.glob(File.join(MetaValidator::ATTACHED_GRAMMAR_DIR, "*.bluebook"))).sort
-          Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
         end
 
         # Dispatches every seed row into a fresh "Bluebook" instance and
@@ -147,44 +83,44 @@ module Hecks
                            with: { bluebook: bluebook.hecks_name, name: v(syntax.hecks_name) })
         end
 
+        # Each Keyword seed column and how it is offered: `v` for a required cell, `optional` for
+        # one whose "" means "not given".
+        KEYWORD_COLUMNS = {
+          word: :v, context: :v, body: :v, inner: :v, opens: :v, fills: :v,
+          was: :optional, resolves_via: :optional, disambiguator: :optional, calls: :optional
+        }.freeze
+
+        # The same, for each Argument seed column.
+        ARGUMENT_COLUMNS = {
+          keyword: :v, context: :v, at: :optional, named: :optional, kind: :v, required: :v, fills: :v,
+          selects: :optional, pair_key_fills: :optional, pair_value_fills: :optional,
+          pairs_shape: :optional, variadic: :optional, minimum: :optional,
+          coerce: :optional, blank_message: :optional
+        }.freeze
+
+        def admit_keywords(runtime, bluebook) = admit(runtime, bluebook, "Keyword", KEYWORD_COLUMNS)
+
+        # Same `to: "Syntax"` append shape `admit_keywords` uses, one type over.
+        def admit_arguments(runtime, bluebook) = admit(runtime, bluebook, "Argument", ARGUMENT_COLUMNS)
+
         # `to: "Syntax"` appends onto the record `declare_syntax` already
         # opened; putting the receiver in the payload instead would make
         # `Syntax.Keyword` look like a fresh identity to mint, colliding
         # with that row.
-        def admit_keywords(runtime, bluebook)
-          all_rows(bluebook, "KeywordSeed").each_with_index do |row, index|
-            runtime.dispatch("Bluebook::Syntax.Keyword", to:   "Syntax",
-                                                         with: { position: v(index),
-                                     word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
-                                     inner: v(row[:inner]), opens: v(row[:opens]), fills: v(row[:fills]),
-                                     was: optional(row[:was]),
-                                     resolves_via: optional(row[:resolves_via]),
-                                     disambiguator: optional(row[:disambiguator]),
-                                     calls: optional(row[:calls]) })
+        def admit(runtime, bluebook, kind, columns)
+          all_rows(bluebook, "#{kind}Seed").each_with_index do |row, index|
+            runtime.dispatch("Bluebook::Syntax.#{kind}", to: "Syntax", with: seed_payload(row, index, columns))
 
             next unless row[:status].to_s == "deprecated"
 
-            runtime.dispatch("Bluebook::Syntax.Keyword.Deprecate", to: { aggregate: "Syntax", entity: index.to_s })
+            runtime.dispatch("Bluebook::Syntax.#{kind}.Deprecate", to: { aggregate: "Syntax", entity: index.to_s })
           end
         end
 
-        # Same `to: "Syntax"` append shape `admit_keywords` uses, one type over.
-        def admit_arguments(runtime, bluebook)
-          all_rows(bluebook, "ArgumentSeed").each_with_index do |row, index|
-            runtime.dispatch("Bluebook::Syntax.Argument", to:   "Syntax",
-                                                          with: { position: v(index),
-                                     keyword: v(row[:keyword]), context: v(row[:context]),
-                                     at: optional(row[:at]), named: optional(row[:named]),
-                                     kind: v(row[:kind]), required: v(row[:required]), fills: v(row[:fills]),
-                                     selects: optional(row[:selects]), pair_key_fills: optional(row[:pair_key_fills]),
-                                     pair_value_fills: optional(row[:pair_value_fills]),
-                                     pairs_shape: optional(row[:pairs_shape]), variadic: optional(row[:variadic]),
-                                     minimum: optional(row[:minimum]),
-                                     coerce: optional(row[:coerce]), blank_message: optional(row[:blank_message]) })
-
-            next unless row[:status].to_s == "deprecated"
-
-            runtime.dispatch("Bluebook::Syntax.Argument.Deprecate", to: { aggregate: "Syntax", entity: index.to_s })
+        # The walk index first, then each column offered the way `columns` says.
+        def seed_payload(row, index, columns)
+          columns.each_with_object({ position: v(index) }) do |(column, offering), payload|
+            payload[column] = send(offering, row[column])
           end
         end
 

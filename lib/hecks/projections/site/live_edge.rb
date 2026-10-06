@@ -88,12 +88,14 @@ module Hecks
 
         def generated_behaviours
           list = [[DEFAULT, @edge.default_behaviour], *@edge.behaviours.map { |entry| [entry[:path], entry] }]
-          list.to_h do |path, entry|
-            [path, { path: path, origin: entry[:origin], methods: Array(entry[:methods]).sort, cached: %w[GET HEAD],
-                     protocol: entry[:viewer_protocol], compress: entry[:compress] == true,
-                     cache: policy_id(entry[:cache_policy]), request: policy_id(entry[:origin_request_policy]),
-                     response: policy_id(entry[:response_headers_policy]) }]
-          end
+          list.to_h { |path, entry| [path, generated_entry(path, entry)] }
+        end
+
+        def generated_entry(path, entry)
+          { path: path, origin: entry[:origin], methods: Array(entry[:methods]).sort, cached: %w[GET HEAD],
+            protocol: entry[:viewer_protocol], compress: entry[:compress] == true,
+            cache: policy_id(entry[:cache_policy]), request: policy_id(entry[:origin_request_policy]),
+            response: policy_id(entry[:response_headers_policy]) }
         end
 
         def policy_id(policy) = policy&.first
@@ -154,7 +156,7 @@ module Hecks
           theirs = current.keys.reject { |path| path == DEFAULT || !generated.key?(path) }
           return [] if mine == theirs
 
-          ["order differs among the behaviours both have:\n    project: #{mine.join(' ')}\n    live:    #{theirs.join(' ')}"]
+          ["order differs among the behaviours both have:\n    project: #{mine.join(" ")}\n    live:    #{theirs.join(" ")}"]
         end
       end
     end

@@ -14,7 +14,7 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
                                    "PGDATABASE" => "site", "PGSSLMODE" => "require")
     end
 
-    it "swaps the database and keeps everything else" do
+    it "swaps the database and keeps everything else", :aggregate_failures do
       swapped = described_class.new("postgres://app:pw@db.example/site").with_database("scratch")
 
       expect(swapped.database).to eq("scratch")
@@ -46,15 +46,24 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
     let(:dump) { described_class.new(url: "postgres://app:hunter2@db.example/site", schema: "site1") }
     let(:connection) { described_class::Connection.new("postgres://app:hunter2@db.example/site") }
 
-    it "hands the password over in the environment and never in the arguments" do
-      status = instance_double(Process::Status, success?: true)
-      expect(Open3).to receive(:capture3) do |env, tool, *args|
-        expect(env).to include("PGPASSWORD" => "hunter2", "PGUSER" => "app")
-        expect(([tool] + args).join(" ")).not_to include("hunter2")
-        ["", "", status]
+    describe "handing the password over" do
+      let(:calls) { [] }
+
+      before do
+        allow(Open3).to receive(:capture3) do |env, tool, *args|
+          calls << [env, ([tool] + args).join(" ")]
+          ["", "", instance_double(Process::Status, success?: true)]
+        end
+        dump.send(:run, "pg_dump", connection, "--schema=site1")
       end
 
-      dump.send(:run, "pg_dump", connection, "--schema=site1")
+      it "puts it in the environment" do
+        expect(calls.first.first).to include("PGPASSWORD" => "hunter2", "PGUSER" => "app")
+      end
+
+      it "never puts it in the arguments" do
+        expect(calls.first.last).not_to include("hunter2")
+      end
     end
 
     it "reports a tool that is not installed" do
@@ -101,11 +110,25 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
     def seeded_url
       name = "hecks_dump_spec_#{SecureRandom.hex(4)}"
       names << name
+      create_database(name)
+      seed_database(name)
+      "postgres:///#{name}"
+    end
+
+    def create_database(name)
       connection = admin
       connection.exec("CREATE DATABASE #{name}")
       connection.close
+    end
+
+    def seed_database(name)
       seeded = PG.connect(dbname: name)
-      seeded.exec(<<~SQL)
+      seeded.exec(seed_sql)
+      seeded.close
+    end
+
+    def seed_sql
+      <<~SQL
         CREATE SCHEMA site1;
         CREATE TABLE site1.events (id serial PRIMARY KEY, name text);
         INSERT INTO site1.events (name) VALUES ('a'), ('b'), ('c');
@@ -114,8 +137,10 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
         CREATE SCHEMA other;
         CREATE TABLE other.noise (id serial PRIMARY KEY);
       SQL
-      seeded.close
-      "postgres:///#{name}"
+    end
+
+    def dump_site(path, schema: "site1")
+      described_class.new(url: seeded_url, schema: schema).call(path)
     end
 
     def leftover_scratch_databases
@@ -126,44 +151,38 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
       connection&.close
     end
 
-    it "dumps one schema, proves it restores, and returns the row counts" do
+    around do |example|
       Dir.mktmpdir do |dir|
-        dump = File.join(dir, "site.dump")
-
-        result = described_class.new(url: seeded_url, schema: "site1").call(dump)
-
-        expect(result.tables).to eq("events" => 3, "registrations" => 2)
-        expect(File.size(dump)).to be_positive
-        expect(leftover_scratch_databases).to be_empty
+        @dump = File.join(dir, "site.dump")
+        example.run
       end
     end
 
-    it "dumps only the schema asked for" do
-      Dir.mktmpdir do |dir|
-        dump = File.join(dir, "site.dump")
-        described_class.new(url: seeded_url, schema: "site1").call(dump)
+    it "dumps one schema, proves it restores, and returns the row counts", :aggregate_failures do
+      result = dump_site(@dump)
 
-        listing, = Open3.capture2("pg_restore", "--list", dump)
+      expect(result.tables).to eq("events" => 3, "registrations" => 2)
+      expect(File.size(@dump)).to be_positive
+      expect(leftover_scratch_databases).to be_empty
+    end
 
-        expect(listing).to include("events", "registrations")
-        expect(listing).not_to include("noise")
-      end
+    it "dumps only the schema asked for", :aggregate_failures do
+      dump_site(@dump)
+      listing, = Open3.capture2("pg_restore", "--list", @dump)
+
+      expect(listing).to include("events", "registrations")
+      expect(listing).not_to include("noise")
     end
 
     it "refuses a schema that has no tables" do
-      Dir.mktmpdir do |dir|
-        expect { described_class.new(url: seeded_url, schema: "nope").call(File.join(dir, "x.dump")) }
-          .to raise_error(error, /schema nope has no tables/)
-      end
+      expect { dump_site(@dump, schema: "nope") }.to raise_error(error, /schema nope has no tables/)
     end
 
-    it "refuses a database it cannot reach, without echoing the password" do
-      Dir.mktmpdir do |dir|
-        unreachable = described_class.new(url: "postgres://nobody:hunter2@127.0.0.1:1/x", schema: "s")
+    it "refuses a database it cannot reach, without echoing the password", :aggregate_failures do
+      unreachable = described_class.new(url: "postgres://nobody:hunter2@127.0.0.1:1/x", schema: "s")
 
-        expect { unreachable.call(File.join(dir, "x.dump")) }
-          .to raise_error(error) { |failure| expect(failure.message).not_to include("hunter2") }
-      end
+      expect { unreachable.call(@dump) }
+        .to raise_error(error) { |failure| expect(failure.message).not_to include("hunter2") }
     end
   end
 end

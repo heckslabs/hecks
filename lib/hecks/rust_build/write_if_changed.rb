@@ -71,12 +71,9 @@ module Hecks
         tmp = "#{path}.tmp-#{Process.pid}-#{rand(1_000_000)}"
         begin
           File.open(tmp, "w", &)
-          if File.exist?(path) && FileUtils.compare_file(tmp, path)
-            false
-          else
-            FileUtils.mv(tmp, path)
-            true
-          end
+          changed = !(File.exist?(path) && FileUtils.compare_file(tmp, path))
+          FileUtils.mv(tmp, path) if changed
+          changed
         ensure
           FileUtils.rm_f(tmp)
         end

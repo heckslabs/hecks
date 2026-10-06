@@ -5,26 +5,32 @@ require_relative "fixtures/sequential_identity"
 # shape spec/governance_spec.rb already uses, plus the identity_generation
 # port/adapter this domain's own Register command actually needs.
 RSpec.describe "Identity" do
+  IDENTITY_SPEC_FILES = [
+    InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
+    InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER,
+    File.expand_path("../lib/hecks/ports/identity_generation.port", __dir__),
+    File.expand_path("fixtures/sequential_identity.adapter", __dir__),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook")
+  ].freeze
+
+  def declare_identity_hecksagons
+    Hecks.hecksagon("Identity") do
+      attaches "Governance"
+      Identity::Identity.persisted_by("Memory")
+      Identity::ExternalIdentifier.persisted_by("Memory")
+    end
+    Hecks.hecksagon("Governance") do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+  end
+
   def boot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.expand_path("../lib/hecks/ports/identity_generation.port", __dir__))
-      Kernel.load(File.expand_path("fixtures/sequential_identity.adapter", __dir__))
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
-      Hecks.hecksagon("Identity") do
-        attaches "Governance"
-        Identity::Identity.persisted_by("Memory")
-        Identity::ExternalIdentifier.persisted_by("Memory")
-      end
-      Hecks.hecksagon("Governance") do
-        Governance::RoleAssignment.persisted_by("Memory")
-        Governance::RoleTransition.persisted_by("Memory")
-      end
+      IDENTITY_SPEC_FILES.each { |file| Kernel.load(file) }
+      declare_identity_hecksagons
     end
 
     registry.verify!
@@ -39,47 +45,40 @@ RSpec.describe "Identity" do
     runtime.dispatch_flat("Identity::Identity.Register", identity_id: { value: minted })
   end
 
-  it "registers an identity minted through the identity-generation port, not a natural key" do
+  # Links the external identifier `issuer:subject` to the identity with id `identity_id`.
+  def link(identity_id, issuer:, subject:)
+    runtime.dispatch_flat("Identity::ExternalIdentifier.Link", identity: identity_id, key: { value: "#{issuer}:#{subject}" },
+                                                              issuer: { value: issuer }, subject: { value: subject })
+  end
+
+  # The rows `ResolvedBy` answers for an (issuer, subject) pair.
+  def resolved_by(issuer, subject)
+    runtime.query("Identity::ExternalIdentifier.ResolvedBy", issuer: { value: issuer }, subject: { value: subject })
+  end
+
+  it "registers an identity minted through the identity-generation port, not a natural key", :aggregate_failures do
     result = register
 
     expect(result.events.map(&:name)).to eq(["IdentityRegistered"])
     expect(result.instance.id).to eq("1")
   end
 
-  it "links an external identifier to a real, previously-registered identity" do
+  it "links an external identifier to a real, previously-registered identity", :aggregate_failures do
     identity = register
-    result = runtime.dispatch_flat(
-      "Identity::ExternalIdentifier.Link",
-      identity: identity.instance.id,
-      key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
-    )
+    result = link(identity.instance.id, issuer: "google", subject: "sub-1")
 
     expect(result.events.map(&:name)).to eq(["ExternalIdentifierLinked"])
     expect(result.instance.id).to eq("google:sub-1")
   end
 
   it "refuses to link an identifier to an identity that doesn't exist" do
-    expect do
-      runtime.dispatch_flat(
-        "Identity::ExternalIdentifier.Link",
-        identity: "no-such-identity",
-        key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
-      )
-    end.to raise_error(Hecks::Runtime::NotFound)
+    expect { link("no-such-identity", issuer: "google", subject: "sub-1") }.to raise_error(Hecks::Runtime::NotFound)
   end
 
   it "lets more than one external identifier link to the same identity" do
     identity = register
-    google = runtime.dispatch_flat(
-      "Identity::ExternalIdentifier.Link",
-      identity: identity.instance.id,
-      key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
-    )
-    microsoft = runtime.dispatch_flat(
-      "Identity::ExternalIdentifier.Link",
-      identity: identity.instance.id,
-      key: { value: "microsoft:sub-1" }, issuer: { value: "microsoft" }, subject: { value: "sub-1" }
-    )
+    google = link(identity.instance.id, issuer: "google", subject: "sub-1")
+    microsoft = link(identity.instance.id, issuer: "microsoft", subject: "sub-1")
 
     expect([google.instance.id, microsoft.instance.id]).to eq(["google:sub-1", "microsoft:sub-1"])
   end
@@ -87,27 +86,13 @@ RSpec.describe "Identity" do
   describe "ResolvedBy" do
     it "finds the identity an authenticated (issuer, subject) pair resolves to" do
       identity = register
-      runtime.dispatch_flat(
-        "Identity::ExternalIdentifier.Link",
-        identity: identity.instance.id,
-        key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
-      )
+      link(identity.instance.id, issuer: "google", subject: "sub-1")
 
-      rows = runtime.query(
-        "Identity::ExternalIdentifier.ResolvedBy",
-        issuer: { value: "google" }, subject: { value: "sub-1" }
-      )
-
-      expect(rows.map { |row| row[:identity] }).to eq([identity.instance.id])
+      expect(resolved_by("google", "sub-1").map { |row| row[:identity] }).to eq([identity.instance.id])
     end
 
     it "answers empty for a pair nothing has linked" do
-      rows = runtime.query(
-        "Identity::ExternalIdentifier.ResolvedBy",
-        issuer: { value: "google" }, subject: { value: "nobody" }
-      )
-
-      expect(rows).to be_empty
+      expect(resolved_by("google", "nobody")).to be_empty
     end
   end
 end

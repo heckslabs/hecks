@@ -1,3 +1,4 @@
+require "pathname"
 require "stringio"
 require_relative "../ports/identity_generation"
 require_relative "../runtime/errors"
@@ -12,16 +13,21 @@ module Hecks
     #
     # - **run_keys** mints the `run` key of a creating command that was given none.
     # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
-    # - **settled** lists the commands (`aggregate.command`) that always behave as if `--wait`
-    #   was given, so a script gets their outcome in its exit status.
+    # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
     # - **report** lists the settled commands whose answer is the report they recorded, as text.
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
     # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
+    # - **maintainer**, **chapters**, **maintainer_chapters** shape the help for its audience.
     module LauncherOptions
       SETTING = "launcher".freeze
       WAIT    = "--wait".freeze
       STREAM  = "--stream".freeze
       RUN_KEY = "run.value".freeze
+      # What makes a directory a hecks checkout: this file stands beside `lib/`, the same test
+      # the Codebase aggregate's `Accept` applies before it runs anything.
+      CHECKOUT_MARKER = "hecks.gemspec".freeze
+      # `HECKS_MAINTAINER=1` shows the maintainer help anywhere, `0` hides it even in a checkout.
+      MAINTAINER_VARIABLE = "HECKS_MAINTAINER".freeze
 
       module_function
 
@@ -45,6 +51,36 @@ module Hecks
       # @return [Hash{Symbol => Object}] the options `Projector::CliProjector` reads
       def projection(settings, program)
         { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
+      end
+
+      # Whether the person is working on a hecks checkout: `dir` or a directory above it holds
+      # `hecks.gemspec` beside `lib/`. `HECKS_MAINTAINER` overrides the look.
+      #
+      # @param dir [String] where the command line was typed
+      # @param env [#[]] the environment
+      # @return [Boolean] true for the maintainer's view of the help
+      def maintainer?(dir = Dir.pwd, env = ENV)
+        forced = env[MAINTAINER_VARIABLE].to_s
+        return forced != "0" unless forced.empty?
+
+        Pathname.new(File.expand_path(dir)).ascend.any? do |root|
+          root.join(CHECKOUT_MARKER).exist? && root.join("lib").directory?
+        end
+      end
+
+      # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
+      # shown only in a hecks checkout or to `--maintainer`) and the chapters pointed at
+      # (`chapters`, plus `maintainer_chapters` in a checkout). A chapter that did not opt in
+      # gets neither.
+      #
+      # @param settings [Hash, nil] the chapter's `launcher` setting
+      # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
+      # @return [Hash{Symbol => Object}] `:hide` and `:chapters`, to merge into the projection
+      def audience(settings, maintainer)
+        return {} unless settings
+
+        chapters = Array(settings[:chapters]) + (maintainer ? Array(settings[:maintainer_chapters]) : [])
+        { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: chapters.map(&:to_s) }
       end
 
       # Runs the block with standard error held back, so the wiring notes hecks prints about its own
@@ -74,9 +110,20 @@ module Hecks
       # @return [Array(Array<String>, Boolean)] the remaining words, and whether `--wait` was given
       # @raise [Runtime::TypeMismatch] if `--wait=` carries something that is not a Boolean word
       def take_wait(spec, words)
-        return [words, false] unless words.any? { |word| wait_word?(word) }
-        return [words, false] if spec[:arguments].any? { |argument| argument[:path].split(".").first == "wait" }
+        return [words, false] unless words.any? { |word| wait_word?(word) } && !declares_wait?(spec)
 
+        split_wait(words)
+      end
+
+      # Whether the command declares an argument of its own named `wait`.
+      # @api private
+      def declares_wait?(spec)
+        spec[:arguments].any? { |argument| argument[:path].split(".").first == "wait" }
+      end
+
+      # The words without `--wait`, and whether it was given.
+      # @api private
+      def split_wait(words)
         wait  = false
         rest  = []
         queue = words.dup
@@ -165,14 +212,22 @@ module Hecks
       # @return [Array(Hash, String)] the arguments, and the key minted (nil when none was)
       # @raise [Runtime::NotFound] if a key is owed but no identity adapter is bound
       def run_key(runtime, spec, args, settings)
-        return [args, nil] unless settings && settings[:run_keys] && spec[:creates]
-        return [args, nil] unless spec[:arguments].any? { |argument| argument[:path] == RUN_KEY }
-        return [args, nil] if args.key?(:run) || !runtime.respond_to?(:registry)
+        return [args, nil] unless key_owed?(runtime, spec, args, settings)
 
         key = Ports::IdentityGeneration.uuid(runtime.registry)
         [args.merge(run: { value: key }), key]
       rescue Runtime::WiringError => e
         raise Runtime::NotFound, "cannot mint a run key (#{e.message.lines.first.strip}); name one with run=<key>"
+      end
+
+      # Whether the command is a creating one of an opted-in chapter, takes a run key and was
+      # given none.
+      # @api private
+      def key_owed?(runtime, spec, args, settings)
+        return false unless settings && settings[:run_keys] && spec[:creates]
+        return false unless spec[:arguments].any? { |argument| argument[:path] == RUN_KEY }
+
+        !args.key?(:run) && runtime.respond_to?(:registry)
       end
 
       # Whether a settled record sits in one of the chapter's failure states.

@@ -24,16 +24,22 @@ module Hecks
 
       if container.const_defined?(name, false)
         current = container.const_get(name)
-        unless GENERATED[[container, name]].equal?(current)
-          warn "[hecks] #{name} is already defined — leaving it alone"
-          return current
-        end
+        return leave_alone(name, current) unless GENERATED[[container, name]].equal?(current)
+
         container.send(:remove_const, name)
       end
 
       container.const_set(name, value)
       GENERATED[[container, name]] = value
       value
+    end
+
+    # @param name [String] the constant name
+    # @param current [Object] the constant user code or the stdlib owns
+    # @return [Object] `current`, after warning that it was left in place
+    def leave_alone(name, current)
+      warn "[hecks] #{name} is already defined — leaving it alone"
+      current
     end
   end
 end

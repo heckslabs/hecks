@@ -5,6 +5,9 @@ require "hecks/fuzzing"
 require "json"
 require "fileutils"
 require_relative "../tools"
+require_relative "argument_gate_matrix/violations"
+require_relative "argument_gate_matrix/rows"
+require_relative "argument_gate_matrix/dispatching"
 
 module Hecks
   module Tools
@@ -53,188 +56,11 @@ module Hecks
         def bytes(count) = @random.bytes(count)
       end
 
+      extend Violations
+      extend Rows
+      extend Dispatching
+
       module_function
-
-      def order_for(kind) = kind == "entity" ? ENTITY_ORDER : AGGREGATE_ORDER
-
-      def base_args(command, aggregate, random)
-        command.attributes.to_h do |attribute|
-          [attribute.name.to_s, Hecks::Fuzzing::ValueGenerator.value_for(attribute, aggregate, random: random, known_ids: {})]
-        end
-      rescue ArgumentError
-        nil
-      end
-
-      def identity_args(construct, aggregate, random)
-        Array(construct.identified_by).to_h do |path|
-          head = path.to_s.split(".").first
-          attribute = construct.attributes.find { |a| a.name.to_s == head }
-          value = attribute && Hecks::Fuzzing::ValueGenerator.value_for(attribute, aggregate, random: random, known_ids: {})
-          [head, value || "no-such-#{head}"]
-        end
-      rescue ArgumentError
-        {}
-      end
-
-      # `to:`/`with:` are dispatch envelope keywords, so an attribute with either name is read as
-      # a route; corrupting it would exercise envelope parsing, not an argument gate.
-      ENVELOPE_KEYS = %w[to with].freeze
-
-      def corruptible(command)
-        command.attributes.reject { |a| a.list? || a.reference? || ENVELOPE_KEYS.include?(a.name.to_s) }
-      end
-
-      def droppable(command)
-        command.attributes.reject { |a| a.optional? || a.list? || ENVELOPE_KEYS.include?(a.name.to_s) }
-      end
-
-      def live_gates(command, kind)
-        gates = ["refuse_unknown_arguments"]
-        gates << "refuse_absent_arguments" if droppable(command).any?
-        gates << "normalize_args" if corruptible(command).any?
-        gates << "refuse_role_mismatch" unless command.role.to_s.empty?
-        gates << "resolve_references" if command.attributes.any?(&:reference?)
-        gates << SETTLES.fetch(kind) unless kind == "aggregate" && command.creates?
-        gates
-      end
-
-      MISMATCHED_ROLE = "a role this caller does not hold"
-
-      # Mutates `args` to violate `step`; returns a description of the violation, or nil if the
-      # command cannot violate it.
-      def violate!(step, args, command, aggregate, random)
-        case step
-        when "refuse_unknown_arguments" then violate_unknown!(args, random)
-        when "refuse_absent_arguments"  then violate_absent!(args, command)
-        when "normalize_args"           then violate_normalize!(args, command, aggregate, random)
-        when "refuse_role_mismatch"     then MISMATCHED_ROLE
-        when "resolve_references"       then violate_reference!(args, command)
-        # The world is empty, so every acting command addresses a missing record.
-        when "hydrate", "hydrate_parent" then "no record exists"
-        end
-      end
-
-      def violate_unknown!(args, random)
-        name, value = Hecks::Fuzzing::InvalidValueGenerator.undeclared_argument(random: random)
-        args[name.to_s] = value
-        name.to_s
-      end
-
-      def violate_absent!(args, command)
-        dropped = droppable(command).first or return nil
-
-        args.delete(dropped.name.to_s)
-        dropped.name.to_s
-      end
-
-      # Corrupts one attribute with a wrong value both engines word identically. It avoids
-      # `InvalidValueGenerator.corrupt`, whose composite-value-object and Array shapes render
-      # differently in Ruby and Rust, and corrupts a declared value-object field instead.
-      def violate_normalize!(args, command, aggregate, _random)
-        attribute = corruptible(command).find { |a| args.key?(a.name.to_s) } || corruptible(command).first
-        return nil unless attribute
-
-        value_object = Hecks::Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
-        current = args[attribute.name.to_s]
-        wrong =
-          if value_object.nil?
-            mistyped_scalar(attribute.type)
-          elsif current.is_a?(Hash)
-            field = value_object.attributes.find { |f| current.key?(f.name.to_s) } or return nil
-
-            current.merge(field.name.to_s => value_object.closed_set? ? NON_MEMBER : mistyped_scalar(field.type))
-          end
-        return nil if wrong.nil?
-
-        args[attribute.name.to_s] = wrong
-        attribute.name.to_s
-      end
-
-      # A well-typed string no `one_of` admits, so a closed set refuses on membership.
-      NON_MEMBER = "not a declared member"
-
-      # For a String field a plain scalar is worded differently by Ruby and Rust, so an empty
-      # Hash (the branch they share) stands in as the wrong value.
-      def mistyped_scalar(type_name)
-        type_name.to_s == "String" ? {} : "not a #{type_name.to_s.downcase}"
-      end
-
-      def violate_reference!(args, command)
-        reference = command.attributes.find(&:reference?) or return nil
-
-        args[reference.name.to_s] = "no-such-#{reference.type.target_name.to_s.downcase}"
-        reference.name.to_s
-      end
-
-      # The first declared step missing from the dispatch trace is the one that refused.
-      def refused_step(kind)
-        interpreter = kind == "entity" ? Hecks::Runtime::EntityInterpreter : Hecks::Runtime::CommandInterpreter
-        ran = interpreter.trace || []
-        # `decode_arguments` never traces, so it must not be read as the refusing step.
-        order_for(kind).reject { |step| step == "decode_arguments" }.find { |step| !ran.include?(step.to_sym) }
-      end
-
-      # Dispatches one row; returns [refusal class, message, refused step], or nils if it succeeded.
-      def run_row(runtime, row, kind)
-        Hecks::Runtime::CommandInterpreter.trace = []
-        Hecks::Runtime::EntityInterpreter.trace = []
-        args = JSON.parse(JSON.generate(row[:args])).transform_keys(&:to_sym)
-        begin
-          if row[:role]
-            Hecks.as_caller(role: row[:role]) { runtime.dispatch_flat(row[:verb], args) }
-          else
-            runtime.dispatch_flat(row[:verb], args)
-          end
-          [nil, nil, nil]
-        rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
-          [e.class.name.split("::").last, e.message, refused_step(kind)]
-        end
-      ensure
-        Hecks::Runtime::CommandInterpreter.trace = nil
-        Hecks::Runtime::EntityInterpreter.trace = nil
-      end
-
-      # One row per adjacent live-gate pair the command can violate on both steps. Commands with an
-      # envelope-keyword attribute never reach an argument gate, so they yield none.
-      def rows_for(command, aggregate, verb, kind, random)
-        return [] if command.attributes.any? { |a| ENVELOPE_KEYS.include?(a.name.to_s) }
-
-        base = base_args(command, aggregate, random)
-        return [] if base.nil?
-
-        gates = live_gates(command, kind)
-        gates.each_cons(2).filter_map do |earlier, later|
-          args = JSON.parse(JSON.generate(base))
-          args.merge!(identity_args(aggregate, aggregate, random)) unless kind == "aggregate" && command.creates?
-          role = nil
-          earlier_detail = violate!(earlier, args, command, aggregate, random)
-          later_detail   = violate!(later, args, command, aggregate, random)
-          next if earlier_detail.nil? || later_detail.nil?
-
-          role = MISMATCHED_ROLE if [earlier, later].include?("refuse_role_mismatch")
-
-          { verb: verb, kind: kind, role: role, pair: [earlier, later],
-            violates: { earlier => earlier_detail, later => later_detail }, args: args }
-        end
-      end
-
-      def candidates(runtime, chapter)
-        bluebook = runtime.registry.bluebook(chapter)
-        random = SteadyRandom.new(20_260_918)
-        bluebook.aggregates.flat_map do |aggregate|
-          aggregate_rows = aggregate.commands.flat_map do |command|
-            rows_for(command, aggregate, "#{chapter}::#{aggregate.hecks_name}.#{command.hecks_name}", "aggregate", random)
-          end
-          entity_rows = aggregate.entities.flat_map do |entity|
-            entity.commands.flat_map do |command|
-              verb = "#{chapter}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}"
-              rows = rows_for(command, aggregate, verb, "entity", random)
-              rows.each { |row| row[:args] = identity_args(entity, aggregate, random).merge(row[:args]) }
-            end
-          end
-          aggregate_rows + entity_rows
-        end
-      end
 
       # Dispatches every candidate row of each domain, keeps the ones Ruby's dispatch trace
       # confirms, and prints how many; with `--write` it rewrites the matrix and the Rust
@@ -251,28 +77,30 @@ module Hecks
         dropped = []
         DOMAINS.each do |domain|
           Hecks::Fuzzing::IsolatedBoot.call(File.join(root, domain)) do |copy|
-            runtime = Hecks.boot(copy, environment: nil)
-            chapters = runtime.registry.bluebooks.keys
-            chapter = chapters.find { |name| candidates(runtime, name).any? } || chapters.first
-            candidates(runtime, chapter).each do |row|
-              kind, error, refused = run_row(runtime, row, row[:kind])
-              if kind.nil?
-                dropped << row.merge(reason: "Ruby accepted it — neither gate refused")
-              elsif refused.to_s != row[:pair].first
-                dropped << row.merge(reason: "Ruby refused at #{refused.inspect} (#{kind}), not the earlier declared step")
-              else
-                kept << row.merge(domain: domain, expected: { "kind" => kind, "error" => error, "refused_at" => refused.to_s })
-              end
-            end
+            sweep_domain(Hecks.boot(copy, environment: nil), domain, kept, dropped)
           end
         end
         [kept, dropped]
+      end
+
+      # Files each candidate row of one booted domain under `kept` or `dropped`.
+      def sweep_domain(runtime, domain, kept, dropped)
+        chapters = runtime.registry.bluebooks.keys
+        chapter = chapters.find { |name| candidates(runtime, name).any? } || chapters.first
+        candidates(runtime, chapter).each do |row|
+          verdict, judged = judge(runtime, row, domain)
+          (verdict == :kept ? kept : dropped) << judged
+        end
       end
 
       def report(kept, dropped)
         pairs = kept.group_by { |row| row[:pair].join(" before ") }.transform_values(&:size)
         puts "kept #{kept.size} rows over #{DOMAINS.size} domains; dropped #{dropped.size}"
         pairs.sort.each { |pair, count| puts "  #{pair}: #{count}" }
+        report_dropped(dropped)
+      end
+
+      def report_dropped(dropped)
         dropped.group_by { |row| row[:reason] }.sort_by { |_, rows| -rows.size }.each do |reason, rows|
           puts "  dropped #{rows.size}: #{reason}"
         end
@@ -281,35 +109,38 @@ module Hecks
       def write(root, kept)
         path = File.join(root, MATRIX_FILE)
         FileUtils.mkdir_p(File.dirname(path))
-        matrix = {
-          "generated_by"    => "hecks argument_gate_matrix",
-          "aggregate_order" => AGGREGATE_ORDER,
-          "entity_order"    => ENTITY_ORDER,
-          "rows"            => kept.map do |row|
-            { "domain" => row[:domain], "verb" => row[:verb], "kind" => row[:kind], "pair" => row[:pair],
-              "violates" => row[:violates], "role" => row[:role], "args" => row[:args], "expected" => row[:expected] }
-          end
-        }
-        File.write(path, "#{JSON.pretty_generate(matrix)}\n")
+        File.write(path, "#{JSON.pretty_generate(matrix_for(kept))}\n")
         puts "wrote #{path}"
 
         kept.group_by { |row| row[:domain] }.each { |domain, rows| write_fixture(root, domain, rows) }
       end
 
+      def matrix_for(kept)
+        {
+          "generated_by"    => "hecks argument_gate_matrix",
+          "aggregate_order" => AGGREGATE_ORDER,
+          "entity_order"    => ENTITY_ORDER,
+          "rows"            => kept.map { |row| matrix_row(row) }
+        }
+      end
+
+      def matrix_row(row)
+        { "domain" => row[:domain], "verb" => row[:verb], "kind" => row[:kind], "pair" => row[:pair],
+          "violates" => row[:violates], "role" => row[:role], "args" => row[:args], "expected" => row[:expected] }
+      end
+
       def write_fixture(root, domain, rows)
         path = File.join(root, "spec/corpus/rust_conformance/argument_gate_order_#{File.basename(domain)}.json")
-        fixture = {
-          "domain" => domain,
-          "note"   => FIXTURE_NOTE,
-          "steps"  => rows.map do |row|
-            step = { "verb" => row[:verb] }
-            step["role"] = row[:role] if row[:role]
-            step["args"] = row[:args]
-            step
-          end
-        }
+        fixture = { "domain" => domain, "note" => FIXTURE_NOTE, "steps" => rows.map { |row| fixture_step(row) } }
         File.write(path, "#{JSON.pretty_generate(fixture)}\n")
         puts "wrote #{path}"
+      end
+
+      def fixture_step(row)
+        step = { "verb" => row[:verb] }
+        step["role"] = row[:role] if row[:role]
+        step["args"] = row[:args]
+        step
       end
     end
   end

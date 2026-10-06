@@ -1,7 +1,7 @@
 # Where the Hecks domain keeps its journal: every command's events, one entry per aggregate.
 #
 # **PostgresEra** is the default, for real runs: a client's `hecks` and a maintainer's on main
-# or in the merge queue. The journal then survives the process, and `hecks stores` and
+# or stable. The journal then survives the process, and `hecks stores` and
 # `hecks history` read it back. `default_adapter` binds every aggregate of the chapter (and of
 # the attached Governance chapter, see governance.world) in one line, which is what lets the
 # environments/memory.world overlay swap the whole domain to Memory.
@@ -31,7 +31,10 @@
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
-# positional forms ADR 0066 shipped.
+# positional forms ADR 0066 shipped. `maintainer` names the aggregates only someone working on a hecks
+# checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
+# `--maintainer` lists them; `chapters` names the attached chapters the help points at, one line each
+# (`hecks deploy`), and `maintainer_chapters` the language's own, added inside a checkout.
 Hecks.world "Hecks" do
   realm "Hecks"
   default_adapter "PostgresEra"
@@ -51,6 +54,11 @@ Hecks.world "Hecks" do
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
+                       maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun
+                                      CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
+                                      SyntaxBootCache],
+                       chapters: %w[Deploy Governance Tenancy Site Tickets QualityControl],
+                       maintainer_chapters: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]

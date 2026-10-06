@@ -73,96 +73,83 @@ RSpec.describe "promoting a lane" do
 
   def outcome(run) = launch("promotion_run.promotion_outcome", "run=#{run}").first
 
-  it "is a rehearsal without --confirm: it names the move and moves nothing" do
-    fake = promote_with(refs: { "main" => main_head, "stable" => stable_head }, ancestry: [[stable_head, main_head]])
-
-    _, status = launch("promotion_run.promote", "run=dry", "lane=stable")
-    out = outcome("dry")
-
-    expect(status).to eq(0)
-    expect(out).to include('"status": "completed"', "rehearsal: would fast-forward stable bbbbbbb..aaaaaaa")
-    expect(fake.moved).to be_empty
-    expect(fake.tags).to be_empty
+  # Main is ahead of stable, the usual state a promotion starts from.
+  def ready(**more)
+    promote_with(refs: { "main" => main_head, "stable" => stable_head }, ancestry: [[stable_head, main_head]], **more)
   end
 
-  it "fast-forwards the lane and moves the tag it feeds when confirmed" do
-    fake = promote_with(refs: { "main" => main_head, "stable" => stable_head }, ancestry: [[stable_head, main_head]])
-
-    launch("promotion_run.promote", "run=real", "lane=stable", "--confirm")
-
-    expect(outcome("real")).to include('"status": "completed"', "fast-forwarded stable bbbbbbb..aaaaaaa, edge moved")
-    expect(fake.moved).to eq([["stable", main_head]])
-    expect(fake.tags).to eq([["edge", main_head]])
+  def promote(run, *args, lane: "stable", confirm: true)
+    launch("promotion_run.promote", "run=#{run}", "lane=#{lane}", *args, *("--confirm" if confirm))
+    outcome(run)
   end
 
-  it "does nothing, and does not fault, for a commit the lane already holds" do
+  def completed = '"status": "completed"'
+
+  def faulted = '"status": "faulted"'
+
+  it "is a rehearsal without --confirm: it names the move and moves nothing", :aggregate_failures do
+    fake = ready
+
+    expect(promote("dry", confirm: false)).to include(completed, "rehearsal: would fast-forward stable bbbbbbb..aaaaaaa")
+    expect([fake.moved, fake.tags]).to eq([[], []])
+  end
+
+  it "fast-forwards the lane and moves the tag it feeds when confirmed", :aggregate_failures do
+    fake = ready
+
+    expect(promote("real")).to include(completed, "fast-forwarded stable bbbbbbb..aaaaaaa, edge moved")
+    expect([fake.moved, fake.tags]).to eq([[["stable", main_head]], [["edge", main_head]]])
+  end
+
+  it "does nothing, and does not fault, for a commit the lane already holds", :aggregate_failures do
     older = "d" * 40
-    fake = promote_with(refs:     { "main" => main_head, "stable" => stable_head },
-                        ancestry: [[older, main_head], [older, stable_head]])
+    fake = ready(ancestry: [[older, main_head], [older, stable_head]])
 
-    launch("promotion_run.promote", "run=held", "lane=stable", "commit=#{older}", "--confirm")
-
-    expect(outcome("held")).to include('"status": "completed"', "stable already holds ddddddd")
-    expect(fake.moved).to be_empty
-    expect(fake.tags).to be_empty
+    expect(promote("held", "commit=#{older}")).to include(completed, "stable already holds ddddddd")
+    expect([fake.moved, fake.tags]).to eq([[], []])
   end
 
-  it "makes the lane when it does not yet exist" do
+  it "makes the lane when it does not yet exist", :aggregate_failures do
     fake = promote_with(refs: { "main" => main_head })
 
-    launch("promotion_run.promote", "run=first", "lane=stable", "--confirm")
-
-    expect(outcome("first")).to include('"status": "completed"', "fast-forwarded stable none..aaaaaaa")
+    expect(promote("first")).to include(completed, "fast-forwarded stable none..aaaaaaa")
     expect(fake.moved).to eq([["stable", main_head]])
   end
 
-  it "refuses while a required check is red, naming it, and moves nothing" do
-    fake = promote_with(refs: { "main" => main_head, "stable" => stable_head },
-                        ancestry: [[stable_head, main_head]], states: { "rspec_rust_io" => :failed })
+  it "refuses while a required check is red, naming it, and moves nothing", :aggregate_failures do
+    fake = ready(states: { "rspec_rust_io" => :failed })
 
-    launch("promotion_run.promote", "run=red", "lane=stable", "--confirm")
-
-    expect(outcome("red")).to include('"status": "faulted"', "failed: rspec_rust_io")
+    expect(promote("red")).to include(faulted, "failed: rspec_rust_io")
     expect(fake.moved).to be_empty
   end
 
-  it "refuses while a required check has not finished, and says it is waiting" do
-    fake = promote_with(refs: { "main" => main_head, "stable" => stable_head },
-                        ancestry: [[stable_head, main_head]], states: { "rspec" => :pending, "checks" => :missing })
+  it "refuses while a required check has not finished, and says it is waiting", :aggregate_failures do
+    fake = ready(states: { "rspec" => :pending, "checks" => :missing })
 
-    launch("promotion_run.promote", "run=wait", "lane=stable", "--confirm")
-
-    expect(outcome("wait")).to include('"status": "faulted"', "waiting on: rspec, checks")
+    expect(promote("wait")).to include(faulted, "waiting on: rspec, checks")
     expect(fake.moved).to be_empty
   end
 
-  it "refuses a commit that does not contain the lane's head: a lane only moves forward" do
+  it "refuses a commit that does not contain the lane's head: a lane only moves forward", :aggregate_failures do
     other = "c" * 40
-    fake = promote_with(refs:     { "main" => main_head, "stable" => stable_head },
-                        ancestry: [[other, main_head]])
+    fake = ready(ancestry: [[other, main_head]])
 
-    launch("promotion_run.promote", "run=back", "lane=stable", "commit=#{other}", "--confirm")
-
-    expect(outcome("back")).to include('"status": "faulted"', "not a fast-forward")
+    expect(promote("back", "commit=#{other}")).to include(faulted, "not a fast-forward")
     expect(fake.moved).to be_empty
   end
 
-  it "refuses a lane that no Lane row follows another lane" do
+  it "refuses a lane that no Lane row follows another lane", :aggregate_failures do
     fake = promote_with(refs: { "main" => main_head })
 
-    launch("promotion_run.promote", "run=main", "lane=main", "--confirm")
-
-    expect(outcome("main")).to include('"status": "faulted"', "is not a Lane row that follows another lane")
+    expect(promote("main", lane: "main")).to include(faulted, "is not a Lane row that follows another lane")
     expect(fake.moved).to be_empty
   end
 
-  it "refuses outside a hecks checkout, and asks neither the remote nor GitHub" do
+  it "refuses outside a hecks checkout, and asks neither the remote nor GitHub", :aggregate_failures do
     fake = promote_with(refs: { "main" => main_head })
     FileUtils.rm_f(File.join(root, "hecks.gemspec"))
 
-    launch("promotion_run.promote", "run=away", "lane=stable", "--confirm")
-
-    expect(outcome("away")).to include('"status": "faulted"', "needs a hecks checkout")
+    expect(promote("away")).to include(faulted, "needs a hecks checkout")
     expect(fake.moved).to be_empty
   end
 end

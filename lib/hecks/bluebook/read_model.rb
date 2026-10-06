@@ -1,4 +1,5 @@
 require_relative "behaviour/read_model"
+require_relative "keyword_fields"
 
 module Hecks
   module Bluebook
@@ -25,6 +26,18 @@ module Hecks
                   :count, :median_field, :sum_field, :avg_field, :min_field, :max_field,
                   :percentile_field, :percentile_at, :any_field, :all_field
 
+      # Every optional keyword of its own and what it holds when the declaration omits it;
+      # any other keyword goes to the specification base.
+      FIELD_DEFAULTS = {
+        description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [], group_by: [],
+        count: nil, median_field: nil, sum_field: nil, avg_field: nil, min_field: nil,
+        max_field: nil, percentile_field: nil, percentile_at: nil, any_field: nil, all_field: nil
+      }.freeze
+
+      # The reduction keywords, among `FIELD_DEFAULTS`, that `assign_reductions` reads.
+      REDUCTION_KEYS = [:count, :median_field, :sum_field, :avg_field, :min_field, :max_field,
+                        :percentile_field, :percentile_at, :any_field, :all_field].freeze
+
       # Nil `reference_name`/`reference_target` mean a rootless read model, so `&.` keeps
       # them nil. `count` through `all_field` are `Behaviour::ReadModel::REDUCTION_FIELDS`,
       # one keyword per wire field: `Assembly::Build`/`Reconstruction` construct this
@@ -36,23 +49,16 @@ module Hecks
       # @param reference_target [String, Symbol, nil] the rooted aggregate's name
       # @param aggregate_heads [Array<Hash{Symbol => Object}>] rows of `:aggregate`, `:as`, `:many`
       # @param group_by [Array<Hash{field: Symbol}>] the declared group-by fields, one row each
-      # rubocop:disable-next Metrics/ParameterLists
-      def initialize(name:, description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [],
-                     group_by: [], count: nil, median_field: nil, sum_field: nil, avg_field: nil,
-                     min_field: nil, max_field: nil, percentile_field: nil, percentile_at: nil,
-                     any_field: nil, all_field: nil, **)
-        super(joins: aggregate_heads, **)
+      def initialize(name:, **given)
+        fields = KeywordFields.fill(given.slice(*FIELD_DEFAULTS.keys), FIELD_DEFAULTS)
+        super(joins: fields[:aggregate_heads], **given.except(*FIELD_DEFAULTS.keys))
         @name             = name.to_s
         @hecks_name       = @name
-        @description      = description
-        @reference_name   = reference_name&.to_sym
-        @reference_target = reference_target&.to_s
-        @aggregate_heads  = aggregate_heads
-        # Rows are `{field: :agg}` hashes, the same shape as `aggregate_heads`.
-        @group_by         = group_by
-        assign_reductions(count: count, median_field: median_field, sum_field: sum_field, avg_field: avg_field,
-                          min_field: min_field, max_field: max_field, percentile_field: percentile_field,
-                          percentile_at: percentile_at, any_field: any_field, all_field: all_field)
+        # `group_by` rows are `{field: :agg}` hashes, the same shape as `aggregate_heads`.
+        KeywordFields.assign(self, fields.slice(:description, :aggregate_heads, :group_by))
+        @reference_name   = fields[:reference_name]&.to_sym
+        @reference_target = fields[:reference_target]&.to_s
+        assign_reductions(**fields.slice(*REDUCTION_KEYS))
       end
 
       # Every reduction is omitted from the export, not nil, when undeclared, so
@@ -72,33 +78,29 @@ module Hecks
       private
 
       # Stays nil (never false) when undeclared: the Judge skips setters whose source is nil.
-      def assign_reductions(count:, median_field:, sum_field:, avg_field:, min_field:, max_field:,
-                            percentile_field:, percentile_at:, any_field:, all_field:)
-        @count            = count ? true : nil
-        @median_field     = median_field&.to_sym
-        @sum_field        = sum_field&.to_sym
-        @avg_field        = avg_field&.to_sym
-        @min_field        = min_field&.to_sym
-        @max_field        = max_field&.to_sym
-        @percentile_field = percentile_field&.to_sym
-        @percentile_at    = percentile_at&.to_f
-        @any_field        = any_field&.to_sym
-        @all_field        = all_field&.to_sym
+      def assign_reductions(count:, percentile_at:, **fields)
+        @count         = count ? true : nil
+        @percentile_at = percentile_at&.to_f
+        fields.each { |key, value| instance_variable_set(:"@#{key}", value&.to_sym) }
       end
 
       def reduction_pairs
-        pairs = {}
-        pairs[:count] = true if @count
-        pairs[:median_field] = @median_field.to_s if @median_field
-        pairs[:sum_field] = @sum_field.to_s if @sum_field
-        pairs[:avg_field] = @avg_field.to_s if @avg_field
-        pairs[:min_field] = @min_field.to_s if @min_field
-        pairs[:max_field] = @max_field.to_s if @max_field
-        pairs[:percentile_field] = @percentile_field.to_s if @percentile_field
-        pairs[:percentile_at] = @percentile_at if @percentile_field
-        pairs[:any_field] = @any_field.to_s if @any_field
-        pairs[:all_field] = @all_field.to_s if @all_field
-        pairs
+        REDUCTION_KEYS.each_with_object({}) do |key, pairs|
+          pairs[key] = emitted_reduction(key) if declared_reduction?(key)
+        end
+      end
+
+      # `percentile_at` is emitted whenever its field is, even if the point itself is nil.
+      def declared_reduction?(key)
+        gate = key == :percentile_at ? :percentile_field : key
+        instance_variable_get(:"@#{gate}") ? true : false
+      end
+
+      def emitted_reduction(key)
+        value = instance_variable_get(:"@#{key}")
+        return value if key == :percentile_at
+
+        key == :count ? true : value.to_s
       end
     end
   end

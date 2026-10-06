@@ -5,20 +5,18 @@ require "spec_helper"
 RSpec.describe "the generated parser table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/keywords.rs", __dir__) }
 
-  it "is exactly what `hecks project_parser_table` would regenerate from the aggregate-local syntax tables right now" do
-    expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run hecks project_parser_table"
-
-    committed = File.read(committed_path)
-    regenerated = Hecks::Projector.call(
-      :parser_table,
-      bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-    )
-
-    expect(committed).to eq(regenerated),
-                         "rust/parser/src/keywords.rs is stale — run hecks project_parser_table and commit the result"
+  def regenerated_table
+    Hecks::Projector.call(:parser_table, bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook"))
   end
 
-  it "declares at least one row (a real, non-empty grammar table)" do
+  it "is exactly what `hecks project_parser_table` would regenerate " \
+     "from the aggregate-local syntax tables right now", :aggregate_failures do
+    expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run hecks project_parser_table"
+    expect(File.read(committed_path))
+      .to eq(regenerated_table), "rust/parser/src/keywords.rs is stale — run hecks project_parser_table and commit the result"
+  end
+
+  it "declares at least one row (a real, non-empty grammar table)", :aggregate_failures do
     # `render` reads through `SyntaxBoot.call`, not the static seed rows.
     table = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
 

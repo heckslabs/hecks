@@ -31,13 +31,9 @@ RSpec.describe Hecks::Runtime::CapabilityGraph do
 
   describe "#fulfillments" do
     it "names every declared port, adapters bound and unbound alike" do
-      graph = registry.capability_graph
+      expected = { "persistence" => ["Memory"], "extraction" => ["Prism"], "identity_generation" => [] }
 
-      expect(graph.fulfillments).to eq(
-        "persistence"         => ["Memory"],
-        "extraction"          => ["Prism"],
-        "identity_generation" => []
-      )
+      expect(registry.capability_graph.fulfillments).to eq(expected)
     end
 
     it "lists more than one adapter for a port more than one implements" do
@@ -64,8 +60,9 @@ RSpec.describe Hecks::Runtime::CapabilityGraph do
   end
 
   it "memoizes the graph per registry, the same way #repository does" do
-    held = registry
+    held  = registry
+    first = held.capability_graph
 
-    expect(held.capability_graph).to be(held.capability_graph)
+    expect(held.capability_graph).to be(first)
   end
 end

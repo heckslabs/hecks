@@ -1,0 +1,24 @@
+# One behavior, nothing cached: a preview is for looking at a change, so no cache means
+# no stale page after a redeploy and no session response served to the wrong visitor.
+# AllViewer forwards the viewer's Host so a same-origin check sees the real hostname.
+PreviewDistribution:
+  Type: AWS::CloudFront::Distribution
+  Properties:
+    DistributionConfig:
+      Enabled: true
+      HttpVersion: http2
+      Comment: !Sub "preview ${EnvName}"
+      Origins:
+        - Id: PreviewAlbOrigin
+          DomainName: !GetAtt Alb.DNSName
+          CustomOriginConfig:
+            OriginProtocolPolicy: http-only
+            OriginSSLProtocols: [TLSv1.2]
+      DefaultCacheBehavior:
+        TargetOriginId: PreviewAlbOrigin
+        ViewerProtocolPolicy: redirect-to-https
+        AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+        CachedMethods: [GET, HEAD]
+        Compress: true
+        CachePolicyId: @@caching_disabled@@
+        OriginRequestPolicyId: @@all_viewer@@

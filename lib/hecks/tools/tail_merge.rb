@@ -28,14 +28,7 @@ module Hecks
         registry, bluebook = load_domain(domain_path)
         settings = lineage_settings(registry, bluebook)
         report_divergence(bluebook, settings)
-
-        begin
-          Hecks::Adapters::PostgresEra::LineageManager.merge!(
-            registry: registry, bluebook: bluebook, settings: settings, winners: winners
-          )
-        rescue Hecks::Runtime::WiringError => e
-          abort "REFUSED: #{e.message}"
-        end
+        merge_tail(registry, bluebook, settings, winners)
 
         puts "merged — the head now interleaves both worlds by their recorded ordinals"
         winners.each { |id, side| puts "  winner #{id}=#{side} appended as the newest row" }
@@ -46,19 +39,22 @@ module Hecks
       def parse(argv)
         domain_path = nil
         winners = {}
-        until argv.empty?
-          argument = argv.shift
-          if argument == "--winner"
-            declaration = argv.shift or abort "--winner needs <id>=old|new"
-            id, side = declaration.split("=", 2)
-            abort "--winner #{declaration}: the side must be `old` or `new`" unless %w[old new].include?(side)
-            winners[id] = side
-          else
-            domain_path = argument
-          end
-        end
+        domain_path = parse_word(argv.shift, argv, winners) || domain_path until argv.empty?
         abort USAGE unless domain_path
         [domain_path, winners]
+      end
+
+      # Records a `--winner` declaration in `winners`, taking it from `rest`.
+      #
+      # @return [String, nil] the word, when it names the domain directory; nil after a winner
+      def parse_word(argument, rest, winners)
+        return argument unless argument == "--winner"
+
+        declaration = rest.shift or abort "--winner needs <id>=old|new"
+        id, side = declaration.split("=", 2)
+        abort "--winner #{declaration}: the side must be `old` or `new`" unless %w[old new].include?(side)
+        winners[id] = side
+        nil
       end
 
       # @param domain_path [String] the domain directory
@@ -67,17 +63,20 @@ module Hecks
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)
         registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
-        begin
-          Hecks.with_registry(registry) do
-            loading.load_library
-            loading.load_project(loading.shared_root(nil, directory))
-            loading.load_domain(directory)
-          end
-        rescue Hecks::Bluebook::DSL::Malformed => e
-          abort "REFUSED at load: #{e.message}"
-        end
+        load_chapters(loading, registry, directory)
         bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
         [registry, bluebook]
+      end
+
+      # Loads the library, the project and the domain into `registry`.
+      def load_chapters(loading, registry, directory)
+        Hecks.with_registry(registry) do
+          loading.load_library
+          loading.load_project(loading.shared_root(nil, directory))
+          loading.load_domain(directory)
+        end
+      rescue Hecks::Bluebook::DSL::Malformed => e
+        abort "REFUSED at load: #{e.message}"
       end
 
       # @return [Hash] the persistence binding's settings
@@ -85,19 +84,28 @@ module Hecks
       def lineage_settings(registry, bluebook)
         first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
-        capable =
-          begin
-            adapter_class = registry.adapter_class(adapter_name)
-            adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
-          rescue StandardError
-            false
-          end
-        unless capable
+        unless lineage_capable?(registry, adapter_name)
           abort "a tail-merge needs a lineage journal; #{bluebook.name} is bound to #{adapter_name}, " \
                 "not PostgresEra"
         end
 
         registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
+      end
+
+      def lineage_capable?(registry, adapter_name)
+        adapter_class = registry.adapter_class(adapter_name)
+        adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
+      rescue StandardError
+        false
+      end
+
+      # @raise [SystemExit] when the merge is refused
+      def merge_tail(registry, bluebook, settings, winners)
+        Hecks::Adapters::PostgresEra::LineageManager.merge!(
+          registry: registry, bluebook: bluebook, settings: settings, winners: winners
+        )
+      rescue Hecks::Runtime::WiringError => e
+        abort "REFUSED: #{e.message}"
       end
 
       # @return [void]
@@ -109,7 +117,7 @@ module Hecks
         diverged = eras.size > 1 ? (1...eras.last[:ordinal]).sum { |era| lineage.diverged_count(era) } : 0
         db.close
 
-        puts "#{bluebook.name}: #{diverged} post-cut write#{'s' unless diverged == 1} " \
+        puts "#{bluebook.name}: #{diverged} post-cut write#{"s" unless diverged == 1} " \
              "in ancestor eras before the merge"
       end
     end

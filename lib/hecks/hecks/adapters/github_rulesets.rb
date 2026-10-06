@@ -26,7 +26,7 @@ module Hecks
       # @raise [RuntimeError] when `gh` is missing or refuses
       def all
         listed = json(call("api", "repos/{owner}/{repo}/rulesets?per_page=100"))
-        listed.map { |ruleset| json(call("api", "repos/{owner}/{repo}/rulesets/#{ruleset.fetch('id')}")) }
+        listed.map { |ruleset| json(call("api", "repos/{owner}/{repo}/rulesets/#{ruleset.fetch("id")}")) }
       end
 
       # @param name [String] a ruleset's name
@@ -42,7 +42,7 @@ module Hecks
         live = named(projected.fetch("name"))
         path = "repos/{owner}/{repo}/rulesets"
         if live
-          call("api", "--method", "PUT", "#{path}/#{live.fetch('id')}", "--input", "-", stdin: JSON.generate(projected))
+          call("api", "--method", "PUT", "#{path}/#{live.fetch("id")}", "--input", "-", stdin: JSON.generate(projected))
           :updated
         else
           call("api", "--method", "POST", path, "--input", "-", stdin: JSON.generate(projected))
@@ -56,10 +56,10 @@ module Hecks
       # @param live [Hash, nil] the ruleset GitHub holds, or nil when it has none
       # @return [Array<String>] one line for each difference; empty when they agree
       def differences(projected, live)
-        return ["#{projected['name']}: GitHub has no such ruleset"] unless live
+        return ["#{projected["name"]}: GitHub has no such ruleset"] unless live
 
         found = COMPARED.reject { |key| projected[key] == live[key] }.map do |key|
-          "#{projected['name']}: #{key} is #{live[key].inspect} on GitHub, #{projected[key].inspect} in the model"
+          "#{projected["name"]}: #{key} is #{live[key].inspect} on GitHub, #{projected[key].inspect} in the model"
         end
         found + compare_conditions(projected, live) + compare_bypass(projected, live) + compare_rules(projected, live)
       end
@@ -69,7 +69,7 @@ module Hecks
       def compare_conditions(projected, live)
         mine = projected.dig("conditions", "ref_name", "include")
         theirs = live.dig("conditions", "ref_name", "include")
-        mine == theirs ? [] : ["#{projected['name']}: it guards #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
+        mine == theirs ? [] : ["#{projected["name"]}: it guards #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
       end
 
       def compare_bypass(projected, live)
@@ -77,13 +77,13 @@ module Hecks
         theirs = actors(live)
         return [] if mine == theirs
 
-        ["#{projected['name']}: bypass actors are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
+        ["#{projected["name"]}: bypass actors are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
       end
 
       def compare_rules(projected, live)
         mine = projected.fetch("rules").map { |rule| rule["type"] }.sort
         theirs = live.fetch("rules", []).map { |rule| rule["type"] }.sort
-        mine == theirs ? [] : ["#{projected['name']}: rules are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
+        mine == theirs ? [] : ["#{projected["name"]}: rules are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
       end
 
       def actors(ruleset)
@@ -92,7 +92,7 @@ module Hecks
 
       def call(*args, stdin: nil)
         out, err, ok = @runner.call(args, stdin)
-        raise "gh #{args.first(3).join(' ')} failed: #{err.strip.empty? ? out.strip : err.strip}" unless ok
+        raise "gh #{args.first(3).join(" ")} failed: #{err.strip.empty? ? out.strip : err.strip}" unless ok
 
         out
       end

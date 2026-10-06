@@ -5,7 +5,24 @@ require "fileutils"
 RSpec.describe "a constructed aggregate" do
   before { boot_in_memory }
 
-  it "names the domain and its aggregates" do
+  def margherita
+    Order.create_pizza!(name:  { value: "Margherita" },
+                        pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+  end
+
+  def margherita_with_basil
+    margherita.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+  end
+
+  def create_bare_pizza
+    Order.create_pizza!(name: { value: "Bare" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+  end
+
+  def purchase_for_chris(pizza)
+    pizza.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+  end
+
+  it "names the domain and its aggregates", :aggregate_failures do
     expect(Pizzas.aggregates).to eq(["Order"])
     expect(Pizzas.vision).to include("sell it to a customer")
   end
@@ -14,7 +31,7 @@ RSpec.describe "a constructed aggregate" do
     expect(Order.commands).to eq(%w[add_topping! create_pizza! purchase!])
   end
 
-  it "is a door over the runtime, not a minted class" do
+  it "is a door over the runtime, not a minted class", :aggregate_failures do
     expect(Order).to be_a(Module)
     expect(Order).not_to be_a(Class)
     expect(Order.ir).to be_a(Hecks::Bluebook::Aggregate)
@@ -22,11 +39,9 @@ RSpec.describe "a constructed aggregate" do
   end
 
   describe "a creating command" do
-    it "is a module method returning the new record in hand" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 },
-                                           size:        { value: "large" } })
+    subject(:pizza) { margherita }
 
+    it "is a module method returning the new record in hand", :aggregate_failures do
       expect(pizza).to be_a(Hecks::Doors::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
       expect(pizza.pizza.price_cents.to_h).to eq(cents: 1200)
@@ -37,32 +52,24 @@ RSpec.describe "a constructed aggregate" do
 
   describe "a command that references its aggregate" do
     it "is an instance method that never asks for an id" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 },
-                                           size:        { value: "large" } })
+      pizza = margherita
       pizza.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
 
       expect(pizza.toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
     end
 
-    it "returns self, so commands chain" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-                   .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-                   .add_topping!(topping: { value: "Olive" }, amount: { value: 2 })
-                   .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+    it "returns self, so commands chain", :aggregate_failures do
+      sold = purchase_for_chris(margherita_with_basil.add_topping!(topping: { value: "Olive" }, amount: { value: 2 }))
 
-      expect(pizza.status).to eq("sold")
-      expect(pizza.customer_name.to_h).to eq(value: "Chris")
-      expect(pizza.toppings.size).to eq(2)
+      expect(sold.status).to eq("sold")
+      expect(sold.customer_name.to_h).to eq(value: "Chris")
+      expect(sold.toppings.size).to eq(2)
     end
   end
 
   describe "reading" do
-    it "finds, lists, and counts through the bound adapter" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 },
-                                           size:        { value: "large" } })
+    it "finds, lists, and counts through the bound adapter", :aggregate_failures do
+      pizza = margherita
 
       expect(Order.count).to eq(1)
       expect(Order.find(pizza.id).name.to_h).to eq(value: "Margherita")
@@ -70,11 +77,9 @@ RSpec.describe "a constructed aggregate" do
       expect(Order.find("nope")).to be_nil
     end
 
-    it "reports the events one instance announced" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-                   .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-                   .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+    it "reports the events one instance announced", :aggregate_failures do
+      pizza = margherita_with_basil
+      purchase_for_chris(pizza)
 
       expect(pizza.events.map(&:name)).to eq(%w[PizzaCreated ToppingAdded PizzaPurchased])
       expect(pizza.events.last.name).to eq("PizzaPurchased")
@@ -83,23 +88,21 @@ RSpec.describe "a constructed aggregate" do
 
   describe "the rules still hold" do
     it "refuses a purchase with no toppings" do
-      pizza = Order.create_pizza!(name: { value: "Bare" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+      pizza = create_bare_pizza
 
       expect { pizza.purchase!(customer_name: { value: "Chris" }, amount: { cents: 900 }) }
         .to raise_error(Hecks::Runtime::GivenNotMet, /at least one topping/)
     end
 
     it "enforces the value object invariant" do
-      pizza = Order.create_pizza!(name:  { value: "Margherita" },
-                                  pizza: { price_cents: { cents: 1200 },
-                                           size:        { value: "large" } })
+      pizza = margherita
 
       expect { pizza.add_topping!(topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecks::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
     end
   end
 
-  it "raises NoMethodError for an unknown method outside a hecksagon" do
+  it "raises NoMethodError for an unknown method outside a hecksagon", :aggregate_failures do
     expect { Order.persisted_by("Memory") }.to raise_error(NoMethodError)
     expect { Order.create_pizza!(name: { value: "X" }, pizza: { price_cents: { cents: 1 }, size: { value: "small" } }).nonsense }
       .to raise_error(NoMethodError)

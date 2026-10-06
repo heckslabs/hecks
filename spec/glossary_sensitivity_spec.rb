@@ -43,17 +43,17 @@ RSpec.describe "glossary sensitivity tagging" do
   ALLERGIES = { domain: "Clinic::Patient", attribute_path: "contact.allergies",
                 category: "phi", readable_by: "Privacy officer" }.freeze
 
+  def load_clinic(dir)
+    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+     InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+    InMemoryDomain.load_bluebook_files(dir)
+  end
+
   def chapter
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "clinic.bluebook"), BLUEBOOK)
       registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        InMemoryDomain.load_bluebook_files(dir)
-      end
+      Hecks.with_registry(registry) { load_clinic(dir) }
       registry.bluebook("Clinic")
     end
   end
@@ -79,7 +79,7 @@ RSpec.describe "glossary sensitivity tagging" do
     expect(html).to include("Handled as sensitive", "allergies (text, PHI)")
   end
 
-  it "says nothing about sensitivity when no marking is handed in" do
+  it "says nothing about sensitivity when no marking is handed in", :aggregate_failures do
     expect(glossary["glossary.md"]).not_to match(/PHI|sensitive/)
     expect(glossary([])).to eq(glossary)
   end
@@ -89,7 +89,7 @@ RSpec.describe "glossary sensitivity tagging" do
     expect(glossary([other])).to eq(glossary)
   end
 
-  it "still lists a marking whose path reaches no declared field" do
+  it "still lists a marking whose path reaches no declared field", :aggregate_failures do
     stray = ALLERGIES.merge(attribute_path: "contact.blood_type")
     markdown = glossary([stray])["glossary.md"]
     expect(markdown).to include("- Contact blood type: PHI,")

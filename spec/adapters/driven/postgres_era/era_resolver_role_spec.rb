@@ -25,20 +25,20 @@ RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::EraResolver — ro
   end
 
   it "grants the symbol-keyed role even when the string spelling also holds a value" do
-    expect(lineage).to receive(:grant_role!).with("reader", aggregates: [], era: 1)
-
     check!(role: "reader", "role" => "writer")
+
+    expect(lineage).to have_received(:grant_role!).with("reader", aggregates: [], era: 1)
   end
 
   it "grants NO role when the symbol spelling is genuinely `false`, rather than falling to the string spelling" do
-    expect(lineage).not_to receive(:grant_role!)
-
     check!(role: false, "role" => "writer")
+
+    expect(lineage).not_to have_received(:grant_role!)
   end
 
   it "falls to the string spelling only when the symbol key is genuinely absent" do
-    expect(lineage).to receive(:grant_role!).with("writer", aggregates: [], era: 1)
-
     check!("role" => "writer")
+
+    expect(lineage).to have_received(:grant_role!).with("writer", aggregates: [], era: 1)
   end
 end

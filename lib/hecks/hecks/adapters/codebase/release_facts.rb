@@ -51,14 +51,22 @@ module Hecks
         private
 
         def git_facts(version)
+          fetch_origin!
+          head = read("rev-parse", "HEAD")
+          lane_facts(head).merge(clean:     flag(read("status", "--porcelain").empty?),
+                                 tag_state: word(tag_state("v#{version}", head)))
+        end
+
+        def fetch_origin!
           fetch = @git.capture("fetch", "origin")
           raise ConsoleCapture::Failure, "git fetch origin failed (#{fetch.stderr.strip})" unless fetch.success?
+        end
 
-          head = read("rev-parse", "HEAD")
+        # Where the checkout stands against the lane a release is cut from.
+        def lane_facts(head)
           lane = Release::Lane.release
           { branch: word(read("rev-parse", "--abbrev-ref", "HEAD")), head: word(head), release_lane: word(lane),
-            on_origin: flag(head == read("rev-parse", "origin/#{lane}")),
-            clean: flag(read("status", "--porcelain").empty?), tag_state: word(tag_state("v#{version}", head)) }
+            on_origin: flag(head == read("rev-parse", "origin/#{lane}")) }
         end
 
         def tag_state(tag, head)

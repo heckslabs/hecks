@@ -59,7 +59,7 @@ module Hecks
         when 0 then raise WiringError, "no adapter implements the #{port_name} port — nothing can answer #{asked}"
         else raise WiringError,
                    "#{implementations.size} adapters implement the #{port_name} port " \
-                   "(#{implementations.map(&:name).sort.join(', ')}) — the runtime will not choose for you"
+                   "(#{implementations.map(&:name).sort.join(", ")}) — the runtime will not choose for you"
         end
       end
 
@@ -76,48 +76,69 @@ module Hecks
       # @raise [Runtime::WiringError] if the constructor needs arguments, the method is missing or
       #   inherited, or its keywords do not match the query's arguments
       def check_answers!(klass, port_name, method, query, asked:)
-        required = klass.instance_method(:initialize).parameters.filter_map { |kind, name| name if %i[req keyreq].include?(kind) }
-        unless required.empty?
-          raise WiringError, "#{klass} implements the #{port_name} port but its constructor requires " \
-                             "#{required.join(', ')} — it is built with no arguments"
-        end
-
-        unless klass.public_method_defined?(method) &&
-               !INHERITED_OWNERS.include?(klass.public_instance_method(method).owner)
-          raise WiringError, "#{klass} implements the #{port_name} port but not ##{method}, " \
-                             "which answers #{asked}"
-        end
-
+        check_buildable!(klass, port_name)
+        check_defined!(klass, port_name, method, asked)
         check_keywords!(klass, method, query, asked)
+      end
+
+      # @raise [Runtime::WiringError] if the constructor requires arguments
+      def check_buildable!(klass, port_name)
+        required = klass.instance_method(:initialize).parameters.filter_map { |kind, name| name if %i[req keyreq].include?(kind) }
+        return if required.empty?
+
+        raise WiringError, "#{klass} implements the #{port_name} port but its constructor requires " \
+                           "#{required.join(", ")} — it is built with no arguments"
+      end
+
+      # @raise [Runtime::WiringError] if the method is missing or only inherited
+      def check_defined!(klass, port_name, method, asked)
+        return if klass.public_method_defined?(method) &&
+                  !INHERITED_OWNERS.include?(klass.public_instance_method(method).owner)
+
+        raise WiringError, "#{klass} implements the #{port_name} port but not ##{method}, " \
+                           "which answers #{asked}"
       end
 
       # @raise [Runtime::WiringError] if the method takes a positional argument, requires a keyword
       #   the query does not require, or accepts none of a declared argument
       def check_keywords!(klass, method, query, asked)
+        wanted     = query_keywords(query)
         parameters = klass.public_instance_method(method).parameters
-        wanted     = query.attributes.map { |attribute| attribute.name.to_sym }
-        required   = query.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
-        problems   = keyword_problems(parameters, wanted, required)
+        problems   = keyword_problems(parameters, wanted, query_keywords(query, required: true))
         return if problems.empty?
 
-        raise WiringError, "#{klass}##{method} answers #{asked} but #{problems.join(' and ')} — it is asked " \
-                           "with keywords for the query's arguments (#{wanted.empty? ? 'none' : wanted.join(', ')})"
+        raise WiringError, "#{klass}##{method} answers #{asked} but #{problems.join(" and ")} — it is asked " \
+                           "with keywords for the query's arguments (#{wanted.empty? ? "none" : wanted.join(", ")})"
+      end
+
+      # @return [Array<Symbol>] the query's argument names, only the required ones if `required`
+      def query_keywords(query, required: false)
+        attributes = required ? query.attributes.reject(&:optional?) : query.attributes
+        attributes.map { |attribute| attribute.name.to_sym }
       end
 
       # @return [Array<String>] how `parameters` fails to take exactly the `wanted` keywords
       def keyword_problems(parameters, wanted, required)
-        kinds   = parameters.map(&:first)
-        taken   = parameters.select { |kind, _| kind.to_s.start_with?("key") && kind != :keyrest }.map(&:last)
-        missing = kinds.include?(:keyrest) ? [] : wanted - taken
-        extra   = parameters.select { |kind, name| kind == :keyreq && !required.include?(name) }.map(&:last)
-        [("takes positional arguments" if kinds.intersect?(%i[req opt rest])),
-         keyword_problem("does not take", missing),
-         keyword_problem("requires", extra, ", which the query does not")].compact
+        [("takes positional arguments" if parameters.map(&:first).intersect?(%i[req opt rest])),
+         keyword_problem("does not take", missing_keywords(parameters, wanted)),
+         keyword_problem("requires", extra_keywords(parameters, required), ", which the query does not")].compact
+      end
+
+      # @return [Array<Symbol>] the wanted keywords the parameters do not take
+      def missing_keywords(parameters, wanted)
+        return [] if parameters.any? { |kind, _| kind == :keyrest }
+
+        wanted - parameters.select { |kind, _| kind.to_s.start_with?("key") && kind != :keyrest }.map(&:last)
+      end
+
+      # @return [Array<Symbol>] the required keywords the query does not require
+      def extra_keywords(parameters, required)
+        parameters.select { |kind, name| kind == :keyreq && !required.include?(name) }.map(&:last)
       end
 
       # @return [String, nil] a phrase naming `names` as keywords, or nil when there are none
       def keyword_problem(verb, names, suffix = "")
-        "#{verb} #{names.map { |name| "#{name}:" }.join(', ')}#{suffix}" unless names.empty?
+        "#{verb} #{names.map { |name| "#{name}:" }.join(", ")}#{suffix}" unless names.empty?
       end
     end
   end

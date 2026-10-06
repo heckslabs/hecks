@@ -1,0 +1,7 @@
+# NOT AUTOMATED for a Shared-mode domain, same reason mint-era
+# isn't: there is no bastion.yaml here to stand up next to (this
+# domain has no RDS/VPC of its own). This domain's own schema
+# lives inside @@owner_domain_name@@'s database — run this same
+# target from @@owner_domain_name@@'s own deploy directory instead.
+	@echo "rename-schema isn't automated for a Shared-mode domain (database \"Shared\") -- run it from @@owner_domain_name@@'s own deploy directory instead, which owns the RDS instance this domain's schema actually lives on."; \
+	exit 1

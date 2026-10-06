@@ -57,19 +57,20 @@ module Hecks
         def replay_journal(records)
           return records unless File.exist?(@journal_path)
 
-          File.foreach(@journal_path) do |line|
-            entry = JSON.parse(line)
-            id    = entry.fetch("id")
-
-            case entry.fetch("operation")
-            when "save"   then records[id] = entry.fetch("state")
-            when "delete" then records.delete(id)
-            else raise Malformed, "#{@journal_path}: unknown journal operation #{entry.fetch('operation').inspect}"
-            end
-          end
+          File.foreach(@journal_path) { |line| replay_line(records, JSON.parse(line)) }
           records
         rescue JSON::ParserError => e
           raise Malformed, "#{@journal_path}: json error: #{e.message}"
+        end
+
+        def replay_line(records, entry)
+          id = entry.fetch("id")
+
+          case entry.fetch("operation")
+          when "save"   then records[id] = entry.fetch("state")
+          when "delete" then records.delete(id)
+          else raise Malformed, "#{@journal_path}: unknown journal operation #{entry.fetch("operation").inspect}"
+          end
         end
 
         def append_entry(operation, id, state)
