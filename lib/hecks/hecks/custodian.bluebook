@@ -121,6 +121,7 @@ Hecks.bluebook "Hecks" do
     attribute :profile, ProfileName, optional: true
     attribute :strict,  Switch,      optional: true
     attribute :report,  Report,      optional: true
+    attribute :checked, Checked,     optional: true
     attribute :refusal, Report,      optional: true
     identified_by :run
 
@@ -144,6 +145,13 @@ Hecks.bluebook "Hecks" do
 
     value_object "Report" do
       attribute :value, String
+    end
+
+    # How many domains the report examined, counted from its headers so a reader need not.
+    value_object "Checked" do
+      attribute :value, Integer
+
+      invariant("a count is not negative") { value >= 0 }
     end
 
     lifecycle :status, default: "requested" do
@@ -173,9 +181,11 @@ Hecks.bluebook "Hecks" do
       goal "Record that the analysis left no error"
 
       reference_to ModelCheckRun
-      attribute :report, Report
+      attribute :report,  Report
+      attribute :checked, Checked
 
       sets :report
+      sets :checked
 
       emits ModelCheckPassed
     end
@@ -214,7 +224,7 @@ Hecks.bluebook "Hecks" do
 
   policy "RecordTheClean" do
     on      "ModelCheckRun.ModelCheckAnswered"
-    trigger ModelCheckRun::Pass, with: { report: :report }
+    trigger ModelCheckRun::Pass, with: { report: :report, checked: :checked }
   end
 
   policy "RecordTheFlag" do
