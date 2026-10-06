@@ -584,6 +584,8 @@ a `task_definition` without a `hosting_stack`, a `hosting_stack` without a
 | `hosting.mk` | Included by the `Makefile`: `deploy-service SERVICE=<name>` (the `service_roll.run` command), `smoke-after-deploy` and `check-era URL=...` |
 | `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
 
+Before a roll replaces a container, `deploy-box.sh` saves that container's log on the box, because Docker deletes it with the container. Each running container of the Compose project (with `deploy-service.sh`, only the service being rolled) is written to `/var/log/hecks-captures/<container>-<UTC timestamp>.log`, the newest 14 per container are kept, and the step prints each file's path and size, never its contents. It is skipped with a warning when under 2 GiB is free on `/var/log`, a failure to capture is a warning and never changes the roll's exit status, and `SKIP_LOG_CAPTURE=1` skips it. Read a capture over SSM, for example `grep would_refuse_role /var/log/hecks-captures/*.log`.
+
 "Settled" means two consecutive checks, a few seconds apart, agree that the box
 stack (and the hosting stack) is complete, every container and the proxy of the
 box's Compose project is up and has stayed up, and, with a task definition, each
