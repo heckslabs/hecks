@@ -17,13 +17,24 @@
 # deploy-box.sh.
 #
 # It ends with smoke-after-deploy.sh, whose own exit codes (20-23) are distinct from a failed deploy
-# step's. SKIP_POST_DEPLOY_SMOKE=1 skips it.
+# step's. SKIP_POST_DEPLOY_SMOKE=1 skips it. `hecks deploy service_roll.run` runs this script with
+# SMOKE_BY_COMMAND=1, which ends after the roll and leaves the smoke to the smoke_run.run its policy requests.
+#
+# Exit codes (the ones `service_roll.run` names; a step that fails under `set -e` ends with its own
+# status, 1 from bash and 254/255 from the aws CLI):
+#   2   unknown service
+#   30  EXISTING_TAG is not in ECR              31  the fresh tag is already in ECR
+#   32  the box's Compose file is unreadable    33  the box stack has no instance
+#   34  the stack has no parameter for the container   35  the stack update failed or did not settle
+#   36  a parameter other than the container's changed  37  the task definition lacks the pushed image
+#   38  the task definition has no such container      40-42  deploy-box.sh's own
 #
 # Environment:
 #   LOCAL_IMAGE               local image to push, default <ecr repository>:latest
 #   EXISTING_TAG              redeploy this tag from ECR instead of building and pushing
 #   SETTLE_TIMEOUT_SECS       default 1200, how long to wait for a stack update
 #   SKIP_POST_DEPLOY_SMOKE=1  passed through to smoke-after-deploy.sh
+#   SMOKE_BY_COMMAND=1        end after the roll and print `rolled taskdef=<td> tag=<tag>`; the caller smokes
 set -euo pipefail
 
 REGION=us-east-1
@@ -38,7 +49,7 @@ resolve_service() {
     website) CFN_PARAM_KEY=WebsiteImageTag ;;
     cms) CFN_PARAM_KEY=CmsImageTag ;;
     domain) CFN_PARAM_KEY=EngineImageTag ;;
-    *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 1 ;;
+    *) echo "unknown service '$1', must be one of: ${SERVICES}" >&2; exit 2 ;;
   esac
 }
 
@@ -63,7 +74,7 @@ active_image() {
 }
 CURRENT_IMAGE="$(active_image)"
 case "$CURRENT_IMAGE" in
-  None|"") echo "task definition family ${FAMILY} has no container named ${SERVICE_NAME}" >&2; exit 1 ;;
+  None|"") echo "task definition family ${FAMILY} has no container named ${SERVICE_NAME}" >&2; exit 38 ;;
 esac
 ECR_REPOSITORY="${CURRENT_IMAGE#*/}"
 ECR_REPOSITORY="${ECR_REPOSITORY%%[:@]*}"
@@ -76,12 +87,12 @@ if [ -n "${EXISTING_TAG:-}" ]; then
   echo "==> reusing ${IMAGE_URI} (no push)"
   aws ecr describe-images --repository-name "$ECR_REPOSITORY" --region "$REGION" \
     --image-ids "imageTag=${TAG}" --query 'imageDetails[0].imageTags' --output text > /dev/null \
-    || { echo "tag ${TAG} is not in ECR" >&2; exit 1; }
+    || { echo "tag ${TAG} is not in ECR" >&2; exit 30; }
 else
   if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --region "$REGION" \
       --image-ids "imageTag=${TAG}" > /dev/null 2>&1; then
     echo "tag ${TAG} is already in ECR; a tag is never reused. Run again." >&2
-    exit 1
+    exit 31
   fi
   echo "==> tagging ${LOCAL_IMAGE} as ${IMAGE_URI}"
   docker tag "$LOCAL_IMAGE" "$IMAGE_URI"
@@ -118,7 +129,7 @@ for key in $ALL_PARAM_KEYS; do
 done
 if [ "$found" != "1" ]; then
   echo "stack ${IMAGE_STACK} has no parameter named ${CFN_PARAM_KEY}; the image was pushed but nothing was rolled" >&2
-  exit 1
+  exit 34
 fi
 
 if UPDATE_OUT="$(aws cloudformation update-stack --stack-name "$IMAGE_STACK" --region "$REGION" \
@@ -133,11 +144,11 @@ if UPDATE_OUT="$(aws cloudformation update-stack --stack-name "$IMAGE_STACK" --r
       UPDATE_COMPLETE) echo "    -> ${stack_status}"; break ;;
       *ROLLBACK*|*FAILED*)
         echo "    -> ${stack_status}: the stack update failed, investigate before rolling anything" >&2
-        exit 1 ;;
+        exit 35 ;;
     esac
     if timed_out "$started"; then
       echo "==> the stack update did not settle within ${SETTLE_TIMEOUT_SECS}s (last: ${stack_status})" >&2
-      exit 1
+      exit 35
     fi
     sleep 10
   done
@@ -145,7 +156,7 @@ elif echo "$UPDATE_OUT" | grep -q "No updates are to be performed"; then
   echo "    -> the stack already has ${TAG}; nothing to update"
 else
   echo "$UPDATE_OUT" >&2
-  exit 1
+  exit 35
 fi
 
 echo "==> checking that only ${CFN_PARAM_KEY} changed"
@@ -157,7 +168,7 @@ CHANGED="$(jq -rn --slurpfile before "${SCRATCH_DIR}/params-before.json" --slurp
 NOW="$(jq -r --arg k "$CFN_PARAM_KEY" '.[] | select(.k == $k) | .v' "${SCRATCH_DIR}/params-after.json")"
 if [ "$NOW" != "$TAG" ] || { [ -n "$CHANGED" ] && [ "$CHANGED" != "$CFN_PARAM_KEY" ]; }; then
   echo "expected only ${CFN_PARAM_KEY} to change to ${TAG}; it is ${NOW} and changed: ${CHANGED:-nothing}" >&2
-  exit 1
+  exit 36
 fi
 echo "    -> ${CFN_PARAM_KEY} is ${TAG}; no other parameter changed"
 
@@ -170,13 +181,14 @@ RUNNING_IMAGE="$(aws ecs describe-task-definition --task-definition "$TD" --regi
   --query "taskDefinition.containerDefinitions[?name=='${SERVICE_NAME}'].image | [0]" --output text)"
 if [ "$RUNNING_IMAGE" != "$IMAGE_URI" ]; then
   echo "task definition ${TD} has ${RUNNING_IMAGE}, not ${IMAGE_URI}; refusing to roll" >&2
-  exit 1
+  exit 37
 fi
 echo "==> task definition ${TD} carries ${SERVICE_NAME}=${TAG}"
 
 bash ./deploy-box.sh "$TD"
 export TASKDEF="$TD"
 
-# The deploy itself is done. End with the smoke, which reports separately.
+# The deploy itself is done. End with the smoke, which reports separately, unless the caller runs it.
 echo "==> deploy succeeded"
+[ -z "${SMOKE_BY_COMMAND:-}" ] || { echo "==> rolled taskdef=${TASKDEF:-} tag=${TAG}"; exit 0; }
 bash ./smoke-after-deploy.sh

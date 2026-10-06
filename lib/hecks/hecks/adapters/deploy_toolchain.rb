@@ -32,6 +32,23 @@ module Hecks
       SMOKE_STATUS = { 20 => "the roll did not settle", 21 => "gh missing or no repository, smoke not run",
                        22 => "the smoke failed", 23 => "the smoke's result is unknown" }.freeze
 
+      # The file names the AwsBox projection gives the two rolls.
+      SERVICE_SCRIPT = "deploy-service.sh"
+      BOX_SCRIPT = "deploy-box.sh"
+
+      # What each status of `deploy-box.sh` means, for the reason a refusal gives.
+      BOX_STATUS = { 40 => "the box stack has no instance", 41 => "the roll did not succeed on the box",
+                     42 => "the box is not healthy after the roll" }.freeze
+
+      # What each status of `deploy-service.sh` means; it ends with the box roll's own statuses.
+      SERVICE_STATUS = { 2 => "unknown service", 30 => "the existing tag is not in ECR",
+                         31 => "the fresh tag is already in ECR", 32 => "the box's Compose file is unreadable",
+                         33 => "the box stack has no instance", 34 => "the stack has no parameter for the container",
+                         35 => "the stack update failed or did not settle",
+                         36 => "a parameter other than the container's changed",
+                         37 => "the task definition lacks the pushed image",
+                         38 => "the task definition has no such container" }.merge(BOX_STATUS).freeze
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused
@@ -121,37 +138,99 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no script, or more than one, is found, or it ends
       #   non-zero; the message names its status and what it printed
       def smoke(**held)
-        script = smoke_script(plain(held[:project]), plain(held[:script]))
+        run_script(SMOKE_SCRIPT, held, smoke_env(held), "smoke", SMOKE_STATUS)
+      end
 
-        result = Shell.new.capture("bash", script, env: smoke_env(held), chdir: File.dirname(script))
-        report = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
-        return { report: { value: report } } if result.ok?
+      # Rolls one service with a project's generated `deploy-service.sh`, through
+      # `hecks deploy service_roll.run`.
+      #
+      # The script pushes the image under a fresh tag, sets the stack's tag parameter and rolls
+      # the box, so it writes to AWS (a spec puts stand-in programs first on `PATH`).
+      # `SMOKE_BY_COMMAND=1` leaves the smoke to the record's policy; the task definition and
+      # tag come from the script's last line.
+      #
+      # @param held [Hash] the `ServiceRoll` record: `project`, `service`, and `script`,
+      #   `existing_tag` and `local_image` when set
+      # @return [Hash{Symbol => Hash}] `report:`, and `taskdef:` and `tag:` when named
+      # @raise [ConsoleCapture::Failure] when no script is found or it ends non-zero
+      def roll_service(**held)
+        env = { "EXISTING_TAG" => plain(held[:existing_tag]), "LOCAL_IMAGE" => plain(held[:local_image]),
+                "SMOKE_BY_COMMAND" => "1" }.compact
+        answer = run_script(SERVICE_SCRIPT, held, env, "service roll", SERVICE_STATUS, args: [plain(held[:service])])
+        match = answer[:report][:value].match(/^==> rolled taskdef=(\S*) tag=(\S+)$/)
+        answer.merge(taskdef: wrapped(match&.[](1)), tag: wrapped(match&.[](2))).merge(carried(held, "service_roll"))
+      end
 
-        code = result.status.exitstatus
-        raise ConsoleCapture::Failure, "smoke ended #{code} (#{SMOKE_STATUS.fetch(code, 'unexpected')})\n#{report}"
+      # Rolls the whole box with a project's generated `deploy-box.sh`, through
+      # `hecks deploy box_roll.run`.
+      #
+      # @param held [Hash] the `BoxRoll` record: `project`, and `script`, `taskdef`, `tags` when set
+      # @return [Hash{Symbol => Hash}] `report:` what the script printed
+      # @raise [ConsoleCapture::Failure] when no script, or more than one, is found, or it ends
+      #   non-zero; the message names its status and what it printed
+      def roll_box(**held)
+        answer = run_script(BOX_SCRIPT, held, {}, "box roll", BOX_STATUS, args: box_args(held))
+        answer.merge(carried(held, "box_roll")).merge(taskdef: wrapped(plain(held[:taskdef])))
       end
 
       private
 
-      # The script a project's smoke runs: the override, else `smoke-after-deploy.sh` in the project
-      # itself, else the only one beneath it (not under `node_modules`, `vendor` or `.git`).
-      def smoke_script(project, override)
+      # What a roll's answer hands on to the policies that follow it: the project to find the smoke
+      # in, whether to request the smoke (not when the record opted out or the project has no smoke
+      # script, either of which is noted on the record), and which roll asked.
+      def carried(held, kind)
+        skipped = plain(held[:skip_smoke]) == true
+        script = smoke_script?(plain(held[:project]))
+        note = "smoke skipped: skip_smoke=true" if skipped
+        note ||= "smoke skipped: no smoke script" unless script
+        { project: { value: plain(held[:project]) }, skip_smoke: { value: skipped },
+          run_smoke: { value: note.nil? }, smoke: wrapped(note), kind: { value: kind } }
+      end
+
+      # Whether the project has a generated smoke script the smoke could run.
+      def smoke_script?(project)
+        script_for(SMOKE_SCRIPT, project, nil)
+        true
+      rescue ConsoleCapture::Failure
+        false
+      end
+
+      def wrapped(text) = text.to_s.empty? ? nil : { value: text }
+
+      # What `deploy-box.sh` takes: a task definition, or `name=tag` words.
+      def box_args(held) = [plain(held[:taskdef]), *plain(held[:tags]).to_s.split].compact
+
+      # Runs one generated script, found for the record's project, from its own directory. Answers
+      # what it printed, or refuses with its status, that status's meaning and its output.
+      def run_script(name, held, env, label, statuses, args: [])
+        script = script_for(name, plain(held[:project]), plain(held[:script]))
+        result = Shell.new.capture("bash", script, *args, env: env, chdir: File.dirname(script))
+        report = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
+        return { report: { value: report } } if result.ok?
+
+        code = result.status.exitstatus
+        raise ConsoleCapture::Failure, "#{label} ended #{code} (#{statuses.fetch(code, 'unexpected')})\n#{report}"
+      end
+
+      # The script a project runs: the override, else the named one in the project itself, else the
+      # only one beneath it (not under `node_modules`, `vendor` or `.git`).
+      def script_for(name, project, override)
         return existing_script(override) if override
 
         root = File.expand_path(project.to_s)
-        beside = File.join(root, SMOKE_SCRIPT)
+        beside = File.join(root, name)
         return beside if File.file?(beside)
 
-        found = Dir.glob(File.join(root, "**", SMOKE_SCRIPT)).grep_v(%r{/(node_modules|vendor|\.git)/})
+        found = Dir.glob(File.join(root, "**", name)).grep_v(%r{/(node_modules|vendor|\.git)/})
         return found.first if found.one?
 
-        raise ConsoleCapture::Failure, ambiguity(root, found.sort)
+        raise ConsoleCapture::Failure, ambiguity(name, root, found.sort)
       end
 
-      def ambiguity(root, found)
-        return "no #{SMOKE_SCRIPT} under #{root}; generate the AwsBox recipe or pass script=<path>" if found.empty?
+      def ambiguity(name, root, found)
+        return "no #{name} under #{root}; generate the AwsBox recipe or pass script=<path>" if found.empty?
 
-        "#{found.size} #{SMOKE_SCRIPT} files under #{root}; pass script=<path>: #{found.join(', ')}"
+        "#{found.size} #{name} files under #{root}; pass script=<path>: #{found.join(', ')}"
       end
 
       def existing_script(path)

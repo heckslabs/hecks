@@ -3,10 +3,11 @@ require "json"
 require "open3"
 require "tmpdir"
 
-# Stand-ins for the `aws`, `docker` and `gh` programs, so the generated hosting scripts run end to end
-# without touching AWS or GitHub. Every call is appended to `calls.log`; the stand-in AWS keeps a
-# CloudFormation parameter file, so an `update-stack` changes what the next `describe-stacks` and
-# `describe-task-definition` report, the way the real stack's TaskDefinition resource would.
+# Stand-ins for the `aws`, `docker` and `gh` programs, so the generated hosting scripts run end
+# to end without touching AWS or GitHub. Every call is appended to `calls.log`; the stand-in AWS
+# keeps a CloudFormation parameter file, so an `update-stack` changes what the next
+# `describe-stacks` and `describe-task-definition` report, the way the real stack's
+# TaskDefinition resource would.
 module BoxHostingStubs
   ACCOUNT = "123456789012".freeze
   REGISTRY = "#{ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com".freeze
@@ -22,6 +23,8 @@ module BoxHostingStubs
       "cloudformation describe-stacks")
         case "$args" in
           *InstanceId*) echo i-0abc ;;
+          *DbEndpoint*) echo db.widget.example ;;
+          *DbSecretArn*) echo arn:aws:secretsmanager:us-east-1:123456789012:secret:db ;;
           *StackStatus*) cat "$STUB_DIR/stack_status" ;;
           *ParameterKey,v:*) cat "$STUB_DIR/params.json" ;;
         esac ;;
@@ -89,13 +92,19 @@ module BoxHostingStubs
   module_function
 
   # @param golden_dir [String] a directory holding generated hosting scripts
+  # @param real_box [Boolean] install the generated `deploy-box.sh` and the files it renders from,
+  #   instead of a stand-in that only records its arguments
   # @yield [Runner] a scratch directory with the scripts and stand-in programs installed
-  def with_runner(golden_dir)
+  def with_runner(golden_dir, real_box: false)
     Dir.mktmpdir do |dir|
       scripts = File.join(dir, "scripts")
       FileUtils.mkdir_p([scripts, File.join(dir, "bin")])
       %w[deploy-service.sh smoke-after-deploy.sh].each { |f| FileUtils.cp(File.join(golden_dir, f), scripts) }
-      File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
+      if real_box
+        FileUtils.cp(Dir.children(golden_dir).map { |f| File.join(golden_dir, f) }, scripts)
+      else
+        File.write(File.join(scripts, "deploy-box.sh"), DEPLOY_BOX)
+      end
       { "aws" => AWS, "docker" => DOCKER, "gh" => GH }.each do |name, body|
         File.write(File.join(dir, "bin", name), body)
         File.chmod(0o755, File.join(dir, "bin", name))

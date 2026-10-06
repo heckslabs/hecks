@@ -2,7 +2,7 @@
 # container runs now, read from the box's own Compose file, so rolling one service leaves the rest alone.
 BOX_ID="$(aws cloudformation describe-stacks --stack-name "$BOX_STACK" --region "$REGION" \
   --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text)"
-[ -n "$BOX_ID" ] && [ "$BOX_ID" != None ] || { echo "no instance in stack ${BOX_STACK}" >&2; exit 1; }
+[ -n "$BOX_ID" ] && [ "$BOX_ID" != None ] || { echo "no instance in stack ${BOX_STACK}" >&2; exit 33; }
 
 echo "==> reading the tags the box runs now"
 READ_JSON="$(jq -n --arg c "cat ${BOX_DIR}/compose.json 2>/dev/null || echo '{}'" '{commands: [$c]}')"
@@ -14,7 +14,7 @@ for _ in $(seq 1 30); do
     --query Status --output text 2>/dev/null || echo Pending)"
   [ "$state" != InProgress ] && [ "$state" != Pending ] && break
 done
-[ "$state" = Success ] || { echo "could not read the box's Compose file (${state}); nothing was rolled" >&2; exit 1; }
+[ "$state" = Success ] || { echo "could not read the box's Compose file (${state}); nothing was rolled" >&2; exit 32; }
 aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$BOX_ID" --region "$REGION" \
   --query StandardOutputContent --output text > "${SCRATCH_DIR}/compose.json"
 

@@ -8,10 +8,13 @@ URL     ?= @@URL@@
 
 .PHONY: deploy-service smoke-after-deploy check-era
 
-# Pushes one container's already-built local image under a fresh tag and rolls it onto the box.
-# Build the image first; see deploy-service.sh.
+# Pushes one container's already-built local image under a fresh tag and rolls it onto the box, as the
+# service_roll.run command: it runs deploy-service.sh, records the roll in the Hecks database
+# (HECKS_DATABASE, default postgres://hecks@localhost/hecks) and requests the smoke. Build the image
+# first; see deploy-service.sh. EXISTING_TAG=<tag> redeploys a tag already in ECR. Without the
+# database the script runs by itself and the target exits non-zero (24 if it all passed).
 deploy-service:
-	bash ./deploy-service.sh $(SERVICE)
+	@@SERVICE_RECIPE@@
 
 # Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
 # command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database

@@ -468,8 +468,33 @@ script's `TASKDEF`, `SKIP_POST_DEPLOY_SMOKE`, `SMOKE_ASYNC` and `DRY_RUN`). It r
 generated script, so the settle checks and the workflow dispatch are the ones `make deploy`
 already runs, records the run as `passed` with what the script printed, or as `flagged`
 with its status (20 the roll did not settle, 21 `gh` missing, 22 the smoke failed, 23 result
-unknown), and exits 1 when flagged. It only reads AWS. The design for the other deploy
-scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
+unknown), and exits 1 when flagged. It only reads AWS.
+
+To roll a project as a command, run `hecks deploy service_roll.run <project> service=<name> --wait`
+(`existing_tag=<tag>` redeploys a tag already in ECR, `local_image=<ref>` names the image to push)
+or `hecks deploy box_roll.run <project> --wait` (`taskdef=<family[:revision]>` for a project with a
+task definition, `tags="web=20260101 worker=20260101"` for one without). Each runs the project's
+generated `deploy-service.sh` or `deploy-box.sh`, found the way the smoke script is, and records a
+`ServiceRoll` or `BoxRoll` (a service roll with its `tag` and `taskdef`). A failed roll is
+`flagged` with the script's status and what it printed. A successful roll's policy requests a
+`SmokeRun` under the same run key, and policies on the smoke's outcome move the roll to `verified`
+(the smoke passed) or `flagged` (the smoke failed, its reason in `refusal`), so the command exits 1 for
+a failed roll or a failed smoke. A roll that stays `rolled` requested no smoke, and its `smoke` field
+says why: `skip_smoke=true` leaves it out, and a project with no `smoke-after-deploy.sh` records
+`smoke skipped: no smoke script`. These commands write to AWS, as the scripts do. Their statuses:
+
+| Status | Meaning |
+| --- | --- |
+| 2 | `deploy-service.sh`: unknown service |
+| 30, 31 | `EXISTING_TAG` is not in ECR; the fresh tag is already in ECR |
+| 32, 33 | the box's Compose file is unreadable; the box stack has no instance |
+| 34 | the hosting stack has no parameter for the container |
+| 35, 36 | the stack update failed or did not settle; a parameter other than the container's changed |
+| 37, 38 | the task definition lacks the pushed image; it has no such container |
+| 40, 41, 42 | `deploy-box.sh`: no instance; the roll did not succeed on the box; the box is not healthy after it |
+
+Any other status is a step that failed under `set -e` (1 from bash, 254 or 255 from the `aws` CLI).
+The design for the other deploy scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
 
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
@@ -523,7 +548,7 @@ a `task_definition` without a `hosting_stack`, a `hosting_stack` without a
 | --- | --- |
 | `deploy-service.sh` | Pushes a local image under a fresh tag (`<service>-<UTC timestamp>`, refused if ECR already has it), sets that container's parameter on the hosting stack and checks that no other parameter changed, refuses to roll a task definition that does not carry the pushed image, then runs `deploy-box.sh` on it. Without a `task_definition` it names the new tag for the service and the tag the box runs now for every other one. `EXISTING_TAG=<tag>` redeploys a tag already in ECR |
 | `smoke-after-deploy.sh` | Waits for the box to settle, then dispatches the smoke workflow, finds the run that dispatch created and follows it. Exits 20 (did not settle), 21 (no `gh` or repository), 22 (smoke failed) or 23 (result unknown) |
-| `hosting.mk` | Included by the `Makefile`: `deploy-service SERVICE=<name>`, `smoke-after-deploy` and `check-era URL=...` |
+| `hosting.mk` | Included by the `Makefile`: `deploy-service SERVICE=<name>` (the `service_roll.run` command), `smoke-after-deploy` and `check-era URL=...` |
 | `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
 
 "Settled" means two consecutive checks, a few seconds apart, agree that the box
@@ -532,13 +557,15 @@ box's Compose project is up and has stayed up, and, with a task definition, each
 container runs the image the latest revision names. A roll that looked live but
 left an old image running therefore never reaches the smoke. The box is read over
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
-the stack update and the roll itself. `make deploy` ends with
-`hecks deploy smoke_run.run`, which runs `smoke-after-deploy.sh` and records how it
-ended in the Hecks database, so every deploy leaves a `SmokeRun` that
-`hecks deploy smoke_run.verdict` and `smoke_run.flagged` can query.
-`SKIP_POST_DEPLOY_SMOKE=1` skips the smoke and `DRY_RUN=1` dispatches nothing. It
-exits 1 when the smoke does not pass; the script's own status (20 to 23) is in the
-message.
+the stack update and the roll itself. `make deploy` runs `hecks deploy box_roll.run` and
+`make deploy-service` runs `service_roll.run`; the roll's policy requests
+`smoke_run.run`, which runs `smoke-after-deploy.sh`. Every deploy so leaves a roll (that also
+holds the smoke's outcome) and a `SmokeRun` in the Hecks database that `hecks deploy box_roll.verdict`,
+`service_roll.flagged`, `smoke_run.verdict` and `smoke_run.flagged` can query. The command's exit
+covers the whole deploy, so the target reads nothing after it.
+`SKIP_POST_DEPLOY_SMOKE=1` becomes `skip_smoke=true`, and `DRY_RUN=1` dispatches nothing
+when the smoke is run alone. A failed roll or smoke is exit 1; the script's own status
+(the table above, or 20 to 23 for the smoke) is in the message.
 
 The record needs a database on the machine that runs `make deploy`. The Hecks
 domain reads `HECKS_DATABASE` and defaults to `postgres://hecks@localhost/hecks`,
@@ -546,9 +573,12 @@ so a deploying machine needs, once, a local Postgres with that database (`create
 hecks`), or `HECKS_DATABASE` pointing at one it can reach; the first run creates the
 tables. A CI job that runs `make deploy` needs the same: a Postgres service and
 `HECKS_DATABASE` set. Without the database the command cannot start, so the
-generated `smoke-after-deploy` target says so, runs the script anyway so the smoke's
-result is printed, and exits non-zero with the database error stated apart from the
-smoke's outcome: the smoke's own status when it failed, or 24 when it passed.
+generated `deploy`, `deploy-service` and `smoke-after-deploy` targets say so, run the
+script anyway (and the smoke after a roll) so the result is printed, and fail with the
+database error stated apart from the deploy's outcome: the script's own status when it
+failed, or `Error 24` when it all passed. A project that does not set `hosting_scripts true`
+deploys through `box_roll.run` as well; it has no smoke script, so its roll stays `rolled` with
+`smoke skipped: no smoke script`.
 
 ### Per-branch previews for `AwsFargate`
 
