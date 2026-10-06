@@ -15,7 +15,8 @@
 # backstop before it.
 #
 # A push of only unguarded lanes (the `Lane` rows of the Vocabulary chapter: `main`) skips the
-# suite, since `main` takes pushes with no gate. HECKS_PRE_PUSH_GATE=1 runs it for such a push.
+# suite, since `main` takes pushes with no gate, but still runs the `unguarded_push` stage (rubocop
+# and the comment-style checks). HECKS_PRE_PUSH_GATE=1 runs the whole suite for such a push.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -67,7 +68,11 @@ if [ -z "${HECKS_PRE_PUSH_GATE:-}" ] && [ -n "$PUSHED_REFS" ]; then
     done
 
     if [ ! -e "$GUARDED_PUSH" ]; then
-      printf '[pre-push] every pushed ref is an unguarded lane — skipping the local suite (HECKS_PRE_PUSH_GATE=1 runs it).\n\n'
+      printf '[pre-push] every pushed ref is an unguarded lane — skipping the suite, running the style checks (HECKS_PRE_PUSH_GATE=1 runs it).\n\n'
+      if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then
+        printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
+        exit 1
+      fi
       exit 0
     fi
   fi
