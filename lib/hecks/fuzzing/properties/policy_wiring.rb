@@ -41,7 +41,7 @@ module Hecks
           offenders.empty? || offenders.uniq.join("; ")
         end
 
-        # Every `[policy, home]` pair across the loaded bluebooks that declares `expect_undelivered`.
+        # Every `[policy, home]` pair across the bluebooks that declares `expect_undelivered`.
         def declared_undelivered(bluebooks)
           bluebooks.flat_map do |home, bluebook|
             bluebook.policies.select(&:expect_undelivered).map { |policy| [policy, home.to_s] }
@@ -49,7 +49,8 @@ module Hecks
         end
 
         def delivered_offenders(policy, reactions)
-          reactions.select { |reaction| reaction[:policy] == policy.name && reaction[:delivered] == true }.map do |reaction|
+          delivered = reactions.select { |reaction| reaction[:policy] == policy.name && reaction[:delivered] == true }
+          delivered.map do |reaction|
             "policy #{policy.name} declares expect_undelivered, but its reaction to #{reaction[:on]} was delivered"
           end
         end
@@ -58,9 +59,16 @@ module Hecks
         def silent_offenders(policy, home, reactions, events)
           return [] if policy.guarded? || policy.fans_out?
 
-          answered = events.select { |event| answers_event?(policy, event) }
-          answered.reject { |event| reactions.any? { |reaction| reaction[:policy] == policy.name && reaction[:on] == event[:name] } }
-                  .map { |event| "policy #{policy.name} (#{home}) answers #{event[:name]}, which was emitted, yet logged no reaction" }
+          events.select { |event| answers_event?(policy, event) && !reacted_to?(reactions, policy, event) }
+                .map { |event| silent_message(policy, home, event) }
+        end
+
+        def silent_message(policy, home, event)
+          "policy #{policy.name} (#{home}) answers #{event[:name]}, which was emitted, yet logged no reaction"
+        end
+
+        def reacted_to?(reactions, policy, event)
+          reactions.any? { |reaction| reaction[:policy] == policy.name && reaction[:on] == event[:name] }
         end
 
         def answers_event?(policy, event)
@@ -76,15 +84,24 @@ module Hecks
           declared = declared_policies(reaction[:policy], bluebooks)
           return "reaction names policy #{reaction[:policy]}, which no loaded bluebook declares" if declared.empty?
 
+          wiring_failure(reaction, declared, events)
+        end
+
+        # The first stage of event, trigger and happened-event that no declaration satisfies.
+        def wiring_failure(reaction, declared, events)
           answering = declared.select { |policy, _home| policy.event_name == reaction[:on].to_s }
           return unanswered_message(reaction, declared) if answering.empty?
 
           targeted = answering.select { |policy, home| declared_trigger(policy, home) == reaction[:trigger].to_s }
           return misrouted_message(reaction, answering) if targeted.empty?
 
+          phantom_failure(reaction, targeted, events)
+        end
+
+        def phantom_failure(reaction, targeted, events)
           return if targeted.any? { |policy, _home| event_happened?(events, policy, reaction[:on]) }
 
-          "policy #{reaction[:policy]} reacted to #{reaction[:on]}, but no such event was emitted in this history"
+          phantom_message(reaction)
         end
 
         # Every `[policy, home_domain]` pair declared under `name`, across all loaded bluebooks.
@@ -101,10 +118,7 @@ module Hecks
 
         # Whether `events` holds an emission of `name` the policy's event qualifier admits.
         def event_happened?(events, policy, name)
-          events.any? do |event|
-            event[:name] == name.to_s &&
-              (policy.event_qualifier.nil? || event[:aggregate].to_s.split("::").last == policy.event_qualifier)
-          end
+          events.any? { |event| event[:name] == name.to_s && answers_event?(policy, event) }
         end
 
         def unanswered_message(reaction, declared)
@@ -115,6 +129,10 @@ module Hecks
         def misrouted_message(reaction, answering)
           named = answering.map { |policy, home| declared_trigger(policy, home) }.uniq.join(" / ")
           "policy #{reaction[:policy]} triggered #{reaction[:trigger]} on #{reaction[:on]}, but it declares #{named}"
+        end
+
+        def phantom_message(reaction)
+          "policy #{reaction[:policy]} reacted to #{reaction[:on]}, but no such event was emitted in this history"
         end
       end
     end

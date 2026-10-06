@@ -9,24 +9,35 @@ RSpec.describe "Hecks::Fuzzing::Properties.references_resolve_to_earlier_records
 
   def verdict(history) = Hecks::Fuzzing::Properties.references_resolve_to_earlier_records(history)
 
+  def register_step(reference)
+    { "verb" => "Banking::Customer.Register",
+      "args" => { "reference" => { "value" => reference },
+                  "name"      => { "given" => "Ada", "family" => "Lovelace" },
+                  "email"     => { "address" => "ada@example.com" } } }
+  end
+
+  def open_step(number, reference)
+    { "verb" => "Banking::Account.Open",
+      "args" => { "number" => { "value" => number }, "kind" => { "name" => "current" },
+                  "daily_limit" => { "cents" => 50_000 }, "customer" => reference } }
+  end
+
+  def credit_step(number)
+    { "verb" => "Banking::Account.Credit",
+      "args" => { "number" => { "value" => number }, "amount" => { "cents" => 10_000, "currency" => "USD" },
+                  "narrative" => { "text" => "Opening deposit" } } }
+  end
+
   def funded_account_history
     number = "REF-#{rand(1_000_000_000)}"
     reference = "REF-C-#{rand(1_000_000_000)}"
-    steps = [
-      { "verb" => "Banking::Customer.Register",
-        "args" => { "reference" => { "value" => reference },
-                    "name" => { "given" => "Ada", "family" => "Lovelace" },
-                    "email" => { "address" => "ada@example.com" } } },
-      { "verb" => "Banking::Account.Open",
-        "args" => { "number" => { "value" => number }, "kind" => { "name" => "current" },
-                    "daily_limit" => { "cents" => 50_000 }, "customer" => reference } },
-      { "verb" => "Banking::Account.Credit",
-        "args" => { "number" => { "value" => number }, "amount" => { "cents" => 10_000, "currency" => "USD" },
-                    "narrative" => { "text" => "Opening deposit" } } }
-    ]
-    history = Hecks::Fuzzing::Replay.call(banking_path, steps)
-    expect(history[:refusals]).to eq([])
-    history
+    steps = [register_step(reference), open_step(number, reference), credit_step(number)]
+    Hecks::Fuzzing::Replay.call(banking_path, steps).tap { |history| expect(history[:refusals]).to eq([]) }
+  end
+
+  # The account's creating event: the first event on the aggregate.
+  def creating_event(history)
+    history[:events].find { |event| event[:aggregate] == "Banking::Account" }
   end
 
   it "passes an empty history" do
@@ -39,19 +50,15 @@ RSpec.describe "Hecks::Fuzzing::Properties.references_resolve_to_earlier_records
 
   it "names a referencing command accepted against a record whose creating event is missing" do
     history = funded_account_history
-    account_events = history[:events].select { |event| event[:aggregate] == "Banking::Account" }
-    creating = account_events.first
+    creating = creating_event(history)
     doctored = history.merge(events: history[:events].reject { |event| event.equal?(creating) })
 
-    result = verdict(doctored)
-
-    expect(result).to be_a(String).and include("was accepted referencing", "Banking::Account#", "no earlier event")
+    expect(verdict(doctored)).to be_a(String).and include("was accepted referencing", "Banking::Account#", "no earlier event")
   end
 
   it "does not count an event that came after the one being checked as having created the record" do
     history = funded_account_history
-    account_events = history[:events].select { |event| event[:aggregate] == "Banking::Account" }
-    creating = account_events.first
+    creating = creating_event(history)
     reordered = history[:events].reject { |event| event.equal?(creating) } + [creating]
 
     expect(verdict(history.merge(events: reordered))).to be_a(String).and include("no earlier event")
