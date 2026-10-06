@@ -6,8 +6,8 @@ module Hecks
   module Projections
     module Deploy
       # The Vercel deploy target for `deployed_to("Vercel")`: the domain's Rust host as one Vercel
-      # function. It renders `vercel.json` (the function's size, region, the rewrite that sends every
-      # path to it, crons), `.vercelignore`, `deploy-vercel.sh` and a `Makefile`.
+      # function. It renders `vercel.json` (the function's size, region, the rewrite that sends
+      # every path to it, crons), `.vercelignore`, `deploy-vercel.sh` and a `Makefile`.
       #
       # Persistence is the hecksagon's: the host reads `DATABASE_URL`, which the deploy script sets
       # from the caller's environment. This projection creates no database and holds no secret.
