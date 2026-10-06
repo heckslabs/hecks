@@ -133,7 +133,7 @@ fill="#c9b8e0" stroke="none">
     <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
       <rect x="10" y="30" width="170" height="240" rx="14" fill="#f4efe4" stroke="#b8ad97" stroke-width="2"/>
       <text x="95" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#17202a">Legacy systems</text>
-      <rect x="28" y="72" width="134" height="34" rx="8" fill="#fff" stroke="#b8ad97"/><text x="95" y="94" text-anchor="middle" font-size="11.5" fill="#4f5b66">Supabase (Postgres)</text>
+      <rect x="28" y="72" width="134" height="34" rx="8" fill="#fff" stroke="#b8ad97"/><text x="95" y="94" text-anchor="middle" font-size="11.5" fill="#4f5b66">Orders database</text>
       <rect x="28" y="116" width="134" height="34" rx="8" fill="#fff" stroke="#b8ad97"/><text x="95" y="138" text-anchor="middle" font-size="11.5" fill="#4f5b66">Ticketing SaaS</text>
       <rect x="28" y="160" width="134" height="34" rx="8" fill="#fff" stroke="#b8ad97"/><text x="95" y="182" text-anchor="middle" font-size="11.5" fill="#4f5b66">SFTP drop, cron jobs</text>
       <rect x="28" y="204" width="134" height="34" rx="8" fill="#fff" stroke="#b8ad97"/><text x="95" y="226" text-anchor="middle" font-size="11.5" fill="#4f5b66">Vendor API, CLI</text>
@@ -578,47 +578,82 @@ fill="#3a2358" stroke="none">
 <section class="page">
   <div class="topband"></div>
   <div class="kicker">Worked example</div>
-  <h2>A Supabase adapter<span class="tag">Design sketch, not built</span></h2>
-  <p>Supabase is the first service we would wrap, because one project is a legacy database, a change feed, an identity provider and a file store behind a single key. It exercises every part of the design.</p>
-  <table>
-    <tr><th style="width:1.7in">Supabase gives</th><th style="width:2.1in">Reached through</th><th>Which bubble port</th></tr>
-    <tr><td><b>Postgres tables</b></td><td>REST (<code>/rest/v1</code>) or SQL</td><td>Persistence and read models</td></tr>
-    <tr><td><b>Realtime, database webhooks</b></td><td>Change feed, HTTP callbacks</td><td>Inbound change events (the role a tap plays)</td></tr>
-    <tr><td><b>Auth</b></td><td><code>/auth/v1</code></td><td>Identity</td></tr>
-    <tr><td><b>Storage</b></td><td><code>/storage/v1</code></td><td>Files</td></tr>
-    <tr><td><b>Edge functions</b></td><td><code>/functions/v1</code></td><td>Outbound asks</td></tr>
-  </table>
-  <div class="two" style="margin-top:12px">
+  <h2>Consuming legacy data<span class="tag">Design sketch, not built</span></h2>
+  <p>A legacy orders system keeps refunds in one table with cryptic columns and one-letter status codes. The bubble reads those rows, maps them into a clean <b>Refund</b>, and sets aside any row that does not fit. Nothing is written back.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+      <defs><marker id="b" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#6b4f94"/></marker></defs>
+      <rect x="6" y="30" width="150" height="70" rx="12" fill="#f4efe4" stroke="#b8ad97" stroke-width="2"/>
+      <text x="81" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#17202a">Legacy table</text>
+      <text x="81" y="76" text-anchor="middle" font-size="10.5" fill="#4f5b66">cust_refund</text>
+      <rect x="196" y="30" width="150" height="70" rx="12" fill="#e9e4ef" stroke="#6b4f94" stroke-width="2"/>
+      <text x="271" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#3a2358">Read and map</text>
+      <text x="271" y="76" text-anchor="middle" font-size="10.5" fill="#4f5b66">columns to fields</text>
+      <rect x="386" y="30" width="150" height="70" rx="12" fill="#e9e4ef" stroke="#6b4f94" stroke-width="2"/>
+      <text x="461" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#3a2358">Check</text>
+      <text x="461" y="76" text-anchor="middle" font-size="10.5" fill="#4f5b66">the model's invariants</text>
+      <rect x="576" y="6" width="138" height="52" rx="12" fill="#fff" stroke="#6b4f94" stroke-width="2"/>
+      <text x="645" y="29" text-anchor="middle" font-size="12" font-weight="700" fill="#3a2358">Refund</text>
+      <text x="645" y="45" text-anchor="middle" font-size="10.5" fill="#4f5b66">the clean aggregate</text>
+      <rect x="576" y="82" width="138" height="52" rx="12" fill="#fbf1e1" stroke="#d8892b" stroke-width="2"/>
+      <text x="645" y="105" text-anchor="middle" font-size="12" font-weight="700" fill="#6b4a14">Quarantine</text>
+      <text x="645" y="121" text-anchor="middle" font-size="10.5" fill="#6b4a14">rows that do not fit</text>
+      <g stroke="#6b4f94" stroke-width="2.5" fill="none" marker-end="url(#b)">
+        <path d="M160 65 H190"/><path d="M350 65 H380"/><path d="M540 52 L570 34"/><path d="M540 78 L570 104"/>
+      </g>
+    </svg>
+  </div>
+  <div class="two">
     <div>
-      <h3>1. The adapter declaration</h3>
-      <p style="font-size:11.5px">The same two-file shape every adapter has today: this file says what it binds and which settings it needs.</p>
-<pre>Hecks.adapter "Supabase" do
-  port   "persistence"
-  field  :url
-  secret :service_key
-  field  :read_only
-end</pre>
-      <h3>2. The hecksagon binds the model</h3>
-      <p style="font-size:11.5px">The clean aggregate is bound to the company's existing tables.</p>
-<pre>Hecks.hecksagon "Refunds" do
-  Refunds::Refund.persisted_by("Supabase")
+      <h3>1. What legacy holds</h3>
+      <table style="margin-top:4px">
+        <tr><th>RFND_ID</th><th>CUST_NO</th><th>AMT_CENTS</th><th>STAT_CD</th></tr>
+        <tr><td>10041</td><td>C-882</td><td>2500</td><td>P</td></tr>
+        <tr><td>10042</td><td>C-910</td><td>1800</td><td>A</td></tr>
+        <tr><td>10043</td><td>C-882</td><td>(null)</td><td>Z</td></tr>
+      </table>
+      <h3 style="margin-top:12px">2. The clean model <span style="font-weight:400;color:#4f5b66">(bluebook)</span></h3>
+<pre>aggregate "Refund" do
+  identified_by :refund_id
+  attribute :refund_id, String
+  attribute :customer,  String
+  attribute :amount,    Money
+  attribute :status,    RefundStatus
+
+  value_object "Money" do
+    attribute :cents, Integer
+    invariant("not negative") { cents >= 0 }
+  end
+  value_object "RefundStatus" do
+    attribute :value, String, one_of:
+      ["pending", "approved", "rejected"]
+  end
 end</pre>
     </div>
     <div>
-      <h3>3. The world supplies the environment</h3>
-      <p style="font-size:11.5px">URL and mode vary by environment. The key is a secret, read from the environment and never written in a file.</p>
-<pre>url:         the project's API URL
-service_key: from the secret store
-read_only:   true      <span class="c"># step 1</span></pre>
-      <h3>What the shared client does</h3>
-      <ul class="bullets">
-        <li>Sends the <b>apikey</b> and bearer headers, filters with query operators, and pages with ranges.</li>
-        <li>Refuses every write while <b>read_only</b> is true.</li>
-        <li>Maps table columns to aggregate fields from the hecksagon's mapping, so legacy names stop here.</li>
-      </ul>
+      <h3>3. The mapping <span style="font-weight:400;color:#4f5b66">(hecksagon)</span></h3>
+      <p style="font-size:11.5px">Legacy names stop here. The model above never sees <code>STAT_CD</code>.</p>
+<pre>cust_refund -> Refund
+  RFND_ID   -> refund_id
+  CUST_NO   -> customer
+  AMT_CENTS -> amount.cents
+  STAT_CD   -> status
+    P: pending
+    A: approved
+    X: rejected</pre>
+      <h3>4. What the bubble ends up with</h3>
+      <table style="margin-top:4px">
+        <tr><th>Refund</th><th>Amount</th><th>Status</th></tr>
+        <tr><td>10041</td><td>2500</td><td>pending</td></tr>
+        <tr><td>10042</td><td>1800</td><td>approved</td></tr>
+      </table>
+      <table style="margin-top:8px">
+        <tr><th style="background:#d8892b">Quarantined</th><th style="background:#d8892b">Why</th></tr>
+        <tr><td>10043</td><td>no amount, and status Z maps to nothing</td></tr>
+      </table>
     </div>
   </div>
-  <div class="note"><p><b>Open point this example raises.</b> The persistence port is append-before-project, and an existing table has no journal. For step 1 the bubble should read the table as a projection, and a table that takes writes needs a different port or a journal built beside it. Settle this before the first slice.</p></div>
+  <div class="note"><p><b>Why this order matters.</b> The mapping and the model's own invariants decide what counts as a refund, so legacy's dirty rows never become aggregates. The quarantine keeps the reason, so a person can fix the source or extend the mapping, and a re-read picks the row up. Because the table is only read, this is safe to run against production on day one.</p></div>
   <svg class="watermark" viewBox="0 0 392 420" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0.000000,420.000000) scale(0.100000,-0.100000)"
 fill="#3a2358" stroke="none">
 <path d="M1655 3945 c-329 -71 -559 -362 -543 -685 8 -159 66 -292 183 -418
@@ -729,7 +764,7 @@ fill="#3a2358" stroke="none">
       </ul>
     </div>
   </div>
-  <div class="note"><p><b>Open.</b> Whether the field mappings live in the hecksagon (the recommendation, so the hecksagon is literally the translation layer) or in the world. Whether each chapter carries its own hecksagon (recommended) or the host has one. How read-only is enforced and checked. Whether the catalog and transport layer keep these working names.</p></div>
+  <div class="note"><p><b>Open.</b> Whether the field mappings live in the hecksagon (the recommendation, so the hecksagon is literally the translation layer) or in the world. Whether each chapter carries its own hecksagon (recommended) or the host has one. How read-only is enforced and checked. Whether an existing table with no journal is read as a projection (recommended for step 1) or needs a port of its own, since the persistence port is append-before-project. Whether the catalog and transport layer keep these working names.</p></div>
   <svg class="watermark" viewBox="0 0 392 420" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0.000000,420.000000) scale(0.100000,-0.100000)"
 fill="#3a2358" stroke="none">
 <path d="M1655 3945 c-329 -71 -559 -362 -543 -685 8 -159 66 -292 183 -418
