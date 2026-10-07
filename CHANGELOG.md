@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- `deployed_to("AwsFargate")` takes `host_crate "<directory>"`: the Cargo package the generated Makefile builds `bootstrap` from, an absolute path or one relative to the Makefile's `ROOT`. Without it the Makefile builds `rust/host` as before. The Makefile reads it as `HOST_DIR ?=`, so `make HOST_DIR=<dir>` builds another host without regenerating. This lets a site run a host that installs its own `HostExtension`s (ADR 0094). Only path characters are accepted.
+
 ## [3.9.1] - 2026-10-07
 
 A patch release: the Resend webhook's signing secret can live in the secret that already holds the Resend API key.

@@ -215,6 +215,17 @@ shared: false }
       expect(refusal(build_context_dir: "build")).to include("ending in /")
     end
 
+    it "builds the host from rust/host unless host_crate names another directory", :aggregate_failures do
+      expect(resolve.host_dir).to eq("$(ROOT)/rust/host")
+      expect(resolve(host_crate: "../platform/host").host_dir).to eq("$(ROOT)/../platform/host")
+      expect(resolve(host_crate: "/srv/platform/host").host_dir).to eq("/srv/platform/host")
+    end
+
+    it "refuses a host_crate that is not a plain directory path", :aggregate_failures do
+      expect(refusal(host_crate: "host; rm -rf /")).to include("host_crate must be a directory path")
+      expect(refusal(host_crate: "$(HOME)/host")).to include("host_crate must be a directory path")
+    end
+
     it "keeps the database grant on the execution role unless another policy takes its place", :aggregate_failures do
       policy = [{ name: "Inject", statements: [{ actions: ["secretsmanager:GetSecretValue"], resources: ["!Ref Secret"] }] }]
 
