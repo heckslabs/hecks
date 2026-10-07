@@ -62,3 +62,12 @@ A rehearsal copy of a real site's data into its own database on the shared insta
 
 `restore-to-rds.sh` takes the master secret as the target and a `CLIENT_ROLE` to hand ownership to; that change is in `docs/plans/first-deploy-gaps.md` (row 14).
 
+### The box rehearsal
+
+A throwaway box (`Rehearsal=true`, no public address) rolled against the rehearsal database as the non-superuser client role, with images built from the current release:
+
+- **Boot as the client role works** once the images are current: the CMS boot and the domain host read `username` and `port` from the secret. The images a site runs before the move log in as `postgres`, so they must be rebuilt first (a prerequisite of the move, as written above). The domain resolved its era as "use existing" (ten held eras, current era 10): the move mints no era.
+- **The site's own smoke passed 109 checks** against the box (public pages, blog, admin through the account token, the CMS driving the domain, the era check, sign-in refusals). The 11 that failed were the live-preview checks: the CMS's `SITE_URL` is the production hostname, so a preview iframe loaded from a loopback address is cross-origin. That is a limit of rehearsing without the real hostname.
+- **`render-compose.sh` replaces `DB_HOST` and `DB_SECRET_ARN` but not `DB_NAME`**: the task definition still names the old database, so the rehearsal patched it by hand.
+- The scheduled-send job (cron every minute in the CMS) runs on a copy too; the copy held no scheduled send, which is worth checking before every rehearsal, because a copy that holds one would mail real subscribers.
+
