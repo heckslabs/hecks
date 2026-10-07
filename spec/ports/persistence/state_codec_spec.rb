@@ -12,6 +12,20 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
   def account_ir = fixture.aggregate("Account")
   def card_payment_ir = fixture.aggregate("CardPayment")
 
+  def raw_article_body
+    { "body" => { "blocks" => [
+      { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
+      { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
+    ] } }
+  end
+
+  def article_body
+    { body: { blocks: [
+      { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
+      { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
+    ] } }
+  end
+
   # A value object nested in a value object, and a list of value objects inside one.
   let(:menu_ir) do
     registry = Hecks::Runtime::Registry.new
@@ -68,20 +82,6 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
       end
     end
     registry.bluebook("StateCodecTree").aggregate("Article")
-  end
-
-  def raw_article_body
-    { "body" => { "blocks" => [
-      { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
-      { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
-    ] } }
-  end
-
-  def article_body
-    { body: { blocks: [
-      { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
-      { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
-    ] } }
   end
 
   let(:canonical_account) do
