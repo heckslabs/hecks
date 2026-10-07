@@ -19,7 +19,7 @@ module Hecks
           Plan = Struct.new(
             :ids, :names, :layout, :cdn, :alerts, :extras, :execute_command, :health_check_grace_period,
             :deregistration_delay, :desired_count_parameter, :domain_env, :install_dir, :build_context_dir,
-            :db_name_parameter, :execution_database_grant,
+            :db_name_parameter, :execution_database_grant, :host_dir,
             keyword_init: true
           )
 
@@ -37,6 +37,8 @@ module Hecks
           }.freeze
           NAME_ROLES = [:cluster, :log_group, :service, :alb, :family, :alb_security_group_description, :db_secret_policy].freeze
           DEFAULT_INSTALL_DIR = "/usr/local/bin".freeze
+          # Where the generated Makefile builds the host binary unless `host_crate` names another.
+          DEFAULT_HOST_DIR = "$(ROOT)/rust/host".freeze
 
           extend Ids
           extend Tuning
