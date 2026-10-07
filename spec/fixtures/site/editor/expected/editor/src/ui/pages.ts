@@ -3,7 +3,8 @@
 // The pages: a nav of aggregates, a list per aggregate (from a query when it has one), a detail page
 // per instance, and a form per command generated from the command's attributes. Lifecycle state is a
 // badge, and a lifecycle move is offered only from the states it applies in.
-import type { Aggregate, Command, Query } from "../schema.ts";
+import type { Aggregate, Attr, Command, Query } from "../schema.ts";
+import { bodyToHtml } from "./body_model.js";
 import { fields } from "./fields.ts";
 import { badge, esc, href, page, refusal } from "./html.ts";
 import { outline, summary } from "./outline.ts";
@@ -98,8 +99,14 @@ function available(agg: Aggregate, command: Command, state: State): boolean {
   return !move || !agg.lifecycle || move.from.includes(String(state[agg.lifecycle.field]));
 }
 
+/** An attribute's value read-only: a rich-text body as escaped HTML, anything else as an outline. */
+function shown(attr: Attr, value: unknown): string {
+  if (attr.widget !== "body") return outline(value);
+  return value && typeof value === "object" ? `<div class="body">${bodyToHtml(value)}</div>` : `<em>empty</em>`;
+}
+
 function state(agg: Aggregate, values: State): string {
-  const rows = agg.attributes.map((attr) => `<tr><th>${esc(label(attr.name))}</th><td>${outline(values[attr.name])}</td></tr>`);
+  const rows = agg.attributes.map((attr) => `<tr><th>${esc(label(attr.name))}</th><td>${shown(attr, values[attr.name])}</td></tr>`);
   return `<table>\n${rows.join("\n")}\n</table>`;
 }
 

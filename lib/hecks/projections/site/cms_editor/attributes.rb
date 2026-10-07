@@ -9,19 +9,23 @@ module Hecks
         #
         # A type that names one of the aggregate's value objects is an `object`; a reference is a
         # `reference`; the primitives are `integer`, `number`, `boolean` and `text`, and any other
-        # name is entered as text. A value object named `Body` carries `widget: "body"`, which the
-        # editor shows read-only until its rich-text widget lands.
+        # name is entered as text.
+        #
+        # An attribute whose value object has the shape of a structured document, a `blocks`
+        # list of a value object that has `kind` and `spans`, carries `widget: "body"` and is
+        # edited with the rich-text widget. The shape decides it, never a name.
         class Attributes
-          # The value objects whose attribute is edited with a widget, by type name.
-          WIDGETS = { "Body" => "body" }.freeze
+          # The parts a value object needs for its list of blocks to be a document body's blocks.
+          BLOCK_PARTS = %w[kind spans].freeze
 
           # The kind a primitive's name enters as; any other name is text.
           KINDS = { "Integer" => "integer", "Float" => "number", "Boolean" => "boolean", "TrueClass" => "boolean",
                     "FalseClass" => "boolean" }.freeze
 
-          # @param objects [Array<String>] the names of the aggregate's value objects
+          # @param objects [Array<Bluebook::ValueObject>] the aggregate's value objects
           def initialize(objects)
-            @objects = objects
+            @by_name = objects.to_h { |object| [object.hecks_name, object] }
+            @objects = @by_name.keys
           end
 
           # @param attribute [Bluebook::Attribute] a declared attribute
@@ -31,11 +35,24 @@ module Hecks
             return reference(attribute, type.target_name) if type.is_a?(Bluebook::Reference)
 
             entry = base(attribute, type.to_s, kind(type.to_s))
-            widget = WIDGETS[type.to_s]
-            widget ? entry.merge("widget" => widget) : entry
+            body?(attribute) ? entry.merge("widget" => "body") : entry
           end
 
           private
+
+          # A single (not listed) attribute whose value object holds a list of document blocks.
+          def body?(attribute)
+            return false if attribute.list?
+
+            block = block_object(@by_name[attribute.type.to_s])
+            !block.nil? && (BLOCK_PARTS - block.attributes.map { |part| part.name.to_s }).empty?
+          end
+
+          # @return [Bluebook::ValueObject, nil] the value object `object`'s `blocks` list holds
+          def block_object(object)
+            blocks = object&.attributes&.find { |part| part.name.to_s == "blocks" && part.list? }
+            blocks && @by_name[blocks.type.to_s]
+          end
 
           def reference(attribute, target)
             base(attribute, target, "reference").merge("target" => target)

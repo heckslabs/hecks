@@ -7,6 +7,8 @@
 // (auth/membership.ts). A visitor with neither is sent to the site's login page; nothing in the
 // domain is read or changed before that. Posts must come from this site (the cookie is SameSite=Lax
 // and the Origin header is checked too).
+import { readFileSync } from "node:fs";
+
 import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
 import type { HostClient } from "@hecks/client";
 
@@ -82,6 +84,15 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   };
 }
 
+/** The browser modules the rich-text widget loads, served only to a signed-in editor. */
+const ASSETS = ["body_widget.js", "body_model.js", "body_parse.js"];
+
+function asset(name: string): Response {
+  if (!ASSETS.includes(name)) return html(notFound(`No asset ${name}.`), 404);
+  const text = readFileSync(new URL(`./ui/${name}`, import.meta.url), "utf8");
+  return new Response(text, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "private, max-age=300" } });
+}
+
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
   const result = await signIn(url.searchParams.get("token"), secret, membership, now);
   if (!result.ok) return new Response(result.message, { status: result.status });
@@ -91,6 +102,7 @@ async function enter(url: URL, secret: string, membership: Membership, now: () =
 function route(client: HostClient, request: Request, url: URL, segments: string[]): Promise<Response> | Response {
   const [name, verb, ...rest] = segments;
   if (segments.length === 0) return html(home());
+  if (name === "assets" && segments.length === 2 && request.method === "GET") return asset(verb);
   const agg = SCHEMA.aggregates.find((candidate) => candidate.name === name);
   if (!agg) return html(notFound(`No aggregate ${name}.`), 404);
   if (verb === undefined) return list(client, agg, url);
