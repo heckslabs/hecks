@@ -240,10 +240,11 @@ jobs:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
     # The calling job's permissions cap the reusable workflow's; `packages: write` is for the
-    # GHCR binary cache.
+    # GHCR binary cache, `actions: read` for the feature binaries one job hands to another.
     permissions:
       contents: read
       packages: write
+      actions: read
 
   # Split from rspec_rust_io: the spec backs up and restores rust/src/generated and Cargo.toml
   # itself, so it needs its own checkout. Two legs, each with its own: the five domain parity

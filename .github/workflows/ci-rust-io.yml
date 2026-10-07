@@ -33,6 +33,80 @@ jobs:
           checks: rspec_rust_io
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
+  # When the Rust sources change, the feature-binary cache below misses and rspec_rust_io would
+  # build 23 binaries one after another. These legs build a quarter each, side by side, and hand
+  # them over as artifacts. When the cache already holds the binaries they stop after a lookup.
+  # Best effort: a feature a leg does not deliver is built by the spec that needs it.
+  rust_feature_binaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    needs: ci_attestation_rust_io
+    if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        leg: [1, 2, 3, 4]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # `hecks project_rust` runs the hecks-codegen binary, so these builds are restored.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: parser
+          crate-root: rust/parser
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      # The same regeneration rspec_rust_io runs, so the key below hashes the same sources.
+      - name: Regenerate the Rust crate
+        run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
+
+      - name: Look for the cached feature binaries
+        id: probe
+        uses: actions/cache/restore@v4
+        with:
+          path: rust/target/debug/rust-*
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}
+          lookup-only: true
+
+      - uses: ./.github/actions/cargo-cache
+        if: steps.probe.outputs.cache-hit != 'true'
+        with:
+          name: main
+          crate-root: rust
+
+      # Every fourth feature of the list, from this leg's place in it.
+      - name: Build this leg's feature binaries
+        if: steps.probe.outputs.cache-hit != 'true'
+        run: |
+          cd rust
+          mkdir -p target/debug
+          grep -E '^[a-z0-9_]+ = \[\]$' Cargo.toml | sed 's/ = \[\]$//' | grep -vx default \
+            | awk -v leg=${{ matrix.leg }} 'NR % 4 == leg % 4' > "$RUNNER_TEMP/features"
+          while read -r feature; do
+            cargo build --no-default-features --features "$feature" &&
+              cp target/debug/rust "target/debug/rust-$feature" || true
+          done < "$RUNNER_TEMP/features"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.probe.outputs.cache-hit != 'true'
+        with:
+          name: feature-binaries-${{ matrix.leg }}
+          path: rust/target/debug/rust-*
+          retention-days: 1
+          if-no-files-found: ignore
+          overwrite: true
+
   # These specs share one checkout's rust/src/generated/ and Cargo.toml, so they run
   # serially in one job. The two heaviest, hecks_build_pipeline_spec.rb and
   # project_deploy_parity_gate_spec.rb, need wasm32-wasip1 and wasmtime and run
@@ -44,10 +118,12 @@ jobs:
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
 
-    # `packages: write` is for the parser/codegen GHCR restore-and-save pair below.
+    # `packages: write` is for the parser/codegen GHCR restore-and-save pair below; `actions: read`
+    # is for finding the feature binaries the rust_feature_binaries legs upload.
     permissions:
       contents: read
       packages: write
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -106,6 +182,34 @@ jobs:
       - name: Mark the restored binaries as built after the sources
         if: steps.feature_binaries.outputs.cache-hit == 'true'
         run: touch rust/target/debug/rust-*
+
+      # On a miss the rust_feature_binaries legs are building them; wait for the artifacts, then
+      # take what arrived. The post-job step saves them for the next run.
+      - name: Wait for the feature binaries the legs build
+        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in $(seq 1 150); do
+            found=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+                    --jq '[.artifacts[] | select(.name | startswith("feature-binaries-"))] | length')
+            [ "$found" = "4" ] && exit 0
+            sleep 2
+          done
+          echo "not every feature-binaries artifact arrived within 300s; the specs build the rest" >&2
+
+      - name: Fetch the feature binaries
+        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: feature-binaries-*
+          merge-multiple: true
+          path: rust/target/debug
+
+      - name: Mark the fetched binaries as built after the sources
+        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        run: touch rust/target/debug/rust-* 2>/dev/null || true
 
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.
