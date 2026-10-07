@@ -32,6 +32,7 @@ pizzas = []
 banking = []
 
 [package]
+build = "build.rs"
 name = "rust"
 version = "0.1.0"
 edition = "2021"
