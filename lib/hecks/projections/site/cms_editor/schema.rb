@@ -4,8 +4,11 @@ require_relative "attributes"
 require_relative "clearing"
 require_relative "composition"
 require_relative "destructive"
+require_relative "drafts"
 require_relative "media"
 require_relative "pickers"
+require_relative "relations"
+require_relative "scheduling"
 
 module Hecks
   module Projections
@@ -37,14 +40,16 @@ module Hecks
             raise ArgumentError, "the #{list.map(&:name).join(", ")} chapter has no aggregate to edit" if shaped.empty?
 
             media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
-            assemble(list, Pickers.apply(shaped, media), media)
+            assemble(list, Relations.apply(Pickers.apply(shaped, media), media), media)
           end
 
           # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
-          #   aggregates, and the picture aggregate when there is one
+          #   aggregates, and the picture and scheduling aggregates when there are such
           def self.assemble(list, aggregates, media)
             chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
-            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}) }
+            scheduling = Scheduling.read(aggregates)
+            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
+              **(scheduling ? { "scheduling" => scheduling } : {}) }
           end
 
           # The picture aggregate among the editor's own, with the chapter that holds it when that
@@ -79,10 +84,12 @@ module Hecks
 
           # @return [Hash{String => Object}] the aggregate as the editor reads it
           def to_h
+            held = attributes(@agg.attributes.reject { |a| a.name == lifecycle_field })
+            drafts = Drafts.of(@agg, held)
             { "name" => @agg.hecks_name, "description" => @agg.description, "identity" => @agg.identified_by.to_s,
-              "lifecycle" => lifecycle, "attributes" => attributes(@agg.attributes.reject { |a| a.name == lifecycle_field }),
-              "valueObjects" => value_objects, "commands" => @agg.commands.map { |command| command(command) },
-              "queries" => queries }
+              "lifecycle" => lifecycle, "attributes" => held, "valueObjects" => value_objects,
+              "commands" => @agg.commands.map { |command| command(command) }, "queries" => queries,
+              **(drafts ? { "drafts" => drafts } : {}) }
           end
 
           private

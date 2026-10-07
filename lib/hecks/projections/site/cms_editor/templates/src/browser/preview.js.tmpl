@@ -1,0 +1,72 @@
+__BANNER__
+
+// The preview drawer (see ui/preview.ts): the site's own page for a record, framed beside the editor.
+// The button is a plain link to the address (it opens a new tab with no script); here it opens the
+// drawer instead and loads the frame, which is not loaded until then. The width buttons only change
+// the frame's width. A successful draft save (browser/autosave.js says so with `editor:saved`) reloads
+// the frame, and a drawer that was open when a form was sent is open again on the page that follows, so
+// a save or a publish is seen as the site shows it. Nothing is sent into the frame.
+
+const SIZES = { phone: "w-[375px]", tablet: "w-[768px]", desktop: "w-full" };
+const ALL = Object.values(SIZES);
+const KEY = "editor-preview";
+
+/** The path the drawer was open on, which survives one page change in this tab. */
+function remembered() {
+  try {
+    return sessionStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+function remember(path) {
+  try {
+    if (path) sessionStorage.setItem(KEY, path);
+    else sessionStorage.removeItem(KEY);
+  } catch {
+    // Storage may be blocked; the drawer then simply starts closed on the next page.
+  }
+}
+
+export function enhancePreview() {
+  const root = document.querySelector("[data-preview]");
+  if (!root) return;
+  const toggle = root.querySelector(".drawer-toggle");
+  const frame = root.querySelector("[data-preview-frame]");
+  const opener = document.querySelector("[data-preview-open]");
+  const load = () => {
+    frame.src = frame.dataset.src;
+  };
+  const show = () => {
+    toggle.checked = true;
+    if (!frame.getAttribute("src")) load();
+    remember(location.pathname);
+    root.querySelector("[data-preview-width][aria-pressed='true']")?.focus();
+  };
+  const hide = () => {
+    toggle.checked = false;
+    remember(null);
+    opener?.focus();
+  };
+  opener?.addEventListener("click", (event) => {
+    event.preventDefault();
+    show();
+  });
+  toggle.addEventListener("change", () => remember(toggle.checked ? location.pathname : null));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && toggle.checked) hide();
+  });
+  for (const button of root.querySelectorAll("[data-preview-width]")) {
+    button.addEventListener("click", () => {
+      frame.classList.remove(...ALL);
+      frame.classList.add(SIZES[button.dataset.previewWidth]);
+      for (const other of root.querySelectorAll("[data-preview-width]")) other.setAttribute("aria-pressed", String(other === button));
+    });
+  }
+  root.querySelector("[data-preview-refresh]").addEventListener("click", load);
+  document.addEventListener("editor:saved", () => {
+    if (toggle.checked) load();
+  });
+  if (remembered() === location.pathname) show();
+}

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Schedule" do
+  persisted_by "Memory"
+end

@@ -1,0 +1,97 @@
+__BANNER__
+
+// The records that go with one record, as panels on its page. Another aggregate's records belong to
+// this one's when its identity is a `<kind>:<slug>` key of this aggregate (the generator decides, from
+// the keys' declared patterns; see `Related` in schema.ts). Each such aggregate is a panel: the record
+// when it exists, summarised by its shape (a body as read-only text, pictures as a strip of
+// thumbnails, anything else as its fields) with a link to edit it on its own screen, or an empty
+// state with a link to the form that makes it, with the key already filled. Both links carry the way
+// back, so saving returns here.
+import { at, mayEdit } from "../names.ts";
+import { SCHEMA } from "../schema.ts";
+import type { Aggregate, Related } from "../schema.ts";
+import { esc, href } from "./html.ts";
+import { icon } from "./icons.ts";
+import { partsOf, plainName, plainText, withBack } from "./links.ts";
+import { outline } from "./outline.ts";
+import { valueOf, valueRows } from "./values.ts";
+import type { World } from "./world.ts";
+import { pictureAggregate, relatedAggregate } from "./world.ts";
+import { capital, singular } from "./words.ts";
+
+type State = Record<string, unknown>;
+
+/** What a related record is called in the panel's title and its buttons: its shape's noun, or its aggregate's own words. */
+const nounOf = (rel: Related, target: Aggregate): string => (rel.shape === "document" ? "text" : rel.shape === "gallery" ? "pictures" : singular(target.name));
+
+/** The words that say what a picture shows, from its record when the editor holds it. */
+function altOf(key: string, world: World): string {
+  const media = SCHEMA.media;
+  const registry = pictureAggregate();
+  const row = registry ? world.lookup(registry, key) : undefined;
+  return media && row ? plainText(row[media.fields.alt.name]) : "";
+}
+
+function thumbnails(keys: string[], world: World): string {
+  if (!SCHEMA.media) return outline(keys);
+  const items = keys.map(
+    (key, index) =>
+      `<li class="shrink-0"><img class="size-24 border border-base-300 object-cover" src="${esc(href("media", key))}" alt="${esc(altOf(key, world) || key)}" title="${esc(key)}" width="96" height="96" loading="lazy"><span class="sr-only">Picture ${index + 1} of ${keys.length}</span></li>`,
+  );
+  return `<ul class="flex gap-2 overflow-x-auto pb-1" aria-label="The pictures, in order">${items.join("")}</ul>`;
+}
+
+function summary(rel: Related, target: Aggregate, values: State, world: World): string {
+  if (rel.shape === "document") {
+    const body = target.attributes.find((attr) => attr.widget === "body" && !attr.list);
+    const draft = target.drafts && values[target.drafts.attribute] != null ? `<p class="mb-3"><span class="badge badge-soft badge-info">Changes not published yet</span></p>` : "";
+    return `${draft}<div class="max-h-96 overflow-y-auto">${body ? valueOf(target, body, values) : ""}</div>`;
+  }
+  if (rel.shape === "gallery") {
+    const list = target.attributes.find((attr) => attr.list && attr.picker?.target === SCHEMA.media?.aggregate);
+    const keys = [values[list?.name ?? ""]].flat().map(plainText).filter((key) => key !== "");
+    return keys.length === 0 ? `<p class="text-muted">None chosen yet.</p>` : thumbnails(keys, world);
+  }
+  return valueRows(target, target.attributes.filter((attr) => attr.name !== target.identity), values);
+}
+
+function panel(index: number, noun: string, actions: string, inner: string): string {
+  const id = `related-${index}`;
+  return `<section class="border border-base-300 bg-base-100 p-4 sm:p-6" aria-labelledby="${id}">
+<div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 id="${id}" class="text-lg">${esc(capital(noun))}</h2><div class="flex gap-2">${actions}</div></div>
+${inner}
+</section>`;
+}
+
+/** The address of the screen that makes the related record: its creating command, with the key filled and the way back. */
+function addLink(rel: Related, target: Aggregate, key: string, here: string): string | null {
+  const field = target.attributes.find((attr) => attr.name === rel.field);
+  const command = target.commands.find((candidate) => candidate.name === rel.create);
+  if (!field || !command) return null;
+  return withBack(`${href(...at(target), "new", command.name)}?${encodeURIComponent(plainName(target, field))}=${encodeURIComponent(key)}`, here);
+}
+
+/** The address of the screen that changes the related record, or of its page when no command does. */
+function editLink(rel: Related, target: Aggregate, key: string, here: string): string {
+  return withBack(href(...at(target), "id", key, ...(rel.edit ? [rel.edit] : [])), here);
+}
+
+function one(rel: Related, index: number, agg: Aggregate, id: string, world: World, here: string): string {
+  const target = relatedAggregate(rel);
+  if (!target || !mayEdit(target, world.role)) return "";
+  const key = partsOf(agg, id).key;
+  const values = world.lookup(target, key);
+  const noun = nounOf(rel, target);
+  if (values) {
+    const edit = `<a class="btn btn-sm" href="${esc(editLink(rel, target, key, here))}">${icon("pencil")}${rel.edit ? "Edit" : "Open"}</a>`;
+    return panel(index, noun, edit, summary(rel, target, values, world));
+  }
+  const add = addLink(rel, target, key, here);
+  const button = add ? `<a class="btn btn-neutral btn-sm" href="${esc(add)}">${icon("plus")}Add ${esc(noun)}</a>` : "";
+  return panel(index, noun, "", `<p class="mb-3 text-muted">No ${esc(noun)} for this ${esc(singular(agg.name))} yet.</p>${button}`);
+}
+
+/** One panel for each aggregate keyed by `agg`'s records, for the record `id` shown at `here`. */
+export function relatedPanels(agg: Aggregate, id: string, world: World, here: string): string {
+  return (agg.related ?? []).map((rel, index) => one(rel, index, agg, id, world, here)).filter((html) => html !== "").join("\n");
+}

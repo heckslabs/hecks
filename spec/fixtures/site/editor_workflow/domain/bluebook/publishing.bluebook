@@ -1,0 +1,100 @@
+# A small newsroom's posts and pages, as the first chapter of the editor-workflow fixture. A post has
+# a lifecycle; a page has none. Everything that goes with one (its text, its pictures, its search
+# wording, its scheduled actions) lives in other chapters and is named by the key `post:<slug>` or
+# `page:<slug>`.
+Hecks.bluebook "Publishing" do
+  vision "The posts and pages a small newsroom keeps."
+  core
+
+  aggregate "Post" do
+    description "One post, from draft to withdrawn."
+
+    identified_by :slug
+
+    value_object "PostSlug" do
+      attribute :value, String
+      invariant("a post has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "Headline" do
+      attribute :value, String
+      invariant("a post has a headline") { !value.to_s.empty? }
+    end
+
+    attribute :slug,  PostSlug
+    attribute :title, Headline
+
+    lifecycle :status, default: "draft" do
+      transition "Publish" => "published", from: "draft"
+      transition "Withdraw" => "withdrawn", from: "published"
+    end
+
+    command "Compose" do
+      role "Editor"
+      goal "Start a post the site does not show yet"
+
+      attribute :slug,  PostSlug
+      attribute :title, Headline
+
+      emits "PostComposed"
+    end
+
+    command "Rename" do
+      role "Editor"
+      goal "Change a post's headline"
+      reference_to Post
+
+      attribute :title, Headline
+
+      emits "PostRenamed"
+    end
+
+    command "Publish" do
+      role "Editor"
+      goal "Put a post on the site"
+      reference_to Post
+
+      emits "PostPublished"
+    end
+
+    command "Withdraw" do
+      role "Editor"
+      goal "Take a post off the site"
+      reference_to Post
+
+      emits "PostWithdrawn"
+    end
+
+    query "Published" do
+      description "Every post the site shows."
+      where(status: "published")
+    end
+  end
+
+  aggregate "Page" do
+    description "A page of the site that is not a post."
+
+    identified_by :slug
+
+    value_object "PageSlug" do
+      attribute :value, String
+    end
+
+    value_object "PageTitle" do
+      attribute :value, String
+    end
+
+    attribute :slug,  PageSlug
+    attribute :title, PageTitle
+
+    command "Start" do
+      role "Editor"
+      goal "Start a page"
+
+      attribute :slug,  PageSlug
+      attribute :title, PageTitle
+
+      emits "PageStarted"
+    end
+  end
+end

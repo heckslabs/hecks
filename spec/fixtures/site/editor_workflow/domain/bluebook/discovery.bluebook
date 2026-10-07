@@ -1,0 +1,50 @@
+# The wording a search engine is shown for a post or a page, as its own bounded context: a metadata
+# record keyed `<kind>:<slug>`.
+Hecks.bluebook "Discovery" do
+  vision "How a small newsroom's pages appear in search."
+  core
+
+  aggregate "SearchWording" do
+    description "The title and description a search result shows for one post or page."
+
+    identified_by :key
+
+    value_object "WordingKey" do
+      attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
+    end
+
+    value_object "ResultTitle" do
+      attribute :value, String
+    end
+
+    value_object "ResultSummary" do
+      attribute :value, String
+    end
+
+    attribute :key,         WordingKey
+    attribute :title,       ResultTitle
+    attribute :description, ResultSummary, optional: true
+
+    command "Describe" do
+      role "Editor"
+      goal "Say how a post or a page appears in search"
+
+      attribute :key,         WordingKey
+      attribute :title,       ResultTitle
+      attribute :description, ResultSummary, optional: true
+
+      emits "WordingDescribed"
+    end
+
+    command "Reword" do
+      role "Editor"
+      goal "Change the wording of a search result"
+      reference_to SearchWording
+
+      attribute :title,       ResultTitle
+      attribute :description, ResultSummary, optional: true
+
+      emits "WordingReworded"
+    end
+  end
+end

@@ -7,12 +7,18 @@ __BANNER__
 // that is destructive asks first, in a native dialog (the page of the command is the same question
 // for a browser with no script).
 import { at } from "../names.ts";
-import type { Aggregate, Attr, Command } from "../schema.ts";
-import { bodyToHtml } from "./body_model.js";
-import { copyButton, copyable, esc, href, refusal, statusBadge } from "./html.ts";
-import { isMoment, momentValue } from "./moments.ts";
-import { outline } from "./outline.ts";
+import type { Aggregate, Command } from "../schema.ts";
+import { available, needsPage } from "./availability.ts";
+import { confirmDialog, dialogId } from "./dialogs.ts";
+import { copyButton, esc, href, refusal, statusBadge } from "./html.ts";
+import { relatedPanels } from "./related.ts";
+import { schedulePanel } from "./schedule.ts";
+import type { Tools } from "./preview.ts";
+import { valueRows } from "./values.ts";
+import type { World } from "./world.ts";
 import { commandLabel, label, singular } from "./words.ts";
+
+export { available, needsPage };
 
 type State = Record<string, unknown>;
 
@@ -23,29 +29,6 @@ export interface Submitted {
   values: State;
   /** The attribute the refusal names, when it names one. */
   field?: string;
-}
-
-/** Whether a command applies to an instance in its present state: a lifecycle move only from its states. */
-export function available(agg: Aggregate, command: Command, state: State): boolean {
-  const move = agg.lifecycle?.transitions.find((transition) => transition.verb === command.name);
-  return !move || !agg.lifecycle || move.from.includes(String(state[agg.lifecycle.field]));
-}
-
-/** What a command needs asked first: it takes input, or it is destructive. */
-export const needsPage = (command: Command): boolean => command.attributes.length > 0 || command.destructive;
-
-const dialogId = (command: Command): string => `confirm-${command.name}`;
-
-/** The question a destructive command asks, as a native dialog that posts to `action` when confirmed. */
-export function confirmDialog(agg: Aggregate, command: Command, action: string, id: string, form?: string): string {
-  const what = commandLabel(agg, command);
-  const detail = command.goal ? `${esc(command.goal)}.` : `This applies to ${esc(id)}.`;
-  const owner = form ? ` form="${esc(form)}"` : "";
-  const head = `<h2 id="${dialogId(command)}-title" class="text-xl">${esc(what)}?</h2>\n<p class="mt-2 text-muted">${detail}</p>`;
-  const buttons = `<div class="modal-action"><button type="submit" class="btn btn-ghost" formmethod="dialog" formnovalidate>Cancel</button><button type="submit" class="btn btn-error"${owner}>${esc(what)}</button></div>`;
-  const box = form ? `${head}\n${buttons}` : `<form method="post" action="${esc(action)}">\n${head}\n${buttons}\n</form>`;
-  const close = `<form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>`;
-  return `<dialog class="modal" id="${dialogId(command)}" aria-labelledby="${dialogId(command)}-title">\n<div class="modal-box">\n${box}\n</div>\n${close}\n</dialog>`;
 }
 
 function action(agg: Aggregate, id: string, command: Command, first: boolean): string {
@@ -72,34 +55,23 @@ function panel(agg: Aggregate, id: string, values: State, commands: Command[]): 
   return `<aside class="order-first flex flex-wrap items-start gap-x-8 gap-y-4 border-b border-base-300 pb-5 lg:sticky lg:top-20 lg:order-none lg:block lg:border-b-0 lg:pb-0" aria-label="Status and actions">${status}<div class="${rule}"><h2 class="mb-2 text-sm">Actions</h2>${list}</div></aside>`;
 }
 
-function value(agg: Aggregate, attr: Attr, values: State): string {
-  const held = values[attr.name];
-  if (isMoment(attr)) return momentValue(attr, held);
-  if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held)}</div>` : `<span class="text-muted">Not set</span>`;
-  const copy = attr.name === agg.identity || attr.kind === "reference";
-  return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
-}
-
-function document(agg: Aggregate, values: State): string {
-  const rows = agg.attributes.map((attr) => {
-    const wide = attr.widget === "body" || attr.list || attr.kind === "object";
-    const layout = wide ? "grid gap-2 py-4" : "grid gap-1 py-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4";
-    return `<div class="${layout}"><dt class="font-medium text-muted">${esc(label(attr.name))}</dt><dd class="min-w-0 break-words">${value(agg, attr, values)}</dd></div>`;
-  });
-  return `<dl class="divide-y divide-base-300">\n${rows.join("\n")}\n</dl>`;
-}
-
-/** One instance: its values, its status, and a button for each command that applies to it now. */
-export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null): string {
+/** One instance: its values, its status, a button for each command that applies to it now, and the records and actions that go with it. */
+export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools): string {
   const commands = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
-  return `<div class="mb-6">
-<h1 class="flex items-center gap-2 break-all text-3xl">${esc(id)}${copyButton(id, "id")}</h1><p class="mt-1 text-muted">${esc(label(agg.name))}</p>
+  const here = href(...at(agg), "id", id);
+  const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here)].filter((html) => html !== "");
+  return `<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+<div><h1 class="flex items-center gap-2 break-all text-3xl">${esc(id)}${copyButton(id, "id")}</h1><p class="mt-1 text-muted">${esc(label(agg.name))}</p></div>
+${preview.button}
 </div>
 ${refusal(shown?.message ?? null)}
 <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+<div class="grid min-w-0 gap-6">
 <section class="min-w-0 border border-base-300 bg-base-100 px-4 sm:px-6" aria-label="${esc(label(agg.name))}">
-${document(agg, values)}
+${valueRows(agg, agg.attributes, values)}
 </section>
+${panels.join("\n")}
+</div>
 ${panel(agg, id, values, commands)}
 </div>
 ${dialogs(agg, id, commands)}`;

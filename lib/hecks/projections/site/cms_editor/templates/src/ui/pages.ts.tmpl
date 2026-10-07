@@ -9,16 +9,22 @@ import { EDITOR } from "../config.ts";
 import { at, keyOf } from "../names.ts";
 import type { Aggregate, Attr, Command, Query } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
-import { confirmDialog, detailPage as detail } from "./detail.ts";
+import { detailPage as detail } from "./detail.ts";
 import type { Submitted } from "./detail.ts";
+import { confirmDialog } from "./dialogs.ts";
 import { fields } from "./fields.ts";
 import type { Invalid } from "./fields.ts";
 import { esc, href, refusal } from "./html.ts";
+import { backInput, backLink, withBack } from "./links.ts";
+import type { Back } from "./links.ts";
 import type { View } from "./paging.ts";
 import type { Choices } from "./pickers.ts";
-import { countMark, groupOf, groups, onlyFor, page } from "./shell.ts";
+import { previewTools } from "./preview.ts";
+import { scheduledTable } from "./schedule.ts";
+import { SCHEDULED, countMark, groupOf, groups, onlyFor, page } from "./shell.ts";
 import type { Crumb } from "./shell.ts";
 import { listPage as list } from "./table.ts";
+import type { World } from "./world.ts";
 import { commandLabel, label, plural } from "./words.ts";
 
 type State = Record<string, unknown>;
@@ -28,8 +34,8 @@ export type { Submitted };
 
 const OVERVIEW: Crumb = ["Overview", href()];
 
-const head = (title: string, note: string): string =>
-  `<div class="mb-6"><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>`;
+const head = (title: string, note: string, extra = ""): string =>
+  `<div class="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>${extra}</div>`;
 
 /** The trail to an aggregate's list: the overview, then the chapter when there are several. */
 const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name), href(...at(agg))]];
@@ -68,10 +74,18 @@ export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error
   return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name)]] });
 }
 
-/** One instance. */
-export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null): string {
+/** One instance, with the records and actions that go with it and its preview. */
+export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World): string {
   const crumbs: Crumb[] = [...trail(agg), [id]];
-  return page(id, detail(agg, id, values, shown), { active: keyOf(agg), crumbs });
+  const tools = previewTools(agg, id);
+  return page(id, detail(agg, id, values, shown, world, tools), { active: keyOf(agg), crumbs, drawer: tools.drawer });
+}
+
+/** Every action waiting to run, soonest first. */
+export function scheduledPage(world: World): string {
+  const body = `${head("Scheduled", "What is waiting to run, soonest first. These are saved here and run by something outside this editor.")}
+${scheduledTable(world, href("scheduled"))}`;
+  return page("Scheduled", body, { active: SCHEDULED, crumbs: [OVERVIEW, ["Scheduled"]] });
 }
 
 /**
@@ -102,41 +116,87 @@ function submits(agg: Aggregate, command: Command): string {
   return `${again}<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
 }
 
+/** What a command's form may be given beyond the command: the instance's values, the choices on offer and the way back. */
+interface Extras {
+  state?: State;
+  /** Whether the form names the instance to act on, for a command that acts on another aggregate's. */
+  to?: boolean;
+  cancel?: string;
+  choices?: Choices;
+  back?: Back | null;
+  /** The instance the form acts on, which a draft's buttons need. */
+  id?: string;
+}
+
+/**
+ * The status line, and the buttons that publish or throw away the draft, on the page of the command
+ * that saves one. The question each asks is a dialog after the form; the publish dialog saves what is
+ * still unsaved first (`data-flush-draft`, see browser/autosave.js).
+ */
+function draftTools(agg: Aggregate, command: Command, extras: Extras): { bar: string; dialogs: string } {
+  const drafts = agg.drafts;
+  if (!drafts || drafts.save !== command.name || !extras.id) return { bar: "", dialogs: "" };
+  const id = extras.id;
+  const back = extras.back ?? null;
+  const held = (extras.state ?? {})[drafts.attribute] != null;
+  const make = (name?: string): Command | undefined => agg.commands.find((candidate) => candidate.name === name && candidate.on === agg.name && candidate.attributes.length === 0);
+  const ask = (command: Command | undefined, words: string, classes: string, tone: "neutral" | "error", flush: boolean, hidden: boolean): [string, string] => {
+    if (!command) return ["", ""];
+    const to = href(...at(agg), "id", id, command.name);
+    const link = back ? withBack(to, back.path) : to;
+    const button = `<a class="${classes}" href="${esc(link)}" data-confirm="confirm-${esc(command.name)}"${hidden ? " hidden data-draft-discard" : ""}>${esc(words)}</a>`;
+    return [button, confirmDialog(agg, command, to, id, undefined, { back, tone, button: words, flush })];
+  };
+  const publish = ask(make(drafts.publish), "Publish draft", "btn btn-neutral", "neutral", true, false);
+  const discard = ask(make(drafts.discard), "Discard draft", "btn btn-error btn-outline", "error", false, !held);
+  const live = esc(label(drafts.live).toLowerCase());
+  const note = `${held ? "A draft is saved." : "No draft is saved yet."} The live ${live} changes only when the draft is published.`;
+  const bar = `<div class="mb-4 flex flex-wrap items-center gap-2" data-draft-bar><p class="mr-auto text-sm text-muted" role="status" aria-live="polite" data-draft-status>${note}</p>${discard[0]}${publish[0]}</div>`;
+  return { bar, dialogs: `${publish[1]}\n${discard[1]}` };
+}
+
 /** A form for one command; `to` adds the id input a command acting on another aggregate needs. */
-export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false, cancel = href(...at(agg)), choices: Choices = {}): string {
+export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, extras: Extras = {}): string {
+  const { state = {}, to = false, choices = {}, back = null } = extras;
   const own = shown && shown.command === command.name ? shown : null;
   const note = command.goal ? `<p class="mb-4 max-w-prose text-muted">${esc(command.goal)}.</p>` : "";
   const target = to
     ? `<div class="my-4 grid gap-1"><label for="f-to" class="font-semibold">${esc(command.on ?? "")} id <span class="text-primary" aria-hidden="true">*</span></label><input type="text" class="input w-full max-w-xl" id="f-to" name="__to" value="${esc(own?.values.__to ?? "")}"></div>`
     : "";
-  const dialog = command.destructive ? confirmDialog(agg, command, action, "", FORM) : "";
-  return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form>
-${refusal(own?.message ?? null)}${note}
+  const dialog = command.destructive ? confirmDialog(agg, command, action, "", FORM, { back }) : "";
+  const draft = draftTools(agg, command, extras);
+  const mode = draft.bar ? ` data-draft="${esc(agg.drafts?.attribute)}"` : "";
+  const leave = back?.path ?? extras.cancel ?? href(...at(agg));
+  return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form${mode}>
+${backInput(back)}${refusal(own?.message ?? null)}${note}
+${draft.bar}
 ${target}
-${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices)}
-<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a>${submits(agg, command)}</div>
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined)}
+<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command)}</div>
 </form>
-${dialog}`;
+${dialog}${draft.dialogs}`;
 }
 
-/** The page of one creating command (or a command that acts on another aggregate's instance). */
-export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null, choices: Choices = {}): string {
+/** The page of one creating command (or a command that acts on another aggregate's instance); `state` fills it, `back` is where saving returns to. */
+export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null, choices: Choices = {}, extras: Extras = {}): string {
   const crumbs: Crumb[] = [...trail(agg), [commandLabel(agg, command)]];
-  const form = commandForm(agg, command, action, shown, {}, command.on !== null && command.on !== agg.name, href(...at(agg)), choices);
-  return page(commandLabel(agg, command), `${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: keyOf(agg), crumbs });
+  const form = commandForm(agg, command, action, shown, { ...extras, to: command.on !== null && command.on !== agg.name, choices });
+  return page(commandLabel(agg, command), `${backLink(extras.back ?? null)}${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: keyOf(agg), crumbs });
 }
 
 /** The page of a command that acts on one instance: its form, or the question a destructive one asks. */
-export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}): string {
+export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null): string {
   const action = href(...at(agg), "id", id, command.name);
   const crumbs: Crumb[] = [...trail(agg), [id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
-  const title = head(commandLabel(agg, command), `${label(agg.name)} ${id}`);
-  const cancel = href(...at(agg), "id", id);
+  const tools = previewTools(agg, id);
+  const title = `${backLink(back)}${head(commandLabel(agg, command), `${label(agg.name)} ${id}`, tools.button)}`;
+  const cancel = back?.path ?? href(...at(agg), "id", id);
+  const frame = { active: keyOf(agg), crumbs, drawer: tools.drawer };
   if (command.destructive && command.attributes.length === 0) {
     const own = shown && shown.command === command.name ? shown.message : null;
-    const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${refusal(own)}<p>${esc(command.goal ?? `This applies to ${id}`)}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
+    const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${backInput(back)}${refusal(own)}<p>${esc(command.goal ?? `This applies to ${id}`)}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
 <div class="mt-6 flex justify-end gap-2"><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a><button type="submit" class="btn btn-error" data-busy>${esc(commandLabel(agg, command))}</button></div></form>`;
-    return page(commandLabel(agg, command), `${title}\n${ask}`, { active: keyOf(agg), crumbs });
+    return page(commandLabel(agg, command), `${title}\n${ask}`, frame);
   }
-  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, values, false, cancel, choices)}`, { active: keyOf(agg), crumbs });
+  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, { state: values, cancel, choices, back, id })}`, frame);
 }
