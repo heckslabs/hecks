@@ -38,6 +38,7 @@ module Hecks
               plan.domain_env = Check.map!(settings.fetch(:domain_env, {}), "domain_env", nil_ok: true)
               plan.install_dir = install_dir(settings.fetch(:install_dir, DEFAULT_INSTALL_DIR))
               plan.build_context_dir = build_context_dir(settings.fetch(:build_context_dir, ""))
+              plan.host_dir = host_dir(settings.fetch(:host_crate, DEFAULT_HOST_DIR))
             end
 
             def check_execution_grant!(plan)
@@ -60,6 +61,20 @@ module Hecks
               return text if text.match?(%r{\A/[A-Za-z0-9_./-]*[A-Za-z0-9_.-]\z})
 
               raise ArgumentError, "install_dir must be an absolute path without a trailing slash, got #{value.inspect}"
+            end
+
+            # The directory of the Cargo package the Makefile builds `bootstrap` from: an absolute
+            # path, or one relative to the Makefile's `ROOT`. Only path characters are accepted,
+            # since the value is written into a Makefile that shell lines expand.
+            def host_dir(value)
+              text = value.to_s
+              return text if text == DEFAULT_HOST_DIR
+              return text if text.match?(%r{\A/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z})
+              return "$(ROOT)/#{text}" if text.match?(%r{\A[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z})
+
+              raise ArgumentError,
+                    "host_crate must be a directory path of letters, digits, . _ - and /, absolute or relative to the " \
+                    "Makefile's ROOT, got #{value.inspect}"
             end
 
             def build_context_dir(value)

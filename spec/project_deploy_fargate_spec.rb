@@ -188,6 +188,15 @@ RSpec.describe "hecks deploy project — deployed_to(\"AwsFargate\")", :io do
     expect(makefile).not_to include("sam deploy", "sam build")
   end
 
+  it "builds bootstrap from rust/host, or from the directory host_crate names", :aggregate_failures do
+    default = generate(valid_fargate_world)["Makefile"]
+    world = fargate_world('region "us-east-1"', "cpu 256", "memory 512", "port 8080", 'host_crate "../platform/host"')
+    named = generate(world)["Makefile"]
+
+    expect(default).to include("HOST_DIR   ?= $(ROOT)/rust/host", "cd $(HOST_DIR) &&")
+    expect(named).to include("HOST_DIR   ?= $(ROOT)/../platform/host", "cp $(HOST_DIR)/target/")
+  end
+
   it "keeps mint-era working the same way Lambda's own generated Makefile does", :aggregate_failures do
     files = generate(valid_fargate_world)
 

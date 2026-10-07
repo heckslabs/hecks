@@ -12,6 +12,31 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 - **`project_site --editor=<dir>` generates a content editor from the domain's bluebook (ADR 0095).** A project that declares an `Editor` row (the domain's directory and chapter, where the editor is served, its session cookie, the host's address variable, the login page, the roles) gets a small Node/TypeScript package: a server on node's own `http` with no framework, a `schema.ts` that carries the chapter's aggregates, value objects, lifecycles, commands and queries as one typed constant, and server-rendered pages read from it (a nav of aggregates, a list from a query, a detail page, a form per command). Value-object attributes are nested fieldsets, `list_of` attributes are repeatable rows, lifecycle states are badges, and a refusal is shown inline on the form. The editor signs people in through the site's admin hand-off and checks the host's members list on every request. `--check` covers the files; the domain holds no editor data.
 - **The generated editor edits a structured document body with a rich-text widget (ADR 0095 addendum).** An attribute whose value object has a `blocks` list of blocks with `kind` and `spans` (chosen by shape, not name) gets a toolbar and contenteditable surface for paragraphs, headings, quotes, lists with depth, dividers, images by media key, marks, links, alignment and indent. It edits the domain's own tree and posts it as the editor's usual dotted-path fields, with no editor format. `bodyToHtml` and `htmlToBody` are dependency-free plain JavaScript that run in node and the browser, escape everything and allow only path, http(s), mailto and tel addresses; pasted HTML is reduced to what the body holds and the widget says what it reduced. The pages show the body read-only through `bodyToHtml`.
 - **`@hecks/client`: `HostClient#query(name, args?)` and `rowsOf(answer, name?)`.** The host's `/dispatch` already answers `{"query": ..., "args": ...}`; the client now asks it, and `rowsOf` reads the rows of the answer or throws `DomainRefusal` when the host refused the question. `Answer` gains an optional `queries` list. Nothing that was there changes.
+- `deployed_to("AwsFargate")` takes `host_crate "<directory>"`: the Cargo package the generated Makefile builds `bootstrap` from, an absolute path or one relative to the Makefile's `ROOT`. Without it the Makefile builds `rust/host` as before. The Makefile reads it as `HOST_DIR ?=`, so `make HOST_DIR=<dir>` builds another host without regenerating. This lets a site run a host that installs its own `HostExtension`s (ADR 0094). Only path characters are accepted.
+
+## [3.9.1] - 2026-10-07
+
+A patch release: the Resend webhook's signing secret can live in the secret that already holds the Resend API key.
+
+**Changed: the host reads the Resend webhook's signing secret from the same secret as the API key.** The secret `RESEND_SECRET_ID` names may carry `webhook_secret` beside `api_key`; when it does, the host sets `RESEND_WEBHOOK_SECRET` from it at boot, so `POST /webhooks/resend` needs no new environment variable or task-definition secret. A secret with only `api_key` behaves as before.
+
+## [3.9.0] - 2026-10-06
+
+A minor release: the Rust host records newsletter opens and clicks from Resend's webhook.
+
+**Added: `POST /webhooks/resend` records newsletter opens and clicks.** The commerce extension verifies Resend's Svix signature against `RESEND_WEBHOOK_SECRET` (the endpoint's `whsec_` signing secret; without it the route answers 503), finds the `Delivery` whose stored Resend message id matches the event's `email_id`, and dispatches `Delivery.RecordOpen` or `Delivery.RecordClick`, which keep only the first of each. A repeat, an event type nothing records, and a message the site did not send as a newsletter are all acknowledged with 200 so Resend stops retrying. Resend sends nothing until the domain's open and click tracking is on and a webhook for `email.opened` and `email.clicked` points at the route.
+
+## [3.8.1] - 2026-10-07
+
+A patch release: a generated host compiles when an aggregate has an optional Integer, Float or Boolean attribute, or a list of them. Nothing else changes for a deployed host.
+
+### Added
+
+- `hecks site site_projection.check_site <project> url=<address>` asks a running site what its route table says it must answer, with anonymous requests that change nothing: admin routes refuse, indexable public pages answer 200 with a canonical link, `off` rows and undeclared paths answer 404, redirect rows redirect. A project's smoke no longer needs hand-listed paths for these.
+
+### Fixed
+
+- The Rust generator dereferences a copy scalar it reaches through a reference. The `Fielded` arms and the JSON codec wrote `Value::Int(v)` and `Json::int(v)` inside `as_ref().map(|v| ..)` and `iter().map(|x| ..)`, where the binding is `&i64`, so a host with such an attribute failed to compile (`E0308`, "expected `i64`, found `&i64`"). The first vendored chapter to have one is cms 1.2's `Page.level`, which kept every project that took cms 1.2 or later from building. `naming::deref_scalar` dereferences Integer, Float and Boolean and leaves String to its clone.
 
 ## [3.8.0] - 2026-10-06
 
