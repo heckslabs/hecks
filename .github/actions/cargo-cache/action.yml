@@ -59,8 +59,15 @@ inputs:
     description: >-
       The crate's own root directory, relative to the repo root (e.g.
       "rust", "rust/parser") — where its Cargo.lock and src/ actually
-      live. The cached target dir is always "<crate-root>/target".
+      live. The cached target dir is "<crate-root>/<target-dir>".
     required: true
+  target-dir:
+    description: >-
+      The name of the target directory under `crate-root` to cache, `target` unless a job builds
+      into its own with CARGO_TARGET_DIR. Give such a cache a name no other cache's name starts
+      with: the restore falls back to any key that begins with `<name>-`.
+    required: false
+    default: target
   include-registry:
     description: >-
       Also cache ~/.cargo/registry and ~/.cargo/git under this key.
@@ -79,7 +86,7 @@ runs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          ${{ inputs.crate-root }}/target
+          ${{ inputs.crate-root }}/${{ inputs.target-dir }}
         key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
@@ -87,7 +94,7 @@ runs:
     - if: inputs.include-registry != 'true'
       uses: actions/cache@v4
       with:
-        path: ${{ inputs.crate-root }}/target
+        path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
         key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-

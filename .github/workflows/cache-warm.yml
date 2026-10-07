@@ -113,6 +113,26 @@ jobs:
       - name: Warm rust/lsp (hecks_lsp)
         run: cd rust/lsp && cargo build
 
+  # The test build of rust/host, in its own target directory and cache: `cargo test` builds the
+  # dependencies at opt-level 2, so the cargo job restores only this and the lineage job's harness
+  # cache stays small. The name has no `-` after `host`, so the `host` cache's fallback prefix does
+  # not match it.
+  warm_host_test_crate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: hosttest
+          crate-root: rust/host
+          target-dir: target-test
+
+      - name: Warm the rust/host test build
+        run: cd rust/host && CARGO_TARGET_DIR=target-test cargo test --no-run
+
   # Mirrors rspec_rust_host's cache step; builds the two binaries the lineage conformance
   # spec needs.
   warm_host_crate:
