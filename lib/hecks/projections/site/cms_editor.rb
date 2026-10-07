@@ -80,7 +80,7 @@ module Hecks
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
         end
 
-        # @return [Hash{String => String}] every placeholder of the templates and the text that fills it
+        # @return [Hash{String => String}] each placeholder of the templates and its text
         def tokens(setting, schema, media)
           setting.tokens.merge(look_tokens(setting, schema), "__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
         end
@@ -95,7 +95,7 @@ module Hecks
 
         # @param setting [Setting] the checked row
         # @param schema [Hash{String => Object}] the chapter as the editor reads it
-        # @return [Hash{String => String}] the header's brand, the icon sprite and the theme's colours
+        # @return [Hash{String => String}] the brand, the icon sprite and the theme's colours
         def look_tokens(setting, schema)
           { "__BRAND__" => JSON.generate(setting.brand || schema["domain"]), "__ICONS__" => Icons.sprite,
             "__CSS_BANNER__" => "/* #{RoutesTs::BANNER.delete_prefix("// ")} */", **Theme.tokens(setting.accent) }
