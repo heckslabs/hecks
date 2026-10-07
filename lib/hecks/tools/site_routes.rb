@@ -13,9 +13,11 @@ require_relative "../projections/site/admin_cms"
 require_relative "../projections/site/site_root"
 require_relative "../projections/site/site_host"
 require_relative "../projections/site/payload_driver"
+require_relative "../projections/site/cms_editor"
 require_relative "site_routes/cli"
 require_relative "site_routes/templates"
 require_relative "site_routes/root_files"
+require_relative "site_routes/editor_files"
 
 module Hecks
   module Tools
@@ -39,13 +41,14 @@ module Hecks
       EXTENSIONS = %w[ts mts].freeze
 
       USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] " \
-              "[--template=<file>] [--cms=<dir>] [--root=<dir>] [--extension=#{EXTENSIONS.join("|")}] [--check]".freeze
+              "[--template=<file>] [--cms=<dir>] [--root=<dir>] [--editor=<dir>] " \
+              "[--extension=#{EXTENSIONS.join("|")}] [--check]".freeze
 
       # The directory `ports/` and `adapters/` live under, loaded into every project's registry.
       LIB_HECKS = File.expand_path("..", __dir__)
 
       # The keywords `projection` takes, each nil until given.
-      Settings = Struct.new(:out, :template, :extension, :cms, :root_dir, keyword_init: true)
+      Settings = Struct.new(:out, :template, :extension, :cms, :root_dir, :editor, keyword_init: true)
 
       # A project's route-table chapter with its checked table and the registry it booted into.
       Site = Struct.new(:chapter, :table, :registry)
@@ -53,6 +56,7 @@ module Hecks
       extend Cli
       extend Templates
       extend RootFiles
+      extend EditorFiles
 
       module_function
 
@@ -85,6 +89,7 @@ module Hecks
       #   `extension:` `ts` (the default) or `mts`, the module's file extension
       #   `cms:` the directory for the content system's half of the admin sign-in
       #   `root_dir:` the directory for the project's root files
+      #   `editor:` the directory for the content editor
       # @return [Hash{String => String}] each file's absolute path to the text it should hold
       # @raise [SystemExit] when the project declares no route table, the table is refused, or a
       #   path or the extension is refused
@@ -106,7 +111,7 @@ module Hecks
         written = route_files(dir, site, settings.extension)
         admin = Projections::Site::Admin.read(site.chapter, table: site.table)
         written.merge!(admin_files(dir, site.chapter, admin, settings.extension))
-        written.merge!(optional_files(settings, site.chapter, admin))
+        written.merge!(optional_files(settings, site, admin, root))
         written.merge(template_files(root, settings.out, site, template: settings.template))
       end
 
@@ -116,11 +121,13 @@ module Hecks
         renamed(dir, files, extension)
       end
 
-      # The content system's files and the project's root files, each when its flag was given.
-      def optional_files(settings, chapter, admin)
+      # The content system's files, the project's root files and the editor, each when its flag was
+      # given.
+      def optional_files(settings, site, admin, project)
         files = {}
-        files.merge!(cms_files(settings.cms, chapter, admin)) if settings.cms
-        files.merge!(root_files(settings.root_dir, chapter)) if settings.root_dir
+        files.merge!(cms_files(settings.cms, site.chapter, admin)) if settings.cms
+        files.merge!(root_files(settings.root_dir, site.chapter)) if settings.root_dir
+        files.merge!(editor_files(settings.editor, project, site)) if settings.editor
         files
       end
 

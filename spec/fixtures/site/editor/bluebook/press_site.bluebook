@@ -1,0 +1,54 @@
+# A small publisher's site: a fourth neutral sample project. It declares an `Editor` row, so it
+# exercises the editor generator: the editor is an admin page set under /editor, signed into by the
+# same hand-off the admin pages use.
+Hecks.bluebook "PressSite" do
+  vision "The routes of a small publisher's website, with an editor for its articles."
+
+  aggregate "SiteMap" do
+    description "The publisher site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :nav_order, Integer
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", nav_order: 1
+      member path: "/editor*",     kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/*",           kind: "proxy"
+    end
+
+    value_object "Editor" do
+      attribute :domain,         String
+      attribute :chapter,        String
+      attribute :base_path,      String
+      attribute :session_cookie, String
+      attribute :host_cookie,    String
+      attribute :host_env,       String
+      attribute :host_default,   String
+      attribute :roles,          String
+      attribute :login,          String
+      attribute :title,          String
+
+      member domain: "domain", chapter: "Press", base_path: "/editor",
+             session_cookie: "press_editor", host_cookie: "press_session", host_env: "PRESS_DOMAIN_SERVICE_URL",
+             host_default: "http://127.0.0.1:4500", roles: "Admin,Owner", login: "/admin-login",
+             title: "Press editor"
+    end
+  end
+end

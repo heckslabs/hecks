@@ -1,0 +1,70 @@
+__BANNER__
+
+// The inputs of a form, derived from attributes. A value-object attribute is a nested fieldset of
+// its parts; a `list_of` attribute is a run of repeatable rows (the rows it holds, then one blank
+// row to fill); a lifecycle state is not an input at all. Each input is named by its dotted path
+// (`byline.name`, `body.blocks.0.text`), which input.ts reads back into the shape the command takes.
+import type { Aggregate, Attr } from "../schema.ts";
+import { esc } from "./html.ts";
+import { outline } from "./outline.ts";
+
+type Value = unknown;
+
+const label = (attr: Attr): string => attr.name.replace(/_/g, " ");
+
+const optionalNote = (attr: Attr): string => (attr.optional ? ` <small>(optional)</small>` : "");
+
+const inputType = (attr: Attr): string => (attr.kind === "integer" || attr.kind === "number" ? "number" : "text");
+
+const member = (value: Value, key: string): Value => (value && typeof value === "object" ? (value as Record<string, Value>)[key] : undefined);
+
+function scalar(attr: Attr, name: string, value: Value): string {
+  const text = esc(member(value, "value") ?? value ?? "");
+  if (attr.kind === "boolean") {
+    return `<label><input type="checkbox" name="${esc(name)}"${value === true ? " checked" : ""}> ${esc(label(attr))}${optionalNote(attr)}</label>`;
+  }
+  const step = attr.kind === "number" ? ` step="any"` : "";
+  return `<label>${esc(label(attr))}${optionalNote(attr)}<input type="${inputType(attr)}"${step} name="${esc(name)}" value="${text}"></label>`;
+}
+
+function parts(agg: Aggregate, attr: Attr, name: string, value: Value): string {
+  const members = agg.valueObjects[attr.type] ?? [];
+  return members.map((part) => field(agg, part, member(value, part.name), `${name}.`)).join("\n");
+}
+
+function one(agg: Aggregate, attr: Attr, name: string, value: Value): string {
+  if (attr.kind !== "object") return scalar(attr, name, value);
+  return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>\n${parts(agg, attr, name, value)}\n</fieldset>`;
+}
+
+function listed(agg: Aggregate, attr: Attr, name: string, value: Value): string {
+  const held = Array.isArray(value) ? value : [];
+  const rows = [...held, undefined].map((item, index) => {
+    const body = attr.kind === "object" ? parts(agg, attr, `${name}.${index}`, item) : scalar({ ...attr, list: false }, `${name}.${index}`, item);
+    return `<fieldset class="row"><legend>${esc(label(attr))} ${index + 1}</legend>\n${body}\n</fieldset>`;
+  });
+  return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>\n${rows.join("\n")}\n</fieldset>`;
+}
+
+// The rich-text widget is slice 2 of the editor: until then the value is shown as an outline and
+// carried through a form unchanged, so revising other attributes does not lose it.
+function body(attr: Attr, name: string, value: Value): string {
+  const carried = value === undefined || value === null ? "" : JSON.stringify(value);
+  return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>
+${outline(value)}
+<input type="hidden" name="${esc(name)}.__json" value="${esc(carried)}">
+<p class="note">editor widget: slice 2 (shown read-only; kept as it is)</p>
+</fieldset>`;
+}
+
+/** One attribute's inputs, `prefix` being the dotted path of the object that holds it. */
+export function field(agg: Aggregate, attr: Attr, value: Value, prefix = ""): string {
+  const name = `${prefix}${attr.name}`;
+  if (attr.widget === "body") return body(attr, name, value);
+  return attr.list ? listed(agg, attr, name, value) : one(agg, attr, name, value);
+}
+
+/** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
+export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}): string {
+  return attrs.map((attr) => field(agg, attr, values[attr.name])).join("\n");
+}

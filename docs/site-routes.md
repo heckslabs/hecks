@@ -194,10 +194,62 @@ A `PayloadField` row says what an attribute's shape cannot: `kind` (`text`, `tex
 the editor's name differs, `label` (`Singular|Plural`) for a list, `description`, `required`, `default`. A part of a composite is
 `attribute.part`. An aggregate whose attribute is not a value object, or whose commands declare more than one role, is refused.
 
+## The content editor: `editor=<dir>`
+
+A project that edits its own content, without a third-party CMS, declares one `member` row of a `value_object "Editor"` beside
+the route table and runs `--editor=<dir>` (`editor=<dir>` on the verb). The projection reads the row and the domain chapter it
+names, and writes a small Node/TypeScript package under `<dir>`: a server (node's own `http`, no framework) whose pages and
+forms are generated from the domain, not written per aggregate.
+
+| field | what it is | default |
+|---|---|---|
+| `domain` | the domain's directory under the project, holding `bluebook/` | required |
+| `chapter` | the chapter whose aggregates the editor edits | required |
+| `host_env` | the environment variable that holds the domain host's address | required |
+| `login` | the site's login page, a public route: where a visitor with no session is sent | required |
+| `base_path` | where the editor is served; it is the path the edge routes to the editor | `/editor` |
+| `sso_path` | the endpoint the site's admin hand-off sends a signed-in admin to; under `base_path` | `<base_path>/api/sso` |
+| `session_cookie` | the editor's own session cookie | `hecks_editor` |
+| `host_cookie` | the host's account cookie name, when `HECKS_SESSION_COOKIE` is not set | `hecks_session` |
+| `host_default` | the host's address when the variable is unset | `http://127.0.0.1:4322` |
+| `roles` | the roles that count as an editor, comma separated | `Admin,Owner` |
+| `title` | the editor's name in its header | `Editor` |
+| `skip` | aggregates to leave out, comma separated | none |
+
+| file | what it does |
+|---|---|
+| `src/schema.ts` | the chapter's aggregates, attributes (kind, optional, list), value objects, lifecycles, commands (role, creating or acting on an instance) and queries, as one typed constant |
+| `src/app.ts`, `src/server.ts` | the handler from a web `Request` to a `Response`, and the node server around it |
+| `src/auth/*.ts` | the sign-in: the hand-off token, the membership check, and the editor's own signed session cookie |
+| `src/ui/*.ts` | the server-rendered pages: a nav of aggregates, a list from a query, a detail page, a form per command |
+| `src/host.ts`, `src/commands.ts` | the `@hecks/client` wiring, and the running and judging of one command |
+| `src/config.ts`, `package.json`, `tsconfig.json` | the row's settings, and the package |
+
+The editor is generic by aggregate. A value-object attribute is a nested fieldset of its parts, a `list_of` attribute is a run of
+repeatable rows (the rows it holds, then one blank to fill; a blank row is dropped), an optional part left blank is left out, and a
+lifecycle state is a badge, never an input. A lifecycle move is offered only from the states it applies in. An attribute whose
+type is a value object named `Body` is shown as a read-only outline and carried through a form unchanged; its editor widget is
+the next slice. A query that `returns` a value object is answered outside the domain and is not offered.
+
+The server is a sidecar: it is the host's `/dispatch` caller, which the host honours only from the same machine, so it
+authenticates every person itself. A visitor with no valid session is sent to `login`; the site's admin hand-off sends a signed-in
+admin to `sso_path` with a short-lived account token, which the server verifies with the secret it shares with the host
+(`AUTH_SECRET`, the host's `SESSION_SECRET`), and a session starts only when the host's members list holds the person with one of
+`roles`. The members list is asked again on every request (remembered for a minute), so removing someone locks them out. Posts
+from another site are refused. Set the Admin row's `cms_base` to `base_path` and `sso_target` to `sso_path` so the hand-off lands
+here.
+
+The host answers HTTP 200 whether or not the domain refused, so a command's outcome is judged by the state that comes back, and a
+refusal is shown on the form with the person's input kept. Commands run as the role they declare.
+
+The row is refused when `login` is not a public route, when `base_path` or `sso_path` is malformed or `sso_path` is not under
+`base_path`, when `roles` names none, or when the row has a field this list does not. `--editor` on a project with no `Editor` row
+is refused. `--check` covers the files like the others.
+
 ## Projecting it
 
 ```
-hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [extension=ts|mts] [--check]
+hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [cms=<dir>] [root=<dir>] [editor=<dir>] [extension=ts|mts] [--check]
 ```
 
 It runs from a project, with the installed gem; it needs no hecks checkout. Three places are independent of one another:
