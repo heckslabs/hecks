@@ -22,11 +22,12 @@ module Hecks
             fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
-                        media_dir: String, media_max_bytes: String },
+                        media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer] },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
-                        accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880" }
+                        accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
+                        chapter_roles: "", page_size: "25" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -47,7 +48,7 @@ module Hecks
           # @param table [Table, nil] the checked route table
           # @raise [Table::Invalid] naming every problem when there is one
           def initialize(row, table: nil)
-            @row = { sso_path: "#{row[:base_path]}/api/sso" }.merge(row)
+            @row = { sso_path: "#{row[:base_path]}/api/sso" }.merge(row, page_size: row[:page_size].to_s)
             problems = Checks.problems(@row, roles, table)
             return if problems.empty?
 
@@ -57,8 +58,25 @@ module Hecks
           # @return [String] the domain's directory, relative to the project
           def domain = row.fetch(:domain)
 
-          # @return [String] the chapter the editor edits
-          def chapter = row.fetch(:chapter)
+          # @return [String] the first chapter the editor edits, which names the generated package
+          def chapter = chapters.first.to_s
+
+          # @return [Array<String>] every chapter the editor edits, in the order the row names them:
+          #   `chapter` is one name or several, comma separated
+          def chapters = row.fetch(:chapter).split(",").map(&:strip).reject(&:empty?)
+
+          # @return [Hash{String => Array<String>}] the roles a chapter's aggregates are limited to,
+          #   from `Chapter=Role,Role;Chapter=Role`; a chapter not named is open to every role the
+          #   editor admits
+          def chapter_roles
+            row.fetch(:chapter_roles).split(";").map(&:strip).reject(&:empty?).to_h do |entry|
+              name, roles = entry.split("=", 2)
+              [name.to_s.strip, roles.to_s.split(",").map(&:strip).reject(&:empty?)]
+            end
+          end
+
+          # @return [Integer] how many instances a list shows to a page
+          def page_size = row.fetch(:page_size).to_i
 
           # @return [String, nil] the other chapter whose picture aggregate the editor's pictures
           #   use, or nil when the pictures (if any) are in the editor's own chapter
@@ -70,7 +88,7 @@ module Hecks
           # @return [String, nil] the accent colour as hex, or nil for the default theme
           def accent = row.fetch(:accent).strip.then { |hex| hex.empty? ? nil : hex }
 
-          # @return [Array<String>] the aggregates left out
+          # @return [Array<String>] the aggregates left out: `Name`, or `Chapter::Name`
           def skip = row.fetch(:skip).split(",").map(&:strip).reject(&:empty?)
 
           # @return [Array<String>] the roles that count as an editor
@@ -82,7 +100,7 @@ module Hecks
           # @return [Hash{String => String}] each placeholder to the text that replaces it
           def tokens
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
-              "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes),
+              "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
               "__CLIENT_VERSION__" => Hecks::VERSION, **quoted }
           end
 

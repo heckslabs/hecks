@@ -7,6 +7,28 @@
 /** How an attribute's value is entered: `object` is a value object, the rest are single values. */
 export type Kind = "text" | "integer" | "number" | "boolean" | "object" | "reference";
 
+/**
+ * What an attribute names: an instance of another aggregate, offered as a choice. `strict` pickers
+ * accept only a key that exists; the others suggest and accept any text. `listing` is the query of
+ * the target that lists what is on offer, or none to offer every instance. With `kinds`, the value is
+ * `<kind>:<key>`: the kind is chosen first, then the record of the aggregate that kind names.
+ */
+export interface Picker {
+  target?: string;
+  /** The target's chapter, when the editor spans several or the target is in another. */
+  chapter?: string;
+  /** The target's identity attribute. */
+  key?: string;
+  /** The attribute that names an instance to a person (its title, name or label, else its identity). */
+  label?: string;
+  listing?: string;
+  strict?: boolean;
+  kinds?: PickerKind[];
+}
+
+/** One kind of a `<kind>:<key>` value, and the aggregate it names when it names one. */
+export type PickerKind = Omit<Picker, "kinds"> & { kind: string };
+
 export interface Attr {
   name: string;
   /** The type as the bluebook spells it ("String", "Byline"). */
@@ -15,8 +37,13 @@ export interface Attr {
   optional: boolean;
   /** True for `list_of`: the attribute holds a list of `type`. */
   list: boolean;
-  /** `body` for an attribute whose value object has the shape of a structured document (blocks of spans). */
-  widget?: "body";
+  /**
+   * `body` for an attribute whose value object has the shape of a structured document (blocks of
+   * spans); `date` or `datetime` for whole seconds since 1970 that the names say are a moment.
+   */
+  widget?: "body" | "date" | "datetime";
+  /** Set when the attribute names an instance of another aggregate of the editor. */
+  picker?: Picker;
   /** The aggregate a `reference` points at. */
   target?: string;
 }
@@ -58,6 +85,10 @@ export interface Query {
 
 export interface Aggregate {
   name: string;
+  /** The chapter that declares the aggregate; set when the editor spans several. */
+  chapter?: string;
+  /** The roles that may edit it, when its chapter limits them; any admitted role otherwise. */
+  roles?: string[];
   description: string | null;
   identity: string;
   lifecycle: Lifecycle | null;
@@ -87,7 +118,10 @@ export interface Media {
 }
 
 export interface Schema {
+  /** The first chapter, which names the domain the host is asked for. */
   domain: string;
+  /** Every chapter, in the order the navigation groups them; set when the editor spans several. */
+  chapters?: string[];
   aggregates: Aggregate[];
   media?: Media;
 }

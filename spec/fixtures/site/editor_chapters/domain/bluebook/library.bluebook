@@ -1,0 +1,111 @@
+# A small publisher's pictures, as the second chapter of the multi-chapter editor fixture: a picture
+# aggregate (found by shape), a `Category` of pictures that shares its name with the first chapter's,
+# and a gallery keyed `<kind>:<slug>` by the first chapter's articles and notes, a convention its
+# key's pattern states.
+Hecks.bluebook "Library" do
+  vision "The pictures a small publisher keeps."
+  core
+
+  aggregate "MediaItem" do
+    description "A picture the publisher has uploaded: its record only, the bytes are kept elsewhere."
+
+    identified_by :key
+
+    value_object "PictureKey" do
+      attribute :value, String
+      invariant("a picture has a key") { !value.to_s.empty? }
+    end
+
+    value_object "AltText" do
+      attribute :value, String
+      invariant("a picture has alt text") { !value.to_s.strip.empty? }
+    end
+
+    value_object "MimeType" do
+      attribute :value, String
+    end
+
+    attribute :key,       PictureKey
+    attribute :alt,       AltText
+    attribute :mime_type, MimeType
+
+    command "RegisterPicture" do
+      role "Editor"
+      goal "Record a picture that has been uploaded"
+
+      attribute :key,       PictureKey
+      attribute :alt,       AltText
+      attribute :mime_type, MimeType
+
+      emits "PictureRegistered"
+    end
+
+    query "Pictures" do
+      description "Every registered picture."
+    end
+  end
+
+  aggregate "Category" do
+    description "A named group of pictures."
+
+    identified_by :slug
+
+    value_object "CategorySlug" do
+      attribute :value, String
+    end
+
+    value_object "GroupName" do
+      attribute :value, String
+    end
+
+    attribute :slug, CategorySlug
+    attribute :name, GroupName
+
+    command "Group" do
+      role "Editor"
+      goal "Start a group of pictures"
+
+      attribute :slug, CategorySlug
+      attribute :name, GroupName
+
+      emits "GroupStarted"
+    end
+
+    query "All" do
+      description "Every group."
+    end
+  end
+
+  aggregate "Gallery" do
+    description "The pictures that go with one article or note, named by `<kind>:<slug>`."
+
+    identified_by :key
+
+    value_object "GalleryKey" do
+      attribute :value, String, pattern: '^(article|note):[a-z0-9-]+$'
+    end
+
+    value_object "GalleryName" do
+      attribute :value, String
+    end
+
+    value_object "PictureRef" do
+      attribute :value, String
+    end
+
+    attribute :key,      GalleryKey
+    attribute :name,     GalleryName
+    attribute :pictures, list_of(PictureRef)
+
+    command "Compose" do
+      role "Editor"
+      goal "Gather pictures for an article or a note"
+
+      attribute :key,      GalleryKey
+      attribute :name,     GalleryName
+      attribute :pictures, list_of(PictureRef)
+
+      emits "GalleryComposed"
+    end
+  end
+end

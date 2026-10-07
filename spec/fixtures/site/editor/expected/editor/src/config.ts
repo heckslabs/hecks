@@ -19,6 +19,7 @@ export const EDITOR = {
   roles: ["Admin", "Owner"],
   mediaDir: "media",
   mediaMaxBytes: 5242880,
+  pageSize: 25,
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

@@ -1,0 +1,177 @@
+# A small publisher's writing, as the first chapter of the multi-chapter editor fixture. Its
+# relationships are the plain-key kind a bluebook declares without a reference: an article names its
+# categories by slug (a list of `CategorySlugRef`) and its cover by a picture key (`ImageRef`), and
+# its date is whole seconds in a value object named for a date (`PublishedOn`). A note's
+# integer is a moment by its attribute's name (`remind_at`), not by its value object's. The chapter
+# has a `Category`, as the second does.
+Hecks.bluebook "Press" do
+  vision "The writing a small publisher keeps."
+  core
+
+  aggregate "Article" do
+    description "One piece the publisher writes, from draft to archive."
+
+    identified_by :slug
+
+    value_object "ArticleSlug" do
+      attribute :value, String
+      invariant("an article has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "Headline" do
+      attribute :value, String
+      invariant("an article has a headline") { !value.to_s.empty? }
+    end
+
+    value_object "PublishedOn" do
+      attribute :value, Integer
+      invariant("a publication date is a real moment") { value >= 0 }
+    end
+
+    value_object "CategorySlugRef" do
+      attribute :value, String
+      invariant("a category is named by its slug") { !value.to_s.empty? }
+    end
+
+    value_object "ImageRef" do
+      attribute :value, String
+    end
+
+    attribute :slug,         ArticleSlug
+    attribute :title,        Headline
+    attribute :published_on, PublishedOn
+    attribute :categories,   list_of(CategorySlugRef)
+    attribute :cover,        ImageRef, optional: true
+
+    lifecycle :status, default: "draft" do
+      transition "Publish" => "published", from: "draft"
+      transition "Archive" => "archived", from: ["draft", "published"]
+    end
+
+    command "Draft" do
+      role "Editor"
+      goal "Start an article the site does not show yet"
+
+      attribute :slug,         ArticleSlug
+      attribute :title,        Headline
+      attribute :published_on, PublishedOn
+      attribute :categories,   list_of(CategorySlugRef)
+      attribute :cover,        ImageRef, optional: true
+
+      emits "ArticleDrafted"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Change an article's headline, date, categories or cover"
+      reference_to Article
+
+      attribute :title,        Headline
+      attribute :published_on, PublishedOn
+      attribute :categories,   list_of(CategorySlugRef)
+      attribute :cover,        ImageRef, optional: true
+
+      emits "ArticleRevised"
+    end
+
+    command "Publish" do
+      role "Editor"
+      goal "Put a drafted article on the site"
+      reference_to Article
+
+      emits "ArticlePublished"
+    end
+
+    command "Archive" do
+      role "Editor"
+      goal "Take an article off the site and out of the way"
+      reference_to Article
+
+      emits "ArticleArchived"
+    end
+
+    query "Published" do
+      description "Every article the site shows."
+      where(status: "published")
+    end
+  end
+
+  aggregate "Category" do
+    description "A section of the publisher's writing that articles are filed under."
+
+    identified_by :slug
+
+    value_object "CategorySlug" do
+      attribute :value, String
+      invariant("a category has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "CategoryName" do
+      attribute :value, String
+      invariant("a category is named") { !value.to_s.empty? }
+    end
+
+    attribute :slug, CategorySlug
+    attribute :name, CategoryName
+
+    lifecycle :status, default: "active" do
+      transition "Retire" => "retired", from: "active"
+    end
+
+    command "Define" do
+      role "Editor"
+      goal "Add a category articles can be filed under"
+
+      attribute :slug, CategorySlug
+      attribute :name, CategoryName
+
+      emits "CategoryDefined"
+    end
+
+    command "Retire" do
+      role "Editor"
+      goal "Stop offering a category for new articles"
+      reference_to Category
+
+      emits "CategoryRetired"
+    end
+
+    query "Active" do
+      description "Every category still offered."
+      where(status: "active")
+    end
+  end
+
+  aggregate "Note" do
+    description "A reminder the publisher keeps for itself."
+
+    identified_by :key
+
+    value_object "NoteKey" do
+      attribute :value, String
+    end
+
+    value_object "Remark" do
+      attribute :value, String
+    end
+
+    value_object "Moment" do
+      attribute :value, Integer
+    end
+
+    attribute :key,       NoteKey
+    attribute :text,      Remark
+    attribute :remind_at, Moment, optional: true
+
+    command "Jot" do
+      role "Editor"
+      goal "Keep a reminder"
+
+      attribute :key,       NoteKey
+      attribute :text,      Remark
+      attribute :remind_at, Moment, optional: true
+
+      emits "NoteJotted"
+    end
+  end
+end

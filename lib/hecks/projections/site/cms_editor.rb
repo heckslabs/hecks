@@ -30,12 +30,13 @@ module Hecks
 
         # The files, by path relative to the directory they are written to.
         FILES = %w[
-          package.json tsconfig.json src/config.ts src/schema.ts src/host.ts src/commands.ts src/app.ts src/server.ts
-          src/assets.ts src/flash.ts src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
+          package.json tsconfig.json src/config.ts src/schema.ts src/names.ts src/host.ts src/commands.ts src/choices.ts
+          src/app.ts src/server.ts src/assets.ts src/flash.ts src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
           src/ui/html.ts src/ui/words.ts src/ui/icons.ts src/ui/shell.ts src/ui/outline.ts src/ui/fields.ts
-          src/ui/input.ts src/ui/table.ts src/ui/detail.ts src/ui/pages.ts src/ui/theme.js src/ui/body_model.js
-          src/ui/body_parse.js
+          src/ui/input.ts src/ui/table.ts src/ui/paging.ts src/ui/pickers.ts src/ui/moments.ts src/ui/detail.ts
+          src/ui/pages.ts src/ui/theme.js src/ui/body_model.js src/ui/body_parse.js
           src/browser/app.css src/browser/main.js src/browser/shell.js src/browser/forms.js src/browser/toast.js
+          src/browser/lists.js src/browser/pickers.js src/browser/epoch.js src/browser/moments.js
           src/browser/body_doc.js src/browser/body_editor.js
         ].freeze
 
@@ -48,12 +49,14 @@ module Hecks
         # What `app.ts` and the body editor hold for a picture upload; each is left out when the
         # chapter has none.
         MEDIA_LINES = {
-          "__MEDIA_IMPORT__"  => ["import { mediaHandler } from \"./media/handler.ts\";",
+          "__MEDIA_IMPORT__"  => ["import { mediaHandler, mediaOpen } from \"./media/handler.ts\";",
                                   "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
           "__MEDIA_OPTION__"  => ["  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */",
                                   "  storage?: MediaStorage;"].join("\n"),
           "__MEDIA_SETUP__"   => "  const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });",
-          "__MEDIA_ROUTE__"   => "    if (segments[0] === \"media\") return media(client, request, segments.slice(1));",
+          "__MEDIA_ROUTE__"   => ["    if (segments[0] === \"media\") {",
+                                  "      if (!mediaOpen(role)) return plain(\"Pictures are not open to your role.\", 403);",
+                                  "      return media(client, request, segments.slice(1));", "    }"].join("\n"),
           "__PICKER_LOADER__" => "() => import(\"./media_picker.js\")"
         }.freeze
 
@@ -62,7 +65,8 @@ module Hecks
         # Renders the editor's files for a project that declares an `Editor` row.
         #
         # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the row
-        # @param options [Hash{Symbol => Object}] `:domain_chapter` the chapter to edit;
+        # @param options [Hash{Symbol => Object}] `:domain_chapters` the chapters to edit, in the
+        #   order the row names them (`:domain_chapter` for one);
         #   `:media_chapter` the chapter the row's `media` names, whose picture aggregate the
         #   pictures use; `:table` the checked route table, when the login page is to be checked
         #   against it
@@ -74,7 +78,8 @@ module Hecks
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
 
-          schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip, pictures: options[:media_chapter])
+          chapters = options[:domain_chapters] || options.fetch(:domain_chapter)
+          schema = Schema.read(chapters, skip: setting.skip, pictures: options[:media_chapter], roles: setting.chapter_roles)
           media = schema.key?("media")
           tokens = tokens(setting, schema, media)
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }

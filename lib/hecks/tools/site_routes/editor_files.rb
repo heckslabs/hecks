@@ -26,12 +26,12 @@ module Hecks
 
         # @return [Hash{Symbol => Object}] the chapters the editor reads, and the route table
         def options(project, setting, site)
-          chosen = { domain_chapter: domain_chapter(project, setting), table: site.table }
+          chosen = { domain_chapters: setting.chapters.map { |name| domain_chapter(project, setting, name) }, table: site.table }
           chosen[:media_chapter] = domain_chapter(project, setting, setting.media_chapter) if setting.media_chapter
           chosen
         end
 
-        # @param name [String] the chapter to find; the row's `chapter` unless given
+        # @param name [String] the chapter to find; the row's first `chapter` unless given
         # @return [Bluebook::Chapter] the chapter the `Editor` row names, from its domain directory
         def domain_chapter(project, setting, name = setting.chapter)
           domain_root = File.join(project, setting.domain)

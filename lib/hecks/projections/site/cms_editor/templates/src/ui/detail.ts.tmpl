@@ -6,9 +6,11 @@ __BANNER__
 // asks for nothing and is safe runs from a button; one that asks for input opens its own page; one
 // that is destructive asks first, in a native dialog (the page of the command is the same question
 // for a browser with no script).
+import { at } from "../names.ts";
 import type { Aggregate, Attr, Command } from "../schema.ts";
 import { bodyToHtml } from "./body_model.js";
 import { copyButton, copyable, esc, href, refusal, statusBadge } from "./html.ts";
+import { isMoment, momentValue } from "./moments.ts";
 import { outline } from "./outline.ts";
 import { commandLabel, label, singular } from "./words.ts";
 
@@ -47,7 +49,7 @@ export function confirmDialog(agg: Aggregate, command: Command, action: string, 
 }
 
 function action(agg: Aggregate, id: string, command: Command, first: boolean): string {
-  const to = href(agg.name, "id", id, command.name);
+  const to = href(...at(agg), "id", id, command.name);
   const text = esc(commandLabel(agg, command));
   const tone = command.destructive ? "btn btn-error btn-outline lg:w-full" : first ? "btn btn-neutral lg:w-full" : "btn lg:w-full";
   if (!needsPage(command)) return `<form method="post" action="${esc(to)}"><button type="submit" class="${tone}">${text}</button></form>`;
@@ -58,7 +60,7 @@ function action(agg: Aggregate, id: string, command: Command, first: boolean): s
 function dialogs(agg: Aggregate, id: string, commands: Command[]): string {
   return commands
     .filter((command) => command.destructive && command.attributes.length === 0)
-    .map((command) => confirmDialog(agg, command, href(agg.name, "id", id, command.name), id))
+    .map((command) => confirmDialog(agg, command, href(...at(agg), "id", id, command.name), id))
     .join("\n");
 }
 
@@ -72,6 +74,7 @@ function panel(agg: Aggregate, id: string, values: State, commands: Command[]): 
 
 function value(agg: Aggregate, attr: Attr, values: State): string {
   const held = values[attr.name];
+  if (isMoment(attr)) return momentValue(attr, held);
   if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held)}</div>` : `<span class="text-muted">Not set</span>`;
   const copy = attr.name === agg.identity || attr.kind === "reference";
   return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
