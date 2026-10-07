@@ -70,14 +70,14 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     registry.bluebook("StateCodecTree").aggregate("Article")
   end
 
-  let(:raw_article_body) do
+  def raw_article_body
     { "body" => { "blocks" => [
       { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
       { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
     ] } }
   end
 
-  let(:article_body) do
+  def article_body
     { body: { blocks: [
       { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
       { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
