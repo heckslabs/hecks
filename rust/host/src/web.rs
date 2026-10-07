@@ -21,6 +21,7 @@ mod newsletter;
 mod newsletter_send;
 mod registration_receipt;
 mod registrations;
+mod resend_webhook;
 
 pub use commerce::Commerce;
 use registrations::payments_routes;

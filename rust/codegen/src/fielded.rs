@@ -30,7 +30,7 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             let scalar = scalar.unwrap();
             Some(exemplar.render(
                 "fielded_arm_optional_scalar",
-                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, "v").unwrap())],
+                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap())],
             ))
         } else if optional {
             if is_fielded_nested(crate::attr::type_name(attr), value_objects_by_name) {
@@ -97,7 +97,7 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
         } else if let Some(scalar) = scalar {
             Some(exemplar.render(
                 "fielded_arm_optional_scalar",
-                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, "v").unwrap())],
+                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap())],
             ))
         } else if is_fielded_nested(crate::attr::type_name(attr), value_objects_by_name) {
             Some(exemplar.render("fielded_arm_optional_nested", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
@@ -184,7 +184,7 @@ fn items_arms(exemplar: &Exemplar, attributes: &[Json], value_objects_by_name: &
         let shape = format!("fielded_items_arm_list_{}{}", if optional(attr) { "optional_" } else { "" }, if scalar.is_some() { "scalar" } else { "nested" });
         let mut subs: Vec<(&str, String)> = vec![("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)];
         if let Some(scalar) = scalar {
-            subs.push(("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, "v").unwrap()));
+            subs.push(("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap()));
         }
         arms.push(format!("            {}", exemplar.render(&shape, &subs)));
     }
