@@ -117,14 +117,29 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(reading.map { |path, name, _| job_label(path, name) }).to be_empty, message
   end
 
+  # The path-gate detectors whose CiGate row leaves a push out: they decide only which jobs a pull
+  # request needs, so they are the one kind of job allowed to skip on a push.
+  def push_skipping_detectors
+    Hecks::Vocabulary.rows("CiGate").select { |gate| gate["push"] == "skip" }.map { |gate| gate["name"] }
+  end
+
   # `main` takes pushes with no gate, so a push's run is what reports where each RequiredCheck
   # stands, and promotion reads it. A job skipped on a push reports as passed, which would carry
-  # an untested commit to `stable`: no job may name `push` as an event to skip on.
-  it "skips no job on a push to main" do
+  # an untested commit to `stable`: no job may name `push` as an event to skip on, but a detector.
+  it "skips no job on a push to main, but a path-gate detector" do
     jobs = workflow_jobs(workflow_files(".github/workflows/ci*.yml"))
-    skipping = jobs.select { |_, _, job| job["if"].to_s.include?("'push'") }
+    skipping = jobs.select { |_, name, job| job["if"].to_s.include?("!= 'push'") && !push_skipping_detectors.include?(name) }
 
     expect(skipping.map { |path, name, _| job_label(path, name) }).to be_empty, "skip on a push to main"
+  end
+
+  # A detector that skips a push leaves `touched` empty, so a job behind it would skip with it.
+  it "runs every job behind a push-skipping detector on a push" do
+    jobs = workflow_jobs(workflow_files(".github/workflows/ci*.yml"))
+    behind = jobs.select { |_, _, job| Array(job["needs"]).intersect?(push_skipping_detectors) }
+    skipped = behind.reject { |_, _, job| job["if"].to_s.include?("github.event_name == 'push'") }
+
+    expect(skipped.map { |path, name, _| job_label(path, name) }).to be_empty, "skip with the detector on a push"
   end
 
   # A workflow's triggers: YAML reads the key `on` as `true`.

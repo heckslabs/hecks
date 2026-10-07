@@ -31,6 +31,8 @@ jobs:
   postgres_io_relevant_changed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # A push is a cache-warming run; the jobs that need this one skip through their `needs:`.
+    if: github.event_name != 'push'
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
     steps:
@@ -71,7 +73,7 @@ jobs:
     timeout-minutes: 10
 
     needs: postgres_io_relevant_changed
-    if: needs.postgres_io_relevant_changed.outputs.touched == 'true'
+    if: github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -102,11 +104,11 @@ jobs:
     needs: [postgres_io_relevant_changed, ci_attestation_postgres_io_parallel]
 
     # Same skip gate as the detector, plus attestation: skip when the path gate says nothing
-    # relevant changed, OR the tree was already proven. Not on `push`: that run only fed a
-    # runtime-log cache the committed baseline replaced; cache-warm.yml warms the caches that
-    # need main's scope.
+    # relevant changed, OR the tree was already proven. A push always runs: the detector skips
+    # push runs, so the shards start as soon as the attestation check answers instead of waiting
+    # on a diff nobody needs.
     if: >-
-      always() && needs.postgres_io_relevant_changed.outputs.touched == 'true' &&
+      always() && (github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true') &&
       (needs.ci_attestation_postgres_io_parallel.result != 'success' || needs.ci_attestation_postgres_io_parallel.outputs.attested != 'true')
 
     strategy:

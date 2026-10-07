@@ -44,13 +44,22 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
-    it "gate stress_concurrency and the postgres_io shards on the detector jobs", :aggregate_failures do
-      ci = YAML.load_file(File.join(root, ".github/workflows/ci.yml"))
-      postgres = YAML.load_file(File.join(root, ".github/workflows/ci-postgres-io-parallel.yml"))
+    def workflow(name) = YAML.load_file(File.join(root, ".github/workflows", name))
+
+    it "gate stress_concurrency on the runtime_changed detector", :aggregate_failures do
+      ci = workflow("ci.yml")
 
       expect(ci.dig("jobs", "stress_concurrency", "needs")).to eq("runtime_changed")
       expect(ci.dig("jobs", "runtime_changed")).not_to have_key("if")
-      expect(postgres.dig("jobs", "postgres_io_relevant_changed")).not_to have_key("if")
+    end
+
+    # A push to main runs the postgres_io shards without a path decision: the detector would only
+    # delay their start, and main never skips required work.
+    it "gate the postgres_io shards on their detector, except on a push", :aggregate_failures do
+      jobs = workflow("ci-postgres-io-parallel.yml").fetch("jobs")
+
+      expect(jobs.dig("postgres_io_relevant_changed", "if")).to eq("github.event_name != 'push'")
+      expect(jobs.dig("rspec_postgres_io_parallel_shard", "if")).to include("github.event_name == 'push'")
     end
   end
 
