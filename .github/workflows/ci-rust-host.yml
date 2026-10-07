@@ -95,6 +95,9 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
+      # The test build's own directory, restored from its own cache (cache-warm.yml warms it), so this
+      # job does not restore the lineage job's harness builds.
+      CARGO_TARGET_DIR: target-test
 
     steps:
       - uses: actions/checkout@v4
@@ -108,8 +111,9 @@ jobs:
 
       - uses: ./.github/actions/cargo-cache
         with:
-          name: host
+          name: hosttest
           crate-root: rust/host
+          target-dir: target-test
 
       # tokio_postgres logs in as the OS user, so give the runner user a superuser
       # role; the postgres action already trusts loopback TCP.

@@ -147,11 +147,10 @@ jobs:
           name: host
           crate-root: rust/host
 
-      # `cargo test` enables the dev-dependencies' features, so it builds a different dependency
-      # set than `cargo build`; warm both or every PR recompiles tokio and wasmtime.
-      - name: Warm rust/host (both harness binaries and the test build)
+      # The test build is a different dependency set (`cargo test` enables the dev-dependencies'
+      # features); warm_host_test_crate warms it into its own cache.
+      - name: Warm rust/host (both harness binaries)
         run: |
           cd rust/host
           cargo build --bin lineage_harness
           cargo build --bin mint_harness
-          cargo test --no-run
