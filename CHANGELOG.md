@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-10-06
+
+A minor release: the Rust host can be extended without forking it. Nothing changes for a deployed host; commerce is installed by default.
+
+**Changed: the Rust host is a library and a binary, and extra routes plug in through `HostExtension` (ADR 0094).** `rust/host` builds the `rust_host` library beside the `bootstrap` binary. An extension implements `extension::HostExtension`: `guest_route` answers a request before the account gate, `account_route` after the host's own sign-in routes with the signed-in cookies and the domain IR in hand, `rate_rules` declares the public writes to limit per client (a `RateRule` with its own budget setting), `boot_check` refuses a boot the extension cannot serve, and `boot_secrets` reads the extension's secrets at cold start. `extension::install` registers extensions before the first request; with none installed the host installs commerce, so behavior is unchanged. `rate_limit.rs` no longer names the newsletter and registration paths, and `main.rs` no longer fetches the mail secret or runs the payments boot check itself.
+
+**Changed: commerce is the first extension, in one place.** `web::Commerce` (`web/commerce.rs`) carries the newsletter, payments, registrations and mail routes that `render` and `route` used to name directly, and the newsletter, payments, registrations and payment-connection readers moved out of `ir.rs` into `commerce_ir.rs` beside the code that uses them. ADR 0094 proposes moving that code to the platform; this release is the seam it needs.
+
 ### Fixed
 
 - The generated CMS Dockerfile fetches the RDS CA bundle with `ADD --chmod=0644`. A plain `ADD` of a URL leaves the file readable by root only, so the CMS (which runs as `node`) failed at boot with `EACCES` on `rds-global-bundle.pem`.
