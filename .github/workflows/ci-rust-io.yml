@@ -37,12 +37,38 @@ jobs:
   # build 23 binaries one after another. These legs build a quarter each, side by side, and hand
   # them over as artifacts. When the cache already holds the binaries they stop after a lookup.
   # Best effort: a feature a leg does not deliver is built by the spec that needs it.
+  # Whether the feature binaries for these sources are already cached. On a hit the four builder
+  # legs below do not run: each would spend 40-80s checking out and regenerating the crate to find
+  # that out, on runners the longest jobs of the run queue for. The key hashes the committed
+  # sources, which the regeneration does not change in any way a build depends on
+  # (checks_codegen_drift fails when the committed output differs from it).
+  rust_feature_binaries_probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    needs: ci_attestation_rust_io
+    if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
+
+    outputs:
+      hit: ${{ steps.probe.outputs.cache-hit }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Look for the cached feature binaries
+        id: probe
+        uses: actions/cache/restore@v4
+        with:
+          path: rust/target/debug/rust-*
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}
+          lookup-only: true
+
   rust_feature_binaries:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    needs: ci_attestation_rust_io
-    if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
+    needs: [ci_attestation_rust_io, rust_feature_binaries_probe]
+    if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true') && needs.rust_feature_binaries_probe.outputs.hit != 'true'
 
     strategy:
       fail-fast: false
@@ -67,27 +93,17 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
-      # The same regeneration rspec_rust_io runs, so the key below hashes the same sources.
+      # The same regeneration rspec_rust_io runs, so the binaries are built from the same sources.
       - name: Regenerate the Rust crate
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
-      - name: Look for the cached feature binaries
-        id: probe
-        uses: actions/cache/restore@v4
-        with:
-          path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}
-          lookup-only: true
-
       - uses: ./.github/actions/cargo-cache
-        if: steps.probe.outputs.cache-hit != 'true'
         with:
           name: main
           crate-root: rust
 
       # Every fourth feature of the list, from this leg's place in it.
       - name: Build this leg's feature binaries
-        if: steps.probe.outputs.cache-hit != 'true'
         run: |
           cd rust
           mkdir -p target/debug
@@ -99,7 +115,6 @@ jobs:
           done < "$RUNNER_TEMP/features"
 
       - uses: actions/upload-artifact@v4
-        if: steps.probe.outputs.cache-hit != 'true'
         with:
           name: feature-binaries-${{ matrix.leg }}
           path: rust/target/debug/rust-*
@@ -144,6 +159,12 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # The feature binaries' cache key, from the committed sources: the probe job computes the same
+      # one from a bare checkout, before the regeneration below adds files to rust/src.
+      - name: Name the feature binaries' cache entry
+        id: feature_key
+        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+
       # Root crate only, so a dependency bump in rust/parser does not invalidate it.
       - uses: ./.github/actions/cargo-cache
         with:
@@ -177,7 +198,7 @@ jobs:
 
       # The specs build one binary per domain feature, one after another: 23 builds that depend on
       # nothing but the Rust sources. Restore the binaries an earlier run built from identical
-      # sources, keyed after the regeneration above. A hit is touched so every binary is newer than
+      # sources, keyed on the committed sources named above. A hit is touched so every binary is newer than
       # the sources and RustBuild::NativeBuild uses it as it is; a miss builds as before and the
       # post-job step saves what the specs built. Binaries left by the cargo cache restore above
       # were built from other sources, so they are removed first.
@@ -189,7 +210,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}
+          key: ${{ steps.feature_key.outputs.key }}
 
       - name: Mark the restored binaries as built after the sources
         if: steps.feature_binaries.outputs.cache-hit == 'true'
