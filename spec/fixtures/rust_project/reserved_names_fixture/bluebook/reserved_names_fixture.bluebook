@@ -1,0 +1,74 @@
+# Smallest domain whose aggregates are named for files the Rust generator writes itself:
+# `Metadata`, `Registry` and `Merged` each become a module beside the chapter's own
+# `metadata`, `registry` and `merged` modules. Round-tripped by spec/rust_generated/reserved_names_spec.rb.
+Hecks.bluebook "ReservedNamesFixture" do
+  vision "The smallest domain whose aggregate names collide with the modules the Rust generator owns."
+
+  core
+
+  aggregate "Metadata" do
+    description "A record named for the generator's own metadata module."
+
+    identified_by :key
+    attribute :key, MetadataKey
+
+    value_object "MetadataKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a metadata record is keyed") { !value.to_s.empty? }
+    end
+
+    command "Record" do
+      role "Person"
+      goal "Record a metadata entry"
+
+      attribute :key, MetadataKey
+      sets :key
+
+      emits "MetadataRecorded"
+    end
+  end
+
+  aggregate "Registry" do
+    description "A record named for the generator's own registry module."
+
+    identified_by :key
+    attribute :key, RegistryKey
+
+    value_object "RegistryKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a registry record is keyed") { !value.to_s.empty? }
+    end
+
+    command "Enter" do
+      role "Person"
+      goal "Enter a registry entry"
+
+      attribute :key, RegistryKey
+      sets :key
+
+      emits "RegistryEntered"
+    end
+  end
+
+  aggregate "Merged" do
+    description "A record named for the generator's own merged module."
+
+    identified_by :key
+    attribute :key, MergedKey
+
+    value_object "MergedKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a merged record is keyed") { !value.to_s.empty? }
+    end
+
+    command "Combine" do
+      role "Person"
+      goal "Combine a merged entry"
+
+      attribute :key, MergedKey
+      sets :key
+
+      emits "MergedCombined"
+    end
+  end
+end

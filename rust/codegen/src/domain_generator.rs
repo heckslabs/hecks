@@ -85,8 +85,8 @@ fn reference_checks(
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
-                    .unwrap_or("")
-                    .to_lowercase(),
+                    .map(crate::naming::aggregate_module)
+                    .unwrap_or_default(),
                 target_name: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -161,8 +161,8 @@ fn state_reference_checks(
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
-                    .unwrap_or("")
-                    .to_lowercase(),
+                    .map(crate::naming::aggregate_module)
+                    .unwrap_or_default(),
                 target_name: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -225,7 +225,7 @@ fn tenant_boundary_checks(
 
             Some(TenantBoundaryCheck {
                 reference_field: crate::attr::name(attr).to_string(),
-                target_mod: target_decl_name.to_lowercase(),
+                target_mod: crate::naming::aggregate_module(&target_decl_name),
                 target_name: target_decl_name,
                 aggregate_name: aggregate_name.clone(),
                 own_tenant_field: own_tenant_field.clone(),
@@ -1036,13 +1036,13 @@ pub fn generate(
         }
 
         aggregate_files.push(GeneratedFile {
-            name: format!("{}.rs", agg_name.to_lowercase()),
+            name: format!("{}.rs", crate::naming::aggregate_module(agg_name)),
             content: out,
         });
 
         registry_aggregates.push(AggregateEntry {
             name: agg_name.to_string(),
-            module_name: agg_name.to_lowercase(),
+            module_name: crate::naming::aggregate_module(agg_name),
             record: record_name,
             commands: registry_commands,
             entity_commands,
@@ -1092,7 +1092,7 @@ pub fn generate(
             query_defs.push(queries::QueryDef {
                 verb: format!("{domain_name}::{agg_name}.{query_name}"),
                 aggregate: format!("{domain_name}::{agg_name}"),
-                arg_checks: queries::query_arg_checks(query, &format!("crate::generated::{mod_name}::{}", agg_name.to_lowercase()), &value_objects_by_name),
+                arg_checks: queries::query_arg_checks(query, &format!("crate::generated::{mod_name}::{}", crate::naming::aggregate_module(agg_name)), &value_objects_by_name),
                 conditions,
                 reference_hop_conditions,
                 order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
@@ -1273,7 +1273,7 @@ pub fn generate(
     puts_str(&mut mod_rs, "pub mod metadata;");
     puts_str(&mut mod_rs, "pub mod registry;");
     for a in &registry_aggregates {
-        puts_str(&mut mod_rs, &format!("pub mod {};", a.name.to_lowercase()));
+        puts_str(&mut mod_rs, &format!("pub mod {};", a.module_name));
     }
 
     GeneratedDomain {
