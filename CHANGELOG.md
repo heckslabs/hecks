@@ -7,9 +7,17 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.8.1] - 2026-10-07
+
+A patch release: a generated host compiles when an aggregate has an optional Integer, Float or Boolean attribute, or a list of them. Nothing else changes for a deployed host.
+
 ### Added
 
 - `hecks site site_projection.check_site <project> url=<address>` asks a running site what its route table says it must answer, with anonymous requests that change nothing: admin routes refuse, indexable public pages answer 200 with a canonical link, `off` rows and undeclared paths answer 404, redirect rows redirect. A project's smoke no longer needs hand-listed paths for these.
+
+### Fixed
+
+- The Rust generator dereferences a copy scalar it reaches through a reference. The `Fielded` arms and the JSON codec wrote `Value::Int(v)` and `Json::int(v)` inside `as_ref().map(|v| ..)` and `iter().map(|x| ..)`, where the binding is `&i64`, so a host with such an attribute failed to compile (`E0308`, "expected `i64`, found `&i64`"). The first vendored chapter to have one is cms 1.2's `Page.level`, which kept every project that took cms 1.2 or later from building. `naming::deref_scalar` dereferences Integer, Float and Boolean and leaves String to its clone.
 
 ## [3.8.0] - 2026-10-06
 
