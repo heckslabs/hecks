@@ -118,6 +118,20 @@ module Hecks
           @shadow_parsing = previous
         end
 
+        # Wraps `block` with `shadow_parsing?` false, restoring it afterward. The language's own
+        # grammar is built once per process and memoized, so it cannot take the mode of whichever
+        # caller happens to ask for it first.
+        #
+        # @yield the one-time grammar build, with `shadow_parsing?` false throughout
+        # @return [Object] the block's own return value
+        def while_not_shadow_parsing
+          previous        = @shadow_parsing
+          @shadow_parsing = false
+          yield
+        ensure
+          @shadow_parsing = previous
+        end
+
         # Wraps `block` with `disabled?` forced false, restoring it afterward.
         # Only `grammar_registry`'s one-time fixpoint build uses this.
         #
