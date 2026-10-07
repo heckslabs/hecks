@@ -1,0 +1,157 @@
+__BANNER__
+
+// The frame of every page: skip link, header (breadcrumbs, who is signed in, theme and sign-out),
+// the navigation drawer and the main column. A page is built without knowing who is looking, so the
+// frame leaves marked places (`<!--editor:...-->`) for what belongs to the request: the person, their
+// role, the counts in the navigation and the notice. `decorate` fills them in, escaping everything;
+// the marker text is the only markup it ever inserts raw, and a marker cannot be written by the
+// domain, because `<` is escaped in everything it supplies.
+//
+// The navigation is a daisyUI drawer: open beside the page on a wide screen, and behind the menu
+// button on a narrow one. It works with no script (the checkbox is the state); the script adds the
+// button, the focus handling and Escape.
+import { EDITOR } from "../config.ts";
+import { SCHEMA } from "../schema.ts";
+import { assetUrl, hasLogo, isBuilt } from "../assets.ts";
+import type { Flash } from "../flash.ts";
+import { esc, href } from "./html.ts";
+import { SPRITE, icon } from "./icons.ts";
+import { plural } from "./words.ts";
+
+/** One step of the trail above a page's title; the last has no address. */
+export type Crumb = [label: string, to?: string];
+
+export interface Frame {
+  /** The aggregate whose page this is, for the navigation's current item; none for the overview. */
+  active?: string;
+  crumbs?: Crumb[];
+}
+
+const MARK = {
+  person: "<!--editor:person-->",
+  role: "<!--editor:role-->",
+  initial: "<!--editor:initial-->",
+  flash: "<!--editor:flash-->",
+  count: (name: string) => `<!--editor:count:${name}-->`,
+};
+
+/** The place a page leaves for the number of instances an aggregate holds. */
+export const countMark = MARK.count;
+
+function brandMark(extra: string): string {
+  const logo = hasLogo() ? `<img class="size-7 rounded object-contain" src="${esc(assetUrl("logo"))}" alt="" width="28" height="28">` : "";
+  return `<a class="${extra}" href="${esc(EDITOR.basePath)}">${logo}<span class="truncate">${esc(EDITOR.brand)}</span></a>`;
+}
+
+function navLink(to: string, text: string, current: boolean, extra = ""): string {
+  return `<li><a href="${esc(to)}"${current ? ' aria-current="page"' : ""}><span class="truncate">${esc(text)}</span>${extra}</a></li>`;
+}
+
+function navigation(active: string | undefined): string {
+  const items = SCHEMA.aggregates.map((agg) =>
+    navLink(href(agg.name), plural(agg.name), agg.name === active, `<span class="ml-auto text-xs text-muted tabular-nums">${MARK.count(agg.name)}</span>`),
+  );
+  return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
+<ul class="menu w-full gap-0.5 p-3">
+${navLink(EDITOR.basePath, "Overview", active === undefined)}
+<li class="menu-title mt-4 px-3 text-muted">Content</li>
+${items.join("\n")}
+</ul>
+</nav>`;
+}
+
+function trail(crumbs: Crumb[]): string {
+  const steps = crumbs.map(([text, to], at) => {
+    const last = at === crumbs.length - 1;
+    return `<li>${to && !last ? `<a href="${esc(to)}">${esc(text)}</a>` : `<span${last ? ' aria-current="page" class="font-semibold"' : ""}>${esc(text)}</span>`}</li>`;
+  });
+  return `<nav class="breadcrumbs hidden min-w-0 flex-1 text-sm text-muted md:block" aria-label="Breadcrumb"><ul>${steps.join("")}</ul></nav>`;
+}
+
+function header(crumbs: Crumb[]): string {
+  return `<header class="navbar sticky top-0 z-20 min-h-14 gap-2 border-b border-base-300 bg-base-100 px-3 lg:px-6">
+<label for="nav-toggle" class="btn btn-ghost btn-square in-[.js]:hidden lg:hidden" aria-label="Open the menu">${icon("menu")}</label>
+<button type="button" class="btn btn-ghost btn-square hidden in-[.js]:inline-flex lg:in-[.js]:hidden" data-nav-toggle aria-controls="rail" aria-expanded="false" aria-label="Open the menu">${icon("menu")}</button>
+${brandMark("mr-3 flex min-w-0 items-center gap-2 font-semibold lg:hidden")}
+${trail(crumbs)}
+<div class="ml-auto flex items-center gap-1 sm:gap-2">
+<button type="button" class="btn btn-ghost btn-square" data-theme-toggle aria-label="Switch theme" title="Switch theme">${icon("moon")}</button>
+<p class="flex items-center gap-2"><span class="grid size-8 place-items-center rounded-full bg-soft font-semibold text-primary" aria-hidden="true">${MARK.initial}</span><span class="hidden leading-tight sm:grid"><span class="max-w-56 truncate font-semibold">${MARK.person}</span><span class="text-xs text-muted">${MARK.role}</span></span></p>
+<form method="post" action="${esc(href("logout"))}"><button type="submit" class="btn btn-ghost">${icon("sign-out")}<span class="hidden sm:inline">Sign out</span></button></form>
+</div>
+</header>`;
+}
+
+/** The frame of every page: `body` is what goes in the main column. */
+export function page(title: string, body: string, frame: Frame = {}): string {
+  const sheet = isBuilt() ? `<link rel="stylesheet" href="${esc(assetUrl("editor.css"))}">` : "";
+  const script = isBuilt() ? `<script type="module" src="${esc(assetUrl("editor.js"))}"></script>` : "";
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>${esc(title)} - ${esc(EDITOR.title)}</title>
+<script src="${esc(assetUrl("theme.js"))}"></script>
+${sheet}
+</head>
+<body class="min-h-screen bg-base-200 text-base-content">
+${SPRITE}
+<a class="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-field focus:bg-neutral focus:px-3 focus:py-2 focus:text-neutral-content" href="#main">Skip to the content</a>
+<div class="drawer lg:drawer-open">
+<input id="nav-toggle" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1">
+<div class="drawer-content min-w-0">
+${header(frame.crumbs ?? [])}
+<main id="main" tabindex="-1" class="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 lg:px-8 lg:pt-8">
+${body}
+</main>
+</div>
+<div class="drawer-side z-30">
+<label for="nav-toggle" aria-label="Close the menu" class="drawer-overlay"></label>
+<aside class="flex min-h-full w-60 flex-col border-r border-base-300 bg-base-200">
+<div class="flex h-14 items-center border-b border-base-300 bg-base-100 px-4">${brandMark("flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight")}</div>
+${navigation(frame.active)}
+</aside>
+</div>
+</div>
+<div class="toast toast-top toast-center z-50 mt-14" data-toasts>${MARK.flash}</div>
+${script}
+</body>
+</html>
+`;
+}
+
+/** What belongs to this request and not to the page: who is signed in, the navigation's counts, a notice. */
+export interface Context {
+  email: string;
+  role: string | null;
+  counts: Record<string, number>;
+  flash: Flash | null;
+}
+
+/** A notice's classes and mark by kind, and how it is announced: an error interrupts, the rest wait their turn. */
+const NOTICES = {
+  success: ['alert alert-success alert-soft', "success", "status"],
+  error: ['alert alert-error alert-soft', "alert", "alert"],
+  info: ['alert alert-info alert-soft', "info", "status"],
+} as const;
+
+function notice(flash: Flash | null): string {
+  if (!flash) return "";
+  const [classes, mark, role] = NOTICES[flash.kind];
+  return `<div class="${classes}" role="${role}" data-toast>${icon(mark)}<p>${esc(flash.message)}</p></div>`;
+}
+
+/** `html` with the places the frame left filled for this request. */
+export function decorate(html: string, context: Context): string {
+  const counts = SCHEMA.aggregates.map((agg) => [MARK.count(agg.name), context.counts[agg.name] === undefined ? "" : String(context.counts[agg.name])] as const);
+  const fills: (readonly [string, string])[] = [
+    [MARK.person, esc(context.email)],
+    [MARK.role, esc(context.role ?? "")],
+    [MARK.initial, esc(context.email.charAt(0).toUpperCase())],
+    [MARK.flash, notice(context.flash)],
+    ...counts,
+  ];
+  return fills.reduce((text, [marker, value]) => text.split(marker).join(value), html);
+}

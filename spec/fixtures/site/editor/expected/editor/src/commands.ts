@@ -13,7 +13,7 @@ import { DomainUnavailable } from "@hecks/client";
 import type { Aggregate, Command } from "./schema.ts";
 
 export type State = Record<string, unknown>;
-export type Outcome = { ok: true; id: string } | { ok: false; message: string };
+export type Outcome = { ok: true; id: string } | { ok: false; message: string; field?: string };
 
 /** The text an identity value holds: the part of a value object, or the plain value. */
 export function leaf(value: unknown): string | null {
@@ -68,6 +68,12 @@ export function refusalText(refusal: { kind?: string; error?: string } | undefin
   return error || `The domain did not apply ${command.name}.`;
 }
 
+/** The name of the command's attribute a refused invariant is about, so its input can be marked; undefined when none. */
+export function refusedField(refusal: { kind?: string; error?: string } | undefined, command: Command): string | undefined {
+  const invariant = /^(.+?) invariant violated — /s.exec(refusal?.error ?? "");
+  return invariant ? command.attributes.find((attr) => attr.type === invariant[1])?.name : undefined;
+}
+
 /** The words for a command that changed nothing: the host's last refusal, or a plain statement. */
 export function refusalMessage(answer: Answer, command: Command): string {
   return refusalText((answer.refusals ?? []).at(-1), command);
@@ -84,7 +90,7 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
     const answer = await client.dispatch(`${agg.name}.${command.name}`, args, to, command.role ?? undefined);
     const after = id ? instanceIn(client, answer, agg, id) : undefined;
     if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
-    return { ok: false, message: refusalMessage(answer, command) };
+    return { ok: false, message: refusalMessage(answer, command), field: refusedField((answer.refusals ?? []).at(-1), command) };
   } catch (err) {
     if (err instanceof DomainUnavailable) return { ok: false, message: `The domain could not be reached: ${err.message}` };
     throw err;

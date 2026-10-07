@@ -2,6 +2,7 @@
 
 require_relative "attributes"
 require_relative "clearing"
+require_relative "destructive"
 require_relative "media"
 
 module Hecks
@@ -73,11 +74,16 @@ module Hecks
           end
 
           def lifecycle
+            @lifecycle ||= shaped_lifecycle
+          end
+
+          def shaped_lifecycle
             lifecycle = @agg.lifecycle
             return nil unless lifecycle
 
-            { "field" => lifecycle.field.to_s, "default" => lifecycle.default,
-              "transitions" => lifecycle.transitions.map { |verb, move| transition(verb, move) } }
+            shaped = { "field" => lifecycle.field.to_s, "default" => lifecycle.default,
+                       "transitions" => lifecycle.transitions.map { |verb, move| transition(verb, move) } }
+            shaped.merge("tones" => Destructive.tones(shaped))
           end
 
           def transition(verb, move)
@@ -86,7 +92,9 @@ module Hecks
 
           def command(command)
             { "name" => command.hecks_name, "goal" => command.goal, "role" => command.role, "creates" => command.creates?,
-              "on" => command.creates? ? nil : command.references.to_s, "attributes" => attributes(command.attributes) }
+              "on" => command.creates? ? nil : command.references.to_s,
+              "destructive" => Destructive.command?(command.hecks_name, lifecycle),
+              "attributes" => attributes(command.attributes) }
               .then { |shaped| clearing(shaped, command) }
           end
 

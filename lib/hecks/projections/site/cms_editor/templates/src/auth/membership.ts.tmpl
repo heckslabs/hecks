@@ -24,6 +24,8 @@ export function authSecret(): string {
 export interface Membership {
   /** True while `email` holds an editor role on the host; false when it does not, or cannot be asked. */
   isAdmitted(email: string): Promise<boolean>;
+  /** The role `email` holds, for the header to show; null when it holds none. Answered from the same memory. */
+  roleOf?(email: string): Promise<string | null>;
 }
 
 export interface MembershipOptions {
@@ -33,47 +35,53 @@ export interface MembershipOptions {
   now?: () => number;
 }
 
-/** True when the host's members list holds `email` with an editor role and not disabled. */
-export function holdsRole(rows: unknown, email: string): boolean {
+/** The editor role the host's members list gives `email`, or null when it holds none or is disabled. */
+export function roleHeld(rows: unknown, email: string): string | null {
   const roles: readonly string[] = EDITOR.roles;
-  return (
-    Array.isArray(rows) &&
-    rows.some(
-      (row: any) =>
-        typeof row?.email === "string" && row.email.trim().toLowerCase() === email && roles.includes(row.role) && row.disabled !== true,
-    )
-  );
+  const row = Array.isArray(rows)
+    ? rows.find(
+        (candidate: any) =>
+          typeof candidate?.email === "string" &&
+          candidate.email.trim().toLowerCase() === email &&
+          roles.includes(candidate.role) &&
+          candidate.disabled !== true,
+      )
+    : undefined;
+  return row ? String(row.role) : null;
 }
+
+/** True when the host's members list holds `email` with an editor role and not disabled. */
+export const holdsRole = (rows: unknown, email: string): boolean => roleHeld(rows, email) !== null;
 
 /** A membership check with its own one-minute memory. */
 export function membershipCheck(options: MembershipOptions = {}): Membership {
-  const remembered = new Map<string, { admitted: boolean; until: number }>();
+  const remembered = new Map<string, { role: string | null; until: number }>();
   const now = options.now ?? Date.now;
   const send = options.fetch ?? fetch;
 
-  async function ask(email: string): Promise<boolean> {
+  async function ask(email: string): Promise<string | null> {
     const secret = options.secret ?? authSecret();
-    if (!secret) return false;
+    if (!secret) return null;
     const cookieName = resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie);
     try {
       const res = await send(`${hostUrl({ url: options.url })}${EDITOR.membersPath}`, {
         headers: { Cookie: `${cookieName}=${accountToken(secret, email, TOKEN_TTL_SECONDS)}` },
         signal: AbortSignal.timeout(EDITOR.timeoutMs),
       });
-      return res.ok && holdsRole(await res.json().catch(() => null), email);
+      return res.ok ? roleHeld(await res.json().catch(() => null), email) : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  return {
-    async isAdmitted(email: string): Promise<boolean> {
-      const key = email.trim().toLowerCase();
-      const hit = remembered.get(key);
-      if (hit && hit.until > now()) return hit.admitted;
-      const admitted = await ask(key);
-      remembered.set(key, { admitted, until: now() + EDITOR.rememberMs });
-      return admitted;
-    },
-  };
+  async function roleOf(email: string): Promise<string | null> {
+    const key = email.trim().toLowerCase();
+    const hit = remembered.get(key);
+    if (hit && hit.until > now()) return hit.role;
+    const role = await ask(key);
+    remembered.set(key, { role, until: now() + EDITOR.rememberMs });
+    return role;
+  }
+
+  return { roleOf, isAdmitted: async (email: string): Promise<boolean> => (await roleOf(email)) !== null };
 }

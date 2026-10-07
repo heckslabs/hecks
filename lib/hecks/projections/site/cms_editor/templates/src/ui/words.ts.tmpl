@@ -1,0 +1,66 @@
+__BANNER__
+
+// The words the editor shows people. The domain's names are CamelCase and singular; people read
+// sentence case, plural for a list, and the same verb through a whole flow: the button that says
+// "Publish" leaves a notice that says "Published." Nothing here asks the domain; it reads names.
+import type { Aggregate, Command } from "../schema.ts";
+
+/** The lower-case words of a CamelCase or snake_case name: "MediaItem" is "media item". */
+export const humanize = (name: string): string =>
+  name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .toLowerCase();
+
+/** `text` with its first letter capitalised. */
+export const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** A name as a sentence-case label: "SaveDraft" is "Save draft". */
+export const label = (name: string): string => capital(humanize(name));
+
+/** The plural of an English noun, for the common regular shapes. */
+export function pluralOf(noun: string): string {
+  if (/[^aeiou]y$/.test(noun)) return `${noun.slice(0, -1)}ies`;
+  if (/(s|x|z|ch|sh)$/.test(noun)) return `${noun}es`;
+  return `${noun}s`;
+}
+
+/** An aggregate as a list's name: "MediaItem" is "Media items". */
+export function plural(name: string): string {
+  const words = humanize(name).split(" ");
+  words[words.length - 1] = pluralOf(words[words.length - 1]);
+  return capital(words.join(" "));
+}
+
+/** An aggregate as one thing, lower case: "MediaItem" is "media item". */
+export const singular = (name: string): string => humanize(name);
+
+const IRREGULAR: Record<string, string> = {
+  set: "set", put: "put", send: "sent", make: "made", undo: "undone", redo: "redone", show: "shown", withdraw: "withdrawn",
+  draw: "drawn", hide: "hidden", write: "written", take: "taken", give: "given", keep: "kept", read: "read", pay: "paid", sell: "sold",
+};
+
+const DOUBLED = new Set(["submit", "admit", "plan", "drop", "ship", "stop", "skip", "tag", "pin", "refer", "transfer", "permit"]);
+
+/** The past participle of a verb: "publish" is "published", "submit" is "submitted". */
+export function past(verb: string): string {
+  if (IRREGULAR[verb]) return IRREGULAR[verb];
+  if (verb.endsWith("e")) return `${verb}d`;
+  if (/[^aeiou]y$/.test(verb)) return `${verb.slice(0, -1)}ied`;
+  return DOUBLED.has(verb) ? `${verb}${verb.slice(-1)}ed` : `${verb}ed`;
+}
+
+/**
+ * What a command's button says. A command named by one word acts on a thing the page already
+ * names, except one that makes something new: "Draft" on the articles page is "Draft article".
+ */
+export function commandLabel(agg: Aggregate, command: Command): string {
+  const words = humanize(command.name).split(" ");
+  return capital(command.creates && words.length === 1 ? `${words[0]} ${singular(agg.name)}` : words.join(" "));
+}
+
+/** What the notice says when the command has run, in the same verb as its button: "Published draft." */
+export function done(agg: Aggregate, command: Command): string {
+  const [verb, ...rest] = commandLabel(agg, command).toLowerCase().split(" ");
+  return capital(`${[past(verb), ...rest].join(" ")}.`);
+}

@@ -1,0 +1,139 @@
+__BANNER__
+
+// What the frame and the lists do with a script: the menu button, the theme toggle, the copy
+// buttons, and a list's filter and sort. Every page works without any of it.
+import { showToast } from "./toast.js";
+
+const icon = (name) => `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+
+/** The drawer: a checkbox is the state, so the page needs no script to open it; this adds the button, Escape and focus. */
+function navigation() {
+  const toggle = document.getElementById("nav-toggle");
+  const button = document.querySelector("[data-nav-toggle]");
+  if (!toggle || !button) return;
+  const set = (open) => {
+    toggle.checked = open;
+    button.setAttribute("aria-expanded", String(open));
+    button.setAttribute("aria-label", open ? "Close the menu" : "Open the menu");
+    if (open) document.querySelector("#rail a")?.focus();
+  };
+  button.addEventListener("click", () => set(!toggle.checked));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && toggle.checked) {
+      set(false);
+      button.focus();
+    }
+  });
+  document.querySelector(".drawer-overlay")?.addEventListener("click", () => set(false));
+}
+
+const dark = () => {
+  const named = document.documentElement.getAttribute("data-theme");
+  return named ? named === "editor-dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+};
+
+/** The theme button: switches between light and dark, and remembers the choice where storage allows. */
+function theme() {
+  const button = document.querySelector("[data-theme-toggle]");
+  if (!button) return;
+  const show = () => {
+    button.innerHTML = icon(dark() ? "sun" : "moon");
+    button.setAttribute("aria-label", dark() ? "Switch to the light theme" : "Switch to the dark theme");
+    button.title = button.getAttribute("aria-label");
+  };
+  button.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", `editor-${next}`);
+    try {
+      window.localStorage.setItem("editor-theme", next);
+    } catch (error) {
+      /* storage is blocked: the choice lasts for this page only */
+    }
+    show();
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", show);
+  show();
+}
+
+/** Copy buttons: shown only when a script can make them work. */
+function copying() {
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        showToast("success", "Copied.", 2500);
+      } catch (error) {
+        showToast("error", "The browser did not allow copying. Select the text and copy it.");
+      }
+    });
+  }
+}
+
+const cellOf = (row, at) => row.cells[at];
+const valueOf = (cell) => cell?.dataset.value ?? cell?.textContent ?? "";
+
+/** A list's sort: each heading becomes a button that orders the rows by its column, and says which way. */
+function sorting(table) {
+  const body = table.tBodies[0];
+  const heads = [...table.tHead.rows[0].cells];
+  heads.forEach((head, at) => {
+    const label = head.textContent;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "inline-flex items-center gap-1 font-semibold";
+    button.innerHTML = `<span>${label}</span><span class="opacity-60">${icon("sort")}</span>`;
+    head.replaceChildren(button);
+    button.addEventListener("click", () => {
+      const ascending = head.getAttribute("aria-sort") !== "ascending";
+      const numbers = head.dataset.sort === "number";
+      const rows = [...body.rows].sort((a, b) => {
+        const left = valueOf(cellOf(a, at));
+        const right = valueOf(cellOf(b, at));
+        const order = numbers ? Number(left) - Number(right) : left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+        return ascending ? order : -order;
+      });
+      body.append(...rows);
+      heads.forEach((other) => other.removeAttribute("aria-sort"));
+      head.setAttribute("aria-sort", ascending ? "ascending" : "descending");
+      button.lastChild.innerHTML = icon(ascending ? "chevron-up" : "chevron-down");
+    });
+  });
+}
+
+/** A list's filter: hides the rows that do not hold the text, and keeps the count true. */
+function filtering(input) {
+  const table = document.querySelector("table[data-sortable]");
+  const count = document.querySelector("[data-count]");
+  if (!table || !count) return;
+  const rows = [...table.tBodies[0].rows];
+  const total = rows.length;
+  input.addEventListener("input", () => {
+    const wanted = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of rows) {
+      const match = wanted === "" || row.textContent.toLowerCase().includes(wanted);
+      row.hidden = !match;
+      if (match) shown += 1;
+    }
+    const word = (number) => (number === 1 ? count.dataset.noun : count.dataset.nouns);
+    count.textContent = wanted === "" ? `${total} ${word(total)}` : `${shown} of ${total} ${word(total)}`;
+  });
+}
+
+/** After a command ran, the part of the page it changed settles into view with a short highlight. */
+function highlight() {
+  if (!document.querySelector('[data-toast][role="status"]')) return;
+  for (const changed of document.querySelectorAll("aside .badge")) changed.parentElement?.classList.add("just-changed");
+}
+
+export function enhanceShell() {
+  navigation();
+  theme();
+  copying();
+  highlight();
+  const table = document.querySelector("table[data-sortable]");
+  if (table) sorting(table);
+  const filter = document.querySelector("[data-filter]");
+  if (filter) filtering(filter);
+}

@@ -5,11 +5,14 @@
 
 export const EDITOR = {
   title: "Press editor",
+  brand: "Press",
+  logo: "",
   basePath: "/editor",
   ssoPath: "/editor/api/sso",
   login: "/admin-login",
   sessionCookie: "press_editor",
   sessionMaxAge: 28800,
+  flashMaxAge: 60,
   hostCookie: "press_session",
   hostEnv: "PRESS_DOMAIN_SERVICE_URL",
   hostDefault: "http://127.0.0.1:4500",
