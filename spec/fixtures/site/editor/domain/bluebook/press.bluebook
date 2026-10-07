@@ -199,4 +199,58 @@ Hecks.bluebook "Press" do
       emits "MastheadEstablished"
     end
   end
+
+  aggregate "MediaItem" do
+    description "A picture the publisher has uploaded: its record only, the bytes are kept elsewhere."
+
+    identified_by :key
+
+    value_object "PictureKey" do
+      attribute :value, String
+      invariant("a picture has a key") { !value.to_s.empty? }
+    end
+
+    value_object "AltText" do
+      attribute :value, String
+      invariant("a picture has alt text") { !value.to_s.strip.empty? }
+    end
+
+    value_object "MimeType" do
+      attribute :value, String
+    end
+
+    value_object "Pixels" do
+      attribute :value, Integer
+    end
+
+    value_object "FocalPoint" do
+      attribute :x, Float
+      attribute :y, Float
+    end
+
+    attribute :key,         PictureKey
+    attribute :alt,         AltText
+    attribute :mime_type,   MimeType
+    attribute :width,       Pixels, optional: true
+    attribute :height,      Pixels, optional: true
+    attribute :focal_point, FocalPoint, optional: true
+
+    command "RegisterPicture" do
+      role "Editor"
+      goal "Record a picture that has been uploaded"
+
+      attribute :key,         PictureKey
+      attribute :alt,         AltText
+      attribute :mime_type,   MimeType
+      attribute :width,       Pixels, optional: true
+      attribute :height,      Pixels, optional: true
+      attribute :focal_point, FocalPoint, optional: true
+
+      emits "PictureRegistered"
+    end
+
+    query "Pictures" do
+      description "Every registered picture."
+    end
+  end
 end

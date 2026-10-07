@@ -14,6 +14,8 @@ export const EDITOR = {
   hostEnv: "PRESS_DOMAIN_SERVICE_URL",
   hostDefault: "http://127.0.0.1:4500",
   roles: ["Admin", "Owner"],
+  mediaDir: "media",
+  mediaMaxBytes: 5242880,
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

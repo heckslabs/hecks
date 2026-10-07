@@ -5,7 +5,8 @@
 // row to fill); a lifecycle state is not an input at all. Each input is named by its dotted path
 // (`byline.name`, `body.blocks.0.text`), which input.ts reads back into the shape the command takes.
 import type { Aggregate, Attr } from "../schema.ts";
-import { esc } from "./html.ts";
+import { SCHEMA } from "../schema.ts";
+import { esc, href } from "./html.ts";
 import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
 
 type Value = unknown;
@@ -53,8 +54,9 @@ function listed(agg: Aggregate, attr: Attr, name: string, value: Value): string 
 function body(attr: Attr, name: string, value: Value): string {
   const tree = value && typeof value === "object" ? value : emptyBody();
   const inputs = fieldsToInputs(bodyToFields(tree, name));
+  const media = SCHEMA.media ? ` data-media="${esc(href("media"))}"` : "";
   return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>
-<div class="body-editor" data-body-editor data-name="${esc(name)}">
+<div class="body-editor" data-body-editor data-name="${esc(name)}"${media}>
 <div class="body-toolbar" data-toolbar role="toolbar" aria-label="Formatting"></div>
 <div class="body-surface body" data-surface role="textbox" aria-multiline="true" aria-label="${esc(label(attr))}">${bodyToHtml(tree)}</div>
 <p class="note" data-notes role="status" aria-live="polite"></p>

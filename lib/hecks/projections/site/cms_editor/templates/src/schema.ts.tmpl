@@ -61,9 +61,25 @@ export interface Aggregate {
   queries: Query[];
 }
 
+/** How one part of a picture's record is sent: `wrap` is the part of a value object that holds the value. */
+export interface MediaField {
+  name: string;
+  wrap: string | null;
+}
+
+/** The aggregate that registers pictures, when the chapter has one: found by shape, never by name. */
+export interface Media {
+  aggregate: string;
+  command: string;
+  fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
+  /** The query that lists the pictures, or null when every instance is read. */
+  listing: string | null;
+}
+
 export interface Schema {
   domain: string;
   aggregates: Aggregate[];
+  media?: Media;
 }
 
 export const SCHEMA: Schema = __SCHEMA__;

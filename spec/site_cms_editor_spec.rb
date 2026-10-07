@@ -83,7 +83,7 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
     end
 
     it "picks the rich-text widget by the shape of the value object, whatever the attribute is named", :aggregate_failures do
-      expect(widgets).to eq("Article" => ["body"], "Masthead" => ["about"])
+      expect(widgets).to eq("Article" => ["body"], "Masthead" => ["about"], "MediaItem" => [])
     end
 
     it "gives no widget to a value object that is not a list of blocks with kinds and spans" do

@@ -21,7 +21,7 @@ const BUTTONS = [
   ["break", "Line break", "Line break (Shift+Enter)"], ["left", "Left", "Align left"], ["center", "Center", "Align center"],
   ["right", "Right", "Align right"], ["justify", "Justify", "Justify"], ["outdent", "Outdent", "Outdent"], ["indent", "Indent", "Indent"],
   ["shallower", "Item up", "Move the list item up a level (Shift+Tab)"], ["deeper", "Item down", "Move the list item down a level (Tab)"],
-  ["itemkind", "Item kind", "Make the list item bulleted or numbered"], ["image", "Image", "Insert an image by media key"], ["divider", "Divider", "Insert a divider"],
+  ["itemkind", "Item kind", "Make the list item bulleted or numbered"], ["image", "Image", "Insert an image"], ["divider", "Divider", "Insert a divider"],
 ];
 
 const COMMANDS = { bold: "bold", italic: "italic", underline: "underline", strike: "strikeThrough" };
@@ -143,20 +143,38 @@ function mount(root) {
 
   const figureHtml = (media, alt, caption) => bodyToHtml({ blocks: [{ kind: "image", media_ref: media, alt, caption }] });
 
-  const askImage = (figure) => {
-    const media = window.prompt("Media key of the image", figure?.dataset.mediaRef ?? "");
-    if (!media) return;
-    const alt = window.prompt("Alt text", figure?.dataset.alt ?? "") ?? "";
-    const caption = window.prompt("Caption (optional)", figure?.dataset.caption ?? "") ?? "";
+  // Puts an image block in place of `figure`, or after `anchor` (the block the caret was in), or at the end.
+  const placeImage = (media, alt, caption, figure, anchor) => {
     const holder = document.createElement("div");
     holder.innerHTML = figureHtml(media.trim(), alt, caption);
     const made = holder.firstElementChild;
     made.setAttribute("contenteditable", "false");
     if (figure) figure.replaceWith(made);
-    else if (blockOf()) blockOf().after(made);
+    else if (anchor && surface.contains(anchor)) anchor.after(made);
     else surface.append(made);
     sync();
   };
+
+  // Without a picture store the image is named by its media key, typed in.
+  const promptImage = (figure, anchor) => {
+    const media = window.prompt("Media key of the image", figure?.dataset.mediaRef ?? "");
+    if (!media) return;
+    const alt = window.prompt("Alt text", figure?.dataset.alt ?? "") ?? "";
+    const caption = window.prompt("Caption (optional)", figure?.dataset.caption ?? "") ?? "";
+    placeImage(media, alt, caption, figure, anchor);
+  };
+
+  // With one, the picker uploads or chooses a registered picture; its module is loaded only then.
+  const pickImage = async (figure, anchor) => {
+    const { openPicker } = await import("./media_picker.js");
+    openPicker(root, {
+      url: root.dataset.media,
+      current: figure ? { key: figure.dataset.mediaRef ?? "", alt: figure.dataset.alt ?? "", caption: figure.dataset.caption ?? "" } : null,
+      onPick: (key, alt, caption) => placeImage(key, alt, caption, figure, anchor),
+    });
+  };
+
+  const askImage = (figure) => (root.dataset.media ? pickImage(figure, blockOf()) : promptImage(figure, blockOf()));
 
   const insertDivider = () => {
     const rule = document.createElement("hr");

@@ -26,6 +26,8 @@ import { commandArguments, parseForm } from "./ui/input.ts";
 import { commandPage, detailPage, home, listPage, notFound } from "./ui/pages.ts";
 import type { Submitted } from "./ui/pages.ts";
 import { href } from "./ui/html.ts";
+import { mediaHandler } from "./media/handler.ts";
+import type { MediaStorage } from "./media/storage.ts";
 
 export interface AppOptions {
   /** The host's address, when not read from the environment variable the Editor row names. */
@@ -34,6 +36,8 @@ export interface AppOptions {
   secret?: string;
   now?: () => number;
   membership?: Membership;
+  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */
+  storage?: MediaStorage;
 }
 
 const html = (body: string, status = 200): Response =>
@@ -58,6 +62,7 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const now = options.now ?? Date.now;
   const membership = options.membership ?? membershipCheck({ url: options.url, fetch: options.fetch, secret, now });
   const client = hostClient({ url: options.url, fetch: options.fetch });
+  const media = mediaHandler(options.storage);
 
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -71,6 +76,7 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     }
     if (request.method === "POST" && !sameSite(request)) return new Response("Cross-site post refused.", { status: 403 });
     const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
+    if (segments[0] === "media") return media(client, request, segments.slice(1));
     return route(client, request, url, segments);
   }
 
@@ -84,8 +90,8 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   };
 }
 
-/** The browser modules the rich-text widget loads, served only to a signed-in editor. */
-const ASSETS = ["body_widget.js", "body_model.js", "body_parse.js"];
+/** The browser modules the rich-text widget loads (with the picture picker when there are pictures), for signed-in editors only. */
+const ASSETS = ["body_widget.js", "body_model.js", "body_parse.js", "media_picker.js"];
 
 function asset(name: string): Response {
   if (!ASSETS.includes(name)) return html(notFound(`No asset ${name}.`), 404);
