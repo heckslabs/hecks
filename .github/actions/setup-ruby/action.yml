@@ -20,7 +20,22 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ruby/setup-ruby@v1
+    # Fetching bundler or a gem from rubygems.org fails now and then ("Could not find a valid gem
+    # 'bundler'"), and one such failure fails the whole job and the run's check. A second attempt
+    # after a short pause runs only when the first failed, so a clean setup costs nothing extra.
+    - id: first_attempt
+      continue-on-error: true
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+        bundler-cache: true
+
+    - if: steps.first_attempt.outcome == 'failure'
+      shell: bash
+      run: sleep 10
+
+    - if: steps.first_attempt.outcome == 'failure'
+      uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ inputs.ruby-version }}
         bundler-cache: true
