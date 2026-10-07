@@ -1,0 +1,97 @@
+# Smallest domain with an optional value-object attribute whose value object holds lists of
+# other value objects, beside a required one of the same type: a live body and a draft that
+# is promoted to it, then cleared. Round-tripped by spec/rust_generated/optional_value_object_spec.rb.
+Hecks.bluebook "OptionalValueObjectFixture" do
+  vision "The smallest domain whose aggregate keeps a live body and an optional draft of the same nested shape."
+
+  core
+
+  aggregate "Page" do
+    description "A body of blocks and an optional draft of one, set aside until it is put live."
+
+    identified_by :key
+    attribute :key,        PageKey
+    attribute :body,       Body
+    attribute :draft_body, Body, optional: true
+
+    value_object "PageKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a page is keyed") { !value.to_s.empty? }
+    end
+
+    value_object "Body" do
+      attribute :blocks, list_of(Block)
+    end
+
+    value_object "Block" do
+      attribute :kind,  String
+      attribute :level, Integer, optional: true
+      attribute :spans, list_of(Span)
+      attribute :items, list_of(Item)
+    end
+
+    value_object "Item" do
+      attribute :spans, list_of(Span)
+      attribute :depth, Integer, optional: true
+    end
+
+    value_object "Span" do
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+    end
+
+    value_object "Mark" do
+      attribute :name, String
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a page's body"
+
+      attribute :key,  PageKey
+      attribute :body, Body
+      sets :key
+      sets :body
+
+      emits "PageWritten"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Replace the body readers see"
+
+      reference_to Page
+      attribute :body, Body
+      sets :body
+
+      emits "PageRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside without changing what readers see"
+
+      reference_to Page
+      attribute :draft_body, Body
+      sets :draft_body
+
+      emits "PageDraftSaved"
+    end
+
+    # Clearing is leaving out: `nothing` is never sent, so `draft_body` is set from nothing.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved edit what readers see, and clear it"
+
+      reference_to Page
+      attribute :nothing, Body, optional: true
+
+      given("an edit is saved") { draft_body.set? }
+      sets :body, to: state(:draft_body)
+      sets :draft_body, to: :nothing
+
+      emits "PageDraftPublished"
+    end
+  end
+end

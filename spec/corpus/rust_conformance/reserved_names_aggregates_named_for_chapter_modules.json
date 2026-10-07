@@ -1,0 +1,86 @@
+{
+  "domain": "spec/fixtures/rust_project/reserved_names_fixture",
+  "note": "Aggregates named Metadata, Registry and Merged each downcase to a module the generated chapter declares itself (the sidecar, the registry table and the merged router). The generator gives such an aggregate the module `<name>_aggregate`, so the chapter declares each module once and the host compiles and dispatches all three.",
+  "steps": [
+    {
+      "verb": "ReservedNamesFixture::Metadata.Record",
+      "args": {
+        "key": {
+          "value": "m1"
+        }
+      }
+    },
+    {
+      "verb": "ReservedNamesFixture::Registry.Enter",
+      "args": {
+        "key": {
+          "value": "r1"
+        }
+      }
+    },
+    {
+      "verb": "ReservedNamesFixture::Merged.Combine",
+      "args": {
+        "key": {
+          "value": "c1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "ReservedNamesFixture::Metadata#m1": {
+        "key": {
+          "value": "m1"
+        }
+      },
+      "ReservedNamesFixture::Registry#r1": {
+        "key": {
+          "value": "r1"
+        }
+      },
+      "ReservedNamesFixture::Merged#c1": {
+        "key": {
+          "value": "c1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "MetadataRecorded",
+        "aggregate": "ReservedNamesFixture::Metadata",
+        "id": "m1",
+        "payload": {
+          "key": {
+            "value": "m1"
+          }
+        }
+      },
+      {
+        "name": "RegistryEntered",
+        "aggregate": "ReservedNamesFixture::Registry",
+        "id": "r1",
+        "payload": {
+          "key": {
+            "value": "r1"
+          }
+        }
+      },
+      {
+        "name": "MergedCombined",
+        "aggregate": "ReservedNamesFixture::Merged",
+        "id": "c1",
+        "payload": {
+          "key": {
+            "value": "c1"
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}
