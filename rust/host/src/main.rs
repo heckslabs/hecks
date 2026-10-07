@@ -1,40 +1,7 @@
 //! Lambda custom-runtime entry point (or a long-lived server under
 //! HECKS_SERVE_MODE=1): boots Postgres/wasm state, then dispatches events.
 
-mod api;
-mod approval;
-mod auth;
-mod checkout;
-mod dispatch;
-mod expr_json;
-mod field_hints;
-#[cfg(test)]
-mod fuzz_support;
-#[cfg(test)]
-#[path = "boundary_fuzz/expr_json.rs"]
-mod expr_json_fuzz;
-mod ir;
-mod journal;
-mod lambda_client;
-mod log;
-mod mint;
-mod needs;
-mod payments;
-mod presentation;
-mod presentation_write;
-mod query_step;
-mod rate_limit;
-mod reference_transform;
-mod reference_validate;
-mod resend;
-mod secrets;
-mod server;
-mod storage_shape;
-#[cfg(test)]
-mod test_pg;
-mod ui_schema;
-mod wasm_runner;
-mod web;
+use rust_host::{approval, auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server, storage_shape};
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use std::path::PathBuf;
@@ -113,16 +80,8 @@ async fn main() -> Result<(), Error> {
             std::env::set_var("SESSION_SECRET", session_secret);
         }
     }
-    // RESEND_SECRET_ID: fetched the same way, but a failed fetch only
-    // logs -- mail is optional, and a missing secret must not stop the
-    // host from serving everything else (resend.rs answers 503 without
-    // a key).
-    if let Ok(resend_secret_id) = std::env::var("RESEND_SECRET_ID") {
-        let fetched = secret_fetcher.fetch_secret_string(&resend_secret_id).await.map_err(|e| format!("{e:#}"));
-        match fetched.and_then(|json| secrets::extract_field(&json, "api_key")) {
-            Ok(api_key) => unsafe { std::env::set_var("RESEND_API_KEY", api_key) },
-            Err(e) => eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}"),
-        }
+    for extension in extension::installed() {
+        extension.boot_secrets(&secret_fetcher).await;
     }
     let wasm_path = PathBuf::from(
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
@@ -137,7 +96,9 @@ async fn main() -> Result<(), Error> {
     let schema = std::env::var("HECKS_SCHEMA").ok().filter(|s| !s.is_empty());
     // Checkout on AWS keeps the business's payment keys in a named Secrets
     // Manager secret; refuse before touching the database when none is named.
-    payments::check_boot(web::checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &domain))?;
+    for extension in extension::installed() {
+        extension.boot_check(&domain)?;
+    }
 
     // RDS refuses a plain NoTls connection by default and needs AWS's
     // own RDS CA specifically, not a generic public bundle (see
