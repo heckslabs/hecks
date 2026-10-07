@@ -1,6 +1,6 @@
 name: CI checks (reusable)
 
-# The checks_fuzz/checks_static/checks_codegen_drift jobs behind the
+# The checks_fuzz/checks_static/checks_rubocop/checks_codegen_drift jobs behind the
 # "checks" required-status-check name, callable only from this repo's ci.yml.
 #
 # What each step runs lives in the `ci` stage of lib/hecks/gate/stages.yml: a step is
@@ -126,8 +126,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # Only 4 of this job's 5 steps overlap .githooks/pre-push's own checks
-      # (lint_deploy_recipes runs regardless); those 4 gain an `if:` against
+      # Only 3 of this job's 5 steps overlap .githooks/pre-push's own checks
+      # (lint_deploy_recipes and comment_style run regardless); those 3 gain an `if:` against
       # this step's output. `continue-on-error: true` so a failure here can't
       # skip the real steps below — an empty `outputs.attested` is already
       # treated as "not attested, run it".
@@ -136,7 +136,7 @@ jobs:
         continue-on-error: true
         uses: ./.github/actions/check-attestation
         with:
-          checks: model_check,engine_agreement,doc_coverage,rubocop
+          checks: model_check,engine_agreement,doc_coverage
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
       # Static analysis over the IR: unreachable lifecycle states, dead
@@ -180,8 +180,29 @@ jobs:
         if: steps.attest.outputs.attested != 'true'
         run: bundle exec exe/hecks gate_run.gate stage=ci only=doc_coverage --wait
 
+  # RuboCop on its own runner: it is 50s of what was one 126s chain of static checks.
+  checks_rubocop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # Same attestation shape as checks_static's: a failed read of it runs the cop.
+      - name: check attestation
+        id: attest
+        continue-on-error: true
+        uses: ./.github/actions/check-attestation
+        with:
+          checks: rubocop
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
       # Also here, not only in .githooks/pre-push, for the same reason as
-      # `doc coverage` above: the hook is opt-in and bypassable, so a branch
+      # `doc coverage` in checks_static: the hook is opt-in and bypassable, so a branch
       # that skipped it could otherwise reach GitHub with no cop having run.
       - name: rubocop
         if: steps.attest.outputs.attested != 'true'
@@ -296,5 +317,5 @@ jobs:
       - name: "rust vocabulary: regenerate kernel vocab tables, fail on drift"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_vocabulary_drift --wait
 
-      # doc coverage and rubocop run in checks_static, above — once per run,
+      # doc coverage runs in checks_static and rubocop in checks_rubocop, above — once per run,
       # not once per job.
