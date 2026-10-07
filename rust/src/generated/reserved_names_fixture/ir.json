@@ -1,0 +1,469 @@
+{
+  "ir_version": 1,
+  "name": "ReservedNamesFixture",
+  "version": null,
+  "vision": "The smallest domain whose aggregate names collide with the modules the Rust generator owns.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Metadata",
+      "description": "A record named for the generator's own metadata module.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "key",
+          "type": "MetadataKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "MetadataKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a metadata record is keyed",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Record",
+          "role": "Person",
+          "goal": "Record a metadata entry",
+          "references": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "MetadataKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key"
+              }
+            }
+          ],
+          "emits": [
+            "MetadataRecorded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Registry",
+      "description": "A record named for the generator's own registry module.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "key",
+          "type": "RegistryKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RegistryKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a registry record is keyed",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Enter",
+          "role": "Person",
+          "goal": "Enter a registry entry",
+          "references": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "RegistryKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key"
+              }
+            }
+          ],
+          "emits": [
+            "RegistryEntered"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Merged",
+      "description": "A record named for the generator's own merged module.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "key",
+          "type": "MergedKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "MergedKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a merged record is keyed",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Combine",
+          "role": "Person",
+          "goal": "Combine a merged entry",
+          "references": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "MergedKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key"
+              }
+            }
+          ],
+          "emits": [
+            "MergedCombined"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Metadata",
+        "storage_name": "metadata",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Registry",
+        "storage_name": "registry",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Merged",
+        "storage_name": "merged",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# Smallest domain whose aggregates are named for files the Rust generator writes itself:\n# `Metadata`, `Registry` and `Merged` each become a module beside the chapter's own\n# `metadata`, `registry` and `merged` modules. Round-tripped by spec/rust_generated/reserved_names_spec.rb.\nHecks.bluebook \"ReservedNamesFixture\" do\n  vision \"The smallest domain whose aggregate names collide with the modules the Rust generator owns.\"\n\n  core\n\n  aggregate \"Metadata\" do\n    description \"A record named for the generator's own metadata module.\"\n\n    identified_by :key\n    attribute :key, MetadataKey\n\n    value_object \"MetadataKey\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a metadata record is keyed\") { !value.to_s.empty? }\n    end\n\n    command \"Record\" do\n      role \"Person\"\n      goal \"Record a metadata entry\"\n\n      attribute :key, MetadataKey\n      sets :key\n\n      emits \"MetadataRecorded\"\n    end\n  end\n\n  aggregate \"Registry\" do\n    description \"A record named for the generator's own registry module.\"\n\n    identified_by :key\n    attribute :key, RegistryKey\n\n    value_object \"RegistryKey\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a registry record is keyed\") { !value.to_s.empty? }\n    end\n\n    command \"Enter\" do\n      role \"Person\"\n      goal \"Enter a registry entry\"\n\n      attribute :key, RegistryKey\n      sets :key\n\n      emits \"RegistryEntered\"\n    end\n  end\n\n  aggregate \"Merged\" do\n    description \"A record named for the generator's own merged module.\"\n\n    identified_by :key\n    attribute :key, MergedKey\n\n    value_object \"MergedKey\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a merged record is keyed\") { !value.to_s.empty? }\n    end\n\n    command \"Combine\" do\n      role \"Person\"\n      goal \"Combine a merged entry\"\n\n      attribute :key, MergedKey\n      sets :key\n\n      emits \"MergedCombined\"\n    end\n  end\nend\n"
+}

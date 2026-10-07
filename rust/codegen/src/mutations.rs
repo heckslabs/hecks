@@ -455,6 +455,16 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
     Some(Transition { field, to_state, from_states, unconstrained })
 }
 
+/// Whether a `state(:field)` source reads an `Option` out of the pre-dispatch record: the field
+/// is declared optional, or the record holds every field as an `Option` (`record_optional`).
+/// Such a source already has the target's wrapping, so it must not be wrapped in `Some` again.
+fn state_source_is_option(source: Option<&Json>, aggregate: &Json, record_optional: bool) -> bool {
+    let Some(source) = source.filter(|s| s.get("kind").map(Json::to_s).unwrap_or_default() == "state") else { return false };
+    let name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    record_optional || attrs.iter().any(|a| crate::attr::name(a) == name && crate::attr::optional(a))
+}
+
 /// Right-hand side for a `set`, coercing the source into the target attribute's declared type.
 ///
 /// `target_list` routes list-to-list sets through `list_value_rhs`; `value_rhs` is scalar-only.
@@ -731,7 +741,8 @@ fn emit_mutation_line_body(
                     let (guard, effective_rhs) = entity_list_replace_guard(aggregate, target_attr, &target_field, &rhs, value_objects_by_name);
                     format!("{guard}{}", exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", effective_rhs)]))
                 } else {
-                    let wrap = (optional || crate::attr::optional(target_attr)) && !source_attr.map(crate::attr::optional).unwrap_or(false);
+                    let source_is_option = source_attr.map(crate::attr::optional).unwrap_or(false) || state_source_is_option(source, aggregate, optional);
+                    let wrap = (optional || crate::attr::optional(target_attr)) && !source_is_option;
                     if wrap {
                         exemplar.render("mutation_set_wrapped", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
                     } else {
@@ -849,5 +860,39 @@ mod transition_tests {
         );
         let transition = lifecycle_transition_for(&command("Reopen"), &account).unwrap();
         assert_eq!(transition_check_arg(Some(&transition)), "None");
+    }
+}
+
+#[cfg(test)]
+mod state_source_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(r#"{"name":"Page","attributes":[{"name":"body","type":"Body"},{"name":"draft_body","type":"Body","optional":true}]}"#).unwrap()
+    }
+
+    fn state(name: &str) -> Json {
+        Json::parse(&format!(r#"{{"kind":"state","name":"{name}"}}"#)).unwrap()
+    }
+
+    #[test]
+    fn a_state_source_in_an_all_optional_record_is_already_an_option() {
+        assert!(state_source_is_option(Some(&state("body")), &aggregate(), true));
+    }
+
+    #[test]
+    fn a_state_source_reads_an_option_where_it_is_declared_optional() {
+        assert!(state_source_is_option(Some(&state("draft_body")), &aggregate(), false));
+    }
+
+    #[test]
+    fn a_required_state_source_in_a_plain_record_is_not_an_option() {
+        assert!(!state_source_is_option(Some(&state("body")), &aggregate(), false));
+    }
+
+    #[test]
+    fn an_argument_source_is_never_a_state_option() {
+        let argument = Json::parse(r#"{"kind":"argument","name":"draft_body"}"#).unwrap();
+        assert!(!state_source_is_option(Some(&argument), &aggregate(), true));
     }
 }

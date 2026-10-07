@@ -1,7 +1,7 @@
 //! Interprets `.present?`/`.blank?` and `.set?`/`.unset?`.
 //! The two pairs share one operator category and differ in how they treat empty values.
 
-use crate::kernel::expr::{interpret as eval, EvalContext, Expr, Value};
+use crate::kernel::expr::{interpret as eval, lookup_field, EvalContext, Expr, Field, Value};
 use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -20,8 +20,14 @@ pub fn interpret_assignment(expr: &Expr, ctx: &EvalContext) -> Result<Value, Ref
         return Err(Refusal::TypeMismatch(format!("presence::interpret_assignment called with a non-assignment node {expr:?} — a router bug")));
     };
 
-    let v = eval(receiver, ctx)?;
-    let set = !matches!(v, Value::Nil);
+    let set = match &**receiver {
+        // A nested object (an optional value-object attribute) is set whenever it is present.
+        Expr::Lookup(path) => match lookup_field(path, ctx)? {
+            Field::Nested(_) => true,
+            Field::Value(v) => !matches!(v, Value::Nil),
+        },
+        other => !matches!(eval(other, ctx)?, Value::Nil),
+    };
     Ok(Value::Bool(if *negated { !set } else { set }))
 }
 
@@ -91,6 +97,38 @@ mod tests {
     fn an_empty_string_or_array_is_set_unlike_present_s_own_reading() {
         assert_eq!(set(Expr::Str(String::new()), false), Value::Bool(true));
         assert_eq!(set(Expr::Array(vec![]), false), Value::Bool(true));
+    }
+
+    // A record with one value-object field (`body`, holding a nested object or nothing).
+    struct Draft {
+        body: Option<Body>,
+    }
+    struct Body;
+    impl crate::kernel::expr::Fielded for Body {
+        fn field(&self, _name: &str) -> Option<Field<'_>> {
+            None
+        }
+    }
+    impl crate::kernel::expr::Fielded for Draft {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            match (name, &self.body) {
+                ("body", Some(body)) => Some(Field::Nested(body)),
+                ("body", None) => Some(Field::Value(Value::Nil)),
+                _ => None,
+            }
+        }
+    }
+
+    fn set_on(draft: &Draft, negated: bool) -> Value {
+        let expr = Expr::Assignment { receiver: Box::new(Expr::Lookup("body")), negated };
+        eval(&expr, &EvalContext { args: &NoFields, instance: draft }).expect("evaluates")
+    }
+
+    #[test]
+    fn a_nested_object_field_is_set_and_an_absent_one_is_not() {
+        assert_eq!(set_on(&Draft { body: Some(Body) }, false), Value::Bool(true));
+        assert_eq!(set_on(&Draft { body: None }, false), Value::Bool(false));
+        assert_eq!(set_on(&Draft { body: Some(Body) }, true), Value::Bool(false));
     }
 
     #[test]

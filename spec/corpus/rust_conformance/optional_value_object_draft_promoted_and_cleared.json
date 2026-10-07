@@ -1,0 +1,230 @@
+{
+  "domain": "spec/fixtures/rust_project/optional_value_object_fixture",
+  "note": "An aggregate holds a required value object (`body`) and an optional one of the same type (`draft_body`), whose value object lists other value objects (blocks of spans of marks, with items). `SaveDraft` sets the optional field, `PublishDraft` copies it into the required field with `sets :body, to: state(:draft_body)` and clears it from an argument never sent, and a second `PublishDraft` is refused because nothing is saved. The Rust record holds both as `Option<Body>`, so the copy must not wrap the already-optional state in `Some` again. Every optional field inside the value objects is sent explicitly (null when unset), because Ruby keeps a nested optional exactly as offered and omits it when it is left out, while Rust always writes it as null.",
+  "steps": [
+    {
+      "verb": "OptionalValueObjectFixture::Page.Write",
+      "args": {
+        "key": {
+          "value": "home"
+        },
+        "body": {
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "spans": [
+                {
+                  "text": "Live",
+                  "marks": [
+                    {
+                      "name": "bold"
+                    }
+                  ],
+                  "href": null
+                }
+              ],
+              "items": [],
+              "level": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "verb": "OptionalValueObjectFixture::Page.SaveDraft",
+      "args": {
+        "key": {
+          "value": "home"
+        },
+        "draft_body": {
+          "blocks": [
+            {
+              "kind": "heading",
+              "level": 2,
+              "spans": [
+                {
+                  "text": "Draft",
+                  "marks": [],
+                  "href": null
+                }
+              ],
+              "items": []
+            },
+            {
+              "kind": "bullet_list",
+              "spans": [],
+              "items": [
+                {
+                  "spans": [
+                    {
+                      "text": "One",
+                      "marks": [],
+                      "href": null
+                    }
+                  ],
+                  "depth": 1
+                }
+              ],
+              "level": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "verb": "OptionalValueObjectFixture::Page.PublishDraft",
+      "args": {
+        "key": {
+          "value": "home"
+        }
+      }
+    },
+    {
+      "verb": "OptionalValueObjectFixture::Page.PublishDraft",
+      "args": {
+        "key": {
+          "value": "home"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "OptionalValueObjectFixture::Page.PublishDraft",
+        "error": "PublishDraft refused — an edit is saved",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "OptionalValueObjectFixture::Page#home": {
+        "key": {
+          "value": "home"
+        },
+        "body": {
+          "blocks": [
+            {
+              "kind": "heading",
+              "level": 2,
+              "spans": [
+                {
+                  "text": "Draft",
+                  "marks": [],
+                  "href": null
+                }
+              ],
+              "items": []
+            },
+            {
+              "kind": "bullet_list",
+              "spans": [],
+              "items": [
+                {
+                  "spans": [
+                    {
+                      "text": "One",
+                      "marks": [],
+                      "href": null
+                    }
+                  ],
+                  "depth": 1
+                }
+              ],
+              "level": null
+            }
+          ]
+        },
+        "draft_body": null
+      }
+    },
+    "events": [
+      {
+        "name": "PageWritten",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "home",
+        "payload": {
+          "key": {
+            "value": "home"
+          },
+          "body": {
+            "blocks": [
+              {
+                "kind": "paragraph",
+                "spans": [
+                  {
+                    "text": "Live",
+                    "marks": [
+                      {
+                        "name": "bold"
+                      }
+                    ],
+                    "href": null
+                  }
+                ],
+                "items": [],
+                "level": null
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "PageDraftSaved",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "home",
+        "payload": {
+          "key": {
+            "value": "home"
+          },
+          "draft_body": {
+            "blocks": [
+              {
+                "kind": "heading",
+                "level": 2,
+                "spans": [
+                  {
+                    "text": "Draft",
+                    "marks": [],
+                    "href": null
+                  }
+                ],
+                "items": []
+              },
+              {
+                "kind": "bullet_list",
+                "spans": [],
+                "items": [
+                  {
+                    "spans": [
+                      {
+                        "text": "One",
+                        "marks": [],
+                        "href": null
+                      }
+                    ],
+                    "depth": 1
+                  }
+                ],
+                "level": null
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "PageDraftPublished",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "home",
+        "payload": {
+          "key": {
+            "value": "home"
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}
