@@ -4,7 +4,7 @@
 
 use super::instances_for;
 use crate::dispatch;
-use crate::ir::PaymentsProvider;
+use crate::commerce_ir::PaymentsProvider;
 use crate::journal::LineageConfig;
 use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
@@ -82,7 +82,7 @@ pub(super) async fn send_receipt(reference: &str, client: &Mutex<Client>, wasm_p
     let Ok(read) = dispatch::read(client, wasm_path).await else {
         return;
     };
-    let binding = crate::ir::registrations_binding(&config.domain);
+    let binding = crate::commerce_ir::registrations_binding(&config.domain);
     let registrations = instances_for(&read, &binding.registration_prefix());
     let Some((_, registration)) = registrations.iter().find(|(id, _)| id == reference) else {
         return;

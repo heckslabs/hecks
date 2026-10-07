@@ -3,6 +3,7 @@
 //! a panic.
 
 use super::*;
+use crate::commerce_ir::*;
 use crate::fuzz_support::*;
 use serde_json::json;
 

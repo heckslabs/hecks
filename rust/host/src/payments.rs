@@ -187,7 +187,7 @@ impl Connection {
 /// This tenant's connection, read out of the replayed instances, or `None`
 /// until an Owner has connected an account.
 pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
-    let (_, state) = instances_for(read, &crate::ir::payment_connection_binding(domain).instance_prefix()).into_iter().find(|(id, _)| id == CONNECTION_SLUG)?;
+    let (_, state) = instances_for(read, &crate::commerce_ir::payment_connection_binding(domain).instance_prefix()).into_iter().find(|(id, _)| id == CONNECTION_SLUG)?;
     let text = |field: &str| state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
     Some(Connection {
         status: state.get("status").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
@@ -236,14 +236,14 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
 }
 
 async fn dispatch_on_connection(
-    which: crate::ir::ConnectionVerb,
+    which: crate::commerce_ir::ConnectionVerb,
     facts: Value,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<dispatch::Outcome> {
-    let verb = crate::ir::payment_connection_binding(&config.domain).verb(which).to_string();
+    let verb = crate::commerce_ir::payment_connection_binding(&config.domain).verb(which).to_string();
     dispatch::handle_routed(client, wasm_path, &verb, json!(CONNECTION_SLUG), facts, None, config, invoker).await
 }
 
@@ -362,8 +362,8 @@ pub async fn route(
         "/payments/connection" => show(&caller, platform, client, wasm_path, config).await,
         "/payments/connection/direct" => direct_route(&caller, raw_body, platform, client, wasm_path, config, invoker).await,
         "/payments/connection/disconnect" => disconnect_route(&caller, platform, client, wasm_path, config, invoker).await,
-        "/payments/connection/enable" => switch_route(&caller, crate::ir::ConnectionVerb::Enable, platform, client, wasm_path, config, invoker).await,
-        _ => switch_route(&caller, crate::ir::ConnectionVerb::Disable, platform, client, wasm_path, config, invoker).await,
+        "/payments/connection/enable" => switch_route(&caller, crate::commerce_ir::ConnectionVerb::Enable, platform, client, wasm_path, config, invoker).await,
+        _ => switch_route(&caller, crate::commerce_ir::ConnectionVerb::Disable, platform, client, wasm_path, config, invoker).await,
     })
 }
 
@@ -403,10 +403,10 @@ async fn record_connection(
         None => {
             let mut creation = facts;
             creation["slug"] = json!({"value": CONNECTION_SLUG});
-            dispatch::handle_facts(client, wasm_path, &crate::ir::payment_connection_binding(&config.domain).connect, creation, None, config, invoker).await
+            dispatch::handle_facts(client, wasm_path, &crate::commerce_ir::payment_connection_binding(&config.domain).connect, creation, None, config, invoker).await
         }
-        Some("disconnected") => dispatch_on_connection(crate::ir::ConnectionVerb::Reconnect, facts, client, wasm_path, config, invoker).await,
-        Some("paused") => dispatch_on_connection(crate::ir::ConnectionVerb::Resume, facts, client, wasm_path, config, invoker).await,
+        Some("disconnected") => dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Reconnect, facts, client, wasm_path, config, invoker).await,
+        Some("paused") => dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Resume, facts, client, wasm_path, config, invoker).await,
         Some(_) => return json_error(409, "an account is already connected — disconnect it first"),
     };
     match outcome {
@@ -465,7 +465,7 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
         return json_error(409, "nothing to disconnect");
     };
 
-    let which = if existing.status == "enabled" { crate::ir::ConnectionVerb::Suspend } else { crate::ir::ConnectionVerb::Disconnect };
+    let which = if existing.status == "enabled" { crate::commerce_ir::ConnectionVerb::Suspend } else { crate::commerce_ir::ConnectionVerb::Disconnect };
     match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
         Ok(outcome) if outcome.accepted => {
             if existing.is_direct() {
@@ -480,7 +480,7 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
 }
 
 // Enable or disable real payments: operator only.
-async fn switch_route(caller: &Caller, which: crate::ir::ConnectionVerb, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn switch_route(caller: &Caller, which: crate::commerce_ir::ConnectionVerb, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     if let Err(response) = require_operator(caller) {
         return response;
     }
