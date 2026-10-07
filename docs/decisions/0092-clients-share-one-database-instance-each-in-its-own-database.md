@@ -41,7 +41,7 @@ and no `rds.yaml`. `make stacks` deploys only the box; `deploy-box.sh` finds the
 
 1. **Client side (this ADR's build):** `shared_database`, `provision-database.sh`, the host and boot-script `username`, specs and docs.
 2. **The shared instance's generator (built):** `deployed_to("AwsSharedDatabase")` writes the instance's `rds.yaml`, a Makefile and a README; the platform repo declares the world.
-3. **Lifeadelics moves:** rehearse the copy into the shared instance, verify, then cut over. Production; ask first.
+3. **Lifeadelics moves (done 2026-10-07):** rehearsed twice, then cut over: snapshot, a pre-copy, a write freeze (about ten minutes of downtime in all), a final copy as the master, ownership handed to the client role, the box's secret access pointed at the new secret, a roll, and the site's full smoke (120 checks) and inbox canary on the real hostname.
 4. **Emaho onboards on it** instead of a dedicated instance.
 
 ## Consequences
@@ -70,4 +70,11 @@ A throwaway box (`Rehearsal=true`, no public address) rolled against the rehears
 - **The site's own smoke passed 109 checks** against the box (public pages, blog, admin through the account token, the CMS driving the domain, the era check, sign-in refusals). The 11 that failed were the live-preview checks: the CMS's `SITE_URL` is the production hostname, so a preview iframe loaded from a loopback address is cross-origin. That is a limit of rehearsing without the real hostname.
 - **`render-compose.sh` replaces `DB_HOST` and `DB_SECRET_ARN` but not `DB_NAME`**: the task definition still names the old database, so the rehearsal patched it by hand.
 - The scheduled-send job (cron every minute in the CMS) runs on a copy too; the copy held no scheduled send, which is worth checking before every rehearsal, because a copy that holds one would mail real subscribers.
+
+### The production move
+
+- The copy took about five minutes; the whole freeze, from stopping the app to the first served page, about ten.
+- The old instance and its stack were left untouched, with a manual snapshot taken before the freeze, as the rollback: set the box stack's `DbSecretArn` back to the old secret and roll the box with the old scripts and images.
+- The world now says `shared_database`; the generated deploy scripts read the shared stack and the site's secret. **Until it did, a routine deploy would have pointed the site back at the old database.**
+- **A manual egress rule is still load-bearing.** The box that serves as the SSM bastion also runs this site, and its security group carries a hand-added outbound rule to the shared instance's group. The box stack's own template declares its database egress inline, so the next update of that stack would remove the rule and cut the site off from its database. Codify it before touching that stack: give the box stack the shared group (`DbSecurityGroupId`) and drop the bastion parameter from the shared stack, in that order, at a quiet time.
 
