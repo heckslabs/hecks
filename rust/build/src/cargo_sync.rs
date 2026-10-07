@@ -212,6 +212,12 @@ fn is_default_line(line_content: &str) -> bool {
     trimmed.strip_prefix("default").map(|rest| rest.trim_start().starts_with('=')).unwrap_or(false)
 }
 
+/// Rewrites only the root `mod.rs`, for a generation into a directory other than `rust/src/generated`.
+pub fn write_mod_only(out_root: &Path, target_mod_name: &str) -> Result<(), String> {
+    let (all_dirs, domains) = scan_generated_dirs(out_root)?;
+    write_root_mod(out_root, &all_dirs, &domains, target_mod_name)
+}
+
 /// Rewrites the root `mod.rs` and syncs `rust/Cargo.toml`'s `[features]` for the domains on disk.
 pub fn run(out_root: &Path, cargo_toml_path: &Path, target_mod_name: &str) -> Result<(), String> {
     let (all_dirs, domains) = scan_generated_dirs(out_root)?;

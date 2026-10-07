@@ -14,6 +14,7 @@ use crate::tmp::TempDir;
 pub struct Options {
     pub build_native: bool,
     pub build_wasm: bool,
+    pub out_dir: Option<PathBuf>,
 }
 
 struct Chapter {
@@ -172,7 +173,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
 
-    let out_root = root.join("rust/src/generated");
+    let out_root = opts.out_dir.clone().unwrap_or_else(|| root.join("rust/src/generated"));
     std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
 
     // Scoped clearing — identical reasoning to both Ruby pipelines'
@@ -212,7 +213,11 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     run_codegen_full(&codegen_bin, &codegen_args)?;
 
     let cargo_toml_path = root.join("rust/Cargo.toml");
-    cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
+    if opts.out_dir.is_some() {
+        cargo_sync::write_mod_only(&out_root, &target_mod_name)?;
+    } else {
+        cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
+    }
 
     let rust_dir = root.join("rust");
     if opts.build_native {
