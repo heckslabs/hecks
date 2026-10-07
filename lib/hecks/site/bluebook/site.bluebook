@@ -253,6 +253,25 @@ Hecks.bluebook "Site" do
       emits "SiteProbeRequested"
     end
 
+    # `hecks site site_projection.check_roles <project> url=<http://127.0.0.1:port>`. Dispatches every
+    # command the project declares a `role` for to a running host with no role and no actor, and
+    # checks the host refuses each as `Unauthorized`. Only a host on this machine is asked, and it
+    # must be running with `HECKS_ROLE_ENFORCEMENT=enforce`: a host that is not would run the
+    # commands. It prints a line per command and exits 1 when any is not refused for its role.
+    command "CheckRoles" do
+      goal "Check a host on this machine refuses every role-declaring command from a caller with no role"
+
+      attribute :domain, DomainPath
+      attribute :run,    RunKey
+      attribute :url,    SiteUrl
+
+      sets :domain
+      sets :run
+      sets :url
+
+      emits "RolesCheckRequested"
+    end
+
     command "Complete" do
       goal "Record that routes.ts was written, or found current, or the live edge matched, and what it said"
 
@@ -302,6 +321,11 @@ Hecks.bluebook "Site" do
   policy "ProbeWhenRequested" do
     on      "SiteProjection.SiteProbeRequested"
     trigger SiteProjection::SiteToolchain::Probe, with: { run: :run }
+  end
+
+  policy "RolesWhenRequested" do
+    on      "SiteProjection.RolesCheckRequested"
+    trigger SiteProjection::SiteToolchain::Roles, with: { run: :run }
   end
 
   policy "RecordTheProjection" do
