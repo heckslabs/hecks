@@ -116,16 +116,16 @@ jobs:
     timeout-minutes: 20
 
     # Two legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
-    # tree, but with the feature binaries built beforehand nothing else ties them to one job, and
-    # a leg's specs run for about half of what the six files took together.
+    # tree. The exclusivity spec runs real cargo builds for about 40s; the other five files take
+    # about 20s together, so it gets a leg to itself.
     strategy:
       fail-fast: false
       matrix:
         include:
           - leg: a
-            specs: spec/rust_conformance_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
+            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
           - leg: b
-            specs: spec/rust_conformance_fuzz_spec.rb spec/rust_generated/domain_feature_exclusivity_spec.rb
+            specs: spec/rust_generated/domain_feature_exclusivity_spec.rb
 
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
@@ -196,13 +196,17 @@ jobs:
         run: touch rust/target/debug/rust-*
 
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
-      # so it needs its own step, right after the banking generation above.
+      # so it needs its own step, right after the banking generation above. This step and the
+      # exemplar build run in leg a only: they check that the crate compiles and tests, which
+      # no leg's specs depend on.
       - name: Run the from_json round-trip test
+        if: matrix.leg == 'a'
         run: cd rust && cargo test --no-default-features --features banking --test from_json_round_trip
 
       # rust/src/exemplar/** is compiled under `cargo test`, so a broken shape fails
       # here before any Ruby runs; no #[test] fn is required.
       - name: Build the exemplar module
+        if: matrix.leg == 'a'
         run: cd rust && cargo test --lib
 
       # Parser and codegen are also built concurrently by their dedicated jobs, and
