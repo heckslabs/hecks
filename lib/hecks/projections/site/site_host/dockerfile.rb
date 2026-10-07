@@ -52,7 +52,7 @@ module Hecks
 
             COPY deploy-aws/boot.mjs ./
             # RDS enforces TLS; boot.mjs verifies against Amazon's CA bundle.
-            ADD https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem ./rds-global-bundle.pem
+            ADD --chmod=0644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem ./rds-global-bundle.pem
 
             # boot.mjs sits outside the Next app, so `next build` does not trace its import of the AWS SDK.
             COPY --from=build /app/node_modules/@aws-sdk ./node_modules/@aws-sdk

@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Fixed
+
+- The generated CMS Dockerfile fetches the RDS CA bundle with `ADD --chmod=0644`. A plain `ADD` of a URL leaves the file readable by root only, so the CMS (which runs as `node`) failed at boot with `EACCES` on `rds-global-bundle.pem`.
+
 ## [3.7.0] - 2026-10-06
 
 A minor release: sites can share one database instance, and a world can deploy to more than one kind. `deployed_to("AwsBox")` takes `shared_database "<stack>"` and generates the provisioning of the site's own database and login role (the Rust host and the generated CMS boot script now read the database user and port from the secret); `deployed_to("AwsSharedDatabase")` generates the RDS instance they share; `deployed_to("Vercel")` generates a Vercel function's configuration; a world may declare several `deployed_to` kinds and `hecks deploy project` generates each. The `edge` tag has a ruleset of its own, and a required check counts only when GitHub Actions reported it.
