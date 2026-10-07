@@ -70,6 +70,20 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     registry.bluebook("StateCodecTree").aggregate("Article")
   end
 
+  let(:raw_article_body) do
+    { "body" => { "blocks" => [
+      { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
+      { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
+    ] } }
+  end
+
+  let(:article_body) do
+    { body: { blocks: [
+      { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
+      { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
+    ] } }
+  end
+
   let(:canonical_account) do
     {
       customer:        "CUST-1",
@@ -149,17 +163,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
 
     it "symbolizes lists of value objects nested four levels deep, whichever branch they sit on" do
-      raw = { "body" => { "blocks" => [
-        { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
-        { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
-      ] } }
-
-      expect(codec.decode(article_ir, raw)).to eq(
-        body: { blocks: [
-          { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
-          { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
-        ] }
-      )
+      expect(codec.decode(article_ir, raw_article_body)).to eq(article_body)
     end
 
     it "symbolizes each element of a list of value objects" do
