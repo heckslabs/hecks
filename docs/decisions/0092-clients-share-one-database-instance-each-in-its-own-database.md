@@ -50,3 +50,15 @@ and no `rds.yaml`. `make stacks` deploys only the box; `deploy-box.sh` finds the
 - A client's `pg_dump` is its own database, which keeps the handoff promise (their data is theirs to take) a single command.
 - A noisy client can use the instance's connections and CPU. The alarms are per instance, not per client; per-client limits (role connection limits) are a later addition.
 - The first provisioning of a client needs a person with the master secret and a bastion. That stays manual on purpose.
+
+## Rehearsal findings
+
+A rehearsal copy of a real site's data into its own database on the shared instance (2026-10-07) changed step 7:
+
+- **Copying as the client's own role fails.** The journal tables carry row-level security (the era write-fence), forced for their owner, so `pg_restore` as the client role is refused ("query would be affected by row-level security policy"). The restore runs as the instance's master, which bypasses the fence.
+- **Then the client role takes ownership.** After the restore, the schemas and every table, view, materialized view, standalone sequence and function in them are altered to the client role (a sequence owned by a table follows the table). The master is made a member of the client role for this step. The result: nothing is owned by the master, the role is neither superuser nor `BYPASSRLS`.
+- **The fence then holds for the client role.** A write in an earlier era is refused by the policy; a write in the current era is accepted; the journal reads back. `verify-copy.sh` compared 243 tables with identical rows and structure.
+- Leftover SSM tunnels from earlier runs hold the scripts' fixed local ports and make a later run fail with a password or `pg_hba` error that looks unrelated; close them first.
+
+`restore-to-rds.sh` takes the master secret as the target and a `CLIENT_ROLE` to hand ownership to; that change is in `docs/plans/first-deploy-gaps.md` (row 14).
+
