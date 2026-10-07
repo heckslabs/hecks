@@ -3,7 +3,7 @@
 // named in `render` and `route`.
 
 use super::{
-    checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route, respond, session_secret,
+    checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route, resend_webhook, respond, session_secret,
 };
 use crate::extension::{Ctx, HostExtension, RateRule};
 use crate::payments;
@@ -39,6 +39,12 @@ impl HostExtension for Commerce {
             if let Err(response) = newsletter_send::require_admin(domain_ir, ctx.cookies, &session_secret(), ctx.client).await {
                 return Some(response);
             }
+        }
+        let headers = ctx.event.and_then(|e| e.get("headers"));
+        if let Some(response) =
+            resend_webhook::resend_webhook_route(ctx.method, ctx.path, ctx.raw_body, headers, ctx.client, ctx.wasm_path, ctx.config, ctx.invoker).await
+        {
+            return Some(response);
         }
         if let Some(response) =
             newsletter::newsletter_route(ctx.method, ctx.path, ctx.query, ctx.raw_body, ctx.client, ctx.wasm_path, ctx.config, ctx.invoker).await
@@ -95,12 +101,20 @@ impl HostExtension for Commerce {
     }
 
     // RESEND_SECRET_ID: a failed fetch only logs -- mail is optional, and a missing secret must not
-    // stop the host from serving everything else (resend.rs answers 503 without a key).
+    // stop the host from serving everything else (resend.rs answers 503 without a key). The same
+    // secret may also carry `webhook_secret`, the signing secret of the Resend webhook that
+    // POST /webhooks/resend verifies; without it that route answers 503.
     async fn boot_secrets(&self, fetcher: &AwsSecretFetcher) {
         let Ok(resend_secret_id) = std::env::var("RESEND_SECRET_ID") else { return };
         let fetched = fetcher.fetch_secret_string(&resend_secret_id).await.map_err(|e| format!("{e:#}"));
-        match fetched.and_then(|json| secrets::extract_field(&json, "api_key")) {
-            Ok(api_key) => unsafe { std::env::set_var("RESEND_API_KEY", api_key) },
+        let read = fetched.and_then(|json| secrets::extract_field(&json, "api_key").map(|api_key| (api_key, secrets::optional_field(&json, "webhook_secret"))));
+        match read {
+            Ok((api_key, webhook_secret)) => unsafe {
+                std::env::set_var("RESEND_API_KEY", api_key);
+                if let Some(webhook_secret) = webhook_secret {
+                    std::env::set_var("RESEND_WEBHOOK_SECRET", webhook_secret);
+                }
+            },
             Err(e) => eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}"),
         }
     }

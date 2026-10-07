@@ -75,6 +75,12 @@ pub fn extract_field(secret_json: &str, field: &str) -> Result<String, String> {
         .ok_or_else(|| format!("secret's SecretString has no string {field:?} field"))
 }
 
+/// One named string field out of a secret's JSON `SecretString`, or `None` when the secret does not
+/// carry it (or is not JSON, or the field is blank). For a field a secret may have and may not.
+pub fn optional_field(secret_json: &str, field: &str) -> Option<String> {
+    extract_field(secret_json, field).ok().filter(|value| !value.trim().is_empty())
+}
+
 /// The `postgres://` URL for a database secret.
 ///
 /// The user is the secret's `username`, which is `postgres` for RDS's managed master secret and a
@@ -95,6 +101,15 @@ pub fn database_url(secret_json: &str, host: &str, database: &str) -> Result<Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_optional_field_is_read_when_present_and_none_when_absent_blank_or_not_json() {
+        let json = r#"{"api_key":"re_1","webhook_secret":"whsec_abc","blank":"  "}"#;
+        assert_eq!(optional_field(json, "webhook_secret").as_deref(), Some("whsec_abc"));
+        assert_eq!(optional_field(json, "missing"), None);
+        assert_eq!(optional_field(json, "blank"), None);
+        assert_eq!(optional_field("not json", "webhook_secret"), None);
+    }
 
     #[test]
     fn a_master_secret_logs_in_as_postgres_on_the_default_port() {
