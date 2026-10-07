@@ -4,7 +4,7 @@
 
 ## Context
 
-`hecks deploy project` generates `AwsLambda` and `AwsFargate` stacks. Fargate puts the containers behind an ALB, on a service that is billed per task and has its own database cluster. For a small client project that was most of the bill. The Lifeadelics project replaced it with:
+`hecks deploy project` generates `AwsLambda` and `AwsFargate` stacks. Fargate puts the containers behind an ALB, on a service that is billed per task and has its own database cluster. For a small client project that was most of the bill. One client project replaced it with:
 
 - one RDS Postgres instance (its own stack, so it can be reviewed and rehearsed on its own);
 - one EC2 box running the containers with Docker Compose on the host network, with Caddy in front;
@@ -12,7 +12,7 @@
 - secrets resolved on the box at deploy time, never written into a template or into SSM text;
 - daily EBS snapshots and auto-recover alarms in place of a service scheduler.
 
-That reference is merged in the Lifeadelics repository (`deploy-aws/rds`, `deploy-aws/box`). Nothing in it is specific to that client except the container list, the routes and the secret names.
+That reference is merged in that client's repository (`deploy-aws/rds`, `deploy-aws/box`). Nothing in it is specific to that client except the container list, the routes and the secret names.
 
 ## Decision
 
