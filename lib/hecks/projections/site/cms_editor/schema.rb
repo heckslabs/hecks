@@ -28,7 +28,7 @@ module Hecks
           # @param aggregate [Bluebook::Aggregate] one aggregate of the chapter
           def initialize(aggregate)
             @agg = aggregate
-            @attributes = Attributes.new(aggregate.value_objects.map(&:hecks_name))
+            @attributes = Attributes.new(aggregate.value_objects)
           end
 
           # @return [Hash{String => Object}] the aggregate as the editor reads it

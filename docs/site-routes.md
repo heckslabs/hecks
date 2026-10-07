@@ -222,14 +222,18 @@ forms are generated from the domain, not written per aggregate.
 | `src/app.ts`, `src/server.ts` | the handler from a web `Request` to a `Response`, and the node server around it |
 | `src/auth/*.ts` | the sign-in: the hand-off token, the membership check, and the editor's own signed session cookie |
 | `src/ui/*.ts` | the server-rendered pages: a nav of aggregates, a list from a query, a detail page, a form per command |
+| `src/ui/body_*.js` | the rich-text body: `bodyToHtml` / `htmlToBody` (pure, run in node and the browser) and the widget |
 | `src/host.ts`, `src/commands.ts` | the `@hecks/client` wiring, and the running and judging of one command |
 | `src/config.ts`, `package.json`, `tsconfig.json` | the row's settings, and the package |
 
 The editor is generic by aggregate. A value-object attribute is a nested fieldset of its parts, a `list_of` attribute is a run of
 repeatable rows (the rows it holds, then one blank to fill; a blank row is dropped), an optional part left blank is left out, and a
 lifecycle state is a badge, never an input. A lifecycle move is offered only from the states it applies in. An attribute whose
-type is a value object named `Body` is shown as a read-only outline and carried through a form unchanged; its editor widget is
-the next slice. A query that `returns` a value object is answered outside the domain and is not offered.
+type is a value object with a `blocks` list of a value object that has `kind` and `spans` (a structured document body, whatever
+it is named) is edited with a rich-text widget: a toolbar and a contenteditable surface that edit the domain's own tree and
+post it as the same dotted-path fields as any other value object. The list and detail pages show the body read-only, escaped.
+Pasted HTML is reduced to what the body can hold, with a note saying what was reduced. The widget's browser code is plain
+`src/ui/body_*.js`, served to a signed-in editor under `<base_path>/assets/`; ADR 0095's addendum has the details. A query that `returns` a value object is answered outside the domain and is not offered.
 
 The server is a sidecar: it is the host's `/dispatch` caller, which the host honours only from the same machine, so it
 authenticates every person itself. A visitor with no valid session is sent to `login`; the site's admin hand-off sends a signed-in

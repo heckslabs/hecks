@@ -1,0 +1,264 @@
+__BANNER__
+
+// The rich-text widget, run in the browser. It edits the domain's own body tree: the surface holds
+// the HTML `bodyToHtml` writes, and after every change `htmlToBody` reads it back and the result is
+// written into hidden inputs named by dotted path, which is how every other value object and list in
+// the form is posted. No editor format is kept or sent. Pasted or dropped HTML goes through
+// `htmlToBodyWithNotes`, so whatever the body cannot hold is reduced and said so in the notes line.
+import { ALIGNS, MAX_DEPTH, MAX_INDENT, bodyToFields, bodyToHtml, esc, fieldsToInputs, safeHref, spansToHtml } from "./body_model.js";
+import { htmlToBodyWithNotes } from "./body_parse.js";
+
+const KIND_TAGS = { paragraph: "p", heading1: "h1", heading2: "h2", heading3: "h3", heading4: "h4", quote: "blockquote" };
+
+const BLOCK_CHOICES = [
+  ["paragraph", "Paragraph"], ["heading1", "Heading 1"], ["heading2", "Heading 2"], ["heading3", "Heading 3"], ["heading4", "Heading 4"],
+  ["quote", "Quote"], ["bullet_list", "Bulleted list"], ["numbered_list", "Numbered list"],
+];
+
+const BUTTONS = [
+  ["bold", "B", "Bold (Ctrl+B)"], ["italic", "I", "Italic (Ctrl+I)"], ["underline", "U", "Underline (Ctrl+U)"],
+  ["strike", "S", "Strike-through (Ctrl+Shift+X)"], ["code", "</>", "Code (Ctrl+E)"], ["link", "Link", "Link (Ctrl+K)"],
+  ["break", "Line break", "Line break (Shift+Enter)"], ["left", "Left", "Align left"], ["center", "Center", "Align center"],
+  ["right", "Right", "Align right"], ["justify", "Justify", "Justify"], ["outdent", "Outdent", "Outdent"], ["indent", "Indent", "Indent"],
+  ["shallower", "Item up", "Move the list item up a level (Shift+Tab)"], ["deeper", "Item down", "Move the list item down a level (Tab)"],
+  ["itemkind", "Item kind", "Make the list item bulleted or numbered"], ["image", "Image", "Insert an image by media key"], ["divider", "Divider", "Insert a divider"],
+];
+
+const COMMANDS = { bold: "bold", italic: "italic", underline: "underline", strike: "strikeThrough" };
+
+const placeholdered = (html) => html.replace(/<(p|h[1-4]|blockquote|li)((?: [^>]*)?)><\/\1>/g, "<$1$2><br></$1>");
+
+function mount(root) {
+  const surface = root.querySelector("[data-surface]");
+  const fields = root.querySelector("[data-fields]");
+  const notes = root.querySelector("[data-notes]");
+  const name = root.dataset.name;
+  const picker = root.querySelector("[data-block-kind]");
+
+  const say = (messages) => {
+    notes.textContent = messages.length ? `Pasted content was adjusted to fit: ${messages.join("; ")}.` : "";
+  };
+
+  const lock = () => {
+    for (const figure of surface.querySelectorAll("figure")) figure.setAttribute("contenteditable", "false");
+  };
+
+  const sync = () => {
+    const { body } = htmlToBodyWithNotes(surface.innerHTML);
+    fields.innerHTML = fieldsToInputs(bodyToFields(body, name));
+  };
+
+  const blockOf = () => {
+    const sel = window.getSelection();
+    let node = sel && sel.anchorNode;
+    while (node && node.parentNode !== surface) node = node.parentNode;
+    return node && node.nodeType === 1 ? node : null;
+  };
+
+  const itemOf = () => {
+    let node = window.getSelection()?.anchorNode;
+    while (node && node !== surface && node.nodeName !== "LI") node = node.parentNode;
+    return node && node.nodeName === "LI" ? node : null;
+  };
+
+  const caretIn = (element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  const retag = (element, tag) => {
+    const made = document.createElement(tag);
+    for (const key of ["data-align", "data-indent"]) if (element.hasAttribute(key)) made.setAttribute(key, element.getAttribute(key));
+    made.append(...element.childNodes);
+    element.replaceWith(made);
+    return made;
+  };
+
+  const listFromBlock = (block, tag) => {
+    const list = document.createElement(tag);
+    for (const key of ["data-align", "data-indent"]) if (block.hasAttribute(key)) list.setAttribute(key, block.getAttribute(key));
+    const item = document.createElement("li");
+    item.append(...block.childNodes);
+    list.append(item);
+    block.replaceWith(list);
+    return list;
+  };
+
+  const itemToBlock = (item, tag) => {
+    const list = item.parentNode;
+    const made = document.createElement(tag);
+    made.append(...item.childNodes);
+    const tail = [...list.children].slice([...list.children].indexOf(item) + 1);
+    if (tail.length) {
+      const rest = list.cloneNode(false);
+      rest.append(...tail);
+      list.after(rest);
+    }
+    list.after(made);
+    item.remove();
+    if (!list.firstElementChild) list.remove();
+    return made;
+  };
+
+  const setKind = (choice) => {
+    const block = blockOf();
+    if (!block) return;
+    const listTag = choice === "bullet_list" ? "ul" : choice === "numbered_list" ? "ol" : null;
+    const isList = block.nodeName === "UL" || block.nodeName === "OL";
+    let made;
+    if (listTag) made = isList ? retag(block, listTag) : listFromBlock(block, listTag);
+    else made = isList ? itemToBlock(itemOf() ?? block.firstElementChild, KIND_TAGS[choice]) : retag(block, KIND_TAGS[choice]);
+    if (!listTag && made.nodeName !== KIND_TAGS[choice].toUpperCase()) made = retag(made, KIND_TAGS[choice]);
+    caretIn(made);
+    sync();
+  };
+
+  const bump = (element, attribute, step, low, high) => {
+    const next = Math.min(high, Math.max(low, Number(element.getAttribute(attribute) ?? 0) + step));
+    element.setAttribute(attribute, String(next));
+    sync();
+  };
+
+  const toggleCode = () => {
+    let node = window.getSelection()?.anchorNode;
+    while (node && node !== surface && node.nodeName !== "CODE") node = node.parentNode;
+    if (node && node.nodeName === "CODE") node.replaceWith(...node.childNodes);
+    else if (!window.getSelection().isCollapsed) document.execCommand("insertHTML", false, `<code>${esc(window.getSelection().toString())}</code>`);
+    sync();
+  };
+
+  const link = () => {
+    const given = window.prompt("Link address (a path, http://, https://, mailto: or tel:). Leave empty to remove the link.", "https://");
+    if (given === null) return;
+    const href = safeHref(given.trim());
+    if (given.trim() === "") document.execCommand("unlink");
+    else if (href) document.execCommand("createLink", false, href);
+    else notes.textContent = "That address is not allowed: use a path, http://, https://, mailto: or tel:.";
+    sync();
+  };
+
+  const figureHtml = (media, alt, caption) => bodyToHtml({ blocks: [{ kind: "image", media_ref: media, alt, caption }] });
+
+  const askImage = (figure) => {
+    const media = window.prompt("Media key of the image", figure?.dataset.mediaRef ?? "");
+    if (!media) return;
+    const alt = window.prompt("Alt text", figure?.dataset.alt ?? "") ?? "";
+    const caption = window.prompt("Caption (optional)", figure?.dataset.caption ?? "") ?? "";
+    const holder = document.createElement("div");
+    holder.innerHTML = figureHtml(media.trim(), alt, caption);
+    const made = holder.firstElementChild;
+    made.setAttribute("contenteditable", "false");
+    if (figure) figure.replaceWith(made);
+    else if (blockOf()) blockOf().after(made);
+    else surface.append(made);
+    sync();
+  };
+
+  const insertDivider = () => {
+    const rule = document.createElement("hr");
+    const block = blockOf();
+    if (block) block.after(rule);
+    else surface.append(rule);
+    sync();
+  };
+
+  const align = (value) => {
+    const block = blockOf();
+    if (!block) return;
+    if (block.getAttribute("data-align") === value) block.removeAttribute("data-align");
+    else block.setAttribute("data-align", value);
+    sync();
+  };
+
+  const itemKind = () => {
+    const item = itemOf();
+    if (!item) return;
+    const own = item.parentNode.nodeName === "OL" ? "numbered_list" : "bullet_list";
+    const other = own === "numbered_list" ? "bullet_list" : "numbered_list";
+    if (item.hasAttribute("data-list-kind")) item.removeAttribute("data-list-kind");
+    else item.setAttribute("data-list-kind", other);
+    sync();
+  };
+
+  const act = (action) => {
+    surface.focus();
+    if (COMMANDS[action]) return document.execCommand(COMMANDS[action]), sync();
+    if (ALIGNS.includes(action)) return align(action);
+    const block = blockOf();
+    const handlers = {
+      code: toggleCode, link, divider: insertDivider, itemkind: itemKind, image: () => askImage(null),
+      break: () => { document.execCommand("insertLineBreak"); sync(); },
+      indent: () => block && bump(block, "data-indent", 1, 0, MAX_INDENT), outdent: () => block && bump(block, "data-indent", -1, 0, MAX_INDENT),
+      deeper: () => itemOf() && bump(itemOf(), "data-depth", 1, 0, MAX_DEPTH), shallower: () => itemOf() && bump(itemOf(), "data-depth", -1, 0, MAX_DEPTH),
+    };
+    return handlers[action]?.();
+  };
+
+  const insertParsed = (html) => {
+    const { body, notes: found } = htmlToBodyWithNotes(html);
+    say(found);
+    const single = body.blocks.length === 1 && body.blocks[0].spans;
+    document.execCommand("insertHTML", false, single ? spansToHtml(body.blocks[0].spans) : placeholdered(bodyToHtml(body)));
+    sync();
+  };
+
+  const fromTransfer = (data) => {
+    const html = data.getData("text/html");
+    if (html) return html;
+    return data.getData("text/plain").split(/\r?\n/).map((line) => `<p>${esc(line)}</p>`).join("");
+  };
+
+  const shortcuts = (event) => {
+    if (event.key === "Tab" && itemOf()) {
+      event.preventDefault();
+      return bump(itemOf(), "data-depth", event.shiftKey ? -1 : 1, 0, MAX_DEPTH);
+    }
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const key = event.key.toLowerCase();
+    const action = event.shiftKey ? { x: "strike" }[key] : { b: "bold", i: "italic", u: "underline", e: "code", k: "link" }[key];
+    if (action) {
+      event.preventDefault();
+      act(action);
+    }
+  };
+
+  root.querySelector("[data-toolbar]").addEventListener("mousedown", (event) => { if (event.target.tagName !== "SELECT") event.preventDefault(); });
+  root.querySelector("[data-toolbar]").addEventListener("click", (event) => { const button = event.target.closest("button[data-action]"); if (button) act(button.dataset.action); });
+  picker.addEventListener("change", () => { surface.focus(); setKind(picker.value); });
+  surface.addEventListener("input", sync);
+  surface.addEventListener("keydown", shortcuts);
+  surface.addEventListener("paste", (event) => { event.preventDefault(); insertParsed(fromTransfer(event.clipboardData)); });
+  surface.addEventListener("drop", (event) => { event.preventDefault(); insertParsed(fromTransfer(event.dataTransfer)); });
+  surface.addEventListener("click", (event) => { const figure = event.target.closest("figure"); if (figure && surface.contains(figure)) askImage(figure); });
+  surface.addEventListener("blur", () => {
+    const { body } = htmlToBodyWithNotes(surface.innerHTML);
+    surface.innerHTML = placeholdered(bodyToHtml(body));
+    lock();
+    sync();
+  });
+  root.closest("form")?.addEventListener("submit", sync);
+
+  surface.setAttribute("contenteditable", "true");
+  document.execCommand("defaultParagraphSeparator", false, "p");
+  document.execCommand("styleWithCSS", false, "false");
+  if (!surface.firstElementChild) surface.innerHTML = "<p><br></p>";
+  surface.innerHTML = placeholdered(surface.innerHTML);
+  lock();
+}
+
+/** Builds the toolbar of a widget the server rendered, and wires it. */
+function toolbar(root) {
+  const bar = root.querySelector("[data-toolbar]");
+  const options = BLOCK_CHOICES.map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`).join("");
+  const buttons = BUTTONS.map(([action, label, title]) => `<button type="button" data-action="${esc(action)}" title="${esc(title)}">${esc(label)}</button>`).join("");
+  bar.innerHTML = `<select data-block-kind aria-label="Block type">${options}</select>${buttons}`;
+}
+
+for (const root of document.querySelectorAll("[data-body-editor]")) {
+  toolbar(root);
+  mount(root);
+}
