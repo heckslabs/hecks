@@ -107,6 +107,7 @@ Hecks.bluebook "Site" do
     attribute :distribution, DistributionId, optional: true
     attribute :expect_new, PathList, optional: true
     attribute :refs,      PolicyRefs, optional: true
+    attribute :url,       SiteUrl,   optional: true
     attribute :output,    Report,    optional: true
     attribute :refusal,   Report,    optional: true
     identified_by :run
@@ -153,6 +154,11 @@ Hecks.bluebook "Site" do
     # Policy references and the ids they stand for live, as `!Ref Name=id`, comma separated.
     value_object "PolicyRefs" do
       attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # A running site's address, `https://example.org`: what `check_site` sends its requests to.
+    value_object "SiteUrl" do
+      attribute :value, String, pattern: '^https?://[^ \t\n\r]+$'
     end
 
     value_object "Report" do
@@ -224,6 +230,26 @@ Hecks.bluebook "Site" do
       emits "LiveCheckRequested"
     end
 
+    # `hecks site site_projection.check_site <project> url=<https://example.org>`. Asks a running
+    # site what its route table says it must answer, with anonymous requests that follow no
+    # redirect and change nothing: an admin route refuses, an indexable public page answers 200
+    # with a canonical link, an `off` row and an undeclared path answer 404, and a redirect row
+    # redirects to its target. Routes that name a parameter or a prefix are left out. It prints a
+    # line per check and exits 1 when any answer is wrong.
+    command "CheckSite" do
+      goal "Ask a running site what its route table says it must answer, and judge each answer"
+
+      attribute :domain, DomainPath
+      attribute :run,    RunKey
+      attribute :url,    SiteUrl
+
+      sets :domain
+      sets :run
+      sets :url
+
+      emits "SiteProbeRequested"
+    end
+
     command "Complete" do
       goal "Record that routes.ts was written, or found current, or the live edge matched, and what it said"
 
@@ -268,6 +294,11 @@ Hecks.bluebook "Site" do
   policy "CheckWhenRequested" do
     on      "SiteProjection.LiveCheckRequested"
     trigger SiteProjection::SiteToolchain::Compare, with: { run: :run }
+  end
+
+  policy "ProbeWhenRequested" do
+    on      "SiteProjection.SiteProbeRequested"
+    trigger SiteProjection::SiteToolchain::Probe, with: { run: :run }
   end
 
   policy "RecordTheProjection" do
