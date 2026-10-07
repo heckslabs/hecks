@@ -7,6 +7,12 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-10-06
+
+A minor release: the Rust host records newsletter opens and clicks from Resend's webhook.
+
+**Added: `POST /webhooks/resend` records newsletter opens and clicks.** The commerce extension verifies Resend's Svix signature against `RESEND_WEBHOOK_SECRET` (the endpoint's `whsec_` signing secret; without it the route answers 503), finds the `Delivery` whose stored Resend message id matches the event's `email_id`, and dispatches `Delivery.RecordOpen` or `Delivery.RecordClick`, which keep only the first of each. A repeat, an event type nothing records, and a message the site did not send as a newsletter are all acknowledged with 200 so Resend stops retrying. Resend sends nothing until the domain's open and click tracking is on and a webhook for `email.opened` and `email.clicked` points at the route.
+
 ## [3.8.0] - 2026-10-06
 
 A minor release: the Rust host can be extended without forking it. Nothing changes for a deployed host; commerce is installed by default.
