@@ -1,0 +1,54 @@
+__BANNER__
+
+// The editor's HTTP server: node's own `http` module turning each request into a web `Request` for
+// the handler in app.ts and writing its `Response` back. No framework. Start it with `npm start`;
+// it listens on `PORT` (default 4400) on `HOST` (default 127.0.0.1), behind the site's edge, which
+// routes the editor's base path here.
+import { createServer } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+import { createApp } from "./app.ts";
+
+const MAX_BODY_BYTES = 1_000_000;
+
+async function bodyOf(req: IncomingMessage): Promise<string | undefined> {
+  if (req.method === "GET" || req.method === "HEAD") return undefined;
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) throw new RangeError("request body too large");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function requestOf(req: IncomingMessage): Promise<Request> {
+  const proto = String(req.headers["x-forwarded-proto"] ?? "http").split(",")[0].trim();
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(req.headers)) if (value !== undefined) headers.set(name, String(value));
+  return new Request(`${proto}://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, { method: req.method, headers, body: await bodyOf(req) });
+}
+
+async function send(res: ServerResponse, response: Response): Promise<void> {
+  const headers: Record<string, string | string[]> = {};
+  response.headers.forEach((value, name) => {
+    if (name !== "set-cookie") headers[name] = value;
+  });
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) headers["set-cookie"] = cookies;
+  res.writeHead(response.status, headers);
+  res.end(Buffer.from(await response.arrayBuffer()));
+}
+
+const app = createApp();
+
+createServer(async (req, res) => {
+  try {
+    await send(res, await app(await requestOf(req)));
+  } catch (err) {
+    console.error(err);
+    res.writeHead(err instanceof RangeError ? 413 : 500, { "Content-Type": "text/plain" });
+    res.end(err instanceof RangeError ? "Request too large." : "The editor failed.");
+  }
+}).listen(Number(process.env.PORT || 4400), process.env.HOST || "127.0.0.1");

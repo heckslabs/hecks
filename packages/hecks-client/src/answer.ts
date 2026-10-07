@@ -2,8 +2,11 @@
 // them. Nothing here performs I/O, so it can be imported anywhere, including
 // code that runs under a plain `node --test`.
 
+import { DomainRefusal } from "./errors.js";
+
 /** A refusal the host reported: the failed rule's kind and the domain's own words for it. */
 export interface Refusal {
+  verb?: string;
   kind: string;
   error: string;
 }
@@ -16,6 +19,19 @@ export interface Refusal {
 export interface Answer {
   instances?: Record<string, Record<string, unknown>>;
   refusals?: Refusal[];
+  /** One entry per question asked with `HostClient#query`. */
+  queries?: QueryResult[];
+  error?: string;
+}
+
+/**
+ * What the host answered to one declared query: its rows (each a state, keyed
+ * by attribute), or `null` rows and the reason in `error` when it refused.
+ */
+export interface QueryResult {
+  query: string;
+  args?: Record<string, unknown>;
+  rows: Record<string, unknown>[] | null;
   error?: string;
 }
 
@@ -55,3 +71,21 @@ export const optionalWhole = (raw: unknown, key: string): number | null => {
   const v = scalar(raw, key);
   return v === null || v === undefined || v === "" ? null : Number(v);
 };
+
+/**
+ * The rows a query answered, or `null` when the answer has no entry for it.
+ * With `name` the entry is the one asked as that question (bare or qualified);
+ * without, the last entry.
+ * @throws {DomainRefusal} when the host refused the question (an unknown query, or one answered outside the domain)
+ */
+export function rowsOf(answer: Answer, name?: string): Record<string, unknown>[] | null {
+  const entries = answer.queries ?? [];
+  const short = (question: string) => question.replace(/^.*::/, "");
+  const entry = name === undefined ? entries.at(-1) : entries.find((candidate) => short(candidate.query) === short(name));
+  if (!entry) return null;
+  if (entry.rows === null || entry.rows === undefined) {
+    const refusal = (answer.refusals ?? []).find((candidate) => short(candidate.verb ?? "") === short(entry.query));
+    throw new DomainRefusal(refusal?.kind ?? "QueryRefused", entry.error ?? `the host did not answer ${entry.query}`);
+  }
+  return entry.rows;
+}

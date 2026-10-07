@@ -3,6 +3,8 @@
 //
 //   { "read": true }
 //     -> { instances: { "Domain::Aggregate#<id>": { ...state } }, refusals: [] }
+//   { "query": "Domain::Aggregate.Query", "args": { ... } }
+//     -> { queries: [{ query, rows, error? }], refusals: [] }, nothing written
 //   { "verb": "Domain::Aggregate.Verb", "to": "<id>", "with": { ... },
 //     "role": "Role", "actor_id": "<id>" }
 //     -> the same shape after the command ran
@@ -132,6 +134,15 @@ export class HostClient {
       ...(asRole ? { role: asRole } : {}),
       ...(asActor ? { actor_id: asActor } : {}),
     });
+  }
+
+  /**
+   * Asks one declared query (`Aggregate.Query`, bare or qualified) and returns the raw answer.
+   * The host reads current state and writes nothing; the rows are in `answer.queries`, which
+   * `rowsOf` reads (and which throws when the host refused the question).
+   */
+  query(name: string, args: Record<string, unknown> = {}): Promise<Answer> {
+    return this.post({ query: this.qualify(name), args });
   }
 
   /**

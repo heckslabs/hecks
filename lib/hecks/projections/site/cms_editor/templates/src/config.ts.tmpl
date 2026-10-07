@@ -1,0 +1,21 @@
+__BANNER__
+
+// What the editor is built from: the project's Editor row, defaults filled. Change the row and run
+// `hecks site site_projection.project_site`; with `--check` it fails when this file is out of date.
+
+export const EDITOR = {
+  title: __TITLE__,
+  basePath: __BASE_PATH__,
+  ssoPath: __SSO_PATH__,
+  login: __LOGIN__,
+  sessionCookie: __SESSION_COOKIE__,
+  sessionMaxAge: 28800,
+  hostCookie: __HOST_COOKIE__,
+  hostEnv: __HOST_ENV__,
+  hostDefault: __HOST_DEFAULT__,
+  roles: __ROLES__,
+  accountPath: "/accounts/me",
+  membersPath: "/members",
+  rememberMs: 60000,
+  timeoutMs: 5000,
+} as const;

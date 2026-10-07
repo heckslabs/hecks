@@ -1,0 +1,160 @@
+__BANNER__
+
+// The editor as a function from a web `Request` to a `Response`, with its host client, clock and
+// secret passed in, so it runs the same under src/server.ts and under a test with a fake `fetch`.
+//
+// Every request is authenticated here: a signed session cookie, then the host's membership list
+// (auth/membership.ts). A visitor with neither is sent to the site's login page; nothing in the
+// domain is read or changed before that. Posts must come from this site (the cookie is SameSite=Lax
+// and the Origin header is checked too).
+import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
+import type { HostClient } from "@hecks/client";
+
+import { authSecret, membershipCheck } from "./auth/membership.ts";
+import type { Membership } from "./auth/membership.ts";
+import { readSession } from "./auth/session.ts";
+import { signIn } from "./auth/sso.ts";
+import { idOf, instanceIn, runCommand } from "./commands.ts";
+import type { State } from "./commands.ts";
+import { EDITOR } from "./config.ts";
+import { hostClient } from "./host.ts";
+import { SCHEMA } from "./schema.ts";
+import type { Aggregate, Command } from "./schema.ts";
+import { commandArguments, parseForm } from "./ui/input.ts";
+import { commandPage, detailPage, home, listPage, notFound } from "./ui/pages.ts";
+import type { Submitted } from "./ui/pages.ts";
+import { href } from "./ui/html.ts";
+
+export interface AppOptions {
+  /** The host's address, when not read from the environment variable the Editor row names. */
+  url?: string;
+  fetch?: typeof fetch;
+  secret?: string;
+  now?: () => number;
+  membership?: Membership;
+}
+
+const html = (body: string, status = 200): Response =>
+  new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+
+const redirect = (location: string, status = 303, cookie?: string): Response => {
+  const headers = new Headers({ Location: location });
+  if (cookie) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status, headers });
+};
+
+/** A post is refused when the browser says it came from another site. */
+function sameSite(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (origin) return new URL(origin).host === new URL(request.url).host;
+  return (request.headers.get("sec-fetch-site") ?? "same-origin") !== "cross-site";
+}
+
+/** The editor, as a handler. */
+export function createApp(options: AppOptions = {}): (request: Request) => Promise<Response> {
+  const secret = options.secret ?? authSecret();
+  const now = options.now ?? Date.now;
+  const membership = options.membership ?? membershipCheck({ url: options.url, fetch: options.fetch, secret, now });
+  const client = hostClient({ url: options.url, fetch: options.fetch });
+
+  async function handle(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
+    if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return html(notFound(path), 404);
+
+    const email = readSession(request.headers.get("cookie"), secret, now);
+    if (!email || !(await membership.isAdmitted(email))) {
+      return request.method === "GET" ? redirect(EDITOR.login, 302) : new Response("Sign in again.", { status: 403 });
+    }
+    if (request.method === "POST" && !sameSite(request)) return new Response("Cross-site post refused.", { status: 403 });
+    const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
+    return route(client, request, url, segments);
+  }
+
+  return async (request) => {
+    try {
+      return await handle(request);
+    } catch (err) {
+      if (err instanceof DomainUnavailable) return html(notFound(`The domain could not be reached: ${err.message}`), 502);
+      throw err;
+    }
+  };
+}
+
+async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
+  const result = await signIn(url.searchParams.get("token"), secret, membership, now);
+  if (!result.ok) return new Response(result.message, { status: result.status });
+  return redirect(result.location, 302, result.cookie);
+}
+
+function route(client: HostClient, request: Request, url: URL, segments: string[]): Promise<Response> | Response {
+  const [name, verb, ...rest] = segments;
+  if (segments.length === 0) return html(home());
+  const agg = SCHEMA.aggregates.find((candidate) => candidate.name === name);
+  if (!agg) return html(notFound(`No aggregate ${name}.`), 404);
+  if (verb === undefined) return list(client, agg, url);
+  if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null);
+  if (request.method === "POST") return post(client, request, agg, verb, rest);
+  if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(agg, verb, rest[0]);
+  return html(notFound(`No page ${segments.join("/")}.`), 404);
+}
+
+async function list(client: HostClient, agg: Aggregate, url: URL): Promise<Response> {
+  const query = agg.queries.find((candidate) => candidate.name === url.searchParams.get("query")) ?? null;
+  const form = parseForm(url.search.slice(1));
+  const args = query ? commandArguments(agg, query.attributes, form) : {};
+  const asked = query !== null && (query.attributes.length === 0 || Object.keys(args).length > 0);
+  if (query && !asked) return html(listPage(agg, [], query, null));
+  try {
+    const rows = await rowsFor(client, agg, asked ? query : null, args);
+    return html(listPage(agg, rows, query, null));
+  } catch (err) {
+    if (err instanceof DomainRefusal) return html(listPage(agg, [], query, err.message), 200);
+    throw err;
+  }
+}
+
+async function rowsFor(client: HostClient, agg: Aggregate, query: { name: string } | null, args: State): Promise<[string, State][]> {
+  if (!query) return client.instancesOf(await client.read(), agg.name);
+  const rows = rowsOf(await client.query(`${agg.name}.${query.name}`, args), `${agg.name}.${query.name}`) ?? [];
+  return rows.flatMap((row): [string, State][] => {
+    const id = idOf(agg, row);
+    return id === null ? [] : [[id, row]];
+  });
+}
+
+async function detail(client: HostClient, agg: Aggregate, id: string, shown: Submitted | null, status = 200): Promise<Response> {
+  const values = instanceIn(client, await client.read(), agg, id);
+  if (!values) return html(notFound(`No ${agg.name} ${id}.`), 404);
+  return html(detailPage(agg, id, values, shown), status);
+}
+
+function commandView(agg: Aggregate, verb: string, name: string): Response {
+  const command = commandFor(agg, verb, name);
+  if (!command) return html(notFound(`No command ${name}.`), 404);
+  return html(commandPage(agg, command, href(agg.name, verb, name), null));
+}
+
+/** The command a `new` (creating) or `run` (acting on another aggregate) path names, or null. */
+function commandFor(agg: Aggregate, verb: string, name: string): Command | null {
+  const command = agg.commands.find((candidate) => candidate.name === name);
+  if (!command) return null;
+  if (verb === "new") return command.creates ? command : null;
+  if (verb === "run") return !command.creates && command.on !== agg.name ? command : null;
+  return command.on === agg.name ? command : null;
+}
+
+async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[]): Promise<Response> {
+  const onInstance = verb === "id" && rest.length === 2;
+  const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
+  if (!command) return html(notFound("No such command."), 404);
+  const form = parseForm(await request.text());
+  const args = commandArguments(agg, command.attributes, form);
+  const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
+  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : await runCommand(client, agg, command, args, to);
+  if (outcome.ok) return redirect(href(agg.name, "id", outcome.id));
+  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to } };
+  if (onInstance) return detail(client, agg, rest[0], shown, 422);
+  return html(commandPage(agg, command, href(agg.name, verb, command.name), shown), 422);
+}

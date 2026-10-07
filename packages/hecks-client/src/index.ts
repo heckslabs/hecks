@@ -1,7 +1,7 @@
 export { HostClient, createClient } from "./client.js";
 export type { ClientOptions, Command } from "./client.js";
-export { instancesOf, text, whole, optionalWhole } from "./answer.js";
-export type { Answer, Refusal } from "./answer.js";
+export { instancesOf, rowsOf, text, whole, optionalWhole } from "./answer.js";
+export type { Answer, QueryResult, Refusal } from "./answer.js";
 export { DomainRefusal, DomainUnavailable, refusalOf } from "./errors.js";
 export { createResilientFetch, ResilientFetchError } from "./resilientFetch.js";
 export type { ResilientFetch, ResilientFetchConfig, ResilientRequest } from "./resilientFetch.js";

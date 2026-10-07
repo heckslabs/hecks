@@ -1,0 +1,84 @@
+__BANNER__
+
+// A submitted form turned back into what a command takes. The form's inputs are named by dotted
+// path (see fields.ts); this reads them against the same attributes, so a nested value object comes
+// back nested and a run of repeatable rows comes back as a list. A row left entirely blank is not a
+// row, and an optional part left blank is left out; a required text part left blank is sent as
+// empty text so that the domain's own rule refuses it in its own words.
+import type { Aggregate, Attr } from "../schema.ts";
+
+export type Form = Map<string, string>;
+
+/** The fields of an `application/x-www-form-urlencoded` body, the last of a repeated name winning. */
+export function parseForm(body: string): Form {
+  const form: Form = new Map();
+  for (const [key, value] of new URLSearchParams(body)) form.set(key, value);
+  return form;
+}
+
+const blank = (value: unknown): boolean =>
+  value === "" ||
+  value === undefined ||
+  value === null ||
+  (Array.isArray(value) && value.every(blank)) ||
+  (typeof value === "object" && !Array.isArray(value) && Object.values(value as object).every(blank));
+
+function indices(form: Form, path: string): number[] {
+  const found = new Set<number>();
+  for (const key of form.keys()) {
+    const match = key.startsWith(`${path}.`) ? /^(\d+)(\.|$)/.exec(key.slice(path.length + 1)) : null;
+    if (match) found.add(Number(match[1]));
+  }
+  return [...found].sort((a, b) => a - b);
+}
+
+function text(attr: Attr, form: Form, path: string, optional: boolean): unknown {
+  const raw = form.get(path);
+  if (attr.kind === "boolean") return form.has(path);
+  if (raw === undefined || (raw === "" && optional)) return undefined;
+  if ((attr.kind === "integer" || attr.kind === "number") && raw.trim() !== "" && !Number.isNaN(Number(raw))) return Number(raw);
+  return raw;
+}
+
+function carried(form: Form, path: string): unknown {
+  const raw = form.get(`${path}.__json`);
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function object(agg: Aggregate, attr: Attr, form: Form, path: string, optional: boolean): unknown {
+  const built: Record<string, unknown> = {};
+  for (const part of agg.valueObjects[attr.type] ?? []) {
+    const value = build(agg, part, form, `${path}.`, optional);
+    if (value !== undefined) built[part.name] = value;
+  }
+  return Object.keys(built).length > 0 ? built : undefined;
+}
+
+function single(agg: Aggregate, attr: Attr, form: Form, path: string, optional: boolean): unknown {
+  if (attr.widget === "body") return carried(form, path);
+  return attr.kind === "object" ? object(agg, attr, form, path, optional) : text(attr, form, path, optional);
+}
+
+/** One attribute's value from the form, or undefined when it is to be left out. */
+export function build(agg: Aggregate, attr: Attr, form: Form, prefix: string, optionalAbove = false): unknown {
+  const path = `${prefix}${attr.name}`;
+  const optional = optionalAbove || attr.optional;
+  if (!attr.list) return single(agg, attr, form, path, optional);
+  const rows = indices(form, path).map((index) => single(agg, attr, form, `${path}.${index}`, optional));
+  return rows.filter((row) => !blank(row));
+}
+
+/** The arguments a command takes, from a submitted form. */
+export function commandArguments(agg: Aggregate, attrs: Attr[], form: Form): Record<string, unknown> {
+  const args: Record<string, unknown> = {};
+  for (const attr of attrs) {
+    const value = build(agg, attr, form, "");
+    if (value !== undefined) args[attr.name] = value;
+  }
+  return args;
+}

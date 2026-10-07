@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **`project_site --editor=<dir>` generates a content editor from the domain's bluebook (ADR 0094).** A project that declares an `Editor` row (the domain's directory and chapter, where the editor is served, its session cookie, the host's address variable, the login page, the roles) gets a small Node/TypeScript package: a server on node's own `http` with no framework, a `schema.ts` that carries the chapter's aggregates, value objects, lifecycles, commands and queries as one typed constant, and server-rendered pages read from it (a nav of aggregates, a list from a query, a detail page, a form per command). Value-object attributes are nested fieldsets, `list_of` attributes are repeatable rows, lifecycle states are badges, and a refusal is shown inline on the form. The editor signs people in through the site's admin hand-off and checks the host's members list on every request. A `Body` attribute is shown read-only until its editor widget lands. `--check` covers the files; the domain holds no editor data.
+- **`@hecks/client`: `HostClient#query(name, args?)` and `rowsOf(answer, name?)`.** The host's `/dispatch` already answers `{"query": ..., "args": ...}`; the client now asks it, and `rowsOf` reads the rows of the answer or throws `DomainRefusal` when the host refused the question. `Answer` gains an optional `queries` list. Nothing that was there changes.
+
 ### Fixed
 
 - The generated CMS Dockerfile fetches the RDS CA bundle with `ADD --chmod=0644`. A plain `ADD` of a URL leaves the file readable by root only, so the CMS (which runs as `node`) failed at boot with `EACCES` on `rds-global-bundle.pem`.

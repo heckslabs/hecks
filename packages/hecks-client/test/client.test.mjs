@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
-import { createClient, DomainRefusal, DomainUnavailable, HostClient } from "../dist/index.js";
+import { createClient, DomainRefusal, DomainUnavailable, HostClient, rowsOf } from "../dist/index.js";
 import { fakeHost } from "./fakeHost.mjs";
 import { runEventScenario } from "./scenario.mjs";
 
@@ -235,5 +235,47 @@ describe("against the in-process host", () => {
     const host = fakeHost();
     await runEventScenario(new HostClient({ domain: "CheckoutFixture", url: URL_, role: "Organizer", fetch: host.fetch }));
     assert.ok(host.requests.every((body) => body.read === true || body.role === "Organizer"));
+  });
+});
+
+describe("query", () => {
+  it("posts the qualified question with its arguments and nothing else", async () => {
+    const { fetch, sent } = answering({ queries: [{ query: "Shop::Item.Open", rows: [] }] });
+    await clientFor(fetch, { role: "Organizer" }).query("Item.Open", { cap: 3 });
+    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: { cap: 3 } }]);
+  });
+
+  it("sends empty arguments by default", async () => {
+    const { fetch, sent } = answering({ queries: [] });
+    await clientFor(fetch).query("Shop::Item.Open");
+    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: {} }]);
+  });
+
+  it("reads the rows of the answer, bare or qualified", async () => {
+    const rows = [{ name: { value: "Yoga" } }];
+    const { fetch } = answering({ queries: [{ query: "Shop::Item.Open", rows }] });
+    const answer = await clientFor(fetch).query("Item.Open");
+    assert.deepEqual(rowsOf(answer, "Item.Open"), rows);
+    assert.deepEqual(rowsOf(answer, "Shop::Item.Open"), rows);
+    assert.deepEqual(rowsOf(answer), rows);
+    assert.equal(rowsOf(answer, "Item.Other"), null);
+  });
+
+  it("turns a refused question into a DomainRefusal carrying the host's words", async () => {
+    const error = 'Item has no query "Gone"';
+    const refused = { refusals: [{ verb: "Item.Gone", kind: "UnknownVerb", error }], queries: [{ query: "Item.Gone", rows: null, error }] };
+    const { fetch } = answering(refused);
+    const answer = await clientFor(fetch).query("Item.Gone");
+    assert.throws(() => rowsOf(answer, "Item.Gone"), (err) => err instanceof DomainRefusal && err.kind === "UnknownVerb" && err.message === error);
+  });
+
+  it("is answered by the in-process host", async () => {
+    const host = fakeHost();
+    const client = new HostClient({ domain: "CheckoutFixture", url: URL_, fetch: host.fetch });
+    await client.dispatch("Event.Schedule", { slug: { value: "a" } });
+    await client.dispatch("Event.Schedule", { slug: { value: "b" } });
+    await client.dispatch("Event.Close", {}, "b");
+    assert.deepEqual(rowsOf(await client.query("Event.Open"), "Event.Open").map((row) => row.slug.value), ["a"]);
+    await assert.rejects(async () => rowsOf(await client.query("Event.Nope"), "Event.Nope"), DomainRefusal);
   });
 });

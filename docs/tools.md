@@ -80,7 +80,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 <!-- generated:begin tools section=Site -->
 | launcher | replaces |
 |---|---|
-| `hecks site site_projection.project_site <domain> [out=] [template=] [cms=] [root=] [extension=] [--check]` | (new: no `bin/` script) |
+| `hecks site site_projection.project_site <domain> [out=] [template=] [cms=] [root=] [editor=] [extension=] [--check]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 `project_site` has no retired script to point at, so its row names `(new)` for the script; see

@@ -1,0 +1,79 @@
+__BANNER__
+
+// Is this person still an editor? The domain's membership list decides, not this server. Signing in
+// (auth/sso.ts) proved the person was admitted then; this asks again on every request, so that
+// disabling or removing someone locks them out at once, not when their session runs out.
+//
+// The question is the host's members list, asked with a short account token signed by the secret the
+// host checks (AUTH_SECRET here is the host's SESSION_SECRET). The person counts when the list holds
+// their email with one of the configured roles and not disabled. The answer is remembered for a
+// minute per email so each request does not cost a round trip; a question that cannot be asked is
+// answered no.
+import { accountToken, resolveAccountCookieName } from "@hecks/client";
+
+import { EDITOR } from "../config.ts";
+import { hostUrl } from "../host.ts";
+
+const TOKEN_TTL_SECONDS = 60;
+
+/** The secret shared with the host. Outside production it falls back to the host's development default. */
+export function authSecret(): string {
+  return process.env.AUTH_SECRET || (process.env.NODE_ENV === "production" ? "" : "dev_only_change_me_in_production");
+}
+
+export interface Membership {
+  /** True while `email` holds an editor role on the host; false when it does not, or cannot be asked. */
+  isAdmitted(email: string): Promise<boolean>;
+}
+
+export interface MembershipOptions {
+  url?: string;
+  secret?: string;
+  fetch?: typeof fetch;
+  now?: () => number;
+}
+
+/** True when the host's members list holds `email` with an editor role and not disabled. */
+export function holdsRole(rows: unknown, email: string): boolean {
+  const roles: readonly string[] = EDITOR.roles;
+  return (
+    Array.isArray(rows) &&
+    rows.some(
+      (row: any) =>
+        typeof row?.email === "string" && row.email.trim().toLowerCase() === email && roles.includes(row.role) && row.disabled !== true,
+    )
+  );
+}
+
+/** A membership check with its own one-minute memory. */
+export function membershipCheck(options: MembershipOptions = {}): Membership {
+  const remembered = new Map<string, { admitted: boolean; until: number }>();
+  const now = options.now ?? Date.now;
+  const send = options.fetch ?? fetch;
+
+  async function ask(email: string): Promise<boolean> {
+    const secret = options.secret ?? authSecret();
+    if (!secret) return false;
+    const cookieName = resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie);
+    try {
+      const res = await send(`${hostUrl({ url: options.url })}${EDITOR.membersPath}`, {
+        headers: { Cookie: `${cookieName}=${accountToken(secret, email, TOKEN_TTL_SECONDS)}` },
+        signal: AbortSignal.timeout(EDITOR.timeoutMs),
+      });
+      return res.ok && holdsRole(await res.json().catch(() => null), email);
+    } catch {
+      return false;
+    }
+  }
+
+  return {
+    async isAdmitted(email: string): Promise<boolean> {
+      const key = email.trim().toLowerCase();
+      const hit = remembered.get(key);
+      if (hit && hit.until > now()) return hit.admitted;
+      const admitted = await ask(key);
+      remembered.set(key, { admitted, until: now() + EDITOR.rememberMs });
+      return admitted;
+    },
+  };
+}
