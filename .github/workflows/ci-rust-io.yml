@@ -123,9 +123,9 @@ jobs:
       matrix:
         include:
           - leg: a
-            specs: spec/rust_conformance_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb
+            specs: spec/rust_conformance_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
           - leg: b
-            specs: spec/rust_conformance_fuzz_spec.rb spec/semantics_corpus_spec.rb spec/rust_generated/domain_feature_exclusivity_spec.rb
+            specs: spec/rust_conformance_fuzz_spec.rb spec/rust_generated/domain_feature_exclusivity_spec.rb
 
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
@@ -258,7 +258,7 @@ jobs:
       # spec/rust_generated/ also holds fast non-io specs that already run in parallel. Single
       # process within a leg: concurrent cargo builds would race on rust/.
       - name: "rspec: this leg's Rust io specs (serial — shared-file mutation)"
-        run: bundle exec rspec --tag io ${{ matrix.specs }}
+        run: bundle exec rspec --tag io --profile 8 ${{ matrix.specs }}
 
       # Push only on a miss, and from one leg: two legs pushing the same tag would race.
       # `always()` so a spec failure still publishes a freshly built crate for sibling jobs.
