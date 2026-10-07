@@ -10,6 +10,7 @@ __BANNER__
 import type { Answer, HostClient } from "@hecks/client";
 import { DomainUnavailable } from "@hecks/client";
 
+import { qualified } from "./names.ts";
 import type { Aggregate, Command } from "./schema.ts";
 
 export type State = Record<string, unknown>;
@@ -26,14 +27,32 @@ export const idOf = (agg: Aggregate, state: State | undefined): string | null =>
 
 /** The state of one instance in an answer, or undefined when the answer holds none by that id. */
 export function instanceIn(client: HostClient, answer: Answer, agg: Aggregate, id: string): State | undefined {
-  return client.instancesOf(answer, agg.name).find(([key]) => key === id)?.[1];
+  return client.instancesOf(answer, qualified(agg)).find(([key]) => key === id)?.[1];
+}
+
+/**
+ * A client that asks the host to read once and remembers the answer, for a request that only reads:
+ * the page and the navigation's counts then come from one read of the host.
+ */
+export function reading(client: HostClient): HostClient {
+  let held: Promise<Answer> | undefined;
+  return new Proxy(client, {
+    get(target, key) {
+      if (key === "read") return () => (held ??= target.read());
+      const member = Reflect.get(target, key, target);
+      return typeof member === "function" ? member.bind(target) : member;
+    },
+  });
 }
 
 const sameState = (a: State | undefined, b: State | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/** Whether the host's refusal names this aggregate's verb: by its chapter too when the editor spans several. */
 function refusedLast(answer: Answer, agg: Aggregate, command: Command): boolean {
   const last = (answer.refusals ?? []).at(-1);
-  return last !== undefined && String(last.verb ?? "").replace(/^.*::/, "") === `${agg.name}.${command.name}`;
+  if (last === undefined) return false;
+  const verb = String(last.verb ?? "");
+  return verb.replace(/^.*::/, "") === `${agg.name}.${command.name}` && (!agg.chapter || !verb.includes("::") || verb.startsWith(`${agg.chapter}::`));
 }
 
 /** Whether `after` shows the command took effect, given the instance as it was `before`. */
@@ -87,7 +106,7 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
   try {
     const id = to ?? idOf(agg, args);
     const before = id ? instanceIn(client, await client.read(), agg, id) : undefined;
-    const answer = await client.dispatch(`${agg.name}.${command.name}`, args, to, command.role ?? undefined);
+    const answer = await client.dispatch(`${qualified(agg)}.${command.name}`, args, to, command.role ?? undefined);
     const after = id ? instanceIn(client, answer, agg, id) : undefined;
     if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
     return { ok: false, message: refusalMessage(answer, command), field: refusedField((answer.refusals ?? []).at(-1), command) };

@@ -3,7 +3,10 @@ __BANNER__
 // The pages: an overview of what the domain holds, a list per aggregate (table.ts), one instance
 // (detail.ts), and a form per command generated from the command's attributes. Every page is built
 // into the frame in shell.ts. Lifecycle state is a badge, and a lifecycle move is offered only from
-// the states it applies in.
+// the states it applies in. An editor of several chapters groups the overview and the navigation by
+// chapter and puts the chapter in each address.
+import { EDITOR } from "../config.ts";
+import { at, keyOf } from "../names.ts";
 import type { Aggregate, Attr, Command, Query } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { confirmDialog, detailPage as detail } from "./detail.ts";
@@ -11,7 +14,9 @@ import type { Submitted } from "./detail.ts";
 import { fields } from "./fields.ts";
 import type { Invalid } from "./fields.ts";
 import { esc, href, refusal } from "./html.ts";
-import { countMark, page } from "./shell.ts";
+import type { View } from "./paging.ts";
+import type { Choices } from "./pickers.ts";
+import { countMark, groupOf, groups, onlyFor, page } from "./shell.ts";
 import type { Crumb } from "./shell.ts";
 import { listPage as list } from "./table.ts";
 import { commandLabel, label, plural } from "./words.ts";
@@ -26,16 +31,28 @@ const OVERVIEW: Crumb = ["Overview", href()];
 const head = (title: string, note: string): string =>
   `<div class="mb-6"><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>`;
 
+/** The trail to an aggregate's list: the overview, then the chapter when there are several. */
+const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name), href(...at(agg))]];
+
+/** The words a page of an aggregate carries in its title: the plural, and the chapter when it could be mistaken for another. */
+const titleOf = (agg: Aggregate): string => (agg.chapter ? `${plural(agg.name)} (${label(agg.chapter)})` : plural(agg.name));
+
+function overviewItems(aggregates: Aggregate[]): string {
+  const items = aggregates.map((agg) => {
+    const note = agg.description ? `<span class="text-muted">${esc(agg.description)}</span>` : "";
+    return onlyFor(agg, `<li class="flex items-center justify-between gap-4"><a class="grid flex-1 gap-0.5 p-4 hover:bg-base-200/60" href="${esc(href(...at(agg)))}"><span class="text-base font-semibold">${esc(plural(agg.name))}</span>${note}</a><span class="pr-4 tabular-nums text-muted">${countMark(keyOf(agg))}</span></li>`);
+  });
+  return `<ul class="divide-y divide-base-300 border-y border-base-300 bg-base-100">\n${items.join("\n")}\n</ul>`;
+}
+
 /** The overview: every aggregate the domain declares, with what it is and how much of it there is. */
 export function home(): string {
-  const items = SCHEMA.aggregates.map((agg) => {
-    const note = agg.description ? `<span class="text-muted">${esc(agg.description)}</span>` : "";
-    return `<li class="flex items-center justify-between gap-4"><a class="grid flex-1 gap-0.5 p-4 hover:bg-base-200/60" href="${esc(href(agg.name))}"><span class="text-base font-semibold">${esc(plural(agg.name))}</span>${note}</a><span class="pr-4 tabular-nums text-muted">${countMark(agg.name)}</span></li>`;
+  const sections = groups().map(([chapter, aggregates]) => {
+    if (chapter === null) return overviewItems(aggregates);
+    return groupOf(chapter, `<h2 class="mb-2 mt-8 text-lg">${esc(label(chapter))}</h2>\n${overviewItems(aggregates)}`);
   });
-  const body = `${head(SCHEMA.domain, "Choose what to edit.")}
-<ul class="divide-y divide-base-300 border-y border-base-300 bg-base-100">
-${items.join("\n")}
-</ul>`;
+  const body = `${head(SCHEMA.chapters ? EDITOR.brand : SCHEMA.domain, "Choose what to edit.")}
+${sections.join("\n")}`;
   return page("Overview", body, { crumbs: [["Overview"]] });
 }
 
@@ -46,15 +63,15 @@ export function notFound(what: string): string {
   return page("Not found", body, { crumbs: [OVERVIEW, ["Not found"]] });
 }
 
-/** An aggregate's list. */
-export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null, asked = true): string {
-  return page(plural(agg.name), list(agg, rows, query, error, asked), { active: agg.name, crumbs: [OVERVIEW, [plural(agg.name)]] });
+/** An aggregate's list: one page of its rows, with the filters in `view`. */
+export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null, asked: boolean, view: View, choices: Choices = {}): string {
+  return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name)]] });
 }
 
 /** One instance. */
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null): string {
-  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [id]];
-  return page(id, detail(agg, id, values, shown), { active: agg.name, crumbs });
+  const crumbs: Crumb[] = [...trail(agg), [id]];
+  return page(id, detail(agg, id, values, shown), { active: keyOf(agg), crumbs });
 }
 
 /**
@@ -77,46 +94,49 @@ function invalidOf(own: Submitted | null): Invalid | null {
   return own?.field && own.message ? { field: own.field, message: own.message.replace(/^.*?: /s, "") } : null;
 }
 
+/** The buttons of a command's form: the command itself, and for one that makes something, the same and then another. */
+function submits(agg: Aggregate, command: Command): string {
+  const text = esc(commandLabel(agg, command));
+  if (command.destructive) return `<button type="submit" class="btn btn-error" data-busy data-confirm="confirm-${esc(command.name)}">${text}</button>`;
+  const again = command.creates ? `<button type="submit" class="btn" name="__again" value="1" data-busy>Save and add another</button>` : "";
+  return `${again}<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
+}
+
 /** A form for one command; `to` adds the id input a command acting on another aggregate needs. */
-export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false, cancel = href(agg.name)): string {
+export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false, cancel = href(...at(agg)), choices: Choices = {}): string {
   const own = shown && shown.command === command.name ? shown : null;
   const note = command.goal ? `<p class="mb-4 max-w-prose text-muted">${esc(command.goal)}.</p>` : "";
   const target = to
     ? `<div class="my-4 grid gap-1"><label for="f-to" class="font-semibold">${esc(command.on ?? "")} id <span class="text-primary" aria-hidden="true">*</span></label><input type="text" class="input w-full max-w-xl" id="f-to" name="__to" value="${esc(own?.values.__to ?? "")}"></div>`
     : "";
-  const confirm = command.destructive ? ` data-confirm="confirm-${esc(command.name)}"` : "";
-  const text = esc(commandLabel(agg, command));
-  const submit = command.destructive
-    ? `<button type="submit" class="btn btn-error" data-busy${confirm}>${text}</button>`
-    : `<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
   const dialog = command.destructive ? confirmDialog(agg, command, action, "", FORM) : "";
   return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form>
 ${refusal(own?.message ?? null)}${note}
 ${target}
-${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own))}
-<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a>${submit}</div>
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices)}
+<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a>${submits(agg, command)}</div>
 </form>
 ${dialog}`;
 }
 
 /** The page of one creating command (or a command that acts on another aggregate's instance). */
-export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null): string {
-  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [commandLabel(agg, command)]];
-  const form = commandForm(agg, command, action, shown, {}, command.on !== null && command.on !== agg.name);
-  return page(commandLabel(agg, command), `${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: agg.name, crumbs });
+export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null, choices: Choices = {}): string {
+  const crumbs: Crumb[] = [...trail(agg), [commandLabel(agg, command)]];
+  const form = commandForm(agg, command, action, shown, {}, command.on !== null && command.on !== agg.name, href(...at(agg)), choices);
+  return page(commandLabel(agg, command), `${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: keyOf(agg), crumbs });
 }
 
 /** The page of a command that acts on one instance: its form, or the question a destructive one asks. */
-export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null): string {
-  const action = href(agg.name, "id", id, command.name);
-  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [id, href(agg.name, "id", id)], [commandLabel(agg, command)]];
+export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}): string {
+  const action = href(...at(agg), "id", id, command.name);
+  const crumbs: Crumb[] = [...trail(agg), [id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
   const title = head(commandLabel(agg, command), `${label(agg.name)} ${id}`);
-  const cancel = href(agg.name, "id", id);
+  const cancel = href(...at(agg), "id", id);
   if (command.destructive && command.attributes.length === 0) {
     const own = shown && shown.command === command.name ? shown.message : null;
     const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${refusal(own)}<p>${esc(command.goal ?? `This applies to ${id}`)}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
 <div class="mt-6 flex justify-end gap-2"><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a><button type="submit" class="btn btn-error" data-busy>${esc(commandLabel(agg, command))}</button></div></form>`;
-    return page(commandLabel(agg, command), `${title}\n${ask}`, { active: agg.name, crumbs });
+    return page(commandLabel(agg, command), `${title}\n${ask}`, { active: keyOf(agg), crumbs });
   }
-  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, values, false, cancel)}`, { active: agg.name, crumbs });
+  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, values, false, cancel, choices)}`, { active: keyOf(agg), crumbs });
 }

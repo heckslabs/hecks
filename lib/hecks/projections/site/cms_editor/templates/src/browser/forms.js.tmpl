@@ -4,6 +4,8 @@ __BANNER__
 // before a destructive command, a button that says it is busy while a form is sent, and focus on the
 // first thing that needs fixing. A form posts the same without any of it.
 
+import { mountPickers, unmountPickers } from "./pickers.js";
+
 const icon = (name) => `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
 
 const sanitize = (text) => text.replace(/[^A-Za-z0-9]+/g, "-");
@@ -72,10 +74,16 @@ function renumber(repeat) {
 function blank(row) {
   const copy = row.cloneNode(true);
   copy.querySelector(":scope > [data-tools]")?.remove();
+  unmountPickers(copy);
   for (const input of copy.querySelectorAll("input")) {
     if (input.type === "checkbox") input.checked = false;
     else input.value = "";
+    if (input.dataset.initial !== undefined) input.dataset.initial = "";
     input.removeAttribute("aria-invalid");
+  }
+  for (const select of copy.querySelectorAll("select")) {
+    select.selectedIndex = 0;
+    select.removeAttribute("aria-invalid");
   }
   for (const nested of copy.querySelectorAll("[data-rows]")) [...nested.children].slice(1).forEach((extra) => extra.remove());
   return copy;
@@ -104,6 +112,7 @@ function repeating(repeat) {
     rows.append(copy);
     dress(copy);
     renumber(repeat);
+    mountPickers(copy);
     copy.querySelector("input")?.focus();
     say(`Added ${noun} ${at + 1}.`);
   });
@@ -127,6 +136,7 @@ function repeating(repeat) {
 function remove(repeat, rows, row, noun) {
   if (rows.children.length === 1) {
     for (const input of row.querySelectorAll("input")) input.type === "checkbox" ? (input.checked = false) : (input.value = "");
+    for (const select of row.querySelectorAll("select")) select.selectedIndex = 0;
     say(`Cleared ${noun}.`);
     return;
   }

@@ -4,10 +4,16 @@
 // complete HTML that works without it; this only adds behaviour. The rich-text editor is a larger
 // piece of code, loaded only on a page that has a body to write.
 import { enhanceForms } from "./forms.js";
+import { rememberFilters } from "./lists.js";
+import { enhanceMoments } from "./moments.js";
+import { enhancePickers } from "./pickers.js";
 import { enhanceShell } from "./shell.js";
 import { adoptToasts } from "./toast.js";
 
+rememberFilters();
 enhanceShell();
+enhanceMoments();
+enhancePickers();
 enhanceForms();
 adoptToasts();
 

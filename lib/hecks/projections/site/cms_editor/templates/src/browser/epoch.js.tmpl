@@ -1,0 +1,61 @@
+__BANNER__
+
+// Moments between the domain and the person. The domain holds whole seconds since 1970 UTC; a person
+// reads and writes a date and a time in their own time zone. These functions turn one into the other
+// with the browser's own zone (the `TZ` environment variable under node), touch no page, and are held
+// under node in several zones. A date (no time) is the start of that day in the person's zone.
+
+const pad = (number, width = 2) => String(number).padStart(width, "0");
+
+/** The moment as a native input holds it: `YYYY-MM-DDTHH:MM` (`datetime-local`) or `YYYY-MM-DD` (`date`), in the local zone. */
+export function toLocal(seconds, mode) {
+  const moment = new Date(seconds * 1000);
+  const day = `${pad(moment.getFullYear(), 4)}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`;
+  return mode === "date" ? day : `${day}T${pad(moment.getHours())}:${pad(moment.getMinutes())}`;
+}
+
+/** The whole seconds a native input's text stands for in the local zone, or null when it is not a date. */
+export function fromLocal(text, mode) {
+  const found = /^(\d{4,6})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(text ?? "");
+  if (!found) return null;
+  const [year, month, day] = found.slice(1, 4).map(Number);
+  const moment = new Date(2000, 0, 1, 0, 0, 0, 0);
+  moment.setFullYear(year, month - 1, day);
+  if (mode !== "date") moment.setHours(Number(found[4] ?? 0), Number(found[5] ?? 0), 0, 0);
+  const seconds = Math.floor(moment.getTime() / 1000);
+  return Number.isFinite(seconds) && moment.getDate() === day ? seconds : null;
+}
+
+/** The moment in the person's own words and zone: `Oct 7, 2026` or `Oct 7, 2026, 2:30 PM`. */
+export function formatMoment(seconds, mode) {
+  const style = mode === "date" ? { dateStyle: "medium" } : { dateStyle: "medium", timeStyle: "short" };
+  return new Intl.DateTimeFormat(undefined, style).format(new Date(seconds * 1000));
+}
+
+const UNITS = [
+  ["year", 31_536_000],
+  ["month", 2_592_000],
+  ["day", 86_400],
+  ["hour", 3_600],
+  ["minute", 60],
+];
+
+const startOfDay = (moment) => new Date(moment.getFullYear(), moment.getMonth(), moment.getDate()).getTime();
+
+/** How far from `now` (whole seconds) the moment is, in words: `in 3 days`, `2 hours ago`, `yesterday`. */
+export function relative(seconds, now, mode) {
+  const words = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (mode === "date") return words.format(Math.round((startOfDay(new Date(seconds * 1000)) - startOfDay(new Date(now * 1000))) / 86_400_000), "day");
+  const apart = seconds - now;
+  const [unit, size] = UNITS.find(([, span]) => Math.abs(apart) >= span) ?? ["second", 1];
+  return words.format(Math.trunc(apart / size), unit);
+}
+
+/** The person's zone as words: `Europe/Paris (UTC+02:00)`, the offset being the one in force at `seconds`. */
+export function zoneLabel(seconds) {
+  const minutes = -new Date(seconds * 1000).getTimezoneOffset();
+  const sign = minutes < 0 ? "-" : "+";
+  const offset = `UTC${sign}${pad(Math.floor(Math.abs(minutes) / 60))}:${pad(Math.abs(minutes) % 60)}`;
+  const name = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return name ? `${name} (${offset})` : offset;
+}

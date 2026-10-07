@@ -11,12 +11,14 @@
 // button on a narrow one. It works with no script (the checkbox is the state); the script adds the
 // button, the focus handling and Escape.
 import { EDITOR } from "../config.ts";
+import { at, keyOf, mayEdit } from "../names.ts";
 import { SCHEMA } from "../schema.ts";
+import type { Aggregate } from "../schema.ts";
 import { assetUrl, hasLogo, isBuilt } from "../assets.ts";
 import type { Flash } from "../flash.ts";
 import { esc, href } from "./html.ts";
 import { SPRITE, icon } from "./icons.ts";
-import { plural } from "./words.ts";
+import { label, plural } from "./words.ts";
 
 /** One step of the trail above a page's title; the last has no address. */
 export type Crumb = [label: string, to?: string];
@@ -35,8 +37,20 @@ const MARK = {
   count: (name: string) => `<!--editor:count:${name}-->`,
 };
 
-/** The place a page leaves for the number of instances an aggregate holds. */
+/** The place a page leaves for the number of instances an aggregate holds, by `keyOf`. */
 export const countMark = MARK.count;
+
+/** `html` as the part of a page only the people who may edit `agg` see: `decorate` cuts it out for the rest. */
+export const onlyFor = (agg: Aggregate, html: string): string => `<!--editor:only:${keyOf(agg)}-->${html}<!--editor:/only:${keyOf(agg)}-->`;
+
+/** `html` as the part of a page that belongs to a chapter, cut out when the person may edit none of it. */
+export const groupOf = (chapter: string, html: string): string => `<!--editor:group:${chapter}-->${html}<!--editor:/group:${chapter}-->`;
+
+/** The chapters in the order they are shown, each with the aggregates it holds; one nameless group for an editor of one chapter. */
+export function groups(): [chapter: string | null, aggregates: Aggregate[]][] {
+  if (!SCHEMA.chapters) return [[null, SCHEMA.aggregates]];
+  return SCHEMA.chapters.map((chapter): [string, Aggregate[]] => [chapter, SCHEMA.aggregates.filter((agg) => agg.chapter === chapter)]);
+}
 
 function brandMark(extra: string): string {
   const logo = hasLogo() ? `<img class="size-7 rounded object-contain" src="${esc(assetUrl("logo"))}" alt="" width="28" height="28">` : "";
@@ -47,15 +61,22 @@ function navLink(to: string, text: string, current: boolean, extra = ""): string
   return `<li><a href="${esc(to)}"${current ? ' aria-current="page"' : ""}><span class="truncate">${esc(text)}</span>${extra}</a></li>`;
 }
 
+function navItems(aggregates: Aggregate[], active: string | undefined): string {
+  return aggregates
+    .map((agg) => onlyFor(agg, navLink(href(...at(agg)), plural(agg.name), keyOf(agg) === active, `<span class="ml-auto text-xs text-muted tabular-nums">${MARK.count(keyOf(agg))}</span>`)))
+    .join("\n");
+}
+
 function navigation(active: string | undefined): string {
-  const items = SCHEMA.aggregates.map((agg) =>
-    navLink(href(agg.name), plural(agg.name), agg.name === active, `<span class="ml-auto text-xs text-muted tabular-nums">${MARK.count(agg.name)}</span>`),
-  );
+  const sections = groups().map(([chapter, aggregates]) => {
+    const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(label(chapter))}</li>`;
+    const section = `${heading}\n${navItems(aggregates, active)}`;
+    return chapter === null ? section : groupOf(chapter, section);
+  });
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
 ${navLink(EDITOR.basePath, "Overview", active === undefined)}
-<li class="menu-title mt-4 px-3 text-muted">Content</li>
-${items.join("\n")}
+${sections.join("\n")}
 </ul>
 </nav>`;
 }
@@ -143,9 +164,29 @@ function notice(flash: Flash | null): string {
   return `<div class="${classes}" role="${role}" data-toast>${icon(mark)}<p>${esc(flash.message)}</p></div>`;
 }
 
+/** `html` without each stretch from `open` to the next `close`. */
+function cutBetween(html: string, open: string, close: string): string {
+  let text = html;
+  for (let start = text.indexOf(open); start !== -1; start = text.indexOf(open)) {
+    const end = text.indexOf(close, start);
+    text = end === -1 ? text.slice(0, start) + text.slice(start + open.length) : text.slice(0, start) + text.slice(end + close.length);
+  }
+  return text;
+}
+
+/** `html` without the parts only another role may see, and without the markers that held them. */
+function visibleTo(html: string, role: string | null): string {
+  const hidden = SCHEMA.aggregates.filter((agg) => !mayEdit(agg, role));
+  const gone = hidden.map((agg): [string, string] => [`<!--editor:only:${keyOf(agg)}-->`, `<!--editor:/only:${keyOf(agg)}-->`]);
+  const empty = (SCHEMA.chapters ?? []).filter((chapter) => SCHEMA.aggregates.every((agg) => agg.chapter !== chapter || hidden.includes(agg)));
+  const groups = empty.map((chapter): [string, string] => [`<!--editor:group:${chapter}-->`, `<!--editor:/group:${chapter}-->`]);
+  const cut = [...gone, ...groups].reduce((text, [open, close]) => cutBetween(text, open, close), html);
+  return cut.replace(/<!--editor:\/?(?:only|group):[^>]*-->/g, "");
+}
+
 /** `html` with the places the frame left filled for this request. */
 export function decorate(html: string, context: Context): string {
-  const counts = SCHEMA.aggregates.map((agg) => [MARK.count(agg.name), context.counts[agg.name] === undefined ? "" : String(context.counts[agg.name])] as const);
+  const counts = SCHEMA.aggregates.map((agg) => [MARK.count(keyOf(agg)), context.counts[keyOf(agg)] === undefined ? "" : String(context.counts[keyOf(agg)])] as const);
   const fills: (readonly [string, string])[] = [
     [MARK.person, esc(context.email)],
     [MARK.role, esc(context.role ?? "")],
@@ -153,5 +194,5 @@ export function decorate(html: string, context: Context): string {
     [MARK.flash, notice(context.flash)],
     ...counts,
   ];
-  return fills.reduce((text, [marker, value]) => text.split(marker).join(value), html);
+  return fills.reduce((text, [marker, value]) => text.split(marker).join(value), visibleTo(html, context.role));
 }

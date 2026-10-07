@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "hints"
+
 module Hecks
   module Projections
     module Site
@@ -13,7 +15,9 @@ module Hecks
         #
         # An attribute whose value object has the shape of a structured document, a `blocks`
         # list of a value object that has `kind` and `spans`, carries `widget: "body"` and is
-        # edited with the rich-text widget. The shape decides it, never a name.
+        # edited with the rich-text widget. The shape decides it, never a name. An integer that is a
+        # moment carries `widget: "date"` or `"datetime"`, and a text key with a `<kind>:` pattern
+        # carries `keys` (see `Hints`).
         class Attributes
           # The parts a value object needs for its list of blocks to be a document body's blocks.
           BLOCK_PARTS = %w[kind spans].freeze
@@ -26,6 +30,7 @@ module Hecks
           def initialize(objects)
             @by_name = objects.to_h { |object| [object.hecks_name, object] }
             @objects = @by_name.keys
+            @hints = Hints.new(@by_name)
           end
 
           # @param attribute [Bluebook::Attribute] a declared attribute
@@ -35,7 +40,7 @@ module Hecks
             return reference(attribute, type.target_name) if type.is_a?(Bluebook::Reference)
 
             entry = base(attribute, type.to_s, kind(type.to_s))
-            body?(attribute) ? entry.merge("widget" => "body") : entry
+            body?(attribute) ? entry.merge("widget" => "body") : entry.merge(@hints.of(attribute))
           end
 
           private

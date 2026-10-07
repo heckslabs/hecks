@@ -75,7 +75,7 @@ module Hecks
           # @return [Hash{String => Object}] the picture aggregate as the editor's schema names it
           def describe(agg, command, found)
             listing = agg["queries"].find { |query| query["attributes"].empty? }
-            { "aggregate" => agg["name"], "command" => command["name"], "fields" => found,
+            { "aggregate" => agg["name"], **agg.slice("chapter"), "command" => command["name"], "fields" => found,
               "listing" => listing && listing["name"] }
           end
         end

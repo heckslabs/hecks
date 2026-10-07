@@ -1,0 +1,96 @@
+__BANNER__
+
+// What a picker offers, and whether what was chosen is there. The offer is the target's own listing
+// query (or every instance when it declares none), read from the host as any other page is, and a
+// target the host cannot answer for is left without one, so its input stays a text box. A key is
+// checked against every instance the target holds, not only those on offer, so a retired record a
+// form already names is still a record that exists. Nothing here asks the domain to know about
+// pickers: the host answers the queries it already has.
+import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
+import type { HostClient } from "@hecks/client";
+
+import { leaf } from "./commands.ts";
+import type { State } from "./commands.ts";
+import type { Aggregate, Attr, Picker } from "./schema.ts";
+import { summaryText } from "./ui/outline.ts";
+import { OFFER_MAX, choiceText, targetKey, targetsOf } from "./ui/pickers.ts";
+import type { Choice, Choices, Target } from "./ui/pickers.ts";
+import { singular } from "./ui/words.ts";
+
+/** The words that name an instance: its label attribute when it has one that says more than the key. */
+function choiceOf(target: Target, row: State): Choice | null {
+  const key = leaf(row[target.key ?? ""]);
+  if (key === null) return null;
+  const words = target.label && target.label !== target.key ? summaryText(row[target.label]) : "";
+  return { key, label: words === "" ? key : words };
+}
+
+/** What `target` offers, or null when the host could not say. */
+async function offered(client: HostClient, target: Target): Promise<Choice[] | null> {
+  const name = targetKey(target);
+  try {
+    const rows = target.listing
+      ? (rowsOf(await client.query(`${name}.${target.listing}`, {}), `${name}.${target.listing}`) ?? [])
+      : client.instancesOf(await client.read(), name).map(([, state]) => state);
+    const found = rows.flatMap((row) => choiceOf(target, row) ?? []);
+    return found.sort((a, b) => choiceText(a).localeCompare(choiceText(b), undefined, { sensitivity: "base", numeric: true })).slice(0, OFFER_MAX);
+  } catch (err) {
+    if (err instanceof DomainRefusal || err instanceof DomainUnavailable) return null;
+    throw err;
+  }
+}
+
+/** What each picker among `attrs` offers, by target; a target the host could not answer for is absent. */
+export async function choicesFor(client: HostClient, agg: Aggregate, attrs: Attr[]): Promise<Choices> {
+  const targets = targetsOf(agg, attrs);
+  const found = await Promise.all(targets.map(async (target) => [targetKey(target), await offered(client, target)] as const));
+  return Object.fromEntries(found.filter((entry): entry is readonly [string, Choice[]] => entry[1] !== null));
+}
+
+/** A key that is not there, and the attribute of the form to mark. */
+export interface Unknown {
+  field: string;
+  message: string;
+}
+
+/** What `picker` makes of `key`: the target it must be an instance of, or a problem to say. */
+function resolve(picker: Picker, key: string): { target: Target; key: string } | string | null {
+  if (!picker.kinds) return picker.strict ? { target: picker, key } : null;
+  const colon = key.indexOf(":");
+  const kinds = picker.kinds.map((kind) => kind.kind);
+  const kind = picker.kinds.find((candidate) => candidate.kind === key.slice(0, Math.max(colon, 0)));
+  if (!kind) return `Start with one of ${kinds.join(", ")} and a colon, as in ${kinds[0]}:key.`;
+  return kind.target && kind.strict ? { target: kind, key: key.slice(colon + 1) } : null;
+}
+
+/** The keys the host holds for `target`, read once. */
+function holder(client: HostClient): (target: Target) => Promise<Set<string>> {
+  const answer = client.read();
+  return async (target) => new Set(client.instancesOf(await answer, targetKey(target)).map(([id]) => id));
+}
+
+/** Every key a form names that a strict picker's target does not hold, the first one found; null when all are there. */
+export async function unknownKey(client: HostClient, agg: Aggregate, attrs: Attr[], args: State): Promise<Unknown | null> {
+  const wanted: { field: string; target: Target; key: string }[] = [];
+  const problems: Unknown[] = [];
+  const walk = (list: Attr[], values: State, top?: string): void => {
+    for (const attr of list) {
+      const field = top ?? attr.name;
+      for (const item of [values[attr.name]].flat()) {
+        const key = leaf(item);
+        if (attr.picker && key !== null && key !== "") {
+          const next = resolve(attr.picker, key);
+          if (typeof next === "string") problems.push({ field, message: next });
+          else if (next) wanted.push({ field, ...next });
+        } else if (attr.kind === "object" && item && typeof item === "object") walk(agg.valueObjects[attr.type] ?? [], item as State, field);
+      }
+    }
+  };
+  walk(attrs, args);
+  if (problems.length > 0) return problems[0];
+  const held = wanted.length > 0 ? holder(client) : null;
+  for (const { field, target, key } of wanted) {
+    if (!(await held?.(target))?.has(key)) return { field, message: `No ${singular(target.target ?? "record")} has the key "${key}".` };
+  }
+  return null;
+}
