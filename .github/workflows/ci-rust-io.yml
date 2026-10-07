@@ -115,6 +115,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Two legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
+    # tree, but with the feature binaries built beforehand nothing else ties them to one job, and
+    # a leg's specs run for about half of what the six files took together.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: a
+            specs: spec/rust_conformance_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb
+          - leg: b
+            specs: spec/rust_conformance_fuzz_spec.rb spec/semantics_corpus_spec.rb spec/rust_generated/domain_feature_exclusivity_spec.rb
+
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
 
@@ -242,30 +254,23 @@ jobs:
           chmod +x rust/target/debug/rust-* 2>/dev/null || true
           touch rust/target/debug/rust-* 2>/dev/null || true
 
-      # Runs the io specs that touch the shared `rust/` crate, listed explicitly
-      # because spec/rust_generated/ also holds fast non-io specs that already run in
-      # parallel. Single process: concurrent cargo builds would race on rust/.
-      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
-        run: |
-          bundle exec rspec --tag io \
-            spec/rust_conformance_spec.rb \
-            spec/rust_conformance_fuzz_spec.rb \
-            spec/semantics_corpus_spec.rb \
-            spec/rust_numeric_coercion_spec.rb \
-            spec/rust_generated/domain_feature_exclusivity_spec.rb \
-            spec/rust_generated/has_many_spec.rb
+      # Runs the io specs that touch the shared `rust/` crate, listed in the matrix because
+      # spec/rust_generated/ also holds fast non-io specs that already run in parallel. Single
+      # process within a leg: concurrent cargo builds would race on rust/.
+      - name: "rspec: this leg's Rust io specs (serial — shared-file mutation)"
+        run: bundle exec rspec --tag io ${{ matrix.specs }}
 
-      # Push only on a miss. `always()` so a spec failure still publishes a
-      # freshly built crate for sibling jobs.
+      # Push only on a miss, and from one leg: two legs pushing the same tag would race.
+      # `always()` so a spec failure still publishes a freshly built crate for sibling jobs.
       - uses: ./.github/actions/ghcr-binary-cache-save
-        if: always() && steps.ghcr_cache_parser.outputs.cache-hit != 'true'
+        if: always() && matrix.leg == 'a' && steps.ghcr_cache_parser.outputs.cache-hit != 'true'
         with:
           name: parser
           crate-root: rust/parser
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/actions/ghcr-binary-cache-save
-        if: always() && steps.ghcr_cache_codegen.outputs.cache-hit != 'true'
+        if: always() && matrix.leg == 'a' && steps.ghcr_cache_codegen.outputs.cache-hit != 'true'
         with:
           name: codegen
           crate-root: rust/codegen
