@@ -50,11 +50,21 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
                  "CAPTURE_DF_PATH" => runner.dir, "CAPTURE_MIN_FREE_KB" => "0" }.merge(env))
     end
 
-    # Rolls once, so the script is on record, then runs it as the box would.
+    # The script a roll sends. Every roll sends the same one, so the first example to ask rolls and
+    # the others in the group reuse it instead of waiting out a roll each.
+    def sent_capture_script
+      self.class.instance_variable_get(:@sent_capture_script) ||
+        self.class.instance_variable_set(:@sent_capture_script, begin
+          roll_once
+          sent_scripts.first
+        end)
+    end
+
+    # Runs the script a roll sends as the box would.
     def capture(only: "", logs_ok: true, env: {})
-      roll_once
+      script = sent_capture_script
       install_docker(logs_ok: logs_ok)
-      script = "ONLY='#{only}'\n#{sent_scripts.first.sub(/\AONLY='[^']*'\n/, "")}"
+      script = "ONLY='#{only}'\n#{script.sub(/\AONLY='[^']*'\n/, "")}"
       Open3.capture2e(capture_env(env), "bash", "-c", script)
     end
 
