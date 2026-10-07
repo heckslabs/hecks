@@ -15,7 +15,7 @@ use tokio_postgres::Client;
 
 /// Whether checkout is on: `configured` must be set and equal `domain`
 /// exactly — a mismatch would dispatch the wrong domain's Registration.Request.
-pub(crate) fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
+pub fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
     configured.is_some_and(|c| !c.is_empty() && c == domain)
 }
 

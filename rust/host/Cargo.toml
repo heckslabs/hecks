@@ -6,6 +6,10 @@ edition = "2021"
 # Empty table: makes this crate its own workspace root instead of joining `rust`'s.
 [workspace]
 
+[lib]
+name = "rust_host"
+path = "src/lib.rs"
+
 [[bin]]
 name = "bootstrap"
 path = "src/main.rs"

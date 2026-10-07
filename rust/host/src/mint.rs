@@ -495,7 +495,7 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
 
 /// No backfill: adopting an era means its history already exists elsewhere.
 /// Runs in its own transaction because `create_head_snapshot`'s SAVEPOINT needs one open.
-pub(crate) async fn adopt_head_snapshots<C: GenericClient>(
+pub async fn adopt_head_snapshots<C: GenericClient>(
     client: &C,
     domain: &str,
     aggregates: &[Aggregate],
