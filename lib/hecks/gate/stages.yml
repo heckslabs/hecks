@@ -25,7 +25,17 @@ pre_push:
   checks:
     - id: rspec
       title: rspec (parallel)
-      run: [bundle, exec, parallel_rspec, spec, -n, "{workers}"]
+      run:
+        - sh
+        - -ec
+        - |
+          # Workers are grouped by this machine's own last timings, kept under the git directory
+          # (shared by every worktree, never committed). CI's committed baseline leaves out the io
+          # specs this run includes, so it only seeds the first run; each run then rewrites the log.
+          log="$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log"
+          [ -f "$log" ] || cp .github/rspec_runtime_baseline.log "$log"
+          bundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log "$log" --allowed-missing 100 \
+            -o "--format ParallelTests::RSpec::RuntimeLogger --out $log"
       blocked: the suite is red.
     - &check_fuzzing
       id: fuzzing
