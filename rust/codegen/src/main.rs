@@ -73,7 +73,7 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
         let name = aggregate.get("name").and_then(Json::as_str).unwrap_or("");
         match prelude::aggregate_prelude(&ex, &ir, aggregate, source_label) {
             Some(text) => {
-                let path = format!("{out_dir}/{}.rs", name.to_lowercase());
+                let path = format!("{out_dir}/{}.rs", naming::aggregate_module(name));
                 std::fs::write(&path, text).map_err(|e| format!("writing {path}: {e}"))?;
                 println!("wrote {path}");
             }

@@ -29,7 +29,7 @@ pub fn cross_aggregate_vo_imports(aggregate: &Json, domain_value_object_owner: &
 
     let mut pairs: Vec<(String, String)> = foreign_types.into_iter().filter_map(|type_name| domain_value_object_owner.get(&type_name).map(|owner| (type_name, owner.clone()))).collect();
     pairs.sort_by(|(a_type, a_owner), (b_type, b_owner)| (a_owner, a_type).cmp(&(b_owner, b_type)));
-    pairs.into_iter().map(|(type_name, owner)| format!("use crate::generated::{mod_name}::{}::{};", owner.to_lowercase(), naming::rust_ident(&type_name))).collect()
+    pairs.into_iter().map(|(type_name, owner)| format!("use crate::generated::{mod_name}::{}::{};", naming::aggregate_module(&owner), naming::rust_ident(&type_name))).collect()
 }
 
 /// True when a value object rebuilds into a differently-named one by matching field names.

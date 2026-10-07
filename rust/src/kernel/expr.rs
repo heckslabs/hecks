@@ -328,6 +328,12 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
 /// refuse here — canonical text is validated at boot, so any refusal
 /// past this point is a codegen bug, not a real business refusal.
 fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
+    composite::finish(lookup_field(path, ctx)?, path)
+}
+
+/// `lookup`'s walk, stopped before the last field collapses to a scalar: a path may end on a
+/// nested object, which `.set?` reads as present without needing it to be one value.
+pub(crate) fn lookup_field<'a>(path: &str, ctx: &EvalContext<'a>) -> Result<Field<'a>, Refusal> {
     let mut segments = path.split('.');
     let head = segments.next().unwrap();
     let mut current = ctx
@@ -340,7 +346,7 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
         current = composite::step(current, seg, head)?;
     }
 
-    composite::finish(current, path)
+    Ok(current)
 }
 
 /// The list-elements reading of a `Lookup` path — same head resolution

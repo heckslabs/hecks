@@ -70,6 +70,23 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
 /// `hecks project_reserved_names` — the same tables `naming.rb` reads.
 pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
 
+/// The modules every generated chapter declares itself, beside its aggregates' modules: the
+/// sidecar `metadata`, the `registry` table, and the `merged` router. An aggregate whose
+/// downcased name is one of these would declare the module twice and overwrite the file.
+pub const CHAPTER_OWNED_MODULES: &[&str] = &["metadata", "registry", "merged"];
+
+/// The module (and file stem) one aggregate's generated Rust lives in: its downcased name, or
+/// `<name>_aggregate` when that name is one the chapter declares itself. A downcased name never
+/// holds an underscore, so the suffixed form cannot meet another aggregate's module.
+pub fn aggregate_module(name: &str) -> String {
+    let module = name.to_lowercase();
+    if CHAPTER_OWNED_MODULES.contains(&module.as_str()) {
+        format!("{module}_aggregate")
+    } else {
+        module
+    }
+}
+
 /// `/\A[a-z_][a-z0-9_]*\z/` — a plain lowercase Rust identifier.
 fn plain_lower_identifier(name: &str) -> bool {
     let mut chars = name.chars();
@@ -334,6 +351,19 @@ mod tests {
         assert_eq!(scalar_to_value("TrueClass", &deref_scalar("TrueClass", "v")).as_deref(), Some("Value::Bool(*v)"));
         // A String is cloned, so the reference is left alone.
         assert_eq!(scalar_to_value("String", &deref_scalar("String", "v")).as_deref(), Some("Value::Str(v.clone())"));
+    }
+
+    #[test]
+    fn an_aggregate_named_for_a_chapter_module_gets_a_suffixed_module() {
+        assert_eq!(aggregate_module("Metadata"), "metadata_aggregate");
+        assert_eq!(aggregate_module("Registry"), "registry_aggregate");
+        assert_eq!(aggregate_module("Merged"), "merged_aggregate");
+    }
+
+    #[test]
+    fn any_other_aggregate_keeps_its_downcased_module() {
+        assert_eq!(aggregate_module("LineItem"), "lineitem");
+        assert_eq!(aggregate_module("MetadataEntry"), "metadataentry");
     }
 
     #[test]
