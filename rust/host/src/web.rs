@@ -20,6 +20,7 @@ mod newsletter;
 mod newsletter_send;
 mod registration_receipt;
 mod registrations;
+mod resend_webhook;
 
 use registrations::payments_routes;
 // payments.rs, its tests and the boot check reach these through `web::`.
@@ -71,6 +72,9 @@ pub async fn render(
             if let Err(response) = newsletter_send::require_admin(domain_ir, &extract_cookies(body), &session_secret(), client).await {
                 return Some(response);
             }
+        }
+        if let Some(response) = resend_webhook::resend_webhook_route(method, path, &raw_body, body.get("headers"), client, wasm_path, config, invoker).await {
+            return Some(response);
         }
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
