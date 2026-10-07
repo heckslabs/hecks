@@ -18,7 +18,8 @@ type HmacSha256 = Hmac<Sha256>;
 // its Delivery (`RecordOpen` / `RecordClick`, which refuse a repeat). The
 // delivery is found by the Resend message id stored when the issue was sent.
 // Served under the same gate as the other newsletter routes, and only when
-// RESEND_WEBHOOK_SECRET (the endpoint's `whsec_` signing secret) is set.
+// RESEND_WEBHOOK_SECRET (the endpoint's `whsec_` signing secret) is set, either
+// directly or from the `webhook_secret` field of the secret RESEND_SECRET_ID names.
 
 const SECRET_VARIABLE: &str = "RESEND_WEBHOOK_SECRET";
 // Resend signs with Svix, whose default replay window is five minutes.
