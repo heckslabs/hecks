@@ -183,8 +183,36 @@ jobs:
         if: steps.feature_binaries.outputs.cache-hit == 'true'
         run: touch rust/target/debug/rust-*
 
+      # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
+      # so it needs its own step, right after the banking generation above.
+      - name: Run the from_json round-trip test
+        run: cd rust && cargo test --no-default-features --features banking --test from_json_round_trip
+
+      # rust/src/exemplar/** is compiled under `cargo test`, so a broken shape fails
+      # here before any Ruby runs; no #[test] fn is required.
+      - name: Build the exemplar module
+        run: cd rust && cargo test --lib
+
+      # Parser and codegen are also built concurrently by their dedicated jobs, and
+      # `actions/cache` only helps future runs, so restore from GHCR here. The restore
+      # sits right before its consumer to give those jobs time to push first.
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache_parser
+        with:
+          name: parser
+          crate-root: rust/parser
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache_codegen
+        with:
+          name: codegen
+          crate-root: rust/codegen
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       # On a miss the rust_feature_binaries legs are building them; wait for the artifacts, then
-      # take what arrived. The post-job step saves them for the next run.
+      # take what arrived. The post-job step saves them for the next run. Placed after the steps
+      # that do not need them, so the wait overlaps their work.
       - name: Wait for the feature binaries the legs build
         if: steps.feature_binaries.outputs.cache-hit != 'true'
         env:
@@ -213,33 +241,6 @@ jobs:
         run: |
           chmod +x rust/target/debug/rust-* 2>/dev/null || true
           touch rust/target/debug/rust-* 2>/dev/null || true
-
-      # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
-      # so it needs its own step, right after the banking generation above.
-      - name: Run the from_json round-trip test
-        run: cd rust && cargo test --no-default-features --features banking --test from_json_round_trip
-
-      # rust/src/exemplar/** is compiled under `cargo test`, so a broken shape fails
-      # here before any Ruby runs; no #[test] fn is required.
-      - name: Build the exemplar module
-        run: cd rust && cargo test --lib
-
-      # Parser and codegen are also built concurrently by their dedicated jobs, and
-      # `actions/cache` only helps future runs, so restore from GHCR here. The restore
-      # sits right before its consumer to give those jobs time to push first.
-      - uses: ./.github/actions/ghcr-binary-cache-restore
-        id: ghcr_cache_parser
-        with:
-          name: parser
-          crate-root: rust/parser
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: ./.github/actions/ghcr-binary-cache-restore
-        id: ghcr_cache_codegen
-        with:
-          name: codegen
-          crate-root: rust/codegen
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Runs the io specs that touch the shared `rust/` crate, listed explicitly
       # because spec/rust_generated/ also holds fast non-io specs that already run in
