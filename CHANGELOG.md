@@ -7,6 +7,12 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.9.1] - 2026-10-07
+
+A patch release: the Resend webhook's signing secret can live in the secret that already holds the Resend API key.
+
+**Changed: the host reads the Resend webhook's signing secret from the same secret as the API key.** The secret `RESEND_SECRET_ID` names may carry `webhook_secret` beside `api_key`; when it does, the host sets `RESEND_WEBHOOK_SECRET` from it at boot, so `POST /webhooks/resend` needs no new environment variable or task-definition secret. A secret with only `api_key` behaves as before.
+
 ## [3.9.0] - 2026-10-06
 
 A minor release: the Rust host records newsletter opens and clicks from Resend's webhook.
