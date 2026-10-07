@@ -9,13 +9,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [3.9.0] - 2026-10-06
 
-A minor release: the Rust host records newsletter opens and clicks from Resend's webhook, and `hecks site` can probe a running site against its route table.
+A minor release: the Rust host records newsletter opens and clicks from Resend's webhook.
 
 **Added: `POST /webhooks/resend` records newsletter opens and clicks.** The commerce extension verifies Resend's Svix signature against `RESEND_WEBHOOK_SECRET` (the endpoint's `whsec_` signing secret; without it the route answers 503), finds the `Delivery` whose stored Resend message id matches the event's `email_id`, and dispatches `Delivery.RecordOpen` or `Delivery.RecordClick`, which keep only the first of each. A repeat, an event type nothing records, and a message the site did not send as a newsletter are all acknowledged with 200 so Resend stops retrying. Resend sends nothing until the domain's open and click tracking is on and a webhook for `email.opened` and `email.clicked` points at the route.
+
+## [3.8.1] - 2026-10-07
+
+A patch release: a generated host compiles when an aggregate has an optional Integer, Float or Boolean attribute, or a list of them. Nothing else changes for a deployed host.
 
 ### Added
 
 - `hecks site site_projection.check_site <project> url=<address>` asks a running site what its route table says it must answer, with anonymous requests that change nothing: admin routes refuse, indexable public pages answer 200 with a canonical link, `off` rows and undeclared paths answer 404, redirect rows redirect. A project's smoke no longer needs hand-listed paths for these.
+
+### Fixed
+
+- The Rust generator dereferences a copy scalar it reaches through a reference. The `Fielded` arms and the JSON codec wrote `Value::Int(v)` and `Json::int(v)` inside `as_ref().map(|v| ..)` and `iter().map(|x| ..)`, where the binding is `&i64`, so a host with such an attribute failed to compile (`E0308`, "expected `i64`, found `&i64`"). The first vendored chapter to have one is cms 1.2's `Page.level`, which kept every project that took cms 1.2 or later from building. `naming::deref_scalar` dereferences Integer, Float and Boolean and leaves String to its clone.
 
 ## [3.8.0] - 2026-10-06
 
