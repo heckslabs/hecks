@@ -130,7 +130,7 @@ pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json, 
 /// Inverse of `list_element_from_json_mapper`: scalar elements have no `.to_json()` method.
 pub fn list_element_to_json_expr(attr: &Json) -> String {
     match naming::effective_scalar_type(crate::attr::type_name(attr)) {
-        Some(scalar) => scalar_to_json_expr(scalar, "x"),
+        Some(scalar) => scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "x")),
         None => "x.to_json()".to_string(),
     }
 }
@@ -392,7 +392,7 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             } else if list {
                 format!("crate::kernel::Json::Array(self.{ident}.iter().map(|x| {}).collect())", elem_to_json.as_deref().unwrap())
             } else if field_optional && scalar.is_some() {
-                format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar.unwrap(), "v"))
+                format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar.unwrap(), &naming::deref_scalar(scalar.unwrap(), "v")))
             } else if field_optional {
                 format!("self.{ident}.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)")
             } else if let Some(scalar) = scalar {
