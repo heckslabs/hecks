@@ -5,6 +5,8 @@ require_relative "../../projector"
 require_relative "cms_editor/setting"
 require_relative "cms_editor/schema"
 require_relative "cms_editor/pretty"
+require_relative "cms_editor/icons"
+require_relative "cms_editor/theme"
 
 module Hecks
   module Projections
@@ -29,28 +31,30 @@ module Hecks
         # The files, by path relative to the directory they are written to.
         FILES = %w[
           package.json tsconfig.json src/config.ts src/schema.ts src/host.ts src/commands.ts src/app.ts src/server.ts
-          src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
-          src/ui/html.ts src/ui/outline.ts src/ui/fields.ts src/ui/input.ts src/ui/pages.ts
-          src/ui/body_model.js src/ui/body_parse.js src/ui/body_widget.js
+          src/assets.ts src/flash.ts src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
+          src/ui/html.ts src/ui/words.ts src/ui/icons.ts src/ui/shell.ts src/ui/outline.ts src/ui/fields.ts
+          src/ui/input.ts src/ui/table.ts src/ui/detail.ts src/ui/pages.ts src/ui/theme.js src/ui/body_model.js
+          src/ui/body_parse.js
+          src/browser/app.css src/browser/main.js src/browser/shell.js src/browser/forms.js src/browser/toast.js
+          src/browser/body_doc.js src/browser/body_editor.js
         ].freeze
 
         # The files only an editor of a chapter with a picture aggregate has: the upload, the
-        # storage port with its local-disk adapter, and the picker the rich-text widget opens.
+        # storage port with its local-disk adapter, and the picker the rich-text editor opens.
         MEDIA_FILES = %w[
-          src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/ui/media_picker.js
+          src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/browser/media_picker.js
         ].freeze
 
-        # The browser modules the rich-text widget loads, served to a signed-in editor.
-        ASSETS = %w[body_widget.js body_model.js body_parse.js].freeze
-
-        # What `app.ts` holds for a picture upload; each is left out when the chapter has none.
+        # What `app.ts` and the body editor hold for a picture upload; each is left out when the
+        # chapter has none.
         MEDIA_LINES = {
-          "__MEDIA_IMPORT__" => ["import { mediaHandler } from \"./media/handler.ts\";",
-                                 "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
-          "__MEDIA_OPTION__" => ["  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */",
-                                 "  storage?: MediaStorage;"].join("\n"),
-          "__MEDIA_SETUP__"  => "  const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });",
-          "__MEDIA_ROUTE__"  => "    if (segments[0] === \"media\") return media(client, request, segments.slice(1));"
+          "__MEDIA_IMPORT__"  => ["import { mediaHandler } from \"./media/handler.ts\";",
+                                  "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
+          "__MEDIA_OPTION__"  => ["  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */",
+                                  "  storage?: MediaStorage;"].join("\n"),
+          "__MEDIA_SETUP__"   => "  const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });",
+          "__MEDIA_ROUTE__"   => "    if (segments[0] === \"media\") return media(client, request, segments.slice(1));",
+          "__PICKER_LOADER__" => "() => import(\"./media_picker.js\")"
         }.freeze
 
         module_function
@@ -72,16 +76,29 @@ module Hecks
 
           schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip, pictures: options[:media_chapter])
           media = schema.key?("media")
-          tokens = setting.tokens.merge("__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
+          tokens = tokens(setting, schema, media)
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
+        end
+
+        # @return [Hash{String => String}] every placeholder of the templates and the text that fills it
+        def tokens(setting, schema, media)
+          setting.tokens.merge(look_tokens(setting, schema), "__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
         end
 
         # @param media [Boolean] whether the chapter has a picture aggregate
         # @return [Hash{String => String}] each media placeholder to its text, empty when none
         def media_tokens(media)
-          assets = RoutesTs.literal(media ? [*ASSETS, "media_picker.js"] : ASSETS)
-          lines = media ? MEDIA_LINES : MEDIA_LINES.transform_values { "" }
-          { "__ASSETS__" => assets, **lines }
+          return MEDIA_LINES if media
+
+          MEDIA_LINES.transform_values { "" }.merge("__PICKER_LOADER__" => "null")
+        end
+
+        # @param setting [Setting] the checked row
+        # @param schema [Hash{String => Object}] the chapter as the editor reads it
+        # @return [Hash{String => String}] the header's brand, the icon sprite and the theme's colours
+        def look_tokens(setting, schema)
+          { "__BRAND__" => JSON.generate(setting.brand || schema["domain"]), "__ICONS__" => Icons.sprite,
+            "__CSS_BANNER__" => "/* #{RoutesTs::BANNER.delete_prefix("// ")} */", **Theme.tokens(setting.accent) }
         end
 
         # @param text [String] a template with `__NAME__` placeholders

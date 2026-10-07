@@ -1,38 +1,60 @@
 __BANNER__
 
-// The pages: a nav of aggregates, a list per aggregate (from a query when it has one), a detail page
-// per instance, and a form per command generated from the command's attributes. Lifecycle state is a
-// badge, and a lifecycle move is offered only from the states it applies in.
+// The pages: an overview of what the domain holds, a list per aggregate (table.ts), one instance
+// (detail.ts), and a form per command generated from the command's attributes. Every page is built
+// into the frame in shell.ts. Lifecycle state is a badge, and a lifecycle move is offered only from
+// the states it applies in.
 import type { Aggregate, Attr, Command, Query } from "../schema.ts";
-import { bodyToHtml } from "./body_model.js";
-import { fields } from "./fields.ts";
-import { badge, esc, href, page, refusal } from "./html.ts";
-import { outline, summary } from "./outline.ts";
 import { SCHEMA } from "../schema.ts";
+import { confirmDialog, detailPage as detail } from "./detail.ts";
+import type { Submitted } from "./detail.ts";
+import { fields } from "./fields.ts";
+import type { Invalid } from "./fields.ts";
+import { esc, href, refusal } from "./html.ts";
+import { countMark, page } from "./shell.ts";
+import type { Crumb } from "./shell.ts";
+import { listPage as list } from "./table.ts";
+import { commandLabel, label, plural } from "./words.ts";
 
 type State = Record<string, unknown>;
 type Row = [string, State];
 
-/** What a submitted command left behind: the refusal to show, and the values to put back. */
-export interface Submitted {
-  command: string;
-  message: string | null;
-  values: State;
-}
+export type { Submitted };
 
-const label = (name: string): string => name.replace(/_/g, " ");
+const OVERVIEW: Crumb = ["Overview", href()];
 
-/** The home page: every aggregate the domain declares. */
+const head = (title: string, note: string): string =>
+  `<div class="mb-6"><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>`;
+
+/** The overview: every aggregate the domain declares, with what it is and how much of it there is. */
 export function home(): string {
-  const items = SCHEMA.aggregates.map(
-    (agg) => `<li><a href="${esc(href(agg.name))}">${esc(agg.name)}</a>${agg.description ? ` <span class="note">${esc(agg.description)}</span>` : ""}</li>`,
-  );
-  return page("Home", `<h1>${esc(SCHEMA.domain)}</h1>\n<ul>\n${items.join("\n")}\n</ul>`);
+  const items = SCHEMA.aggregates.map((agg) => {
+    const note = agg.description ? `<span class="text-muted">${esc(agg.description)}</span>` : "";
+    return `<li class="flex items-center justify-between gap-4"><a class="grid flex-1 gap-0.5 p-4 hover:bg-base-200/60" href="${esc(href(agg.name))}"><span class="text-base font-semibold">${esc(plural(agg.name))}</span>${note}</a><span class="pr-4 tabular-nums text-muted">${countMark(agg.name)}</span></li>`;
+  });
+  const body = `${head(SCHEMA.domain, "Choose what to edit.")}
+<ul class="divide-y divide-base-300 border-y border-base-300 bg-base-100">
+${items.join("\n")}
+</ul>`;
+  return page("Overview", body, { crumbs: [["Overview"]] });
 }
 
 /** The page for a path that names nothing. */
 export function notFound(what: string): string {
-  return page("Not found", `<h1>Not found</h1>\n<p>${esc(what)}</p>`);
+  const body = `${head("Not found", what)}
+<p><a class="btn" href="${esc(href())}">Back to the overview</a></p>`;
+  return page("Not found", body, { crumbs: [OVERVIEW, ["Not found"]] });
+}
+
+/** An aggregate's list. */
+export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null, asked = true): string {
+  return page(plural(agg.name), list(agg, rows, query, error, asked), { active: agg.name, crumbs: [OVERVIEW, [plural(agg.name)]] });
+}
+
+/** One instance. */
+export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null): string {
+  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [id]];
+  return page(id, detail(agg, id, values, shown), { active: agg.name, crumbs });
 }
 
 /**
@@ -42,96 +64,59 @@ export function notFound(what: string): string {
  */
 function startingValues(agg: Aggregate, command: Command, state: State): State {
   const values = { ...state };
-  for (const attr of command.attributes.filter((candidate) => candidate.widget === "body" && values[candidate.name] == null)) {
+  for (const attr of command.attributes.filter((candidate: Attr) => candidate.widget === "body" && values[candidate.name] == null)) {
     const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && state[other.name] != null);
     if (held) values[attr.name] = state[held.name];
   }
   return values;
 }
 
+const FORM = "command-form";
+
+function invalidOf(own: Submitted | null): Invalid | null {
+  return own?.field && own.message ? { field: own.field, message: own.message.replace(/^.*?: /s, "") } : null;
+}
+
 /** A form for one command; `to` adds the id input a command acting on another aggregate needs. */
-export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false): string {
+export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false, cancel = href(agg.name)): string {
   const own = shown && shown.command === command.name ? shown : null;
-  const note = command.goal ? `<p class="note">${esc(command.goal)}</p>` : "";
-  const target = to ? `<label>${esc(command.on ?? "")} id<input type="text" name="__to" value="${esc(own?.values.__to ?? "")}"></label>` : "";
-  return `<form method="post" action="${esc(action)}">
+  const note = command.goal ? `<p class="mb-4 max-w-prose text-muted">${esc(command.goal)}.</p>` : "";
+  const target = to
+    ? `<div class="my-4 grid gap-1"><label for="f-to" class="font-semibold">${esc(command.on ?? "")} id <span class="text-primary" aria-hidden="true">*</span></label><input type="text" class="input w-full max-w-xl" id="f-to" name="__to" value="${esc(own?.values.__to ?? "")}"></div>`
+    : "";
+  const confirm = command.destructive ? ` data-confirm="confirm-${esc(command.name)}"` : "";
+  const text = esc(commandLabel(agg, command));
+  const submit = command.destructive
+    ? `<button type="submit" class="btn btn-error" data-busy${confirm}>${text}</button>`
+    : `<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
+  const dialog = command.destructive ? confirmDialog(agg, command, action, "", FORM) : "";
+  return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form>
 ${refusal(own?.message ?? null)}${note}
 ${target}
-${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state))}
-<button type="submit">${esc(label(command.name))}</button>
-</form>`;
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own))}
+<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a>${submit}</div>
+</form>
+${dialog}`;
 }
 
 /** The page of one creating command (or a command that acts on another aggregate's instance). */
 export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null): string {
-  return page(command.name, `<h1>${esc(label(command.name))} <small>${esc(agg.name)}</small></h1>\n${commandForm(agg, command, action, shown, {}, command.on !== null && command.on !== agg.name)}`);
+  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [commandLabel(agg, command)]];
+  const form = commandForm(agg, command, action, shown, {}, command.on !== null && command.on !== agg.name);
+  return page(commandLabel(agg, command), `${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: agg.name, crumbs });
 }
 
-const columns = (agg: Aggregate) => agg.attributes.filter((attr) => !attr.list && attr.widget !== "body").slice(0, 4);
-
-function table(agg: Aggregate, rows: Row[]): string {
-  const cols = columns(agg);
-  const head = ["id", ...cols.map((attr) => label(attr.name)), ...(agg.lifecycle ? ["status"] : [])];
-  const lines = rows.map(([id, state]) => {
-    const cells = cols.map((attr) => `<td>${summary(state[attr.name])}</td>`);
-    const status = agg.lifecycle ? `<td>${badge(state[agg.lifecycle.field])}</td>` : "";
-    return `<tr><td><a href="${esc(href(agg.name, "id", id))}">${esc(id)}</a></td>${cells.join("")}${status}</tr>`;
-  });
-  const empty = rows.length === 0 ? `<tr><td colspan="${head.length}"><em>nothing here yet</em></td></tr>` : lines.join("\n");
-  return `<table>\n<tr>${head.map((name) => `<th>${esc(name)}</th>`).join("")}</tr>\n${empty}\n</table>`;
-}
-
-function queryLinks(agg: Aggregate, current: Query | null): string {
-  const links = agg.queries.map((query) => `<a href="${esc(`${href(agg.name)}?query=${encodeURIComponent(query.name)}`)}">${esc(label(query.name))}</a>`);
-  const all = `<a href="${esc(href(agg.name))}">all</a>`;
-  return `<p>${[all, ...links].join(" | ")}${current ? ` <span class="note">showing ${esc(current.name)}</span>` : ""}</p>`;
-}
-
-function queryForm(agg: Aggregate, query: Query | null): string {
-  if (!query || query.attributes.length === 0) return "";
-  const action = esc(href(agg.name));
-  return `<form method="get" action="${action}"><input type="hidden" name="query" value="${esc(query.name)}">
-${fields(agg, query.attributes)}
-<button type="submit">Ask</button></form>`;
-}
-
-/** An aggregate's list: the rows of the query asked, or of everything it holds. */
-export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null): string {
-  const creating = agg.commands.filter((command) => command.creates);
-  const actions = creating.map((command) => `<a href="${esc(href(agg.name, "new", command.name))}">${esc(label(command.name))}</a>`).join(" | ");
-  const elsewhere = agg.commands.filter((command) => !command.creates && command.on !== agg.name);
-  const others = elsewhere.map((command) => `<a href="${esc(href(agg.name, "run", command.name))}">${esc(label(command.name))}</a>`).join(" | ");
-  const body = `<h1>${esc(agg.name)}</h1>\n${agg.description ? `<p class="note">${esc(agg.description)}</p>` : ""}
-${actions ? `<p>New: ${actions}</p>` : ""}${others ? `<p>Other: ${others}</p>` : ""}
-${queryLinks(agg, query)}${queryForm(agg, query)}${refusal(error)}
-${table(agg, rows)}`;
-  return page(agg.name, body);
-}
-
-function available(agg: Aggregate, command: Command, state: State): boolean {
-  const move = agg.lifecycle?.transitions.find((transition) => transition.verb === command.name);
-  return !move || !agg.lifecycle || move.from.includes(String(state[agg.lifecycle.field]));
-}
-
-/** An attribute's value read-only: a rich-text body as escaped HTML, anything else as an outline. */
-function shown(attr: Attr, value: unknown): string {
-  if (attr.widget !== "body") return outline(value);
-  return value && typeof value === "object" ? `<div class="body">${bodyToHtml(value)}</div>` : `<em>empty</em>`;
-}
-
-function state(agg: Aggregate, values: State): string {
-  const rows = agg.attributes.map((attr) => `<tr><th>${esc(label(attr.name))}</th><td>${shown(attr, values[attr.name])}</td></tr>`);
-  return `<table>\n${rows.join("\n")}\n</table>`;
-}
-
-/** One instance: its status, its values read-only, and a form for each command that applies to it. */
-export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null): string {
-  const acting = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
-  const forms = acting.map((command) => {
-    const open = command.attributes.length > 0 ? ` ${shown && shown.command === command.name ? "open" : ""}` : "";
-    const body = commandForm(agg, command, href(agg.name, "id", id, command.name), shown, values);
-    return command.attributes.length > 0 ? `<details${open}><summary>${esc(label(command.name))}</summary>\n${body}\n</details>` : body;
-  });
-  const status = agg.lifecycle ? badge(values[agg.lifecycle.field]) : "";
-  return page(id, `<h1>${esc(id)} ${status}</h1>\n<p><a href="${esc(href(agg.name))}">${esc(agg.name)}</a></p>\n${state(agg, values)}\n<h2>Change</h2>\n${forms.join("\n")}`);
+/** The page of a command that acts on one instance: its form, or the question a destructive one asks. */
+export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null): string {
+  const action = href(agg.name, "id", id, command.name);
+  const crumbs: Crumb[] = [OVERVIEW, [plural(agg.name), href(agg.name)], [id, href(agg.name, "id", id)], [commandLabel(agg, command)]];
+  const title = head(commandLabel(agg, command), `${label(agg.name)} ${id}`);
+  const cancel = href(agg.name, "id", id);
+  if (command.destructive && command.attributes.length === 0) {
+    const own = shown && shown.command === command.name ? shown.message : null;
+    const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${refusal(own)}<p>${esc(command.goal ?? `This applies to ${id}`)}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
+<div class="mt-6 flex justify-end gap-2"><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a><button type="submit" class="btn btn-error" data-busy>${esc(commandLabel(agg, command))}</button></div></form>`;
+    return page(commandLabel(agg, command), `${title}\n${ask}`, { active: agg.name, crumbs });
+  }
+  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, values, false, cancel)}`, { active: agg.name, crumbs });
 }
