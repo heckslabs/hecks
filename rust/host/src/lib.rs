@@ -4,6 +4,7 @@
 pub mod api;
 pub mod approval;
 pub mod auth;
+pub mod boot;
 pub mod checkout;
 pub mod commerce_ir;
 pub mod dispatch;
