@@ -34,6 +34,25 @@ module Hecks
           src/ui/body_model.js src/ui/body_parse.js src/ui/body_widget.js
         ].freeze
 
+        # The files only an editor of a chapter with a picture aggregate has: the upload, the
+        # storage port with its local-disk adapter, and the picker the rich-text widget opens.
+        MEDIA_FILES = %w[
+          src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/ui/media_picker.js
+        ].freeze
+
+        # The browser modules the rich-text widget loads, served to a signed-in editor.
+        ASSETS = %w[body_widget.js body_model.js body_parse.js].freeze
+
+        # What `app.ts` holds for a picture upload; each is left out when the chapter has none.
+        MEDIA_LINES = {
+          "__MEDIA_IMPORT__" => ["import { mediaHandler } from \"./media/handler.ts\";",
+                                 "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
+          "__MEDIA_OPTION__" => ["  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */",
+                                 "  storage?: MediaStorage;"].join("\n"),
+          "__MEDIA_SETUP__"  => "  const media = mediaHandler(options.storage);",
+          "__MEDIA_ROUTE__"  => "    if (segments[0] === \"media\") return media(client, request, segments.slice(1));"
+        }.freeze
+
         module_function
 
         # Renders the editor's files for a project that declares an `Editor` row.
@@ -50,15 +69,38 @@ module Hecks
           return {} unless setting
 
           schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip)
-          tokens = setting.tokens.merge("__SCHEMA__" => Pretty.generate(schema))
-          FILES.to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
+          media = schema.key?("media")
+          tokens = setting.tokens.merge("__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
+          [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
+        end
+
+        # @param media [Boolean] whether the chapter has a picture aggregate
+        # @return [Hash{String => String}] each media placeholder to its text, empty when none
+        def media_tokens(media)
+          assets = RoutesTs.literal(media ? [*ASSETS, "media_picker.js"] : ASSETS)
+          lines = media ? MEDIA_LINES : MEDIA_LINES.transform_values { "" }
+          { "__ASSETS__" => assets, **lines }
         end
 
         # @param text [String] a template with `__NAME__` placeholders
         # @param tokens [Hash{String => String}] each placeholder to its text
         # @return [String] `text` with each placeholder replaced in one pass, so a value that looks
-        #   like a placeholder is left as it is
-        def fill(text, tokens) = text.gsub(/__[A-Z_]+__/) { |token| tokens.fetch(token, token) }
+        #   like a placeholder is left as it is; a placeholder alone on its line whose text is empty
+        #   takes the line with it
+        def fill(text, tokens)
+          text.gsub(/^(__[A-Z_]+__)\n|__[A-Z_]+__/) do
+            line = Regexp.last_match(1)
+            token = line || Regexp.last_match(0)
+            replacement(tokens.fetch(token, token), alone: !line.nil?)
+          end
+        end
+
+        # @return [String] `value`, with its line's newline when it stood alone and is not empty
+        def replacement(value, alone:)
+          return value unless alone
+
+          value.empty? ? "" : "#{value}\n"
+        end
       end
     end
   end

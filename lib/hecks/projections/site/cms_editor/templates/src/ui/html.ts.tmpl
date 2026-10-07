@@ -54,6 +54,11 @@ const STYLE = `
   .body-surface { min-height: 8rem; border: 1px solid var(--edge); border-radius: 6px; padding: 0.4rem 0.75rem; }
   .body-surface:focus { outline: 2px solid var(--accent); }
   .body-surface figure { cursor: pointer; }
+  .body-picker { border: 1px solid var(--edge); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
+  .picker-list { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0.25rem 0; padding: 0; max-height: 12rem; overflow: auto; }
+  .picker-list button { display: flex; flex-direction: column; align-items: center; max-width: 6rem; font-size: 0.8rem; }
+  .picker-list button[aria-pressed=true] { outline: 2px solid var(--accent); }
+  .picker-list img { object-fit: cover; }
 `;
 
 /** True when a page body holds the rich-text widget, which is the only page that needs its script. */
