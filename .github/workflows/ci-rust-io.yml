@@ -207,9 +207,12 @@ jobs:
           merge-multiple: true
           path: rust/target/debug
 
-      - name: Mark the fetched binaries as built after the sources
+      # An artifact does not keep the executable bit, and NativeBuild takes only an executable binary.
+      - name: Mark the fetched binaries executable and built after the sources
         if: steps.feature_binaries.outputs.cache-hit != 'true'
-        run: touch rust/target/debug/rust-* 2>/dev/null || true
+        run: |
+          chmod +x rust/target/debug/rust-* 2>/dev/null || true
+          touch rust/target/debug/rust-* 2>/dev/null || true
 
       # `cargo test --lib` skips tests/ and this file is gated on the banking feature,
       # so it needs its own step, right after the banking generation above.
