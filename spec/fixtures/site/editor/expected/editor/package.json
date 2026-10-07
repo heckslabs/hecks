@@ -1,0 +1,19 @@
+{
+  "name": "press-editor",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "check": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hecks/client": "^3.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

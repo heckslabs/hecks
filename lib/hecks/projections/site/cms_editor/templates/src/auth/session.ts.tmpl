@@ -1,0 +1,36 @@
+__BANNER__
+
+// The editor's own session: a signed cookie naming who signed in and until when. It is not the
+// host's session cookie and carries no authority by itself; every request still asks the membership
+// list (membership.ts). The value has the host's account-token format, signed with the shared secret
+// plus a suffix, so a host token cannot be passed off as an editor session.
+import { accountToken, cookieValue, verifyAccountToken } from "@hecks/client";
+
+import { EDITOR } from "../config.ts";
+
+const SUFFIX = ":editor-session";
+
+/** The cookie value for `email`, good for the configured session age. */
+export function signSession(secret: string, email: string, now: () => number = Date.now): string {
+  return accountToken(secret + SUFFIX, email, EDITOR.sessionMaxAge, { now });
+}
+
+/** The email a `Cookie` header's session names, or null when it is absent, forged or expired. */
+export function readSession(header: string | null, secret: string, now: () => number = Date.now): string | null {
+  const value = cookieValue(header, EDITOR.sessionCookie);
+  if (!value || !secret) return null;
+  return verifyAccountToken(value, secret + SUFFIX, { now, normalizeEmail: true })?.email ?? null;
+}
+
+const ATTRIBUTES = `Path=${EDITOR.basePath}; HttpOnly; SameSite=Lax`;
+
+/** The `Set-Cookie` value that starts a session. `Secure` is added outside local development. */
+export function sessionCookie(value: string): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${EDITOR.sessionCookie}=${value}; ${ATTRIBUTES}; Max-Age=${EDITOR.sessionMaxAge}${secure}`;
+}
+
+/** The `Set-Cookie` value that ends a session. */
+export function clearedCookie(): string {
+  return `${EDITOR.sessionCookie}=; ${ATTRIBUTES}; Max-Age=0`;
+}

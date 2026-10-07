@@ -13,7 +13,7 @@ module Hecks
         # The flags that take a value, by the keyword of `projection` each one sets.
         VALUE_FLAGS = {
           out: "--out=DIR", template: "--template=FILE", cms: "--cms=DIR", root_dir: "--root=DIR",
-          extension: "--extension=EXT"
+          editor: "--editor=DIR", extension: "--extension=EXT"
         }.freeze
 
         # @param argv [Array<String>] the command line, consumed down to the project directory
