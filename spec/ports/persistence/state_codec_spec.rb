@@ -37,6 +37,39 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     registry.bluebook("StateCodecShapes").aggregate("Menu")
   end
 
+  # A document-shaped tree: a value object holding a list of blocks, each holding a list of spans
+  # and a list of items that hold spans of their own — lists of value objects four deep.
+  let(:article_ir) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Hecks.bluebook("StateCodecTree") do
+        aggregate("Article") do
+          identified_by :slug
+
+          attribute :slug, Slug
+          attribute :body, Body
+
+          value_object("Slug") { attribute :value, String }
+          value_object("Body") { attribute :blocks, list_of(Block) }
+          value_object("Block") do
+            attribute :kind, String
+            attribute :spans, list_of(Span)
+            attribute :items, list_of(Item)
+          end
+          value_object("Item") { attribute :spans, list_of(Span) }
+          value_object("Span") do
+            attribute :text, String
+            attribute :marks, list_of(Mark)
+          end
+          value_object("Mark") { attribute :name, String }
+        end
+      end
+    end
+    registry.bluebook("StateCodecTree").aggregate("Article")
+  end
+
   let(:canonical_account) do
     {
       customer:        "CUST-1",
@@ -113,6 +146,20 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
       raw = { "price" => { "base" => { "cents" => 5 }, "extras" => [{ "cents" => 1 }, { "cents" => 2 }] } }
 
       expect(codec.decode(menu_ir, raw)).to eq(price: { base: { cents: 5 }, extras: [{ cents: 1 }, { cents: 2 }] })
+    end
+
+    it "symbolizes lists of value objects nested four levels deep, whichever branch they sit on" do
+      raw = { "body" => { "blocks" => [
+        { "kind" => "paragraph", "spans" => [{ "text" => "hi", "marks" => [{ "name" => "bold" }] }], "items" => [] },
+        { "kind" => "list", "spans" => [], "items" => [{ "spans" => [{ "text" => "one", "marks" => [] }] }] }
+      ] } }
+
+      expect(codec.decode(article_ir, raw)).to eq(
+        body: { blocks: [
+          { kind: "paragraph", spans: [{ text: "hi", marks: [{ name: "bold" }] }], items: [] },
+          { kind: "list", spans: [], items: [{ spans: [{ text: "one", marks: [] }] }] }
+        ] }
+      )
     end
 
     it "symbolizes each element of a list of value objects" do
