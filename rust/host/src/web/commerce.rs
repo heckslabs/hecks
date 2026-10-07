@@ -5,7 +5,7 @@
 use super::{
     checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route, respond, session_secret,
 };
-use crate::extension::{Ctx, HostExtension};
+use crate::extension::{Ctx, HostExtension, RateRule};
 use crate::payments;
 use crate::secrets::{self, AwsSecretFetcher};
 use async_trait::async_trait;
@@ -79,6 +79,13 @@ impl HostExtension for Commerce {
             .await;
         }
         None
+    }
+
+    fn rate_rules(&self) -> Vec<RateRule> {
+        vec![
+            RateRule { name: "subscribe", method: "POST", path: "/newsletter/subscribers", limit_env: "HECKS_RATE_LIMIT_SUBSCRIBE", default_limit: 10 },
+            RateRule { name: "register", method: "POST", path: "/registrations", limit_env: "HECKS_RATE_LIMIT_REGISTER", default_limit: 15 },
+        ]
     }
 
     // Checkout on AWS keeps the business's payment keys in a named Secrets Manager secret; refuse

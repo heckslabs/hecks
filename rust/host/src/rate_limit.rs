@@ -4,6 +4,7 @@
 use axum::http::header::{HeaderValue, CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderMap, HeaderName, StatusCode};
 use axum::response::{IntoResponse, Response};
+use crate::extension::RateRule;
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::net::{IpAddr, Ipv6Addr};
@@ -14,8 +15,6 @@ use std::time::{Duration, Instant};
 const UNKNOWN_CLIENT: &str = "unknown";
 
 const DEFAULT_WINDOW_SECONDS: u64 = 3600;
-const DEFAULT_SUBSCRIBE: usize = 10;
-const DEFAULT_REGISTER: usize = 15;
 const DEFAULT_MAX_KEYS: usize = 10_000;
 
 /// The outcome of counting one request against a window.
@@ -215,28 +214,12 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Form {
-    Subscribe,
-    Register,
-}
-
-impl Form {
-    pub fn for_request(method: &str, path: &str) -> Option<Self> {
-        match (method, path) {
-            ("POST", "/newsletter/subscribers") => Some(Self::Subscribe),
-            ("POST", "/registrations") => Some(Self::Register),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     enabled: bool,
     window: Duration,
-    subscribe: usize,
-    register: usize,
+    // Each extension rule's budget, by rule name.
+    limits: HashMap<&'static str, usize>,
     max_keys: usize,
     trust: ProxyTrust,
 }
@@ -256,8 +239,10 @@ impl Config {
             }
         };
         let window = number("HECKS_RATE_LIMIT_WINDOW_SECONDS", DEFAULT_WINDOW_SECONDS);
-        let subscribe = number("HECKS_RATE_LIMIT_SUBSCRIBE", DEFAULT_SUBSCRIBE as u64);
-        let register = number("HECKS_RATE_LIMIT_REGISTER", DEFAULT_REGISTER as u64);
+        let limits = crate::extension::rate_rules()
+            .iter()
+            .map(|rule| (rule.name, usize::try_from(number(rule.limit_env, rule.default_limit as u64)).unwrap_or(usize::MAX)))
+            .collect();
         let max_keys = number("HECKS_RATE_LIMIT_MAX_KEYS", DEFAULT_MAX_KEYS as u64);
         let hops = get("HECKS_TRUSTED_PROXY_HOPS").map(|v| v.trim().to_string()).filter(|v| !v.is_empty()).map_or(0, |raw| {
             raw.parse::<usize>().unwrap_or_else(|_| {
@@ -272,19 +257,20 @@ impl Config {
         let config = Self {
             enabled,
             window: Duration::from_secs(window),
-            subscribe: usize::try_from(subscribe).unwrap_or(usize::MAX),
-            register: usize::try_from(register).unwrap_or(usize::MAX),
+            limits,
             max_keys: usize::try_from(max_keys).unwrap_or(usize::MAX),
             trust: ProxyTrust { networks, hops, auth },
         };
         (config, warnings)
     }
 
-    fn limit_for(&self, form: Form) -> usize {
-        match form {
-            Form::Subscribe => self.subscribe,
-            Form::Register => self.register,
-        }
+    fn limit_for(&self, rule: &RateRule) -> usize {
+        self.limits.get(rule.name).copied().unwrap_or(rule.default_limit)
+    }
+
+    #[cfg(test)]
+    fn limit(&self, name: &str) -> usize {
+        self.limits[name]
     }
 }
 
@@ -336,7 +322,7 @@ pub enum Verdict {
 
 pub struct RateLimits {
     config: Config,
-    windows: Mutex<HashMap<Form, SlidingWindow>>,
+    windows: Mutex<HashMap<&'static str, SlidingWindow>>,
     warned_untrusted_proxy: AtomicBool,
 }
 
@@ -355,8 +341,7 @@ impl RateLimits {
             json!({
                 "enabled": config.enabled,
                 "window_seconds": config.window.as_secs(),
-                "subscribe": config.subscribe,
-                "register": config.register,
+                "limits": config.limits,
                 "trusted_networks": config.trust.networks.len(),
                 "trusted_proxy_hops": config.trust.hops,
                 "proxy_auth": config.trust.auth.is_some(),
@@ -372,7 +357,7 @@ impl RateLimits {
 
     // `check` with the clock supplied, so tests need not sleep.
     pub fn check_at(&self, method: &str, path: &str, headers: &HeaderMap, peer: Option<IpAddr>, now: Instant) -> Verdict {
-        let Some(form) = Form::for_request(method, path).filter(|_| self.config.enabled) else {
+        let Some(rule) = crate::extension::rate_rule_for(method, path).filter(|_| self.config.enabled) else {
             return Verdict::Allowed;
         };
         let key = self.client_key(headers, peer);
@@ -380,8 +365,8 @@ impl RateLimits {
             let mut windows = self.windows.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             let config = &self.config;
             windows
-                .entry(form)
-                .or_insert_with(|| SlidingWindow::new(config.limit_for(form), config.window, config.max_keys))
+                .entry(rule.name)
+                .or_insert_with(|| SlidingWindow::new(config.limit_for(&rule), config.window, config.max_keys))
                 .check(&key, now)
         };
         if decision.allowed {
@@ -725,7 +710,7 @@ mod tests {
         assert!(warnings.is_empty());
         assert!(config.enabled);
         assert_eq!(config.window, HOUR);
-        assert_eq!((config.subscribe, config.register, config.max_keys), (10, 15, 10_000));
+        assert_eq!((config.limit("subscribe"), config.limit("register"), config.max_keys), (10, 15, 10_000));
         assert_eq!(config.trust, ProxyTrust::default());
     }
 
@@ -743,7 +728,7 @@ mod tests {
         ]);
         assert!(warnings.is_empty(), "{warnings:?}");
         assert_eq!(config.window, Duration::from_secs(60));
-        assert_eq!((config.subscribe, config.register, config.max_keys), (3, 4, 50));
+        assert_eq!((config.limit("subscribe"), config.limit("register"), config.max_keys), (3, 4, 50));
         assert_eq!(config.trust, trust(&["10.0.0.0/8", "127.0.0.1"], 1, Some(("x-origin-secret", "s3cret"))));
     }
 
@@ -766,7 +751,7 @@ mod tests {
             ("HECKS_TRUSTED_PROXY_HOPS", "two"),
             ("HECKS_TRUSTED_PROXIES", "10.0.0.0/8, banana"),
         ]);
-        assert_eq!((config.subscribe, config.register, config.window), (10, 15, HOUR));
+        assert_eq!((config.limit("subscribe"), config.limit("register"), config.window), (10, 15, HOUR));
         assert_eq!(config.trust.hops, 0);
         assert_eq!(config.trust.networks.len(), 1);
         assert_eq!(warnings.len(), 5, "{warnings:?}");
@@ -786,8 +771,9 @@ mod tests {
 
     #[test]
     fn only_the_public_write_routes_are_limited() {
-        assert_eq!(Form::for_request("POST", "/newsletter/subscribers"), Some(Form::Subscribe));
-        assert_eq!(Form::for_request("POST", "/registrations"), Some(Form::Register));
+        let name = |method, path| crate::extension::rate_rule_for(method, path).map(|rule| rule.name);
+        assert_eq!(name("POST", "/newsletter/subscribers"), Some("subscribe"));
+        assert_eq!(name("POST", "/registrations"), Some("register"));
         for (method, path) in [
             ("GET", "/newsletter/subscribers"),
             ("GET", "/newsletter/subscribers/confirm"),
@@ -800,7 +786,7 @@ mod tests {
             ("POST", "/members"),
             ("POST", "/newsletter/subscribers/"),
         ] {
-            assert_eq!(Form::for_request(method, path), None, "{method} {path}");
+            assert_eq!(crate::extension::rate_rule_for(method, path).map(|rule| rule.name), None, "{method} {path}");
         }
     }
 

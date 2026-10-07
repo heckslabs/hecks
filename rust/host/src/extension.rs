@@ -31,6 +31,16 @@ pub struct Ctx<'a> {
     pub invoker: &'a dyn LambdaInvoker,
 }
 
+/// A public write an extension wants limited per client: `limit_env` names the budget setting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RateRule {
+    pub name: &'static str,
+    pub method: &'static str,
+    pub path: &'static str,
+    pub limit_env: &'static str,
+    pub default_limit: usize,
+}
+
 #[async_trait]
 pub trait HostExtension: Send + Sync {
     /// Answers a request before the account gate: public forms, webhooks. `None` falls through.
@@ -42,6 +52,11 @@ pub trait HostExtension: Send + Sync {
     /// domain IR in hand (`ctx.domain_ir` is always `Some`). `None` falls through.
     async fn account_route(&self, _ctx: &Ctx<'_>) -> Option<Value> {
         None
+    }
+
+    /// The public writes to limit per client, each with its own budget.
+    fn rate_rules(&self) -> Vec<RateRule> {
+        Vec::new()
     }
 
     /// Refuses the boot before the database is touched, for a domain the extension cannot serve.
@@ -72,4 +87,14 @@ fn default_extensions() -> Vec<Arc<dyn HostExtension>> {
 /// The loaded domain IR, for an extension that needs it in the guest phase.
 pub fn loaded_ir() -> Option<&'static Value> {
     ir()
+}
+
+/// Every installed extension's rate rules.
+pub fn rate_rules() -> Vec<RateRule> {
+    installed().iter().flat_map(|extension| extension.rate_rules()).collect()
+}
+
+/// The rule that limits this request, if any.
+pub fn rate_rule_for(method: &str, path: &str) -> Option<RateRule> {
+    rate_rules().into_iter().find(|rule| rule.method == method && rule.path == path)
 }
