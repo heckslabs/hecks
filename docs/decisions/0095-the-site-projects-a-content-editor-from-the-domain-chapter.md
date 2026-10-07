@@ -58,3 +58,25 @@ This follows the decision above and does not depart from it, so it is an addendu
 - **Serving.** `GET <base_path>/media/<key>` answers only for a key of the generated form (64 hex digits and an allowed extension), so no path leaves the directory; it sets the type from the key's extension, `X-Content-Type-Options: nosniff` and a sandboxing `Content-Security-Policy`. It is behind the same session and membership gate as every other page.
 - **Picker.** The widget's image button loads `media_picker.js` only when the editor element carries `data-media`: an upload button (drag and drop onto the panel too), the registered pictures as thumbnails shown from the adapter's own addresses, an alt text field that is required before insert, an optional caption. Inserting adds an image block whose `media_ref` is the key. Everything the server sends is put in the page as text.
 - **Not yet verified:** the picker was driven in Chrome against the generated editor served by node with a stand-in host (upload, both refusals, listing with a thumbnail, insert), not against a live host or an object-store adapter. Drag and drop was not exercised in a browser, and AVIF, WebP and JPEG size reading is under no spec beyond the type check.
+
+## Addendum: pictures from another chapter
+
+This follows the decision above and does not depart from it, so it is an addendum and not a new ADR.
+
+- **The problem.** An editor edits one chapter, but a project often keeps bodies in one chapter and pictures in another, so a body's widget had no picker: the chapter holding the bodies has no picture aggregate, and the one holding pictures has no bodies.
+- **The smallest design.** The `Editor` row takes an optional `media` field naming another chapter of the same domain directory. The picture aggregate is found there by the same shape rule, and the editor's `/media` upload, listing and picker use it. The row still names one chapter to edit; the picture chapter is not merged into its navigation, so its aggregates are edited by that chapter's own editor.
+- **How it is carried.** `schema.ts`'s `media` entry gains `domain` (the picture chapter's name) and `definition` (the picture aggregate, since the editor's own aggregates do not hold it), only when `media` is named. The media handler then reads and registers pictures through a client for that domain (`Library::MediaItem.RegisterPicture`), with the role the command declares. A row without `media` produces the same `media` entry as before.
+- **Refused.** `media` naming the editor's own chapter, a chapter the domain directory does not declare, or a chapter with no aggregate that registers pictures.
+- **Not done.** Several `Editor` rows in one project (each with its own base path) and merging chapters into one navigation are not offered.
+
+## Addendum: the first run against a real host
+
+This follows the decision above and does not depart from it, so it is an addendum and not a new ADR.
+
+- **Clearing arguments are not fields.** The bluebook clears an optional field with an optional argument the command never reads (`sets :draft_body, to: :nothing`). The projector recognises it by shape (optional, not an attribute of the aggregate, feeding only plain `sets` of fields that can be empty, named by no `given` or `ensures`), leaves it out of the form and the schema's attributes, and sends nothing for it (an empty list when it is a list, named in the command's `empty`).
+- **Success is judged by the state that comes back.** The check no longer compares the arguments sent with the state held, since a command may set a field from an argument that is not a field. It holds when the instance changed (for a lifecycle move, to the move's target), or, when nothing changed, when the host's last refusal does not name this verb.
+- **Refusals read as what they are.** A `given` that was not met is shown as `Not allowed unless <condition>.`, a value object's invariant as the field and the rule without the offending value, and an aggregate-level invariant as its rule.
+- **Forms start from the current text.** A rich-text body the instance has not set yet (a draft not yet saved) starts from the body it holds of the same shape.
+- **Link and image forms are in the page.** The widget asks for a link address or an image's key, alt text and caption in a small form attached to the toolbar, not `window.prompt`, which blocks the page. The picker for registered pictures is unchanged.
+- **Sign-out.** `POST <base_path>/logout` clears the session cookie and sends the person to the login page; the header has the button. The sign-in token is consumed by a redirect to the base path, so it does not stay in the address bar.
+- **The client pin follows the release.** The generated `package.json` depends on `@hecks/client` at `^<the version of this hecks>`; the client and the gem are released at one version, so the pin tracks it.

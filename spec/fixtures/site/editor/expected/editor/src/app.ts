@@ -14,7 +14,7 @@ import type { HostClient } from "@hecks/client";
 
 import { authSecret, membershipCheck } from "./auth/membership.ts";
 import type { Membership } from "./auth/membership.ts";
-import { readSession } from "./auth/session.ts";
+import { clearedCookie, readSession } from "./auth/session.ts";
 import { signIn } from "./auth/sso.ts";
 import { idOf, instanceIn, runCommand } from "./commands.ts";
 import type { State } from "./commands.ts";
@@ -62,13 +62,14 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const now = options.now ?? Date.now;
   const membership = options.membership ?? membershipCheck({ url: options.url, fetch: options.fetch, secret, now });
   const client = hostClient({ url: options.url, fetch: options.fetch });
-  const media = mediaHandler(options.storage);
+  const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });
 
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
     if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return html(notFound(path), 404);
+    if (path === href("logout") && request.method === "POST") return signOut(request);
 
     const email = readSession(request.headers.get("cookie"), secret, now);
     if (!email || !(await membership.isAdmitted(email))) {
@@ -97,6 +98,12 @@ function asset(name: string): Response {
   if (!ASSETS.includes(name)) return html(notFound(`No asset ${name}.`), 404);
   const text = readFileSync(new URL(`./ui/${name}`, import.meta.url), "utf8");
   return new Response(text, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "private, max-age=300" } });
+}
+
+/** Ends the session: the cookie is cleared and the person is sent to the site's login page. */
+function signOut(request: Request): Response {
+  if (!sameSite(request)) return new Response("Cross-site post refused.", { status: 403 });
+  return redirect(EDITOR.login, 303, clearedCookie());
 }
 
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
@@ -168,7 +175,7 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
   if (!command) return html(notFound("No such command."), 404);
   const form = parseForm(await request.text());
-  const args = commandArguments(agg, command.attributes, form);
+  const args = commandArguments(agg, command.attributes, form, command.empty);
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : await runCommand(client, agg, command, args, to);
   if (outcome.ok) return redirect(href(agg.name, "id", outcome.id));

@@ -42,6 +42,8 @@ export interface Command {
   /** The aggregate the command acts on, when it is not a creating command. */
   on: string | null;
   attributes: Attr[];
+  /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
+  empty?: string[];
 }
 
 export interface Query {
@@ -74,6 +76,10 @@ export interface Media {
   fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
   /** The query that lists the pictures, or null when every instance is read. */
   listing: string | null;
+  /** The chapter that holds the picture aggregate, when it is not this editor's own chapter. */
+  domain?: string;
+  /** That aggregate, which is then not among the editor's own; see `domain`. */
+  definition?: Aggregate;
 }
 
 export interface Schema {
@@ -165,6 +171,14 @@ export const SCHEMA: Schema = {
           "type": "Body",
           "kind": "object",
           "optional": false,
+          "list": false,
+          "widget": "body"
+        },
+        {
+          "name": "draft_body",
+          "type": "Body",
+          "kind": "object",
+          "optional": true,
           "list": false,
           "widget": "body"
         }
@@ -495,6 +509,39 @@ export const SCHEMA: Schema = {
               "widget": "body"
             }
           ]
+        },
+        {
+          "name": "SaveDraft",
+          "goal": "Keep an edit aside until it is promoted",
+          "role": "Editor",
+          "creates": false,
+          "on": "Article",
+          "attributes": [
+            {
+              "name": "draft_body",
+              "type": "Body",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "widget": "body"
+            }
+          ]
+        },
+        {
+          "name": "PublishDraft",
+          "goal": "Promote the saved edit to the article's body",
+          "role": "Editor",
+          "creates": false,
+          "on": "Article",
+          "attributes": []
+        },
+        {
+          "name": "DiscardDraft",
+          "goal": "Throw the saved edit away",
+          "role": "Editor",
+          "creates": false,
+          "on": "Article",
+          "attributes": []
         },
         {
           "name": "Publish",

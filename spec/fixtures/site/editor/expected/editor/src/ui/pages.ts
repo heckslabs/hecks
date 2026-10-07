@@ -35,6 +35,20 @@ export function notFound(what: string): string {
   return page("Not found", `<h1>Not found</h1>\n<p>${esc(what)}</p>`);
 }
 
+/**
+ * What a command's form starts from: the instance's values, and for a rich-text body the instance
+ * has not set yet (a draft not yet saved), the body it holds of the same shape, so an edit begins
+ * from the current text and not an empty page.
+ */
+function startingValues(agg: Aggregate, command: Command, state: State): State {
+  const values = { ...state };
+  for (const attr of command.attributes.filter((candidate) => candidate.widget === "body" && values[candidate.name] == null)) {
+    const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && state[other.name] != null);
+    if (held) values[attr.name] = state[held.name];
+  }
+  return values;
+}
+
 /** A form for one command; `to` adds the id input a command acting on another aggregate needs. */
 export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, state: State = {}, to = false): string {
   const own = shown && shown.command === command.name ? shown : null;
@@ -43,7 +57,7 @@ export function commandForm(agg: Aggregate, command: Command, action: string, sh
   return `<form method="post" action="${esc(action)}">
 ${refusal(own?.message ?? null)}${note}
 ${target}
-${fields(agg, command.attributes, own ? own.values : state)}
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state))}
 <button type="submit">${esc(label(command.name))}</button>
 </form>`;
 }

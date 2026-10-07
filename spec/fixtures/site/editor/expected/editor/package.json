@@ -10,7 +10,7 @@
     "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@hecks/client": "^3.8.0"
+    "@hecks/client": "^<version>"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
