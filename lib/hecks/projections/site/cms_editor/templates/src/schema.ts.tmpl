@@ -1,0 +1,69 @@
+__BANNER__
+
+// The domain's shape, read from its bluebook: every aggregate with its attributes, value objects,
+// lifecycle, commands and queries. The pages, the forms and the input parser all read this one
+// constant, so the editor can edit any aggregate; none of it is written by hand.
+
+/** How an attribute's value is entered: `object` is a value object, the rest are single values. */
+export type Kind = "text" | "integer" | "number" | "boolean" | "object" | "reference";
+
+export interface Attr {
+  name: string;
+  /** The type as the bluebook spells it ("String", "Byline"). */
+  type: string;
+  kind: Kind;
+  optional: boolean;
+  /** True for `list_of`: the attribute holds a list of `type`. */
+  list: boolean;
+  /** `body` for a rich-text attribute, which is shown read-only until the editor widget lands. */
+  widget?: "body";
+  /** The aggregate a `reference` points at. */
+  target?: string;
+}
+
+export interface Transition {
+  verb: string;
+  from: string[];
+  to: string;
+}
+
+export interface Lifecycle {
+  field: string;
+  default: string;
+  transitions: Transition[];
+}
+
+export interface Command {
+  name: string;
+  goal: string | null;
+  role: string | null;
+  /** True when the command makes a new instance; false when it acts on one (`reference_to`). */
+  creates: boolean;
+  /** The aggregate the command acts on, when it is not a creating command. */
+  on: string | null;
+  attributes: Attr[];
+}
+
+export interface Query {
+  name: string;
+  description: string | null;
+  attributes: Attr[];
+}
+
+export interface Aggregate {
+  name: string;
+  description: string | null;
+  identity: string;
+  lifecycle: Lifecycle | null;
+  attributes: Attr[];
+  valueObjects: Record<string, Attr[]>;
+  commands: Command[];
+  queries: Query[];
+}
+
+export interface Schema {
+  domain: string;
+  aggregates: Aggregate[];
+}
+
+export const SCHEMA: Schema = __SCHEMA__;

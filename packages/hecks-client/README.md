@@ -104,6 +104,7 @@ missing domain or URL throws a `TypeError`.
 - `qualify(name)`: places a bare name in the client's domain (`"Event"` becomes `"Shop::Event"`). A name that already contains `::` is returned unchanged.
 - `read(): Promise<Answer>`: posts `{"read": true}` and returns everything the domain holds.
 - `dispatch(verb, args = {}, to?, role?, actorId?): Promise<Answer>`: posts one command and returns the raw answer. `verb` is `Aggregate.Verb` or fully qualified. `to` targets an existing instance and is omitted for a command that creates one.
+- `query(name, args = {}): Promise<Answer>`: asks one declared query (`Aggregate.Query`, bare or qualified) and returns the raw answer, with the result in `answer.queries` (`[{ query, rows, error? }]`). The host reads current state and writes nothing. A server-side call like the others: the host accepts it only from the same machine.
 - `apply<T>(command): Promise<T>`: dispatches `command.verb` with `command.with`, `command.to`, `command.role` and `command.actorId`, reads the answer with `command.parse`, and returns the result when `command.confirm` accepts it. Otherwise it throws `DomainRefusal` built from the answer's last refusal.
 - `instancesOf(answer, aggregate): [string, state][]`: the states of one aggregate, bare or qualified name.
 
@@ -113,9 +114,10 @@ Standalone readers, importable without a client:
 - `text(raw): string | null`: a string value object's text, `null` when absent or empty.
 - `whole(raw, key): number`: a numeric value object's number under `key` (`"value"`, `"cents"`), `0` when absent.
 - `optionalWhole(raw, key): number | null`: like `whole`, but `null` when the attribute was left unset.
+- `rowsOf(answer, name?): Record<string, unknown>[] | null`: the rows a query answered, `null` when the answer has no entry for it; throws `DomainRefusal` when the host refused the question (an unknown query, or one answered outside the domain).
 - `refusalOf(answer, verb): DomainRefusal`: the domain's own words for why a command changed nothing.
 
-Types and errors: `Answer` (`{ instances?, refusals?, error? }`), `Refusal`
+Types and errors: `Answer` (`{ instances?, refusals?, queries?, error? }`), `QueryResult` (`{ query, rows, error? }`), `Refusal`
 (`{ kind, error }`), `ClientOptions`, `Command<T>`, `DomainRefusal` (has
 `kind`), `DomainUnavailable`.
 

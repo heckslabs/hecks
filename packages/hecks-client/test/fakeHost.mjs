@@ -5,7 +5,9 @@
 // rust_host/checkout_fixture): `Event.Schedule` creates a session and
 // `Event.Close` closes an open one. Answers carry the same envelope the real
 // host sends (instances, events, refusals), so the scenario in scenario.mjs
-// passes against this fake and against a live host alike.
+// passes against this fake and against a live host alike. It also answers the
+// query step: `Event.Open` lists the open sessions, any other name is refused
+// the way the host refuses a question its domain does not declare.
 
 const DOMAIN = "CheckoutFixture";
 
@@ -38,7 +40,19 @@ export function fakeHost() {
     return outcome();
   };
 
+  const ask = (question) => {
+    const short = question.replace(/^.*::/, "");
+    if (short !== "Event.Open") {
+      const error = `Event has no query "${short.split(".")[1]}"`;
+      return { instances: {}, events: [], refusals: [{ verb: question, kind: "UnknownVerb", error }],
+               queries: [{ query: question, rows: null, error }] };
+    }
+    const rows = Object.values(instances).filter((event) => event.status === "open").map((event) => structuredClone(event));
+    return { instances: {}, events: [], refusals: [], queries: [{ query: question, rows }] };
+  };
+
   const handle = (body) => {
+    if (typeof body.query === "string") return ask(body.query);
     if (body.read === true) return outcome();
     if (typeof body.verb !== "string") return { error: 'event missing "verb"' };
     if (body.verb === `${DOMAIN}::Event.Schedule`) return schedule(body.verb, body.with ?? {});
