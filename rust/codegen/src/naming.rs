@@ -248,6 +248,16 @@ pub fn screaming_snake(name: &str) -> String {
     out.to_uppercase()
 }
 
+/// The expression for a scalar reached through a reference (`v` in `as_ref().map(|v| ..)`, `x` in
+/// `iter().map(|x| ..)`): the copy types are dereferenced, since `Value::Int(v)` takes an `i64`, not an
+/// `&i64`; a `String` is left to the `.clone()` the scalar helpers already apply.
+pub fn deref_scalar(type_name: &str, ident: &str) -> String {
+    match type_name {
+        "Integer" | "Float" | "TrueClass" | "FalseClass" => format!("*{ident}"),
+        _ => ident.to_string(),
+    }
+}
+
 pub fn scalar_to_value(type_name: &str, rust_expr: &str) -> Option<String> {
     match type_name {
         "String" => Some(format!("Value::Str({rust_expr}.clone())")),
@@ -315,6 +325,16 @@ pub fn ruby_inspect_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_scalar_reached_through_a_reference_is_dereferenced_when_it_is_a_copy_type() {
+        // `self.level.as_ref().map(|v| Field::Value(Value::Int(v)))` does not compile: `v` is `&i64`.
+        assert_eq!(scalar_to_value("Integer", &deref_scalar("Integer", "v")).as_deref(), Some("Value::Int(*v)"));
+        assert_eq!(scalar_to_value("Float", &deref_scalar("Float", "v")).as_deref(), Some("Value::Float(*v)"));
+        assert_eq!(scalar_to_value("TrueClass", &deref_scalar("TrueClass", "v")).as_deref(), Some("Value::Bool(*v)"));
+        // A String is cloned, so the reference is left alone.
+        assert_eq!(scalar_to_value("String", &deref_scalar("String", "v")).as_deref(), Some("Value::Str(v.clone())"));
+    }
 
     #[test]
     fn refuses_an_aggregate_whose_module_name_is_a_rust_keyword() {
