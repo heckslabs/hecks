@@ -168,12 +168,14 @@ module Hecks
       end
 
       # The booted, self-judged language registry every ordinary bluebook is
-      # judged against — built once per process and memoized.
+      # judged against — built once per process and memoized, with shadow parsing off: a caller
+      # inside `while_shadow_parsing` that is first to ask would otherwise memoize a grammar
+      # parsed in that mode, or fail to load it.
       #
       # @return [Runtime::Registry] the booted, fixpoint-judged language
       #   registry
       def self.grammar_registry
-        @grammar_registry ||= begin
+        @grammar_registry ||= while_not_shadow_parsing do
           registry = load_grammar_into(Runtime::Registry.new)
           # Assigned before the fixpoint judge below, since judging re-enters
           # grammar_registry (via fresh_runtime/Plan.for) and a bare `||=`

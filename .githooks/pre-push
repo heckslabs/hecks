@@ -14,9 +14,8 @@
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
 # backstop before it.
 #
-# A push of only unguarded lanes (the `Lane` rows of the Vocabulary chapter: `main`) skips the
-# suite, since `main` takes pushes with no gate, but still runs the `unguarded_push` stage (rubocop
-# and the comment-style checks). HECKS_PRE_PUSH_GATE=1 runs the whole suite for such a push.
+# The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop and the
+# comment-style checks); HECKS_PRE_PUSH_GATE=1 runs the whole `pre_push` stage, suite included.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -52,30 +51,16 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# Unguarded lanes take pushes with no gate. The lanes come from the Lane rows, not from this file,
-# and a push that names any other ref (a branch, a note) is checked as before.
-if [ -z "${HECKS_PRE_PUSH_GATE:-}" ] && [ -n "$PUSHED_REFS" ]; then
-  UNGUARDED=$(bundle exec ruby -Ilib -e 'require "hecks/vocabulary"
-    Hecks::Vocabulary.rows("Lane").select { |lane| lane["guarded"] == "no" }
-      .each { |lane| puts "refs/heads/#{lane["name"]}" }' 2>/dev/null)
-  if [ -n "$UNGUARDED" ]; then
-    GUARDED_PUSH="$WORKDIR/guarded_push"
-    printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r _local_ref _local_oid remote_ref _remote_oid; do
-      if ! printf '%s\n' "$UNGUARDED" | grep -qx "$remote_ref"; then
-        : >"$GUARDED_PUSH"
-        break
-      fi
-    done
-
-    if [ ! -e "$GUARDED_PUSH" ]; then
-      printf '[pre-push] every pushed ref is an unguarded lane — skipping the suite, running the style checks (HECKS_PRE_PUSH_GATE=1 runs it).\n\n'
-      if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then
-        printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
-        exit 1
-      fi
-      exit 0
-    fi
+# The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop and the comment-style
+# checks, seconds), since CI runs every other check on the pushed commit. HECKS_PRE_PUSH_GATE=1 runs
+# the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
+if [ -z "${HECKS_PRE_PUSH_GATE:-}" ]; then
+  printf '[pre-push] running the style checks; CI runs the suite (HECKS_PRE_PUSH_GATE=1 runs it here).\n\n'
+  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then
+    printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
+    exit 1
   fi
+  exit 0
 fi
 
 # The checks are data in lib/hecks/gate/stages.yml. `hecks gate_run.gate` runs a stage's checks together and
