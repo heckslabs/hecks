@@ -32,7 +32,7 @@ impl HostExtension for Commerce {
         // is checked first since it needs none of the Payments::Payment/Event context checkout
         // requires. The subscriber list is PII (email, names, status): only an Admin or Owner
         // holding the account cookie may read it, like sending does.
-        if ctx.method == "GET" && ctx.path == "/newsletter/subscribers" && ir.and_then(crate::ir::newsletter_provider).is_some() {
+        if ctx.method == "GET" && ctx.path == "/newsletter/subscribers" && ir.and_then(crate::commerce_ir::newsletter_provider).is_some() {
             let Some(domain_ir) = ir else {
                 return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
             };

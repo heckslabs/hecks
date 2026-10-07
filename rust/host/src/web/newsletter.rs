@@ -2,7 +2,8 @@ use super::newsletter_send::{site_url, unsubscribe_token, unsubscribe_token_matc
 use super::{instances_for, last_refusal, respond};
 use crate::auth;
 use crate::dispatch;
-use crate::ir::{ir, newsletter_provider, NewsletterProvider};
+use crate::ir::ir;
+use crate::commerce_ir::{newsletter_provider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::resend::{Email, Mailer};

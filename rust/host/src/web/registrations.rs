@@ -1,7 +1,7 @@
 use super::{instances_for, last_refusal, respond, with_id};
 use crate::checkout;
 use crate::dispatch;
-use crate::ir::{payments_provider, PaymentsProvider};
+use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -63,7 +63,7 @@ fn seat_counts(read: &Value, domain: &str, payments: &PaymentsProvider) -> std::
         .filter_map(|(id, payment)| payment.get("status").and_then(|s| s.as_str()).map(|s| (id, s.to_string())))
         .collect();
     let mut counts = std::collections::HashMap::new();
-    for (id, registration) in instances_for(read, &crate::ir::registrations_binding(domain).registration_prefix()) {
+    for (id, registration) in instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix()) {
         let holds = statuses.get(&id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str()));
         if let (true, false, Some(event_slug)) = (holds, registration_archived(&registration), plain_id(registration.get("event_slug"))) {
             *counts.entry(event_slug).or_insert(0) += 1;
@@ -90,7 +90,7 @@ fn open_seats(capacity: i64, taken: usize) -> i64 {
 /// Seats still open on one event, never below zero; `None` when there is no
 /// such event or it carries no readable capacity.
 pub(crate) fn seats_left(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> Option<i64> {
-    let events = instances_for(read, &crate::ir::registrations_binding(domain).event_prefix());
+    let events = instances_for(read, &crate::commerce_ir::registrations_binding(domain).event_prefix());
     let (_, event) = events.iter().find(|(id, _)| id == event_slug)?;
     Some(open_seats(event_capacity(event)?, seats_taken(read, domain, payments, event_slug)))
 }
@@ -105,7 +105,7 @@ fn seat_figures(event: &Value, taken: usize) -> Value {
 /// The seat figures of every event, keyed by event slug.
 fn all_seat_figures(read: &Value, domain: &str, payments: &PaymentsProvider) -> Value {
     let counts = seat_counts(read, domain, payments);
-    let events = instances_for(read, &crate::ir::registrations_binding(domain).event_prefix());
+    let events = instances_for(read, &crate::commerce_ir::registrations_binding(domain).event_prefix());
     let figures: serde_json::Map<String, Value> =
         events.iter().map(|(slug, event)| (slug.clone(), seat_figures(event, counts.get(slug).copied().unwrap_or(0)))).collect();
     json!({"events": figures})
@@ -113,7 +113,7 @@ fn all_seat_figures(read: &Value, domain: &str, payments: &PaymentsProvider) -> 
 
 /// The seat figures of one event, with its `slug`; `None` when there is no such event.
 fn one_seat_figures(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> Option<Value> {
-    let events = instances_for(read, &crate::ir::registrations_binding(domain).event_prefix());
+    let events = instances_for(read, &crate::commerce_ir::registrations_binding(domain).event_prefix());
     let (_, event) = events.iter().find(|(id, _)| id == event_slug)?;
     let mut figures = seat_figures(event, seats_taken(read, domain, payments, event_slug));
     figures["slug"] = json!(event_slug);
@@ -224,7 +224,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
+    let events = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).event_prefix());
     if let Some((_, existing)) = events.iter().find(|(id, _)| id == slug) {
         return respond(200, "application/json", &serde_json::to_string_pretty(&with_id(slug, existing)).unwrap_or_default());
     }
@@ -245,7 +245,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         "price": {"cents": price_cents},
         "capacity": {"value": capacity},
     });
-    let verb = crate::ir::registrations_binding(&config.domain).schedule;
+    let verb = crate::commerce_ir::registrations_binding(&config.domain).schedule;
     let outcome = match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -258,7 +258,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
+    let events = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).event_prefix());
     let Some((_, event)) = events.iter().find(|(id, _)| id == slug) else {
         return respond(500, "text/plain", "event vanished immediately after being scheduled");
     };
@@ -272,12 +272,12 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let registrations = instances_for(&read, &crate::ir::registrations_binding(&config.domain).registration_prefix());
+    let registrations = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).registration_prefix());
     let Some((_, registration)) = registrations.iter().find(|(id, _)| id == registration_id) else {
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     };
     let event_slug = registration.get("event_slug").and_then(|v| v.as_str());
-    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
+    let events = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).event_prefix());
     let event = event_slug.and_then(|slug| events.iter().find(|(id, _)| id == slug)).map(|(_, e)| e);
 
     let payment_instances = instances_for(&read, &payments.instance_prefix());
@@ -327,7 +327,7 @@ pub(crate) async fn registration_complete_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let registrations = instances_for(&read, &crate::ir::registrations_binding(&config.domain).registration_prefix());
+    let registrations = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).registration_prefix());
     if !registrations.iter().any(|(id, _)| id == registration_id) {
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     }
@@ -441,7 +441,7 @@ pub(crate) async fn registrations_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
+    let events = instances_for(&read, &crate::commerce_ir::registrations_binding(&config.domain).event_prefix());
     let Some((_, event)) = events.iter().find(|(id, _)| id == event_slug) else {
         return respond(404, "application/json", &json!({"error": "no such event"}).to_string());
     };
@@ -518,9 +518,9 @@ pub(crate) async fn registrations_route(
     // inside `attendee`, so newsletter fields are declared flat on
     // Registration.Request; a command refuses args it doesn't declare.
     let news_signup = body.get("news_signup").and_then(|v| v.as_bool()).unwrap_or(false);
-    let binding = crate::ir::registrations_binding(&config.domain);
+    let binding = crate::commerce_ir::registrations_binding(&config.domain);
     let forwards_newsletter = crate::ir::ir().is_some_and(|ir| {
-        binding.request_target().is_some_and(|(aggregate, command)| crate::ir::command_declares(ir, aggregate, command, "news_signup"))
+        binding.request_target().is_some_and(|(aggregate, command)| crate::commerce_ir::command_declares(ir, aggregate, command, "news_signup"))
     });
     if forwards_newsletter {
         request_args["news_signup"] = json!(news_signup);
@@ -531,7 +531,7 @@ pub(crate) async fn registrations_route(
             }
         }
     }
-    let request_verb = crate::ir::registrations_binding(&config.domain).request;
+    let request_verb = crate::commerce_ir::registrations_binding(&config.domain).request;
     let outcome = match dispatch::handle(client, wasm_path, &request_verb, request_args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -749,7 +749,7 @@ mod tests {
 
     #[test]
     fn a_registration_holds_a_seat_while_its_payment_is_open_paid_or_being_settled() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let read = read_with(
             10,
             &[("a", "yoga", "pending"), ("b", "yoga", "succeeded"), ("c", "yoga", "refunding"), ("d", "yoga", "disputed")],
@@ -760,7 +760,7 @@ mod tests {
 
     #[test]
     fn a_failed_refunded_or_charged_back_payment_gives_its_seat_back() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let read = read_with(
             3,
             &[("a", "yoga", "failed"), ("b", "yoga", "refunded"), ("c", "yoga", "charged_back"), ("d", "yoga", "succeeded")],
@@ -771,7 +771,7 @@ mod tests {
 
     #[test]
     fn seats_are_counted_per_event_and_a_registration_without_a_payment_holds_none() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(4, &[("a", "yoga", "succeeded"), ("b", "other", "succeeded")]);
         read["instances"]["CheckoutFixture::Registration#orphan"] = json!({"event_slug": "yoga"});
         assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "only this event's registrations, and only those with a payment");
@@ -780,7 +780,7 @@ mod tests {
 
     #[test]
     fn an_archived_registration_gives_its_seat_back_whatever_its_payment_says() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(3, &[("a", "yoga", "succeeded"), ("b", "yoga", "pending"), ("c", "yoga", "succeeded")]);
         assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 3);
         read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
@@ -790,7 +790,7 @@ mod tests {
 
     #[test]
     fn a_registration_with_no_status_counts_as_active() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(5, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded")]);
         // `a` carries no status at all (a domain without the lifecycle, or data
         // from before it existed); `b` says it is active.
@@ -802,7 +802,7 @@ mod tests {
 
     #[test]
     fn a_restored_registration_takes_its_seat_back() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(2, &[("a", "yoga", "succeeded")]);
         read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
         assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(2));
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn seats_left_with_mixed_statuses_counts_only_the_active_holders() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(
             6,
             &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded"), ("c", "yoga", "pending"), ("d", "yoga", "failed"), ("e", "other", "succeeded")],
@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn seats_left_never_goes_below_zero_and_is_none_without_an_event_or_capacity() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let oversold = read_with(1, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded")]);
         assert_eq!(seats_left(&oversold, "CheckoutFixture", &payments, "yoga"), Some(0));
         assert_eq!(seats_left(&oversold, "CheckoutFixture", &payments, "nowhere"), None);
@@ -858,7 +858,7 @@ mod tests {
 
     #[test]
     fn every_holding_status_holds_one_seat_and_every_freeing_status_holds_none() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         for status in HOLDING {
             let read = read_with(10, &[("r", "yoga", status)]);
             assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "{status} should hold a seat");
@@ -871,7 +871,7 @@ mod tests {
 
     #[test]
     fn a_reference_reads_as_a_plain_id_or_a_wrapped_value_and_counts_per_event() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(
             10,
             &[("a", "yoga", "succeeded"), ("b", "yoga", "pending"), ("c", "other", "pending"), ("d", "yoga", "failed")],
@@ -885,7 +885,7 @@ mod tests {
 
     #[test]
     fn a_payment_with_no_registration_is_ignored_and_a_missing_or_empty_read_counts_nothing() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(5, &[]);
         read["instances"]["CheckoutFixture::Registration#lonely"] = json!({"event_slug": "yoga"});
         read["instances"]["Payments::Payment#orphan"] = json!({"status": "succeeded"});
@@ -898,7 +898,7 @@ mod tests {
 
     #[test]
     fn an_archived_registration_frees_its_seat_whichever_holding_status_its_payment_has() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         for status in HOLDING {
             let mut read = read_with(10, &[("r", "yoga", status)]);
             set_registration_status(&mut read, "r", "archived");
@@ -908,7 +908,7 @@ mod tests {
 
     #[test]
     fn archiving_one_of_several_guests_frees_exactly_one_seat() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(10, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded"), ("c", "yoga", "pending")]);
         set_registration_status(&mut read, "a", "active");
         set_registration_status(&mut read, "b", "archived");
@@ -918,7 +918,7 @@ mod tests {
 
     #[test]
     fn seat_figures_carry_capacity_taken_and_left_and_null_without_a_capacity() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let read = read_with(3, &[("a", "yoga", "succeeded"), ("b", "yoga", "pending"), ("c", "yoga", "succeeded"), ("d", "yoga", "succeeded")]);
         assert_eq!(one_seat_figures(&read, "CheckoutFixture", &payments, "yoga"), Some(json!({"slug": "yoga", "capacity": 3, "seats_taken": 4, "seats_left": 0})));
         assert_eq!(one_seat_figures(&read, "CheckoutFixture", &payments, "nowhere"), None);
@@ -938,7 +938,7 @@ mod tests {
 
     #[test]
     fn the_seat_figures_agree_with_seats_left_for_every_event() {
-        let payments = crate::ir::fixture_payments();
+        let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(6, &[("a", "yoga", "succeeded"), ("b", "yoga", "refunding"), ("c", "other", "pending"), ("d", "yoga", "failed")]);
         set_registration_status(&mut read, "b", "archived");
         let all = all_seat_figures(&read, "CheckoutFixture", &payments);
@@ -963,7 +963,7 @@ mod tests {
         let config = checkout_config(1);
         let wasm_path = checkout_wasm_path();
         schedule_event(&client, &wasm_path, &config, "yoga", 4200).await;
-        let ir = crate::ir::fixture_ir();
+        let ir = crate::commerce_ir::fixture_ir();
         let get = |path: &'static str| {
             let (client, wasm_path, config, ir) = (&client, &wasm_path, &config, &ir);
             async move {
@@ -1045,7 +1045,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
@@ -1069,7 +1069,7 @@ mod tests {
             "email": "ada@example.com",
         })
         .to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
 
         // Registration.Request refuses (no first_name/last_name in this
         // Attendee) but only after Payment.Initiate already ran, proving
@@ -1117,7 +1117,7 @@ mod tests {
             }
         }
 
-        let fixture_ir = crate::ir::fixture_ir();
+        let fixture_ir = crate::commerce_ir::fixture_ir();
         let response = payments_routes(Some(&fixture_ir), "POST", "/registrations", "not json", "", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response.expect("the fixture IR declares payments, so the route answers")["statusCode"], 400);
     }
@@ -1127,7 +1127,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -1212,7 +1212,7 @@ mod tests {
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let body = json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 404);
     }
 
@@ -1230,7 +1230,7 @@ mod tests {
         assert!(close.accepted, "closing the fixture event should succeed: {:?}", close.result);
 
         let body = json!({"event_slug": "closed-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 422);
         assert!(response["body"].as_str().unwrap().contains("closed"));
     }
@@ -1248,7 +1248,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
 
         let body = json!({"event_slug": "free-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 422);
         assert!(
             response["body"].as_str().unwrap().contains("positive"),
@@ -1275,7 +1275,7 @@ mod tests {
         // a misconfiguration — the whole chain runs and returns a real
         // checkout URL, never a 500.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -1330,7 +1330,7 @@ mod tests {
             "return_to": "/sample-studio.html",
         })
         .to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -1361,7 +1361,7 @@ mod tests {
                 "return_to": unsafe_return_to,
             })
             .to_string();
-            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
             // checkout_url is the /pay/<id>.html walkthrough page; return_to
@@ -1390,7 +1390,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
 
         let body = json!({"event_slug": "mock-loop-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = response_body["registration_id"].as_str().unwrap().to_string();
@@ -1403,7 +1403,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1420,7 +1420,7 @@ mod tests {
         let payload = json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
         let bad_header = "t=1700000000,v1=deadbeef";
 
-        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -1451,7 +1451,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1462,7 +1462,7 @@ mod tests {
         // A redelivered webhook (Stripe's delivery is at-least-once) for an
         // already-succeeded payment must still answer 200 — the refusal
         // underneath is a benign no-op, not surfaced as an error.
-        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
     }
 
@@ -1492,7 +1492,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1511,7 +1511,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200);
     }
 }
