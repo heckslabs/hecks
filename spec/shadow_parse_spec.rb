@@ -1,5 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
+require "open3"
+require "rbconfig"
 require "tmpdir"
 
 # Frozen era text must stay readable under the grammar live when it was written (ADR 0025).
@@ -164,6 +166,37 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
     it "is on for exactly the span of its own block", :aggregate_failures do
       expect(seen_inside_block).to be(true)
       expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
+    end
+  end
+
+  describe "MetaValidator.while_not_shadow_parsing" do
+    def modes_around_nested_block
+      meta = Hecks::Bluebook::MetaValidator
+      meta.while_shadow_parsing do
+        inside = meta.while_not_shadow_parsing { meta.shadow_parsing? }
+        [inside, meta.shadow_parsing?]
+      end
+    end
+
+    it "is off for its own block inside a shadow parse, and the shadow parse resumes after it" do
+      expect(modes_around_nested_block).to eq([false, true])
+    end
+  end
+
+  # The grammar is memoized per process, so only a fresh process shows a build that takes the
+  # mode of whichever caller asks for it first.
+  describe "the language grammar built first inside a shadow parse" do
+    def cold_grammar_build
+      script = "m = Hecks::Bluebook::MetaValidator; m.while_shadow_parsing { m.grammar_registry }; puts :built"
+      lib = File.join(InMemoryDomain::ROOT, "lib")
+      Open3.capture2e("bundle", "exec", RbConfig.ruby, "-I", lib, "-r", "hecks", "-e", script,
+                      chdir: InMemoryDomain::ROOT)
+    end
+
+    it "builds, as it does when anything else asks first" do
+      output, status = cold_grammar_build
+
+      expect([status.success?, output.lines.last.to_s.strip]).to eq([true, "built"])
     end
   end
 end
