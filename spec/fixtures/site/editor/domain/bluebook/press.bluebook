@@ -45,16 +45,32 @@ Hecks.bluebook "Press" do
       attribute :links,   list_of(Link)
     end
 
+    value_object "Mark" do
+      attribute :name, String
+    end
+
     value_object "Span" do
-      attribute :from, Integer
-      attribute :to,   Integer
-      attribute :mark, String
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+    end
+
+    value_object "Item" do
+      attribute :spans,     list_of(Span)
+      attribute :depth,     Integer, optional: true
+      attribute :list_kind, String, optional: true
     end
 
     value_object "Block" do
-      attribute :kind,  String
-      attribute :text,  String
-      attribute :spans, list_of(Span)
+      attribute :kind,      String
+      attribute :level,     Integer, optional: true
+      attribute :align,     String, optional: true
+      attribute :indent,    Integer, optional: true
+      attribute :spans,     list_of(Span)
+      attribute :items,     list_of(Item)
+      attribute :media_ref, String, optional: true
+      attribute :alt,       String, optional: true
+      attribute :caption,   String, optional: true
     end
 
     value_object "Body" do
@@ -154,8 +170,23 @@ Hecks.bluebook "Press" do
       attribute :value, String
     end
 
+    # A document body under other names: the editor picks its widget by this shape, not by a name.
+    value_object "Run" do
+      attribute :text, String
+    end
+
+    value_object "Piece" do
+      attribute :kind,  String
+      attribute :spans, list_of(Run)
+    end
+
+    value_object "Statement" do
+      attribute :blocks, list_of(Piece)
+    end
+
     attribute :key,   MastheadKey
     attribute :title, Title, optional: true
+    attribute :about, Statement, optional: true
 
     command "Establish" do
       role "Editor"
@@ -163,6 +194,7 @@ Hecks.bluebook "Press" do
 
       attribute :key,   MastheadKey
       attribute :title, Title, optional: true
+      attribute :about, Statement, optional: true
 
       emits "MastheadEstablished"
     end

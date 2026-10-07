@@ -22,7 +22,7 @@ ADR 0092, ADR 0093 and ADR 0094 were taken when this was merged, so this is 0095
 
 - A project gets an editor for its domain from a row, with no content system to run, secure and keep in step with the domain.
 - Adding an attribute, a command or a lifecycle state to the bluebook changes the editor on the next projection; a stale editor fails `--check`.
-- The `Body` value object is shown as a read-only outline and carried through a form unchanged. Its editor widget is the next slice.
+- An attribute whose value object is a structured document body is edited with a rich-text widget (see the addendum).
 - `rust/host` is unchanged.
 
 ## Alternatives considered
@@ -33,7 +33,17 @@ ADR 0092, ADR 0093 and ADR 0094 were taken when this was merged, so this is 0095
 
 ## Open items
 
-- The rich-text widget for `Body` attributes (slice 2).
 - Nothing yet runs the editor against a live host; the pages are run under node against a stand-in host in the specs.
 - A command that acts on another aggregate's instance is offered with a field for its id rather than a picker.
 - Entities inside an aggregate, and closed-set (`admits`) attributes as choice lists, are not given their own inputs yet.
+
+## Addendum: the rich-text widget
+
+This follows the decision above and does not depart from it, so it is an addendum and not a new ADR.
+
+- **The widget is chosen by shape.** An attribute gets `widget: "body"` when its value object has a `blocks` list of a value object that has `kind` and `spans`; neither the attribute's nor the value object's name matters.
+- **The domain's tree is the only format.** The widget edits the domain's own `blocks` (each with `kind`, `level`, `align`, `indent`, `spans`, `items`, `media_ref`, `alt`, `caption`; spans with `text`, `marks` and `href`; a line break is a span of `"\n"`; a nested list is flat items with a `depth`). It posts that tree as the dotted-path fields every other value object and list uses (`body.blocks.0.spans.1.marks.0.name`), read back by `src/ui/input.ts`. There is no JSON of an editor format and no second encoding. The server renders the current value as hidden inputs, so a browser without the script posts the body unchanged.
+- **Plain JavaScript, no DOM in the pure part.** `body_model.js` (`bodyToHtml`, `emptyBody`, `bodyToFields`, `safeHref`) and `body_parse.js` (`htmlToBody`, `htmlToBodyWithNotes`, a small tokenizer and tree with no DOM) run in node and in the browser; `body_widget.js` is the browser part. They are `.js`, not `.ts`, because the package runs under node's type stripping with no build step and a browser cannot load TypeScript; `tsconfig.json` gains `allowJs` so the TypeScript pages can import them. The server serves the three files to a signed-in editor at `<base_path>/assets/<name>`. No npm runtime dependency is added.
+- **Escaped always.** Every text, attribute value and address is escaped on its way into markup; an address is kept only when it is a path (not `//`), `http://`, `https://`, `mailto:` or `tel:`, with no whitespace or control characters; marks, kinds and alignments outside the closed sets are not written. The list and detail pages render the body read-only with `bodyToHtml`.
+- **Reduced, never silently dropped.** HTML pasted or dropped into the widget is reduced to the nearest block or mark by `htmlToBodyWithNotes`, and the widget shows what it reduced (a heading below level 4, a table, a script, an image with no media key, a link to a disallowed address, inline styles other than weight, italic, underline, strike-through and alignment). The result is normalised: adjacent spans with the same marks and address are merged and empty ones dropped, so a body with such spans reads back merged.
+- **Not yet verified:** the widget was driven in Chrome against a static page, not against a live host, and its browser behaviour (execCommand-based marks, prompts for links and images) is not under the specs, which run the pure functions and the server pages under node.

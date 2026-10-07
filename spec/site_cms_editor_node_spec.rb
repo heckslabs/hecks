@@ -19,7 +19,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   let sent = [];
   const article = (slug, headline) => ({
     slug: { value: slug }, headline: { value: headline }, byline: { name: "Ann", contact: "ann@example.org" },
-    tags: [{ value: "news" }], sections: [], body: { blocks: [{ kind: "p", text: "Hi", spans: [{ from: 0, to: 2, mark: "b" }] }] },
+    tags: [{ value: "news" }], sections: [], body: { blocks: [{ kind: "paragraph", spans: [{ text: "Hi <i>", marks: [{ name: "bold" }] }] }] },
     status: "draft",
   });
   const instances = { "Press::Article#first": article("first", "First piece") };
@@ -73,18 +73,24 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   const draft = [
     "slug.value=second", "headline.value=Second+piece", "standfirst.value=", "byline.name=Bo", "byline.contact=bo%40example.org",
     "tags.0.value=a", "tags.1.value=", "sections.0.heading=Links", "sections.0.links.0.label=Home", "sections.0.links.0.url=%2F",
-    "sections.0.links.1.label=", "sections.0.links.1.url=", "sections.1.heading=", "body.__json=%7B%22blocks%22%3A%5B%5D%7D",
+    "sections.0.links.1.label=", "sections.0.links.1.url=", "sections.1.heading=", "body.blocks.0.kind=paragraph",
+    "body.blocks.0.indent=1", "body.blocks.0.spans.0.text=Hello", "body.blocks.0.spans.0.marks.0.name=bold",
   ].join("&");
   sent = [];
   const created = await editor("/editor/Article/new/Draft", post("", draft));
   out.create = { status: created.status, location: created.headers.get("location"), sent: sent.filter((b) => b.verb) };
 
   refusal = "Revise refused: an article has a headline";
-  const refused = await editor("/editor/Article/id/first/Revise", post("", "headline.value=&byline.name=Ann&byline.contact=x&body.__json=%7B%7D"));
+  const refused = await editor("/editor/Article/id/first/Revise", post("", "headline.value=&byline.name=Ann&byline.contact=x"));
   out.refused = { status: refused.status, html: await refused.text() };
   refusal = null;
 
-  out.crossSite = await editor("/editor/Article/id/first/Publish", { method: "POST", body: "", headers: { ...form, Origin: "http://evil.test" } }).then((r) => r.status);
+  const script = await editor("/editor/assets/body_widget.js");
+  out.asset = { status: script.status, type: script.headers.get("content-type"), starts: (await script.text()).slice(0, 2) };
+  out.assetAnonymous = await call("/editor/assets/body_widget.js").then((r) => r.status);
+  out.assetUnknown = await editor("/editor/assets/app.ts").then((r) => r.status);
+
+  out.crossSite =await editor("/editor/Article/id/first/Publish", { method: "POST", body: "", headers: { ...form, Origin: "http://evil.test" } }).then((r) => r.status);
 
   members = [];
   clock += 61_000;
@@ -216,8 +222,29 @@ RSpec.describe "the generated editor, run by node" do
     it "shows an instance with its state as a badge and a rich-text body read-only", :aggregate_failures do
       detail = result("detail")
 
-      expect(detail).to include('<span class="badge">draft</span>', "editor widget: slice 2", "<strong>spans</strong>")
+      expect(detail).to include('<span class="badge">draft</span>')
+      expect(detail).to include('<div class="body"><p><strong>Hi &#60;i&#62;</strong></p></div>')
       expect(detail).to include('action="/editor/Article/id/first/Publish"', 'name="byline.name"')
+    end
+
+    it "shows the rich-text widget on a form that edits a body, filled from the instance", :aggregate_failures do
+      detail = result("detail")
+
+      expect(detail).to include("data-body-editor", 'name="body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
+      expect(detail).to include('<script type="module" src="/editor/assets/body_widget.js">')
+    end
+
+    it "never lets a body's text become markup", :aggregate_failures do
+      detail = result("detail")
+
+      expect(detail).not_to include("<i>")
+      expect(detail).to include("Hi &#60;i&#62;")
+    end
+
+    it "serves the widget's script to a signed-in editor only", :aggregate_failures do
+      expect(result("asset")).to eq("status" => 200, "type" => "text/javascript; charset=utf-8", "starts" => "//")
+      expect(result("assetAnonymous")).to eq(302)
+      expect(result("assetUnknown")).to eq(404)
     end
 
     it "offers a lifecycle move only from the states it applies in" do
@@ -248,7 +275,8 @@ RSpec.describe "the generated editor, run by node" do
       "slug" => { "value" => "second" }, "headline" => { "value" => "Second piece" },
       "byline" => { "name" => "Bo", "contact" => "bo@example.org" }, "tags" => [{ "value" => "a" }],
       "sections" => [{ "heading" => "Links", "links" => [{ "label" => "Home", "url" => "/" }] }],
-      "body" => { "blocks" => [] }
+      "body" => { "blocks" => [{ "kind" => "paragraph", "indent" => 1, "items" => [],
+                                 "spans" => [{ "text" => "Hello", "marks" => [{ "name" => "bold" }] }] }] }
     }.freeze
 
     it "posts a creating command with its nested value objects and rows, leaving out what is blank", :aggregate_failures do

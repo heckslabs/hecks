@@ -31,6 +31,7 @@ module Hecks
           package.json tsconfig.json src/config.ts src/schema.ts src/host.ts src/commands.ts src/app.ts src/server.ts
           src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
           src/ui/html.ts src/ui/outline.ts src/ui/fields.ts src/ui/input.ts src/ui/pages.ts
+          src/ui/body_model.js src/ui/body_parse.js src/ui/body_widget.js
         ].freeze
 
         module_function

@@ -15,7 +15,7 @@ export interface Attr {
   optional: boolean;
   /** True for `list_of`: the attribute holds a list of `type`. */
   list: boolean;
-  /** `body` for a rich-text attribute, which is shown read-only until the editor widget lands. */
+  /** `body` for an attribute whose value object has the shape of a structured document (blocks of spans). */
   widget?: "body";
   /** The aggregate a `reference` points at. */
   target?: string;
@@ -238,26 +238,58 @@ export const SCHEMA: Schema = {
             "list": true
           }
         ],
-        "Span": [
+        "Mark": [
           {
-            "name": "from",
-            "type": "Integer",
-            "kind": "integer",
-            "optional": false,
-            "list": false
-          },
-          {
-            "name": "to",
-            "type": "Integer",
-            "kind": "integer",
-            "optional": false,
-            "list": false
-          },
-          {
-            "name": "mark",
+            "name": "name",
             "type": "String",
             "kind": "text",
             "optional": false,
+            "list": false
+          }
+        ],
+        "Span": [
+          {
+            "name": "text",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          },
+          {
+            "name": "marks",
+            "type": "Mark",
+            "kind": "object",
+            "optional": false,
+            "list": true
+          },
+          {
+            "name": "href",
+            "type": "String",
+            "kind": "text",
+            "optional": true,
+            "list": false
+          }
+        ],
+        "Item": [
+          {
+            "name": "spans",
+            "type": "Span",
+            "kind": "object",
+            "optional": false,
+            "list": true
+          },
+          {
+            "name": "depth",
+            "type": "Integer",
+            "kind": "integer",
+            "optional": true,
+            "list": false
+          },
+          {
+            "name": "list_kind",
+            "type": "String",
+            "kind": "text",
+            "optional": true,
             "list": false
           }
         ],
@@ -270,10 +302,24 @@ export const SCHEMA: Schema = {
             "list": false
           },
           {
-            "name": "text",
+            "name": "level",
+            "type": "Integer",
+            "kind": "integer",
+            "optional": true,
+            "list": false
+          },
+          {
+            "name": "align",
             "type": "String",
             "kind": "text",
-            "optional": false,
+            "optional": true,
+            "list": false
+          },
+          {
+            "name": "indent",
+            "type": "Integer",
+            "kind": "integer",
+            "optional": true,
             "list": false
           },
           {
@@ -282,6 +328,34 @@ export const SCHEMA: Schema = {
             "kind": "object",
             "optional": false,
             "list": true
+          },
+          {
+            "name": "items",
+            "type": "Item",
+            "kind": "object",
+            "optional": false,
+            "list": true
+          },
+          {
+            "name": "media_ref",
+            "type": "String",
+            "kind": "text",
+            "optional": true,
+            "list": false
+          },
+          {
+            "name": "alt",
+            "type": "String",
+            "kind": "text",
+            "optional": true,
+            "list": false
+          },
+          {
+            "name": "caption",
+            "type": "String",
+            "kind": "text",
+            "optional": true,
+            "list": false
           }
         ],
         "Body": [
@@ -471,6 +545,14 @@ export const SCHEMA: Schema = {
           "kind": "object",
           "optional": true,
           "list": false
+        },
+        {
+          "name": "about",
+          "type": "Statement",
+          "kind": "object",
+          "optional": true,
+          "list": false,
+          "widget": "body"
         }
       ],
       "valueObjects": {
@@ -490,6 +572,40 @@ export const SCHEMA: Schema = {
             "kind": "text",
             "optional": false,
             "list": false
+          }
+        ],
+        "Run": [
+          {
+            "name": "text",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "Piece": [
+          {
+            "name": "kind",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          },
+          {
+            "name": "spans",
+            "type": "Run",
+            "kind": "object",
+            "optional": false,
+            "list": true
+          }
+        ],
+        "Statement": [
+          {
+            "name": "blocks",
+            "type": "Piece",
+            "kind": "object",
+            "optional": false,
+            "list": true
           }
         ]
       },
@@ -514,6 +630,14 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": true,
               "list": false
+            },
+            {
+              "name": "about",
+              "type": "Statement",
+              "kind": "object",
+              "optional": true,
+              "list": false,
+              "widget": "body"
             }
           ]
         }
