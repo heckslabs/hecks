@@ -126,7 +126,7 @@ Resources:
           # triggers that first boot; a LATER real schema evolution
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: @@declared_domain_name@@
-          # UNCONDITIONAL, not gated on `rust_web` — `rust/host/src/main.rs`'s
+          # UNCONDITIONAL, not gated on `rust_web` — `rust/host/src/boot.rs`'s
           # own boot sequence reads `ir::ir().ok_or(...)?` for every domain
           # regardless of web mode (era-lineage bookkeeping needs the IR, not
           # just the optional in-process web UI), so a Shared-mode domain with

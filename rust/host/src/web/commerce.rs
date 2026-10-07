@@ -101,12 +101,20 @@ impl HostExtension for Commerce {
     }
 
     // RESEND_SECRET_ID: a failed fetch only logs -- mail is optional, and a missing secret must not
-    // stop the host from serving everything else (resend.rs answers 503 without a key).
+    // stop the host from serving everything else (resend.rs answers 503 without a key). The same
+    // secret may also carry `webhook_secret`, the signing secret of the Resend webhook that
+    // POST /webhooks/resend verifies; without it that route answers 503.
     async fn boot_secrets(&self, fetcher: &AwsSecretFetcher) {
         let Ok(resend_secret_id) = std::env::var("RESEND_SECRET_ID") else { return };
         let fetched = fetcher.fetch_secret_string(&resend_secret_id).await.map_err(|e| format!("{e:#}"));
-        match fetched.and_then(|json| secrets::extract_field(&json, "api_key")) {
-            Ok(api_key) => unsafe { std::env::set_var("RESEND_API_KEY", api_key) },
+        let read = fetched.and_then(|json| secrets::extract_field(&json, "api_key").map(|api_key| (api_key, secrets::optional_field(&json, "webhook_secret"))));
+        match read {
+            Ok((api_key, webhook_secret)) => unsafe {
+                std::env::set_var("RESEND_API_KEY", api_key);
+                if let Some(webhook_secret) = webhook_secret {
+                    std::env::set_var("RESEND_WEBHOOK_SECRET", webhook_secret);
+                }
+            },
             Err(e) => eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}"),
         }
     }

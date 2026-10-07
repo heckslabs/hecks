@@ -65,6 +65,7 @@ module Hecks
             def vpc_ref = shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"
             def sidecar_dir = plan.install_dir
             def build_context_dir = plan.build_context_dir
+            def host_dir = plan.host_dir
             def cmd_binary = sidecar_dir == Settings::DEFAULT_INSTALL_DIR ? domain_name : "#{sidecar_dir}/#{domain_name}"
             def desired_count_value = plan.desired_count_parameter ? "!Ref #{plan.desired_count_parameter}" : desired_count
             def declared_domain_literal = declared_domain_name.inspect

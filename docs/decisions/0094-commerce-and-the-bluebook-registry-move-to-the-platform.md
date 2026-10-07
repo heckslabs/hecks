@@ -1,6 +1,6 @@
 # Commerce and the bluebook registry maintainer tooling move to the platform
 
-**Status:** Proposed. Date: 2026-10-06. Supersedes [0064/02](0064-client-boundary/02-is-commerce-a-hecks-capability.md) (commerce stays in Hecks) and the registry half of [0064/08](0064-client-boundary/08-platform-tooling-that-belongs-in-hecks.md).
+**Status:** Accepted in part: the seam (step 4a) shipped in 3.9.0 and `boot::run` is on main; the moves are open. Date: 2026-10-06. Supersedes [0064/02](0064-client-boundary/02-is-commerce-a-hecks-capability.md) (commerce stays in Hecks) and the registry half of [0064/08](0064-client-boundary/08-platform-tooling-that-belongs-in-hecks.md).
 
 ## Context
 
@@ -19,3 +19,15 @@
 - Hecks loses about 5,800 lines of host code and gains a stable host extension API that it must keep compatible.
 - The platform takes on a Rust build, toolchain and CI.
 - The release lockstep (gem, `@hecks/client`, `rust/host/HECKS_RELEASE`) must be revisited when the host becomes a library.
+
+## Progress and Open
+
+Done: `rust/host` is a library plus a binary; `HostExtension` carries guest routes, account routes, rate rules, a boot check and boot secrets; the commerce readers live in `commerce_ir.rs`; the boot sequence is `rust_host::boot::run`. The platform has a `host/` crate (`embryonaut_host`) that depends on `rust_host`, installs the commerce extension and boots, and builds.
+
+Open, and why each is not done yet:
+
+1. **How a client deploy builds a host that is not hecks's own.** Done for AwsFargate, the build every client site's image comes from (an AwsBox site rolls images its hosting stack already built): `host_crate "<dir>"` sets the directory the generated Makefile builds `bootstrap` from, and `make HOST_DIR=<dir>` overrides it. The Lambda Makefile still builds `rust/host`. Commerce moves only when a client's world names `embryonaut_host` and that site's deploy has been rolled with it; until then no commerce module moves, because a client built from hecks's own host would lose commerce.
+2. **`checkout_fixture`.** Host tests use it as a generic wasm fixture (the presentation, console-settings and lineage tests). A neutral replacement has to exist before the payments half can leave.
+3. **The registry-maintainer half stays in hecks.** `package.verify`, `package.release` and `Git::Pin` in hecks call `Registry`, `Manifest`, `Lock` and `Shape`, and the registry repo's own CI calls them back, so moving them makes hecks depend on the registry or duplicates them. The contract (what a package is, how it is locked and digested) is part of the language's vendoring, so it lives with `attaches ..., from: :vendor`. The registry repo keeps the packages and the release workflow.
+4. **`@hecks/client` payments exports.** Removing them is a semver-major change.
+5. **Resend tracking webhook** (a peer branch) is written against the old routing and should land as a `HostExtension` route, not in `web.rs`.
