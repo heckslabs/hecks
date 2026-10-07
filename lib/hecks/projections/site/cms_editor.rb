@@ -4,6 +4,7 @@ require "json"
 require_relative "../../projector"
 require_relative "cms_editor/setting"
 require_relative "cms_editor/schema"
+require_relative "cms_editor/pretty"
 
 module Hecks
   module Projections
@@ -48,7 +49,7 @@ module Hecks
           return {} unless setting
 
           schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip)
-          tokens = setting.tokens.merge("__SCHEMA__" => JSON.pretty_generate(schema))
+          tokens = setting.tokens.merge("__SCHEMA__" => Pretty.generate(schema))
           FILES.to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
         end
 
