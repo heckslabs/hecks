@@ -3,7 +3,7 @@
 // named in `render` and `route`.
 
 use super::{
-    checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route, respond, session_secret,
+    checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route, resend_webhook, respond, session_secret,
 };
 use crate::extension::{Ctx, HostExtension, RateRule};
 use crate::payments;
@@ -39,6 +39,12 @@ impl HostExtension for Commerce {
             if let Err(response) = newsletter_send::require_admin(domain_ir, ctx.cookies, &session_secret(), ctx.client).await {
                 return Some(response);
             }
+        }
+        let headers = ctx.event.and_then(|e| e.get("headers"));
+        if let Some(response) =
+            resend_webhook::resend_webhook_route(ctx.method, ctx.path, ctx.raw_body, headers, ctx.client, ctx.wasm_path, ctx.config, ctx.invoker).await
+        {
+            return Some(response);
         }
         if let Some(response) =
             newsletter::newsletter_route(ctx.method, ctx.path, ctx.query, ctx.raw_body, ctx.client, ctx.wasm_path, ctx.config, ctx.invoker).await
