@@ -6,7 +6,7 @@
 
 `AdminCms` and `PayloadDriver` assume a content system that owns the editing screens and the data model, and the domain is made to follow it. The domain is already declared: its aggregates, attributes, value objects, lifecycles, commands (with roles) and queries say what can be created and what can be changed, and the host already answers `/dispatch` for exactly those. An editor is the part that is left, and it can be derived.
 
-ADR 0092 and ADR 0093 were taken when this was written, so this is 0094.
+ADR 0092, ADR 0093 and ADR 0094 were taken when this was merged, so this is 0095.
 
 ## Decision
 

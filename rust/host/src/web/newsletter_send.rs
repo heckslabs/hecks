@@ -1,7 +1,7 @@
 use super::{active_session_email, instances_for, last_refusal, percent_decode, respond};
 use crate::auth;
 use crate::dispatch;
-use crate::ir::{newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider};
+use crate::commerce_ir::{newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::resend::{Email, Mailer};

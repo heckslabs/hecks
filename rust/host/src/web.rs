@@ -9,21 +9,25 @@ use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
-use crate::payments;
+use crate::extension::{self, Ctx};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
+mod commerce;
 mod newsletter;
 mod newsletter_send;
 mod registration_receipt;
 mod registrations;
 
+pub use commerce::Commerce;
 use registrations::payments_routes;
 // payments.rs, its tests and the boot check reach these through `web::`.
-pub(crate) use registrations::{checkout_enabled, registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
+pub use registrations::checkout_enabled;
+#[cfg(test)]
+pub(crate) use registrations::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
 #[cfg(test)]
 pub(crate) use registrations::{seats_left, seats_taken};
 
@@ -53,30 +57,22 @@ pub async fn render(
     // not a space (unlike form bodies, which still use parse_form).
     let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
 
-    // Registration/checkout/newsletter routes are opt-in: they only exist
-    // when HECKS_CHECKOUT_DOMAIN names this domain, since Event/Registration
-    // and the Payments::Payment chapter are declared against it specifically.
-    // The capability shapes are pinned by spec/fixtures/rust_host/checkout_fixture,
-    // which this module's tests run against.
-    if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
-        // Newsletter subscribe shares this gate (same hecksagon as the
-        // registration aggregates) and is checked first since it needs none
-        // of the Payments::Payment/Event context checkout requires.
-        // The subscriber list is PII (email, names, status): only an Admin or
-        // Owner holding the account cookie may read it, like sending does.
-        if method == "GET" && path == "/newsletter/subscribers" && ir().and_then(crate::ir::newsletter_provider).is_some() {
-            let Some(domain_ir) = ir() else {
-                return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
-            };
-            if let Err(response) = newsletter_send::require_admin(domain_ir, &extract_cookies(body), &session_secret(), client).await {
-                return Some(response);
-            }
-        }
-        if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
-            return Some(response);
-        }
-        let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
-        if let Some(response) = payments_routes(ir(), method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
+    let cookies = extract_cookies(body);
+    let ctx = Ctx {
+        event: Some(body),
+        method,
+        path,
+        query: &query,
+        raw_body: &raw_body,
+        cookies: &cookies,
+        domain_ir: ir(),
+        client,
+        wasm_path,
+        config,
+        invoker,
+    };
+    for extension in extension::installed() {
+        if let Some(response) = extension.guest_route(&ctx).await {
             return Some(response);
         }
     }
@@ -84,8 +80,6 @@ pub async fn render(
     let Some(domain_ir) = ir() else {
         return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
     };
-
-    let cookies = extract_cookies(body);
 
     Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
 }
@@ -249,6 +243,25 @@ async fn auth_route(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Option<Value> {
+    let ctx = Ctx {
+        event: None,
+        method,
+        path,
+        query,
+        raw_body,
+        cookies,
+        domain_ir: Some(domain_ir),
+        client,
+        wasm_path,
+        config,
+        invoker,
+    };
+    for extension in extension::installed() {
+        if let Some(response) = extension.account_route(&ctx).await {
+            return Some(response);
+        }
+    }
+
     match (method, path) {
         ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
 
@@ -270,16 +283,7 @@ async fn auth_route(
 
         ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
 
-        // Sending a newsletter issue (web/newsletter_send.rs's own header):
-        // an Admin's or Owner's account cookie, unlike the
-        // guest newsletter routes served ahead of this gate.
-        (method, path) if newsletter_send::issue_action(method, path).is_some() => {
-            newsletter_send::issue_route(method, path, domain_ir, raw_body, cookies, secret, client, wasm_path, config, invoker).await
-        }
-
         ("POST", "/signups") => Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await),
-
-        ("GET", "/registrations") => Some(registrations_list_route(domain_ir, cookies, secret, client, wasm_path, config).await),
 
         ("POST", "/members/disable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true).await),
 
@@ -288,15 +292,6 @@ async fn auth_route(
         ("POST", "/members/role") => Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await),
 
         ("POST", "/members/delete") => Some(set_member_deleted_route(domain_ir, raw_body, cookies, secret, client, config).await),
-
-        // The tenant's payment connection: same gate as the checkout routes,
-        // since only the HECKS_CHECKOUT_DOMAIN domain carries one — any
-        // other domain served by this binary falls through as unknown.
-        (method, path)
-            if payments::owns(method, path) && checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) =>
-        {
-            payments::route(method, path, raw_body, cookies, secret, domain_ir, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker).await
-        }
 
         // cms/src/endpoints/sso.ts verifies this with the same account_token
         // wire format; deploy-aws/platform/template.yaml shares SessionSecret
@@ -619,7 +614,7 @@ fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
     };
     let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
 
-    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &crate::ir::registrations_binding(domain).registration_prefix())
+    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix())
         .into_iter()
         .map(|(id, registration)| {
             let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));

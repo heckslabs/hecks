@@ -334,7 +334,7 @@ fn storage_name(qualified_aggregate: &str) -> String {
 
 /// Quotes a Postgres identifier `PG::Connection.quote_ident`-style —
 /// needed since table names can't be bound as query parameters.
-pub(crate) fn quote_ident(name: &str) -> String {
+pub fn quote_ident(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 
