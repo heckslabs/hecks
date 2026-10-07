@@ -27,7 +27,7 @@ module Hecks
       # hecks fuzz sweeps it too, once Fuzzing::Replay coerces value-object args
       # before recomputing givens — today it doesn't, so this given reads as
       # wrongly admitted.
-      Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web.rs", "checkout_fixture",
+      Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web/commerce.rs", "checkout_fixture",
                 "the Rust host's checkout fixture, pinned by its web and /api tests")
     ].freeze
   end
