@@ -177,7 +177,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   console.log(JSON.stringify(out));
 JS
 
-# The same app for a chapter with no picture aggregate (the Editor row skips it): there is no upload.
+# The same app for a chapter with no picture aggregate (the Editor row skips it): no upload.
 EDITOR_BARE_SCENARIO = <<~JS.freeze
   import { accountToken } from "@hecks/client";
   import { createApp } from "./editor/src/app.ts";
@@ -404,7 +404,7 @@ RSpec.describe "the generated editor, run by node" do
     end
   end
 
-  # Pictures: an upload, a listing and a stored file, run by node against a fake host and a temporary
+  # Pictures: an upload, a listing and a stored file, run by node against a fake host and a temp
   # directory, and the same editor for a chapter that has no picture aggregate.
   describe "pictures" do
     let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }

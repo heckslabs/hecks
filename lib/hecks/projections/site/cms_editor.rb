@@ -34,8 +34,8 @@ module Hecks
           src/ui/body_model.js src/ui/body_parse.js src/ui/body_widget.js
         ].freeze
 
-        # The files only an editor of a chapter with a picture aggregate has: the upload, the storage
-        # port with its local-disk adapter, and the picker the rich-text widget opens.
+        # The files only an editor of a chapter with a picture aggregate has: the upload, the
+        # storage port with its local-disk adapter, and the picker the rich-text widget opens.
         MEDIA_FILES = %w[
           src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/ui/media_picker.js
         ].freeze
@@ -43,7 +43,7 @@ module Hecks
         # The browser modules the rich-text widget loads, served to a signed-in editor.
         ASSETS = %w[body_widget.js body_model.js body_parse.js].freeze
 
-        # What `app.ts` holds for a picture upload, one line each; a line is left out when the chapter has none.
+        # What `app.ts` holds for a picture upload; each is left out when the chapter has none.
         MEDIA_LINES = {
           "__MEDIA_IMPORT__" => ["import { mediaHandler } from \"./media/handler.ts\";",
                                  "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
@@ -75,7 +75,7 @@ module Hecks
         end
 
         # @param media [Boolean] whether the chapter has a picture aggregate
-        # @return [Hash{String => String}] each media placeholder to its text, empty when there is none
+        # @return [Hash{String => String}] each media placeholder to its text, empty when none
         def media_tokens(media)
           assets = RoutesTs.literal(media ? [*ASSETS, "media_picker.js"] : ASSETS)
           lines = media ? MEDIA_LINES : MEDIA_LINES.transform_values { "" }
@@ -95,7 +95,7 @@ module Hecks
           end
         end
 
-        # @return [String] `value`, with its line's newline when it stood alone on a line and is not empty
+        # @return [String] `value`, with its line's newline when it stood alone and is not empty
         def replacement(value, alone:)
           return value unless alone
 
