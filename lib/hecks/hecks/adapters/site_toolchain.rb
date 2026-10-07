@@ -8,6 +8,7 @@ require_relative "codebase/ruby_child"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 require "hecks/projections/site/live_edge"
+require_relative "site_toolchain/prober"
 
 module Hecks
   module Adapters
@@ -66,7 +67,34 @@ module Hecks
         { output: { value: comparison.to_s } }
       end
 
+      # Asks a running site what its route table says it must answer, and judges each answer. It
+      # sends anonymous requests only, follows no redirect, and changes nothing on the site: an
+      # admin route is asked without a session and must refuse.
+      #
+      # @param held [Hash] the `SiteProjection` record: `domain`, `run` and `url`, the site's base
+      #   address
+      # @return [Hash{Symbol => Hash}] `output:` one line per check, ending in the count
+      # @raise [ConsoleCapture::Failure] when the address is not http(s) or an answer is wrong; the
+      #   message is the report
+      def probe(**held)
+        rows = table_of(located(:domain, held[:domain])).rows
+        report, failed = Prober.new(rows, run: plain(held[:run]).to_s, base: base_url(plain(held[:url]))).call
+        raise ConsoleCapture::Failure, report if failed.positive?
+
+        { output: { value: report } }
+      end
+
       private
+
+      # The scheme, host and port of an http(s) address.
+      def base_url(url)
+        uri = URI.parse(url.to_s)
+        raise URI::InvalidURIError unless uri.is_a?(URI::HTTP) && uri.host
+
+        "#{uri.scheme}://#{uri.host}#{":#{uri.port}" unless uri.port == uri.default_port}"
+      rescue URI::InvalidURIError
+        raise ConsoleCapture::Failure, "url must be an http(s) address, got #{url.inspect}"
+      end
 
       # The flags `project_site` is run with: each the record names, and `--check` when asked.
       def project_flags(held)
@@ -84,15 +112,23 @@ module Hecks
 
       # The project's checked edge, read the way `project_site` reads it.
       def edge_of(root, template = nil)
+        registry, chapter, table = read_table(root)
+        site = Projections::Site
+        site::Edge.read(chapter, table: table, template: template, vocabulary: site::Table.vocabulary(registry)) ||
+          raise(ConsoleCapture::Failure, "#{root} declares no Edge rows")
+      end
+
+      # The project's checked route table.
+      def table_of(root) = read_table(root).last
+
+      # The registry, chapter and checked table of the project at `root`.
+      def read_table(root)
         registry = nil
         outcome = ConsoleCapture.capture { registry = Tools::SiteRoutes.registry_for(root) }
         raise ConsoleCapture::Failure, outcome.output.strip unless outcome.ok?
 
-        site = Projections::Site
-        chapter = site::Table.chapter(registry)
-        table = site::Table.read(chapter, registry: registry)
-        site::Edge.read(chapter, table: table, template: template, vocabulary: site::Table.vocabulary(registry)) ||
-          raise(ConsoleCapture::Failure, "#{root} declares no Edge rows")
+        chapter = Projections::Site::Table.chapter(registry)
+        [registry, chapter, Projections::Site::Table.read(chapter, registry: registry)]
       rescue Projections::Site::Table::Invalid => e
         raise ConsoleCapture::Failure, e.message
       end

@@ -304,6 +304,23 @@ listener and the service that depends on them. A fragment would need an include 
 With `out=<dir>` a copy of the template is written beneath it at the same relative path, and the project's own is
 left alone.
 
+### Checking a running site
+
+`hecks site site_projection.check_site <project> url=<https://example.org>` asks a running site what the route table says
+it must answer. It sends anonymous requests, follows no redirect, and changes nothing, so it is safe against production.
+What it asks follows from each row:
+
+- an `admin` route is asked without a session, with each of GET and POST it takes, and must answer a redirect, 401 or 403;
+  a redirect must not be explicitly cacheable (`public`, or a `max-age` above 0, without `no-store` or `private`)
+- a `public` page that is indexable must answer 200 and carry `<link rel="canonical">`
+- a row that is `off` must answer 404
+- a `redirect` row with `redirect_to` must redirect there
+- a path no row declares must answer 404
+
+A route that names a parameter or a prefix (`/blog/:slug.html`, `/auth/*`) has no one URL to ask and is left out. The
+command prints a line per check and exits 1 when any answer is wrong. Checks that need a session, a write or the site's
+own wording stay in the project's smoke.
+
 ### Checking the live distribution
 
 `hecks site site_projection.check_live <project> live=<file> | distribution=<id> [template=<file>]` compares the behaviours the project's edge

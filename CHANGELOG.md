@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- `hecks site site_projection.check_site <project> url=<address>` asks a running site what its route table says it must answer, with anonymous requests that change nothing: admin routes refuse, indexable public pages answer 200 with a canonical link, `off` rows and undeclared paths answer 404, redirect rows redirect. A project's smoke no longer needs hand-listed paths for these.
+
 ## [3.8.0] - 2026-10-06
 
 A minor release: the Rust host can be extended without forking it. Nothing changes for a deployed host; commerce is installed by default.
