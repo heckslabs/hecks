@@ -52,6 +52,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # One leg per module, side by side: building them one after another was the longest chain in
+    # the cargo job's wait.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: banking
+            domain: examples/banking
+          - module: checkout_fixture
+            domain: spec/fixtures/rust_host/checkout_fixture
+
     needs: ci_attestation_rust_host
     if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
@@ -66,19 +77,18 @@ jobs:
         with:
           install-wasmtime: "false"
 
-      - name: Build banking + checkout_fixture wasm
+      - name: Build the ${{ matrix.module }} wasm module
         env:
           HECKS_WASM_PROFILE: dev
-        run: |
-          bundle exec exe/hecks build.build_wasm domain=examples/banking --wait
-          bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+        run: bundle exec exe/hecks build.build_wasm domain=${{ matrix.domain }} --wait
 
       - uses: actions/upload-artifact@v4
         with:
-          name: host-wasm-dist
+          name: host-wasm-${{ matrix.module }}
           path: rust/dist
           retention-days: 1
           if-no-files-found: error
+          overwrite: true
 
   rspec_rust_host_cargo:
     runs-on: ubuntu-latest
@@ -133,16 +143,17 @@ jobs:
         run: |
           for _ in $(seq 1 90); do
             found=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-                    --jq '[.artifacts[] | select(.name == "host-wasm-dist")] | length')
-            [ "$found" = "1" ] && exit 0
+                    --jq '[.artifacts[] | select(.name | startswith("host-wasm-"))] | length')
+            [ "$found" = "2" ] && exit 0
             sleep 2
           done
-          echo "host-wasm-dist was not uploaded within 180s" >&2
+          echo "the host-wasm artifacts were not uploaded within 180s" >&2
           exit 1
 
       - uses: actions/download-artifact@v4
         with:
-          name: host-wasm-dist
+          pattern: host-wasm-*
+          merge-multiple: true
           path: rust/dist
 
       - name: "cargo test (rust/host)"
