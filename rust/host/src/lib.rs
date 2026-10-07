@@ -5,6 +5,7 @@ pub mod api;
 pub mod approval;
 pub mod auth;
 pub mod checkout;
+pub mod commerce_ir;
 pub mod dispatch;
 pub mod expr_json;
 pub mod extension;

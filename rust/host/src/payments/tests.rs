@@ -300,7 +300,7 @@ impl Tenant {
     async fn register(&self, slug: &str) -> (u64, Value) {
         let body = json!({"event_slug": slug, "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
         let platform = self.platform_now().await;
-        let response = web::registrations_route(&body, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = web::registrations_route(&body, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         (response["statusCode"].as_u64().unwrap(), serde_json::from_str(response["body"].as_str().unwrap()).unwrap_or(Value::Null))
     }
 
@@ -314,14 +314,14 @@ impl Tenant {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
         let header = sign(secret, now, &payload);
         let platform = self.platform_now().await;
-        let response = web::webhook_route(&payload, &header, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = web::webhook_route(&payload, &header, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         response["statusCode"].as_u64().unwrap()
     }
 
     // POST /registrations/:id/complete with a successful outcome (the mock
     // walkthrough's "Pay" button).
     async fn settle(&self, reference: &str) -> u64 {
-        let response = web::registration_complete_route(reference, r#"{"outcome":"succeeded"}"#, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+        let response = web::registration_complete_route(reference, r#"{"outcome":"succeeded"}"#, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         response["statusCode"].as_u64().unwrap()
     }
 
@@ -672,7 +672,7 @@ async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
 
     let (_, body) = t.register("declined").await;
     let first = body["registration_id"].as_str().unwrap().to_string();
-    let response = web::registration_complete_route(&first, r#"{"outcome":"failed"}"#, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+    let response = web::registration_complete_route(&first, r#"{"outcome":"failed"}"#, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
     assert_eq!(response["statusCode"].as_u64(), Some(200));
     assert_eq!(t.payment_status(&first).await, "failed");
 
@@ -714,7 +714,7 @@ async fn archiving_a_paid_registration_frees_its_seat_and_restoring_it_takes_the
     assert_eq!(registration_status(&t, &reference).await, "archived");
     assert_eq!(t.payment_status(&reference).await, "succeeded", "archiving never touches the Payment");
     let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
-    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"), Some(1));
+    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::commerce_ir::fixture_payments(), "archive-me"), Some(1));
 
     let (status, body) = t.register("archive-me").await;
     assert_eq!(status, 200, "the archived registration's seat is free again: {body}");
@@ -728,11 +728,11 @@ async fn archiving_a_paid_registration_frees_its_seat_and_restoring_it_takes_the
     assert_eq!(registration_status(&t, &reference).await, "active");
     let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
     assert_eq!(
-        web::seats_taken(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"),
+        web::seats_taken(&read, "CheckoutFixture", &crate::commerce_ir::fixture_payments(), "archive-me"),
         2,
         "a restored registration counts again, even past capacity: the site refuses a restore with no seat"
     );
-    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"), Some(0));
+    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::commerce_ir::fixture_payments(), "archive-me"), Some(0));
 }
 
 #[tokio::test]
@@ -876,7 +876,7 @@ async fn an_event_verified_only_by_the_public_mock_secret_is_refused_for_a_real_
     let payload = event.to_string();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
     let header = sign(web::MOCK_STRIPE_WEBHOOK_SECRET, now, &payload);
-    let response = web::webhook_route(&payload, &header, &t.platform, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+    let response = web::webhook_route(&payload, &header, &t.platform, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
     assert_eq!(response["statusCode"], 500, "{event}");
     assert_eq!(t.payment_status(&reference).await, "pending", "a forged completion must not settle a real payment");
 }
