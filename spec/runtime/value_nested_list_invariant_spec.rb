@@ -49,8 +49,11 @@ RSpec.describe Hecks::Runtime::Value, ".build with lists nested in value objects
     expect(body.blocks.size).to eq(2)
   end
 
-  it "reads an optional field the caller left out as nil in an invariant, and still checks one that was sent" do
+  it "reads an optional field the caller left out as nil in an invariant" do
     expect { build_body([paragraph({ text: "x", marks: [] })]) }.not_to raise_error
+  end
+
+  it "still checks an optional field that was sent" do
     expect { build_body([paragraph({ text: "x", marks: [], href: "" })]) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a link, once given, is not blank/)
   end
