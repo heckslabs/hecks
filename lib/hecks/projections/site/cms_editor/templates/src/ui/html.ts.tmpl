@@ -34,7 +34,30 @@ const STYLE = `
   .outline { border-left: 3px solid var(--edge); margin: 0.25rem 0 0.25rem 0.25rem; padding-left: 0.75rem; }
   .outline ul { margin: 0.2rem 0; padding-left: 1.25rem; }
   .note { opacity: 0.7; font-size: 0.85rem; }
+  .body { overflow-wrap: anywhere; }
+  .body p, .body h1, .body h2, .body h3, .body h4, .body blockquote, .body li { white-space: pre-wrap; }
+  .body p, .body h1, .body h2, .body h3, .body h4, .body blockquote, .body ul, .body ol, .body figure { margin: 0.4rem 0; }
+  .body blockquote { border-left: 3px solid var(--edge); padding-left: 0.75rem; }
+  .body [data-align=left] { text-align: left; }
+  .body [data-align=center] { text-align: center; }
+  .body [data-align=right] { text-align: right; }
+  .body [data-align=justify] { text-align: justify; }
+  .body [data-indent="1"] { margin-left: 2rem; } .body [data-indent="2"] { margin-left: 4rem; } .body [data-indent="3"] { margin-left: 6rem; }
+  .body [data-indent="4"] { margin-left: 8rem; } .body [data-indent="5"] { margin-left: 10rem; } .body [data-indent="6"] { margin-left: 12rem; }
+  .body [data-indent="7"] { margin-left: 14rem; } .body [data-indent="8"] { margin-left: 16rem; }
+  .body li[data-depth="1"] { margin-left: 1.5rem; } .body li[data-depth="2"] { margin-left: 3rem; } .body li[data-depth="3"] { margin-left: 4.5rem; }
+  .body li[data-depth="4"] { margin-left: 6rem; } .body li[data-depth="5"] { margin-left: 7.5rem; }
+  .body .body-media { display: inline-block; border: 1px dashed var(--edge); padding: 0.2rem 0.5rem; }
+  .body-editor { max-width: 48rem; }
+  .body-toolbar { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.4rem; }
+  .body-toolbar button, .body-toolbar select { font-size: 0.85rem; padding: 0.15rem 0.5rem; width: auto; display: inline-block; }
+  .body-surface { min-height: 8rem; border: 1px solid var(--edge); border-radius: 6px; padding: 0.4rem 0.75rem; }
+  .body-surface:focus { outline: 2px solid var(--accent); }
+  .body-surface figure { cursor: pointer; }
 `;
+
+/** True when a page body holds the rich-text widget, which is the only page that needs its script. */
+const hasWidget = (body: string): boolean => body.includes("data-body-editor");
 
 /** The frame of every page: the editor's name, a link to each aggregate, and `body`. */
 export function page(title: string, body: string): string {
@@ -57,6 +80,7 @@ export function page(title: string, body: string): string {
 <main>
 ${body}
 </main>
+${hasWidget(body) ? `<script type="module" src="${esc(href("assets", "body_widget.js"))}"></script>` : ""}
 </body>
 </html>
 `;

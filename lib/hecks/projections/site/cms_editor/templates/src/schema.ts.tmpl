@@ -15,7 +15,7 @@ export interface Attr {
   optional: boolean;
   /** True for `list_of`: the attribute holds a list of `type`. */
   list: boolean;
-  /** `body` for a rich-text attribute, which is shown read-only until the editor widget lands. */
+  /** `body` for an attribute whose value object has the shape of a structured document (blocks of spans). */
   widget?: "body";
   /** The aggregate a `reference` points at. */
   target?: string;

@@ -1,0 +1,320 @@
+__BANNER__
+
+// HTML read back into the domain's body tree, with no DOM: a small tokenizer and tree, so the same
+// function runs in node (tests, the server) and in the browser (the widget, a paste). What the body
+// cannot hold is reduced to the nearest block or mark it can, and every reduction adds a note, so a
+// paste never loses anything without saying so. Output is deterministic: the same HTML gives the
+// same tree, with adjacent spans of the same marks merged and empty ones dropped.
+import { ALIGNS, MARKS, MAX_DEPTH, MAX_INDENT, safeHref } from "./body_model.js";
+
+const VOID = new Set(["br", "hr", "img", "input", "meta", "link", "wbr", "col", "area", "base", "source"]);
+const SKIPPED = new Set(["script", "style", "head", "title", "template", "noscript", "iframe", "object", "embed", "svg", "math"]);
+const TRANSPARENT = new Set(["html", "body", "span", "font", "main", "article", "section", "header", "footer", "nav", "aside", "tbody", "thead", "tfoot", "center", "label", "abbr", "cite", "q", "small", "big", "time", "wbr"]);
+const MARK_TAGS = { strong: "bold", b: "bold", em: "italic", i: "italic", u: "underline", ins: "underline", s: "strike", strike: "strike", del: "strike", code: "code", tt: "code", kbd: "code", samp: "code" };
+const BLOCKISH = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "hr", "figure", "pre", "table", "tr", "td", "th", "dl", "dt", "dd", "details", "summary", "form", "fieldset"]);
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", hellip: "…", mdash: "—", ndash: "–", lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", copy: "©", middot: "·", bull: "•" };
+const LIMIT = 100;
+
+function decode(text) {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, name) => {
+    if (name[0] !== "#") return ENTITIES[name.toLowerCase()] ?? whole;
+    const code = name[1].toLowerCase() === "x" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+    if (!(code > 0 && code <= 0x10ffff) || (code >= 0xd800 && code < 0xe000)) return "�";
+    return code === 160 ? " " : String.fromCodePoint(code);
+  });
+}
+
+function attributesOf(source) {
+  const found = {};
+  for (const m of source.matchAll(/([^\s"'<>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
+    const name = m[1].toLowerCase();
+    if (!(name in found)) found[name] = decode(m[2] ?? m[3] ?? m[4] ?? "");
+  }
+  return found;
+}
+
+/** The tokens of `html`: text, open tags (with attributes) and close tags. Comments are dropped. */
+function tokenize(html) {
+  const tokens = [];
+  const pattern = /<!--[\s\S]*?(?:-->|$)|<![^>]*>|<\?[^>]*>|<\/([a-z][a-z0-9-]*)[^>]*>|<([a-z][a-z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
+  let at = 0;
+  let m;
+  while ((m = pattern.exec(html)) !== null) {
+    if (m.index > at) tokens.push({ text: html.slice(at, m.index) });
+    at = m.index + m[0].length;
+    if (m[1]) tokens.push({ close: m[1].toLowerCase() });
+    else if (m[2]) tokens.push({ open: m[2].toLowerCase(), attrs: attributesOf(m[3]) });
+    if (m[2] && /^(script|style|textarea)$/i.test(m[2])) {
+      at = skipRaw(html, at, m[2].toLowerCase(), tokens);
+      pattern.lastIndex = at;
+    }
+  }
+  if (at < html.length) tokens.push({ text: html.slice(at) });
+  return tokens;
+}
+
+function skipRaw(html, from, tag, tokens) {
+  const end = new RegExp(`</${tag}[^>]*>`, "i").exec(html.slice(from));
+  tokens.push({ close: tag });
+  return end ? from + end.index + end[0].length : html.length;
+}
+
+const closesLi = (stack) => {
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    if (stack[i].tag === "li") return i;
+    if (stack[i].tag === "ul" || stack[i].tag === "ol") return -1;
+  }
+  return -1;
+};
+
+/** The nodes of `html` as a tree of `{ tag, attrs, kids }` and `{ text }`. */
+function parseTree(html) {
+  const root = { tag: "#root", attrs: {}, kids: [] };
+  const stack = [root];
+  const ignored = {};
+  const top = () => stack[stack.length - 1];
+  for (const token of tokenize(html)) {
+    if ("text" in token) top().kids.push({ text: token.text });
+    else if (token.open) open(token, stack, ignored, top);
+    else close(token.close, stack, ignored);
+  }
+  return root.kids;
+}
+
+function open(token, stack, ignored, top) {
+  const tag = token.open;
+  if (tag === "li" && closesLi(stack) > 0) stack.length = closesLi(stack);
+  if (BLOCKISH.has(tag) && top().tag === "p") stack.pop();
+  const node = { tag, attrs: token.attrs, kids: [] };
+  if (stack.length > LIMIT) {
+    if (!VOID.has(tag)) ignored[tag] = (ignored[tag] ?? 0) + 1;
+    return;
+  }
+  top().kids.push(node);
+  if (!VOID.has(tag)) stack.push(node);
+}
+
+function close(tag, stack, ignored) {
+  if (ignored[tag] > 0) {
+    ignored[tag] -= 1;
+    return;
+  }
+  for (let i = stack.length - 1; i > 0; i -= 1) {
+    if (stack[i].tag === tag) {
+      stack.length = i;
+      return;
+    }
+  }
+}
+
+function styleOf(attrs) {
+  const style = {};
+  for (const part of String(attrs.style ?? "").split(";")) {
+    const [name, ...value] = part.split(":");
+    if (name && value.length) style[name.trim().toLowerCase()] = value.join(":").trim().toLowerCase();
+  }
+  return style;
+}
+
+const STYLE_MARKS = (style) => {
+  const found = [];
+  const weight = style["font-weight"];
+  if (weight === "bold" || weight === "bolder" || Number(weight) >= 600) found.push("bold");
+  if (style["font-style"] === "italic") found.push("italic");
+  const line = `${style["text-decoration"] ?? ""} ${style["text-decoration-line"] ?? ""}`;
+  if (line.includes("underline")) found.push("underline");
+  if (line.includes("line-through")) found.push("strike");
+  return found;
+};
+
+const STYLE_QUIET = new Set(["font-weight", "font-style", "text-decoration", "text-decoration-line", "text-align", "white-space", "margin-left", "padding-left"]);
+
+function noteStyle(style, ctx) {
+  if (Object.keys(style).some((name) => !STYLE_QUIET.has(name))) ctx.note("inline styles other than bold, italic, underline, strike-through and alignment were dropped");
+}
+
+function alignOf(attrs, style) {
+  const value = String(attrs["data-align"] ?? attrs.align ?? style["text-align"] ?? "").toLowerCase();
+  return ALIGNS.includes(value) ? value : undefined;
+}
+
+function indentOf(attrs) {
+  const value = Number(attrs["data-indent"]);
+  return attrs["data-indent"] !== undefined && Number.isInteger(value) ? Math.min(MAX_INDENT, Math.max(0, value)) : undefined;
+}
+
+function layoutOf(attrs) {
+  const style = styleOf(attrs);
+  const layout = {};
+  const align = alignOf(attrs, style);
+  const indent = indentOf(attrs);
+  if (align !== undefined) layout.align = align;
+  if (indent !== undefined) layout.indent = indent;
+  return layout;
+}
+
+const textOf = (nodes) => nodes.map((node) => ("text" in node ? decode(node.text) : textOf(node.kids))).join("");
+
+/** Spans from inline nodes; `state` carries the marks and the address in force. */
+function inline(nodes, state, ctx, out) {
+  for (const node of nodes) {
+    if ("text" in node) pushText(decode(node.text), state, out);
+    else inlineElement(node, state, ctx, out);
+  }
+}
+
+function pushText(raw, state, out) {
+  const text = raw.replace(/[ \t]*[\r\n\t][ \t\r\n]*/g, " ");
+  if (text !== "") out.push({ text, marks: state.marks.map((name) => ({ name })), ...(state.href ? { href: state.href } : {}) });
+}
+
+function inlineElement(node, state, ctx, out) {
+  const tag = node.tag;
+  if (SKIPPED.has(tag)) return ctx.note(`<${tag}> content was removed`);
+  if (tag === "br") return out.push({ text: "\n", marks: state.marks.map((name) => ({ name })), ...(state.href ? { href: state.href } : {}) });
+  if (tag === "img") return ctx.note("an image with no media key was reduced to its alt text"), pushText(node.attrs.alt ?? "", state, out);
+  const style = styleOf(node.attrs);
+  noteStyle(style, ctx);
+  const added = [MARK_TAGS[tag], ...STYLE_MARKS(style)].filter(Boolean);
+  const href = tag === "a" ? linkOf(node.attrs.href, ctx) : undefined;
+  const next = { marks: [...state.marks, ...added.filter((name) => !state.marks.includes(name))], href: href ?? state.href };
+  if (!MARK_TAGS[tag] && tag !== "a" && !TRANSPARENT.has(tag)) ctx.note(`<${tag}> formatting was reduced to plain text`);
+  inline(node.kids, next, ctx, out);
+}
+
+function linkOf(value, ctx) {
+  if (value === undefined) return undefined;
+  const href = safeHref(value);
+  if (!href) ctx.note("a link to an address that is not a path, http(s), mailto or tel was reduced to text");
+  return href ?? undefined;
+}
+
+/** Adjacent spans with the same marks and address become one; empty text is dropped. */
+function merged(spans) {
+  const out = [];
+  for (const span of spans) {
+    const last = out[out.length - 1];
+    const same = last && last.text !== "\n" && span.text !== "\n" && last.href === span.href && JSON.stringify(last.marks) === JSON.stringify(span.marks);
+    if (same) last.text += span.text;
+    else if (span.text !== "") out.push({ ...span, marks: span.marks.map((mark) => ({ ...mark })) });
+  }
+  return out;
+}
+
+function spansOf(nodes, ctx, state = { marks: [], href: undefined }) {
+  const out = [];
+  inline(nodes, state, ctx, out);
+  const only = out.length === 1 && out[0].text === "\n";
+  return only ? [] : merged(out);
+}
+
+function stateOf(node, ctx) {
+  const style = styleOf(node.attrs);
+  noteStyle(style, ctx);
+  return { marks: STYLE_MARKS(style), href: undefined };
+}
+
+const block = (kind, layout, spans, level) => ({ kind, ...(level ? { level } : {}), ...layout, spans });
+
+function headingLevel(tag, ctx) {
+  const level = Number(tag[1]);
+  if (level > 4) ctx.note(`<${tag}> was reduced to a level 4 heading`);
+  return Math.min(4, level);
+}
+
+function figure(node, ctx) {
+  const attrs = node.attrs;
+  const kids = node.kids.filter((kid) => kid.tag === "figcaption");
+  const caption = attrs["data-caption"] ?? (kids.length ? textOf(kids[0].kids).trim() : "");
+  const made = { kind: "image" };
+  for (const [key, source] of [["media_ref", "data-media-ref"], ["alt", "data-alt"]]) if (attrs[source]) made[key] = attrs[source];
+  if (caption) made.caption = caption;
+  if (made.media_ref) return [made];
+  ctx.note("an image with no media key was reduced to its caption");
+  return caption ? [block("paragraph", {}, spansOf([{ text: caption }], ctx))] : [];
+}
+
+function listBlock(node, ctx) {
+  const kind = node.tag === "ol" ? "numbered_list" : "bullet_list";
+  const items = [];
+  collectItems(node, kind, 0, items, ctx);
+  return [{ kind, ...layoutOf(node.attrs), items }];
+}
+
+function collectItems(list, blockKind, depth, items, ctx) {
+  const own = list.tag === "ol" ? "numbered_list" : "bullet_list";
+  for (const child of list.kids) {
+    if (child.tag === "li") itemOf(child, own, blockKind, depth, items, ctx);
+    else if (child.tag === "ul" || child.tag === "ol") collectItems(child, blockKind, Math.min(depth + 1, MAX_DEPTH), items, ctx);
+    else if (child.tag && !("text" in child)) collectItems({ ...child, tag: own }, blockKind, depth, items, ctx);
+  }
+}
+
+function itemOf(li, own, blockKind, depth, items, ctx) {
+  const nested = li.kids.filter((kid) => kid.tag === "ul" || kid.tag === "ol");
+  const here = li.kids.filter((kid) => !nested.includes(kid));
+  const marked = Number(li.attrs["data-depth"]);
+  const level = li.attrs["data-depth"] !== undefined && Number.isInteger(marked) ? Math.min(MAX_DEPTH, Math.max(0, marked)) : depth;
+  const given = li.attrs["data-list-kind"];
+  const kind = given === "bullet_list" || given === "numbered_list" ? given : own !== blockKind ? own : undefined;
+  if (depth > MAX_DEPTH) ctx.note(`a list nested deeper than ${MAX_DEPTH} levels was kept at depth ${MAX_DEPTH}`);
+  items.push({ spans: spansOf(here, ctx), depth: level, ...(kind ? { list_kind: kind } : {}) });
+  for (const list of nested) collectItems(list, blockKind, Math.min(level + 1, MAX_DEPTH), items, ctx);
+}
+
+/** Blocks from block-level nodes; loose inline content between blocks becomes paragraphs. */
+function blocks(nodes, ctx, quote = false) {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    const spans = spansOf(run, ctx);
+    const blank = spans.every((span) => span.text.trim() === "" && span.text !== "\n");
+    if (!blank) out.push(block(quote ? "quote" : "paragraph", {}, spans));
+    run = [];
+  };
+  for (const node of nodes) {
+    if ("text" in node || !isBlock(node)) run.push(node);
+    else {
+      flush();
+      out.push(...blockOf(node, ctx, quote));
+    }
+  }
+  flush();
+  return out;
+}
+
+const isBlock = (node) => BLOCKISH.has(node.tag) || node.tag === "figcaption" ;
+
+function blockOf(node, ctx, quote) {
+  const tag = node.tag;
+  if (tag === "hr") return [{ kind: "divider" }];
+  if (tag === "figure") return figure(node, ctx);
+  if (tag === "ul" || tag === "ol") return listBlock(node, ctx);
+  if (tag === "blockquote") return blocks(node.kids, ctx, true);
+  if (/^h[1-6]$/.test(tag)) return [block("heading", layoutOf(node.attrs), spansOf(node.kids, ctx, stateOf(node, ctx)), headingLevel(tag, ctx))];
+  if (tag === "pre") return preformatted(node, ctx);
+  if (tag === "p" || tag === "li" || tag === "dt" || tag === "dd") return [block(quote ? "quote" : "paragraph", layoutOf(node.attrs), spansOf(node.kids, ctx, stateOf(node, ctx)))];
+  if (tag === "div" && !node.kids.some((kid) => kid.tag && isBlock(kid))) return [block(quote ? "quote" : "paragraph", layoutOf(node.attrs), spansOf(node.kids, ctx, stateOf(node, ctx)))];
+  if (tag === "table" || tag === "tr" || tag === "td" || tag === "th") ctx.note("a table was reduced to paragraphs");
+  return blocks(node.kids, ctx, quote);
+}
+
+function preformatted(node, ctx) {
+  ctx.note("preformatted text was reduced to a paragraph in code");
+  const lines = textOf(node.kids).replace(/\r/g, "").split("\n");
+  const spans = lines.flatMap((line, at) => [...(at > 0 ? [{ text: "\n", marks: [] }] : []), ...(line ? [{ text: line, marks: [{ name: "code" }] }] : [])]);
+  return [block("paragraph", {}, spans)];
+}
+
+/** The body for `html`, with the notes naming whatever was reduced to fit. */
+export function htmlToBodyWithNotes(html) {
+  const notes = [];
+  const ctx = { note: (message) => { if (!notes.includes(message)) notes.push(message); } };
+  const tree = parseTree(String(html ?? ""));
+  return { body: { blocks: blocks(tree, ctx) }, notes };
+}
+
+/** The body for `html`; anything the body cannot hold is reduced to the nearest block or mark. */
+export function htmlToBody(html) {
+  return htmlToBodyWithNotes(html).body;
+}

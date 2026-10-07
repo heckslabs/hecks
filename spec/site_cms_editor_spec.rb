@@ -75,6 +75,21 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
       expect(article["valueObjects"]["Link"].map { |part| part["kind"] }).to eq(%w[text text])
     end
 
+    def widgets
+      schema = JSON.parse(editor_files.fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])
+      schema["aggregates"].to_h do |agg|
+        [agg["name"], agg["attributes"].select { |attribute| attribute["widget"] }.map { |attribute| attribute["name"] }]
+      end
+    end
+
+    it "picks the rich-text widget by the shape of the value object, whatever the attribute is named", :aggregate_failures do
+      expect(widgets).to eq("Article" => ["body"], "Masthead" => ["about"])
+    end
+
+    it "gives no widget to a value object that is not a list of blocks with kinds and spans" do
+      expect(widgets.values.flatten).not_to include("sections", "byline")
+    end
+
     it "does not offer the lifecycle state as an input" do
       article = JSON.parse(editor_files.fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])["aggregates"].first
 

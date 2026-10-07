@@ -6,7 +6,7 @@ __BANNER__
 // (`byline.name`, `body.blocks.0.text`), which input.ts reads back into the shape the command takes.
 import type { Aggregate, Attr } from "../schema.ts";
 import { esc } from "./html.ts";
-import { outline } from "./outline.ts";
+import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
 
 type Value = unknown;
 
@@ -46,14 +46,22 @@ function listed(agg: Aggregate, attr: Attr, name: string, value: Value): string 
   return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>\n${rows.join("\n")}\n</fieldset>`;
 }
 
-// The rich-text widget is slice 2 of the editor: until then the value is shown as an outline and
-// carried through a form unchanged, so revising other attributes does not lose it.
+// The rich-text widget. The server renders the body's current value as the surface's HTML and as the
+// hidden inputs the form posts (the same dotted-path fields every value object and list uses), so a
+// browser without the script still posts the body unchanged; body_widget.js then edits the surface
+// and rewrites those inputs from the tree it reads back.
 function body(attr: Attr, name: string, value: Value): string {
-  const carried = value === undefined || value === null ? "" : JSON.stringify(value);
+  const tree = value && typeof value === "object" ? value : emptyBody();
+  const inputs = fieldsToInputs(bodyToFields(tree, name));
   return `<fieldset><legend>${esc(label(attr))}${optionalNote(attr)}</legend>
-${outline(value)}
-<input type="hidden" name="${esc(name)}.__json" value="${esc(carried)}">
-<p class="note">editor widget: slice 2 (shown read-only; kept as it is)</p>
+<div class="body-editor" data-body-editor data-name="${esc(name)}">
+<div class="body-toolbar" data-toolbar role="toolbar" aria-label="Formatting"></div>
+<div class="body-surface body" data-surface role="textbox" aria-multiline="true" aria-label="${esc(label(attr))}">${bodyToHtml(tree)}</div>
+<p class="note" data-notes role="status" aria-live="polite"></p>
+<div data-fields>
+${inputs}
+</div>
+</div>
 </fieldset>`;
 }
 
