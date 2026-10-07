@@ -7,6 +7,12 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-10-06
+
+A minor release: the Rust host records newsletter opens and clicks from Resend's webhook, and the generated CMS image boots again.
+
+**Added: `POST /webhooks/resend` records newsletter opens and clicks.** The host verifies Resend's Svix signature against `RESEND_WEBHOOK_SECRET` (the endpoint's `whsec_` signing secret; without it the route answers 503), finds the `Delivery` whose stored Resend message id matches the event's `email_id`, and dispatches `Delivery.RecordOpen` or `Delivery.RecordClick`, which keep only the first of each. A repeat, an event type nothing records, and a message the site did not send as a newsletter are all acknowledged with 200 so Resend stops retrying. Resend sends nothing until the domain's open and click tracking is on and a webhook for `email.opened` and `email.clicked` points at the route.
+
 ### Fixed
 
 - The generated CMS Dockerfile fetches the RDS CA bundle with `ADD --chmod=0644`. A plain `ADD` of a URL leaves the file readable by root only, so the CMS (which runs as `node`) failed at boot with `EACCES` on `rds-global-bundle.pem`.
