@@ -4,9 +4,23 @@ name: Cache warm (main)
 # Build only. Cache path/key/restore-keys match ci.yml verbatim so PRs restore these entries.
 # Runs on the push itself, not after CI: a red main must not skip the warm.
 # Only the newest main is worth warming, so a newer push cancels an in-flight warm.
+#
+# Only a push that can change a cache runs it: every cache key hashes a crate's Cargo.lock and
+# src/** (all under rust/), and the rest of the paths are the actions and this file, which decide
+# what a warm builds. Any other push would take seven runners beside the CI run for nothing, and
+# those runners are the pool CI's own jobs queue on. `workflow_dispatch` warms by hand, for a cache
+# GitHub evicted without a Rust change.
 on:
   push:
     branches: [main]
+    paths:
+      - "rust/**"
+      - ".github/workflows/cache-warm.yml"
+      - ".github/actions/cargo-cache/**"
+      - ".github/actions/hecks-environment/**"
+      - ".github/actions/setup-ruby/**"
+      - ".github/actions/wasm-toolchain/**"
+  workflow_dispatch:
 
 concurrency:
   group: cache-warm
