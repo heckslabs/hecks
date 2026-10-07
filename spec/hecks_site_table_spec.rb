@@ -84,7 +84,7 @@ RSpec.describe "the Site row of the ADR command table" do
     port = @bluebook.aggregate("SiteProjection").ports.find { |candidate| candidate.name == "SiteToolchain" }
 
     expect(port).not_to be_nil
-    expect(port.operations.map(&:hecks_name)).to eq(%w[Project Compare])
+    expect(port.operations.map(&:hecks_name)).to eq(%w[Project Compare Probe])
   end
 
   it "writes routes.ts for the sample project, records it projected, and exits 0 under --wait", :aggregate_failures do
