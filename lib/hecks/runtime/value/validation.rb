@@ -88,8 +88,8 @@ module Hecks
         def normalize_composite_field(aggregate, attribute, fields)
           # A list member hydrates the same as a top-level list, so a value
           # read back from the store matches the shape a live dispatch wrote.
-          # Load door only — an input list member is left as offered.
-          return hydrate_stored_list(aggregate, attribute, fields) if attribute.list?
+          # An input list member is validated as offered and left as offered.
+          return normalize_list(aggregate, attribute, fields) if attribute.list?
 
           raw = fields[attribute.name]
           return if raw.nil? || raw.is_a?(self)
@@ -103,15 +103,46 @@ module Hecks
           fields[attribute.name] = nested_fields
         end
 
+        def normalize_list(aggregate, attribute, fields)
+          return hydrate_stored_list(aggregate, attribute, fields) if trusting_stored_state?
+
+          validate_input_list(aggregate, attribute, fields)
+        end
+
+        # Runs each value-object member of an input list through the same door a nested single
+        # value goes through, so a member's own invariants and nested lists refuse on dispatch
+        # exactly as they do when the list sits directly on a command. The members stay as offered.
+        def validate_input_list(aggregate, attribute, fields)
+          nested = value_object_for(aggregate, attribute.type)
+          return unless nested
+
+          Array(fields[attribute.name]).each do |member|
+            next unless member.is_a?(Hash)
+
+            member_fields = apply_defaults(nested, fields_for(nested, attribute.name, member))
+            validate!(nested, normalize_composite_fields(aggregate, nested, member_fields))
+          end
+        end
+
         def hydrate_stored_list(aggregate, attribute, fields)
           return unless trusting_stored_state?
 
           fields[attribute.name] = for_attribute(aggregate, attribute, fields[attribute.name])
         end
 
+        # An optional attribute the caller left out reads as nil in an invariant, so a rule can
+        # ask `x.nil?` or `x.set?` of it instead of failing to resolve a key that was never sent.
+        def with_absent_optionals(value_object, fields)
+          absent = value_object.attributes.select { |attribute| attribute.optional? && !fields.key?(attribute.name) }
+          return fields if absent.empty?
+
+          absent.to_h { |attribute| [attribute.name, nil] }.merge(fields)
+        end
+
         def check_invariants(value_object, fields)
+          known = with_absent_optionals(value_object, fields)
           value_object.invariants.each do |invariant|
-            next if Bluebook::Expression::Evaluator.call_rule(invariant, fields)
+            next if Bluebook::Expression::Evaluator.call_rule(invariant, known)
 
             raise InvariantViolation,
                   RefusalWording.render_site("InvariantViolation", "value_object_invariant",
