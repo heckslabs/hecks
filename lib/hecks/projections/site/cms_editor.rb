@@ -49,7 +49,7 @@ module Hecks
                                  "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
           "__MEDIA_OPTION__" => ["  /** Where picture bytes are kept: the local disk unless given (see media/storage.ts). */",
                                  "  storage?: MediaStorage;"].join("\n"),
-          "__MEDIA_SETUP__"  => "  const media = mediaHandler(options.storage);",
+          "__MEDIA_SETUP__"  => "  const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });",
           "__MEDIA_ROUTE__"  => "    if (segments[0] === \"media\") return media(client, request, segments.slice(1));"
         }.freeze
 
@@ -58,8 +58,10 @@ module Hecks
         # Renders the editor's files for a project that declares an `Editor` row.
         #
         # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the row
-        # @param options [Hash{Symbol => Object}] `:domain_chapter` the chapter to edit; `:table`
-        #   the checked route table, when the login page is to be checked against it
+        # @param options [Hash{Symbol => Object}] `:domain_chapter` the chapter to edit;
+        #   `:media_chapter` the chapter the row's `media` names, whose picture aggregate the
+        #   pictures use; `:table` the checked route table, when the login page is to be checked
+        #   against it
         # @return [Hash{String => String}] each file's path relative to the editor's directory to
         #   its text; empty when the project declares no `Editor` row
         # @raise [Table::Invalid] when the row is refused
@@ -68,7 +70,7 @@ module Hecks
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
 
-          schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip)
+          schema = Schema.read(options.fetch(:domain_chapter), skip: setting.skip, pictures: options[:media_chapter])
           media = schema.key?("media")
           tokens = setting.tokens.merge("__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }

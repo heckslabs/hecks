@@ -4,6 +4,7 @@ require "json"
 require_relative "../root_rows"
 require_relative "../routes_ts"
 require_relative "checks"
+require_relative "../../../version"
 
 module Hecks
   module Projections
@@ -20,11 +21,11 @@ module Hecks
             "Editor",
             fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
-                        title: String, skip: String, media_dir: String, media_max_bytes: String },
+                        title: String, skip: String, media: String, media_dir: String, media_max_bytes: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", skip: "",
-                        media_dir: "media", media_max_bytes: "5242880" }
+                        media: "", media_dir: "media", media_max_bytes: "5242880" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -58,6 +59,10 @@ module Hecks
           # @return [String] the chapter the editor edits
           def chapter = row.fetch(:chapter)
 
+          # @return [String, nil] the other chapter whose picture aggregate the editor's pictures
+          #   use, or nil when the pictures (if any) are in the editor's own chapter
+          def media_chapter = row.fetch(:media).strip.then { |name| name.empty? ? nil : name }
+
           # @return [Array<String>] the aggregates left out
           def skip = row.fetch(:skip).split(",").map(&:strip).reject(&:empty?)
 
@@ -70,7 +75,8 @@ module Hecks
           # @return [Hash{String => String}] each placeholder to the text that replaces it
           def tokens
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
-              "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), **quoted }
+              "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes),
+              "__CLIENT_VERSION__" => Hecks::VERSION, **quoted }
           end
 
           # @return [Hash{String => String}] each text field's placeholder to the field as JSON

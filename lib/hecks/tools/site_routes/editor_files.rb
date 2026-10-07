@@ -18,18 +18,25 @@ module Hecks
           setting = Projections::Site::CmsEditor::Setting.read(site.chapter, table: site.table)
           abort "project_site: --editor names #{editor}, but the project declares no Editor row" if setting.nil?
 
-          options = { domain_chapter: domain_chapter(project, setting), table: site.table }
-          files = Projector.call(:site_cms_editor, bluebook: site.chapter, options: options)
+          files = Projector.call(:site_cms_editor, bluebook: site.chapter, options: options(project, setting, site))
           files.to_h { |name, text| [File.join(File.expand_path(editor), name), text] }
         rescue ArgumentError, Projections::Site::Table::Invalid => e
           abort "project_site: #{e.message}"
         end
 
+        # @return [Hash{Symbol => Object}] the chapters the editor reads, and the route table
+        def options(project, setting, site)
+          chosen = { domain_chapter: domain_chapter(project, setting), table: site.table }
+          chosen[:media_chapter] = domain_chapter(project, setting, setting.media_chapter) if setting.media_chapter
+          chosen
+        end
+
+        # @param name [String] the chapter to find; the row's `chapter` unless given
         # @return [Bluebook::Chapter] the chapter the `Editor` row names, from its domain directory
-        def domain_chapter(project, setting)
+        def domain_chapter(project, setting, name = setting.chapter)
           domain_root = File.join(project, setting.domain)
-          chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == setting.chapter }
-          abort "project_site: #{domain_root} declares no chapter #{setting.chapter}" unless chapter
+          chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
+          abort "project_site: #{domain_root} declares no chapter #{name}" unless chapter
           chapter
         end
       end

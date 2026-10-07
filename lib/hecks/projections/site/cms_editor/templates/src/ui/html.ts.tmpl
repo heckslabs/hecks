@@ -21,6 +21,8 @@ const STYLE = `
   header, main { max-width: 64rem; margin: 0 auto; padding: 0.75rem 1rem; }
   header { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; border-bottom: 1px solid var(--edge); align-items: baseline; }
   header a.brand { font-weight: 700; }
+  header form { margin: 0 0 0 auto; }
+  header form button { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; }
   a { color: var(--accent); }
   table { border-collapse: collapse; width: 100%; }
   th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--edge); vertical-align: top; }
@@ -54,6 +56,8 @@ const STYLE = `
   .body-surface { min-height: 8rem; border: 1px solid var(--edge); border-radius: 6px; padding: 0.4rem 0.75rem; }
   .body-surface:focus { outline: 2px solid var(--accent); }
   .body-surface figure { cursor: pointer; }
+  .body-popover { border: 1px solid var(--edge); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
+  .body-popover button { margin-right: 0.4rem; }
   .body-picker { border: 1px solid var(--edge); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
   .picker-list { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0.25rem 0; padding: 0; max-height: 12rem; overflow: auto; }
   .picker-list button { display: flex; flex-direction: column; align-items: center; max-width: 6rem; font-size: 0.8rem; }
@@ -81,6 +85,7 @@ export function page(title: string, body: string): string {
   <nav>
     ${nav}
   </nav>
+  <form method="post" action="${esc(href("logout"))}"><button type="submit">Sign out</button></form>
 </header>
 <main>
 ${body}

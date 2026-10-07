@@ -131,14 +131,80 @@ function mount(root) {
     sync();
   };
 
+  // The selection as it stands inside the surface, to put back after a popover has had the focus.
+  const heldRange = () => {
+    const sel = window.getSelection();
+    return sel && sel.rangeCount && surface.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  };
+
+  const restoreRange = (range) => {
+    surface.focus();
+    if (!range) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  // A small form attached to the toolbar, in place of the browser's blocking prompt, which stops the page and
+  // cannot be reached by assistive tools. `inputs` are [name, label, value]; `onApply(values)` runs
+  // on Apply or Enter and returns a message to keep the form open with, or nothing to close it;
+  // `extras` are [label, run] buttons that close it too.
+  const popover = (title, inputs, onApply, extras = []) => {
+    root.querySelector("[data-popover]")?.remove();
+    const range = heldRange();
+    const panel = document.createElement("div");
+    panel.className = "body-popover";
+    panel.setAttribute("data-popover", "");
+    panel.setAttribute("role", "group");
+    panel.setAttribute("aria-label", title);
+    const fields = inputs.map(([key, label, value]) => {
+      const input = Object.assign(document.createElement("input"), { type: "text", name: key, value });
+      const wrap = document.createElement("label");
+      wrap.append(label, input);
+      panel.append(wrap);
+      return [key, input];
+    });
+    const problem = Object.assign(document.createElement("p"), { className: "refusal", hidden: true });
+    problem.setAttribute("role", "alert");
+    const button = (label, run) => {
+      const made = Object.assign(document.createElement("button"), { type: "button", textContent: label });
+      made.addEventListener("click", run);
+      return made;
+    };
+    const close = () => { panel.remove(); restoreRange(range); };
+    const apply = () => {
+      const message = onApply(Object.fromEntries(fields.map(([key, input]) => [key, input.value])), range);
+      if (message) { problem.textContent = message; problem.hidden = false; } else panel.remove();
+    };
+    panel.append(problem, button("Apply", apply), ...extras.map(([label, run]) => button(label, () => { panel.remove(); run(range); })), button("Cancel", close));
+    panel.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      if (event.key === "Enter" && event.target.tagName === "INPUT") { event.preventDefault(); apply(); }
+    });
+    root.querySelector("[data-toolbar]").after(panel);
+    fields[0][1].focus();
+    fields[0][1].select();
+  };
+
+  const anchorOf = () => {
+    let node = window.getSelection()?.anchorNode;
+    while (node && node !== surface && node.nodeName !== "A") node = node.parentNode;
+    return node && node.nodeName === "A" ? node : null;
+  };
+
   const link = () => {
-    const given = window.prompt("Link address (a path, http://, https://, mailto: or tel:). Leave empty to remove the link.", "https://");
-    if (given === null) return;
-    const href = safeHref(given.trim());
-    if (given.trim() === "") document.execCommand("unlink");
-    else if (href) document.execCommand("createLink", false, href);
-    else notes.textContent = "That address is not allowed: use a path, http://, https://, mailto: or tel:.";
-    sync();
+    const held = anchorOf()?.getAttribute("href");
+    const unlink = (range) => { restoreRange(range); document.execCommand("unlink"); sync(); };
+    const apply = ({ href: given }, range) => {
+      const typed = given.trim();
+      if (typed === "") return unlink(range);
+      const href = safeHref(typed);
+      if (!href) return "That address is not allowed: use a path, http://, https://, mailto: or tel:.";
+      restoreRange(range);
+      document.execCommand("createLink", false, href);
+      sync();
+    };
+    popover("Link", [["href", "Link address (a path, http://, https://, mailto: or tel:)", held ?? "https://"]], apply, held ? [["Remove link", unlink]] : []);
   };
 
   const figureHtml = (media, alt, caption) => bodyToHtml({ blocks: [{ kind: "image", media_ref: media, alt, caption }] });
@@ -157,11 +223,12 @@ function mount(root) {
 
   // Without a picture store the image is named by its media key, typed in.
   const promptImage = (figure, anchor) => {
-    const media = window.prompt("Media key of the image", figure?.dataset.mediaRef ?? "");
-    if (!media) return;
-    const alt = window.prompt("Alt text", figure?.dataset.alt ?? "") ?? "";
-    const caption = window.prompt("Caption (optional)", figure?.dataset.caption ?? "") ?? "";
-    placeImage(media, alt, caption, figure, anchor);
+    const inputs = [["media", "Media key of the image", figure?.dataset.mediaRef ?? ""], ["alt", "Alt text", figure?.dataset.alt ?? ""],
+      ["caption", "Caption (optional)", figure?.dataset.caption ?? ""]];
+    popover("Image", inputs, ({ media, alt, caption }) => {
+      if (!media.trim()) return "Name the image by its media key.";
+      placeImage(media, alt, caption, figure, anchor);
+    });
   };
 
   // With one, the picker uploads or chooses a registered picture; its module is loaded only then.
@@ -252,7 +319,8 @@ function mount(root) {
   surface.addEventListener("paste", (event) => { event.preventDefault(); insertParsed(fromTransfer(event.clipboardData)); });
   surface.addEventListener("drop", (event) => { event.preventDefault(); insertParsed(fromTransfer(event.dataTransfer)); });
   surface.addEventListener("click", (event) => { const figure = event.target.closest("figure"); if (figure && surface.contains(figure)) askImage(figure); });
-  surface.addEventListener("blur", () => {
+  surface.addEventListener("blur", (event) => {
+    if (event.relatedTarget?.closest?.("[data-popover]")) return;
     const { body } = htmlToBodyWithNotes(surface.innerHTML);
     surface.innerHTML = placeholdered(bodyToHtml(body));
     lock();

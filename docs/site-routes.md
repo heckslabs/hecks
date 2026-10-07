@@ -215,6 +215,7 @@ forms are generated from the domain, not written per aggregate.
 | `roles` | the roles that count as an editor, comma separated | `Admin,Owner` |
 | `title` | the editor's name in its header | `Editor` |
 | `skip` | aggregates to leave out, comma separated | none |
+| `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
 | `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
 
@@ -257,7 +258,7 @@ from another site are refused. Set the Admin row's `cms_base` to `base_path` and
 here.
 
 The host answers HTTP 200 whether or not the domain refused, so a command's outcome is judged by the state that comes back, and a
-refusal is shown on the form with the person's input kept. Commands run as the role they declare.
+refusal is shown on the form with the person's input kept (a `given` as "Not allowed unless ...", an invariant as the field and its rule). Commands run as the role they declare. An optional command argument that only clears a field (`sets :draft, to: :nothing`, never otherwise read) is not offered as an input. The header has a sign-out button (`POST <base_path>/logout`). The generated `package.json` pins `@hecks/client` to this hecks's own version.
 
 The row is refused when `login` is not a public route, when `base_path` or `sso_path` is malformed or `sso_path` is not under
 `base_path`, when `roles` names none, or when the row has a field this list does not. `--editor` on a project with no `Editor` row
