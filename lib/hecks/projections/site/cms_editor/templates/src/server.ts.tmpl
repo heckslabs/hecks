@@ -8,26 +8,37 @@ import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { createApp } from "./app.ts";
+import { EDITOR } from "./config.ts";
 
 const MAX_BODY_BYTES = 1_000_000;
 
-async function bodyOf(req: IncomingMessage): Promise<string | undefined> {
+/** The room a picture upload's form framing takes beyond the picture's own size cap. */
+const UPLOAD_OVERHEAD_BYTES = 65_536;
+
+/** How much of a request's body is read: a picture upload may be as large as the row's size cap. */
+function limitOf(req: IncomingMessage): number {
+  const path = (req.url ?? "").split("?")[0];
+  return req.method === "POST" && path === `${EDITOR.basePath}/media` ? EDITOR.mediaMaxBytes + UPLOAD_OVERHEAD_BYTES : MAX_BODY_BYTES;
+}
+
+async function bodyOf(req: IncomingMessage): Promise<Buffer | undefined> {
   if (req.method === "GET" || req.method === "HEAD") return undefined;
+  const limit = limitOf(req);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw new RangeError("request body too large");
+    if (size > limit) throw new RangeError("request body too large");
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
 }
 
 async function requestOf(req: IncomingMessage): Promise<Request> {
   const proto = String(req.headers["x-forwarded-proto"] ?? "http").split(",")[0].trim();
   const headers = new Headers();
   for (const [name, value] of Object.entries(req.headers)) if (value !== undefined) headers.set(name, String(value));
-  return new Request(`${proto}://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, { method: req.method, headers, body: await bodyOf(req) });
+  return new Request(`${proto}://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, { method: req.method, headers, body: (await bodyOf(req)) as BodyInit | undefined });
 }
 
 async function send(res: ServerResponse, response: Response): Promise<void> {

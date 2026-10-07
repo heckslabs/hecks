@@ -61,9 +61,25 @@ export interface Aggregate {
   queries: Query[];
 }
 
+/** How one part of a picture's record is sent: `wrap` is the part of a value object that holds the value. */
+export interface MediaField {
+  name: string;
+  wrap: string | null;
+}
+
+/** The aggregate that registers pictures, when the chapter has one: found by shape, never by name. */
+export interface Media {
+  aggregate: string;
+  command: string;
+  fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
+  /** The query that lists the pictures, or null when every instance is read. */
+  listing: string | null;
+}
+
 export interface Schema {
   domain: string;
   aggregates: Aggregate[];
+  media?: Media;
 }
 
 export const SCHEMA: Schema = {
@@ -643,6 +659,197 @@ export const SCHEMA: Schema = {
         }
       ],
       "queries": []
+    },
+    {
+      "name": "MediaItem",
+      "description": "A picture the publisher has uploaded: its record only, the bytes are kept elsewhere.",
+      "identity": "key",
+      "lifecycle": null,
+      "attributes": [
+        {
+          "name": "key",
+          "type": "PictureKey",
+          "kind": "object",
+          "optional": false,
+          "list": false
+        },
+        {
+          "name": "alt",
+          "type": "AltText",
+          "kind": "object",
+          "optional": false,
+          "list": false
+        },
+        {
+          "name": "mime_type",
+          "type": "MimeType",
+          "kind": "object",
+          "optional": false,
+          "list": false
+        },
+        {
+          "name": "width",
+          "type": "Pixels",
+          "kind": "object",
+          "optional": true,
+          "list": false
+        },
+        {
+          "name": "height",
+          "type": "Pixels",
+          "kind": "object",
+          "optional": true,
+          "list": false
+        },
+        {
+          "name": "focal_point",
+          "type": "FocalPoint",
+          "kind": "object",
+          "optional": true,
+          "list": false
+        }
+      ],
+      "valueObjects": {
+        "PictureKey": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "AltText": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "MimeType": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "Pixels": [
+          {
+            "name": "value",
+            "type": "Integer",
+            "kind": "integer",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "FocalPoint": [
+          {
+            "name": "x",
+            "type": "Float",
+            "kind": "number",
+            "optional": false,
+            "list": false
+          },
+          {
+            "name": "y",
+            "type": "Float",
+            "kind": "number",
+            "optional": false,
+            "list": false
+          }
+        ]
+      },
+      "commands": [
+        {
+          "name": "RegisterPicture",
+          "goal": "Record a picture that has been uploaded",
+          "role": "Editor",
+          "creates": true,
+          "on": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "PictureKey",
+              "kind": "object",
+              "optional": false,
+              "list": false
+            },
+            {
+              "name": "alt",
+              "type": "AltText",
+              "kind": "object",
+              "optional": false,
+              "list": false
+            },
+            {
+              "name": "mime_type",
+              "type": "MimeType",
+              "kind": "object",
+              "optional": false,
+              "list": false
+            },
+            {
+              "name": "width",
+              "type": "Pixels",
+              "kind": "object",
+              "optional": true,
+              "list": false
+            },
+            {
+              "name": "height",
+              "type": "Pixels",
+              "kind": "object",
+              "optional": true,
+              "list": false
+            },
+            {
+              "name": "focal_point",
+              "type": "FocalPoint",
+              "kind": "object",
+              "optional": true,
+              "list": false
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "Pictures",
+          "description": "Every registered picture.",
+          "attributes": []
+        }
+      ]
     }
-  ]
+  ],
+  "media": {
+    "aggregate": "MediaItem",
+    "command": "RegisterPicture",
+    "fields": {
+      "key": {
+        "name": "key",
+        "wrap": "value"
+      },
+      "alt": {
+        "name": "alt",
+        "wrap": "value"
+      },
+      "mime": {
+        "name": "mime_type",
+        "wrap": "value"
+      },
+      "width": {
+        "name": "width",
+        "wrap": "value"
+      },
+      "height": {
+        "name": "height",
+        "wrap": "value"
+      }
+    },
+    "listing": "Pictures"
+  }
 };

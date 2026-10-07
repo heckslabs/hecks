@@ -20,10 +20,11 @@ module Hecks
             "Editor",
             fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
-                        title: String, skip: String },
+                        title: String, skip: String, media_dir: String, media_max_bytes: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
-                        host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", skip: "" }
+                        host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", skip: "",
+                        media_dir: "media", media_max_bytes: "5242880" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -69,9 +70,15 @@ module Hecks
           # @return [Hash{String => String}] each placeholder to the text that replaces it
           def tokens
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
-              **{ "TITLE" => :title, "BASE_PATH" => :base_path, "SSO_PATH" => :sso_path, "LOGIN" => :login,
-                  "SESSION_COOKIE" => :session_cookie, "HOST_COOKIE" => :host_cookie, "HOST_ENV" => :host_env,
-                  "HOST_DEFAULT" => :host_default }.to_h { |token, field| ["__#{token}__", JSON.generate(row.fetch(field))] } }
+              "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), **quoted }
+          end
+
+          # @return [Hash{String => String}] each text field's placeholder to the field as JSON
+          def quoted
+            { "TITLE" => :title, "BASE_PATH" => :base_path, "SSO_PATH" => :sso_path, "LOGIN" => :login,
+              "SESSION_COOKIE" => :session_cookie, "HOST_COOKIE" => :host_cookie, "HOST_ENV" => :host_env,
+              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir }
+              .to_h { |token, field| ["__#{token}__", JSON.generate(row.fetch(field))] }
           end
         end
       end

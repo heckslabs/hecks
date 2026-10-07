@@ -215,6 +215,8 @@ forms are generated from the domain, not written per aggregate.
 | `roles` | the roles that count as an editor, comma separated | `Admin,Owner` |
 | `title` | the editor's name in its header | `Editor` |
 | `skip` | aggregates to leave out, comma separated | none |
+| `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
+| `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
 
 | file | what it does |
 |---|---|
@@ -234,6 +236,17 @@ it is named) is edited with a rich-text widget: a toolbar and a contenteditable 
 post it as the same dotted-path fields as any other value object. The list and detail pages show the body read-only, escaped.
 Pasted HTML is reduced to what the body can hold, with a note saying what was reduced. The widget's browser code is plain
 `src/ui/body_*.js`, served to a signed-in editor under `<base_path>/assets/`; ADR 0095's addendum has the details. A query that `returns` a value object is answered outside the domain and is not offered.
+
+When the chapter has an aggregate that registers pictures, the editor also uploads and serves them. The aggregate is found by shape,
+not by name: a creating command whose attributes are the aggregate's identity (the key), an alt text (`alt` or `alt_text`) and a
+mime type (`mime_type`, `mime` or `content_type`), optionally `width` and `height`, with every other attribute optional; the
+aggregate's query with no arguments lists the pictures. The domain keeps the record, never the bytes. `src/media/` holds the upload
+(a bounded read, an allow-list of JPEG, PNG, WebP, GIF and AVIF decided by the first bytes, the size cap, alt text required), the
+storage port (`put`, `url`, `read`) and its local-disk adapter, which writes `<sha256>.<ext>` under `media_dir`. A project that
+keeps pictures in an object store implements the same interface and passes it as `createApp({ storage })`. Pictures are served to
+a signed-in editor only at `<base_path>/media/<key>`, for keys of the generated form, with `X-Content-Type-Options: nosniff`. The
+widget's image button opens a picker (`src/ui/media_picker.js`). A chapter with no such aggregate has none of this, and the image
+button keeps its prompts.
 
 The server is a sidecar: it is the host's `/dispatch` caller, which the host honours only from the same machine, so it
 authenticates every person itself. A visitor with no valid session is sent to `login`; the site's admin hand-off sends a signed-in

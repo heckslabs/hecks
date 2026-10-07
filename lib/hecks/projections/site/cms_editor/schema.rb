@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "attributes"
+require_relative "media"
 
 module Hecks
   module Projections
@@ -10,6 +11,9 @@ module Hecks
         # identity, attributes, value objects, lifecycle, commands and queries. The editor's
         # `schema.ts` is this hash as a typed constant, and nothing else about the domain reaches
         # the generated files, so the output is a pure function of the chapter.
+        #
+        # An aggregate that registers pictures (see `Media`) is also named under `media`, so the
+        # editor can offer an upload; a chapter with none has no such key.
         #
         # A query that `returns` a value object is answered outside the domain and is left out: the
         # host refuses it, so a list cannot be built from it.
@@ -22,7 +26,9 @@ module Hecks
             aggregates = chapter.aggregates.reject { |agg| skip.include?(agg.hecks_name) }
             raise ArgumentError, "the #{chapter.name} chapter has no aggregate to edit" if aggregates.empty?
 
-            { "domain" => chapter.name, "aggregates" => aggregates.map { |agg| new(agg).to_h } }
+            shaped = aggregates.map { |agg| new(agg).to_h }
+            media = Media.read(shaped)
+            { "domain" => chapter.name, "aggregates" => shaped, **(media ? { "media" => media } : {}) }
           end
 
           # @param aggregate [Bluebook::Aggregate] one aggregate of the chapter
