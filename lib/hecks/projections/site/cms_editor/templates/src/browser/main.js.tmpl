@@ -7,6 +7,7 @@ import { enhanceForms } from "./forms.js";
 import { rememberFilters } from "./lists.js";
 import { enhanceMoments } from "./moments.js";
 import { enhancePickers } from "./pickers.js";
+import { enhancePreview } from "./preview.js";
 import { enhanceShell } from "./shell.js";
 import { adoptToasts } from "./toast.js";
 
@@ -15,6 +16,7 @@ enhanceShell();
 enhanceMoments();
 enhancePickers();
 enhanceForms();
+enhancePreview();
 adoptToasts();
 
 if (document.querySelector("[data-body-editor]")) {

@@ -32,6 +32,8 @@ interface Context {
   quiet?: boolean;
   /** What is on offer for each picker (see pickers.ts); a picker with nothing on offer is a text box. */
   choices?: Choices;
+  /** The body attribute that is written as a draft: its editor saves by itself (see browser/autosave.js). */
+  draft?: string;
 }
 
 const inputType = (attr: Attr): string => (attr.kind === "integer" || attr.kind === "number" ? "number" : "text");
@@ -77,8 +79,21 @@ function picked(attr: Attr, name: string, value: Value, context: Context): strin
   return pickerControl(attr.picker, context.choices ?? {}, control);
 }
 
+/** A closed set's members as a native select, with the held value chosen; an optional one may be left unchosen. */
+function select(attr: Attr, name: string, value: Value, context: Context): string {
+  const held = String(member(value, "value") ?? value ?? "");
+  const id = esc(idOf(name));
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const classes = flagged(attr, context) ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
+  const blank = attr.optional || held === "" ? `<option value=""${held === "" ? " selected" : ""}>${attr.optional ? "None" : "Choose"}</option>` : "";
+  const options = (attr.options ?? []).map((option) => `<option value="${esc(option)}"${option === held ? " selected" : ""}>${esc(label(option))}</option>`);
+  const input = `<select class="${classes}" id="${id}" name="${esc(name)}"${required}${invalidAttrs(name, attr, context)}>${blank}${options.join("")}</select>`;
+  return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${problem(name, attr, context)}</div>`;
+}
+
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {
   if (isMoment(attr)) return moment(attr, name, value, context);
+  if (attr.options && !attr.list) return select(attr, name, value, context);
   const text = esc(member(value, "value") ?? value ?? "");
   const id = esc(idOf(name));
   if (attr.kind === "boolean") {
@@ -94,7 +109,7 @@ function scalar(attr: Attr, name: string, value: Value, context: Context): strin
 
 /** A value object's one plain part as the attribute that holds it: it takes the attribute's name, picker and moment. */
 function plainOf(attr: Attr, part: Attr, name: string): Attr {
-  return { ...part, name, optional: attr.optional, widget: attr.widget ?? part.widget, picker: attr.picker ?? part.picker };
+  return { ...part, name, optional: attr.optional, widget: attr.widget ?? part.widget, picker: attr.picker ?? part.picker, options: attr.options ?? part.options };
 }
 
 function parts(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
@@ -140,8 +155,9 @@ function body(attr: Attr, name: string, value: Value, context: Context): string 
   const tree = value && typeof value === "object" ? value : emptyBody();
   const inputs = fieldsToInputs(bodyToFields(tree, name));
   const media = SCHEMA.media ? ` data-media="${esc(href("media"))}"` : "";
+  const draft = context.draft === attr.name ? " data-draft" : "";
   return `<fieldset class="mt-6 [&>legend+*]:clear-both"><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
-<div class="max-w-3xl" data-body-editor data-name="${esc(name)}" data-label="${esc(label(attr.name))}" data-body="${esc(JSON.stringify(tree))}"${media}>
+<div class="max-w-3xl" data-body-editor${draft} data-name="${esc(name)}" data-label="${esc(label(attr.name))}" data-body="${esc(JSON.stringify(tree))}"${media}>
 <div class="prose border border-base-300 bg-base-100 p-6" data-body-fallback>${bodyToHtml(tree)}</div>
 <p class="mt-2 text-xs text-muted" data-needs-script>Editing this text needs scripts turned on in the browser.</p>
 <div data-fields>
@@ -159,7 +175,7 @@ export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", con
 }
 
 /** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
-export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}): string {
-  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices }));
+export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string): string {
+  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft }));
   return [...inputs, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
 }

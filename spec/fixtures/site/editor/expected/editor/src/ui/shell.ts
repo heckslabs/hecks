@@ -18,6 +18,7 @@ import { assetUrl, hasLogo, isBuilt } from "../assets.ts";
 import type { Flash } from "../flash.ts";
 import { esc, href } from "./html.ts";
 import { SPRITE, icon } from "./icons.ts";
+import { schedulingAggregate } from "./world.ts";
 import { label, plural } from "./words.ts";
 
 /** One step of the trail above a page's title; the last has no address. */
@@ -27,7 +28,12 @@ export interface Frame {
   /** The aggregate whose page this is, for the navigation's current item; none for the overview. */
   active?: string;
   crumbs?: Crumb[];
+  /** A drawer the page opens over itself, such as the preview; it is placed after the navigation. */
+  drawer?: string;
 }
+
+/** What the navigation holds the screen of scheduled actions under. */
+export const SCHEDULED = "__scheduled";
 
 const MARK = {
   person: "<!--editor:person-->",
@@ -67,6 +73,12 @@ function navItems(aggregates: Aggregate[], active: string | undefined): string {
     .join("\n");
 }
 
+/** The link to the screen of scheduled actions, for the people who may edit them; nothing when the editor has none. */
+function scheduledLink(active: string | undefined): string {
+  const sched = schedulingAggregate();
+  return sched ? `${onlyFor(sched, navLink(href("scheduled"), "Scheduled", active === SCHEDULED))}\n` : "";
+}
+
 function navigation(active: string | undefined): string {
   const sections = groups().map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(label(chapter))}</li>`;
@@ -76,7 +88,7 @@ function navigation(active: string | undefined): string {
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
 ${navLink(EDITOR.basePath, "Overview", active === undefined)}
-${sections.join("\n")}
+${scheduledLink(active)}${sections.join("\n")}
 </ul>
 </nav>`;
 }
@@ -136,6 +148,7 @@ ${navigation(frame.active)}
 </aside>
 </div>
 </div>
+${frame.drawer ?? ""}
 <div class="toast toast-top toast-center z-50 mt-14" data-toasts>${MARK.flash}</div>
 ${script}
 </body>

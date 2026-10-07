@@ -1,0 +1,3 @@
+Hecks.hecksagon "Discovery" do
+  persisted_by "Memory"
+end

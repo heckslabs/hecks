@@ -1,0 +1,57 @@
+# A small newsroom's site whose editor works on a post or a page as one thing: the neutral fixture the
+# editor generator reads for the records that go with a record (a document, pictures, search wording),
+# the actions scheduled for it, its live preview and the draft its body is written as. Its `Editor` row
+# names five separate chapters; they refer to each other only by plain `<kind>:<slug>` keys.
+Hecks.bluebook "NewsroomSite" do
+  vision "The routes of a small newsroom's website, with an editor for its posts and pages."
+
+  aggregate "SiteMap" do
+    description "The newsroom site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :nav_order, Integer
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", nav_order: 1
+      member path: "/editor*",     kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/*",           kind: "proxy"
+    end
+
+    value_object "Editor" do
+      attribute :domain,         String
+      attribute :chapter,        String
+      attribute :base_path,      String
+      attribute :session_cookie, String
+      attribute :host_cookie,    String
+      attribute :host_env,       String
+      attribute :host_default,   String
+      attribute :roles,          String
+      attribute :login,          String
+      attribute :title,          String
+      attribute :preview,        String
+
+      member domain: "domain", chapter: "Publishing, Documents, Pictures, Discovery, Schedule",
+             base_path: "/editor", session_cookie: "newsroom_editor", host_cookie: "newsroom_session",
+             host_env: "NEWSROOM_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4500",
+             roles: "Admin,Owner", login: "/admin-login", title: "Newsroom editor",
+             preview: "https://site.example.com/{kind}/{slug}?preview=1"
+    end
+  end
+end

@@ -1,0 +1,35 @@
+__BANNER__
+
+// What a page of one record may read of the rest of the domain: the records that go with it, and the
+// actions scheduled for it. The server builds it from the one read of the host the page already makes
+// (app.ts), so a page with panels costs no more reads than a page without.
+import type { Aggregate, Related } from "../schema.ts";
+import { SCHEMA } from "../schema.ts";
+
+type State = Record<string, unknown>;
+
+export interface World {
+  /** The person's role, which decides which aggregates' records may be shown. */
+  role: string | null;
+  /** One record of an aggregate by its identity, or undefined when the host holds none. */
+  lookup(agg: Aggregate, id: string): State | undefined;
+  /** Every record of an aggregate, as `[id, state]` pairs. */
+  rows(agg: Aggregate): [string, State][];
+  /** The scheduled actions of the record being shown, when the host answered a query for them. */
+  actions?: [string, State][];
+}
+
+/** The aggregate a `related` entry names. */
+export const relatedAggregate = (rel: Related): Aggregate | undefined =>
+  SCHEMA.aggregates.find((candidate) => candidate.name === rel.aggregate && candidate.chapter === rel.chapter);
+
+/** The aggregate that registers pictures, when the editor has it among its own. */
+export function pictureAggregate(): Aggregate | undefined {
+  const media = SCHEMA.media;
+  if (!media) return undefined;
+  return SCHEMA.aggregates.find((agg) => agg.name === media.aggregate && (media.domain ? agg.chapter === media.domain : !agg.chapter || agg.chapter === SCHEMA.domain));
+}
+
+/** The aggregate whose records are the scheduled actions, when the editor has one. */
+export const schedulingAggregate = (): Aggregate | undefined =>
+  SCHEMA.scheduling && SCHEMA.aggregates.find((candidate) => candidate.name === SCHEMA.scheduling?.aggregate && candidate.chapter === SCHEMA.scheduling?.chapter);
