@@ -18,7 +18,7 @@ RSpec.describe "CHANGELOG.md planned release" do
   it "plans a version later than the latest release" do
     planned = heading[/planned (\d+\.\d+\.\d+)/, 1] || "999.0.0"
 
-    expect(key(planned)).to be > key(latest)
+    expect(key(planned) <=> key(latest)).to eq(1)
   end
 
   it "leaves the Unreleased heading invisible to a version heading check" do
