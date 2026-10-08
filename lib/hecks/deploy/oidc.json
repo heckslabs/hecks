@@ -157,6 +157,21 @@
       "role": null
     },
     {
+      "scope": "deploy:handover.clear",
+      "verb": "Deploy::Handover.Clear",
+      "role": null
+    },
+    {
+      "scope": "deploy:handover.complete",
+      "verb": "Deploy::Handover.Complete",
+      "role": null
+    },
+    {
+      "scope": "deploy:handover.fault",
+      "verb": "Deploy::Handover.Fault",
+      "role": null
+    },
+    {
       "scope": "deploy:lambda_target.declare",
       "verb": "Deploy::LambdaTarget.Declare",
       "role": null
@@ -367,7 +382,5 @@
       "role": null
     }
   ],
-  "roles": [
-
-  ]
+  "roles": []
 }

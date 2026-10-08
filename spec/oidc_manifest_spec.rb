@@ -18,7 +18,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy project_oidc)" do
   def projection_for(path)
     runtime = Hecks.boot(File.join(ROOT, File.dirname(relative(path))), install_doors: false)
     bluebook = runtime.registry.bluebook(runtime.registry.bluebooks.keys.first)
-    "#{JSON.pretty_generate(Hecks::Projector.call(:oidc, bluebook: bluebook))}\n"
+    Hecks::Projections::OIDC.render(Hecks::Projector.call(:oidc, bluebook: bluebook))
   end
 
   def drift_message(path)

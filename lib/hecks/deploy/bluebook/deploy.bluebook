@@ -680,6 +680,112 @@ Hecks.bluebook "Deploy" do
     trigger Recipe::Fault, with: { refusal: :refusal }
   end
 
+  aggregate "Handover" do
+    description "One clearing of a domain's deployment settings: the body of every deployed_to block in its .world emptied, so a project handed to a client holds none of the host's own region, stacks, secrets or domain."
+
+    attribute :domain,  DomainPath
+    attribute :run,     RunKey
+    attribute :out,     Location, optional: true
+    attribute :output,  Report,   optional: true
+    attribute :refusal, Report,   optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # A domain directory, whose `bluebook/` holds the `.world` that declares `deployed_to`.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    # A directory the cleared worlds are written to, at their paths below `bluebook/`, instead of
+    # over the originals.
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "cleared", from: "requested"
+      transition "Fault"    => "faulted", from: "requested"
+    end
+
+    # `hecks deploy handover.clear <domain> [out=]`. The rest of the file is left as it was, a world
+    # with nothing to clear is answered as cleared with nothing removed, and a domain with no
+    # `.world` file is faulted with the sentence saying so.
+    command "Clear" do
+      goal "Empty the body of every deployed_to block in a domain's .world, keeping the settings' names in a comment"
+
+      attribute :domain, DomainPath
+      attribute :run,    RunKey
+      attribute :out,    Location, optional: true
+
+      sets :domain
+      sets :run
+      sets :out
+
+      emits "ClearingRequested"
+    end
+
+    command "Complete" do
+      goal "Record that the deployment settings were cleared, from which file and which settings"
+
+      reference_to Handover
+      attribute :output, Report
+
+      sets :output
+
+      emits "DeploymentCleared"
+    end
+
+    command "Fault" do
+      goal "Record that the deployment settings could not be cleared, and why"
+
+      reference_to Handover
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits "ClearingFaulted"
+    end
+
+    query "Outcome" do
+      description "What one clearing did: its status, and the file and settings removed or the reason it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every clearing that could not be done."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ClearWhenRequested" do
+    on      "Handover.ClearingRequested"
+    trigger Handover::DeployToolchain::ClearDeployment, with: { run: :run }
+  end
+
+  policy "RecordTheClearing" do
+    on      "Handover.HandoverAnswered"
+    trigger Handover::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheFaultedClearing" do
+    on      "Handover.HandoverRefused"
+    trigger Handover::Fault, with: { refusal: :refusal }
+  end
+
   aggregate "MakefileCheck" do
     description "One lint of generated deploy Makefiles for prod-touching recipes that hide failure."
 

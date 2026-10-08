@@ -391,6 +391,21 @@ A route that names a parameter or a prefix (`/blog/:slug.html`, `/auth/*`) has n
 command prints a line per check and exits 1 when any answer is wrong. Checks that need a session, a write or the site's
 own wording stay in the project's smoke.
 
+### Checking that a host enforces roles
+
+`hecks site site_projection.check_roles <project> url=<http://127.0.0.1:port>` takes the commands a project declares a
+`role` for (read from its bluebooks, vendored chapters included) and dispatches each to a running host's `/dispatch` with
+no role and no actor. A host checks that arguments are present and well-typed before it asks who is calling, so each
+command is sent with arguments synthesized from its declaration. A host running with `HECKS_ROLE_ENFORCEMENT=enforce`
+refuses every one as `Unauthorized`; a command that is accepted, or refused for another reason, fails the check.
+
+A command whose synthesized arguments the host itself refuses (a value object with a pattern or an invariant the
+placeholder does not meet) never reaches the role gate. It is reported as unchecked and does not fail the run, so the
+summary reads `N commands, F failed, U unchecked`. The verb prints a line per command and exits 1 on any failure.
+
+A host that does not enforce roles would run the commands, so the verb asks only a host on this machine, the one a spec or
+a CI job started for the purpose, and refuses any other address.
+
 ### Checking the live distribution
 
 `hecks site site_projection.check_live <project> live=<file> | distribution=<id> [template=<file>]` compares the behaviours the project's edge

@@ -9,6 +9,7 @@ require "hecks/tools"
 require "hecks/tools/site_routes"
 require "hecks/projections/site/live_edge"
 require_relative "site_toolchain/prober"
+require_relative "site_toolchain/role_prober"
 
 module Hecks
   module Adapters
@@ -85,6 +86,23 @@ module Hecks
         { output: { value: report } }
       end
 
+      # Dispatches every command a project declares a role for to a host with no role and no actor,
+      # and checks the host refuses each as `Unauthorized`. The host must be on this machine and
+      # enforcing roles (`HECKS_ROLE_ENFORCEMENT=enforce`); one that is not would run the commands.
+      #
+      # @param held [Hash] the `SiteProjection` record: `domain`, the project that declares the
+      #   commands, and `url`, the host's base address
+      # @return [Hash{Symbol => Hash}] `output:` one line per command, ending in the count
+      # @raise [ConsoleCapture::Failure] when the host is not on this machine, or a command is not
+      #   refused for its role; the message is the report
+      def roles(**held)
+        checks = Projections::Site::RoleProbe.checks(registry_of(located(:domain, held[:domain])))
+        report, failed = RoleProber.new(checks, base: base_url(plain(held[:url]))).call
+        raise ConsoleCapture::Failure, report if failed.positive?
+
+        { output: { value: report } }
+      end
+
       private
 
       # The scheme, host and port of an http(s) address.
@@ -122,12 +140,18 @@ module Hecks
       # The project's checked route table.
       def table_of(root) = read_table(root).last
 
-      # The registry, chapter and checked table of the project at `root`.
-      def read_table(root)
+      # The registry the project at `root` boots into.
+      def registry_of(root)
         registry = nil
         outcome = ConsoleCapture.capture { registry = Tools::SiteRoutes.registry_for(root) }
         raise ConsoleCapture::Failure, outcome.output.strip unless outcome.ok?
 
+        registry
+      end
+
+      # The registry, chapter and checked table of the project at `root`.
+      def read_table(root)
+        registry = registry_of(root)
         chapter = Projections::Site::Table.chapter(registry)
         [registry, chapter, Projections::Site::Table.read(chapter, registry: registry)]
       rescue Projections::Site::Table::Invalid => e
