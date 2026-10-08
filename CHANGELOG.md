@@ -10,6 +10,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 ### Fixed
 
 - **A committed `oidc.json` compares equal under any json release.** `JSON.pretty_generate` spells an empty list `[]` in some json releases and `[` newline newline `]` in others (2.7.2, the version `Gemfile.lock` pins, among them), so `lib/hecks/deploy/oidc.json`, written where the list is `[]`, read as drifted in CI. `Hecks::Projections::OIDC.render` now writes the manifest with an empty list as `[]`, and both `hecks deploy oidc_manifest.project_oidc` and `spec/oidc_manifest_spec.rb` use it, so no committed manifest changes.
+- **`site_projection.check_roles` no longer faults when its probe is the first thing loaded.** `Hecks::Projections::Site::RoleProbe` calls `Bluebook::Synthesizer` without requiring it, so `spec/site_roles_spec.rb` raised `NameError` whenever no earlier file in the run had loaded it (alone, or in CI's shard 3). The probe now requires the synthesizer.
 
 ## [3.10.0] - 2026-10-07
 
