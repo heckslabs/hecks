@@ -168,6 +168,7 @@ lifecycles, sagas, and policies:
 | `dead_compensation` | error | the saga's compensation leaves a `from_state` no handler chain ever reaches — the deadlock class |
 | `deaf_policy` | error | a policy's `on` event names something nothing emits |
 | `unknown_trigger` | error | a policy's `trigger` resolves to no command the domain declares |
+| `key_by_value` | warning | an aggregate attribute whose type is the single-attribute identity type of another aggregate in the same domain, held as a copied key instead of `reference_to` (list attributes, an owner's own identity attribute and primitive types are never flagged; a head of another aggregate's composite identity is flagged) |
 
 The CLI walks every example, every grammar chapter, and the language's
 own two meta-chapters the same way, in one pass:
