@@ -31648,6 +31648,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "release_trailer",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -31679,6 +31689,10 @@
               [
                 "alert_after",
                 ""
+              ],
+              [
+                "release_trailer",
+                ""
               ]
             ],
             [
@@ -31705,6 +31719,10 @@
               [
                 "alert_after",
                 4
+              ],
+              [
+                "release_trailer",
+                "Release-Approved-By"
               ]
             ]
           ]

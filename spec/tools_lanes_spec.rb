@@ -247,6 +247,18 @@ RSpec.describe Hecks::Tools::Lanes do
       expect { described_class.lanes }.to raise_error(SystemExit).and output(/alert_after "soon", not whole hours/).to_stderr
     end
 
+    it "refuses a release trailer that is not a git trailer word" do
+      rows_are(release_trailer: "Approved By")
+
+      expect { described_class.lanes }.to raise_error(SystemExit).and output(/release_trailer "Approved By"/).to_stderr
+    end
+
+    it "names the trailer on the lane a release is cut from" do
+      stable = described_class.lanes.find { |lane| lane["name"] == "stable" }
+
+      expect(stable["release_trailer"]).to eq("Release-Approved-By")
+    end
+
     it "refuses a lane that follows a lane no row names" do
       rows_are(follows: "y")
 

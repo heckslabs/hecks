@@ -31663,6 +31663,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "release_trailer",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -31694,6 +31704,10 @@
               [
                 "alert_after",
                 ""
+              ],
+              [
+                "release_trailer",
+                ""
               ]
             ],
             [
@@ -31720,6 +31734,10 @@
               [
                 "alert_after",
                 4
+              ],
+              [
+                "release_trailer",
+                "Release-Approved-By"
               ]
             ]
           ],

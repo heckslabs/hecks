@@ -100,6 +100,31 @@ RSpec.describe ".github/workflows/release.yml" do
     expect(names.index("Tag the release commit")).to be < names.index("Push the gem with the API key")
   end
 
+  # A release is the owner's decision: the bump commit must say so, and the check runs before any
+  # tag or push. The decision itself is pinned in spec/release/approval_spec.rb.
+  describe "the owner's approval" do
+    def check = step_named("The version bump carries the owner's approval")
+
+    it "is checked from the commit that set the version, before anything is tagged or pushed", :aggregate_failures do
+      expect(check.fetch("run")).to include("-G'^ *VERSION = '", "hecks/release/approval", "Approval.check")
+      expect(names.index("The version bump carries the owner's approval")).to be < names.index("Tag the release commit")
+      expect(check).not_to have_key("if")
+      expect(check).not_to have_key("continue-on-error")
+    end
+
+    it "lets an existing tag and a by-hand approval through, and no other run", :aggregate_failures do
+      expect(check.fetch("run")).to include("TAG_EXISTS")
+      expect(triggers.fetch("workflow_dispatch").fetch("inputs").fetch("approved_by")).to include("required" => false)
+      expect(workflow.fetch("jobs").fetch("release").fetch("env")).to include("APPROVED_BY" => "${{ inputs.approved_by }}")
+    end
+
+    it "makes detect skip an unapproved bump quietly instead of failing every promotion" do
+      detect = workflow.fetch("jobs").fetch("detect").to_s
+
+      expect(detect).to include("hecks/release/approval", "pending=false")
+    end
+  end
+
   it "hands the gem key to the push step only", :aggregate_failures do
     holders = steps.select { |step| step.to_s.include?("secrets.RUBYGEMS_API_KEY") }
 

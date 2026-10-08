@@ -16,6 +16,14 @@ name: Release
 # A release commit that is not on `stable` is refused whichever way the run started, a by-hand
 # run included: a release is a statement about certified code.
 #
+# A release is also the owner's decision, not a side effect of a bump landing. The commit that set
+# the version must carry a `Release-Approved-By: <name>` line in its message (the trailer the
+# `release_trailer` of the stable `Lane` row names; the decision is lib/hecks/release/approval.rb).
+# After a promotion, a bump without the line releases nothing and says so; a by-hand run refuses
+# it, tagging and pushing nothing. A tag that already stands counts as approved, so finishing a
+# half-cut release needs nothing more, and the owner may approve a bump by hand with
+# `-f approved_by=<name>`.
+#
 # Every step looks at what already exists first and skips it, so a run that stopped halfway, or a
 # release that was already cut by hand, is finished by re-running: the workflow never tags,
 # pushes or releases the same thing twice. A tag that stands on a different commit is an error,
@@ -58,6 +66,10 @@ on:
       tag:
         description: "Release tag to cut or finish, such as v3.2.1"
         required: true
+        type: string
+      approved_by:
+        description: "Name of the owner approving a version bump whose commit message lacks a Release-Approved-By line"
+        required: false
         type: string
 
 # Releases queue behind each other and a running one is never cancelled halfway.
@@ -103,6 +115,14 @@ jobs:
             version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
             if [ -n "$version" ] && gh release view "v$version" > /dev/null 2>&1; then
               pending=false
+            elif [ -n "$version" ]; then
+              tag_exists=false
+              [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
+              if ! COMMIT_MESSAGE="$(git log -1 --format=%B "$commit")" TAG_EXISTS="$tag_exists" \
+                ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
+                echo "::notice::v$version is not released: its bump commit carries no approval. Nothing to cut."
+                pending=false
+              fi
             fi
           fi
           echo "pending=$pending" >> "$GITHUB_OUTPUT"
@@ -123,6 +143,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       REQUESTED_TAG: ${{ inputs.tag }}
+      APPROVED_BY: ${{ inputs.approved_by }}
 
     steps:
       # A promotion run reads `stable`; a by-hand run starts from main and moves to its tag.
@@ -160,6 +181,16 @@ jobs:
             echo "::error::$(git rev-parse --short HEAD) is not on stable. A release comes from stable, never main: wait for Promote to move stable onto it, then re-run."
             exit 1
           fi
+
+      # The owner decides when a release happens. Reads git history only, so it can be run again.
+      - name: The version bump carries the owner's approval
+        run: |
+          version="$(sed -n 's/^ *VERSION = "\(.*\)".*/\1/p' lib/hecks/version.rb)"
+          commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+          tag_exists=false
+          [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
+          COMMIT_MESSAGE="$(git log -1 --format=%B "$commit")" TAG_EXISTS="$tag_exists" \
+            ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'
 
       - name: The files agree on one version
         id: release

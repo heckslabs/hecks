@@ -3,6 +3,7 @@
 require "json"
 require "hecks/release/runner"
 require "hecks/release/lane"
+require "hecks/release/approval"
 require_relative "tree"
 require_relative "../console_capture"
 
@@ -15,8 +16,9 @@ module Hecks
       # It reads the branch, the lane a release is cut from (the `Lane` row that feeds a tag),
       # whether `HEAD` is that lane's `origin/` branch (after a fetch), whether the tree is
       # clean, the gem's version and the client package's, whether the changelog has a heading for
-      # the version, and where a tag for the version already points. Nothing is changed but the
-      # remote-tracking refs a fetch updates.
+      # the version, whether the commit that set the version carries the owner's approval trailer,
+      # and where a tag for the version already points. Nothing is changed but the remote-tracking
+      # refs a fetch updates.
       class ReleaseFacts
         # The line of `lib/hecks/version.rb` that declares the version.
         VERSION_LINE = /^\s*VERSION\s*=\s*"(?<version>[^"]+)"/
@@ -54,6 +56,7 @@ module Hecks
           fetch_origin!
           head = read("rev-parse", "HEAD")
           lane_facts(head).merge(clean:     flag(read("status", "--porcelain").empty?),
+                                 approved:  flag(approved?),
                                  tag_state: word(tag_state("v#{version}", head)))
         end
 
@@ -67,6 +70,13 @@ module Hecks
           lane = Release::Lane.release
           { branch: word(read("rev-parse", "--abbrev-ref", "HEAD")), head: word(head), release_lane: word(lane),
             on_origin: flag(head == read("rev-parse", "origin/#{lane}")) }
+        end
+
+        # Whether the newest commit on this checkout that set the version names who approved the
+        # release in its message (the trailer the `Lane` row names).
+        def approved?
+          message = read("log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb")
+          !Release::Approval.approver(message).nil?
         end
 
         def tag_state(tag, head)

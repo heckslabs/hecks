@@ -34,6 +34,14 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
                              tag_state: { value: "none" }, ships_from: { path: root })
   end
 
+  it "reads whether the commit that set the version carries the approval trailer", :aggregate_failures do
+    expect(found[:approved]).to eq(value: false)
+
+    commands.answer("git", "log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb",
+                    stdout: "Release 9.9.9\n\nRelease-Approved-By: Someone\n")
+    expect(facts.gather("publish")[:approved]).to eq(value: true)
+  end
+
   it "reads the IR version as a dotted number" do
     expect(found[:ir_version][:value]).to match(/\A[0-9]+[.][0-9]+[.][0-9]+\z/)
   end
