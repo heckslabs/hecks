@@ -9,6 +9,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **The pending release can be named on the `[Unreleased]` heading.** Write `## [Unreleased] - planned 3.11.0` to say which version the accumulating changes will ship as, and drop the suffix when that release is cut. The release checks read only `## [X.Y.Z]` headings, so the suffix changes nothing they do; `spec/changelog_planned_release_spec.rb` pins the shape and that the planned version is later than the latest release. A `planned` state on the `Release` aggregate was weighed and not built: its record lives in memory for one publishing run, and `Tag` creates it, so a planned record would not outlive the process that wrote it.
 - **A release needs the owner's approval, written in the bump commit.** The `Lane` row a release is cut from gains `release_trailer` (`Release-Approved-By` on `stable`). `release.yml` now refuses to cut a release, before it tags or pushes anything, unless the commit that set the version has a `Release-Approved-By: <name>` line in its message; after a promotion an unapproved bump releases nothing and says so, so a bump landing on `main` no longer ships by itself. A tag that already stands counts as approved (finishing a half-cut release needs nothing), and `gh workflow run release.yml -f tag=vX.Y.Z -f approved_by=<name>` approves a bump by hand. `hecks publishing_run.publish` judges the same rule as a new given of `PublishingRun`'s `Accept`, read by `Hecks::Release::Approval`.
 
 ### Fixed
