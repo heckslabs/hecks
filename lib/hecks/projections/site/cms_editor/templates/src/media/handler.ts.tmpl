@@ -11,13 +11,13 @@ __BANNER__
 // the bytes, and a client-supplied filename is never used.
 import { createHash } from "node:crypto";
 
-import { DomainRefusal, rowsOf } from "@hecks/client";
+import { DomainRefusal } from "@hecks/client";
 import type { HostClient } from "@hecks/client";
 
 import { instanceIn, leaf, runCommand } from "../commands.ts";
 import type { State } from "../commands.ts";
 import { EDITOR } from "../config.ts";
-import { hostClient } from "../host.ts";
+import { hostClient, rowsAnswered } from "../host.ts";
 import type { HostOptions } from "../host.ts";
 import { mayEdit, qualified } from "../names.ts";
 import { SCHEMA } from "../schema.ts";
@@ -123,9 +123,16 @@ async function upload(client: HostClient, storage: MediaStorage, request: Reques
 
 async function stateOf(client: HostClient, media: Media): Promise<State[]> {
   const agg = aggregateOf(media);
-  if (!media.listing) return client.instancesOf(await client.read(), qualified(agg)).map(([, state]) => state);
+  const everything = async () => client.instancesOf(await client.read(), qualified(agg)).map(([, state]) => state);
+  if (!media.listing) return everything();
   const name = `${qualified(agg)}.${media.listing}`;
-  return (rowsOf(await client.query(name, {}), name) ?? []) as State[];
+  try {
+    return rowsAnswered(await client.query(name, {}), name) as State[];
+  } catch (err) {
+    // The listing only narrows what is offered; a host that does not answer it still holds the pictures.
+    if (err instanceof DomainRefusal) return everything();
+    throw err;
+  }
 }
 
 async function listing(client: HostClient, storage: MediaStorage, media: Media): Promise<Response> {

@@ -158,7 +158,7 @@ function body(attr: Attr, name: string, value: Value, context: Context): string 
   const draft = context.draft === attr.name ? " data-draft" : "";
   return `<fieldset class="mt-6 [&>legend+*]:clear-both"><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
 <div class="max-w-3xl" data-body-editor${draft} data-name="${esc(name)}" data-label="${esc(label(attr.name))}" data-body="${esc(JSON.stringify(tree))}"${media}>
-<div class="prose border border-base-300 bg-base-100 p-6" data-body-fallback>${bodyToHtml(tree)}</div>
+<div class="prose border border-base-300 bg-base-100 p-6" data-body-fallback>${bodyToHtml(tree, 2)}</div>
 <p class="mt-2 text-xs text-muted" data-needs-script>Editing this text needs scripts turned on in the browser.</p>
 <div data-fields>
 ${inputs}

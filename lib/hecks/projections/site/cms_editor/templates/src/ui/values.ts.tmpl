@@ -10,13 +10,16 @@ import { isMoment, momentValue } from "./moments.ts";
 import { outline } from "./outline.ts";
 import { label } from "./words.ts";
 
+/** A body shown on a page sits under the page's h1 and its section's h2, so its own headings start at h3. */
+const READ_ONLY_DEMOTE = 2;
+
 type State = Record<string, unknown>;
 
 /** One attribute's value as markup. */
 export function valueOf(agg: Aggregate, attr: Attr, values: State): string {
   const held = values[attr.name];
   if (isMoment(attr)) return momentValue(attr, held);
-  if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held)}</div>` : `<span class="text-muted">Not set</span>`;
+  if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held, READ_ONLY_DEMOTE)}</div>` : `<span class="text-muted">Not set</span>`;
   const copy = attr.name === agg.identity || attr.kind === "reference";
   return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
 }

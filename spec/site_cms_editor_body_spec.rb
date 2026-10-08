@@ -11,6 +11,7 @@ require "hecks/tools/site_routes"
 # builds a body that holds every field of the document shape, and feeds foreign and hostile HTML in.
 BODY_SCENARIO = <<~JS.freeze
   import { bodyToFields, bodyToHtml, emptyBody, safeHref } from "./src/ui/body_model.js";
+  import { parseForm } from "./src/ui/input.ts";
   import { htmlToBody, htmlToBodyWithNotes } from "./src/ui/body_parse.js";
   import { bodyToDoc, docToBody, reductions } from "./src/browser/body_doc.js";
 
@@ -65,6 +66,10 @@ BODY_SCENARIO = <<~JS.freeze
   out.hostileAgain = bodyToHtml(htmlToBody(out.hostile));
   out.hrefs = ["/", "/a/b", "http://x.test", "HTTPS://x.test", "mailto:a@b.test", "tel:+1", "//x", "javascript:1", "data:x", "", " /x", "/x y", "ftp://x", "\\\\x"].map((h) => safeHref(h));
 
+  out.demoted = bodyToHtml({ blocks: [{ kind: "heading", level: 1, spans: [span("T")] }, { kind: "heading", level: 4, spans: [span("U")] }] }, 2);
+  out.undemoted = bodyToHtml({ blocks: [{ kind: "heading", level: 1, spans: [span("T")] }] });
+  out.crlf = [...parseForm("a=x%0D%0Ay&b=p%0Dq&c=r%0As")].map(([key, value]) => `${key}=${JSON.stringify(value)}`);
+
   const paste = (html) => htmlToBodyWithNotes(html);
   const word = paste('<div><h5 style="color:red">Big</h5><script>alert(1)</script><p style="font-weight:700">Bold <span style="font-style:italic">it</span><img src="x.png" alt="pic"></p><table><tr><td>cell <a href="javascript:evil()">bad</a></td></tr></table><ul><li>a<ul><li>b<ol><li>c</li></ol></li></ul></li></ul><pre>x\\ny</pre></div>');
   out.word = word;
@@ -88,8 +93,10 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
   def generated
     files = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    files.select { |path, _| path.match?(%r{/src/(ui/body_|browser/body_doc)}) && path.end_with?(".js") }
-         .transform_keys { |path| path.delete_prefix("/work/editor/") }
+    kept = files.select do |path, _|
+      (path.match?(%r{/src/(ui/body_|browser/body_doc)}) && path.end_with?(".js")) || path.end_with?("/src/ui/input.ts")
+    end
+    kept.transform_keys { |path| path.delete_prefix("/work/editor/") }
   end
 
   def write_sandbox(dir)
@@ -132,6 +139,15 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
       expect(html).to include('<h3 data-align="center" data-indent="1">', "</u><br><a href=")
       expect(html).to include('<li data-depth="5" data-list-kind="numbered_list">', 'data-caption="Good &#60;dog&#62;"')
+    end
+
+    it "move a heading down for a body shown under a page's own headings, and not otherwise", :aggregate_failures do
+      expect(result("demoted")).to eq("<h3>T</h3>\n<h6>U</h6>")
+      expect(result("undemoted")).to eq("<h1>T</h1>")
+    end
+
+    it "read a form's line breaks as one LF, so a saved break does not grow when it is opened again" do
+      expect(result("crlf")).to eq(['a="x\ny"', 'b="p\nq"', 'c="r\ns"'])
     end
 
     it "make nothing of an empty body" do

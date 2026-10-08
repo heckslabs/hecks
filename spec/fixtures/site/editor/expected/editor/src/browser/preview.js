@@ -29,6 +29,14 @@ function remember(path) {
   }
 }
 
+/** Moves focus to `element`, trying again for a moment while the drawer is still becoming visible (a hidden element takes none). */
+function focusInto(element, tries = 20) {
+  element.focus();
+  if (tries > 0 && document.activeElement !== element) setTimeout(() => focusInto(element, tries - 1), 30);
+}
+
+const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex='-1'])";
+
 export function enhancePreview() {
   const root = document.querySelector("[data-preview]");
   if (!root) return;
@@ -42,7 +50,7 @@ export function enhancePreview() {
     toggle.checked = true;
     if (!frame.getAttribute("src")) load();
     remember(location.pathname);
-    root.querySelector("[data-preview-width][aria-pressed='true']")?.focus();
+    focusInto(root.querySelector("[data-preview-close]"));
   };
   const hide = () => {
     toggle.checked = false;
@@ -54,9 +62,27 @@ export function enhancePreview() {
     show();
   });
   toggle.addEventListener("change", () => remember(toggle.checked ? location.pathname : null));
+  const section = root.querySelector("[role='dialog']");
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && toggle.checked) hide();
+    if (!toggle.checked) return;
+    if (event.key === "Escape") return hide();
+    if (event.key !== "Tab") return;
+    // The drawer is modal: Tab and Shift+Tab go round its own controls, not on to the page behind it.
+    const items = [...section.querySelectorAll(FOCUSABLE)].filter((item) => item.getClientRects().length > 0);
+    const first = items[0];
+    const last = items.at(-1);
+    if (!section.contains(document.activeElement)) {
+      event.preventDefault();
+      first?.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
+  root.querySelector("[data-preview-close]").addEventListener("click", hide);
   for (const button of root.querySelectorAll("[data-preview-width]")) {
     button.addEventListener("click", () => {
       frame.classList.remove(...ALL);

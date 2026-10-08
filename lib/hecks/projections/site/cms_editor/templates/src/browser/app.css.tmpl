@@ -122,6 +122,12 @@ __DARK__
   table {
     font-variant-numeric: tabular-nums;
   }
+
+  /* A fieldset will not shrink below its content by default, so one row that does not wrap (the
+     writing surface's toolbar, which scrolls on a phone) would widen the whole page. */
+  fieldset {
+    min-inline-size: 0;
+  }
 }
 
 @layer components {
@@ -345,6 +351,43 @@ __DARK__
 .btn:not([class*="btn-"]) {
   --btn-bg: var(--color-base-100);
   --btn-border: var(--ed-edge);
+}
+
+/* The component library fades an inactive tab to half its ink, which is under 4.5:1 on a light page. */
+.tab:not(.tab-active):not(:hover) {
+  color: var(--ed-muted);
+}
+
+/* On a phone or any touch screen a control is at least 44 by 44 CSS pixels (a fingertip, and past the
+   24 pixel floor of WCAG 2.2's target size): buttons, fields, tabs, menu rows, the sort buttons of a
+   table's head and the links in its rows. */
+@media (pointer: coarse), (max-width: 40rem) {
+  .btn,
+  .tab,
+  .menu a {
+    min-height: 2.75rem;
+  }
+
+  .input,
+  .select {
+    height: 2.75rem;
+  }
+
+  .btn-square,
+  .tab {
+    min-width: 2.75rem;
+    justify-content: center;
+  }
+
+  header a,
+  th button,
+  th a,
+  td a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

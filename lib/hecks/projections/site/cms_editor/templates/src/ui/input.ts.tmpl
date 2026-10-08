@@ -11,10 +11,15 @@ import type { Aggregate, Attr } from "../schema.ts";
 
 export type Form = Map<string, string>;
 
-/** The fields of an `application/x-www-form-urlencoded` body, the last of a repeated name winning. */
+/**
+ * The fields of an `application/x-www-form-urlencoded` body, the last of a repeated name winning.
+ * A browser sends a line break in a field as CR LF; it is read back as the single LF the domain
+ * holds, or a line break in a body would grow by a character each time the body is saved and
+ * opened again.
+ */
 export function parseForm(body: string): Form {
   const form: Form = new Map();
-  for (const [key, value] of new URLSearchParams(body)) form.set(key, value);
+  for (const [key, value] of new URLSearchParams(body)) form.set(key, value.replace(/\r\n?/g, "\n"));
   return form;
 }
 

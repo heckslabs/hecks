@@ -9,7 +9,7 @@
 // and the Origin header is checked too).
 import { randomUUID } from "node:crypto";
 
-import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
+import { DomainRefusal, DomainUnavailable } from "@hecks/client";
 import type { Answer, HostClient } from "@hecks/client";
 
 import { serveAsset } from "./assets.ts";
@@ -23,7 +23,7 @@ import type { State } from "./commands.ts";
 import { EDITOR } from "./config.ts";
 import { flashCookie, readFlash, spentFlash } from "./flash.ts";
 import type { Flash } from "./flash.ts";
-import { hostClient } from "./host.ts";
+import { hostClient, rowsAnswered } from "./host.ts";
 import { at, keyOf, locate, mayEdit, qualified } from "./names.ts";
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command } from "./schema.ts";
@@ -168,7 +168,7 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     try {
       return await handle(request);
     } catch (err) {
-      if (err instanceof DomainUnavailable) return anonymous(notFound(`The domain could not be reached: ${err.message}`), 502);
+      if (err instanceof DomainUnavailable) return anonymous(notFound(`The domain could not be reached: ${err.message}`, "The domain is not answering"), 502);
       throw err;
     }
   };
@@ -197,7 +197,7 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
   if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
-  if (!mayEdit(agg, scene.role)) return scene.show(notFound(`${plural(agg.name)} are not open to your role.`), 403);
+  if (!mayEdit(agg, scene.role)) return scene.show(notFound(`${plural(agg.name)} are not open to your role.`, "Not open to your role"), 403);
   if (verb === undefined) return list(client, agg, url, scene);
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
   if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], url, scene);
@@ -245,7 +245,7 @@ async function list(client: HostClient, agg: Aggregate, url: URL, scene: Scene):
 async function rowsFor(client: HostClient, agg: Aggregate, query: { name: string } | null, args: State): Promise<[string, State][]> {
   if (!query) return client.instancesOf(await client.read(), qualified(agg));
   const name = `${qualified(agg)}.${query.name}`;
-  const rows = rowsOf(await client.query(name, args), name) ?? [];
+  const rows = rowsAnswered(await client.query(name, args), name);
   return rows.flatMap((row): [string, State][] => {
     const id = idOf(agg, row);
     return id === null ? [] : [[id, row]];
@@ -262,7 +262,7 @@ async function worldFor(client: HostClient, answer: Answer, role: string | null,
   if (!asked || !sched) return world;
   const name = `${qualified(sched)}.${asked.name}`;
   try {
-    const rows = rowsOf(await client.query(name, asked.args), name) ?? [];
+    const rows = rowsAnswered(await client.query(name, asked.args), name);
     return { ...world, actions: rows.flatMap((row): [string, State][] => (idOf(sched, row) === null ? [] : [[idOf(sched, row) as string, row]])) };
   } catch (err) {
     if (err instanceof DomainRefusal || err instanceof DomainUnavailable) return world;
@@ -274,7 +274,7 @@ async function worldFor(client: HostClient, answer: Answer, role: string | null,
 async function scheduledView(client: HostClient, scene: Scene): Promise<Response> {
   const sched = schedulingAggregate();
   if (!sched) return scene.show(notFound("Nothing is scheduled here."), 404);
-  if (!mayEdit(sched, scene.role)) return scene.show(notFound("Scheduled actions are not open to your role."), 403);
+  if (!mayEdit(sched, scene.role)) return scene.show(notFound("Scheduled actions are not open to your role.", "Not open to your role"), 403);
   return scene.show(scheduledPage(await worldFor(client, await client.read(), scene.role)));
 }
 

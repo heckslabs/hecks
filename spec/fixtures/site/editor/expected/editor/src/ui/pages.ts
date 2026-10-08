@@ -62,11 +62,15 @@ ${sections.join("\n")}`;
   return page("Overview", body, { crumbs: [["Overview"]] });
 }
 
-/** The page for a path that names nothing. */
-export function notFound(what: string): string {
-  const body = `${head("Not found", what)}
+/**
+ * The page for a path that names nothing, or, with a `title`, for another reason the person is
+ * sent back (the domain not answering, a chapter closed to their role): the heading and the tab
+ * say that reason, not "Not found".
+ */
+export function notFound(what: string, title = "Not found"): string {
+  const body = `${head(title, what)}
 <p><a class="btn" href="${esc(href())}">Back to the overview</a></p>`;
-  return page("Not found", body, { crumbs: [OVERVIEW, ["Not found"]] });
+  return page(title, body, { crumbs: [OVERVIEW, [title]] });
 }
 
 /** An aggregate's list: one page of its rows, with the filters in `view`. */
