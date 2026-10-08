@@ -1,0 +1,52 @@
+__BANNER__
+
+// A notice that survives one redirect: "Published." after a command succeeds and the person is sent
+// to the page that shows the result. It is carried in a short-lived cookie that is signed (so a
+// visitor cannot make the editor say something), holds only a kind and a sentence, and is read
+// once: the page that shows it clears it in the same response. There is no server-side state.
+// The sentence is escaped wherever it is shown; it is encoded as base64url so no character of it can
+// break out of the cookie.
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+import { EDITOR } from "./config.ts";
+
+export type FlashKind = "success" | "error" | "info";
+
+export interface Flash {
+  kind: FlashKind;
+  message: string;
+}
+
+const SUFFIX = ":editor-flash";
+const NAME = `${EDITOR.sessionCookie}_flash`;
+const ATTRIBUTES = `Path=${EDITOR.basePath}; HttpOnly; SameSite=Lax`;
+const KINDS: readonly string[] = ["success", "error", "info"];
+
+const sign = (secret: string, payload: string): string => createHmac("sha256", secret + SUFFIX).update(payload).digest("base64url");
+
+/** The `Set-Cookie` value that carries `flash` to the next page. */
+export function flashCookie(flash: Flash, secret: string, now: () => number = Date.now): string {
+  const payload = Buffer.from(JSON.stringify({ k: flash.kind, m: flash.message.slice(0, 300), t: Math.floor(now() / 1000) })).toString("base64url");
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${NAME}=${payload}.${sign(secret, payload)}; ${ATTRIBUTES}; Max-Age=${EDITOR.flashMaxAge}${secure}`;
+}
+
+/** The `Set-Cookie` value that spends the notice. */
+export const spentFlash = (): string => `${NAME}=; ${ATTRIBUTES}; Max-Age=0`;
+
+/** The notice a `Cookie` header carries, or null when it has none, it was forged or it has expired. */
+export function readFlash(header: string | null, secret: string, now: () => number = Date.now): Flash | null {
+  const raw = header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${NAME}=`))?.slice(NAME.length + 1);
+  const [payload, signature] = raw?.split(".") ?? [];
+  if (!payload || !signature || !secret) return null;
+  const expected = Buffer.from(sign(secret, payload));
+  const given = Buffer.from(signature);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  try {
+    const found = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    const fresh = typeof found.t === "number" && now() / 1000 - found.t <= EDITOR.flashMaxAge && now() / 1000 >= found.t - 5;
+    return fresh && KINDS.includes(found.k) && typeof found.m === "string" ? { kind: found.k, message: found.m } : null;
+  } catch {
+    return null;
+  }
+}

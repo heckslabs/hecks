@@ -10,8 +10,9 @@ require "hecks/tools/site_routes"
 # form fields, which are plain JavaScript files in the generated editor and use no DOM. The scenario
 # builds a body that holds every field of the document shape, and feeds foreign and hostile HTML in.
 BODY_SCENARIO = <<~JS.freeze
-  import { bodyToFields, bodyToHtml, emptyBody, safeHref } from "./body_model.js";
-  import { htmlToBody, htmlToBodyWithNotes } from "./body_parse.js";
+  import { bodyToFields, bodyToHtml, emptyBody, safeHref } from "./src/ui/body_model.js";
+  import { htmlToBody, htmlToBodyWithNotes } from "./src/ui/body_parse.js";
+  import { bodyToDoc, docToBody, reductions } from "./src/browser/body_doc.js";
 
   const span = (text, marks = [], href) => ({ text, marks: marks.map((name) => ({ name })), ...(href ? { href } : {}) });
   const full = { blocks: [
@@ -32,7 +33,28 @@ BODY_SCENARIO = <<~JS.freeze
     { kind: "bullet_list", items: [{ spans: [span("<b onclick=1>")], depth: 0 }] },
   ] };
 
+  // A body in the form the editor's document converts back to exactly: marks in the body's own order,
+  // list items that go down one level at a time, an item of the other kind where it starts a level.
+  const canonical = { blocks: [
+    { kind: "heading", level: 3, align: "center", indent: 1, spans: [span("Title", ["bold", "italic"])] },
+    { kind: "paragraph", align: "justify", indent: 8, spans: [span("a "), span("b", ["underline", "strike", "code"]), span("\\n"), span("see", [], "https://example.org/?a=1&b=2")] },
+    { kind: "quote", spans: [span("said", ["italic"], "/about")] },
+    { kind: "bullet_list", align: "right", indent: 2, items: [
+      { spans: [span("one")], depth: 0 }, { spans: [span("two")], depth: 1, list_kind: "numbered_list" },
+      { spans: [span("three")], depth: 2, list_kind: "numbered_list" }, { spans: [span("four")], depth: 0 } ] },
+    { kind: "numbered_list", items: [{ spans: [span("n")], depth: 0 }, { spans: [span("m")], depth: 1 }] },
+    { kind: "image", media_ref: "hero-1", alt: "A \\"dog\\"", caption: "Good <dog>" },
+    { kind: "divider" },
+  ] };
+
   const out = {};
+  out.docRoundTrip = JSON.stringify(docToBody(bodyToDoc(canonical))) === JSON.stringify(canonical);
+  out.docItems = bodyToDoc(canonical).content.filter((node) => node.type.startsWith("flatListItem")).map((node) => [node.type, node.attrs.indent ?? 0, node.attrs.counter ?? null]);
+  out.docEmpty = [JSON.stringify(bodyToDoc({ blocks: [] })), JSON.stringify(docToBody(bodyToDoc({ blocks: [] })))];
+  out.docHostile = JSON.stringify(bodyToDoc(hostile));
+  out.docJump = [docToBody(bodyToDoc({ blocks: [{ kind: "bullet_list", items: [{ spans: [span("a")], depth: 0 }, { spans: [span("b")], depth: 5 }] }] })).blocks[0].items.map((item) => item.depth),
+    reductions({ blocks: [{ kind: "bullet_list", items: [{ spans: [], depth: 0 }, { spans: [], depth: 5 }] }] })];
+  out.docMarks = JSON.stringify(docToBody({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [{ type: "code" }, { type: "bold" }, { type: "link", attrs: { href: "javascript:alert(1)" } }] }] }] }));
   out.html = bodyToHtml(full);
   out.roundTrip = JSON.stringify(htmlToBody(out.html)) === JSON.stringify(full);
   out.again = bodyToHtml(htmlToBody(out.html)) === out.html;
@@ -66,14 +88,22 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
   def generated
     files = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    files.select { |path, _| path.include?("/src/ui/body_") && path.end_with?(".js") }
+    files.select { |path, _| path.match?(%r{/src/(ui/body_|browser/body_doc)}) && path.end_with?(".js") }
+         .transform_keys { |path| path.delete_prefix("/work/editor/") }
+  end
+
+  def write_sandbox(dir)
+    generated.each do |path, text|
+      FileUtils.mkdir_p(File.dirname(File.join(dir, path)))
+      File.write(File.join(dir, path), text)
+    end
+    File.write(File.join(dir, "package.json"), '{"type":"module"}')
+    File.write(File.join(dir, "scenario.mjs"), BODY_SCENARIO)
   end
 
   def run_node
     Dir.mktmpdir("cms_editor_body") do |dir|
-      generated.each { |path, text| File.write(File.join(dir, File.basename(path)), text) }
-      File.write(File.join(dir, "package.json"), '{"type":"module"}')
-      File.write(File.join(dir, "scenario.mjs"), BODY_SCENARIO)
+      write_sandbox(dir)
       out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", File.join(dir, "scenario.mjs"))
       raise "the body scenario failed:\n#{err}" unless status.success?
 
@@ -175,6 +205,44 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
       expect(blocks.map { |block| block["kind"] }).to eq(%w[paragraph paragraph paragraph divider quote quote])
       expect(blocks[0]["spans"].map { |span| span["text"] }).to eq(["One two & ", "bo", "ld", " ", "e", "\n", "next"])
+    end
+  end
+
+  # The editor's document and the body, converted one into the other (src/browser/body_doc.js).
+  describe "the editor's document" do
+    ITEM_TYPES = %w[flatListItemUnordered flatListItemOrdered flatListItemOrdered flatListItemUnordered
+                    flatListItemOrdered flatListItemOrdered].freeze
+
+    it "converts to the body it came from, for a body that holds every field of the document shape" do
+      expect(result("docRoundTrip")).to be(true)
+    end
+
+    it "holds a list as flat items with their indent, numbering the ordered ones", :aggregate_failures do
+      items = result("docItems")
+
+      expect(items.map(&:first)).to eq(ITEM_TYPES)
+      expect(items.map { |item| item[1] }).to eq([0, 1, 2, 0, 0, 1])
+      expect(items.map(&:last)).to eq([nil, 1, 1, nil, 1, 1])
+    end
+
+    it "is one empty paragraph for an empty body, and an empty body for that" do
+      expect(result("docEmpty")).to eq(['{"type":"doc","content":[{"type":"paragraph","attrs":{}}]}', '{"blocks":[]}'])
+    end
+
+    it "keeps no address that is not a path, http(s), mailto or tel, in either direction", :aggregate_failures do
+      expect(result("docHostile")).not_to match(/javascript:|data:/i)
+      expect(result("docMarks")).not_to include("javascript:")
+    end
+
+    it "writes marks in the body's own order, whatever order the editor kept them in" do
+      expect(result("docMarks")).to include('"marks":[{"name":"bold"},{"name":"code"}]')
+    end
+
+    it "moves a list item that skips a level up to one below the item above, and says so", :aggregate_failures do
+      depths, notes = result("docJump")
+
+      expect(depths).to eq([0, 1])
+      expect(notes).to eq(["a list item more than one level below the one above it was moved up to one level below"])
     end
   end
 

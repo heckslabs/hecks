@@ -31,6 +31,8 @@ export interface Lifecycle {
   field: string;
   default: string;
   transitions: Transition[];
+  /** Each state's badge tone: `neutral`, `ok`, `info`, `warn` or `danger`. */
+  tones: Record<string, string>;
 }
 
 export interface Command {
@@ -41,6 +43,8 @@ export interface Command {
   creates: boolean;
   /** The aggregate the command acts on, when it is not a creating command. */
   on: string | null;
+  /** True when the editor asks for confirmation before running it (see the generator's `Destructive`). */
+  destructive: boolean;
   attributes: Attr[];
   /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
   empty?: string[];
