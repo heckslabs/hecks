@@ -34,7 +34,11 @@ module Hecks
           fields
         end
 
-        # Fills every declared attribute `fields` lacks with its own `default:`.
+        # Fills every declared attribute `fields` lacks with its own `default:`, and every required
+        # list it lacks with an empty one: a list left out reads as no members, the one shape the
+        # Rust runtime (a `Vec`) can hold, so a value object built from nothing (a required
+        # argument left empty, C3.7) is `{blocks: []}` on both sides rather than `{}` here.
+        # An optional list stays absent, and an offered list, empty or not, is kept as offered.
         #
         # @param value_object [Class] the `Bluebook::ValueObject` subclass whose
         #   declared defaults are read
@@ -42,7 +46,7 @@ module Hecks
         # @return [Hash{Symbol => Object}] `fields`, with defaults filled in
         def apply_defaults(value_object, fields)
           value_object.attributes.each_with_object(fields) do |attribute, completed|
-            completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
+            fill_absent(completed, attribute) unless completed.key?(attribute.name)
           end
         end
 
@@ -84,6 +88,13 @@ module Hecks
         end
 
         private
+
+        # The default an absent attribute declares, else an empty list for a required list.
+        def fill_absent(fields, attribute)
+          return fields[attribute.name] = attribute.default unless attribute.default.nil?
+
+          fields[attribute.name] = [] if attribute.list? && !attribute.optional?
+        end
 
         def normalize_composite_field(aggregate, attribute, fields)
           # A list member hydrates the same as a top-level list, so a value
