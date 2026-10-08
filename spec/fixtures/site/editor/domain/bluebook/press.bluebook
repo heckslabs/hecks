@@ -84,6 +84,7 @@ Hecks.bluebook "Press" do
     attribute :tags,       list_of(Tag)
     attribute :sections,   list_of(Section)
     attribute :body,       Body
+    attribute :draft_body, Body, optional: true
 
     lifecycle :status, default: "draft" do
       transition "Publish" => "published", from: "draft"
@@ -119,6 +120,47 @@ Hecks.bluebook "Press" do
       attribute :body,       Body
 
       emits "ArticleRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside until it is promoted"
+      reference_to Article
+
+      attribute :draft_body, Body
+
+      sets :draft_body
+
+      emits "ArticleDraftSaved"
+    end
+
+    # `nothing` is never sent: it is how the bluebook clears an optional field, so the editor must
+    # not offer it as a field of the form.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Promote the saved edit to the article's body"
+      reference_to Article
+
+      attribute :nothing, Body, optional: true
+
+      given("an edit is saved") { draft_body.set? }
+      sets :body, to: state(:draft_body)
+      sets :draft_body, to: :nothing
+
+      emits "ArticleDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Throw the saved edit away"
+      reference_to Article
+
+      attribute :nothing, Body, optional: true
+
+      given("an edit is saved") { draft_body.set? }
+      sets :draft_body, to: :nothing
+
+      emits "ArticleDraftDiscarded"
     end
 
     command "Publish" do

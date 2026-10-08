@@ -2,9 +2,11 @@
 
 // Running one command and judging what came of it. The host answers HTTP 200 whether or not the
 // domain refused, and its `refusals` list can carry entries replayed from history, so the outcome is
-// judged by the state that comes back: the instance has to show the change. Only when the state did
-// not change at all (a repeated command, a lifecycle move to the state it is already in) does the
-// answer's last refusal decide, and only if it names this verb.
+// judged by the state that comes back, never by what was sent: a command may set fields from
+// arguments that are not fields (a clearing argument), so the arguments are no evidence. The command
+// took effect when the instance's state changed, and for a lifecycle move when it reached the state
+// the move names. When the state did not change at all (a repeated command, a move to the state it
+// is already in) the answer's last refusal decides, and only if it names this verb.
 import type { Answer, HostClient } from "@hecks/client";
 import { DomainUnavailable } from "@hecks/client";
 
@@ -27,17 +29,6 @@ export function instanceIn(client: HostClient, answer: Answer, agg: Aggregate, i
   return client.instancesOf(answer, agg.name).find(([key]) => key === id)?.[1];
 }
 
-/** True when everything `sent` carries is in `held`; numbers and their text compare equal. */
-export function covers(sent: unknown, held: unknown): boolean {
-  if (Array.isArray(sent)) return Array.isArray(held) && sent.length === held.length && sent.every((item, at) => covers(item, held[at]));
-  if (sent && typeof sent === "object") {
-    const keys = Object.keys(sent);
-    if (!held || typeof held !== "object") return keys.length === 1 && covers((sent as State)[keys[0]], held);
-    return keys.every((key) => covers((sent as State)[key], (held as State)[key]));
-  }
-  return String(sent) === String(held);
-}
-
 const sameState = (a: State | undefined, b: State | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 function refusedLast(answer: Answer, agg: Aggregate, command: Command): boolean {
@@ -46,18 +37,40 @@ function refusedLast(answer: Answer, agg: Aggregate, command: Command): boolean 
 }
 
 /** Whether `after` shows the command took effect, given the instance as it was `before`. */
-export function applied(agg: Aggregate, command: Command, args: State, before: State | undefined, after: State | undefined, answer: Answer): boolean {
+export function applied(agg: Aggregate, command: Command, before: State | undefined, after: State | undefined, answer: Answer): boolean {
   if (!after) return false;
   if (sameState(before, after)) return !refusedLast(answer, agg, command);
   const move = agg.lifecycle?.transitions.find((transition) => transition.verb === command.name);
-  if (move && agg.lifecycle) return after[agg.lifecycle.field] === move.to;
-  return covers(args, after);
+  return move && agg.lifecycle ? after[agg.lifecycle.field] === move.to : true;
+}
+
+const label = (name: string): string => name.replace(/_/g, " ");
+
+/** The command's attribute a value object's name stands for, to name the offending field. */
+function fieldOf(command: Command, type: string): string {
+  const held = command.attributes.find((attr) => attr.type === type);
+  return held ? label(held.name) : type;
+}
+
+/**
+ * The words for a refusal. The host words a given as `<Command> refused — <condition>`, which reads
+ * as though the condition were the reason, so it is shown as the condition that was not met; an
+ * invariant is shown as the field and the rule, without the value that offended (raw JSON).
+ */
+export function refusalText(refusal: { kind?: string; error?: string } | undefined, command: Command): string {
+  const error = refusal?.error ?? "";
+  const refused = /^.+? refused — (.+)$/s.exec(error);
+  if (refusal?.kind === "GivenNotMet" && refused) return `Not allowed unless ${refused[1]}.`;
+  if (refusal?.kind === "EnsuresNotMet" && refused) return `Not allowed: the result would break this rule: ${refused[1]}.`;
+  const invariant = /^(.+?) invariant violated — (.+?)(?: \(given .*\))?$/s.exec(error);
+  if (invariant) return `${fieldOf(command, invariant[1])}: ${invariant[2]}.`;
+  if (refusal?.kind === "InvariantViolation" && refused) return `${refused[1]}.`;
+  return error || `The domain did not apply ${command.name}.`;
 }
 
 /** The words for a command that changed nothing: the host's last refusal, or a plain statement. */
 export function refusalMessage(answer: Answer, command: Command): string {
-  const last = (answer.refusals ?? []).at(-1);
-  return last?.error ?? `The domain did not apply ${command.name}.`;
+  return refusalText((answer.refusals ?? []).at(-1), command);
 }
 
 /**
@@ -70,7 +83,7 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
     const before = id ? instanceIn(client, await client.read(), agg, id) : undefined;
     const answer = await client.dispatch(`${agg.name}.${command.name}`, args, to, command.role ?? undefined);
     const after = id ? instanceIn(client, answer, agg, id) : undefined;
-    if (id && applied(agg, command, args, before, after, answer)) return { ok: true, id };
+    if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
     return { ok: false, message: refusalMessage(answer, command) };
   } catch (err) {
     if (err instanceof DomainUnavailable) return { ok: false, message: `The domain could not be reached: ${err.message}` };

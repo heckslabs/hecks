@@ -64,9 +64,9 @@ export function build(agg: Aggregate, attr: Attr, form: Form, prefix: string, op
   return rows.filter((row) => !blank(row));
 }
 
-/** The arguments a command takes, from a submitted form. */
-export function commandArguments(agg: Aggregate, attrs: Attr[], form: Form): Record<string, unknown> {
-  const args: Record<string, unknown> = {};
+/** The arguments a command takes, from a submitted form; `empty` names the list arguments sent empty. */
+export function commandArguments(agg: Aggregate, attrs: Attr[], form: Form, empty: string[] = []): Record<string, unknown> {
+  const args: Record<string, unknown> = Object.fromEntries(empty.map((name) => [name, []]));
   for (const attr of attrs) {
     const value = build(agg, attr, form, "");
     if (value !== undefined) args[attr.name] = value;

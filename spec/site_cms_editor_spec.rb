@@ -23,6 +23,9 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
     projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
   end
 
+  # The goldens name the client's version as `<version>`, so a release does not move them.
+  def neutral(text) = text.gsub("^#{Hecks::VERSION}", "^<version>")
+
   def golden_names = Dir.glob("**/*", base: golden).select { |name| File.file?(File.join(golden, name)) }.sort
 
   describe "the projection" do
@@ -31,7 +34,7 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
 
       expect(golden_names).to eq(editor_files.keys.sort)
       editor_files.each do |name, text|
-        expect(text).to eq(File.read(File.join(golden, name))), "#{name} has drifted from its golden"
+        expect(neutral(text)).to eq(File.read(File.join(golden, name))), "#{name} has drifted from its golden"
       end
     end
 
@@ -39,7 +42,7 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
       FileUtils.rm_rf(golden)
       editor_files.each do |name, text|
         FileUtils.mkdir_p(File.dirname(File.join(golden, name)))
-        File.write(File.join(golden, name), text)
+        File.write(File.join(golden, name), neutral(text))
       end
     end
 
@@ -83,7 +86,7 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
     end
 
     it "picks the rich-text widget by the shape of the value object, whatever the attribute is named", :aggregate_failures do
-      expect(widgets).to eq("Article" => ["body"], "Masthead" => ["about"], "MediaItem" => [])
+      expect(widgets).to eq("Article" => %w[body draft_body], "Masthead" => ["about"], "MediaItem" => [])
     end
 
     it "gives no widget to a value object that is not a list of blocks with kinds and spans" do
