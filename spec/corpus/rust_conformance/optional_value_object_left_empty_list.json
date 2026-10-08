@@ -1,0 +1,112 @@
+{
+  "domain": "spec/fixtures/rust_project/optional_value_object_fixture",
+  "note": "A required value object whose only field is a list reads the same however it is left empty: sent as null (a required argument left empty), as an object without the list, or with an explicit empty list. Each is stored and emitted as `{\"blocks\": []}`, the one shape Rust's typed list can hold. Ruby used to keep the first two as `{}`, which the fuzzer found as a divergence on `body: null`.",
+  "steps": [
+    {
+      "verb": "OptionalValueObjectFixture::Page.Write",
+      "args": {
+        "key": {
+          "value": "a"
+        },
+        "body": null
+      }
+    },
+    {
+      "verb": "OptionalValueObjectFixture::Page.Write",
+      "args": {
+        "key": {
+          "value": "b"
+        },
+        "body": {}
+      }
+    },
+    {
+      "verb": "OptionalValueObjectFixture::Page.Write",
+      "args": {
+        "key": {
+          "value": "c"
+        },
+        "body": {
+          "blocks": []
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "OptionalValueObjectFixture::Page#a": {
+        "key": {
+          "value": "a"
+        },
+        "body": {
+          "blocks": []
+        },
+        "draft_body": null
+      },
+      "OptionalValueObjectFixture::Page#b": {
+        "key": {
+          "value": "b"
+        },
+        "body": {
+          "blocks": []
+        },
+        "draft_body": null
+      },
+      "OptionalValueObjectFixture::Page#c": {
+        "key": {
+          "value": "c"
+        },
+        "body": {
+          "blocks": []
+        },
+        "draft_body": null
+      }
+    },
+    "events": [
+      {
+        "name": "PageWritten",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "a",
+        "payload": {
+          "key": {
+            "value": "a"
+          },
+          "body": {
+            "blocks": []
+          }
+        }
+      },
+      {
+        "name": "PageWritten",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "b",
+        "payload": {
+          "key": {
+            "value": "b"
+          },
+          "body": {
+            "blocks": []
+          }
+        }
+      },
+      {
+        "name": "PageWritten",
+        "aggregate": "OptionalValueObjectFixture::Page",
+        "id": "c",
+        "payload": {
+          "key": {
+            "value": "c"
+          },
+          "body": {
+            "blocks": []
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}
