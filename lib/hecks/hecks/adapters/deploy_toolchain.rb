@@ -10,6 +10,7 @@ require_relative "deploy_plans"
 require_relative "deploy_toolchain/statuses"
 require_relative "deploy_toolchain/scripts"
 require_relative "deploy_toolchain/answers"
+require_relative "deploy_toolchain/clearing"
 
 module Hecks
   module Adapters
@@ -26,6 +27,7 @@ module Hecks
       include Statuses
       include Scripts
       include Answers
+      include Clearing
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
