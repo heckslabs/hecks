@@ -1,3 +1,4 @@
+require "json"
 require_relative "../naming"
 require_relative "../projector"
 
@@ -33,6 +34,17 @@ module Hecks
           "scopes"   => scopes,
           "roles"    => scopes.map { |scope| scope["role"] }.compact.uniq.sort
         }
+      end
+
+      # The manifest as the text `oidc.json` holds: indented JSON ending in a newline, with an empty
+      # list as `[]`. `JSON.pretty_generate` spells an empty list `[\n\n]` in some json releases
+      # (2.7.2 among them) and `[]` in others, so the file is normalised here and a committed
+      # manifest compares equal whichever json a machine has.
+      #
+      # @param manifest [Hash{String => Object}] what `call` returns
+      # @return [String] the text of the manifest file
+      def render(manifest)
+        "#{JSON.pretty_generate(manifest).gsub(/\[\n\s*\]/, "[]")}\n"
       end
 
       # Every command's scope entry, entity commands included (they dispatch as `Entity.Command`).

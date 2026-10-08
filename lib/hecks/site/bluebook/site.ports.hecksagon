@@ -23,5 +23,11 @@ Hecks.hecksagon "Site" do
       answers "SiteAnswered"
       refuses "SiteRefused"
     end
+
+    asks "Roles", to: SiteProjection do
+      attribute :run, RunKey
+      answers "SiteAnswered"
+      refuses "SiteRefused"
+    end
   end
 end

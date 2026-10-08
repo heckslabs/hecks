@@ -10,9 +10,8 @@ module Hecks
     #
     # A domain that has no bluebook is skipped and one that cannot be projected is reported, so a
     # sweep over the whole checkout carries on past either. `hecks deploy
-    # oidc_manifest.project_oidc` loads
-    # `bundler/setup` first, which pins the `json` gem: newer releases pretty-print an empty array
-    # as `[\n\n]`, a diff spec/oidc_manifest_spec.rb would report as drift.
+    # oidc_manifest.project_oidc` writes through `Hecks::Projections::OIDC.render`, which spells an
+    # empty list `[]` whichever json release is loaded, so the text does not depend on the machine.
     module OidcManifests
       # Directories that hold a `.hecksagon` but are never domains.
       NOT_DOMAINS = %r{\A(rust|deploy|tmp|coverage)/}
@@ -65,7 +64,7 @@ module Hecks
       # @param out [String] where the manifest goes
       # @return [void]
       def write_manifest(registry, name, out)
-        Hecks::Projector.write(Hecks::Projector.call(:oidc, bluebook: registry.bluebook(name)), out)
+        File.write(out, Hecks::Projections::OIDC.render(Hecks::Projector.call(:oidc, bluebook: registry.bluebook(name))))
       end
     end
   end
