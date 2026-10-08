@@ -78,7 +78,9 @@ export async function unknownKey(client: HostClient, agg: Aggregate, attrs: Attr
       const field = top ?? attr.name;
       for (const item of [values[attr.name]].flat()) {
         const key = leaf(item);
-        if (attr.picker && key !== null && key !== "") {
+        if (attr.options && key !== null && key !== "") {
+          if (!attr.options.includes(key)) problems.push({ field, message: `Choose one of ${attr.options.join(", ")}.` });
+        } else if (attr.picker && key !== null && key !== "") {
           const next = resolve(attr.picker, key);
           if (typeof next === "string") problems.push({ field, message: next });
           else if (next) wanted.push({ field, ...next });

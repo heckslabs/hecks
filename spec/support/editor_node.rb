@@ -34,12 +34,13 @@ module EditorNode
   # @param files [Hash{String => String}] the editor's files, by path relative to its directory
   # @param scenario [String] the module run under node
   # @param env [Hash{String => String}] environment variables for the run, such as `TZ`
+  # @param extra [Hash{String => String}] more files the scenario imports, beside it, by name
   # @return [Hash{String => Object}] what the scenario printed, parsed
-  def run(files, scenario = EDITOR_NODE_SCENARIO, env: {})
+  def run(files, scenario = EDITOR_NODE_SCENARIO, env: {}, extra: {})
     Dir.mktmpdir("cms_editor_node") do |dir|
       install_client(dir)
-      files.each { |name, text| write(File.join(dir, "editor", name), text) }
-      write(File.join(dir, "scenario.mjs"), scenario)
+      written = files.transform_keys { |name| "editor/#{name}" }
+      written.merge(extra, "scenario.mjs" => scenario).each { |name, text| write(File.join(dir, name), text) }
       out, err, status = Open3.capture3(ENVIRONMENT.merge(env), "node", File.join(dir, "scenario.mjs"))
       raise "the editor scenario failed:\n#{err}" unless status.success?
 

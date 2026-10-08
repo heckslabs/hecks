@@ -34,10 +34,11 @@ module Hecks
           src/app.ts src/server.ts src/assets.ts src/flash.ts src/auth/membership.ts src/auth/session.ts src/auth/sso.ts
           src/ui/html.ts src/ui/words.ts src/ui/icons.ts src/ui/shell.ts src/ui/outline.ts src/ui/fields.ts
           src/ui/input.ts src/ui/table.ts src/ui/paging.ts src/ui/pickers.ts src/ui/moments.ts src/ui/detail.ts
-          src/ui/pages.ts src/ui/theme.js src/ui/body_model.js src/ui/body_parse.js
+          src/ui/pages.ts src/ui/theme.js src/ui/body_model.js src/ui/body_parse.js src/ui/availability.ts src/ui/dialogs.ts
+          src/ui/links.ts src/ui/preview.ts src/ui/related.ts src/ui/schedule.ts src/ui/values.ts src/ui/world.ts
           src/browser/app.css src/browser/main.js src/browser/shell.js src/browser/forms.js src/browser/toast.js
           src/browser/lists.js src/browser/pickers.js src/browser/epoch.js src/browser/moments.js
-          src/browser/body_doc.js src/browser/body_editor.js
+          src/browser/body_doc.js src/browser/body_editor.js src/browser/autosave.js src/browser/preview.js
         ].freeze
 
         # The files only an editor of a chapter with a picture aggregate has: the upload, the

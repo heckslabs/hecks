@@ -1,0 +1,32 @@
+__BANNER__
+
+// A record's values shown read-only, by shape: a moment in the viewer's zone, a rich-text body as
+// typeset text, a key with a button that copies it, anything else as `outline` shows it. The detail
+// page lists them as a document, and a related record's panel lists the ones it holds.
+import type { Aggregate, Attr } from "../schema.ts";
+import { bodyToHtml } from "./body_model.js";
+import { copyable, esc } from "./html.ts";
+import { isMoment, momentValue } from "./moments.ts";
+import { outline } from "./outline.ts";
+import { label } from "./words.ts";
+
+type State = Record<string, unknown>;
+
+/** One attribute's value as markup. */
+export function valueOf(agg: Aggregate, attr: Attr, values: State): string {
+  const held = values[attr.name];
+  if (isMoment(attr)) return momentValue(attr, held);
+  if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held)}</div>` : `<span class="text-muted">Not set</span>`;
+  const copy = attr.name === agg.identity || attr.kind === "reference";
+  return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
+}
+
+/** `attrs` as a list of names and values, a wide value (a body, a list, a value object) on a line of its own. */
+export function valueRows(agg: Aggregate, attrs: Attr[], values: State): string {
+  const rows = attrs.map((attr) => {
+    const wide = attr.widget === "body" || attr.list || attr.kind === "object";
+    const layout = wide ? "grid gap-2 py-4" : "grid gap-1 py-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4";
+    return `<div class="${layout}"><dt class="font-medium text-muted">${esc(label(attr.name))}</dt><dd class="min-w-0 break-words">${valueOf(agg, attr, values)}</dd></div>`;
+  });
+  return `<dl class="divide-y divide-base-300">\n${rows.join("\n")}\n</dl>`;
+}

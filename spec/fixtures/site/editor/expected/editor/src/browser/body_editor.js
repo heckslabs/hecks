@@ -21,6 +21,7 @@ import { FlatListCore, FlatListOrdered, FlatListUnordered } from "tiptap-extensi
 
 import { ALIGNS, MAX_DEPTH, MAX_INDENT, bodyToFields, bodyToHtml, fieldsToInputs, safeHref } from "../ui/body_model.js";
 import { htmlToBodyWithNotes } from "../ui/body_parse.js";
+import { startDraft } from "./autosave.js";
 import { bodyToDoc, docToBody } from "./body_doc.js";
 
 const loadPicker = () => import("./media_picker.js");
@@ -151,6 +152,7 @@ function mount(root, base) {
   root.querySelector("[data-body-fallback]").hidden = true;
   root.querySelector("[data-needs-script]").hidden = true;
 
+  const draft = root.hasAttribute("data-draft") ? startDraft(root) : null;
   let editor;
   let changed = false;
   const buttons = new Map();
@@ -379,12 +381,16 @@ function mount(root, base) {
     },
     onUpdate() {
       changed = true;
-      status.lastChild.textContent = "Not saved yet";
+      status.lastChild.textContent = draft ? "" : "Not saved yet";
       sync();
+      draft?.touch();
     },
     onTransaction: () => refresh(),
     onFocus: () => refresh(),
-    onBlur: () => { label.textContent = ""; },
+    onBlur: () => {
+      label.textContent = "";
+      draft?.blur();
+    },
   });
   sync();
   status.lastChild.textContent = "";

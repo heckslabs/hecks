@@ -4,6 +4,7 @@ require "json"
 require_relative "../root_rows"
 require_relative "../routes_ts"
 require_relative "checks"
+require_relative "preview"
 require_relative "../../../version"
 
 module Hecks
@@ -22,12 +23,13 @@ module Hecks
             fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
-                        media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer] },
+                        media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
+                        preview: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
-                        chapter_roles: "", page_size: "25" }
+                        chapter_roles: "", page_size: "25", preview: "" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -75,6 +77,9 @@ module Hecks
             end
           end
 
+          # @return [String, nil] the URL template a record is previewed at, or nil for no preview
+          def preview = row.fetch(:preview).strip.then { |template| template.empty? ? nil : template }
+
           # @return [Integer] how many instances a list shows to a page
           def page_size = row.fetch(:page_size).to_i
 
@@ -101,7 +106,14 @@ module Hecks
           def tokens
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
-              "__CLIENT_VERSION__" => Hecks::VERSION, **quoted }
+              "__CLIENT_VERSION__" => Hecks::VERSION, **preview_tokens, **quoted }
+          end
+
+          # @return [Hash{String => String}] the preview template as a literal, and the policy line
+          #   that lets the editor frame its origin, which is empty when there is no preview
+          def preview_tokens
+            source = Preview.frame_source(row.fetch(:preview).strip)
+            { "__PREVIEW__" => JSON.generate(preview), "__FRAME_POLICY__" => source ? "  \"frame-src #{source}\"," : "" }
           end
 
           # @return [Hash{String => String}] each text field's placeholder to the field as JSON

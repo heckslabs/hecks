@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "preview"
 require_relative "scale_checks"
 require_relative "theme_checks"
 
@@ -26,7 +27,8 @@ module Hecks
           def problems(row, roles, table)
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
-             *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row)]
+             *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
+             *Preview.problems(row[:preview].strip)]
           end
 
           # @return [Array<String>] the problems with the base path and the sign-in path

@@ -44,6 +44,8 @@ export interface Attr {
   widget?: "body" | "date" | "datetime";
   /** Set when the attribute names an instance of another aggregate of the editor. */
   picker?: Picker;
+  /** The members of the closed set the attribute is one of, when its value object declares one. */
+  options?: string[];
   /** The aggregate a `reference` points at. */
   target?: string;
 }
@@ -83,6 +85,31 @@ export interface Query {
   attributes: Attr[];
 }
 
+/**
+ * A record of another aggregate that goes with this one's records, because its identity is a
+ * `<kind>:<slug>` key of this aggregate. `shape` says how to show it; `create` and `edit` name the
+ * commands that make and change it, when it has them.
+ */
+export interface Related {
+  aggregate: string;
+  chapter?: string;
+  /** The related aggregate's identity attribute, which the key fills. */
+  field: string;
+  shape: "document" | "gallery" | "metadata";
+  create?: string;
+  edit?: string;
+}
+
+/** An aggregate that keeps a draft of a body beside the live one, and the commands that handle it. */
+export interface Drafts {
+  /** The draft attribute (`draft_body`) and the live one it stands for (`body`). */
+  attribute: string;
+  live: string;
+  save: string;
+  publish?: string;
+  discard?: string;
+}
+
 export interface Aggregate {
   name: string;
   /** The chapter that declares the aggregate; set when the editor spans several. */
@@ -96,6 +123,10 @@ export interface Aggregate {
   valueObjects: Record<string, Attr[]>;
   commands: Command[];
   queries: Query[];
+  /** The aggregates keyed by this one's records, shown as panels on a record's page. */
+  related?: Related[];
+  /** The draft the aggregate keeps beside a live body, when it keeps one. */
+  drafts?: Drafts;
 }
 
 /** How one part of a picture's record is sent: `wrap` is the part of a value object that holds the value. */
@@ -117,6 +148,31 @@ export interface Media {
   definition?: Aggregate;
 }
 
+/**
+ * The aggregate whose records are actions to run later, found by shape: the attribute that names the
+ * record an action is for, the closed set of actions, the due time, and the commands. The editor only
+ * makes and changes these records; something else runs them.
+ */
+export interface Scheduling {
+  aggregate: string;
+  chapter?: string;
+  subject: string;
+  action: string;
+  actions: string[];
+  due: string;
+  /** The first state of a record: an action not yet run. */
+  pending: string;
+  schedule: string;
+  reschedule?: string;
+  cancel?: string;
+  /** The query that lists the actions of one subject, when there is one. */
+  query?: string;
+  /** The optional text a record may carry to say why it ended as it did. */
+  reason?: string;
+  /** True when the editor makes the record's identity, since it is not the subject. */
+  generated?: boolean;
+}
+
 export interface Schema {
   /** The first chapter, which names the domain the host is asked for. */
   domain: string;
@@ -124,6 +180,7 @@ export interface Schema {
   chapters?: string[];
   aggregates: Aggregate[];
   media?: Media;
+  scheduling?: Scheduling;
 }
 
 export const SCHEMA: Schema = {
@@ -638,7 +695,14 @@ export const SCHEMA: Schema = {
             }
           ]
         }
-      ]
+      ],
+      "drafts": {
+        "attribute": "draft_body",
+        "live": "body",
+        "save": "SaveDraft",
+        "publish": "PublishDraft",
+        "discard": "DiscardDraft"
+      }
     },
     {
       "name": "Masthead",
