@@ -29,8 +29,14 @@ module Hecks
           return "#{name} has guarded #{lane["guarded"].inspect}" unless %w[yes no].include?(lane["guarded"])
           return "#{name} has alert_after #{lane["alert_after"].inspect}, not whole hours" unless hours?(lane)
 
+          return "#{name} has release_trailer #{lane["release_trailer"].inspect}, not a trailer word" unless trailer?(lane)
+
           follows_problem(lane, names)
         end
+
+        # @return [Boolean] whether `release_trailer` is empty (nothing is released from the lane)
+        #   or a git trailer key such as `Release-Approved-By`
+        def trailer?(lane) = lane["release_trailer"].to_s.match?(/\A([A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*)?\z/)
 
         # @return [Boolean] whether `alert_after` is empty (never late) or whole hours
         def hours?(lane) = lane["alert_after"].to_s.match?(/\A\d*\z/)

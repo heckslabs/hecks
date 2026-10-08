@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Changed
+
+- **A release needs the owner's approval, written in the bump commit.** The `Lane` row a release is cut from gains `release_trailer` (`Release-Approved-By` on `stable`). `release.yml` now refuses to cut a release, before it tags or pushes anything, unless the commit that set the version has a `Release-Approved-By: <name>` line in its message; after a promotion an unapproved bump releases nothing and says so, so a bump landing on `main` no longer ships by itself. A tag that already stands counts as approved (finishing a half-cut release needs nothing), and `gh workflow run release.yml -f tag=vX.Y.Z -f approved_by=<name>` approves a bump by hand. `hecks publishing_run.publish` judges the same rule as a new given of `PublishingRun`'s `Accept`, read by `Hecks::Release::Approval`.
+
 ### Fixed
 
 - **A committed `oidc.json` compares equal under any json release.** `JSON.pretty_generate` spells an empty list `[]` in some json releases and `[` newline newline `]` in others (2.7.2, the version `Gemfile.lock` pins, among them), so `lib/hecks/deploy/oidc.json`, written where the list is `[]`, read as drifted in CI. `Hecks::Projections::OIDC.render` now writes the manifest with an empty list as `[]`, and both `hecks deploy oidc_manifest.project_oidc` and `spec/oidc_manifest_spec.rb` use it, so no committed manifest changes.

@@ -140,6 +140,18 @@ commit must pass as `RequiredCheck` rows beside them.
   it, then publish from a clean `stable`. `release.yml` enforces it: it runs
   after Promote, releases the commit on `stable` that set the version, and
   refuses any commit `stable` does not contain, a by-hand run included.
+- **A release is the owner's decision.** A bump that lands on `main` ships
+  only if the commit that set the version has a `Release-Approved-By: <name>`
+  line in its message (the `release_trailer` of the `stable` `Lane` row;
+  `lib/hecks/release/approval.rb` decides). Without it `release.yml` releases
+  nothing after a promotion, and refuses a by-hand run before it tags or
+  pushes; `publishing_run.publish` refuses it too. Write the line only when
+  the user has said to release; never add it on your own, and never bump the
+  version for a fix that can ride `edge` (the tag at `stable`'s head, which a
+  client can pin as "latest certified"). An existing tag counts as approved,
+  so `gh workflow run release.yml -f tag=vX.Y.Z` still finishes a half-cut
+  release; the owner may approve a bump already on `stable` with `-f
+  approved_by=<name>`.
 - **A red `main` blocks promotion, not pushes.** Fix forward or revert on
   `main`; `stable` does not move until a commit is green. Do not
   cherry-pick onto `stable` unless the user says production is down.

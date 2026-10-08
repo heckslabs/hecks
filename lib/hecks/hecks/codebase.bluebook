@@ -2395,6 +2395,7 @@ Hecks.bluebook "Hecks" do
     attribute :version,        Version, optional: true
     attribute :client_version, Version, optional: true
     attribute :changelog,      Switch, optional: true
+    attribute :approved,       Switch, optional: true
     attribute :tag_state,      Word, optional: true
     attribute :head,           Word, optional: true
     attribute :ir_version,     Version, optional: true
@@ -2496,6 +2497,7 @@ Hecks.bluebook "Hecks" do
       attribute :version,        Version
       attribute :client_version, Version
       attribute :changelog,      Switch
+      attribute :approved,       Switch
       attribute :tag_state,      Word
       attribute :head,           Word
       attribute :ir_version,     Version
@@ -2511,6 +2513,9 @@ Hecks.bluebook "Hecks" do
         client_version.value == version.value
       end
       given("CHANGELOG.md has a heading for the version: add the release entry") { changelog.value }
+      given("the commit that set the version carries a Release-Approved-By line: the owner decides when a release happens") do
+        approved.value || tag_state.value == "at_release_commit"
+      end
       given("a tag for the version points at the release commit, not elsewhere") do
         tag_state.value != "elsewhere"
       end
@@ -2523,6 +2528,7 @@ Hecks.bluebook "Hecks" do
       sets :version
       sets :client_version
       sets :changelog
+      sets :approved
       sets :tag_state
       sets :head
       sets :ir_version
@@ -2617,8 +2623,8 @@ Hecks.bluebook "Hecks" do
     trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
                                            on_origin: :on_origin, clean: :clean, version: :version,
                                            client_version: :client_version,
-                                           changelog: :changelog, tag_state: :tag_state, head: :head,
-                                           ir_version: :ir_version, ships_from: :ships_from }
+                                           changelog: :changelog, approved: :approved, tag_state: :tag_state,
+                                           head: :head, ir_version: :ir_version, ships_from: :ships_from }
   end
 
   policy "AcceptTheGemWhenExamined" do
@@ -2634,9 +2640,10 @@ Hecks.bluebook "Hecks" do
     where do
       operation.value == "publish" &&
         (!checkout.value || branch.value != release_lane.value || !on_origin.value || !clean.value ||
-          client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere")
+          client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere" ||
+          (!approved.value && tag_state.value != "at_release_commit"))
     end
-    trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG and tag" }
+    trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG, tag and the Release-Approved-By line" }
   end
 
   policy "FaultTheGemWhenNotAccepted" do

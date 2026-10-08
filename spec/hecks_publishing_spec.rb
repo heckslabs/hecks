@@ -24,6 +24,12 @@ RSpec.describe "publishing a release" do
       "CHANGELOG.md"                       => "# Changelog\n\n## [#{version}] - 2026-01-01\n" }
   end
 
+  # What `git log` answers for the commit that set the version: the owner's approval, or none.
+  def bump_message!(text)
+    commands.answer("git", "log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb",
+                    stdout: text)
+  end
+
   def build_checkout
     checkout_files.each do |path, text|
       FileUtils.mkdir_p(File.dirname(File.join(root, path)))
@@ -33,6 +39,7 @@ RSpec.describe "publishing a release" do
 
   before do
     build_checkout
+    bump_message!("Release #{version}\n\nRelease-Approved-By: The Owner\n")
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     Hecks::Adapters::Codebase::Tree.root = root
     Hecks::Adapters::Codebase::Publishing.commands = commands
@@ -147,6 +154,24 @@ RSpec.describe "publishing a release" do
 
       expect(out).to include("the release lane is its origin")
       expect(commands.runs).to be_empty
+    end
+
+    it "refuses a bump whose commit carries no Release-Approved-By line, and does nothing", :aggregate_failures do
+      bump_message!("Release #{version}\n")
+
+      out, = launch("publishing_run.publish", "run=unapproved", "--gem-only", "--confirm")
+
+      expect(out).to include("the commit that set the version carries a Release-Approved-By line")
+      expect(commands.runs).to be_empty
+    end
+
+    it "lets a release whose tag already stands on the release commit finish without the line", :aggregate_failures do
+      bump_message!("Release #{version}\n")
+      commands.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{sha}\n")
+
+      out, = launch("publishing_run.publish", "run=finish", "--gem-only")
+
+      expect(out).not_to include("Release-Approved-By line")
     end
 
     it "refuses a dirty working tree" do
