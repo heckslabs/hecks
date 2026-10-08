@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 /// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
-/// axum fallback route below. `body` is already-parsed JSON in one of three shapes.
+/// axum fallback route below. `body` is already-parsed JSON in one of its recognized shapes.
 pub async fn dispatch_body(
     body: Value,
     client: &Mutex<Client>,
@@ -208,7 +208,7 @@ fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, head
 
     // A real HTTP client (browser via the ALB, or a server-to-server call) carries none of a
     // Function URL's automatic wrapping, so anything not already one of `dispatch_body`'s
-    // three recognized shapes gets that envelope synthesized from the real request instead.
+    // recognized shapes gets that envelope synthesized from the real request instead.
     // The internal shapes carry a caller's own claim of `role` with no session check, so
     // they're honored only from a peer on this host (the task's own sidecar); everyone
     // else — the load balancer, i.e. the public internet — gets an ordinary request
@@ -247,7 +247,10 @@ fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
 /// Whether `value` already matches one of `dispatch_body`'s recognized shapes; anything
 /// else (including a bare `{}`) is real REST traffic needing `synthesize_function_url_envelope`.
 fn is_internal_dispatch_shape(value: &Value) -> bool {
-    value.get("requestContext").is_some() || value.get("read").is_some() || value.get("verb").is_some()
+    value.get("requestContext").is_some()
+        || value.get("read").is_some()
+        || value.get("query").is_some()
+        || value.get("verb").is_some()
 }
 
 /// Rebuilds the envelope shape a real Lambda Function URL invocation already produces
@@ -322,6 +325,13 @@ mod tests {
     #[test]
     fn a_bare_read_body_is_recognized_as_internal_dispatch() {
         assert!(is_internal_dispatch_shape(&serde_json::json!({"read": true})));
+    }
+
+    #[test]
+    fn a_declared_query_body_is_recognized_as_internal_dispatch() {
+        // `dispatch_body` answers `{"query": ...}`, and the generated editor's list and picture
+        // pickers ask it; without this a loopback caller was sent to the login page.
+        assert!(is_internal_dispatch_shape(&serde_json::json!({"query": "Pictures::MediaItem.Pictures", "args": {}})));
     }
 
     #[test]
