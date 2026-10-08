@@ -10,6 +10,9 @@ import type { Aggregate, Attr } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { esc, href } from "./html.ts";
 import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
+import { isMoment, secondsOf } from "./moments.ts";
+import { datalists, pickerControl } from "./pickers.ts";
+import type { Choices } from "./pickers.ts";
 import { label, singular } from "./words.ts";
 
 type Value = unknown;
@@ -27,6 +30,8 @@ interface Context {
   top: boolean;
   /** The row's own heading already names the input, so its label is for assistive technology only. */
   quiet?: boolean;
+  /** What is on offer for each picker (see pickers.ts); a picker with nothing on offer is a text box. */
+  choices?: Choices;
 }
 
 const inputType = (attr: Attr): string => (attr.kind === "integer" || attr.kind === "number" ? "number" : "text");
@@ -52,7 +57,28 @@ function problem(name: string, attr: Attr, context: Context): string {
   return flagged(attr, context) ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(context.invalid?.message)}</p>` : "";
 }
 
+/** A moment's input: the seconds in a number input; the script swaps it for a native date input in the viewer's zone. */
+function moment(attr: Attr, name: string, value: Value, context: Context): string {
+  const id = esc(idOf(name));
+  const seconds = secondsOf(value);
+  const classes = flagged(attr, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const input = `<input type="number" step="1" class="${classes}" id="${id}" name="${esc(name)}" value="${seconds ?? ""}" data-epoch-raw${required}${invalidAttrs(name, attr, context)}>`;
+  const note = `<p class="text-xs text-muted" data-epoch-note>Whole seconds since 1970, in UTC.</p>`;
+  return `<div class="my-4 grid gap-1" data-moment-field="${esc(attr.widget ?? "datetime")}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
+}
+
+/** The control a picker stands in for the text box, or null when the attribute has none. */
+function picked(attr: Attr, name: string, value: Value, context: Context): string | null {
+  if (!attr.picker) return null;
+  const held = member(value, "value") ?? value ?? "";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const control = { id: idOf(name), name, value: String(held), optional: attr.optional, invalid: flagged(attr, context), extra: `${required}${invalidAttrs(name, attr, context)}` };
+  return pickerControl(attr.picker, context.choices ?? {}, control);
+}
+
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {
+  if (isMoment(attr)) return moment(attr, name, value, context);
   const text = esc(member(value, "value") ?? value ?? "");
   const id = esc(idOf(name));
   if (attr.kind === "boolean") {
@@ -61,8 +87,14 @@ function scalar(attr: Attr, name: string, value: Value, context: Context): strin
   const step = attr.kind === "number" ? ` step="any"` : "";
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const classes = flagged(attr, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
-  const input = `<input type="${inputType(attr)}"${step} class="${classes}" id="${id}" name="${esc(name)}" value="${text}"${required}${invalidAttrs(name, attr, context)}>`;
+  const chosen = picked(attr, name, value, context);
+  const input = chosen ?? `<input type="${inputType(attr)}"${step} class="${classes}" id="${id}" name="${esc(name)}" value="${text}"${required}${invalidAttrs(name, attr, context)}>`;
   return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${problem(name, attr, context)}</div>`;
+}
+
+/** A value object's one plain part as the attribute that holds it: it takes the attribute's name, picker and moment. */
+function plainOf(attr: Attr, part: Attr, name: string): Attr {
+  return { ...part, name, optional: attr.optional, widget: attr.widget ?? part.widget, picker: attr.picker ?? part.picker };
 }
 
 function parts(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
@@ -75,7 +107,7 @@ function one(agg: Aggregate, attr: Attr, name: string, value: Value, context: Co
   if (attr.kind !== "object") return scalar(attr, name, value, context);
   const members = agg.valueObjects[attr.type] ?? [];
   if (members.length === 1 && members[0].kind !== "object" && !members[0].list) {
-    return scalar({ ...members[0], name: attr.name, optional: attr.optional }, `${name}.${members[0].name}`, member(value, members[0].name), context);
+    return scalar(plainOf(attr, members[0], attr.name), `${name}.${members[0].name}`, member(value, members[0].name), context);
   }
   const invalid = flagged(attr, context) ? ` aria-invalid="true"` : "";
   return `<fieldset class="mt-6 [&>legend+*]:clear-both"${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n${parts(agg, attr, name, value, context)}\n${problem(name, attr, context)}</fieldset>`;
@@ -86,17 +118,18 @@ function listed(agg: Aggregate, attr: Attr, name: string, value: Value, context:
   const inside = { ...context, mark: false, top: false };
   const members = agg.valueObjects[attr.type] ?? [];
   const only = attr.kind === "object" && members.length === 1 && members[0].kind !== "object" && !members[0].list ? members[0] : null;
-  const word = attr.name.replace(/s$/, "");
+  const word = attr.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, "");
   const rows = [...held, undefined].map((item, index) => {
     const body = only
-      ? scalar({ ...only, name: word }, `${name}.${index}.${only.name}`, member(item, only.name), { ...inside, quiet: true })
+      ? scalar({ ...plainOf(attr, only, word), optional: only.optional }, `${name}.${index}.${only.name}`, member(item, only.name), { ...inside, quiet: true })
       : attr.kind === "object"
         ? parts(agg, attr, `${name}.${index}`, item, inside)
         : scalar({ ...attr, name: word, list: false, optional: false }, `${name}.${index}`, item, { ...inside, quiet: true });
     return `<fieldset class="relative my-3 border-l-2 border-base-300 pl-4 [&>legend+*]:clear-both" data-row data-index="${index}"><legend class="float-left w-full text-xs font-semibold text-muted">${esc(label(word))} ${index + 1}</legend>\n${body}\n</fieldset>`;
   });
   const noun = esc(singular(word));
-  return `<fieldset class="mt-6 [&>legend+*]:clear-both" data-repeat data-path="${esc(name)}" data-noun="${noun}"><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n<div data-rows>\n${rows.join("\n")}\n</div>\n</fieldset>`;
+  const invalid = flagged(attr, context) ? ` aria-invalid="true"` : "";
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both" data-repeat data-path="${esc(name)}" data-noun="${noun}"${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n<div data-rows>\n${rows.join("\n")}\n</div>${problem(name, attr, context)}\n</fieldset>`;
 }
 
 // The rich-text editor. The server renders the body as its read-only text and as the hidden inputs
@@ -126,6 +159,7 @@ export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", con
 }
 
 /** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
-export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true): string {
-  return attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true })).join("\n");
+export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}): string {
+  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices }));
+  return [...inputs, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
 }

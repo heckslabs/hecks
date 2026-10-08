@@ -204,7 +204,7 @@ forms are generated from the domain, not written per aggregate.
 | field | what it is | default |
 |---|---|---|
 | `domain` | the domain's directory under the project, holding `bluebook/` | required |
-| `chapter` | the chapter whose aggregates the editor edits | required |
+| `chapter` | the chapter whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the chapter (`<base_path>/<Chapter>/<Aggregate>`) and verbs are sent as `Chapter::Aggregate.Verb` | required |
 | `host_env` | the environment variable that holds the domain host's address | required |
 | `login` | the site's login page, a public route: where a visitor with no session is sent | required |
 | `base_path` | where the editor is served; it is the path the edge routes to the editor | `/editor` |
@@ -217,7 +217,9 @@ forms are generated from the domain, not written per aggregate.
 | `brand` | the product name the header and the navigation show, one line of at most 60 characters | the chapter's domain name |
 | `accent` | a six-digit hex colour (`#1f7a6d`) the theme is derived from; refused when it is anything else | a deep verdigris, `#1f7a6d` |
 | `logo` | a picture the header shows beside the brand: a relative path from the server's working directory to a `png`, `jpg`, `webp`, `gif`, `avif` or `svg` file, with no `..`, leading slash or hidden part; served to signed-in editors at `<base_path>/assets/logo` | none |
-| `skip` | aggregates to leave out, comma separated | none |
+| `skip` | aggregates to leave out, comma separated; `Name`, or `Chapter::Name` for one chapter's | none |
+| `chapter_roles` | roles a chapter is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
+| `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
 | `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
@@ -269,6 +271,14 @@ stylesheet or script, and still work.
   'self' data: blob:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`: no inline script or style,
   no other origin, no font or image from elsewhere. The writing surface is told to inject no style element, and its alignment and
   indent are data attributes, so it needs no `unsafe-inline`.
+
+### Relationships, moments and long lists
+
+What the editor derives is read from the bluebook, never from a name list of aggregates, so it can be predicted:
+
+- **Chosen, not typed.** An attribute is offered as a choice of another aggregate's instances when: its `pattern` begins `^kind:` or `^(kind|kind):` (a `<kind>:<slug>` key: the kind is chosen, then the record of the aggregate whose snake-case name is that kind, if one is in the editor); or it is a `reference_to` attribute whose target is an editor aggregate; or it is a value object of one text part named `<Stem>Ref` where `<Stem>` is the type of an editor aggregate's identity attribute (`CategorySlugRef` and a `CategorySlug` identity) or an editor aggregate's name; or it is `ImageRef`, `PictureRef`, `PhotoRef` or `MediaRef` and the editor has a picture aggregate (suggestions only; any other text is accepted, since it may be an address). The target is the same chapter's aggregate if it has one, else the only one of that name; more than one gives no picker. What is on offer is the target's zero-argument query named `All`, `List`, `Listing` or `Active` (in that order), else every instance, labelled by its `title`, `name` or `label` attribute, else its identity, at most 500 of them. A strict key is checked against every instance the target holds before the command is sent; a key the form already names that is no longer on offer is kept.
+- **Moments.** A single integer is a date when its attribute's, value object's or part's name ends in `_on` or `On`, and a date and time when it ends in `_at` or `At` or contains `epoch`. It is whole seconds since 1970 UTC; the form shows a native input in the person's time zone and says which, and a date is the start of that day. Read-only, the page writes the UTC time and the script restates it in the person's zone with how far away it is.
+- **Lists.** A list shows `page_size` rows, a search over the identity and the title attribute (`_q`, every word must match), and a state filter for an aggregate with a lifecycle (`_status`); each page is a link. Sorting a page's columns stays in the browser. The navigation's counts are the lengths of the one read of the host that the page itself is made from (the host has no count to ask for). The last search and state used on an aggregate are kept for the browser tab.
 
 When the chapter has an aggregate that registers pictures, the editor also uploads and serves them. The aggregate is found by shape,
 not by name: a creating command whose attributes are the aggregate's identity (the key), an alt text (`alt` or `alt_text`) and a

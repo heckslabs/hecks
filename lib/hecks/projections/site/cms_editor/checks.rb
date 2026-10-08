@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "scale_checks"
 require_relative "theme_checks"
 
 module Hecks
@@ -25,7 +26,7 @@ module Hecks
           def problems(row, roles, table)
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
-             *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row)]
+             *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row)]
           end
 
           # @return [Array<String>] the problems with the base path and the sign-in path
@@ -47,10 +48,12 @@ module Hecks
             found
           end
 
-          # @return [Array<String>] the problem with a `media` chapter that is the editor's own
+          # @return [Array<String>] the problem with a `media` chapter that is one the editor edits
           def media_chapter_problems(row)
             named = row[:media].strip
-            named == row[:chapter] ? ["media #{named.inspect} is this editor's own chapter; name another chapter"] : []
+            return [] unless row[:chapter].split(",").map(&:strip).include?(named)
+
+            ["media #{named.inspect} is this editor's own chapter; name another chapter"]
           end
 
           # The login page is a public row: a visitor with no session must reach it.

@@ -15,12 +15,14 @@ import { authSecret, membershipCheck } from "./auth/membership.ts";
 import type { Membership } from "./auth/membership.ts";
 import { clearedCookie, readSession } from "./auth/session.ts";
 import { signIn } from "./auth/sso.ts";
-import { idOf, instanceIn, runCommand } from "./commands.ts";
+import { choicesFor, unknownKey } from "./choices.ts";
+import { idOf, instanceIn, reading, runCommand } from "./commands.ts";
 import type { State } from "./commands.ts";
 import { EDITOR } from "./config.ts";
 import { flashCookie, readFlash, spentFlash } from "./flash.ts";
 import type { Flash } from "./flash.ts";
 import { hostClient } from "./host.ts";
+import { at, keyOf, locate, mayEdit, qualified } from "./names.ts";
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command } from "./schema.ts";
 import { available, needsPage } from "./ui/detail.ts";
@@ -28,8 +30,10 @@ import { href } from "./ui/html.ts";
 import { commandArguments, parseForm } from "./ui/input.ts";
 import { commandPage, detailPage, home, instanceCommandPage, listPage, notFound } from "./ui/pages.ts";
 import type { Submitted } from "./ui/pages.ts";
+import { knownStatus, narrow, slice, viewOf } from "./ui/paging.ts";
+import type { View } from "./ui/paging.ts";
 import { decorate } from "./ui/shell.ts";
-import { done, commandLabel } from "./ui/words.ts";
+import { done, commandLabel, plural } from "./ui/words.ts";
 __MEDIA_IMPORT__
 
 export interface AppOptions {
@@ -86,6 +90,8 @@ function sameSite(request: Request): boolean {
 
 /** What a route needs to answer: show a page for this person, or send them on with a notice. */
 interface Scene {
+  /** The person's role, which decides the chapters they may edit. */
+  role: string | null;
   show(body: string, status?: number, notice?: Flash): Promise<Response>;
   sent(location: string, message: string): Response;
 }
@@ -98,20 +104,25 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const client = hostClient({ url: options.url, fetch: options.fetch });
 __MEDIA_SETUP__
 
-  /** The instances each aggregate holds, for the navigation; a host that cannot say shows no counts. */
-  async function counts(): Promise<Record<string, number>> {
+  /**
+   * The instances each aggregate holds, for the navigation; a host that cannot say shows no counts.
+   * The host has no count to ask for, so they are the lengths of what one read answers, the same
+   * read a page of a list is made from.
+   */
+  async function counts(from: HostClient): Promise<Record<string, number>> {
     try {
-      const answer = await client.read();
-      return Object.fromEntries(SCHEMA.aggregates.map((agg) => [agg.name, client.instancesOf(answer, agg.name).length]));
+      const answer = await from.read();
+      return Object.fromEntries(SCHEMA.aggregates.map((agg) => [keyOf(agg), from.instancesOf(answer, qualified(agg)).length]));
     } catch {
       return {};
     }
   }
 
-  function sceneFor(email: string, role: string | null, flash: Flash | null): Scene {
+  function sceneFor(email: string, role: string | null, flash: Flash | null, from: HostClient): Scene {
     return {
+      role,
       async show(body, status = 200, notice) {
-        const text = decorate(body, { email, role, counts: await counts(), flash: notice ?? flash });
+        const text = decorate(body, { email, role, counts: await counts(from), flash: notice ?? flash });
         const response = new Response(text, { status, headers: PAGE_HEADERS });
         if (flash) response.headers.append("Set-Cookie", spentFlash());
         return response;
@@ -133,10 +144,11 @@ __MEDIA_SETUP__
     }
     if (request.method === "POST" && !sameSite(request)) return plain("Cross-site post refused.", 403);
     const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
-__MEDIA_ROUTE__
     const role = membership.roleOf ? await membership.roleOf(email) : null;
-    const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now));
-    return route(client, request, url, segments, scene);
+__MEDIA_ROUTE__
+    const reader = request.method === "GET" ? reading(client) : client;
+    const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now), reader);
+    return route(reader, request, url, segments, scene);
   }
 
   return async (request) => {
@@ -167,37 +179,59 @@ async function enter(url: URL, secret: string, membership: Membership, now: () =
 }
 
 function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
-  const [name, verb, ...rest] = segments;
   if (segments.length === 0) return scene.show(home());
-  if (name === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(verb, request);
-  const agg = SCHEMA.aggregates.find((candidate) => candidate.name === name);
-  if (!agg) return scene.show(notFound(`No aggregate ${name}.`), 404);
+  if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
+  const { agg, rest: [verb, ...rest] } = locate(segments);
+  if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
+  if (!mayEdit(agg, scene.role)) return scene.show(notFound(`${plural(agg.name)} are not open to your role.`), 403);
   if (verb === undefined) return list(client, agg, url, scene);
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
   if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], scene);
   if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
-  if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(agg, verb, rest[0], scene);
+  if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(client, agg, verb, rest[0], scene);
   return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
+}
+
+/** The pairs of an address a list keeps on every link: its view and that view's arguments, not the filters or the page. */
+const KEPT = (key: string): boolean => !["_page", "_q", "_status"].includes(key);
+
+/** The filters and the page an address asks for. */
+function asked(url: URL): { q: string; status: string; page: number; size: number; params: [string, string][] } {
+  const page = Number.parseInt(url.searchParams.get("_page") ?? "1", 10);
+  return {
+    q: (url.searchParams.get("_q") ?? "").trim().slice(0, 200),
+    status: url.searchParams.get("_status") ?? "",
+    page: Number.isFinite(page) ? page : 1,
+    size: EDITOR.pageSize,
+    params: [...url.searchParams].filter(([key]) => KEPT(key)),
+  };
 }
 
 async function list(client: HostClient, agg: Aggregate, url: URL, scene: Scene): Promise<Response> {
   const query = agg.queries.find((candidate) => candidate.name === url.searchParams.get("query")) ?? null;
   const form = parseForm(url.search.slice(1));
   const args = query ? commandArguments(agg, query.attributes, form) : {};
-  const asked = query !== null && (query.attributes.length === 0 || Object.keys(args).length > 0);
-  if (query && !asked) return scene.show(listPage(agg, [], query, null, false));
+  const wanted = query !== null && (query.attributes.length === 0 || Object.keys(args).length > 0);
+  const raw = asked(url);
+  const filters = { ...raw, status: knownStatus(agg, raw.status) };
+  const choices = query ? await choicesFor(client, agg, query.attributes) : {};
+  const none = viewOf(0, 0, filters);
+  if (query && !wanted) return scene.show(listPage(agg, [], query, null, false, none, choices));
   try {
-    const rows = await rowsFor(client, agg, asked ? query : null, args);
-    return scene.show(listPage(agg, rows, query, null));
+    const found = await rowsFor(client, agg, wanted ? query : null, args);
+    const matching = narrow(agg, found, filters.q, filters.status);
+    const view: View = viewOf(matching.length, found.length, filters);
+    return scene.show(listPage(agg, slice(matching, view), query, null, true, view, choices));
   } catch (err) {
-    if (err instanceof DomainRefusal) return scene.show(listPage(agg, [], query, err.message), 200);
+    if (err instanceof DomainRefusal) return scene.show(listPage(agg, [], query, err.message, true, none, choices), 200);
     throw err;
   }
 }
 
 async function rowsFor(client: HostClient, agg: Aggregate, query: { name: string } | null, args: State): Promise<[string, State][]> {
-  if (!query) return client.instancesOf(await client.read(), agg.name);
-  const rows = rowsOf(await client.query(`${agg.name}.${query.name}`, args), `${agg.name}.${query.name}`) ?? [];
+  if (!query) return client.instancesOf(await client.read(), qualified(agg));
+  const name = `${qualified(agg)}.${query.name}`;
+  const rows = rowsOf(await client.query(name, args), name) ?? [];
   return rows.flatMap((row): [string, State][] => {
     const id = idOf(agg, row);
     return id === null ? [] : [[id, row]];
@@ -219,13 +253,13 @@ async function instanceView(client: HostClient, agg: Aggregate, id: string, name
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
   const command = commandFor(agg, "id", name);
   if (!command || !available(agg, command, values)) return scene.show(notFound(`${name} does not apply to ${id} now.`), 404);
-  return scene.show(instanceCommandPage(agg, id, command, values, null));
+  return scene.show(instanceCommandPage(agg, id, command, values, null, await choicesFor(client, agg, command.attributes)));
 }
 
-function commandView(agg: Aggregate, verb: string, name: string, scene: Scene): Promise<Response> {
+async function commandView(client: HostClient, agg: Aggregate, verb: string, name: string, scene: Scene): Promise<Response> {
   const command = commandFor(agg, verb, name);
   if (!command) return scene.show(notFound(`No command ${name}.`), 404);
-  return scene.show(commandPage(agg, command, href(agg.name, verb, name), null));
+  return scene.show(commandPage(agg, command, href(...at(agg), verb, name), null, await choicesFor(client, agg, command.attributes)));
 }
 
 /** The command a `new` (creating) or `run` (acting on another aggregate) path names, or null. */
@@ -237,6 +271,12 @@ function commandFor(agg: Aggregate, verb: string, name: string): Command | null 
   return command.on === agg.name ? command : null;
 }
 
+/** What a form is refused for before the command is sent: a key a picker names that is not there. */
+async function unchecked(client: HostClient, agg: Aggregate, command: Command, args: State): Promise<{ ok: false; message: string; field: string } | null> {
+  const problem = await unknownKey(client, agg, command.attributes, args);
+  return problem ? { ok: false, message: problem.message, field: problem.field } : null;
+}
+
 async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[], scene: Scene): Promise<Response> {
   const onInstance = verb === "id" && rest.length === 2;
   const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
@@ -244,11 +284,12 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const form = parseForm(await request.text());
   const args = commandArguments(agg, command.attributes, form, command.empty);
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
-  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : await runCommand(client, agg, command, args, to);
-  if (outcome.ok) return scene.sent(href(agg.name, "id", outcome.id), done(agg, command));
+  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to)));
+  if (outcome.ok) return scene.sent(command.creates && form.get("__again") === "1" ? href(...at(agg), "new", command.name) : href(...at(agg), "id", outcome.id), done(agg, command));
   const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field };
   if (onInstance) return refusedOnInstance(client, agg, rest[0], command, shown, scene);
-  return scene.show(commandPage(agg, command, href(agg.name, verb, command.name), shown), 422, refused(agg, command));
+  const choices = await choicesFor(client, agg, command.attributes);
+  return scene.show(commandPage(agg, command, href(...at(agg), verb, command.name), shown, choices), 422, refused(agg, command));
 }
 
 /** The refusal of a command run on one instance: shown on its form, or on the page it was run from. */
@@ -256,5 +297,5 @@ async function refusedOnInstance(client: HostClient, agg: Aggregate, id: string,
   if (!needsPage(command)) return detail(client, agg, id, shown, scene, 422);
   const values = instanceIn(client, await client.read(), agg, id);
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
-  return scene.show(instanceCommandPage(agg, id, command, values, shown), 422, refused(agg, command));
+  return scene.show(instanceCommandPage(agg, id, command, values, shown, await choicesFor(client, agg, command.attributes)), 422, refused(agg, command));
 }

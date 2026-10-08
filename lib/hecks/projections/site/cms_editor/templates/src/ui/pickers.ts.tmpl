@@ -1,0 +1,110 @@
+__BANNER__
+
+// Pickers: an attribute that names an instance of another aggregate is entered by choosing it. What
+// is on offer comes from the target's own listing query (see choices.ts), and a choice shows the
+// target's title, name or label with its key. A target with few instances is a native `select`; with
+// more, or when any text is allowed, a text box with a `datalist`; a `<kind>:<key>` value is a kind
+// and then a record, which the page's script assembles and a browser with no script leaves as the
+// one text box it is. The server checks every strict key exists before it sends the command.
+import { hostName } from "../names.ts";
+import type { Aggregate, Attr, Picker, PickerKind } from "../schema.ts";
+import { esc } from "./html.ts";
+
+/** One instance on offer: its key, and the words that name it to a person. */
+export interface Choice {
+  key: string;
+  label: string;
+}
+
+/** What is on offer for each target, by `targetKey`. */
+export type Choices = Record<string, Choice[]>;
+
+/** The part of a picker that says which aggregate it offers. */
+export type Target = Omit<Picker, "kinds">;
+
+/** How many choices a native select holds before a text box with suggestions takes over. */
+export const SELECT_MAX = 30;
+
+/** The most instances offered for one target; a key past them can still be typed and is still checked. */
+export const OFFER_MAX = 500;
+
+/** The host's name for the aggregate a target offers: the key its choices are held under. */
+export const targetKey = (target: Target): string => hostName(target.target ?? "", target.chapter);
+
+const idOf = (key: string): string => `choices-${key.replace(/[^A-Za-z0-9]+/g, "-")}`;
+
+/** A choice as one line: its words, and its key when that is not the same thing. */
+export const choiceText = (choice: Choice): string => (choice.label && choice.label !== choice.key ? `${choice.label} (${choice.key})` : choice.key);
+
+/** The targets a picker names: itself, or each of its kinds that names an aggregate. */
+export function targetsOfPicker(picker: Picker): Target[] {
+  return (picker.kinds ?? [picker]).filter((target) => target.target !== undefined);
+}
+
+/** Every target `attrs` name, nested value objects included, each once; a target any picker leaves open is not strict. */
+export function targetsOf(agg: Aggregate, attrs: Attr[], found = new Map<string, Target>(), seen = new Set<string>()): Target[] {
+  for (const attr of attrs) {
+    for (const target of attr.picker ? targetsOfPicker(attr.picker) : []) {
+      const was = found.get(targetKey(target));
+      found.set(targetKey(target), { ...target, strict: Boolean(target.strict) && (was?.strict ?? true) });
+    }
+    if (attr.kind === "object" && !seen.has(attr.type)) targetsOf(agg, agg.valueObjects[attr.type] ?? [], found, new Set([...seen, attr.type]));
+  }
+  return [...found.values()];
+}
+
+/** The `datalist`s a form's pickers refer to: one per target that needs one. */
+export function datalists(agg: Aggregate, attrs: Attr[], choices: Choices): string {
+  return targetsOf(agg, attrs)
+    .filter((target) => (choices[targetKey(target)] ?? []).length > 0 && (!target.strict || choices[targetKey(target)].length > SELECT_MAX))
+    .map((target) => {
+      const options = choices[targetKey(target)].map((choice) => `<option value="${esc(choice.key)}" label="${esc(choiceText(choice))}"></option>`);
+      return `<datalist id="${esc(idOf(targetKey(target)))}">${options.join("")}</datalist>`;
+    })
+    .join("\n");
+}
+
+/** What a picker's control needs from the input it stands in for. */
+export interface Control {
+  id: string;
+  name: string;
+  value: string;
+  optional: boolean;
+  /** Whether the field is the one a refusal named. */
+  invalid: boolean;
+  /** Further attributes of the control, already escaped, each with its leading space. */
+  extra: string;
+}
+
+const inputClasses = (control: Control): string => (control.invalid ? "input input-error w-full max-w-xl" : "input w-full max-w-xl");
+
+/** A native select of the choices, with the held value kept when it is not on offer. */
+function select(options: Choice[], control: Control): string {
+  const held = control.value !== "" && !options.some((choice) => choice.key === control.value);
+  const blank = `<option value="">${control.optional ? "None" : "Choose..."}</option>`;
+  const own = held ? [`<option value="${esc(control.value)}" selected>${esc(control.value)} (not on offer)</option>`] : [];
+  const each = options.map((choice) => `<option value="${esc(choice.key)}"${choice.key === control.value ? " selected" : ""}>${esc(choiceText(choice))}</option>`);
+  const classes = control.invalid ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
+  return `<select class="${classes}" id="${esc(control.id)}" name="${esc(control.name)}"${control.extra}>${[blank, ...own, ...each].join("")}</select>`;
+}
+
+/** A text box with suggestions; a strict one is checked against them before the form is sent, unless they were cut short. */
+function suggesting(target: Target, control: Control, cut: boolean): string {
+  const strict = target.strict ? (cut ? " data-strict data-open" : " data-strict") : "";
+  return `<input type="text" class="${inputClasses(control)}" id="${esc(control.id)}" name="${esc(control.name)}" value="${esc(control.value)}" list="${esc(idOf(targetKey(target)))}" autocomplete="off"${strict}${control.extra}>`;
+}
+
+/** A `<kind>:<key>` value: its one text box, and the kinds and records the script builds a pair of selects from. */
+function kindsControl(kinds: PickerKind[], choices: Choices, control: Control): string {
+  const shown = kinds.map((kind) => ({ kind: kind.kind, strict: Boolean(kind.strict && kind.target), options: kind.target ? (choices[targetKey(kind)] ?? []) : [] }));
+  const input = `<input type="text" class="${inputClasses(control)}" id="${esc(control.id)}" name="${esc(control.name)}" value="${esc(control.value)}" autocomplete="off"${control.extra}>`;
+  return `<div class="grid max-w-xl gap-2" data-key-picker data-kinds="${esc(JSON.stringify(shown))}">${input}</div>`;
+}
+
+/** The control for a picker, or null when what is on offer could not be read (the input stays a text box). */
+export function pickerControl(picker: Picker, choices: Choices, control: Control): string | null {
+  if (picker.kinds) return kindsControl(picker.kinds, choices, control);
+  const options = choices[targetKey(picker)];
+  if (!options) return null;
+  return picker.strict && options.length <= SELECT_MAX ? select(options, control) : suggesting(picker, control, options.length >= OFFER_MAX);
+}

@@ -101,13 +101,15 @@ function sorting(table) {
   });
 }
 
-/** A list's filter: hides the rows that do not hold the text, and keeps the count true. */
+/**
+ * A list's search box, as it is typed: hides the rows of this page that do not hold the words, and
+ * says so in the count. Sending the form (Enter) searches the whole list on the server.
+ */
 function filtering(input) {
   const table = document.querySelector("table[data-sortable]");
   const count = document.querySelector("[data-count]");
   if (!table || !count) return;
   const rows = [...table.tBodies[0].rows];
-  const total = rows.length;
   input.addEventListener("input", () => {
     const wanted = input.value.trim().toLowerCase();
     let shown = 0;
@@ -116,8 +118,7 @@ function filtering(input) {
       row.hidden = !match;
       if (match) shown += 1;
     }
-    const word = (number) => (number === 1 ? count.dataset.noun : count.dataset.nouns);
-    count.textContent = wanted === "" ? `${total} ${word(total)}` : `${shown} of ${total} ${word(total)}`;
+    count.textContent = wanted === "" ? count.dataset.text : `${shown} of ${rows.length} on this page`;
   });
 }
 

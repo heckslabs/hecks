@@ -19,6 +19,7 @@ import type { State } from "../commands.ts";
 import { EDITOR } from "../config.ts";
 import { hostClient } from "../host.ts";
 import type { HostOptions } from "../host.ts";
+import { mayEdit, qualified } from "../names.ts";
 import { SCHEMA } from "../schema.ts";
 import type { Aggregate, Media, MediaField } from "../schema.ts";
 import { boundaryOf, parts } from "./multipart.ts";
@@ -78,7 +79,14 @@ function picture(storage: MediaStorage, media: Media, state: State) {
 }
 
 function aggregateOf(media: Media): Aggregate {
-  return media.definition ?? (SCHEMA.aggregates.find((candidate) => candidate.name === media.aggregate) as Aggregate);
+  const own = (candidate: Aggregate): boolean => candidate.name === media.aggregate && (candidate.chapter ?? SCHEMA.domain) === (media.domain ?? SCHEMA.domain);
+  return media.definition ?? (SCHEMA.aggregates.find(own) as Aggregate);
+}
+
+/** Whether a person in `role` may use the pictures: not when the chapter that holds them limits its roles to others. */
+export function mediaOpen(role: string | null): boolean {
+  const media = SCHEMA.media as Media;
+  return mayEdit(aggregateOf(media), role);
 }
 
 /** What was uploaded, or the refusal to answer with. */
@@ -115,8 +123,8 @@ async function upload(client: HostClient, storage: MediaStorage, request: Reques
 
 async function stateOf(client: HostClient, media: Media): Promise<State[]> {
   const agg = aggregateOf(media);
-  if (!media.listing) return client.instancesOf(await client.read(), agg.name).map(([, state]) => state);
-  const name = `${agg.name}.${media.listing}`;
+  if (!media.listing) return client.instancesOf(await client.read(), qualified(agg)).map(([, state]) => state);
+  const name = `${qualified(agg)}.${media.listing}`;
   return (rowsOf(await client.query(name, {}), name) ?? []) as State[];
 }
 
