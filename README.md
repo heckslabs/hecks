@@ -20,13 +20,63 @@ directly from the declaration. A domain is data, so it can be read,
 diffed, statically checked, run against generated fuzz sequences, and
 compiled into another language, the same way any other data can.
 
-The project uses its own words (bluebook, hecksagon, world, chapter, era and
-others). You can skip them at first; the [Glossary](#glossary) defines each
-one.
+The project uses its own words. Six of them are the whole model; read
+[Concepts](#concepts) first, then the [Glossary](#glossary) for the rest.
 
 **Status:** Current release: `3.10.0`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
+
+## Concepts
+
+Six terms make up the model.
+
+- **Bluebook** is a language, not a file format: the language you declare a
+  domain in, the way SQL is the language you declare queries in. A `.bluebook`
+  file is a program written in it. It never names a backend.
+- **Hecksagon** is the ports-and-adapters wiring for a domain: which adapter
+  persists each aggregate, which chapters it attaches, and its ports. It lives
+  in a `.hecksagon` file.
+- **World** is the per-deployment values that neither of those names, such as a
+  database URL. It lives in a `.world` file. Like an `.env` file it holds only
+  values, but each one is checked against the adapter it answers.
+- **Chapter** is one named `Hecks.bluebook` declaration (`Pizzas`), the unit a
+  domain is built from. A hecksagon attaches framework chapters such as
+  `Governance` by name.
+- **Door** is a surface a booted domain is reached through: Ruby
+  (`Order.create_pizza!`), the CLI, JSON, or MCP for an agent. Like a
+  controller layer it is the way in, but boot installs it from the
+  declaration; nobody writes it.
+- **Era** is one numbered version of a domain's shape, with declared
+  translations between versions. It is not a Rails-style migration: a
+  migration is a script you write and run against the database, while a
+  translation is a declaration that `hecks era.audit_translation` replays
+  against real records before boot, and boot refuses a shape change that has
+  none. Eras are tracked by the `PostgresEra` adapter only.
+
+You write a domain in a bluebook, wire it with a hecksagon, and give a world
+the deployment's values. `Hecks.boot` reads the three, runs the domain, and
+installs its doors.
+
+```ruby excerpt
+command "AddTopping", from: "available" do
+  role "Chef"
+  goal "Customize a pizza with an ingredient"
+
+  reference_to Order
+  attribute :topping, ToppingName
+  attribute :amount, ToppingAmount
+
+  given("at most 10 toppings")            { toppings.size < 10 }
+
+  sets :toppings, append: { name: :topping, amount: :amount }
+
+  emits ToppingAdded
+end
+```
+
+Heki, PostgresEra, Corpus, Storehouse and Embryonaut bluebook are adapters or
+maintainer tooling; the [Glossary](#glossary) has them.
 
 ## Install
 
@@ -566,9 +616,10 @@ The project's own words, in the order a newcomer usually meets them.
 
 ### Bluebook
 
-A `.bluebook` file: one domain's declaration — its aggregates, value
-objects, commands, rules, events, queries and policies — written in the
-hecks DSL (`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
+The language a domain is declared in, the way SQL is the language queries
+are declared in. A `.bluebook` file is a program in it: one domain's
+aggregates, value objects, commands, rules, events, queries and policies
+(`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
 
 ### Hecksagon
 
