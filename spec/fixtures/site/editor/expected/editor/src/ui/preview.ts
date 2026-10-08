@@ -58,13 +58,13 @@ function drawer(agg: Aggregate, id: string, url: string): string {
 <input id="preview-toggle" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1">
 <div class="drawer-side z-40">
 <label for="preview-toggle" aria-label="Close the preview" class="drawer-overlay"></label>
-<section class="flex h-full w-full max-w-6xl flex-col border-l border-base-300 bg-base-200" role="dialog" aria-label="${esc(title)}">
+<section class="flex h-full w-full max-w-6xl flex-col border-l border-base-300 bg-base-200" role="dialog" aria-modal="true" aria-label="${esc(title)}">
 <div class="flex flex-wrap items-center gap-2 border-b border-base-300 bg-base-100 p-2">
 <h2 class="mr-auto px-2 text-base">Preview</h2>
 ${widths()}
 <button type="button" class="btn btn-sm" data-preview-refresh>${icon("refresh")}<span class="hidden sm:inline">Refresh</span></button>
 <a class="btn btn-sm" href="${esc(url)}" target="_blank" rel="noopener" data-preview-external>${icon("external")}<span class="hidden sm:inline">Open in new tab</span></a>
-<label for="preview-toggle" class="btn btn-ghost btn-sm btn-square" aria-label="Close the preview">${icon("close")}</label>
+<button type="button" class="btn btn-ghost btn-sm btn-square" aria-label="Close the preview" data-preview-close>${icon("close")}</button>
 </div>
 <div class="grid min-h-0 flex-1 justify-items-center overflow-auto p-2" data-preview-stage>
 <iframe class="h-full w-full max-w-full border border-base-300 bg-white" title="${esc(title)}" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer" data-preview-frame data-src="${esc(url)}"></iframe>

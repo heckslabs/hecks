@@ -68,10 +68,10 @@ function empty(agg: Aggregate, primary: Command | undefined, matching: boolean):
 
 function views(agg: Aggregate, current: Query | null): string {
   const link = (to: string, text: string, active: boolean, title = ""): string =>
-    `<a role="tab" class="${active ? "tab tab-active font-semibold" : "tab"}" href="${esc(to)}"${active ? ' aria-current="page"' : ""}${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</a>`;
+    `<a class="${active ? "tab tab-active font-semibold" : "tab"}" href="${esc(to)}"${active ? ' aria-current="page"' : ""}${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</a>`;
   const all = link(href(...at(agg)), "All", current === null);
   const each = agg.queries.map((query) => link(`${href(...at(agg))}?query=${encodeURIComponent(query.name)}`, label(query.name), current?.name === query.name, query.description ?? ""));
-  return agg.queries.length === 0 ? "" : `<nav class="tabs tabs-border mb-4" role="tablist" aria-label="Views of ${esc(humanize(plural(agg.name)))}">${[all, ...each].join("")}</nav>`;
+  return agg.queries.length === 0 ? "" : `<nav class="tabs tabs-border mb-4" aria-label="Views of ${esc(humanize(plural(agg.name)))}">${[all, ...each].join("")}</nav>`;
 }
 
 function queryForm(agg: Aggregate, query: Query | null, choices: Choices): string {

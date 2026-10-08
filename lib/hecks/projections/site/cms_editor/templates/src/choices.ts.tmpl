@@ -6,10 +6,11 @@ __BANNER__
 // checked against every instance the target holds, not only those on offer, so a retired record a
 // form already names is still a record that exists. Nothing here asks the domain to know about
 // pickers: the host answers the queries it already has.
-import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
+import { DomainRefusal, DomainUnavailable } from "@hecks/client";
 import type { HostClient } from "@hecks/client";
 
 import { leaf } from "./commands.ts";
+import { rowsAnswered } from "./host.ts";
 import type { State } from "./commands.ts";
 import type { Aggregate, Attr, Picker } from "./schema.ts";
 import { summaryText } from "./ui/outline.ts";
@@ -30,7 +31,7 @@ async function offered(client: HostClient, target: Target): Promise<Choice[] | n
   const name = targetKey(target);
   try {
     const rows = target.listing
-      ? (rowsOf(await client.query(`${name}.${target.listing}`, {}), `${name}.${target.listing}`) ?? [])
+      ? rowsAnswered(await client.query(`${name}.${target.listing}`, {}), `${name}.${target.listing}`)
       : client.instancesOf(await client.read(), name).map(([, state]) => state);
     const found = rows.flatMap((row) => choiceOf(target, row) ?? []);
     return found.sort((a, b) => choiceText(a).localeCompare(choiceText(b), undefined, { sensitivity: "base", numeric: true })).slice(0, OFFER_MAX);

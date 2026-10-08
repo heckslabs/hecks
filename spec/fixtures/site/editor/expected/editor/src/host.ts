@@ -4,7 +4,8 @@
 // posting to /dispatch from this machine. The host accepts that protocol from a loopback peer only,
 // which is why this server, not the browser, talks to it; it authenticates each person itself
 // (auth/) before any of these calls is made on their behalf.
-import { HostClient } from "@hecks/client";
+import { DomainRefusal, HostClient, rowsOf } from "@hecks/client";
+import type { Answer } from "@hecks/client";
 
 import { EDITOR } from "./config.ts";
 import { SCHEMA } from "./schema.ts";
@@ -25,4 +26,18 @@ export function hostUrl(options: HostOptions = {}): string {
 /** A client for the domain this editor edits. */
 export function hostClient(options: HostOptions = {}): HostClient {
   return new HostClient({ domain: options.domain ?? SCHEMA.domain, url: hostUrl(options), fetch: options.fetch, timeoutMs: EDITOR.timeoutMs });
+}
+
+/**
+ * The rows a query answered. A host that has no such query for its running domain (a declared
+ * query the Rust host does not generate) answers with no entry at all, which `rowsOf` reads as
+ * null; that is a refusal here, not an empty list, or a list page, a picker or the picture
+ * listing would show nothing while the records are there.
+ *
+ * @throws {DomainRefusal} when the host refused the question or did not answer it
+ */
+export function rowsAnswered(answer: Answer, name: string): Record<string, unknown>[] {
+  const rows = rowsOf(answer, name);
+  if (rows === null) throw new DomainRefusal("QueryNotAnswered", `The host did not answer ${name}.`);
+  return rows as Record<string, unknown>[];
 }

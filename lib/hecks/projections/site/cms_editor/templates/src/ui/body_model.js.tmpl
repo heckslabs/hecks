@@ -67,8 +67,11 @@ function imageHtml(block) {
   return `<figure${attrs([["data-media-ref", block.media_ref ?? ""], ["data-alt", block.alt], ["data-caption", block.caption]])}>${note}${caption}</figure>`;
 }
 
-/** One block as HTML. An unknown kind is shown as a paragraph. */
-export function blockToHtml(block) {
+/**
+ * One block as HTML. An unknown kind is shown as a paragraph. `demote` moves a heading down that
+ * many levels (to at most 6), for a body shown inside a page that has its own headings above it.
+ */
+export function blockToHtml(block, demote = 0) {
   const kind = block?.kind;
   if (kind === "divider") return "<hr>";
   if (kind === "image") return imageHtml(block);
@@ -76,14 +79,14 @@ export function blockToHtml(block) {
     const tag = kind === "bullet_list" ? "ul" : "ol";
     return `<${tag}${layout(block)}>${list(block.items).map(itemHtml).join("")}</${tag}>`;
   }
-  const level = whole(block?.level, 1, 4) ?? 2;
+  const level = Math.min(6, (whole(block?.level, 1, 4) ?? 2) + demote);
   const tag = kind === "heading" ? `h${level}` : kind === "quote" ? "blockquote" : "p";
   return `<${tag}${layout(block ?? {})}>${spansToHtml(block?.spans)}</${tag}>`;
 }
 
 /** The body as HTML, one block after another; the same body gives the same text. */
-export function bodyToHtml(body) {
-  return list(body?.blocks).map(blockToHtml).join("\n");
+export function bodyToHtml(body, demote = 0) {
+  return list(body?.blocks).map((block) => blockToHtml(block, demote)).join("\n");
 }
 
 const present = (value) => value !== undefined && value !== null && value !== "";

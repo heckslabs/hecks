@@ -137,7 +137,7 @@ function mount(root, base) {
   const fields = root.querySelector("[data-fields]");
   const initial = JSON.parse(root.dataset.body || '{"blocks":[]}');
   const frame = make("div", { className: "relative" });
-  const bar = make("div", { className: "sticky top-14 z-10 flex flex-wrap items-center gap-1 border border-base-300 bg-base-100 p-1", role: "toolbar" });
+  const bar = make("div", { className: "sticky top-14 z-10 flex flex-nowrap items-center gap-1 overflow-x-auto border border-base-300 bg-base-100 p-1 sm:flex-wrap sm:overflow-visible", role: "toolbar" });
   bar.setAttribute("aria-label", `Formatting for ${root.dataset.label}`);
   const page = make("div", { className: "relative min-h-96 border border-t-0 border-base-300 bg-base-100 px-5 py-8 focus-within:border-primary sm:px-12 sm:py-12" });
   const surface = make("div");
@@ -171,10 +171,10 @@ function mount(root, base) {
     select.setAttribute("aria-label", "Block type");
     for (const [value, text] of BLOCKS) select.append(make("option", { value, textContent: text }));
     select.addEventListener("change", () => setBlock(select.value));
-    bar.append(make("div", { className: "flex items-center border-r border-base-300 pr-2" }, select));
+    bar.append(make("div", { className: "flex shrink-0 items-center border-r border-base-300 pr-2" }, select));
     buttons.set("select", select);
     for (const group of GROUPS) {
-      const holder = make("div", { className: "flex items-center gap-0.5 border-r border-base-300 pr-2 last:border-r-0" });
+      const holder = make("div", { className: "flex shrink-0 items-center gap-0.5 border-r border-base-300 pr-2 last:border-r-0" });
       for (const [action, glyph, tip] of group) {
         const button = make("button", { type: "button", className: "btn btn-ghost btn-square btn-sm" });
         button.dataset.action = action;

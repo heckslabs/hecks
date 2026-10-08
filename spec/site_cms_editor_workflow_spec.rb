@@ -67,6 +67,40 @@ RSpec.describe "the editor's workflow, derived from the chapters" do
     end
   end
 
+  describe "what a first run against a real host and a phone found" do
+    let(:files) { files_of }
+
+    it "treats a query the host does not answer as a refusal, not an empty list", :aggregate_failures do
+      expect(files.fetch("src/host.ts")).to include("export function rowsAnswered", "QueryNotAnswered")
+      %w[src/app.ts src/choices.ts src/media/handler.ts].each do |name|
+        expect(files.fetch(name)).to include("rowsAnswered"), name
+        expect(files.fetch(name)).not_to include("rowsOf("), name
+      end
+    end
+
+    it "makes the preview drawer a modal dialog with a button that closes it, and keeps focus in it", :aggregate_failures do
+      expect(files.fetch("src/ui/preview.ts")).to include('aria-modal="true"', "data-preview-close")
+      expect(files.fetch("src/ui/preview.ts")).not_to include('<label for="preview-toggle" class="btn')
+      expect(files.fetch("src/browser/preview.js")).to include("focusInto(", 'event.key !== "Tab"')
+    end
+
+    it "offers views as links, not as an ARIA tab list it does not implement", :aggregate_failures do
+      expect(files.fetch("src/ui/table.ts")).not_to include('role="tab"', 'role="tablist"')
+    end
+
+    it "gives a refusal the reason in its heading, not 'Not found'", :aggregate_failures do
+      expect(files.fetch("src/app.ts")).to include('"The domain is not answering"', '"Not open to your role"')
+      expect(files.fetch("src/ui/pages.ts")).to include('notFound(what: string, title = "Not found")')
+    end
+
+    it "sizes controls for a finger, lets the toolbar scroll, and lets a fieldset shrink", :aggregate_failures do
+      css = files.fetch("src/browser/app.css")
+      expect(css).to include("@media (pointer: coarse), (max-width: 40rem)", "min-height: 2.75rem", "min-inline-size: 0")
+      expect(css).to include(".tab:not(.tab-active):not(:hover)")
+      expect(files.fetch("src/browser/body_editor.js")).to include("overflow-x-auto", "sm:flex-wrap")
+    end
+  end
+
   describe "the records that go with a record" do
     it "relates an aggregate to the aggregates whose identity is a key of its kind, by shape", :aggregate_failures do
       related = aggregate("Post")["related"]
