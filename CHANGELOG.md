@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **`model_check` warns when an attribute copies another aggregate's identity by value.** The new `:key_by_value` finding (a warning, so no run fails on it) flags an aggregate attribute whose type is the identity type of another aggregate in the same domain, such as a `Ledger` holding an `AccountNumber` that is `Account`'s identity, and recommends `reference_to Account`, which states the link and has it enforced. Reference attributes, an owner's own single identity attribute, list attributes and primitive types are not flagged; a key held as one head of a composite identity is flagged, and an aggregate with a composite identity never owns a key. Ruby only: there is no Rust `model_check`. The rule lives in `Hecks::Bluebook::ModelCheck::ReferenceChecks`.
+
 ### Changed
 
 - **The pending release can be named on the `[Unreleased]` heading.** Write `## [Unreleased] - planned 3.11.0` to say which version the accumulating changes will ship as, and drop the suffix when that release is cut. The release checks read only `## [X.Y.Z]` headings, so the suffix changes nothing they do; `spec/changelog_planned_release_spec.rb` pins the shape and that the planned version is later than the latest release. A `planned` state on the `Release` aggregate was weighed and not built: its record lives in memory for one publishing run, and `Tag` creates it, so a planned record would not outlive the process that wrote it.

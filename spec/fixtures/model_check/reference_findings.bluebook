@@ -1,0 +1,144 @@
+Hecks.bluebook "ReferenceFindings" do
+  vision "Aggregates that copy another's identity by value, and ones that reference it."
+  core
+
+  aggregate "Account" do
+    identified_by :account_number
+
+    attribute :account_number, AccountNumber
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Tester"
+      goal "Bring an account into being"
+      attribute :account_number, AccountNumber
+      emits "AccountOpened"
+    end
+  end
+
+  # Copies Account's identity by value: flagged.
+  aggregate "Ledger" do
+    identified_by :entry
+
+    attribute :entry, Entry
+    attribute :account_number, AccountNumber
+
+    value_object "Entry" do
+      attribute :value, String
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    command "Post" do
+      role "Tester"
+      goal "Record an entry against an account"
+      attribute :entry, Entry
+      attribute :account_number, AccountNumber
+      emits "EntryPosted"
+    end
+  end
+
+  # States the link with reference_to: clean.
+  aggregate "Statement" do
+    identified_by :period
+
+    attribute :period, Period
+    reference_to Account
+
+    value_object "Period" do
+      attribute :value, String
+    end
+
+    command "Issue" do
+      role "Tester"
+      goal "Issue a statement for an account"
+      attribute :period, Period
+      emits "StatementIssued"
+    end
+  end
+
+  # Its types match no other aggregate's identity: clean.
+  aggregate "Note" do
+    identified_by :note_id
+
+    attribute :note_id, NoteId
+    attribute :label, Label
+
+    value_object "NoteId" do
+      attribute :value, String
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    command "Write" do
+      role "Tester"
+      goal "Write a note"
+      attribute :note_id, NoteId
+      emits "NoteWritten"
+    end
+  end
+
+  # Owns SiteKey as its single identity.
+  aggregate "Site" do
+    identified_by :reference
+
+    attribute :reference, SiteKey
+
+    value_object "SiteKey" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "Tester"
+      goal "Register a site"
+      attribute :reference, SiteKey
+      emits "SiteRegistered"
+    end
+  end
+
+  # Holds the site's key as one head of a composite identity: still a copy by value, flagged.
+  aggregate "Deployment" do
+    identified_by :site_key, :requested_at
+
+    attribute :site_key, SiteKey
+    attribute :requested_at, RequestedAt
+
+    value_object "RequestedAt" do
+      attribute :value, String
+    end
+
+    command "Request" do
+      role "Tester"
+      goal "Request a deployment"
+      attribute :site_key, SiteKey
+      attribute :requested_at, RequestedAt
+      emits "DeploymentRequested"
+    end
+  end
+
+  # The converted form: reference_to Site, as: :site. Clean.
+  aggregate "Rollout" do
+    identified_by :rollout_id
+
+    attribute :rollout_id, RolloutId
+    reference_to Site, as: :site
+
+    value_object "RolloutId" do
+      attribute :value, String
+    end
+
+    command "Start" do
+      role "Tester"
+      goal "Start a rollout"
+      attribute :rollout_id, RolloutId
+      emits "RolloutStarted"
+    end
+  end
+end
