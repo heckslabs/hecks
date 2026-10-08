@@ -17,6 +17,8 @@ import type { HostClient } from "@hecks/client";
 import { instanceIn, leaf, runCommand } from "../commands.ts";
 import type { State } from "../commands.ts";
 import { EDITOR } from "../config.ts";
+import { hostClient } from "../host.ts";
+import type { HostOptions } from "../host.ts";
 import { SCHEMA } from "../schema.ts";
 import type { Aggregate, Media, MediaField } from "../schema.ts";
 import { boundaryOf, parts } from "./multipart.ts";
@@ -76,7 +78,7 @@ function picture(storage: MediaStorage, media: Media, state: State) {
 }
 
 function aggregateOf(media: Media): Aggregate {
-  return SCHEMA.aggregates.find((candidate) => candidate.name === media.aggregate) as Aggregate;
+  return media.definition ?? (SCHEMA.aggregates.find((candidate) => candidate.name === media.aggregate) as Aggregate);
 }
 
 /** What was uploaded, or the refusal to answer with. */
@@ -142,10 +144,16 @@ async function serve(storage: MediaStorage, key: string): Promise<Response> {
   });
 }
 
-/** The handler of everything under `<base>/media`, given the path segments after `media`. */
-export function mediaHandler(storage: MediaStorage = diskStorage()) {
+/**
+ * The handler of everything under `<base>/media`, given the path segments after `media`. When the
+ * pictures are kept in another chapter (`media.domain`), they are read and registered through a
+ * client for that chapter, not the editor's own.
+ */
+export function mediaHandler(storage: MediaStorage = diskStorage(), options: HostOptions = {}) {
   const media = SCHEMA.media as Media;
-  return (client: HostClient, request: Request, rest: string[]): Promise<Response> | Response => {
+  const elsewhere = media.domain ? hostClient({ ...options, domain: media.domain }) : null;
+  return (editors: HostClient, request: Request, rest: string[]): Promise<Response> | Response => {
+    const client = elsewhere ?? editors;
     if (rest.length === 0 && request.method === "POST") return upload(client, storage, request, media);
     if (rest.length === 0 && request.method === "GET") return listing(client, storage, media);
     if (rest.length === 1 && request.method === "GET") return serve(storage, rest[0]);

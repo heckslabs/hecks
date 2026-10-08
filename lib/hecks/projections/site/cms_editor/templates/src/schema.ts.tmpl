@@ -42,6 +42,8 @@ export interface Command {
   /** The aggregate the command acts on, when it is not a creating command. */
   on: string | null;
   attributes: Attr[];
+  /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
+  empty?: string[];
 }
 
 export interface Query {
@@ -74,6 +76,10 @@ export interface Media {
   fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
   /** The query that lists the pictures, or null when every instance is read. */
   listing: string | null;
+  /** The chapter that holds the picture aggregate, when it is not this editor's own chapter. */
+  domain?: string;
+  /** That aggregate, which is then not among the editor's own; see `domain`. */
+  definition?: Aggregate;
 }
 
 export interface Schema {

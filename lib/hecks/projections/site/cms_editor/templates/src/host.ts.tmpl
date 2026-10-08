@@ -13,6 +13,8 @@ export interface HostOptions {
   /** The host's address, when not read from the environment variable the Editor row names. */
   url?: string;
   fetch?: typeof fetch;
+  /** The domain to address, when it is not the chapter the editor edits (pictures kept in another chapter). */
+  domain?: string;
 }
 
 /** The host's base URL, without a trailing slash. */
@@ -22,5 +24,5 @@ export function hostUrl(options: HostOptions = {}): string {
 
 /** A client for the domain this editor edits. */
 export function hostClient(options: HostOptions = {}): HostClient {
-  return new HostClient({ domain: SCHEMA.domain, url: hostUrl(options), fetch: options.fetch, timeoutMs: EDITOR.timeoutMs });
+  return new HostClient({ domain: options.domain ?? SCHEMA.domain, url: hostUrl(options), fetch: options.fetch, timeoutMs: EDITOR.timeoutMs });
 }

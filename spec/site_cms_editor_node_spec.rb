@@ -19,6 +19,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   let clock = 1_800_000_000_000;
   let members = [{ email: "ed@example.org", role: "Admin" }];
   let refusal = null;
+  let refusalKind = "GivenNotMet";
   let sent = [];
   const article = (slug, headline) => ({
     slug: { value: slug }, headline: { value: headline }, byline: { name: "Ann", contact: "ann@example.org" },
@@ -37,11 +38,18 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
       const prefix = `Press::${body.query.split(".")[0].split("::")[1]}#`;
       return answer({ queries: [{ query: body.query, rows: Object.entries(instances).filter(([id]) => id.startsWith(prefix)).map(([, row]) => row) }] });
     }
-    if (body.read || refusal) return answer(refusal && !body.read ? { refusals: [{ verb: body.verb, kind: "GivenNotMet", error: refusal }] } : {});
+    if (body.read || refusal) return answer(refusal && !body.read ? { refusals: [{ verb: body.verb, kind: refusalKind, error: refusal }] } : {});
     const [, verb] = body.verb.split(".");
     if (verb === "Draft") instances[`Press::Article#${body.with.slug.value}`] = { ...body.with, status: "draft" };
     if (verb === "RegisterPicture") instances[`Press::MediaItem#${body.with.key.value}`] = { ...body.with };
     if (verb === "Publish") instances[`Press::Article#${body.to}`].status = "published";
+    if (verb === "SaveDraft") instances[`Press::Article#${body.to}`].draft_body = body.with.draft_body;
+    if (verb === "PublishDraft") {
+      const row = instances[`Press::Article#${body.to}`];
+      if (!row.draft_body) return answer({ refusals: [{ verb: body.verb, kind: "GivenNotMet", error: "PublishDraft refused \u2014 an edit is saved" }] });
+      row.body = row.draft_body;
+      delete row.draft_body;
+    }
     return answer();
   };
 
@@ -56,6 +64,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   const last = () => sent.at(-1);
   const out = {};
 
+  out.signInRedirect = await call(`/editor/api/sso?token=${token("ed@example.org")}`).then((r) => [r.status, r.headers.get("location")]);
   out.anonymousGet = await call("/editor/Article").then((r) => [r.status, r.headers.get("location")]);
   out.anonymousPost = await call("/editor/Article/id/first/Publish", post("", "")).then((r) => r.status);
   out.forgedCookie = await as("press_editor=forged")("/editor").then((r) => [r.status, r.headers.get("location")]);
@@ -93,8 +102,35 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.refused = { status: refused.status, html: await refused.text() };
   refusal = null;
 
+  out.draftForms = await editor("/editor/Article/id/first").then((r) => r.text());
+  sent = [];
+  const noDraft = await editor("/editor/Article/id/first/PublishDraft", post("", ""));
+  out.publishNoDraft = { status: noDraft.status, html: await noDraft.text() };
+  out.saved = await editor("/editor/Article/id/first/SaveDraft", post("", "draft_body.blocks.0.kind=paragraph&draft_body.blocks.0.spans.0.text=Edited"))
+    .then((r) => [r.status, r.headers.get("location")]);
+  out.afterSave = await editor("/editor/Article/id/first").then((r) => r.text());
+  sent = [];
+  const promoted = await editor("/editor/Article/id/first/PublishDraft", post("", ""));
+  out.promoted = { status: promoted.status, location: promoted.headers.get("location"), sent: sent.filter((b) => b.verb) };
+  out.afterPromote = await editor("/editor/Article/id/first").then((r) => r.text());
+
+  refusal = 'Headline invariant violated \u2014 an article has a headline (given {"value":""})';
+  refusalKind = "InvariantViolation";
+  const invalid = await editor("/editor/Article/id/first/Revise", post("", "headline.value=&byline.name=Ann&byline.contact=x"));
+  out.invariant = { status: invalid.status, html: await invalid.text() };
+  refusal = null;
+  refusalKind = "GivenNotMet";
+
+  const loggedOut = await editor("/editor/logout", post("", ""));
+  out.logout = { status: loggedOut.status, location: loggedOut.headers.get("location"), cookie: loggedOut.headers.get("set-cookie") };
+  out.logoutCrossSite = await editor("/editor/logout", { method: "POST", body: "", headers: { ...form, Origin: "http://evil.test" } }).then((r) => r.status);
+  out.signOutButton = out.home.includes('action="/editor/logout"');
+
   const script = await editor("/editor/assets/body_widget.js");
-  out.asset = { status: script.status, type: script.headers.get("content-type"), starts: (await script.text()).slice(0, 2) };
+  const scriptText = await script.text();
+  out.asset = { status: script.status, type: script.headers.get("content-type"), starts: scriptText.slice(0, 2) };
+  out.assetPrompts = scriptText.includes("window.prompt");
+  out.assetPopover = scriptText.includes("data-popover");
   out.assetAnonymous = await call("/editor/assets/body_widget.js").then((r) => r.status);
   out.assetUnknown = await editor("/editor/assets/app.ts").then((r) => r.status);
 
@@ -196,6 +232,51 @@ EDITOR_BARE_SCENARIO = <<~JS.freeze
   out.mediaList = await editor("/editor/media").then((r) => r.status);
   out.picker = await editor("/editor/assets/media_picker.js").then((r) => r.status);
   out.widget = await editor("/editor/assets/body_widget.js").then((r) => r.status);
+
+  console.log(JSON.stringify(out));
+JS
+
+# The editor of one chapter whose pictures are kept in another (the row's `media`): the upload, the
+# listing and the picker's address all go to the picture chapter's own domain.
+EDITOR_ELSEWHERE_SCENARIO = <<~JS.freeze
+  import { accountToken } from "@hecks/client";
+  import { mkdirSync } from "node:fs";
+  import { createApp } from "./editor/src/app.ts";
+  import { diskStorage } from "./editor/src/media/storage.ts";
+
+  const SECRET = "scenario-secret";
+  const now = () => 1_800_000_000_000;
+  const instances = {};
+  let sent = [];
+  const fetch = async (url, init) => {
+    if (new URL(url).pathname === "/members") return { ok: true, status: 200, json: async () => [{ email: "ed@example.org", role: "Admin" }] };
+    const body = JSON.parse(init.body);
+    sent.push(body);
+    if (body.verb) instances[`Library::MediaItem#${body.with.key.value}`] = { ...body.with };
+    const queries = body.query ? { queries: [{ query: body.query, rows: Object.values(instances) }] } : {};
+    return { ok: true, status: 200, json: async () => ({ instances: structuredClone(instances), refusals: [], ...queries }) };
+  };
+  const stored = `${import.meta.dirname}/stored`;
+  mkdirSync(stored, { recursive: true });
+  const app = createApp({ fetch, secret: SECRET, url: "http://host.test", now, storage: diskStorage(stored) });
+  const call = (path, init = {}) => app(new Request(`http://site.test${path}`, init));
+  const token = accountToken(SECRET, "ed@example.org", 60, { now });
+  const cookie = (await call(`/editor/api/sso?token=${token}`)).headers.get("set-cookie").split(";")[0];
+  const editor = (path, init = {}) => call(path, { ...init, headers: { cookie, Origin: "http://site.test" } });
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  const out = {};
+
+  out.form = await editor("/editor/Article/new/Draft").then((r) => r.text());
+  out.nav = await editor("/editor").then((r) => r.text());
+  const body = new FormData();
+  body.append("alt", "A cat");
+  body.append("file", new Blob([png], { type: "image/png" }), "cat.png");
+  sent = [];
+  out.upload = await editor("/editor/media", { method: "POST", body }).then((r) => r.status);
+  out.registered = sent.filter((entry) => entry.verb);
+  sent = [];
+  out.listing = await editor("/editor/media").then((r) => r.json());
+  out.asked = sent.filter((entry) => entry.query);
 
   console.log(JSON.stringify(out));
 JS
@@ -404,6 +485,74 @@ RSpec.describe "the generated editor, run by node" do
     end
   end
 
+  describe "a refusal's words" do
+    it "reads a given as the condition that was not met, not as the reason", :aggregate_failures do
+      html = result("publishNoDraft")["html"]
+
+      expect(result("publishNoDraft")["status"]).to eq(422)
+      expect(html).to include('<div class="refusal" role="alert">Not allowed unless an edit is saved.</div>')
+    end
+
+    it "reads an invariant as the field and the rule, never as the raw offered value", :aggregate_failures do
+      html = result("invariant")["html"]
+
+      expect(html).to include('<div class="refusal" role="alert">headline: an article has a headline.</div>')
+      expect(html).not_to include("given")
+    end
+  end
+
+  describe "a draft, saved and promoted" do
+    it "starts a draft's form from the body the article holds, until a draft is saved", :aggregate_failures do
+      forms = result("draftForms")
+
+      expect(forms).to include('name="draft_body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
+      expect(result("afterSave")).to include('name="draft_body.blocks.0.spans.0.text" value="Edited"')
+    end
+
+    it "offers no field for the argument that only clears, on a form that has no other argument", :aggregate_failures do
+      expect(result("draftForms")).to include('action="/editor/Article/id/first/PublishDraft"')
+      expect(result("draftForms")).not_to include('name="nothing')
+    end
+
+    it "sends nothing for it, and judges the promotion applied by the state that comes back", :aggregate_failures do
+      promoted = result("promoted")
+
+      sent = { "verb" => "Press::Article.PublishDraft", "to" => "first", "with" => {}, "role" => "Editor" }
+      expect(promoted["sent"]).to eq([sent])
+      expect([promoted["status"], promoted["location"]]).to eq([303, "/editor/Article/id/first"])
+    end
+
+    it "shows the promoted body and no draft afterwards", :aggregate_failures do
+      expect(result("afterPromote")).to include('name="body.blocks.0.spans.0.text" value="Edited"')
+      expect(result("afterPromote")).to include("<th>draft body</th><td><em>empty</em></td>")
+    end
+  end
+
+  describe "signing in and out" do
+    it "sends the person to the editor's clean path once the token is spent" do
+      expect(result("signInRedirect")).to eq([302, "/editor"])
+    end
+
+    it "ends the session on a post to the logout path, and sends the person to the login page", :aggregate_failures do
+      logout = result("logout")
+
+      expect([logout["status"], logout["location"]]).to eq([303, "/admin-login"])
+      expect(logout["cookie"]).to include("press_editor=;", "Max-Age=0")
+    end
+
+    it "offers the button in the header, and refuses it from another site", :aggregate_failures do
+      expect(result("signOutButton")).to be(true)
+      expect(result("logoutCrossSite")).to eq(403)
+    end
+  end
+
+  describe "the widget's link and image forms" do
+    it "asks in a popover attached to the toolbar, never with the browser's blocking prompt", :aggregate_failures do
+      expect(result("assetPopover")).to be(true)
+      expect(result("assetPrompts")).to be(false)
+    end
+  end
+
   # Pictures: an upload, a listing and a stored file, run by node against a fake host and a temp
   # directory, and the same editor for a chapter that has no picture aggregate.
   describe "pictures" do
@@ -540,6 +689,99 @@ RSpec.describe "the generated editor, run by node" do
 
       it "generates none of the upload's files for such a chapter" do
         expect(files(skipping: true).keys.grep(/media/)).to be_empty
+      end
+    end
+  end
+
+  # Pictures kept in another chapter of the project's domain: the Editor row's `media` names it, so a
+  # body in one chapter uses the pictures of the other (the chapter that holds bodies has no picture
+  # aggregate of its own, and the picture chapter has no bodies).
+  describe "with its pictures in another chapter" do
+    def library = <<~RUBY
+      Hecks.bluebook "Library" do
+        vision "The pictures a small publisher keeps."
+        core
+
+        aggregate "MediaItem" do
+          description "A picture the publisher has uploaded: its record only."
+          identified_by :key
+
+          value_object("PictureKey") { attribute :value, String }
+          value_object("AltText") { attribute :value, String }
+          value_object("MimeType") { attribute :value, String }
+
+          attribute :key,       PictureKey
+          attribute :alt,       AltText
+          attribute :mime_type, MimeType
+
+          command "RegisterPicture" do
+            role "Editor"
+            goal "Record a picture that has been uploaded"
+            attribute :key,       PictureKey
+            attribute :alt,       AltText
+            attribute :mime_type, MimeType
+            emits "PictureRegistered"
+          end
+
+          query("Pictures") { description "Every registered picture." }
+        end
+      end
+    RUBY
+
+    let(:fixture) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }
+
+    # The fixture with its own picture aggregate skipped, and a second chapter that holds one.
+    def project_with(row_edit)
+      Dir.mktmpdir("cms_editor_elsewhere") do |dir|
+        FileUtils.cp_r(File.join(fixture, "."), dir)
+        File.write(File.join(dir, "domain/bluebook/library.bluebook"), library)
+        file = File.join(dir, "bluebook/press_site.bluebook")
+        File.write(file,
+                   File.read(file).sub('title: "Press editor"', "title: \"Press editor\", skip: \"MediaItem\", #{row_edit}"))
+        yield dir
+      end
+    end
+
+    def editor_files(dir)
+      all = Hecks::Tools::SiteRoutes.projection(dir, out: "/work/out", editor: "/work/editor")
+      all.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
+    end
+
+    def run
+      skip "node cannot strip TypeScript types here" unless EditorNode.available?
+
+      project_with('media: "Library"') { |dir| EditorNode.run(editor_files(dir), EDITOR_ELSEWHERE_SCENARIO) }
+    end
+
+    it "gives the body's widget the picker, though the chapter has no picture aggregate of its own", :aggregate_failures do
+      out = run
+
+      expect(out["form"]).to include('data-media="/editor/media"')
+      expect(out["nav"]).not_to include("MediaItem")
+    end
+
+    it "registers an upload with the picture chapter's domain", :aggregate_failures do
+      out = run
+
+      expect(out["upload"]).to eq(201)
+      expect(out["registered"].map { |sent| sent["verb"] }).to eq(["Library::MediaItem.RegisterPicture"])
+    end
+
+    it "lists the pictures from the picture chapter's query" do
+      out = run
+
+      expect(out["asked"]).to eq([{ "query" => "Library::MediaItem.Pictures", "args" => {} }])
+    end
+
+    it "is refused when the row names this editor's own chapter" do
+      project_with('media: "Press"') do |dir|
+        expect { editor_files(dir) }.to raise_error(SystemExit, /is this editor's own chapter/)
+      end
+    end
+
+    it "is refused when the row names a chapter the domain does not declare" do
+      project_with('media: "Nowhere"') do |dir|
+        expect { editor_files(dir) }.to raise_error(SystemExit, /declares no chapter Nowhere/)
       end
     end
   end

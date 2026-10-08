@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "attributes"
+require_relative "clearing"
 require_relative "media"
 
 module Hecks
@@ -20,15 +21,31 @@ module Hecks
         class Schema
           # @param chapter [Bluebook::Chapter] the domain's chapter
           # @param skip [Array<String>] aggregates to leave out
+          # @param pictures [Bluebook::Chapter, nil] another chapter whose picture aggregate the
+          #   editor's pictures use, in place of any in `chapter`
           # @return [Hash{String => Object}] the domain's name and its aggregates
-          # @raise [ArgumentError] when no aggregate is left
-          def self.read(chapter, skip: [])
+          # @raise [ArgumentError] when no aggregate is left, or `pictures` has no picture aggregate
+          def self.read(chapter, skip: [], pictures: nil)
             aggregates = chapter.aggregates.reject { |agg| skip.include?(agg.hecks_name) }
             raise ArgumentError, "the #{chapter.name} chapter has no aggregate to edit" if aggregates.empty?
 
             shaped = aggregates.map { |agg| new(agg).to_h }
-            media = Media.read(shaped)
+            media = pictures ? elsewhere(pictures) : Media.read(shaped)
             { "domain" => chapter.name, "aggregates" => shaped, **(media ? { "media" => media } : {}) }
+          end
+
+          # The picture aggregate of another chapter: the same record as one in the editor's own
+          # chapter, with the chapter's name and the aggregate itself, since the editor's own
+          # aggregates do not hold it.
+          #
+          # @return [Hash{String => Object}] the picture aggregate, as `Media` describes it
+          # @raise [ArgumentError] when the chapter has no aggregate that registers pictures
+          def self.elsewhere(chapter)
+            shaped = chapter.aggregates.map { |agg| new(agg).to_h }
+            found = Media.read(shaped)
+            raise ArgumentError, "the #{chapter.name} chapter has no aggregate that registers pictures" unless found
+
+            found.merge("domain" => chapter.name, "definition" => shaped.find { |agg| agg["name"] == found["aggregate"] })
           end
 
           # @param aggregate [Bluebook::Aggregate] one aggregate of the chapter
@@ -70,7 +87,12 @@ module Hecks
           def command(command)
             { "name" => command.hecks_name, "goal" => command.goal, "role" => command.role, "creates" => command.creates?,
               "on" => command.creates? ? nil : command.references.to_s, "attributes" => attributes(command.attributes) }
+              .then { |shaped| clearing(shaped, command) }
           end
+
+          # Leaves the arguments that only clear (see `Clearing`) out of the command's form, and
+          # names those that are lists as `empty`, for the editor to send as empty lists.
+          def clearing(shaped, command) = Clearing.apply(shaped, Clearing.of(command, @agg))
 
           def queries
             @agg.queries.reject(&:returns).map do |query|
