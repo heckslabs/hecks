@@ -1,3 +1,4 @@
 Hecks.hecksagon "Library" do
+  attaches "Governance"
   persisted_by "Memory"
 end
