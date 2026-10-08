@@ -2,8 +2,10 @@
 
 require_relative "attributes"
 require_relative "clearing"
+require_relative "composition"
 require_relative "destructive"
 require_relative "media"
+require_relative "pickers"
 
 module Hecks
   module Projections
@@ -20,19 +22,39 @@ module Hecks
         # A query that `returns` a value object is answered outside the domain and is left out: the
         # host refuses it, so a list cannot be built from it.
         class Schema
-          # @param chapter [Bluebook::Chapter] the domain's chapter
-          # @param skip [Array<String>] aggregates to leave out
+          # @param chapters [Bluebook::Chapter, Array<Bluebook::Chapter>] the chapter, or the
+          #   chapters in the order the row names them; the first names the domain addressed
+          # @param skip [Array<String>] aggregates to leave out: `Name`, or `Chapter::Name`
           # @param pictures [Bluebook::Chapter, nil] another chapter whose picture aggregate the
-          #   editor's pictures use, in place of any in `chapter`
-          # @return [Hash{String => Object}] the domain's name and its aggregates
+          #   editor's pictures use, in place of any in `chapters`
+          # @param roles [Hash{String => Array<String>}] the roles each chapter is limited to
+          # @return [Hash{String => Object}] the domain's name and its aggregates; `chapters` too
+          #   when there are several
           # @raise [ArgumentError] when no aggregate is left, or `pictures` has no picture aggregate
-          def self.read(chapter, skip: [], pictures: nil)
-            aggregates = chapter.aggregates.reject { |agg| skip.include?(agg.hecks_name) }
-            raise ArgumentError, "the #{chapter.name} chapter has no aggregate to edit" if aggregates.empty?
+          def self.read(chapters, skip: [], pictures: nil, roles: {})
+            list = chapters.is_a?(Array) ? chapters : [chapters]
+            shaped = Composition.aggregates(list, skip: skip, roles: roles) { |agg| new(agg).to_h }
+            raise ArgumentError, "the #{list.map(&:name).join(", ")} chapter has no aggregate to edit" if shaped.empty?
 
-            shaped = aggregates.map { |agg| new(agg).to_h }
-            media = pictures ? elsewhere(pictures) : Media.read(shaped)
-            { "domain" => chapter.name, "aggregates" => shaped, **(media ? { "media" => media } : {}) }
+            media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
+            assemble(list, Pickers.apply(shaped, media), media)
+          end
+
+          # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
+          #   aggregates, and the picture aggregate when there is one
+          def self.assemble(list, aggregates, media)
+            chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
+            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}) }
+          end
+
+          # The picture aggregate among the editor's own, with the chapter that holds it when that
+          # is not the first, since the host is addressed by chapter.
+          #
+          # @return [Hash{String => Object}, nil] the picture aggregate, as `Media` describes it
+          def self.within(shaped, first)
+            found = Media.read(shaped)
+            chapter = found&.delete("chapter")
+            chapter && chapter != first ? found.merge("domain" => chapter) : found
           end
 
           # The picture aggregate of another chapter: the same record as one in the editor's own
