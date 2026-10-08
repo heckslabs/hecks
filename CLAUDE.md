@@ -151,7 +151,10 @@ commit must pass as `RequiredCheck` rows beside them.
   client can pin as "latest certified"). An existing tag counts as approved,
   so `gh workflow run release.yml -f tag=vX.Y.Z` still finishes a half-cut
   release; the owner may approve a bump already on `stable` with `-f
-  approved_by=<name>`.
+  approved_by=<name>`. Name the pending release while changes accumulate
+  by writing `## [Unreleased] - planned X.Y.Z` on the CHANGELOG heading
+  (`spec/changelog_planned_release_spec.rb` pins the shape); naming it does not
+  approve it.
 - **A red `main` blocks promotion, not pushes.** Fix forward or revert on
   `main`; `stable` does not move until a commit is green. Do not
   cherry-pick onto `stable` unless the user says production is down.
