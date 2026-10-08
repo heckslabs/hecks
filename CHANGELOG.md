@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-10-07
+
+A minor release: `hecks deploy handover.clear` empties a domain's deployment settings for a client handoff, the generated content editor gains a rich-text body and pictures, `@hecks/client` can ask a host's queries, and two Rust host compile faults are fixed.
+
 ### Fixed
 
 - **A Rust host compiles when an aggregate is named `Metadata`, `Registry` or `Merged`.** Each aggregate becomes a module named for it downcased, beside the chapter's own `metadata`, `registry` and `merged` modules, so such an aggregate declared the module twice (`E0428`) and its file overwrote the chapter's. The generator now gives an aggregate named for one of those the module `metadata_aggregate`, `registry_aggregate` or `merged_aggregate` (`naming::aggregate_module`); every other aggregate keeps its downcased name, so no committed generated output changes. A fixture domain naming all three is part of the corpus and the Rust conformance run.
