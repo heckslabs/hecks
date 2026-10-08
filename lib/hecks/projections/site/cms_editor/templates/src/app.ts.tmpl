@@ -7,11 +7,10 @@ __BANNER__
 // (auth/membership.ts). A visitor with neither is sent to the site's login page; nothing in the
 // domain is read or changed before that. Posts must come from this site (the cookie is SameSite=Lax
 // and the Origin header is checked too).
-import { readFileSync } from "node:fs";
-
 import { DomainRefusal, DomainUnavailable, rowsOf } from "@hecks/client";
 import type { HostClient } from "@hecks/client";
 
+import { serveAsset } from "./assets.ts";
 import { authSecret, membershipCheck } from "./auth/membership.ts";
 import type { Membership } from "./auth/membership.ts";
 import { clearedCookie, readSession } from "./auth/session.ts";
@@ -19,13 +18,18 @@ import { signIn } from "./auth/sso.ts";
 import { idOf, instanceIn, runCommand } from "./commands.ts";
 import type { State } from "./commands.ts";
 import { EDITOR } from "./config.ts";
+import { flashCookie, readFlash, spentFlash } from "./flash.ts";
+import type { Flash } from "./flash.ts";
 import { hostClient } from "./host.ts";
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command } from "./schema.ts";
-import { commandArguments, parseForm } from "./ui/input.ts";
-import { commandPage, detailPage, home, listPage, notFound } from "./ui/pages.ts";
-import type { Submitted } from "./ui/pages.ts";
+import { available, needsPage } from "./ui/detail.ts";
 import { href } from "./ui/html.ts";
+import { commandArguments, parseForm } from "./ui/input.ts";
+import { commandPage, detailPage, home, instanceCommandPage, listPage, notFound } from "./ui/pages.ts";
+import type { Submitted } from "./ui/pages.ts";
+import { decorate } from "./ui/shell.ts";
+import { done, commandLabel } from "./ui/words.ts";
 __MEDIA_IMPORT__
 
 export interface AppOptions {
@@ -38,12 +42,38 @@ export interface AppOptions {
 __MEDIA_OPTION__
 }
 
-const html = (body: string, status = 200): Response =>
-  new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+/**
+ * What every page is sent with. The editor loads its own script, stylesheet, pictures and icons and
+ * nothing else, so the policy names no other origin and allows no inline script and no inline style
+ * (no `style` attribute, no style element: the stylesheet is a file, and the writing surface is told
+ * to inject none). `data:` in `img-src` is for the sprite-free case of a picture drawn from a data
+ * address; `blob:` shows a picture chosen for upload before it is sent. Script may still set styles
+ * through the page's object model, which the policy allows.
+ */
+const POLICY = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
 
-const redirect = (location: string, status = 303, cookie?: string): Response => {
+const PAGE_HEADERS = {
+  "Content-Type": "text/html; charset=utf-8",
+  "Cache-Control": "no-store",
+  "Content-Security-Policy": POLICY,
+  "Referrer-Policy": "same-origin",
+  "X-Content-Type-Options": "nosniff",
+};
+
+const plain = (body: string, status: number): Response => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+
+const redirect = (location: string, status = 303, ...cookies: string[]): Response => {
   const headers = new Headers({ Location: location });
-  if (cookie) headers.append("Set-Cookie", cookie);
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
   return new Response(null, { status, headers });
 };
 
@@ -54,6 +84,12 @@ function sameSite(request: Request): boolean {
   return (request.headers.get("sec-fetch-site") ?? "same-origin") !== "cross-site";
 }
 
+/** What a route needs to answer: show a page for this person, or send them on with a notice. */
+interface Scene {
+  show(body: string, status?: number, notice?: Flash): Promise<Response>;
+  sent(location: string, message: string): Response;
+}
+
 /** The editor, as a handler. */
 export function createApp(options: AppOptions = {}): (request: Request) => Promise<Response> {
   const secret = options.secret ?? authSecret();
@@ -62,78 +98,99 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const client = hostClient({ url: options.url, fetch: options.fetch });
 __MEDIA_SETUP__
 
+  /** The instances each aggregate holds, for the navigation; a host that cannot say shows no counts. */
+  async function counts(): Promise<Record<string, number>> {
+    try {
+      const answer = await client.read();
+      return Object.fromEntries(SCHEMA.aggregates.map((agg) => [agg.name, client.instancesOf(answer, agg.name).length]));
+    } catch {
+      return {};
+    }
+  }
+
+  function sceneFor(email: string, role: string | null, flash: Flash | null): Scene {
+    return {
+      async show(body, status = 200, notice) {
+        const text = decorate(body, { email, role, counts: await counts(), flash: notice ?? flash });
+        const response = new Response(text, { status, headers: PAGE_HEADERS });
+        if (flash) response.headers.append("Set-Cookie", spentFlash());
+        return response;
+      },
+      sent: (location, message) => redirect(location, 303, flashCookie({ kind: "success", message }, secret, now)),
+    };
+  }
+
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
-    if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return html(notFound(path), 404);
+    if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return anonymous(notFound(path), 404);
     if (path === href("logout") && request.method === "POST") return signOut(request);
 
     const email = readSession(request.headers.get("cookie"), secret, now);
     if (!email || !(await membership.isAdmitted(email))) {
-      return request.method === "GET" ? redirect(EDITOR.login, 302) : new Response("Sign in again.", { status: 403 });
+      return request.method === "GET" ? redirect(EDITOR.login, 302) : plain("Sign in again.", 403);
     }
-    if (request.method === "POST" && !sameSite(request)) return new Response("Cross-site post refused.", { status: 403 });
+    if (request.method === "POST" && !sameSite(request)) return plain("Cross-site post refused.", 403);
     const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
 __MEDIA_ROUTE__
-    return route(client, request, url, segments);
+    const role = membership.roleOf ? await membership.roleOf(email) : null;
+    const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now));
+    return route(client, request, url, segments, scene);
   }
 
   return async (request) => {
     try {
       return await handle(request);
     } catch (err) {
-      if (err instanceof DomainUnavailable) return html(notFound(`The domain could not be reached: ${err.message}`), 502);
+      if (err instanceof DomainUnavailable) return anonymous(notFound(`The domain could not be reached: ${err.message}`), 502);
       throw err;
     }
   };
 }
 
-/** The browser modules the rich-text widget loads (with the picture picker when there are pictures), for signed-in editors only. */
-const ASSETS = __ASSETS__;
-
-function asset(name: string): Response {
-  if (!ASSETS.includes(name)) return html(notFound(`No asset ${name}.`), 404);
-  const text = readFileSync(new URL(`./ui/${name}`, import.meta.url), "utf8");
-  return new Response(text, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "private, max-age=300" } });
+/** A page for someone with no session to show, such as a path the editor does not serve. */
+function anonymous(body: string, status: number): Response {
+  return new Response(decorate(body, { email: "", role: null, counts: {}, flash: null }), { status, headers: PAGE_HEADERS });
 }
 
 /** Ends the session: the cookie is cleared and the person is sent to the site's login page. */
 function signOut(request: Request): Response {
-  if (!sameSite(request)) return new Response("Cross-site post refused.", { status: 403 });
+  if (!sameSite(request)) return plain("Cross-site post refused.", 403);
   return redirect(EDITOR.login, 303, clearedCookie());
 }
 
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
   const result = await signIn(url.searchParams.get("token"), secret, membership, now);
-  if (!result.ok) return new Response(result.message, { status: result.status });
+  if (!result.ok) return plain(result.message, result.status);
   return redirect(result.location, 302, result.cookie);
 }
 
-function route(client: HostClient, request: Request, url: URL, segments: string[]): Promise<Response> | Response {
+function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
   const [name, verb, ...rest] = segments;
-  if (segments.length === 0) return html(home());
-  if (name === "assets" && segments.length === 2 && request.method === "GET") return asset(verb);
+  if (segments.length === 0) return scene.show(home());
+  if (name === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(verb, request);
   const agg = SCHEMA.aggregates.find((candidate) => candidate.name === name);
-  if (!agg) return html(notFound(`No aggregate ${name}.`), 404);
-  if (verb === undefined) return list(client, agg, url);
-  if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null);
-  if (request.method === "POST") return post(client, request, agg, verb, rest);
-  if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(agg, verb, rest[0]);
-  return html(notFound(`No page ${segments.join("/")}.`), 404);
+  if (!agg) return scene.show(notFound(`No aggregate ${name}.`), 404);
+  if (verb === undefined) return list(client, agg, url, scene);
+  if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
+  if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], scene);
+  if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
+  if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(agg, verb, rest[0], scene);
+  return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
 }
 
-async function list(client: HostClient, agg: Aggregate, url: URL): Promise<Response> {
+async function list(client: HostClient, agg: Aggregate, url: URL, scene: Scene): Promise<Response> {
   const query = agg.queries.find((candidate) => candidate.name === url.searchParams.get("query")) ?? null;
   const form = parseForm(url.search.slice(1));
   const args = query ? commandArguments(agg, query.attributes, form) : {};
   const asked = query !== null && (query.attributes.length === 0 || Object.keys(args).length > 0);
-  if (query && !asked) return html(listPage(agg, [], query, null));
+  if (query && !asked) return scene.show(listPage(agg, [], query, null, false));
   try {
     const rows = await rowsFor(client, agg, asked ? query : null, args);
-    return html(listPage(agg, rows, query, null));
+    return scene.show(listPage(agg, rows, query, null));
   } catch (err) {
-    if (err instanceof DomainRefusal) return html(listPage(agg, [], query, err.message), 200);
+    if (err instanceof DomainRefusal) return scene.show(listPage(agg, [], query, err.message), 200);
     throw err;
   }
 }
@@ -147,16 +204,28 @@ async function rowsFor(client: HostClient, agg: Aggregate, query: { name: string
   });
 }
 
-async function detail(client: HostClient, agg: Aggregate, id: string, shown: Submitted | null, status = 200): Promise<Response> {
+const refused = (agg: Aggregate, command: Command): Flash => ({ kind: "error", message: `${commandLabel(agg, command)} was not applied. Fix what is marked and try again.` });
+
+async function detail(client: HostClient, agg: Aggregate, id: string, shown: Submitted | null, scene: Scene, status = 200): Promise<Response> {
   const values = instanceIn(client, await client.read(), agg, id);
-  if (!values) return html(notFound(`No ${agg.name} ${id}.`), 404);
-  return html(detailPage(agg, id, values, shown), status);
+  if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
+  const command = agg.commands.find((candidate) => candidate.name === shown?.command);
+  return scene.show(detailPage(agg, id, values, shown), status, shown && command ? refused(agg, command) : undefined);
 }
 
-function commandView(agg: Aggregate, verb: string, name: string): Response {
+/** The page of a command that acts on one instance, when that instance is in a state it applies to. */
+async function instanceView(client: HostClient, agg: Aggregate, id: string, name: string, scene: Scene): Promise<Response> {
+  const values = instanceIn(client, await client.read(), agg, id);
+  if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
+  const command = commandFor(agg, "id", name);
+  if (!command || !available(agg, command, values)) return scene.show(notFound(`${name} does not apply to ${id} now.`), 404);
+  return scene.show(instanceCommandPage(agg, id, command, values, null));
+}
+
+function commandView(agg: Aggregate, verb: string, name: string, scene: Scene): Promise<Response> {
   const command = commandFor(agg, verb, name);
-  if (!command) return html(notFound(`No command ${name}.`), 404);
-  return html(commandPage(agg, command, href(agg.name, verb, name), null));
+  if (!command) return scene.show(notFound(`No command ${name}.`), 404);
+  return scene.show(commandPage(agg, command, href(agg.name, verb, name), null));
 }
 
 /** The command a `new` (creating) or `run` (acting on another aggregate) path names, or null. */
@@ -168,16 +237,24 @@ function commandFor(agg: Aggregate, verb: string, name: string): Command | null 
   return command.on === agg.name ? command : null;
 }
 
-async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[]): Promise<Response> {
+async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[], scene: Scene): Promise<Response> {
   const onInstance = verb === "id" && rest.length === 2;
   const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
-  if (!command) return html(notFound("No such command."), 404);
+  if (!command) return scene.show(notFound("No such command."), 404);
   const form = parseForm(await request.text());
   const args = commandArguments(agg, command.attributes, form, command.empty);
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : await runCommand(client, agg, command, args, to);
-  if (outcome.ok) return redirect(href(agg.name, "id", outcome.id));
-  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to } };
-  if (onInstance) return detail(client, agg, rest[0], shown, 422);
-  return html(commandPage(agg, command, href(agg.name, verb, command.name), shown), 422);
+  if (outcome.ok) return scene.sent(href(agg.name, "id", outcome.id), done(agg, command));
+  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field };
+  if (onInstance) return refusedOnInstance(client, agg, rest[0], command, shown, scene);
+  return scene.show(commandPage(agg, command, href(agg.name, verb, command.name), shown), 422, refused(agg, command));
+}
+
+/** The refusal of a command run on one instance: shown on its form, or on the page it was run from. */
+async function refusedOnInstance(client: HostClient, agg: Aggregate, id: string, command: Command, shown: Submitted, scene: Scene): Promise<Response> {
+  if (!needsPage(command)) return detail(client, agg, id, shown, scene, 422);
+  const values = instanceIn(client, await client.read(), agg, id);
+  if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
+  return scene.show(instanceCommandPage(agg, id, command, values, shown), 422, refused(agg, command));
 }

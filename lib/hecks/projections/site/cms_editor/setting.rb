@@ -21,11 +21,12 @@ module Hecks
             "Editor",
             fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
-                        title: String, skip: String, media: String, media_dir: String, media_max_bytes: String },
+                        title: String, brand: String, accent: String, logo: String, skip: String, media: String,
+                        media_dir: String, media_max_bytes: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
-                        host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", skip: "",
-                        media: "", media_dir: "media", media_max_bytes: "5242880" }
+                        host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
+                        accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -63,6 +64,12 @@ module Hecks
           #   use, or nil when the pictures (if any) are in the editor's own chapter
           def media_chapter = row.fetch(:media).strip.then { |name| name.empty? ? nil : name }
 
+          # @return [String, nil] the product name the header shows, or nil for the domain's name
+          def brand = row.fetch(:brand).strip.then { |name| name.empty? ? nil : name }
+
+          # @return [String, nil] the accent colour as hex, or nil for the default theme
+          def accent = row.fetch(:accent).strip.then { |hex| hex.empty? ? nil : hex }
+
           # @return [Array<String>] the aggregates left out
           def skip = row.fetch(:skip).split(",").map(&:strip).reject(&:empty?)
 
@@ -83,7 +90,7 @@ module Hecks
           def quoted
             { "TITLE" => :title, "BASE_PATH" => :base_path, "SSO_PATH" => :sso_path, "LOGIN" => :login,
               "SESSION_COOKIE" => :session_cookie, "HOST_COOKIE" => :host_cookie, "HOST_ENV" => :host_env,
-              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir }
+              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir, "LOGO" => :logo }
               .to_h { |token, field| ["__#{token}__", JSON.generate(row.fetch(field))] }
           end
         end

@@ -1,0 +1,66 @@
+__BANNER__
+
+// Notices. The server renders the one a redirect carried ("Published.") into the page; this adds a
+// close button and lets it go after a few seconds, and shows others the page's own script raises
+// ("Copied."). A notice that reports an error stays until it is closed, and is announced at once
+// (`role="alert"`); the rest wait their turn (`role="status"`). The classes are written whole so the
+// stylesheet build finds them.
+const KINDS = {
+  success: ["alert alert-success alert-soft", "success", "status"],
+  error: ["alert alert-error alert-soft", "alert", "alert"],
+  info: ["alert alert-info alert-soft", "info", "status"],
+};
+
+const LIFETIME = 6000;
+
+const svg = (name) => `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+
+function container() {
+  let found = document.querySelector("[data-toasts]");
+  if (!found) {
+    found = document.createElement("div");
+    found.className = "toast toast-top toast-center z-50 mt-14";
+    found.dataset.toasts = "";
+    document.body.append(found);
+  }
+  return found;
+}
+
+/** Closes a notice. */
+function dismiss(notice) {
+  notice.remove();
+}
+
+/** Gives a notice a close button and a lifetime. */
+function adopt(notice, lifetime) {
+  if (notice.querySelector("[data-close]")) return;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "btn btn-ghost btn-square btn-xs";
+  close.setAttribute("aria-label", "Dismiss");
+  close.dataset.close = "";
+  close.innerHTML = svg("close");
+  close.addEventListener("click", () => dismiss(notice));
+  notice.append(close);
+  if (lifetime > 0) setTimeout(() => dismiss(notice), lifetime);
+}
+
+/** Shows a notice: `kind` is `success`, `error` or `info`; `message` is shown as text, never as markup. */
+export function showToast(kind, message, lifetime) {
+  const [classes, mark, role] = KINDS[kind] ?? KINDS.info;
+  const notice = document.createElement("div");
+  notice.className = classes;
+  notice.setAttribute("role", role);
+  notice.dataset.toast = "";
+  notice.innerHTML = svg(mark);
+  const text = document.createElement("p");
+  text.textContent = message;
+  notice.append(text);
+  container().append(notice);
+  adopt(notice, lifetime ?? (kind === "error" ? 0 : LIFETIME));
+}
+
+/** Gives the notices the server rendered a close button and a lifetime. */
+export function adoptToasts() {
+  for (const notice of document.querySelectorAll("[data-toast]")) adopt(notice, notice.getAttribute("role") === "alert" ? 0 : LIFETIME);
+}

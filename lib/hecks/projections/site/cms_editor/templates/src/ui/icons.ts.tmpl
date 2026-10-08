@@ -1,0 +1,15 @@
+__BANNER__
+
+// The editor's icons: one SVG sprite written into every page, and `icon(name)` to draw one. The
+// symbols are the project's single source of icons (the generator's own list), so the browser code
+// draws the same ones with `<use href="#i-name">` and nothing is fetched.
+
+/** The sprite, placed once at the top of every page. It takes no room and is hidden from readers. */
+export const SPRITE = `<svg class="absolute size-0 overflow-hidden" xmlns="http://www.w3.org/2000/svg" width="0" height="0" focusable="false" aria-hidden="true">
+__ICONS__
+</svg>`;
+
+/** An icon that decorates a label next to it. */
+export function icon(name: string): string {
+  return `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+}

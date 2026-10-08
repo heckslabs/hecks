@@ -213,7 +213,10 @@ forms are generated from the domain, not written per aggregate.
 | `host_cookie` | the host's account cookie name, when `HECKS_SESSION_COOKIE` is not set | `hecks_session` |
 | `host_default` | the host's address when the variable is unset | `http://127.0.0.1:4322` |
 | `roles` | the roles that count as an editor, comma separated | `Admin,Owner` |
-| `title` | the editor's name in its header | `Editor` |
+| `title` | the editor's name in the browser tab (`<page> - <title>`) | `Editor` |
+| `brand` | the product name the header and the navigation show, one line of at most 60 characters | the chapter's domain name |
+| `accent` | a six-digit hex colour (`#1f7a6d`) the theme is derived from; refused when it is anything else | a deep verdigris, `#1f7a6d` |
+| `logo` | a picture the header shows beside the brand: a relative path from the server's working directory to a `png`, `jpg`, `webp`, `gif`, `avif` or `svg` file, with no `..`, leading slash or hidden part; served to signed-in editors at `<base_path>/assets/logo` | none |
 | `skip` | aggregates to leave out, comma separated | none |
 | `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
@@ -224,8 +227,10 @@ forms are generated from the domain, not written per aggregate.
 | `src/schema.ts` | the chapter's aggregates, attributes (kind, optional, list), value objects, lifecycles, commands (role, creating or acting on an instance) and queries, as one typed constant |
 | `src/app.ts`, `src/server.ts` | the handler from a web `Request` to a `Response`, and the node server around it |
 | `src/auth/*.ts` | the sign-in: the hand-off token, the membership check, and the editor's own signed session cookie |
-| `src/ui/*.ts` | the server-rendered pages: a nav of aggregates, a list from a query, a detail page, a form per command |
-| `src/ui/body_*.js` | the rich-text body: `bodyToHtml` / `htmlToBody` (pure, run in node and the browser) and the widget |
+| `src/ui/*.ts` | the server-rendered pages: the frame (header, navigation drawer, breadcrumbs), a list from a query, a detail page, a form per command, and the words and icons they share |
+| `src/ui/body_*.js` | the read-only body: `bodyToHtml` / `htmlToBody` (pure, run in node and the browser) |
+| `src/browser/*.js`, `src/browser/app.css` | what runs in the browser, and the stylesheet source: the shell, the forms, notices, the writing surface and the picture picker, built into `dist/` by `npm run build` |
+| `src/assets.ts`, `src/flash.ts` | the static files (with ETags) and the one-shot notice cookie |
 | `src/host.ts`, `src/commands.ts` | the `@hecks/client` wiring, and the running and judging of one command |
 | `src/config.ts`, `package.json`, `tsconfig.json` | the row's settings, and the package |
 
@@ -233,10 +238,37 @@ The editor is generic by aggregate. A value-object attribute is a nested fieldse
 repeatable rows (the rows it holds, then one blank to fill; a blank row is dropped), an optional part left blank is left out, and a
 lifecycle state is a badge, never an input. A lifecycle move is offered only from the states it applies in. An attribute whose
 type is a value object with a `blocks` list of a value object that has `kind` and `spans` (a structured document body, whatever
-it is named) is edited with a rich-text widget: a toolbar and a contenteditable surface that edit the domain's own tree and
-post it as the same dotted-path fields as any other value object. The list and detail pages show the body read-only, escaped.
-Pasted HTML is reduced to what the body can hold, with a note saying what was reduced. The widget's browser code is plain
-`src/ui/body_*.js`, served to a signed-in editor under `<base_path>/assets/`; ADR 0095's addendum has the details. A query that `returns` a value object is answered outside the domain and is not offered.
+it is named) is edited on a writing surface (Tiptap): a toolbar and a page that edit the domain's own tree and post it as
+the same dotted-path fields as any other value object. The list and detail pages show the body read-only, escaped. Pasted
+HTML is reduced to what the body can hold, with a note saying what was reduced. ADR 0095's addenda have the details. A query that `returns` a value object is answered outside the domain and is not offered.
+
+### Look, shell and build
+
+The pages are server-rendered semantic HTML with Tailwind and daisyUI class names; `npm run build` (run by `npm start`) turns
+`src/browser/app.css` into `dist/editor.css` and bundles `src/browser/main.js` into `dist/editor.js`, with the writing surface in a
+chunk only a page with a body loads. The generated sources are a pure function of the chapter and the row, so `--check` covers
+them; `dist/` and `node_modules/` are build output and are not committed. Before a build the pages are complete HTML with no
+stylesheet or script, and still work.
+
+- **Theme.** The row's `accent` makes two daisyUI themes, `editor-light` and `editor-dark` (used when the system prefers dark,
+  or when the theme button has set one; the choice is kept in `localStorage`, and `theme.js` applies it before the page paints).
+  Every text and fill pair is moved until it reaches the accessibility contrast ratios (4.5:1 for text, 3:1 for the edge of a
+  control), whatever the accent. With no `accent` the neutrals are fixed; with one they take its hue.
+- **Shell.** A header with breadcrumbs, the signed-in person and role, the theme button and sign-out; a navigation drawer open
+  beside the page on a wide screen and behind the menu button on a narrow one, with the number each aggregate holds and the current
+  page marked; a skip link and landmarks.
+- **Lists** sort and filter in the browser (the page works without it), show status as words and a shape as well as a colour, and
+  an empty list says so and offers the command that makes the first one.
+- **Commands.** A command that asks for nothing and is safe runs from a button on the instance's page. One that asks for input has
+  a page of its own. A command is destructive, and asks first in a native dialog, when its first word is `withdraw`, `retire`,
+  `discard`, `delete`, `cancel` or `remove`, or when it is a lifecycle move into a state named `withdrawn`, `retired`, `discarded`,
+  `deleted`, `cancelled`, `canceled` or `removed`. A browser with no script is sent to a page that asks the same question.
+- **Notices.** A command that succeeds redirects with a signed, `HttpOnly`, one-minute cookie that the next page shows ("Published.",
+  in the same verb as the button) and clears in its response; a refused one shows the refusal on the form and a notice.
+- **Strict content security policy.** Every page is sent with `default-src 'none'; script-src 'self'; style-src 'self'; img-src
+  'self' data: blob:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`: no inline script or style,
+  no other origin, no font or image from elsewhere. The writing surface is told to inject no style element, and its alignment and
+  indent are data attributes, so it needs no `unsafe-inline`.
 
 When the chapter has an aggregate that registers pictures, the editor also uploads and serves them. The aggregate is found by shape,
 not by name: a creating command whose attributes are the aggregate's identity (the key), an alt text (`alt` or `alt_text`) and a
@@ -246,7 +278,7 @@ aggregate's query with no arguments lists the pictures. The domain keeps the rec
 storage port (`put`, `url`, `read`) and its local-disk adapter, which writes `<sha256>.<ext>` under `media_dir`. A project that
 keeps pictures in an object store implements the same interface and passes it as `createApp({ storage })`. Pictures are served to
 a signed-in editor only at `<base_path>/media/<key>`, for keys of the generated form, with `X-Content-Type-Options: nosniff`. The
-widget's image button opens a picker (`src/ui/media_picker.js`). A chapter with no such aggregate has none of this, and the image
+writing surface's image button opens a picker (`src/browser/media_picker.js`). A chapter with no such aggregate has none of this, and the image
 button keeps its prompts.
 
 The server is a sidecar: it is the host's `/dispatch` caller, which the host honours only from the same machine, so it

@@ -31,6 +31,8 @@ export interface Lifecycle {
   field: string;
   default: string;
   transitions: Transition[];
+  /** Each state's badge tone: `neutral`, `ok`, `info`, `warn` or `danger`. */
+  tones: Record<string, string>;
 }
 
 export interface Command {
@@ -41,6 +43,8 @@ export interface Command {
   creates: boolean;
   /** The aggregate the command acts on, when it is not a creating command. */
   on: string | null;
+  /** True when the editor asks for confirmation before running it (see the generator's `Destructive`). */
+  destructive: boolean;
   attributes: Attr[];
   /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
   empty?: string[];
@@ -121,7 +125,12 @@ export const SCHEMA: Schema = {
             ],
             "to": "draft"
           }
-        ]
+        ],
+        "tones": {
+          "draft": "neutral",
+          "published": "ok",
+          "archived": "info"
+        }
       },
       "attributes": [
         {
@@ -405,6 +414,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": true,
           "on": null,
+          "destructive": false,
           "attributes": [
             {
               "name": "slug",
@@ -464,6 +474,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": [
             {
               "name": "headline",
@@ -516,6 +527,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": [
             {
               "name": "draft_body",
@@ -533,6 +545,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": []
         },
         {
@@ -541,6 +554,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": true,
           "attributes": []
         },
         {
@@ -549,6 +563,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": []
         },
         {
@@ -557,6 +572,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": []
         },
         {
@@ -565,6 +581,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": false,
           "on": "Article",
+          "destructive": false,
           "attributes": []
         }
       ],
@@ -679,6 +696,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": true,
           "on": null,
+          "destructive": false,
           "attributes": [
             {
               "name": "key",
@@ -817,6 +835,7 @@ export const SCHEMA: Schema = {
           "role": "Editor",
           "creates": true,
           "on": null,
+          "destructive": false,
           "attributes": [
             {
               "name": "key",

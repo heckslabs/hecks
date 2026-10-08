@@ -53,6 +53,11 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
     return answer();
   };
 
+  // What `npm run build` writes; the pages link it only when it is there.
+  mkdirSync(`${import.meta.dirname}/editor/dist`, { recursive: true });
+  writeFileSync(`${import.meta.dirname}/editor/dist/editor.css`, "body { margin: 0; }\\n");
+  writeFileSync(`${import.meta.dirname}/editor/dist/editor.js`, "export {};\\n");
+
   const stored = `${import.meta.dirname}/stored`;
   const app = createApp({ fetch, secret: SECRET, url: "http://host.test", now: () => clock, storage: diskStorage(stored) });
   const token = (email) => accountToken(SECRET, email, 60, { now: () => clock });
@@ -78,14 +83,38 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
 
   sent = [];
   const list = await editor("/editor/Article?query=Published");
-  out.list = { status: list.status, html: await list.text(), sent: [...sent] };
-  out.detail = await editor("/editor/Article/id/first").then((r) => r.text());
+  out.list = { status: list.status, html: await list.text(), sent: sent.filter((b) => b.query) };
+  const detailPage = await editor("/editor/Article/id/first");
+  out.detailHeaders = Object.fromEntries(["content-security-policy", "cache-control", "content-type"].map((name) => [name, detailPage.headers.get(name)]));
+  out.detail = await detailPage.text();
+  out.revisePage = await editor("/editor/Article/id/first/Revise").then((r) => r.text());
+  out.confirmPage = await editor("/editor/Article/id/first/DiscardDraft").then((r) => r.text());
   out.missing = await editor("/editor/Article/id/none").then((r) => r.status);
   out.newForm = await editor("/editor/Article/new/Draft").then((r) => r.text());
+  out.mastheadList = await editor("/editor/Masthead").then((r) => r.text());
+  out.emptyList = await editor("/editor/Article?query=ByHeadline").then((r) => r.text());
+
+  members.push({ email: "<i>@example.org", role: "Owner" });
+  out.escapedPerson = await as(await signIn("<i>@example.org"))("/editor").then((r) => r.text());
 
   sent = [];
   const publish = await editor("/editor/Article/id/first/Publish", post("", ""));
-  out.publish = { status: publish.status, location: publish.headers.get("location"), sent: sent.filter((b) => b.verb) };
+  const noticeCookie = publish.headers.get("set-cookie")?.split(";")[0];
+  out.publish = { status: publish.status, location: publish.headers.get("location"), sent: sent.filter((b) => b.verb), setCookie: publish.headers.get("set-cookie") };
+
+  // The notice the redirect carried: shown once, cleared in the same response, refused when forged,
+  // expired, or made of markup (its words are escaped).
+  const withNotice = (value) => as(`${cookie}; ${value}`);
+  const noticePage = await withNotice(noticeCookie)("/editor/Article/id/first");
+  out.notice = { html: await noticePage.text(), setCookie: noticePage.headers.get("set-cookie") };
+  out.noticeGone = await editor("/editor/Article/id/first").then((r) => r.text());
+  const signature = noticeCookie.split("=")[1].split(".")[1];
+  const tamperedMessage = Buffer.from(JSON.stringify({ k: "success", m: "Forged.", t: Math.floor(clock / 1000) })).toString("base64url");
+  out.noticeForged = await withNotice(`press_editor_flash=${tamperedMessage}.${signature}`)("/editor/Article/id/first").then((r) => r.text());
+  clock += 61_000;
+  out.noticeExpired = await withNotice(noticeCookie)("/editor/Article/id/first").then((r) => r.text());
+  const { flashCookie } = await import("./editor/src/flash.ts");
+  out.noticeEscaped = await withNotice(flashCookie({ kind: "info", message: "<img src=x onerror=alert(1)>" }, SECRET, () => clock).split(";")[0])("/editor/Article/id/first").then((r) => r.text());
 
   const draft = [
     "slug.value=second", "headline.value=Second+piece", "standfirst.value=", "byline.name=Bo", "byline.contact=bo%40example.org",
@@ -102,17 +131,20 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.refused = { status: refused.status, html: await refused.text() };
   refusal = null;
 
-  out.draftForms = await editor("/editor/Article/id/first").then((r) => r.text());
+  out.draftForms = await editor("/editor/Article/id/first/PublishDraft").then((r) => r.text());
+  out.draftReviseForm = await editor("/editor/Article/id/first/SaveDraft").then((r) => r.text());
+  out.draftDetail = await editor("/editor/Article/id/first").then((r) => r.text());
   sent = [];
   const noDraft = await editor("/editor/Article/id/first/PublishDraft", post("", ""));
   out.publishNoDraft = { status: noDraft.status, html: await noDraft.text() };
   out.saved = await editor("/editor/Article/id/first/SaveDraft", post("", "draft_body.blocks.0.kind=paragraph&draft_body.blocks.0.spans.0.text=Edited"))
     .then((r) => [r.status, r.headers.get("location")]);
-  out.afterSave = await editor("/editor/Article/id/first").then((r) => r.text());
+  out.afterSave = await editor("/editor/Article/id/first/SaveDraft").then((r) => r.text());
   sent = [];
   const promoted = await editor("/editor/Article/id/first/PublishDraft", post("", ""));
   out.promoted = { status: promoted.status, location: promoted.headers.get("location"), sent: sent.filter((b) => b.verb) };
-  out.afterPromote = await editor("/editor/Article/id/first").then((r) => r.text());
+  out.afterPromote = await editor("/editor/Article/id/first/Revise").then((r) => r.text());
+  out.afterPromoteDetail = await editor("/editor/Article/id/first").then((r) => r.text());
 
   refusal = 'Headline invariant violated \u2014 an article has a headline (given {"value":""})';
   refusalKind = "InvariantViolation";
@@ -126,13 +158,30 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.logoutCrossSite = await editor("/editor/logout", { method: "POST", body: "", headers: { ...form, Origin: "http://evil.test" } }).then((r) => r.status);
   out.signOutButton = out.home.includes('action="/editor/logout"');
 
-  const script = await editor("/editor/assets/body_widget.js");
-  const scriptText = await script.text();
-  out.asset = { status: script.status, type: script.headers.get("content-type"), starts: scriptText.slice(0, 2) };
-  out.assetPrompts = scriptText.includes("window.prompt");
-  out.assetPopover = scriptText.includes("data-popover");
-  out.assetAnonymous = await call("/editor/assets/body_widget.js").then((r) => r.status);
-  out.assetUnknown = await editor("/editor/assets/app.ts").then((r) => r.status);
+  // Static files: the theme script from src/ui, the stylesheet and script from dist. Each has an ETag; the
+  // page names the version, and a request that names it may be kept for good.
+  const version = (file) => out.home.split(`/editor/assets/${file}?v=`)[1]?.slice(0, 12);
+  const sheet = await editor(`/editor/assets/editor.css?v=${version("editor.css")}`);
+  const plainSheet = await editor("/editor/assets/editor.css");
+  const etag = plainSheet.headers.get("etag");
+  const revalidated = await editor("/editor/assets/editor.css", { headers: { "If-None-Match": etag } });
+  out.asset = {
+    status: sheet.status, type: sheet.headers.get("content-type"), etag, versioned: sheet.headers.get("cache-control"),
+    plain: plainSheet.headers.get("cache-control"), notModified: [revalidated.status, (await revalidated.text()).length],
+    versionIsEtag: `"${version("editor.css")}"` === etag, nosniff: sheet.headers.get("x-content-type-options"),
+    theme: await editor("/editor/assets/theme.js").then(async (r) => [r.status, r.headers.get("content-type"), (await r.text()).slice(0, 2)]),
+  };
+  out.assetLinks = {
+    sheet: out.home.includes(`<link rel="stylesheet" href="/editor/assets/editor.css?v=${version("editor.css")}">`),
+    script: out.home.includes(`<script type="module" src="/editor/assets/editor.js?v=${version("editor.js")}"></script>`),
+    head: out.home.includes(`<script src="/editor/assets/theme.js?v=${version("theme.js")}"></script>`),
+  };
+  out.assetAnonymous = await call("/editor/assets/editor.css").then((r) => r.status);
+  out.assetUnknown = await Promise.all(["app.ts", "..%2Fsrc%2Fapp.ts", "editor.css.map", "missing.js"].map((name) => editor(`/editor/assets/${name}`).then((r) => r.status)));
+  out.assetLogo = await editor("/editor/assets/logo").then((r) => r.status);
+  const editorSource = await import("node:fs").then((fs) => fs.readFileSync(`${import.meta.dirname}/editor/src/browser/body_editor.js`, "utf8"));
+  out.assetPrompts = editorSource.includes("window.prompt");
+  out.assetPopover = editorSource.includes("data-popover");
 
   out.crossSite =await editor("/editor/Article/id/first/Publish", { method: "POST", body: "", headers: { ...form, Origin: "http://evil.test" } }).then((r) => r.status);
 
@@ -152,7 +201,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   writeFileSync(`${import.meta.dirname}/secret.txt`, "outside the picture directory");
 
   out.newFormMedia = out.newForm.includes('data-media="/editor/media"');
-  out.pickerAsset = await editor("/editor/assets/media_picker.js").then((r) => [r.status, r.headers.get("content-type")]);
+  out.pickerLoaded = await import("node:fs").then((fs) => fs.existsSync(`${import.meta.dirname}/editor/src/browser/media_picker.js`));
 
   sent = [];
   const first = await upload(png);
@@ -206,6 +255,44 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.uploadAnonymous = await upload(png, { as: call, headers: { Origin: "http://site.test" } }).then((r) => r.status);
   out.uploadCrossSite = await upload(png, { headers: { Origin: "http://evil.test" } }).then((r) => r.status);
 
+  // The theme scripts, run against a stand-in page: the choice is applied from storage before paint, and
+  // the button switches it, remembers it, and says what pressing it would do.
+  const page = () => {
+    const attributes = {};
+    return { attributes, classList: { add() {} }, setAttribute(name, value) { attributes[name] = value; }, getAttribute: (name) => attributes[name] ?? null };
+  };
+  const applied = async (storage) => {
+    const documentElement = page();
+    globalThis.document = { documentElement };
+    globalThis.window = { localStorage: storage };
+    await import(`./editor/src/ui/theme.js?run=${Math.random()}`);
+    return documentElement.attributes["data-theme"] ?? null;
+  };
+  out.themeApplied = {
+    saved: await applied({ getItem: () => "dark" }),
+    blocked: await applied({ getItem: () => { throw new Error("blocked"); } }),
+    script: out.assetLinks.head,
+  };
+  const remembered = [];
+  const handlers = [];
+  const button = { attrs: {}, innerHTML: "", title: "", setAttribute(name, value) { this.attrs[name] = value; }, getAttribute(name) { return this.attrs[name]; }, addEventListener(type, run) { handlers.push(run); } };
+  const root = page();
+  globalThis.document = {
+    documentElement: root, getElementById: () => null, addEventListener() {}, querySelectorAll: () => [],
+    querySelector: (selector) => (selector === "[data-theme-toggle]" ? button : null),
+  };
+  globalThis.window = { localStorage: { setItem: (key, value) => remembered.push([key, value]) }, matchMedia: () => ({ matches: false, addEventListener() {} }) };
+  const shell = await import("./editor/src/browser/shell.js");
+  shell.enhanceShell();
+  const labels = [button.attrs["aria-label"]];
+  const chosen = [];
+  for (let time = 0; time < 2; time += 1) {
+    handlers[0]();
+    labels.push(button.attrs["aria-label"]);
+    chosen.push(root.attributes["data-theme"]);
+  }
+  out.themeToggle = { stored: remembered, attributes: chosen, labels };
+
   members = [];
   clock += 61_000;
   out.revoked = await editor("/editor").then((r) => [r.status, r.headers.get("location")]);
@@ -230,8 +317,8 @@ EDITOR_BARE_SCENARIO = <<~JS.freeze
 
   out.form = await editor("/editor/Article/new/Draft").then((r) => r.text());
   out.mediaList = await editor("/editor/media").then((r) => r.status);
-  out.picker = await editor("/editor/assets/media_picker.js").then((r) => r.status);
-  out.widget = await editor("/editor/assets/body_widget.js").then((r) => r.status);
+  out.noBuild = await editor("/editor/assets/editor.css").then((r) => r.status);
+  out.unlinked = !out.form.includes("editor.css") && !out.form.includes("editor.js");
 
   console.log(JSON.stringify(out));
 JS
@@ -394,31 +481,83 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   describe "the pages" do
-    it "shows a nav of every aggregate" do
-      expect(result("home")).to include('href="/editor/Article"', 'href="/editor/Masthead"')
+    it "shows a navigation of every aggregate, with how many each holds", :aggregate_failures do
+      home = result("home")
+
+      expect(home).to include('href="/editor/Article"', 'href="/editor/Masthead"')
+      expect(home).to include('<span class="ml-auto text-xs text-muted tabular-nums">1</span>')
     end
 
-    it "renders the rows of the query it asked the host", :aggregate_failures do
+    it "marks the page the person is on in the navigation, and only that one", :aggregate_failures do
+      list = result("list")["html"]
+
+      expect(list).to include('<a href="/editor/Article" aria-current="page">')
+      expect(list).not_to include('<a href="/editor/Masthead" aria-current="page">')
+      expect(result("home")).to include('<a href="/editor" aria-current="page">')
+    end
+
+    it "names who is signed in and their role, escaped", :aggregate_failures do
+      expect(result("home")).to include("ed@example.org", "Admin")
+      expect(result("escapedPerson")).to include("&#60;i&#62;@example.org")
+      expect(result("escapedPerson")).not_to include("<i>@example.org")
+    end
+
+    it "has a skip link, one main landmark, a banner and a labelled navigation, in a document with a language",
+       :aggregate_failures do
+      home = result("home")
+
+      expect(home).to include('<html lang="en">', 'href="#main"', '<main id="main"', '<header class="navbar',
+                              'aria-label="Sections"')
+      expect(home.scan("<main").size).to eq(1)
+    end
+
+    it "gives each page a title of its own, and exactly one first-level heading", :aggregate_failures do
+      expect(result("detail")).to include("<title>first - Press editor</title>")
+      expect(result("list")["html"]).to include("<title>Articles - Press editor</title>")
+      expect(result("list")["html"].scan("<h1").size).to eq(1)
+    end
+
+    it "renders the rows of the query it asked the host, with the status as words and a shape", :aggregate_failures do
       list = result("list")
 
       expect(list["status"]).to eq(200)
-      expect(list["html"]).to include('href="/editor/Article/id/first"', "First piece", '<span class="badge">draft</span>')
+      expect(list["html"]).to include('href="/editor/Article/id/first"', "First piece", "badge badge-soft gap-1 font-semibold")
+      expect(list["html"]).to match(%r{<span class="badge[^"]*"><svg class="icon"[^>]*><use href="#i-dot"/></svg>Draft</span>})
       expect(list["sent"]).to eq([{ "query" => "Press::Article.Published", "args" => {} }])
+    end
+
+    it "gives a list headings that sort, a filter, and a count", :aggregate_failures do
+      html = result("list")["html"]
+
+      expect(html).to include("data-sortable", 'data-sort="text"', "data-filter", "1 article")
+    end
+
+    it "says an empty list is empty in one sentence, with the command that makes the first one", :aggregate_failures do
+      html = result("mastheadList")
+
+      expect(html).to include("No mastheads yet. Add the first one.", "<span>Establish masthead</span>")
+      expect(result("emptyList")).not_to include("<table")
     end
 
     it "shows an instance with its state as a badge and a rich-text body read-only", :aggregate_failures do
       detail = result("detail")
 
-      expect(detail).to include('<span class="badge">draft</span>')
-      expect(detail).to include('<div class="body"><p><strong>Hi &#60;i&#62;</strong></p></div>')
-      expect(detail).to include('action="/editor/Article/id/first/Publish"', 'name="byline.name"')
+      expect(detail).to include("Draft</span>", '<div class="prose"><p><strong>Hi &#60;i&#62;</strong></p></div>')
+      expect(detail).to include('action="/editor/Article/id/first/Publish"', 'data-copy="first"')
     end
 
-    it "shows the rich-text widget on a form that edits a body, filled from the instance", :aggregate_failures do
+    it "shows the status and the commands that apply in a margin panel", :aggregate_failures do
       detail = result("detail")
 
-      expect(detail).to include("data-body-editor", 'name="body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
-      expect(detail).to include('<script type="module" src="/editor/assets/body_widget.js">')
+      expect(detail).to include('aria-label="Status and actions"', ">Status</h2>", ">Actions</h2>")
+      expect(detail).to include('href="/editor/Article/id/first/Revise"')
+    end
+
+    it "shows the rich-text widget on the form that edits a body, filled from the instance", :aggregate_failures do
+      form = result("revisePage")
+
+      expect(form).to include("data-body-editor", 'name="body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
+      expect(form).to include("Editing this text needs scripts turned on in the browser.")
     end
 
     it "never lets a body's text become markup", :aggregate_failures do
@@ -428,10 +567,46 @@ RSpec.describe "the generated editor, run by node" do
       expect(detail).to include("Hi &#60;i&#62;")
     end
 
-    it "serves the widget's script to a signed-in editor only", :aggregate_failures do
-      expect(result("asset")).to eq("status" => 200, "type" => "text/javascript; charset=utf-8", "starts" => "//")
+    it "serves a stylesheet and scripts that the page names by version", :aggregate_failures do
+      expect(result("assetLinks")).to eq("sheet" => true, "script" => true, "head" => true)
+      expect(result("asset")["theme"]).to eq([200, "text/javascript; charset=utf-8", "//"])
+    end
+
+    it "sends each file with an ETag that names its version, kept for good under that version", :aggregate_failures do
+      asset = result("asset")
+
+      expect([asset["status"], asset["type"]]).to eq([200, "text/css; charset=utf-8"])
+      expect(asset["versionIsEtag"]).to be(true)
+      expect(asset["versioned"]).to eq("private, max-age=31536000, immutable")
+      expect(asset["nosniff"]).to eq("nosniff")
+    end
+
+    it "revalidates a file asked for without its version, and answers 304 when the browser holds it", :aggregate_failures do
+      asset = result("asset")
+
+      expect(asset["plain"]).to eq("private, no-cache")
+      expect(asset["notModified"]).to eq([304, 0])
+    end
+
+    it "serves files to a signed-in editor only, and no file that is not one of its own", :aggregate_failures do
       expect(result("assetAnonymous")).to eq(302)
-      expect(result("assetUnknown")).to eq(404)
+      expect(result("assetUnknown")).to eq([404, 404, 404, 404])
+      expect(result("assetLogo")).to eq(404)
+    end
+
+    it "sends every page with a policy that allows no inline script or style and no other origin", :aggregate_failures do
+      headers = result("detailHeaders")
+      policy = headers["content-security-policy"]
+
+      expect(policy).to include("default-src 'none'", "script-src 'self'", "style-src 'self'", "frame-ancestors 'none'")
+      expect(policy).not_to match(/unsafe-inline|unsafe-eval|https?:/)
+      expect(headers).to include("cache-control" => "no-store", "content-type" => "text/html; charset=utf-8")
+    end
+
+    it "writes no style attribute and no inline script into a page", :aggregate_failures do
+      pages = %w[home detail revisePage newForm].map { |key| result(key) }.join
+
+      expect(pages).not_to match(/\sstyle=|<style|<script>|\sonclick=/)
     end
 
     it "offers a lifecycle move only from the states it applies in" do
@@ -442,11 +617,33 @@ RSpec.describe "the generated editor, run by node" do
       form = result("newForm")
 
       expect(form).to include('name="slug.value"', 'name="sections.0.links.0.label"', 'name="tags.0.value"')
-      expect(form).to include("(optional)")
+      expect(form).to include("optional</span>", 'aria-required="true"', "data-repeat", "data-row")
+    end
+
+    it "marks the fields that must be filled and says so under the form", :aggregate_failures do
+      form = result("newForm")
+
+      expect(form).to include('title="Required" aria-hidden="true">*</span>', "* </span> Required".sub("* </span>", "*</span>"))
     end
 
     it "answers 404 for an instance that is not there" do
       expect(result("missing")).to eq(404)
+    end
+  end
+
+  describe "a destructive command" do
+    it "asks first, in a native dialog the page carries, and leaves the other commands as plain buttons", :aggregate_failures do
+      detail = result("detail")
+
+      expect(detail).to include('data-confirm="confirm-DiscardDraft"', '<dialog class="modal" id="confirm-DiscardDraft"')
+      expect(detail).to include('aria-labelledby="confirm-DiscardDraft-title"', 'formmethod="dialog"', "Discard draft?")
+      expect(detail).not_to include("confirm-Publish")
+    end
+
+    it "is the same question on a page of its own for a browser with no script", :aggregate_failures do
+      page = result("confirmPage")
+
+      expect(page).to include("Choose Discard draft to go ahead.", 'action="/editor/Article/id/first/DiscardDraft"')
     end
   end
 
@@ -473,6 +670,50 @@ RSpec.describe "the generated editor, run by node" do
       expect(create["sent"].first).not_to have_key("to")
       expect([create["status"], create["location"]]).to eq([303, "/editor/Article/id/second"])
     end
+
+    it "labels each button with a sentence-case verb, and makes a creating one say what it makes", :aggregate_failures do
+      expect(result("detail")).to include(">Publish</button>", ">Save draft</a>", ">Revise</a>")
+      expect(result("list")["html"]).to include("<span>Draft article</span>")
+    end
+
+    it "disables the submit button while the form is sent, and has a sticky bar with a cancel", :aggregate_failures do
+      form = result("revisePage")
+
+      expect(form).to include("data-busy", "sticky bottom-0", 'href="/editor/Article/id/first">Cancel</a>')
+    end
+  end
+
+  describe "a notice after a command" do
+    COOKIE = %r{\Apress_editor_flash=[\w-]+\.[\w-]+; Path=/editor; HttpOnly; SameSite=Lax; Max-Age=60}
+
+    it "is carried to the next page by a short-lived signed cookie" do
+      expect(result("publish")["setCookie"]).to match(COOKIE)
+    end
+
+    it "shows once: the next page has it, clears the cookie in the same response, and the page after has none",
+       :aggregate_failures do
+      notice = result("notice")
+
+      expect(notice["html"]).to include('role="status"', "<p>Published.</p>")
+      expect(notice["setCookie"]).to include("press_editor_flash=;", "Max-Age=0")
+      expect(result("noticeGone")).not_to include("<p>Published.</p>")
+    end
+
+    it "is not shown when it was made up, or has expired", :aggregate_failures do
+      expect(result("noticeForged")).not_to include("Forged.")
+      expect(result("noticeExpired")).not_to include("Published.")
+    end
+
+    it "escapes what it says", :aggregate_failures do
+      escaped = result("noticeEscaped")
+
+      expect(escaped).to include("&#60;img src=x onerror=alert(1)&#62;")
+      expect(escaped).not_to include("<img src=x")
+    end
+
+    it "uses the same verb as the button: the one that says Publish leaves Published." do
+      expect(result("notice")["html"]).to include("Published.")
+    end
   end
 
   describe "a refusal" do
@@ -480,8 +721,14 @@ RSpec.describe "the generated editor, run by node" do
       refused = result("refused")
 
       expect(refused["status"]).to eq(422)
-      expect(refused["html"]).to include('<div class="refusal" role="alert">Revise refused: an article has a headline</div>')
+      expect(refused["html"]).to include('data-refusal><svg class="icon"', "Revise refused: an article has a headline</p>")
       expect(refused["html"]).to include('name="byline.name" value="Ann"')
+    end
+
+    it "is announced as well by a notice that says what was not applied", :aggregate_failures do
+      html = result("refused")["html"]
+
+      expect(html).to include('role="alert" data-toast', "Revise was not applied. Fix what is marked and try again.")
     end
   end
 
@@ -490,22 +737,27 @@ RSpec.describe "the generated editor, run by node" do
       html = result("publishNoDraft")["html"]
 
       expect(result("publishNoDraft")["status"]).to eq(422)
-      expect(html).to include('<div class="refusal" role="alert">Not allowed unless an edit is saved.</div>')
+      expect(html).to include("Not allowed unless an edit is saved.</p>")
     end
 
     it "reads an invariant as the field and the rule, never as the raw offered value", :aggregate_failures do
       html = result("invariant")["html"]
 
-      expect(html).to include('<div class="refusal" role="alert">headline: an article has a headline.</div>')
+      expect(html).to include("headline: an article has a headline.</p>")
       expect(html).not_to include("given")
+    end
+
+    it "marks the field an invariant names, and gives its message beside it", :aggregate_failures do
+      html = result("invariant")["html"]
+
+      expect(html).to include('aria-invalid="true" aria-describedby="f-headline-value-error"')
+      expect(html).to include('id="f-headline-value-error">an article has a headline.</p>')
     end
   end
 
   describe "a draft, saved and promoted" do
     it "starts a draft's form from the body the article holds, until a draft is saved", :aggregate_failures do
-      forms = result("draftForms")
-
-      expect(forms).to include('name="draft_body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
+      expect(result("draftReviseForm")).to include('name="draft_body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
       expect(result("afterSave")).to include('name="draft_body.blocks.0.spans.0.text" value="Edited"')
     end
 
@@ -524,7 +776,7 @@ RSpec.describe "the generated editor, run by node" do
 
     it "shows the promoted body and no draft afterwards", :aggregate_failures do
       expect(result("afterPromote")).to include('name="body.blocks.0.spans.0.text" value="Edited"')
-      expect(result("afterPromote")).to include("<th>draft body</th><td><em>empty</em></td>")
+      expect(result("afterPromoteDetail")).to include('Draft body</dt><dd class="min-w-0 break-words"><span class="text-muted">')
     end
   end
 
@@ -546,10 +798,26 @@ RSpec.describe "the generated editor, run by node" do
     end
   end
 
-  describe "the widget's link and image forms" do
+  describe "the writing surface's link and picture forms" do
     it "asks in a popover attached to the toolbar, never with the browser's blocking prompt", :aggregate_failures do
       expect(result("assetPopover")).to be(true)
       expect(result("assetPrompts")).to be(false)
+    end
+  end
+
+  # The browser scripts that need no page: the theme the person chose is applied before paint and kept
+  # where storage allows, and not lost when storage is blocked.
+  describe "the theme" do
+    it "is applied from the remembered choice, and follows the system when storage is blocked", :aggregate_failures do
+      expect(result("themeApplied")).to eq("saved" => "editor-dark", "blocked" => nil, "script" => true)
+    end
+
+    it "is switched by the button, remembered, and shown by the button's own icon", :aggregate_failures do
+      toggle = result("themeToggle")
+
+      expect(toggle["stored"]).to eq([%w[editor-theme dark], %w[editor-theme light]])
+      expect(toggle["attributes"]).to eq(%w[editor-dark editor-light])
+      expect(toggle["labels"]).to eq(["Switch to the dark theme", "Switch to the light theme", "Switch to the dark theme"])
     end
   end
 
@@ -678,13 +946,18 @@ RSpec.describe "the generated editor, run by node" do
     describe "the widget" do
       it "is given the picker's address and script when the chapter registers pictures", :aggregate_failures do
         expect(result("newFormMedia")).to be(true)
-        expect(result("pickerAsset")).to eq([200, "text/javascript; charset=utf-8"])
+        expect(result("pickerLoaded")).to be(true)
       end
 
       it "keeps the prompt, and offers no upload, when the chapter has no picture aggregate", :aggregate_failures do
         expect(bare("form")).to include("data-body-editor")
         expect(bare("form")).not_to include("data-media")
-        expect([bare("mediaList"), bare("picker"), bare("widget")]).to eq([404, 404, 200])
+        expect(bare("mediaList")).to eq(404)
+      end
+
+      it "links no stylesheet or script before the build has written them, and serves none", :aggregate_failures do
+        expect(bare("unlinked")).to be(true)
+        expect(bare("noBuild")).to eq(404)
       end
 
       it "generates none of the upload's files for such a chapter" do
