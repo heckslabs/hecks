@@ -19,7 +19,7 @@ RSpec.describe "the Hecks command table through the launcher" do
   DEPLOY_CHAPTER_VERBS = %w[smoke_run.run service_roll.run box_roll.run data_copy.restore
                             data_copy.verify bluebook_diff.run preview_run.name preview_run.url
                             preview_run.list preview_run.deploy preview_run.destroy preview_run.login
-                            companion_roll.run].freeze
+                            companion_roll.run handover.clear].freeze
 
   CUSTODIAN_VERBS = %w[
     introspection.ir introspection.shape introspection.stores introspection.history

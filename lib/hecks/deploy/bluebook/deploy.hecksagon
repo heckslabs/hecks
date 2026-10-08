@@ -27,6 +27,14 @@ Hecks.hecksagon "Deploy" do
     end
   end
 
+  Deploy::Handover.port "DeployToolchain" do
+    asks "ClearDeployment", to: Handover do
+      attribute :run, RunKey
+      answers "HandoverAnswered"
+      refuses "HandoverRefused"
+    end
+  end
+
   Deploy::MakefileCheck.port "DeployToolchain" do
     asks "Scan", to: MakefileCheck do
       attribute :run, RunKey

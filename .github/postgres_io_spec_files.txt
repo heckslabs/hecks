@@ -35,6 +35,7 @@ spec/hecks_command_table_spec.rb
 spec/hecks_deploy_bluebook_diff_spec.rb
 spec/hecks_deploy_companion_roll_spec.rb
 spec/hecks_deploy_data_copy_spec.rb
+spec/hecks_deploy_handover_spec.rb
 spec/hecks_deploy_preview_run_spec.rb
 spec/hecks_deploy_roll_scripts_spec.rb
 spec/hecks_deploy_roll_spec.rb

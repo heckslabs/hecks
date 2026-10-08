@@ -47,7 +47,8 @@ Hecks.world "Hecks" do
                                   service_roll.run box_roll.run data_copy.restore
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
-                                  preview_run.destroy preview_run.login companion_roll.run],
+                                  preview_run.destroy preview_run.login companion_roll.run
+                                  handover.clear],
                        names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
                                 "interview" => "door.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
