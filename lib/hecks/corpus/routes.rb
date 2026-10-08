@@ -24,6 +24,10 @@ module Hecks
                 "its filename declares (bump_* / same_*)"),
       Route.new(%r{\Aspec/fixtures/model_check/}, :named_in, "spec/model_check_spec.rb", :each_file,
                 "domains broken on purpose; each must produce exactly the finding kinds it is built to trigger"),
+      Route.new(%r{\Aspec/fixtures/site/editor_chapters/domain/}, :named_in, "spec/site_cms_editor_chapters_spec.rb",
+                "site/editor_chapters",
+                "two chapters that both declare a Category, so the editor must tell them apart; one SQLite " \
+                "file keeps tables by bare aggregate name, which cannot hold both, so the sweep cannot boot it"),
       # hecks fuzz sweeps it too, once Fuzzing::Replay coerces value-object args
       # before recomputing givens — today it doesn't, so this given reads as
       # wrongly admitted.
