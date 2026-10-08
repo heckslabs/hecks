@@ -20,6 +20,8 @@ export const EDITOR = {
   mediaDir: "media",
   mediaMaxBytes: 5242880,
   pageSize: 25,
+  /** Where a record is shown on the site, with `{key}`, `{kind}`, `{slug}` and `{id}`; null for no preview. */
+  preview: null as string | null,
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

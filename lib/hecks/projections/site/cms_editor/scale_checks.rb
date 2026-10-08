@@ -13,7 +13,7 @@ module Hecks
           MAX_PAGE = 1000
 
           # The first segments of the editor's own addresses, which no chapter may be named.
-          RESERVED = %w[assets media logout api].freeze
+          RESERVED = %w[assets media logout api scheduled].freeze
 
           module_function
 

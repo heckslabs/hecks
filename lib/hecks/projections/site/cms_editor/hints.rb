@@ -7,10 +7,11 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # What one attribute's names and pattern say about how a value of it is entered: a moment
-        # (see `Moment`) or a `<kind>:<slug>` key (see `KeyKinds`). A value object with a single
-        # plain part is entered as that part, so the part's pattern and the value object's names
-        # count; a value object of several parts has parts of its own, each read the same way.
+        # What one attribute's names, pattern and closed set say about how a value of it is
+        # entered: a moment (see `Moment`), a `<kind>:<slug>` key (see `KeyKinds`) or one of a
+        # closed set's members. A value object with a single plain part is entered as that part,
+        # so the part's pattern and the value object's names count; a value object of several
+        # parts has parts of its own, each read the same way.
         class Hints
           # @param objects [Hash{String => Bluebook::ValueObject}] the value objects by name
           def initialize(objects)
@@ -18,12 +19,13 @@ module Hecks
           end
 
           # @param attribute [Bluebook::Attribute] a declared attribute
-          # @return [Hash{String => Object}] `widget` and `keys` when the attribute has them
+          # @return [Hash{String => Object}] `widget`, `keys` and `options` when the attribute has
+          #   them
           def of(attribute)
             leaf, names = leaf(attribute)
             return {} unless leaf
 
-            { **moment(leaf, names), **keys(leaf) }
+            { **moment(leaf, names), **keys(leaf), **options(attribute, leaf) }
           end
 
           private
@@ -49,6 +51,16 @@ module Hecks
           def moment(leaf, names)
             widget = Moment.widget(names) if leaf.type.to_s == "Integer"
             widget ? { "widget" => widget } : {}
+          end
+
+          # A value object declared a closed set (`one_of`) is entered by choosing one of its
+          # members.
+          def options(attribute, leaf)
+            object = @objects[attribute.type.to_s]
+            return {} unless object&.closed_set?
+
+            members = object.members.filter_map { |member| member[leaf.name] }.uniq
+            members.empty? ? {} : { "options" => members.map(&:to_s) }
           end
 
           def keys(leaf)

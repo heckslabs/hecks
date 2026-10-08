@@ -1,0 +1,101 @@
+# Actions to run later on a post or a page, as their own bounded context. A record names its subject by
+# the key `<kind>:<slug>`, an action from a closed set and a due time in whole seconds; it starts
+# pending and ends done, failed or cancelled. Nothing here runs an action: a runner elsewhere reads the
+# pending records at their time and completes or fails them.
+Hecks.bluebook "Schedule" do
+  vision "What a small newsroom has set to happen later."
+  core
+
+  aggregate "ScheduledAction" do
+    description "One action on one post or page, to run at a time."
+
+    identified_by :id
+
+    value_object "ActionId" do
+      attribute :value, String
+    end
+
+    value_object "SubjectKey" do
+      attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
+    end
+
+    value_object "ActionName" do
+      attribute :value, String, one_of: ["publish", "withdraw"]
+    end
+
+    value_object "DueAt" do
+      attribute :value, Integer
+      invariant("a due time is a real moment") { value >= 0 }
+    end
+
+    value_object "Outcome" do
+      attribute :value, String
+    end
+
+    attribute :id,      ActionId
+    attribute :subject, SubjectKey
+    attribute :action,  ActionName
+    attribute :due_at,  DueAt
+    attribute :reason,  Outcome, optional: true
+
+    lifecycle :status, default: "pending" do
+      transition "Complete" => "done", from: "pending"
+      transition "Fail" => "failed", from: "pending"
+      transition "Cancel" => "cancelled", from: "pending"
+    end
+
+    command "Schedule" do
+      role "Editor"
+      goal "Set an action to run later"
+
+      attribute :id,      ActionId
+      attribute :subject, SubjectKey
+      attribute :action,  ActionName
+      attribute :due_at,  DueAt
+
+      emits "ActionScheduled"
+    end
+
+    command "Reschedule" do
+      role "Editor"
+      goal "Change when a pending action runs"
+      reference_to ScheduledAction
+
+      attribute :due_at, DueAt
+
+      emits "ActionRescheduled"
+    end
+
+    command "Cancel" do
+      role "Editor"
+      goal "Stop a pending action from running"
+      reference_to ScheduledAction
+
+      emits "ActionCancelled"
+    end
+
+    command "Complete" do
+      role "Runner"
+      goal "Record that an action ran"
+      reference_to ScheduledAction
+
+      emits "ActionCompleted"
+    end
+
+    command "Fail" do
+      role "Runner"
+      goal "Record that an action could not run, and why"
+      reference_to ScheduledAction
+
+      attribute :reason, Outcome
+
+      emits "ActionFailed"
+    end
+
+    query "ForSubject" do
+      description "The actions set for one post or page."
+      attribute :subject, SubjectKey
+      where(subject: :subject)
+    end
+  end
+end

@@ -1,0 +1,83 @@
+# The pictures of a post or a page, as their own bounded context: the registered pictures (found by
+# shape as the picture aggregate) and a gallery keyed `<kind>:<slug>` that holds an ordered list of
+# them.
+Hecks.bluebook "Pictures" do
+  vision "The pictures a small newsroom keeps."
+  core
+
+  aggregate "MediaItem" do
+    description "A picture that has been uploaded: its record only, the bytes are kept elsewhere."
+
+    identified_by :key
+
+    value_object "PictureKey" do
+      attribute :value, String
+      invariant("a picture has a key") { !value.to_s.empty? }
+    end
+
+    value_object "AltText" do
+      attribute :value, String
+      invariant("a picture has alt text") { !value.to_s.strip.empty? }
+    end
+
+    value_object "MimeType" do
+      attribute :value, String
+    end
+
+    attribute :key,       PictureKey
+    attribute :alt,       AltText
+    attribute :mime_type, MimeType
+
+    command "RegisterPicture" do
+      role "Editor"
+      goal "Record a picture that has been uploaded"
+
+      attribute :key,       PictureKey
+      attribute :alt,       AltText
+      attribute :mime_type, MimeType
+
+      emits "PictureRegistered"
+    end
+
+    query "Pictures" do
+      description "Every registered picture."
+    end
+  end
+
+  aggregate "Gallery" do
+    description "The pictures that go with one post or page, in order."
+
+    identified_by :key
+
+    value_object "GalleryKey" do
+      attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
+    end
+
+    value_object "PictureRef" do
+      attribute :value, String
+    end
+
+    attribute :key,      GalleryKey
+    attribute :pictures, list_of(PictureRef)
+
+    command "Gather" do
+      role "Editor"
+      goal "Gather pictures for a post or a page"
+
+      attribute :key,      GalleryKey
+      attribute :pictures, list_of(PictureRef)
+
+      emits "GalleryGathered"
+    end
+
+    command "Rearrange" do
+      role "Editor"
+      goal "Change which pictures a gallery holds, and their order"
+      reference_to Gallery
+
+      attribute :pictures, list_of(PictureRef)
+
+      emits "GalleryRearranged"
+    end
+  end
+end

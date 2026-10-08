@@ -1,0 +1,43 @@
+__BANNER__
+
+// The question a command asks before it runs, as a native `<dialog>`: a destructive command (cancel,
+// discard, withdraw) and a command that publishes. The button that asks carries `data-confirm` with
+// the dialog's id; the page's script opens it, and a browser with no script follows the button's link
+// to a page that asks the same question.
+import type { Aggregate, Command } from "../schema.ts";
+import { esc } from "./html.ts";
+import { backInput } from "./links.ts";
+import type { Back } from "./links.ts";
+import { commandLabel } from "./words.ts";
+
+/** What makes one dialog differ from another on a page that holds several. */
+export interface Asking {
+  /** Told apart when one command is asked about on several rows. */
+  suffix?: string;
+  /** Where a person is sent once the command has run. */
+  back?: Back | null;
+  /** The button's colour: `error` for something that cannot be undone, `neutral` for the rest. */
+  tone?: "error" | "neutral";
+  /** The words for the button, when they are not the command's own. */
+  button?: string;
+  /** Whether a draft still being written is saved first (see browser/autosave.js). */
+  flush?: boolean;
+}
+
+/** The id of a command's dialog, with the suffix that tells rows apart. */
+export const dialogId = (command: Command, suffix = ""): string => `confirm-${command.name}${suffix ? `-${suffix}` : ""}`;
+
+/** The question a command asks, as a native dialog that posts to `action` when confirmed. */
+export function confirmDialog(agg: Aggregate, command: Command, action: string, id: string, form?: string, asking: Asking = {}): string {
+  const dialog = dialogId(command, asking.suffix);
+  const what = esc(asking.button ?? commandLabel(agg, command));
+  const detail = command.goal ? `${esc(command.goal)}.` : `This applies to ${esc(id)}.`;
+  const owner = form ? ` form="${esc(form)}"` : "";
+  const tone = asking.tone === "neutral" ? "btn btn-neutral" : "btn btn-error";
+  const head = `<h2 id="${dialog}-title" class="text-xl">${what}?</h2>\n<p class="mt-2 text-muted">${detail}</p>`;
+  const dismiss = what === "Cancel" ? "Go back" : "Cancel";
+  const buttons = `<div class="modal-action"><button type="submit" class="btn btn-ghost" formmethod="dialog" formnovalidate>${dismiss}</button><button type="submit" class="${tone}"${owner}>${what}</button></div>`;
+  const box = form ? `${head}\n${buttons}` : `<form method="post" action="${esc(action)}"${asking.flush ? " data-flush-draft" : ""}>\n${backInput(asking.back ?? null)}${head}\n${buttons}\n</form>`;
+  const close = `<form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>`;
+  return `<dialog class="modal" id="${dialog}" aria-labelledby="${dialog}-title">\n<div class="modal-box">\n${box}\n</div>\n${close}\n</dialog>`;
+}
