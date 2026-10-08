@@ -35,25 +35,35 @@ module Hecks
         end
 
         # @return [Array<(String, Integer)>] the report, one line per command ending in the count,
-        #   and how many failed
+        #   and how many failed; a command whose synthesized arguments the host refused is counted
+        #   as unchecked, not failed
         def call
           lines = @checks.map { |check| judged(check) }
-          failed = lines.count { |_, wrong| wrong }
-          [lines.map(&:first).append("#{lines.size} commands, #{failed} failed").join("\n"), failed]
+          failed = lines.count { |_, state| state == :failed }
+          unchecked = lines.count { |_, state| state == :unchecked }
+          summary = "#{lines.size} commands, #{failed} failed, #{unchecked} unchecked"
+          [lines.map(&:first).append(summary).join("\n"), failed]
         end
 
         private
 
         def judged(check)
-          why = Projections::Site::RoleProbe.verdict(check, answer_to(check))
-          ["  #{check.verb} (#{check.role}) is refused with no role... #{why ? "FAILED: #{why}" : "ok"}", !why.nil?]
+          answer = answer_to(check)
+          return [line(check, "unchecked: the host refused the arguments before the role"), :unchecked] if unchecked?(answer)
+
+          why = Projections::Site::RoleProbe.verdict(check, answer)
+          [line(check, why ? "FAILED: #{why}" : "ok"), why ? :failed : :ok]
         rescue *NETWORK => e
-          ["  #{check.verb} (#{check.role}) is refused with no role... FAILED: #{e.class}: #{e.message}", true]
+          [line(check, "FAILED: #{e.class}: #{e.message}"), :failed]
         end
+
+        def unchecked?(answer) = Projections::Site::RoleProbe.unchecked?(answer)
+
+        def line(check, outcome) = "  #{check.verb} (#{check.role}) is refused with no role... #{outcome}"
 
         def answer_to(check)
           request = Net::HTTP::Post.new(URI.join(@uri.to_s, "/dispatch"), "Content-Type" => "application/json")
-          request.body = JSON.generate(verb: check.verb, with: {})
+          request.body = JSON.generate(verb: check.verb, with: check.arguments)
           JSON.parse(connection.request(request).body)
         end
 
