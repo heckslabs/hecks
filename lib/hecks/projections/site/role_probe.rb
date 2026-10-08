@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../bluebook/synthesizer"
+
 module Hecks
   module Projections
     module Site

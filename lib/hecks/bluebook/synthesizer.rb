@@ -1,3 +1,5 @@
+require_relative "attribute"
+
 module Hecks
   module Bluebook
     # Synthesizes one argument per declared attribute from the IR: fixed markers for scalars,
