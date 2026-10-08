@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Fixed
+
+- **A committed `oidc.json` compares equal under any json release.** `JSON.pretty_generate` spells an empty list `[]` in some json releases and `[` newline newline `]` in others (2.7.2, the version `Gemfile.lock` pins, among them), so `lib/hecks/deploy/oidc.json`, written where the list is `[]`, read as drifted in CI. `Hecks::Projections::OIDC.render` now writes the manifest with an empty list as `[]`, and both `hecks deploy oidc_manifest.project_oidc` and `spec/oidc_manifest_spec.rb` use it, so no committed manifest changes.
+
 ## [3.10.0] - 2026-10-07
 
 A minor release: `hecks deploy handover.clear` empties a domain's deployment settings for a client handoff, the generated content editor gains a rich-text body and pictures, `@hecks/client` can ask a host's queries, and two Rust host compile faults are fixed.
