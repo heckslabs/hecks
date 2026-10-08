@@ -377,10 +377,13 @@ mod tests {
     // caller's own word for its role and no session check.
     #[test]
     fn a_verb_or_read_body_from_outside_this_host_is_an_ordinary_request_not_a_command() {
-        for body in [r#"{"verb":"Approve","role":"admin"}"#, r#"{"read":true}"#] {
+        for body in [r#"{"verb":"Approve","role":"admin"}"#, r#"{"read":true}"#, r#"{"query":"Pictures::MediaItem.Pictures","args":{}}"#] {
             let envelope = admitted("10.0.0.5:5000", "/webhooks/x", body);
 
-            assert!(envelope.get("verb").is_none() && envelope.get("read").is_none(), "{body} must not reach dispatch as a command");
+            assert!(
+                envelope.get("verb").is_none() && envelope.get("read").is_none() && envelope.get("query").is_none(),
+                "{body} must not reach dispatch as a command"
+            );
             assert_eq!(envelope["requestContext"]["http"]["method"], "POST");
             assert_eq!(envelope["rawPath"], "/webhooks/x");
             assert_eq!(envelope["body"], body);
@@ -399,7 +402,7 @@ mod tests {
 
     #[test]
     fn a_verb_or_read_body_from_this_host_still_reaches_dispatch_unchanged() {
-        for body in [r#"{"verb":"Register","to":"r1","with":{}}"#, r#"{"read":true}"#] {
+        for body in [r#"{"verb":"Register","to":"r1","with":{}}"#, r#"{"read":true}"#, r#"{"query":"Banking::Customer.Suspended","args":{}}"#] {
             let envelope = admitted("127.0.0.1:5000", "/anything", body);
 
             assert_eq!(envelope, serde_json::from_str::<Value>(body).unwrap());
