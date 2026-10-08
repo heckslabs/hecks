@@ -19,6 +19,18 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
     expect(checks.map(&:verb)).to all(match(/\A\w+::\w+\.\w+\z/))
   end
 
+  it "synthesizes the arguments a host checks before it asks who is calling" do
+    expect(checks.map(&:arguments)).to all(be_a(Hash))
+  end
+
+  describe ".unchecked?" do
+    it "is true only when the host refused the arguments themselves", :aggregate_failures do
+      expect(described_class.unchecked?({ "refusals" => [{ "kind" => "InvariantViolation" }] })).to be(true)
+      expect(described_class.unchecked?({ "refusals" => [{ "kind" => "Unauthorized" }] })).to be(false)
+      expect(described_class.unchecked?({ "refusals" => [] })).to be(false)
+    end
+  end
+
   describe ".verdict" do
     let(:check) { checks.first }
 
@@ -37,10 +49,10 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
 
     after { Hecks::Adapters::Codebase::Tree.root = nil }
 
-    def host(enforcing:)
+    def host(enforcing:, refusal: "Unauthorized")
       server = WEBrick::HTTPServer.new(Port: 0, BindAddress: "127.0.0.1", Logger: WEBrick::Log.new(File::NULL),
                                        AccessLog: [])
-      refusals = enforcing ? [{ "kind" => "Unauthorized" }] : []
+      refusals = enforcing ? [{ "kind" => refusal }] : []
       server.mount_proc("/dispatch") { |_req, res| res.body = JSON.generate("refusals" => refusals) }
       thread = Thread.new { server.start }
       yield "http://127.0.0.1:#{server.config[:Port]}"
@@ -69,6 +81,15 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
 
         expect(status).to eq(1)
         expect(out).to include("is refused with no role... FAILED: was not refused for its role")
+      end
+    end
+
+    it "counts a command whose arguments the host refused as unchecked, not failed", :aggregate_failures do
+      host(enforcing: true, refusal: "InvariantViolation") do |url|
+        out, status = run(url)
+
+        expect(status).to eq(0)
+        expect(out).to include("0 failed").and include("unchecked: the host refused the arguments")
       end
     end
 
