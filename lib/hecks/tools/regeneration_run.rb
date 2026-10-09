@@ -9,13 +9,12 @@ require_relative "../corpus"
 module Hecks
   module Tools
     # Regenerates every corpus domain's Rust output with `hecks project_rust`, or checks that the
-    # output on disk is what a regeneration would write. The output is not committed (pizzas,
-    # `mod.rs` and `Cargo.toml` aside), so a fresh checkout is materialized with `--confirm` first.
+    # output on disk is what that would write. Only pizzas, `mod.rs` and `Cargo.toml` are committed.
     #
     # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list. The
     # order is fixed (sorted by relative path): domains that share governance/, identity/,
-    # Cargo.toml and generated/mod.rs stamp them with whichever ran last, so it must not flap. If
-    # the domain set or the sort rule changes, re-run and commit the output; never hand-edit stamps.
+    # Cargo.toml and generated/mod.rs stamp them with whichever ran last, so it must not flap.
+    # If the domain set or the sort rule changes, re-run and commit what changed.
     #
     #   hecks regenerate_corpus         # discover, regenerate, print the plan
     #   hecks regenerate_corpus --check # regenerate into a scratch crate; fail on any difference
