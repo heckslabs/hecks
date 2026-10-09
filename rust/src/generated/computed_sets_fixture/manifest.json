@@ -18,6 +18,24 @@
   },
   {
     "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Charge",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Late",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Discount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "ComputedSetsFixture::Settlement.Share",
     "generated": true,
     "routed": true
