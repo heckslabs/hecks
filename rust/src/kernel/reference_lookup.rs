@@ -134,6 +134,11 @@ pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [Projec
             let value = match with_references.field(spec.reference) {
                 Some(Field::Nested(node)) => match node.field(spec.remote_field) {
                     Some(Field::Value(Value::Str(s))) => Some(s),
+                    // A single-field value object unwraps to its one scalar, as Ruby's RebuildSweep does.
+                    Some(Field::Nested(inner)) => match inner.as_scalar() {
+                        Some(Value::Str(s)) => Some(s),
+                        _ => None,
+                    },
                     _ => None,
                 },
                 _ => None,

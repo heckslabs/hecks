@@ -1907,6 +1907,42 @@ RSpec.describe "the DSL surface" do
                      &composed(region_and_customer, projecting_account_from(:"customer.region")))
     end
 
+    def customer_with_value_object(*fields)
+      proc do
+        aggregate("Customer") do
+          identified_by :id
+          value_object("Since") { fields.each { |name| attribute name, Integer } }
+          attribute :since, Since
+        end
+      end
+    end
+
+    it "projects accepts a remote field typed by a single-field value object" do
+      parts = composed(customer_with_value_object(:value), projecting_account_from(:"customer.since"))
+
+      expect { build_bluebook("SingleFieldProjection", &parts) }.not_to raise_error
+    end
+
+    it "projects refuses a remote field typed by a multi-field value object" do
+      expect_refusal(:bluebook, "MultiFieldProjection", /not a scalar/,
+                     &composed(customer_with_value_object(:year, :month), projecting_account_from(:"customer.since")))
+    end
+
+    def customer_with_tags
+      proc do
+        aggregate("Customer") do
+          identified_by :id
+          value_object("Tag") { attribute :value, String }
+          attribute :tags, list_of(Tag)
+        end
+      end
+    end
+
+    it "projects refuses a remote list" do
+      expect_refusal(:bluebook, "ListProjection", /not a scalar/,
+                     &composed(customer_with_tags, projecting_account_from(:"customer.tags")))
+    end
+
     def guarded_door_command
       build_bluebook("Guarding") do
         aggregate("Door") do

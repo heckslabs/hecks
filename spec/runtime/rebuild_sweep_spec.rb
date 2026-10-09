@@ -91,4 +91,46 @@ RSpec.describe "the rebuild sweep" do
     expect(sweep).to eq(0)
     expect(sweep).to eq(0)
   end
+
+  context "when the remote field is a single-field value object" do
+    SINGLE_FIELD_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/projected_single_field.bluebook")
+
+    def single_runtime
+      @single_runtime ||= begin
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
+          [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+           InMemoryDomain::PRISM_ADAPTER, SINGLE_FIELD_FIXTURE].each { |path| Kernel.load(path) }
+          Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+        end
+      end
+    end
+
+    def booking_aggregate = single_runtime.registry.bluebook("ProjectedSingleField").aggregate("Booking")
+
+    def booking_repository = single_runtime.registry.repository("ProjectedSingleField", booking_aggregate)
+
+    def book_event(starts_at)
+      single_runtime.dispatch_flat("ProjectedSingleField::Event.Schedule", ref: "e1", starts_at: starts_at)
+      single_runtime.dispatch_flat("ProjectedSingleField::Booking.Open", event: "e1", ref: "b1")
+    end
+
+    def single_sweep
+      Hecks::Runtime::RebuildSweep.call(single_runtime.registry, "ProjectedSingleField", booking_aggregate)
+    end
+
+    it "seeds the unwrapped scalar when a command saves the record" do
+      book_event(100)
+
+      expect(booking_repository.find("b1")[:starts_at]).to eq(100)
+    end
+
+    it "keeps the copy current when a sweep runs after the source moves", :aggregate_failures do
+      book_event(100)
+      single_runtime.dispatch_flat("ProjectedSingleField::Event.Reschedule", ref: "e1", starts_at: 250)
+
+      expect(single_sweep).to eq(1)
+      expect(booking_repository.find("b1")[:starts_at]).to eq(250)
+    end
+  end
 end

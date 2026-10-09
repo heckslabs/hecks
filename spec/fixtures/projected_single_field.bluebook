@@ -1,0 +1,66 @@
+
+# `projects` over a remote field typed by a single-field value object (ADR 0025 addendum).
+Hecks.bluebook "ProjectedSingleField" do
+  vision "An Event's start time, held locally on the Booking that refers to it as a bare integer."
+  core
+
+  aggregate "Event" do
+    description "The record a Booking's projected start time is a copy of."
+
+    identified_by :ref
+
+    attribute :ref, EventRef
+    attribute :starts_at, StartsAt
+
+    value_object "EventRef", String
+    value_object "StartsAt", Integer
+
+    command "Schedule" do
+      role "Clerk"
+      goal "Schedule an event"
+
+      attribute :ref, EventRef
+      attribute :starts_at, StartsAt
+
+      sets :ref
+      sets :starts_at
+
+      emits "EventScheduled"
+    end
+
+    command "Reschedule" do
+      role "Clerk"
+      goal "Move an event"
+
+      reference_to Event
+      attribute :starts_at, StartsAt
+
+      sets :starts_at
+
+      emits "EventRescheduled"
+    end
+  end
+
+  aggregate "Booking" do
+    description "Refers to an Event, and holds a local copy of that Event's start time."
+
+    identified_by :ref
+
+    attribute :ref, BookingRef
+    reference_to Event
+
+    projects :starts_at, from: :"event.starts_at"
+
+    value_object "BookingRef", String
+
+    command "Open" do
+      role "Clerk"
+      goal "Book an event"
+
+      reference_to Event
+      attribute :ref, BookingRef
+
+      emits "BookingOpened"
+    end
+  end
+end
