@@ -1,0 +1,99 @@
+# Pins a `for_each` policy whose query argument is the emitting aggregate's identity head. Cancel
+# references its own record and emits an event with an empty payload, so the record's id is the
+# only thing that can answer the query's `registration_id`.
+#
+# Dispatched against both engines by
+# spec/corpus/rust_conformance/for_each_identity_lent_to_query.json
+Hecks.bluebook "ForEachIdentityFixture" do
+  vision "The smallest domain whose cancellation settles the refunds still tracking its own registration."
+
+  core
+
+  aggregate "Registration" do
+    description "A registration, cancelled by naming its own record."
+
+    identified_by :registration_id
+
+    attribute :registration_id, RegistrationId
+
+    value_object "RegistrationId" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Cancel" => "cancelled", from: "open"
+    end
+
+    command "Open" do
+      goal "Open a registration"
+
+      attribute :registration_id, RegistrationId
+
+      sets :registration_id
+
+      emits "RegistrationOpened"
+    end
+
+    command "Cancel", from: "open" do
+      goal "Cancel a registration"
+
+      reference_to Registration
+
+      emits "RegistrationCancelled"
+    end
+  end
+
+  aggregate "Refund" do
+    description "A refund tracked against a registration until it is settled."
+
+    identified_by :refund_id
+
+    attribute :refund_id, RefundId
+    attribute :registration_id, RegistrationId
+
+    value_object "RefundId" do
+      attribute :value, String
+    end
+
+    value_object "RegistrationId" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "tracking" do
+      transition "Settle" => "settled", from: "tracking"
+    end
+
+    command "Track" do
+      goal "Track a refund against a registration"
+
+      attribute :refund_id, RefundId
+      attribute :registration_id, RegistrationId
+
+      sets :refund_id
+      sets :registration_id
+
+      emits "RefundTracked"
+    end
+
+    command "Settle", from: "tracking" do
+      goal "Settle a tracked refund"
+
+      reference_to Refund
+
+      emits "RefundSettled"
+    end
+
+    query "Tracking" do
+      attribute :registration_id, RegistrationId
+      where(registration_id: :registration_id, status: "tracking")
+    end
+  end
+
+  # The event carries nothing, so the query's `registration_id` is lent from the cancelled
+  # registration's own id.
+  policy "SettleRefundOnCancel" do
+    on "RegistrationCancelled"
+    for_each "Refund.Tracking"
+    trigger Refund::Settle
+  end
+end

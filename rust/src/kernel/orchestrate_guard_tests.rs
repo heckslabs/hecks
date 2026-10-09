@@ -622,6 +622,49 @@ fn an_undeclared_with_never_offers_a_fan_out_rows_fields() {
     assert_eq!(args, Json::obj(vec![("amount", Json::int(5)), ("to", Json::str("zzz")), ("order_id", Json::str("r1"))]));
 }
 
+const READS_ORDER_ID: crate::kernel::QueryDef = crate::kernel::QueryDef {
+    verb: "D::Order.ForOrder",
+    aggregate: "D::Order",
+    conditions: &[crate::kernel::QueryCondition {
+        field: "order_id",
+        comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+        value: crate::kernel::QueryConditionValue::Arg("order_id"),
+    }],
+    reference_hop_conditions: &[],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+};
+
+#[test]
+fn a_for_each_query_is_lent_the_emitting_records_id_under_its_identity_head() {
+    let args = for_each_query_args(&READS_ORDER_ID, &order_event(Json::obj(vec![])), &tables());
+
+    assert_eq!(args, Json::obj(vec![("order_id", Json::str("o1"))]));
+}
+
+#[test]
+fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
+    let args = for_each_query_args(&READS_ORDER_ID, &order_event(Json::obj(vec![("order_id", Json::str("mine"))])), &tables());
+
+    assert_eq!(args, Json::obj(vec![("order_id", Json::str("mine"))]));
+}
+
+#[test]
+fn a_for_each_query_that_does_not_read_the_head_is_lent_nothing() {
+    let args = for_each_query_args(&QUERIES[0], &order_event(payload()), &tables());
+
+    assert_eq!(args, payload());
+}
+
+#[test]
+fn a_for_each_query_is_lent_nothing_for_an_aggregate_without_a_single_head() {
+    let args = for_each_query_args(&READS_ORDER_ID, &event("E", "D::Other", "x1", Json::obj(vec![])), &tables());
+
+    assert_eq!(args, Json::obj(vec![]));
+}
+
 const PROJECT: &[(&str, &str)] = &[("amount", ":amount"), ("note", "\"hi\""), ("tag", ":absent")];
 
 #[test]

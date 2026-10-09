@@ -318,6 +318,15 @@ side having to say the argument's name twice. `where`, above, still
 gates the whole fan-out, evaluated once against the event, not once
 per row.
 
+The event's own payload does not carry the emitting record's identity, so
+a query argument named for an identity head of the emitting aggregate is
+lent the record's id when the payload lacks it, and a payload value is
+never overridden. A `Registration.Cancel` that only does
+`reference_to Registration` emits an empty payload, and `for_each "Refund.Tracking"`
+still finds the refunds whose `registration_id` is the cancelled
+registration. The Rust kernel lends the same id for an aggregate with a
+single-component identity.
+
 One alert, two cards held by the same person, and the fan-out runs once
 per row `ForHolder` answers — the alert never named a card. Each row is
 recorded under `for_row:`:
