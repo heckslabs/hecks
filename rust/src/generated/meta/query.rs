@@ -814,7 +814,7 @@ impl crate::kernel::ToJson for Query {
 }
 
 impl crate::kernel::SetProjectedField for Query {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
 
             _ => {}

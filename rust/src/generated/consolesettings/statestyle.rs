@@ -374,7 +374,7 @@ impl crate::kernel::ToJson for StateStyle {
 }
 
 impl crate::kernel::SetProjectedField for StateStyle {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
 
             _ => {}

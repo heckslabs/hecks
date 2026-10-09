@@ -496,7 +496,7 @@ impl crate::kernel::ToJson for Page {
 }
 
 impl crate::kernel::SetProjectedField for Page {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
 
             _ => {}

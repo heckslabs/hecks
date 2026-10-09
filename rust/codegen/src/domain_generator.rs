@@ -289,6 +289,8 @@ pub fn generate(
     source_label: &str,
     mod_name: &str,
 ) -> GeneratedDomain {
+    let resolved_ir = types::with_resolved_projection_types(ir);
+    let ir = &resolved_ir;
     let domain_name = ir.get("name").and_then(Json::as_str).unwrap_or("");
     let all_aggregates = ir.get("aggregates").map(Json::each).unwrap_or(&[]);
     let aggregates_by_name: HashMap<String, &Json> = all_aggregates

@@ -332,12 +332,12 @@ impl crate::kernel::ToJson for Transfer {
 }
 
 impl crate::kernel::SetProjectedField for Transfer {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
-            "source_account_status" => self.source_account_status = value,
-            "source_customer_status" => self.source_customer_status = value,
-            "destination_account_status" => self.destination_account_status = value,
-            "destination_customer_status" => self.destination_customer_status = value,
+            "source_account_status" => self.source_account_status = value.and_then(crate::kernel::Value::into_string),
+            "source_customer_status" => self.source_customer_status = value.and_then(crate::kernel::Value::into_string),
+            "destination_account_status" => self.destination_account_status = value.and_then(crate::kernel::Value::into_string),
+            "destination_customer_status" => self.destination_customer_status = value.and_then(crate::kernel::Value::into_string),
             _ => {}
         }
     }
