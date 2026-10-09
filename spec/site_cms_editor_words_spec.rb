@@ -13,14 +13,9 @@ EDITOR_WORDS_SCENARIO = <<~JS.freeze
   console.log(JSON.stringify({ out, participles }));
 JS
 
-RSpec.describe "the words of a success notice, run by node" do
-  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }
-  let(:result) do
-    env = { "CASES" => JSON.generate(CASES.map { |row| row.first(3) }), "VERBS" => JSON.generate(VERBS) }
-    EditorNode.run(files, EDITOR_WORDS_SCENARIO, env: env)
-  end
-
-  CASES = [
+# The rows and verbs the scenario is run with, in a module of their own so no top-level constant is shared.
+module EditorWordsTable
+  NOTICE_ROWS = [
     ["ScheduledAction", "Schedule", true, "Scheduled action."],
     ["ScheduledAction", "Reschedule", false, "Rescheduled."],
     ["ScheduledAction", "Cancel", false, "Canceled."],
@@ -37,12 +32,20 @@ RSpec.describe "the words of a success notice, run by node" do
     ["MediaItem", "RegisterPicture", false, "Registered picture."]
   ].freeze
 
-  PARTICIPLES = {
+  NOTICE_PARTICIPLES = {
     "save" => "saved", "publish" => "published", "discard" => "discarded", "reschedule" => "rescheduled",
     "cancel" => "canceled", "withdraw" => "withdrawn", "start" => "started", "schedule" => "scheduled",
     "begin" => "begun", "reset" => "reset", "rewrite" => "rewritten", "undo" => "undone", "reply" => "replied", "log" => "logged"
   }.freeze
-  VERBS = PARTICIPLES.keys.freeze
+  NOTICE_VERBS = NOTICE_PARTICIPLES.keys.freeze
+end
+
+RSpec.describe "the words of a success notice, run by node" do
+  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }
+  let(:result) do
+    env = { "CASES" => JSON.generate(EditorWordsTable::NOTICE_ROWS.map { |row| row.first(3) }), "VERBS" => JSON.generate(EditorWordsTable::NOTICE_VERBS) }
+    EditorNode.run(files, EDITOR_WORDS_SCENARIO, env: env)
+  end
 
   def files
     projected = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
@@ -50,10 +53,10 @@ RSpec.describe "the words of a success notice, run by node" do
   end
 
   it "reads naturally for each verb and noun, and never says a word twice" do
-    expect(result["out"]).to eq(CASES.map(&:last))
+    expect(result["out"]).to eq(EditorWordsTable::NOTICE_ROWS.map(&:last))
   end
 
   it "puts irregular and regular verbs in one past tense" do
-    expect(result["participles"]).to eq(PARTICIPLES)
+    expect(result["participles"]).to eq(EditorWordsTable::NOTICE_PARTICIPLES)
   end
 end
