@@ -61,6 +61,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       # `io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.
       # Every shard must compute its file list from identical inputs or the lists stop
       # partitioning the suite, so grouping reads only the committed baseline, never a cache.

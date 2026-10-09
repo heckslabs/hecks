@@ -1,2 +1,8 @@
 /target
 /dist
+
+# Generated from the bluebooks by `hecks regeneration_run.regenerate_corpus --confirm`; mod.rs and the
+# Cargo features stay tracked. pizzas stays committed: its translations carry SQL only the Ruby
+# toolchain compiles, so hecks-build cannot reproduce it.
+/src/generated/*/
+!/src/generated/pizzas/

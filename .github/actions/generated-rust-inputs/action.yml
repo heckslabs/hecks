@@ -1,0 +1,25 @@
+name: Generated Rust inputs
+description: >-
+  A hash of everything that decides what `hecks regeneration_run.regenerate_corpus` writes into
+  rust/src/generated: the bluebooks, hecksagons and worlds it reads, the generator crates, and the
+  Ruby that builds the IR. It reads only tracked files, so a bare checkout computes the same hash
+  as one that has already regenerated. The generated-rust action keys its cache on it, and a job
+  that must name a cache before it regenerates uses it in place of hashing rust/src/generated.
+outputs:
+  hash:
+    description: The hash of the inputs.
+    value: ${{ steps.hash.outputs.hash }}
+runs:
+  using: composite
+  steps:
+    - name: Hash the generator inputs
+      id: hash
+      shell: bash
+      run: >-
+        echo "hash=${{ hashFiles('rust/codegen/**', 'rust/build/**', 'rust/parser/**', 'rust/Cargo.toml',
+        'rust/src/generated/mod.rs', 'rust/src/generated/pizzas/**', 'lib/hecks/rust_build/**',
+        'lib/hecks/projector/**', 'lib/hecks/corpus/**', 'lib/hecks/corpus.rb',
+        'lib/hecks/tools/regeneration_run.rb', 'lib/hecks/bluebook/**', 'lib/hecks/language/**',
+        'lib/hecks/runtime/**', 'lib/hecks/ports/persistence/**', 'lib/hecks/**/*.bluebook',
+        'lib/hecks/**/*.hecksagon', 'lib/hecks/**/*.world', 'examples/**', 'qa/stress_domains/**',
+        'spec/fixtures/**', 'Gemfile.lock') }}" >> "$GITHUB_OUTPUT"

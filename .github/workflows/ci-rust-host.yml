@@ -73,6 +73,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       - uses: ./.github/actions/wasm-toolchain
         with:
           install-wasmtime: "false"
@@ -115,6 +118,9 @@ jobs:
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       # Preinstalled Postgres rather than a `services:` container; see the action header.
       - uses: ./.github/actions/postgres
@@ -174,6 +180,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       - uses: ./.github/actions/postgres
 

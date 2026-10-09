@@ -1,0 +1,26 @@
+name: Generated Rust
+description: >-
+  Materializes rust/src/generated, which the repository no longer commits (pizzas aside). It
+  restores the output a run on identical inputs wrote, or regenerates the whole corpus with
+  `hecks regeneration_run.regenerate_corpus --confirm` and saves it. Put it before any step that
+  builds, tests or hashes rust/src, and after setup-ruby, which it needs.
+runs:
+  using: composite
+  steps:
+    - name: Hash the generator inputs
+      id: inputs
+      uses: ./.github/actions/generated-rust-inputs
+
+    - name: Restore the generated Rust
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: rust/src/generated
+        key: generated-rust-${{ runner.os }}-${{ steps.inputs.outputs.hash }}
+
+    - name: Regenerate the generated Rust
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        HECKS_ENVIRONMENT: memory
+      run: bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait

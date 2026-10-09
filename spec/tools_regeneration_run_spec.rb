@@ -10,7 +10,7 @@ RSpec.describe Hecks::Tools::RegenerationRun do
   let(:scratches) { [] }
 
   before do
-    FileUtils.mkdir_p(File.join(root, "rust/src/generated"))
+    FileUtils.mkdir_p(File.join(root, "rust/src/generated/meta"))
     File.write(File.join(root, "rust/Cargo.toml"), "[features]\n")
     allow(described_class).to receive(:plan).and_return(["examples/pizzas"])
     allow(described_class).to receive(:scratch_crate).and_wrap_original do |original, *args|
@@ -21,6 +21,12 @@ RSpec.describe Hecks::Tools::RegenerationRun do
   after do
     FileUtils.rm_rf(root)
     scratches.each { |path| FileUtils.rm_rf(path) }
+  end
+
+  it "refuses a check on a checkout whose generated output was never materialized" do
+    FileUtils.rm_rf(File.join(root, "rust/src/generated/meta"))
+
+    expect { described_class.main(["--check"], root: root) }.to raise_error(SystemExit)
   end
 
   it "removes the scratch crate when a domain aborts the run", :aggregate_failures do
