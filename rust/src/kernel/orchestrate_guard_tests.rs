@@ -598,6 +598,30 @@ fn a_payload_that_is_not_an_object_forwards_as_an_empty_object() {
     assert_eq!(args, Json::Object(vec![]));
 }
 
+fn row_record() -> Json {
+    Json::obj(vec![("charged", Json::int(40)), ("amount", Json::int(99))])
+}
+
+#[test]
+fn an_explicit_with_may_read_a_fan_out_rows_fields_but_the_payload_wins() {
+    const READ_ROW: &[(&str, &str)] = &[("note", ":charged"), ("amount", ":amount"), ("tag", ":id")];
+    let record = row_record();
+
+    let args = trigger_args_with_row(&rule("D::Order.Place", READ_ROW), &order_event(payload()), None, Some(("r1", &record)), "D::Order.Place", &tables());
+
+    assert_eq!(args, Json::obj(vec![("note", Json::int(40)), ("amount", Json::int(5)), ("tag", Json::str("r1"))]));
+}
+
+#[test]
+fn an_undeclared_with_never_offers_a_fan_out_rows_fields() {
+    let record = row_record();
+    let extra = Some(("order_id", "r1".to_string()));
+
+    let args = trigger_args_with_row(&rule("D::Order.Place", NO_WITH), &order_event(payload()), extra, Some(("r1", &record)), "D::Order.Place", &tables());
+
+    assert_eq!(args, Json::obj(vec![("amount", Json::int(5)), ("to", Json::str("zzz")), ("order_id", Json::str("r1"))]));
+}
+
 const PROJECT: &[(&str, &str)] = &[("amount", ":amount"), ("note", "\"hi\""), ("tag", ":absent")];
 
 #[test]

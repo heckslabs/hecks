@@ -1,0 +1,114 @@
+# Pins a `for_each` policy's `with:` reading a fan-out row's own fields: `:charged` is a field of
+# each Charge row the query answers, `:label` is a field of the row and of the event's payload, and
+# the payload's value wins. The row's id still reaches the trigger under its row key.
+#
+# Dispatched against both engines by
+# spec/corpus/rust_conformance/fan_out_row_fields.json
+Hecks.bluebook "FanOutRowFieldsFixture" do
+  vision "The smallest domain whose cancellation refunds each charge it fans out to by what that charge holds."
+
+  core
+
+  aggregate "Charge" do
+    description "A charge taken against a booking, refunded when the booking is cancelled."
+
+    identified_by :ref
+
+    attribute :ref, ChargeRef
+    attribute :booking, BookingKey
+    attribute :charged, Amount
+    attribute :label, Label
+    attribute :refunded, Amount, default: { value: 0 }
+    attribute :refund_label, Label, optional: true
+
+    value_object "ChargeRef" do
+      attribute :value, String
+    end
+
+    value_object "BookingKey" do
+      attribute :value, String
+    end
+
+    value_object "Amount" do
+      attribute :value, Integer
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    command "Take" do
+      goal "Take a charge"
+
+      attribute :ref, ChargeRef
+      attribute :booking, BookingKey
+      attribute :charged, Amount
+      attribute :label, Label
+
+      sets :ref
+      sets :booking
+      sets :charged
+      sets :label
+
+      emits "ChargeTaken"
+    end
+
+    command "Refund" do
+      goal "Refund what a charge holds"
+
+      reference_to Charge
+      attribute :refunded, Amount
+      attribute :refund_label, Label
+
+      sets :refunded
+      sets :refund_label
+
+      emits "ChargeRefunded"
+    end
+
+    query "ForBooking" do
+      attribute :booking, BookingKey
+      where(booking: :booking)
+    end
+  end
+
+  aggregate "Cancellation" do
+    description "A booking's cancellation."
+
+    identified_by :ref
+
+    attribute :ref, CancellationRef
+
+    value_object "CancellationRef" do
+      attribute :value, String
+    end
+
+    value_object "BookingKey" do
+      attribute :value, String
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    command "Cancel" do
+      goal "Cancel a booking"
+
+      attribute :ref, CancellationRef
+      attribute :booking, BookingKey
+      attribute :label, Label
+
+      sets :ref
+
+      emits "BookingCancelled"
+    end
+  end
+
+  # `charge` is the row's id under its row key; `refunded` comes from each row's `charged`; `refund_label` is in the row too, but the
+  # event's own `label` is offered first.
+  policy "RefundOnCancel" do
+    on "BookingCancelled"
+    for_each "Charge.ForBooking"
+    trigger Charge::Refund, with: { charge: :charge, refunded: :charged, refund_label: :label }
+  end
+end

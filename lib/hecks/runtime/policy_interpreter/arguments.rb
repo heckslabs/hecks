@@ -12,12 +12,15 @@ module Hecks
         # What the trigger is given: the whole event payload verbatim when no `with:` is
         # declared, otherwise the projection (a Symbol names a payload field, anything else
         # is a literal). `extra` is a fan-out's row key, merged into the source before the
-        # projection so a `with:` can name the row it acts on.
-        def trigger_args(policy, event, extra = {})
+        # projection so a `with:` can name the row it acts on. `row` is the fan-out row itself:
+        # its fields are offered to a projection only, below the emitter identity and the
+        # payload, and never reach an unprojected payload.
+        def trigger_args(policy, event, extra = {}, row = {})
           payload = event.payload.transform_keys(&:to_sym).merge(extra)
           return payload unless ReactionInvocation.projection_declared?(policy)
 
-          projected_args(policy, event, emitter_identity(event).merge(payload))
+          source = row.transform_keys(&:to_sym).merge(emitter_identity(event)).merge(payload)
+          projected_args(policy, event, source)
         end
 
         def projected_args(policy, event, payload)

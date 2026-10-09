@@ -1,0 +1,650 @@
+{
+  "ir_version": 1,
+  "name": "FanOutRowFieldsFixture",
+  "version": null,
+  "vision": "The smallest domain whose cancellation refunds each charge it fans out to by what that charge holds.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Charge",
+      "description": "A charge taken against a booking, refunded when the booking is cancelled.",
+      "identified_by": [
+        "ref.value"
+      ],
+      "attributes": [
+        {
+          "name": "ref",
+          "type": "ChargeRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "booking",
+          "type": "BookingKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "charged",
+          "type": "Amount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "label",
+          "type": "Label",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refunded",
+          "type": "Amount",
+          "list": false,
+          "default": {
+            "value": 0
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refund_label",
+          "type": "Label",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ChargeRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "BookingKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Amount",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Label",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Take",
+          "role": null,
+          "goal": "Take a charge",
+          "references": null,
+          "attributes": [
+            {
+              "name": "ref",
+              "type": "ChargeRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "booking",
+              "type": "BookingKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "charged",
+              "type": "Amount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "Label",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ref"
+              }
+            },
+            {
+              "target": "booking",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "booking"
+              }
+            },
+            {
+              "target": "charged",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "charged"
+              }
+            },
+            {
+              "target": "label",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "label"
+              }
+            }
+          ],
+          "emits": [
+            "ChargeTaken"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Refund",
+          "role": null,
+          "goal": "Refund what a charge holds",
+          "references": "Charge",
+          "attributes": [
+            {
+              "name": "refunded",
+              "type": "Amount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "refund_label",
+              "type": "Label",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refunded",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refunded"
+              }
+            },
+            {
+              "target": "refund_label",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refund_label"
+              }
+            }
+          ],
+          "emits": [
+            "ChargeRefunded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "ForBooking",
+          "description": null,
+          "attributes": [
+            {
+              "name": "booking",
+              "type": "BookingKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "booking",
+              "op": "eq",
+              "value": ":booking"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Cancellation",
+      "description": "A booking's cancellation.",
+      "identified_by": [
+        "ref.value"
+      ],
+      "attributes": [
+        {
+          "name": "ref",
+          "type": "CancellationRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "CancellationRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "BookingKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Label",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Cancel",
+          "role": null,
+          "goal": "Cancel a booking",
+          "references": null,
+          "attributes": [
+            {
+              "name": "ref",
+              "type": "CancellationRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "booking",
+              "type": "BookingKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "Label",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ref"
+              }
+            }
+          ],
+          "emits": [
+            "BookingCancelled"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "RefundOnCancel",
+      "on_event": "BookingCancelled",
+      "trigger_command": "Charge.Refund",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": "Charge.ForBooking",
+      "with_spec": [
+        [
+          "charge",
+          ":charge"
+        ],
+        [
+          "refunded",
+          ":charged"
+        ],
+        [
+          "refund_label",
+          ":label"
+        ]
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Charge",
+        "storage_name": "charge",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Cancellation",
+        "storage_name": "cancellation",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# Pins a `for_each` policy's `with:` reading a fan-out row's own fields: `:charged` is a field of\n# each Charge row the query answers, `:label` is a field of the row and of the event's payload, and\n# the payload's value wins. The row's id still reaches the trigger under its row key.\n#\n# Dispatched against both engines by\n# spec/corpus/rust_conformance/fan_out_row_fields.json\nHecks.bluebook \"FanOutRowFieldsFixture\" do\n  vision \"The smallest domain whose cancellation refunds each charge it fans out to by what that charge holds.\"\n\n  core\n\n  aggregate \"Charge\" do\n    description \"A charge taken against a booking, refunded when the booking is cancelled.\"\n\n    identified_by :ref\n\n    attribute :ref, ChargeRef\n    attribute :booking, BookingKey\n    attribute :charged, Amount\n    attribute :label, Label\n    attribute :refunded, Amount, default: { value: 0 }\n    attribute :refund_label, Label, optional: true\n\n    value_object \"ChargeRef\" do\n      attribute :value, String\n    end\n\n    value_object \"BookingKey\" do\n      attribute :value, String\n    end\n\n    value_object \"Amount\" do\n      attribute :value, Integer\n    end\n\n    value_object \"Label\" do\n      attribute :value, String\n    end\n\n    command \"Take\" do\n      goal \"Take a charge\"\n\n      attribute :ref, ChargeRef\n      attribute :booking, BookingKey\n      attribute :charged, Amount\n      attribute :label, Label\n\n      sets :ref\n      sets :booking\n      sets :charged\n      sets :label\n\n      emits \"ChargeTaken\"\n    end\n\n    command \"Refund\" do\n      goal \"Refund what a charge holds\"\n\n      reference_to Charge\n      attribute :refunded, Amount\n      attribute :refund_label, Label\n\n      sets :refunded\n      sets :refund_label\n\n      emits \"ChargeRefunded\"\n    end\n\n    query \"ForBooking\" do\n      attribute :booking, BookingKey\n      where(booking: :booking)\n    end\n  end\n\n  aggregate \"Cancellation\" do\n    description \"A booking's cancellation.\"\n\n    identified_by :ref\n\n    attribute :ref, CancellationRef\n\n    value_object \"CancellationRef\" do\n      attribute :value, String\n    end\n\n    value_object \"BookingKey\" do\n      attribute :value, String\n    end\n\n    value_object \"Label\" do\n      attribute :value, String\n    end\n\n    command \"Cancel\" do\n      goal \"Cancel a booking\"\n\n      attribute :ref, CancellationRef\n      attribute :booking, BookingKey\n      attribute :label, Label\n\n      sets :ref\n\n      emits \"BookingCancelled\"\n    end\n  end\n\n  # `charge` is the row's id under its row key; `refunded` comes from each row's `charged`; `refund_label` is in the row too, but the\n  # event's own `label` is offered first.\n  policy \"RefundOnCancel\" do\n    on \"BookingCancelled\"\n    for_each \"Charge.ForBooking\"\n    trigger Charge::Refund, with: { charge: :charge, refunded: :charged, refund_label: :label }\n  end\nend\n"
+}

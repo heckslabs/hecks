@@ -11,18 +11,20 @@ module Hecks
             WithContext = Struct.new(:lookup, :aggregates, :correlation_heads)
             # One `with:` to check: the command it targets, the event it reads from, the spec
             # itself, how a refusal names it, and the process manager when it is a saga leg.
-            WithSpec = Struct.new(:command_ref, :event_name, :with_spec, :label, :process_manager)
+            WithSpec = Struct.new(:command_ref, :event_name, :with_spec, :label, :process_manager, :row_names)
             # What a `with:` source may read: the correlation key, the emitter's identity heads and
-            # the event shapes whose fields are legal.
-            Readable = Struct.new(:correlation, :identity, :shapes)
+            # the event shapes whose fields are legal, and a fan-out row's names (empty off a
+            # fan-out).
+            Readable = Struct.new(:correlation, :identity, :shapes, :row)
             private_constant :WithContext, :WithSpec, :Readable
 
             private
 
             # Checks `with:` projections against the source event's shape and the target's fields.
             # Same-chapter only: an unresolvable cross-chapter source or target is skipped.
-            # A for_each policy's source is a query row with no known shape, so only its target
-            # is checked.
+            # A for_each policy's source is the event plus a query row; the row's names are known
+            # only when the query's aggregate is in this chapter, otherwise only the target is
+            # checked.
             def validate_with_projections!(policies, process_managers, aggregates)
               context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(process_managers))
 
@@ -37,9 +39,13 @@ module Hecks
             def check_policy_with!(policy, context)
               return if policy.with_spec.to_a.empty?
 
-              source_event = policy.for_each.to_s.empty? ? policy.on_event : nil
-              check_with_spec!(WithSpec.new(policy.trigger_command, source_event, policy.with_spec,
-                                            "#{policy.name}'s trigger", nil), context)
+              check_with_spec!(policy_with_spec(policy, context), context)
+            end
+
+            def policy_with_spec(policy, context)
+              row = fan_out_row_names(policy, context.aggregates, context.lookup[policy.trigger_command])
+              source_event = policy.for_each.to_s.empty? || row ? policy.on_event : nil
+              WithSpec.new(policy.trigger_command, source_event, policy.with_spec, "#{policy.name}'s trigger", nil, row)
             end
 
             def check_dispatch_with!(process_manager, handler, dispatch, context)
@@ -47,7 +53,7 @@ module Hecks
 
               label = "#{process_manager.name}'s dispatch #{dispatch.command_name}"
               check_with_spec!(WithSpec.new(dispatch.command_name, handler.event_type, dispatch.with_spec,
-                                            label, process_manager), context)
+                                            label, process_manager, nil), context)
             end
 
             # Checks one `with:` spec: each key must be a field the target command accepts,
@@ -73,7 +79,7 @@ module Hecks
               identity = pm.nil? && event_name ? event_identity_heads_for(event_name, aggregates) : []
               shapes = [event_name && event_shape_for(event_name, aggregates),
                         pm && event_shape_for(pm.starts_on, aggregates)].compact
-              Readable.new(pm&.correlates_by && pm.correlation_head, identity, shapes)
+              Readable.new(pm&.correlates_by && pm.correlation_head, identity, shapes, spec.row_names.to_a)
             end
 
             def refuse_undeclared_with_field!(spec, field)
@@ -84,6 +90,7 @@ module Hecks
             def refuse_unreadable_with_source!(spec, source, readable)
               return unless source.is_a?(::Symbol)
               return if source == readable.correlation || readable.identity.include?(source)
+              return if readable.row.include?(source)
               return if readable.shapes.empty? || shape_reads?(readable.shapes, source)
 
               raise Malformed,

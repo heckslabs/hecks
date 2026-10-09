@@ -1,0 +1,229 @@
+{
+  "domain": "spec/fixtures/rust_project/fan_out_row_fields_fixture",
+  "note": "A for_each policy's `with:` reading the fan-out row's own fields. Cancelling booking b1 fans out to its two charges: `refunded: :charged` reads each row's own `charged` (40, 60), `refund_label: :label` is in the row and in the event's payload and the payload's value wins, and the row's id still addresses the Charge. The charge for booking b2 is not a row of the query and is left alone. A runtime that offers a projection only the payload and the row id fails this fixture; so does one that lets a row field override the payload.",
+  "steps": [
+    {
+      "verb": "FanOutRowFieldsFixture::Charge.Take",
+      "args": {
+        "ref": "c1",
+        "booking": "b1",
+        "charged": 40,
+        "label": "row one"
+      }
+    },
+    {
+      "verb": "FanOutRowFieldsFixture::Charge.Take",
+      "args": {
+        "ref": "c2",
+        "booking": "b1",
+        "charged": 60,
+        "label": "row two"
+      }
+    },
+    {
+      "verb": "FanOutRowFieldsFixture::Charge.Take",
+      "args": {
+        "ref": "c3",
+        "booking": "b2",
+        "charged": 99,
+        "label": "row three"
+      }
+    },
+    {
+      "verb": "FanOutRowFieldsFixture::Cancellation.Cancel",
+      "args": {
+        "ref": "x1",
+        "booking": "b1",
+        "label": "from event"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "FanOutRowFieldsFixture::Charge#c1": {
+        "ref": {
+          "value": "c1"
+        },
+        "booking": {
+          "value": "b1"
+        },
+        "charged": {
+          "value": 40
+        },
+        "label": {
+          "value": "row one"
+        },
+        "refunded": {
+          "value": 40
+        },
+        "refund_label": {
+          "value": "from event"
+        }
+      },
+      "FanOutRowFieldsFixture::Charge#c2": {
+        "ref": {
+          "value": "c2"
+        },
+        "booking": {
+          "value": "b1"
+        },
+        "charged": {
+          "value": 60
+        },
+        "label": {
+          "value": "row two"
+        },
+        "refunded": {
+          "value": 60
+        },
+        "refund_label": {
+          "value": "from event"
+        }
+      },
+      "FanOutRowFieldsFixture::Charge#c3": {
+        "ref": {
+          "value": "c3"
+        },
+        "booking": {
+          "value": "b2"
+        },
+        "charged": {
+          "value": 99
+        },
+        "label": {
+          "value": "row three"
+        },
+        "refunded": {
+          "value": 0
+        },
+        "refund_label": null
+      },
+      "FanOutRowFieldsFixture::Cancellation#x1": {
+        "ref": {
+          "value": "x1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "ChargeTaken",
+        "aggregate": "FanOutRowFieldsFixture::Charge",
+        "id": "c1",
+        "payload": {
+          "ref": {
+            "value": "c1"
+          },
+          "booking": {
+            "value": "b1"
+          },
+          "charged": {
+            "value": 40
+          },
+          "label": {
+            "value": "row one"
+          }
+        }
+      },
+      {
+        "name": "ChargeTaken",
+        "aggregate": "FanOutRowFieldsFixture::Charge",
+        "id": "c2",
+        "payload": {
+          "ref": {
+            "value": "c2"
+          },
+          "booking": {
+            "value": "b1"
+          },
+          "charged": {
+            "value": 60
+          },
+          "label": {
+            "value": "row two"
+          }
+        }
+      },
+      {
+        "name": "ChargeTaken",
+        "aggregate": "FanOutRowFieldsFixture::Charge",
+        "id": "c3",
+        "payload": {
+          "ref": {
+            "value": "c3"
+          },
+          "booking": {
+            "value": "b2"
+          },
+          "charged": {
+            "value": 99
+          },
+          "label": {
+            "value": "row three"
+          }
+        }
+      },
+      {
+        "name": "BookingCancelled",
+        "aggregate": "FanOutRowFieldsFixture::Cancellation",
+        "id": "x1",
+        "payload": {
+          "ref": {
+            "value": "x1"
+          },
+          "booking": {
+            "value": "b1"
+          },
+          "label": {
+            "value": "from event"
+          }
+        }
+      },
+      {
+        "name": "ChargeRefunded",
+        "aggregate": "FanOutRowFieldsFixture::Charge",
+        "id": "c1",
+        "payload": {
+          "refunded": {
+            "value": 40
+          },
+          "refund_label": {
+            "value": "from event"
+          }
+        }
+      },
+      {
+        "name": "ChargeRefunded",
+        "aggregate": "FanOutRowFieldsFixture::Charge",
+        "id": "c2",
+        "payload": {
+          "refunded": {
+            "value": 60
+          },
+          "refund_label": {
+            "value": "from event"
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": [
+      {
+        "policy": "RefundOnCancel",
+        "on": "BookingCancelled",
+        "trigger": "FanOutRowFieldsFixture::Charge.Refund",
+        "for_row": "c1",
+        "delivered": true
+      },
+      {
+        "policy": "RefundOnCancel",
+        "on": "BookingCancelled",
+        "trigger": "FanOutRowFieldsFixture::Charge.Refund",
+        "for_row": "c2",
+        "delivered": true
+      }
+    ]
+  }
+}
