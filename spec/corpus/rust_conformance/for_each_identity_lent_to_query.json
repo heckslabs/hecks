@@ -1,0 +1,147 @@
+{
+  "domain": "spec/fixtures/rust_project/for_each_identity_fixture",
+  "note": "A for_each policy's query argument named for the emitting aggregate's identity head. Registration.Cancel references its own record and emits RegistrationCancelled with an empty payload, so the cancelled registration's id is the only source for the query's `registration_id`. Cancelling r1 settles its tracking refund f1 and leaves f2 (registration r2) tracking. A runtime that runs the query on the payload alone matches no row and settles nothing.",
+  "steps": [
+    {
+      "verb": "ForEachIdentityFixture::Registration.Open",
+      "args": {
+        "registration_id": "r1"
+      }
+    },
+    {
+      "verb": "ForEachIdentityFixture::Registration.Open",
+      "args": {
+        "registration_id": "r2"
+      }
+    },
+    {
+      "verb": "ForEachIdentityFixture::Refund.Track",
+      "args": {
+        "refund_id": "f1",
+        "registration_id": "r1"
+      }
+    },
+    {
+      "verb": "ForEachIdentityFixture::Refund.Track",
+      "args": {
+        "refund_id": "f2",
+        "registration_id": "r2"
+      }
+    },
+    {
+      "verb": "ForEachIdentityFixture::Registration.Cancel",
+      "args": {
+        "to": "r1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "ForEachIdentityFixture::Registration#r1": {
+        "registration_id": {
+          "value": "r1"
+        },
+        "status": "cancelled"
+      },
+      "ForEachIdentityFixture::Registration#r2": {
+        "registration_id": {
+          "value": "r2"
+        },
+        "status": "open"
+      },
+      "ForEachIdentityFixture::Refund#f1": {
+        "refund_id": {
+          "value": "f1"
+        },
+        "registration_id": {
+          "value": "r1"
+        },
+        "status": "settled"
+      },
+      "ForEachIdentityFixture::Refund#f2": {
+        "refund_id": {
+          "value": "f2"
+        },
+        "registration_id": {
+          "value": "r2"
+        },
+        "status": "tracking"
+      }
+    },
+    "events": [
+      {
+        "name": "RegistrationOpened",
+        "aggregate": "ForEachIdentityFixture::Registration",
+        "id": "r1",
+        "payload": {
+          "registration_id": {
+            "value": "r1"
+          }
+        }
+      },
+      {
+        "name": "RegistrationOpened",
+        "aggregate": "ForEachIdentityFixture::Registration",
+        "id": "r2",
+        "payload": {
+          "registration_id": {
+            "value": "r2"
+          }
+        }
+      },
+      {
+        "name": "RefundTracked",
+        "aggregate": "ForEachIdentityFixture::Refund",
+        "id": "f1",
+        "payload": {
+          "refund_id": {
+            "value": "f1"
+          },
+          "registration_id": {
+            "value": "r1"
+          }
+        }
+      },
+      {
+        "name": "RefundTracked",
+        "aggregate": "ForEachIdentityFixture::Refund",
+        "id": "f2",
+        "payload": {
+          "refund_id": {
+            "value": "f2"
+          },
+          "registration_id": {
+            "value": "r2"
+          }
+        }
+      },
+      {
+        "name": "RegistrationCancelled",
+        "aggregate": "ForEachIdentityFixture::Registration",
+        "id": "r1",
+        "payload": {}
+      },
+      {
+        "name": "RefundSettled",
+        "aggregate": "ForEachIdentityFixture::Refund",
+        "id": "f1",
+        "payload": {
+          "refund": "f1"
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": [
+      {
+        "policy": "SettleRefundOnCancel",
+        "on": "RegistrationCancelled",
+        "trigger": "ForEachIdentityFixture::Refund.Settle",
+        "for_row": "f1",
+        "delivered": true
+      }
+    ]
+  }
+}

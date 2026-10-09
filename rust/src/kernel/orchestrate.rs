@@ -333,6 +333,24 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
 
 // `row` is a fan-out's own row (its id and stored record). A projection may read its fields, below
 // the emitter identity and the payload; an undeclared projection never sees them.
+/// The arguments a `for_each` query runs with: the event payload, plus the emitting record's id
+/// under its aggregate's identity head when the query reads that name and the payload lacks it, as
+/// Ruby's `for_each_query_args` lends it. A payload value is never overridden. A composite identity
+/// has no single head in the table, so nothing is lent for it.
+fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tables) -> Json {
+    let mut args = match &event.payload {
+        Json::Object(pairs) => pairs.clone(),
+        _ => Vec::new(),
+    };
+    let reads = |head: &str| def.conditions.iter().any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(name) if name == head));
+    if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
+        if !event.id.is_empty() && reads(head) && !args.iter().any(|(name, _)| name == head) {
+            args.push((head.to_string(), Json::str(event.id.clone())));
+        }
+    }
+    Json::Object(args)
+}
+
 fn trigger_args_with_row(
     policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, row: Option<(&str, &Json)>, target_verb: &str, tables: &Tables,
 ) -> Json {
@@ -546,9 +564,10 @@ fn react_policies<S: AggregateScan>(
                 ]));
                 continue;
             };
-            // The query reads the event, not the projection. No caller role: the policy is
-            // system-triggered.
-            let rows = match named_query::run(store, def, &event.payload, None) {
+            // The query reads the event, not the projection, with the emitting record's identity
+            // lent under its head. No caller role: the policy is system-triggered.
+            let query_args = for_each_query_args(def, event, &tables);
+            let rows = match named_query::run(store, def, &query_args, None) {
                 Ok(rows) => rows,
                 Err(refusal) => {
                     reaction_log.push(record(vec![

@@ -7,6 +7,7 @@
 [features]
 default = ["reserved_names_fixture"]
 fan_out_row_fields_fixture = []
+for_each_identity_fixture = []
 projected_single_field_fixture = []
 optional_value_object_fixture = []
 reserved_names_fixture = []
