@@ -46,13 +46,23 @@ module Hecks
         end
 
         def apply_set(instance, aggregate, mutation, args, pre)
-          from_state = mutation.source.is_a?(StateRef)
-          value = from_state ? pre[mutation.source.name] : @rules.resolve_source(mutation.source, args)
+          from_state = mutation.source.is_a?(StateRef) || mutation.source.is_a?(Computed)
+          value = set_source_value(mutation.source, args, pre)
           # A plain `sets` of a list takes the whole list; only `append:` and `remove:` take
           # one element.
           list_attribute = aggregate.attribute(mutation.target)
           Value.refuse_scalar_list(aggregate, list_attribute, value) if list_attribute && !from_state
           instance[mutation.target] = Value.for(aggregate, mutation.target, value)
+        end
+
+        # A `state(:field)` reads the pre-dispatch record; an expression is evaluated over the
+        # command's arguments, then that record; anything else resolves as an argument or literal.
+        def set_source_value(source, args, pre)
+          case source
+          when StateRef then pre[source.name]
+          when Computed then Bluebook::Expression::Resolver.resolve(source.text, pre, args)
+          else @rules.resolve_source(source, args)
+          end
         end
 
         def apply_append(instance, aggregate, mutation, args, pre)

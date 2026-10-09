@@ -78,15 +78,20 @@ module Hecks
         #
         # @return [Hash{Symbol => Object}] `{kind: "argument", name:}` for a
         #   command argument, `{kind: "state", name:}` for a state
-        #   self-reference, or `{kind: "literal", value:}` for a literal value
+        #   self-reference, `{kind: "expression", text:, ast:}` for a computed value, or
+        #   `{kind: "literal", value:}` for a literal value
         def classified_source
-          if source.is_a?(Symbol)
-            { kind: "argument", name: source.to_s }
-          elsif source.is_a?(StateRef)
-            { kind: "state", name: source.name.to_s }
-          else
-            { kind: "literal", value: source }
-          end
+          return { kind: "argument", name: source.to_s } if source.is_a?(Symbol)
+          return { kind: "state", name: source.name.to_s } if source.is_a?(StateRef)
+          return computed_source if source.is_a?(Computed)
+
+          { kind: "literal", value: source }
+        end
+
+        # A computed value on the wire: its canonical text, and the AST the Rust side reads.
+        def computed_source
+          tree = Expression::Resolver.parse(source.text)
+          { kind: "expression", text: source.text, ast: Expression::AstJson.emit_resolver(tree) }
         end
       end
     end

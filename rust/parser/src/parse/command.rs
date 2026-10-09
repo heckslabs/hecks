@@ -544,8 +544,10 @@ fn build_mutation(
     }
     // `state(:field)` is the record's own field, neither argument nor literal; classified
     // before the Symbol/literal split.
+    let computed = if op == "set" { crate::expr::resolver::arithmetic_text(raw.trim()) } else { None };
     let source = match state_ref(raw.trim()) {
         Some(name) => ir::MutationSource::State(name),
+        None if computed.is_some() => ir::MutationSource::Expression(computed.unwrap_or_default()),
         None => match value {
             ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
             other => ir::MutationSource::Literal(other),

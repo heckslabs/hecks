@@ -16,7 +16,7 @@ module Hecks
         OPS = %w[
           or and not compare include
           int float str bool nil array lookup
-          add modulo sign_test empty size to_s
+          add sub mul div modulo sign_test empty size to_s
           block_predicate find first last
           matches_regex presence assignment split starts_with ends_with
         ].freeze

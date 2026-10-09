@@ -176,10 +176,11 @@ pub fn append_field_source(source: &str) -> Literal {
     literal::read(source)
 }
 
-/// Whether any effect reads the record's own state, so the closure must bind `let pre`.
+/// Whether any effect reads the record's own state (a `state(:field)` source, or an expression that
+/// may name a field), so the closure must bind `let pre`.
 pub fn reads_pre_state(mutations: &[Json]) -> bool {
     mutations.iter().any(|m| match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
-        "set" => m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default() == "state",
+        "set" => matches!(m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default().as_str(), "state" | "expression"),
         "append" => match m.get("fields") {
             Some(Json::Object(pairs)) => pairs.iter().any(|(_, source)| source.to_s().starts_with("state(:")),
             _ => false,
@@ -249,6 +250,66 @@ pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_
             }
         })
         .collect()
+}
+
+/// Problems with `set` mutations sourced from arithmetic: the target must be a scalar
+/// (non-list) attribute typed by a single-field Integer or Float value object, the one shape the
+/// generated code can rebuild a computed number into.
+pub fn expression_source_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    command
+        .get("mutations")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter(|m| m.get("op").map(Json::to_s).as_deref() == Some("set"))
+        .filter(|m| m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).as_deref() == Some("expression"))
+        .filter_map(|m| {
+            let target = m.get("target").map(Json::to_s).unwrap_or_default();
+            let attr = attrs.iter().find(|a| crate::attr::name(a) == target);
+            match attr.and_then(|a| computed_field_type(a, value_objects_by_name)) {
+                Some(_) => None,
+                None => Some(format!("{target}: a computed value needs a scalar attribute typed by a single-field Integer or Float value object — not generated yet")),
+            }
+        })
+        .collect()
+}
+
+// The scalar type (`Integer` or `Float`) of the one field of a non-list, single-field value object.
+fn computed_field_type<'a>(attr: &Json, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<(&'a Json, &'static str)> {
+    if crate::attr::list(attr) {
+        return None;
+    }
+    let vo = value_objects_by_name.get(crate::attr::type_name(attr)).copied()?;
+    let fields = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) || fields.len() != 1 || crate::attr::list(&fields[0]) {
+        return None;
+    }
+    match crate::attr::type_name(&fields[0]) {
+        "Integer" => Some((vo, "Integer")),
+        "Float" => Some((vo, "Float")),
+        _ => None,
+    }
+}
+
+/// Right-hand side for a `set` sourced from arithmetic: evaluates the expression through the
+/// kernel over the command's arguments and then the pre-dispatch record, and rebuilds the number
+/// into the target's single-field value object. A fault returns from the mutation closure.
+pub fn expression_set_rhs(source: &Json, target_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+    let (vo, scalar) = computed_field_type(target_attr, value_objects_by_name).expect("expression_source_problems already confirmed the target");
+    let ast = source.get("ast").expect("an expression source carries its ast");
+    let field = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+    let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
+    let arms = if scalar == "Integer" {
+        "crate::kernel::Value::Int(number) => number,".to_string()
+    } else {
+        "crate::kernel::Value::Float(number) => number,\n            crate::kernel::Value::Int(number) => number as f64,".to_string()
+    };
+    let target = crate::attr::name(target_attr);
+    format!(
+        "{{\n            let number = match crate::kernel::interpret(&{}, &crate::kernel::EvalContext {{ args: &args, instance: &pre }})? {{\n            {arms}\n            other => return Err(crate::kernel::Refusal::TypeMismatch(format!(\"{target} expects a {scalar}, computed {{other:?}}\"))),\n            }};\n            {vo_type} {{ {field}: number }}\n        }}",
+        crate::expr_emitter::emit_ast(ast)
+    )
 }
 
 fn state_source_problem(label: &str, state_name: &str, aggregate: &Json, target_attr: Option<&Json>) -> Option<String> {
@@ -722,8 +783,12 @@ fn emit_mutation_line_body(
             } else {
                 let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
                 let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("set target must be a declared aggregate attribute");
-                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), crate::attr::type_name(target_attr), command, value_objects_by_name, crate::attr::list(target_attr));
                 let source = mutation.get("source");
+                let rhs = if source.and_then(|s| s.get("kind")).map(Json::to_s).as_deref() == Some("expression") {
+                    expression_set_rhs(source.unwrap(), target_attr, value_objects_by_name)
+                } else {
+                    mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), crate::attr::type_name(target_attr), command, value_objects_by_name, crate::attr::list(target_attr))
+                };
                 let source_attr = if source.map(|s| s.get("kind").map(Json::to_s).unwrap_or_default()) == Some("argument".to_string()) {
                     let name = source.unwrap().get("name").map(Json::to_s).unwrap_or_default();
                     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -894,5 +959,65 @@ mod state_source_tests {
     fn an_argument_source_is_never_a_state_option() {
         let argument = Json::parse(r#"{"kind":"argument","name":"draft_body"}"#).unwrap();
         assert!(!state_source_is_option(Some(&argument), &aggregate(), true));
+    }
+}
+
+#[cfg(test)]
+mod expression_source_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(r#"{"name":"Settlement","attributes":[
+            {"name":"paid","type":"Cents","list":false},
+            {"name":"refund","type":"Cents","list":false},
+            {"name":"note","type":"Note","list":false}]}"#)
+        .unwrap()
+    }
+
+    fn vos() -> Vec<Json> {
+        vec![
+            Json::parse(r#"{"name":"Cents","attributes":[{"name":"value","type":"Integer","list":false}]}"#).unwrap(),
+            Json::parse(r#"{"name":"Note","attributes":[{"name":"value","type":"String","list":false}]}"#).unwrap(),
+        ]
+    }
+
+    fn command(target: &str) -> Json {
+        let source = r#"{"kind":"expression","text":"paid * 2","ast":{"op":"mul","left":{"op":"lookup","path":["paid"]},"right":{"op":"int","value":2}}}"#;
+        Json::parse(&format!(r#"{{"mutations":[{{"target":"{target}","op":"set","source":{source}}}]}}"#)).unwrap()
+    }
+
+    fn by_name(vos: &[Json]) -> HashMap<String, &Json> {
+        vos.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo)).collect()
+    }
+
+    #[test]
+    fn an_expression_source_binds_the_pre_dispatch_record() {
+        assert!(reads_pre_state(command("refund").get("mutations").map(Json::each).unwrap_or(&[])));
+    }
+
+    #[test]
+    fn a_target_typed_by_an_integer_value_object_is_generated() {
+        let vos = vos();
+
+        assert!(expression_source_problems(&command("refund"), &aggregate(), &by_name(&vos)).is_empty());
+    }
+
+    #[test]
+    fn a_target_typed_by_a_text_value_object_is_not_generated_yet() {
+        let vos = vos();
+
+        assert_eq!(expression_source_problems(&command("note"), &aggregate(), &by_name(&vos)).len(), 1);
+    }
+
+    #[test]
+    fn the_right_hand_side_evaluates_through_the_kernel_and_rebuilds_the_value_object() {
+        let vos = vos();
+        let aggregate = aggregate();
+        let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+        let source = command("refund").get("mutations").map(Json::each).unwrap_or(&[])[0].get("source").cloned().unwrap();
+
+        let rhs = expression_set_rhs(&source, &attrs[1], &by_name(&vos));
+
+        assert!(rhs.contains("crate::kernel::interpret(&Expr::Mul(") && rhs.contains("Cents { value: number }"));
     }
 }

@@ -27,6 +27,11 @@ module Hecks
         # A plain class: `Struct.new(keyword_init: true)` with no members raises on Ruby 3.2.
         NilLiteral     = Class.new
         Addition       = Struct.new(:left, :right, keyword_init: true)
+        Subtraction    = Struct.new(:left, :right, keyword_init: true)
+        Multiplication = Struct.new(:left, :right, keyword_init: true)
+        # Integer operands divide with floor semantics (toward negative infinity); a zero divisor
+        # is an evaluation fault, never a crash or an infinity.
+        Division       = Struct.new(:left, :right, keyword_init: true)
         SignTest       = Struct.new(:operator, :test, :receiver, keyword_init: true)
         Empty          = Struct.new(:receiver, keyword_init: true)
         ToS            = Struct.new(:receiver, keyword_init: true)
@@ -72,10 +77,19 @@ module Hecks
           when IntegerLiteral, FloatLiteral, StringLiteral, BoolLiteral then node.value
           when ArrayLiteral then node.elements.map { |element| interpret(element, state, attrs) }
           when NilLiteral then nil
-          when Addition then add(interpret(node.left, state, attrs), interpret(node.right, state, attrs))
+          when Addition, Subtraction, Multiplication, Division then interpret_binary(node, state, attrs)
           when Lookup then lookup(node.path, state, attrs)
           else interpret_on_receiver(node, state, attrs)
           end
+        end
+
+        # Each arithmetic node and the operation that applies it to its two resolved operands.
+        BINARY_OPERATIONS = { Addition => :add, Subtraction => :subtract, Multiplication => :multiply,
+                              Division => :divide }.freeze
+
+        def interpret_binary(node, state, attrs)
+          operation = BINARY_OPERATIONS.find { |klass, _| node.is_a?(klass) }.last
+          public_send(operation, interpret(node.left, state, attrs), interpret(node.right, state, attrs))
         end
 
         # Resolves the node's receiver, then applies the operation `RECEIVER_OPERATIONS` names.

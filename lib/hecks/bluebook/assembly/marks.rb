@@ -110,6 +110,7 @@ module Hecks
           case source[:kind].to_s
           when "argument" then source[:name].to_sym
           when "state"    then StateRef.new(source[:name].to_sym)
+          when "expression" then Computed.new(source[:text])
           else source[:value]
           end
         end

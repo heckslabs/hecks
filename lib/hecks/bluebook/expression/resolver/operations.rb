@@ -46,6 +46,36 @@ module Hecks
           raise EvaluationError, "addition overflowed: #{lhs} + #{rhs} is not a finite number"
         end
 
+        def subtract(left, right)
+          checked_arithmetic("subtraction", "-", left, right) { |lhs, rhs| lhs - rhs }
+        end
+
+        def multiply(left, right)
+          checked_arithmetic("multiplication", "*", left, right) { |lhs, rhs| lhs * rhs }
+        end
+
+        # Integer operands floor toward negative infinity; a zero divisor faults like `.modulo`.
+        def divide(left, right)
+          raise EvaluationError, "divided by 0" if require_number(right, "division").zero?
+
+          checked_arithmetic("division", "/", left, right) { |lhs, rhs| lhs / rhs }
+        end
+
+        # Applies `operation` to two numbers, refusing an Integer outside 64 bits or a Float that
+        # is not finite, as `add` does.
+        def checked_arithmetic(name, symbol, left, right)
+          lhs = require_number(left, name)
+          rhs = require_number(right, name)
+          result = yield(lhs, rhs)
+          return result if representable?(result)
+
+          raise EvaluationError, "#{name} overflowed: #{lhs} #{symbol} #{rhs} #{overflow_reason(result)}"
+        end
+
+        def representable?(number) = number.is_a?(Integer) ? INT64_RANGE.cover?(number) : number.finite?
+
+        def overflow_reason(number) = number.is_a?(Integer) ? "does not fit in a 64-bit integer" : "is not a finite number"
+
         def apply_sign_test(node, value)
           number = numeric(value)
           raise EvaluationError, "#{node.test} expects a number, got #{describe(value)}" unless number

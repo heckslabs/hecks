@@ -236,6 +236,10 @@ pub enum Expr {
     Bool(bool),
     Nil,
     Add(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    /// Floor division on integers; a zero divisor is an evaluation fault.
+    Div(Box<Expr>, Box<Expr>),
     SignTest { op: Comparison, receiver: Box<Expr> },
     Empty(Box<Expr>),
     ToS(Box<Expr>),
@@ -307,7 +311,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         Or(..) | And(..) | Not(..) => OperatorCategory::Logical,
         Include { .. } => OperatorCategory::Membership,
         Compare { .. } => OperatorCategory::Comparison,
-        Add(..) | Modulo { .. } => OperatorCategory::Arithmetic,
+        Add(..) | Sub(..) | Mul(..) | Div(..) | Modulo { .. } => OperatorCategory::Arithmetic,
         SignTest { .. } => OperatorCategory::SignTest,
         Empty(..) | Size(..) => OperatorCategory::Sized,
         ToS(..) => OperatorCategory::ToString,
@@ -333,7 +337,7 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
         OperatorCategory::Membership => membership::interpret(expr, ctx),
         OperatorCategory::Comparison => comparison::interpret(expr, ctx),
         OperatorCategory::Arithmetic => match expr {
-            Expr::Add(..) => arithmetic::add(expr, ctx),
+            Expr::Add(..) | Expr::Sub(..) | Expr::Mul(..) | Expr::Div(..) => arithmetic::binary(expr, ctx),
             Expr::Modulo { .. } => arithmetic::modulo(expr, ctx),
             _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Arithmetic, ..) called with {expr:?} — a router bug"))),
         },

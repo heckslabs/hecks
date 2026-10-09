@@ -116,7 +116,16 @@ module Hecks
 
           [{ target: mutation.target, op: mutation.op, field: mutation.target,
              kind: classified[:kind],
-             source: classified[:name] || encode_literal(classified[:value]) }]
+             source: scalar_source_text(classified) }]
+        end
+
+        # The one text a scalar mutation's source is stored as: an argument or state name, an
+        # expression's text, or an encoded literal.
+        def scalar_source_text(classified)
+          return classified[:name] if classified.key?(:name)
+          return classified[:text] if classified.key?(:text)
+
+          encode_literal(classified[:value])
         end
 
         # The columns of one canonical-form table entry, as the language declares them.

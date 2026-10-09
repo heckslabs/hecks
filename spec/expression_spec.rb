@@ -309,7 +309,7 @@ RSpec.describe "the expression sublanguage" do
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
     end
 
-    # `[`/`]` must count as grouping in `top_level_index` and `split_addition`, or an
+    # `[`/`]` must count as grouping in `top_level_index` and `split_last_binary`, or an
     # operator inside an array literal splits the enclosing expression.
     it "does not let a + inside an array-literal receiver's own element split the enclosing expression", :aggregate_failures do
       expect(evaluate("[0, 1 + 1].all? { |n| n >= 0 }")).to be(true)
