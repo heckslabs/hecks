@@ -1,4 +1,5 @@
 require "spec_helper"
+require "tmpdir"
 
 # `sets` taking arithmetic as its source: `+ - * /` over a command's arguments, the record's own
 # fields and whole numbers. The grammar levels, the floor and fault rules, and the way a
@@ -97,5 +98,77 @@ RSpec.describe "a sets that computes its value" do
 
     expect { dispatch("Share", settlement: "s1", amount: 7, parts: 0) }.to raise_error(/divided by 0/)
     expect(stored("s1", :share)).to eq(0)
+  end
+
+  # A one-aggregate bluebook whose `Compute` command reads `operand` in a computed `sets`.
+  def operand_bluebook(operand)
+    <<~BLUEBOOK
+      Hecks.bluebook "PathOperands" do
+        vision "A command reading a path into a value object."
+        core
+        aggregate "Thing" do
+          identified_by :ref
+          attribute :ref, ThingRef
+          attribute :charged, Charge, default: { cents: 0, currency: "USD" }
+          attribute :tags, list_of(Tag)
+          attribute :out, Cents, default: { value: 0 }
+          value_object("ThingRef") { attribute :value, String }
+          value_object("Cents") { attribute :value, Integer }
+          value_object("Tag") { attribute :value, String }
+          value_object("Charge") { attribute :cents, Integer; attribute :currency, String }
+          command "Compute" do
+            goal "Read an operand"
+            reference_to Thing
+            attribute :discount, Charge
+            sets :out, to: #{operand} * 2
+            emits "Computed"
+          end
+        end
+      end
+    BLUEBOOK
+  end
+
+  def load_operand(operand)
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "path_operands.bluebook")
+      File.write(path, operand_bluebook(operand))
+      Hecks.with_registry(Hecks::Runtime::Registry.new) { Kernel.load(path) }
+    end
+  end
+
+  it "reads a path into a multi-field value object, on the record or an argument", :aggregate_failures do
+    expect { load_operand("charged.cents") }.not_to raise_error
+    expect { load_operand("discount.cents") }.not_to raise_error
+  end
+
+  it "records a dotted operand as the dotted path in the canonical text" do
+    expect(mutation_source("Late", :late_owed)).to eq(Hecks::Computed.new("charged.cents * late_percent.value / 100"))
+  end
+
+  it "refuses a path naming a field the value object does not declare" do
+    expect { load_operand("charged.nonsense") }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /charged\.nonsense.*does not declare/)
+  end
+
+  it "refuses a path that runs through a list" do
+    expect { load_operand("tags.value") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /tags\.value.*list/)
+  end
+
+  it "refuses a bare multi-field value object, naming the field to use" do
+    expect { load_operand("charged") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /charged.*several fields.*charged\.cents/)
+  end
+
+  def charge_late_and_discount
+    dispatch("Open", ref: "s1", paid: 100)
+    dispatch("Charge", settlement: "s1", charged: { cents: 10_801, currency: "USD" })
+    dispatch("Late", settlement: "s1", late_percent: 50)
+    dispatch("Discount", settlement: "s1", discount: { cents: 801, currency: "USD" })
+  end
+
+  it "computes from a path on the record and a path on an argument", :aggregate_failures do
+    charge_late_and_discount
+
+    expect(stored("s1", :late_owed)).to eq(5400)
+    expect(stored("s1", :net)).to eq(10_000)
   end
 end
