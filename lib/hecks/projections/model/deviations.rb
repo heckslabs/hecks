@@ -17,8 +17,8 @@ module Hecks
 
         # One model field gathered from several declared ones.
         FOLDED = {
-          "Aggregate" => { lifecycle: %i[state_field state_start transitions] },
-          "Entity"    => { lifecycle: %i[state_field state_start transitions] },
+          "Aggregate" => { lifecycle: %i[state_field state_start transitions marks] },
+          "Entity"    => { lifecycle: %i[state_field state_start transitions marks] },
           "Query"     => { order_by: %i[order_field order_way] }
         }.freeze
 

@@ -626,6 +626,29 @@ fn a_query_refuses_the_same_fact_twice() {
 }
 
 #[test]
+fn a_lifecycle_mark_is_emitted_and_an_unknown_state_is_refused() {
+    let marked = fixture("lifecycle_mark.bluebook");
+    let output = run(&["chapter", "--chapter", "FixtureLifecycleMark", marked.to_str().unwrap()]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "a marked lifecycle must parse: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("\"marks\""), "expected marks in the IR, got: {stdout}");
+    assert!(stdout.contains("\"usable\""), "expected the mark name in the IR, got: {stdout}");
+
+    let plain = fixture("lifecycle.bluebook");
+    let output = run(&["chapter", "--chapter", "FixtureLifecycle", plain.to_str().unwrap()]);
+    assert!(
+        !String::from_utf8_lossy(&output.stdout).contains("\"marks\""),
+        "an unmarked lifecycle must not write marks"
+    );
+
+    let unknown = fixture("lifecycle_mark_unknown_state.bluebook");
+    let output = run(&["chapter", "--chapter", "FixtureLifecycleMark", unknown.to_str().unwrap()]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "a mark naming an unknown state must not parse");
+    assert!(stderr.contains("mark :usable names \"missing\""), "got: {stderr}");
+}
+
+#[test]
 fn a_removed_attach_spelling_is_refused_naming_its_replacement() {
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("removed_attach_word.hecksagon");

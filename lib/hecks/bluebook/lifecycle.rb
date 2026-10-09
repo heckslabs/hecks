@@ -32,19 +32,38 @@ module Hecks
         field:       -> { field.to_s },
         default:     :default,
         # `expand` is private; a Proc runs in the construct's own context, so it can reach it.
-        transitions: -> { transitions.flat_map { |command, t| expand(command, t) } }
+        transitions: -> { transitions.flat_map { |command, t| expand(command, t) } },
+        # Dropped from `to_h` when empty (see below), so an unmarked lifecycle's IR is unchanged.
+        marks:       :marks
       )
 
-      attr_reader :field, :default, :transitions
+      attr_reader :field, :default, :transitions, :marks
 
       # @param field [Symbol, String] the attribute this state machine lives on
       # @param default [String, Symbol] the state a new record starts in
       # @param transitions [Array<Array(String, Bluebook::StateTransition)>] each declared
       #   `command name, StateTransition` pair, in declaration order
-      def initialize(field:, default:, transitions: [])
+      # @param marks [Hash{String, Symbol => Array<String, Symbol>}] each named meaning and the
+      #   states that carry it, such as `holds_seat => ["pending", "succeeded"]`
+      def initialize(field:, default:, transitions: [], marks: {})
         @field       = field.to_sym
         @default     = default.to_s
         @transitions = transitions
+        @marks       = marks.to_h { |name, states| [name.to_s, Array(states).map(&:to_s)] }
+      end
+
+      # The states a named meaning marks.
+      #
+      # @param name [String, Symbol] the mark, such as `:holds_seat`
+      # @return [Array<String>, nil] the states in declared order, or nil when no such mark
+      def marked(name) = marks[name.to_s]
+
+      # `marks` is left out when the lifecycle declares none, so IR written before the word
+      # existed stays byte-identical.
+      def to_h
+        row = super
+        row.delete(:marks) if marks.empty?
+        row
       end
     end
   end

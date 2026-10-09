@@ -75,7 +75,7 @@ module Hecks
           end
         end
 
-        # Folds `state_field`, `state_start` and `transitions` into the IR's one Lifecycle.
+        # Folds `state_field`, `state_start`, `transitions` and `marks` into the IR's one Lifecycle.
         def lifecycle_of(row)
           declared = row[:lifecycle]
           return nil unless declared
@@ -83,7 +83,8 @@ module Hecks
           Lifecycle.new(
             field:       declared[:field],
             default:     declared[:default],
-            transitions: transitions(Array(declared[:transitions]))
+            transitions: transitions(Array(declared[:transitions])),
+            marks:       marks(Array(declared[:marks]))
           )
         end
 
@@ -95,6 +96,11 @@ module Hecks
                 froms = moves.filter_map { |move| move[:from_state] }
                 [command.to_s, StateTransition.new(target: target, from: from_of(froms))]
               end
+        end
+
+        # Regroups the one-row-per-state marks back into `name => states`, in declared order.
+        def marks(rows)
+          rows.group_by { |held| held[:name].to_s }.transform_values { |held| held.map { |row| row[:state].to_s } }
         end
 
         def from_of(froms)

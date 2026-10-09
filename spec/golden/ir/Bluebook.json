@@ -106,6 +106,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "marks",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Mark"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "invariants",
           "optional": false,
           "pattern": null,
@@ -800,6 +810,59 @@
             }
           ],
           "name": "Transition",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "MarkAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Attach one state to a named meaning of the state machine",
+          "mutations": [
+            {
+              "fields": {
+                "name": ":name",
+                "state": ":state"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "marks"
+            }
+          ],
+          "name": "Mark",
           "needs": [
 
           ],
@@ -1531,6 +1594,38 @@
 
           ],
           "name": "Transition"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Mark"
         },
         {
           "attributes": [
@@ -2502,6 +2597,36 @@
               [
                 "calls",
                 "transition_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "mark"
+              ],
+              [
+                "context",
+                "Lifecycle"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "marks"
+              ],
+              [
+                "calls",
+                "mark_impl"
               ]
             ]
           ],
@@ -3897,6 +4022,70 @@
               [
                 "fills",
                 "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "mark"
+              ],
+              [
+                "context",
+                "Lifecycle"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "mark"
+              ],
+              [
+                "context",
+                "Lifecycle"
+              ],
+              [
+                "at",
+                2
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "state"
+              ],
+              [
+                "variadic",
+                true
               ]
             ]
           ],
@@ -10435,6 +10624,16 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "marks",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "PieceMark"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -11331,6 +11530,59 @@
           "provenance": null,
           "references": null,
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceMarkAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Attach one state to a named meaning of the entity's state machine",
+          "mutations": [
+            {
+              "fields": {
+                "name": ":name",
+                "state": ":state"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "marks"
+            }
+          ],
+          "name": "Mark",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
         }
       ],
       "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
@@ -11636,6 +11888,38 @@
 
           ],
           "name": "PieceTransition"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PieceMark"
         },
         {
           "attributes": [
