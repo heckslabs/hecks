@@ -1,5 +1,46 @@
 # CLAUDE.md
 
+## Bluebook or hecksagon? Ask it first
+
+In the Hecks world there are only two kinds of thing. Before you design,
+place, or review anything, say which one it is, and consider the bluebook
+first, then the hecksagon.
+
+- **Bluebook (`*.bluebook`, `Hecks.bluebook`)** is the domain, declared:
+  aggregates, commands, events, policies, vocabulary. It names no
+  database, clock, network, or file.
+- **Hecksagon (`*.hecksagon`, `Hecks.hecksagon`)** is the wiring, declared:
+  `persisted_by "Memory"`, `attaches "Governance"`, the adapters a domain
+  plugs into. `lib/hecks/framework/bluebook/framework.hecksagon` is a small
+  example.
+
+Both are declarative. There is no imperative code in the bluebook world,
+and you do not write any there. Imperative code exists only outside it:
+the implementations behind a hecksagon's ports (`lib/hecks/adapters/`,
+where an `.adapter` file declares `port "clock"` and the matching `.rb`
+reads `Time.now`), and the generators and the Rust kernel that project
+bluebooks into other outputs. Time, randomness, storage, and webhooks live
+there, never in a bluebook.
+
+Rules of thumb:
+
+- If it says what the domain is or does, it is bluebook. If it says what the
+  domain is connected to, it is hecksagon. If it cannot be said in either,
+  it is not Hecks code: it is an adapter behind a port or a generator, and
+  needs a reason.
+- Persistence defaults to memory. A domain uses the Memory adapter unless
+  its hecksagon explicitly wires another (Heki, Sqlite, Postgres); do not
+  add a persistence adapter by default.
+- `Hecks::Framework` members (Governance, Identity, Privacy, Compliance)
+  are bluebooks; persistence for them is a separate hecksagon.
+- Projections turn a bluebook's IR into other outputs (Rust, diagrams,
+  glossary, site routes, help). Add a new output as a projection, not as
+  hand-written code beside the domain.
+- Ruby and Rust both run bluebooks; `check_conformance` compares them.
+- Agents do everything through a command (see "Use the hecks binary"). If
+  no command does what you need, that gap is a bluebook change, not a
+  one-off script.
+
 ## Session isolation: jj workspaces, not git worktrees
 
 Root is a colocated jj+git repo. Use `jj workspace add <path>` for a new
