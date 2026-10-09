@@ -39,6 +39,10 @@ A lifecycle names its states and transitions, but it cannot say what a state mea
 - A host that needs a state meaning a domain does not mark gets a clear boot refusal, not a silent empty list.
 - This is a language change: it touches the lifecycle builder, the grammar (`syntax.bluebook`), the IR writer, both parsers and the docs, and ships in one release (see the release rule: the maintainer decides when).
 
+## Built since
+
+- The launcher's `--wait` reads the `:failure` mark (`Doors::LauncherOptions::FAILURE_MARK`) from the lifecycle IR, and `failure_states` is deleted from the worlds. Each lifecycle with failing states carries one `mark :failure` line naming exactly the states it declares.
+
 ## Alternatives considered
 
 - **A named query in the capability contract.** No grammar change, but a query returns instances, not a list of states, and `where` is an equality filter. The host would run the query and re-derive the states, which is the same logic in a different place.

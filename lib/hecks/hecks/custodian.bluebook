@@ -92,6 +92,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "failed"
       transition "Succeed" => "succeeded", from: "requested"
       transition "Fail"    => "failed",    from: "requested"
     end
@@ -386,6 +387,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "drifted", "unreachable"
       transition "Recheck" => "requested",   from: %w[observed drifted unreachable]
       transition "Observe" => "observed",    from: "requested"
       transition "Drift"   => "drifted",     from: "requested"
@@ -606,6 +608,7 @@ policy "RecordTheEra" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "refused"
       transition "Permit"   => "admitted", from: "requested"
       transition "Settle"   => "settled",  from: "admitted"
       transition "Abandon"  => "refused",  from: %w[requested admitted]

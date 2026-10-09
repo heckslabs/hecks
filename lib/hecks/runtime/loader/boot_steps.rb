@@ -15,20 +15,23 @@ module Hecks
         # the domain never attached Privacy at all.
         def seed_privacy_markings!(dispatcher, registry)
           return if registry.pending_privacy_markings.empty?
-          return unless registry.bluebook("Privacy")
 
-          already_marked = already_marked_by_domain(dispatcher, registry)
+          provider = registry.provider_of(Bluebook::Capabilities::PRIVACY)
+          return unless provider
+
+          already_marked = already_marked_by_domain(dispatcher, registry, provider)
           registry.pending_privacy_markings.each do |marking|
             next if already_marked[marking[:domain]].include?(marking[:attribute_path])
 
-            dispatcher.dispatch_flat("Privacy::Marking.Mark", marking)
+            dispatcher.dispatch_flat(provider.provided_verb(Bluebook::Capabilities::PRIVACY, :mark_sensitive), marking)
           end
         end
 
         # Each domain with a pending marking, with the attribute paths Privacy already marks for it.
-        def already_marked_by_domain(dispatcher, registry)
+        def already_marked_by_domain(dispatcher, registry, provider)
+          verb = provider.provided_verb(Bluebook::Capabilities::PRIVACY, :markings_for)
           registry.pending_privacy_markings.map { |marking| marking[:domain] }.uniq.to_h do |domain|
-            [domain, dispatcher.query("Privacy::Marking.ForDomain", domain: domain).map { |row| row[:attribute_path][:value] }]
+            [domain, dispatcher.query(verb, domain: domain).map { |row| row[:attribute_path][:value] }]
           end
         end
 

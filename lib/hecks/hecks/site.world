@@ -9,7 +9,6 @@
 # answer as the report alone: the differences, or the line saying the distribution matches.
 Hecks.world "Site" do
   launcher "Launcher", run_keys: true,
-                       failure_states: %w[faulted refused halted stopped abandoned red needs_fix],
                        settled: %w[site_projection.check_live],
                        report: %w[site_projection.check_live]
 end

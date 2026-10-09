@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:, mark_sensitive:, markings_for:, key_for:, shred:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -230,6 +230,10 @@ merged table and cannot tell a core row from an attached one.
 | `resume:` | text | false | provides |
 | `enable:` | text | false | provides |
 | `disable:` | text | false | provides |
+| `mark_sensitive:` | text | false | provides |
+| `markings_for:` | text | false | provides |
+| `key_for:` | text | false | provides |
+| `shred:` | text | false | provides |
 <!-- generated:end -->
 
 Declares a capability this chapter answers for every domain that attaches
@@ -282,6 +286,12 @@ Two more optional kinds name a word and a field (ADR 0099). A `:text` entry
 (`provides "registrations", registered_at: "Registration.requested_at"`) resolves to the
 attribute's own name. Both are refused when the attribute is missing, and a `:text` entry
 when its default is not a non-empty string.
+
+The Privacy chapter declares two more, so the runtime never looks for its name:
+`provides "privacy"` (`mark_sensitive:` the command that flags an attribute, `markings_for:`
+the query of one domain's markings) is what boot's seeding of `mark_sensitive` facts and a
+handle's masking of a read dispatch through, and `provides "subject_keys"` (`key_for:` and
+`shred:`) is what `Ports::KeyVault.shred!` dispatches through.
 
 ## core
 

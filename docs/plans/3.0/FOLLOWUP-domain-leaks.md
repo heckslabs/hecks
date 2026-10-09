@@ -36,6 +36,42 @@ bins-as-adapters build first, and these items change the language, so they are b
 
 No environment variables, `bin/` paths or hostnames appear in the bluebooks.
 
+## Status, 2026-10-09
+
+Done:
+
+- The `--wait` failure-state list left the worlds. ADR 0097's lifecycle `mark` carries it: each lifecycle
+  with failing states says `mark :failure, ...`, the launcher reads the mark, and `failure_states` is
+  gone from `hecks.world`, `deploy.world` and `site.world`. A spec asserts any state named like a
+  failure is marked.
+- The runtime no longer recognises the Privacy chapter by name. `provides "privacy"` and
+  `provides "subject_keys"` (added to `Bluebook::Capabilities`) name the verbs that boot, the masking of
+  a read and the cryptoshred call.
+
+Left as is, on purpose: the literal `"Hecks"` in `HecksagonBuilder`, its chapter scope and the
+chapter-name validation. They guard the gem's own Ruby module `Hecks`, which the chapter's aggregates
+would collide with; that is a fact about the Ruby host, not a domain fact, and no capability fits it.
+Removing it means the chapter stops being named `Hecks` or the constants stop living in that module
+(item 5).
+
+Audit, re-counted on this date over every `.bluebook` under `lib/hecks`:
+
+- Policy triggers that name a port operation (`Aggregate::Port::Operation`): 133, up from 83. By file:
+  `codebase` 63, `deploy` 21, `tooling` 18, `custodian` 17, `tickets` 8, `site` 4, `quality_control` 2.
+- Lifecycles that start in `requested`: 36, up from 17 (`deploy` 15, `codebase` 11, `tooling` 6,
+  `custodian` 3, `site` 1).
+- `Report` value objects: 34, up from 15. The numbers grew because new chapters follow the same
+  run-protocol shape; nothing has reduced it.
+- Not re-counted: the companion commands and the attribute lines named run, refusal, report or output.
+
+The leak is growing with each chapter, so the order below holds and item 1 is now the cost-reducing step.
+
+Recommended next step: write the ADR for item 1 before any code. The decision it must make is the
+hecksagon vocabulary that maps a policy's ask to a port operation (for example a policy says
+`ask :check`, and the hecksagon binds `check` to `ModelCheckRun::DomainRuntime::Check`), with the
+Ruby and Rust parsers and the conformance corpus moving together. Start with the 18 triggers in
+`tooling.bluebook`, one chapter, to prove the shape before the rest follow.
+
 ## Suggested order
 
 1. Item 1 (policies ask, hecksagon maps), which changes the language.
