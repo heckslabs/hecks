@@ -199,12 +199,84 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Charge {
+    pub cents: i64,
+    pub currency: String,
+}
+
+impl crate::kernel::Fielded for Charge {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "cents" => Some(Field::Value(Value::Int(self.cents))),
+            "currency" => Some(Field::Value(Value::Str(self.currency.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+impl Charge {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Charge {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("cents".to_string(), crate::kernel::Json::int(self.cents)),
+        ("currency".to_string(), crate::kernel::Json::Str(self.currency.clone())),
+        ])
+    }
+}
+
+impl Charge {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Charge expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["cents", "currency"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Charge",
+        unknown: &unknown,
+        declared: &["cents", "currency"],
+    }.render_args()));
+}
+        Ok(Self {
+        cents: { let x = v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Charge.cents expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Charge.cents expects Integer, got {}", x.inspect())))? },
+        currency: { let x = v.get("currency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Charge.currency expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Charge.currency expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Charge.currency: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Settlement {
     pub r#ref: Option<SettlementRef>,
     pub paid: Option<Cents>,
     pub refund: Option<Cents>,
     pub remaining: Option<Cents>,
     pub share: Option<Cents>,
+    pub charged: Option<Charge>,
+    pub late_owed: Option<Cents>,
+    pub net: Option<Cents>,
 }
 
 impl crate::kernel::Fielded for Settlement {
@@ -216,6 +288,9 @@ impl crate::kernel::Fielded for Settlement {
             "refund" => self.refund.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "remaining" => self.remaining.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "share" => self.share.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "charged" => self.charged.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "late_owed" => self.late_owed.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "net" => self.net.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -242,6 +317,9 @@ impl Settlement {
         ("refund".to_string(), self.refund.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("remaining".to_string(), self.remaining.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("share".to_string(), self.share.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("charged".to_string(), self.charged.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("late_owed".to_string(), self.late_owed.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("net".to_string(), self.net.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -257,6 +335,9 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         refund: match v.get("refund") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cents::from_json(&x.coerce_single_field("value"))?), },
         remaining: match v.get("remaining") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cents::from_json(&x.coerce_single_field("value"))?), },
         share: match v.get("share") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cents::from_json(&x.coerce_single_field("value"))?), },
+        charged: match v.get("charged") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Charge::from_json(x.expect_value_object_shape("charged", "Charge")?)?), },
+        late_owed: match v.get("late_owed") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cents::from_json(&x.coerce_single_field("value"))?), },
+        net: match v.get("net") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cents::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -359,6 +440,9 @@ pub fn dispatch_open(
             refund: Some(Cents { value: 0 }),
             remaining: Some(Cents { value: 0 }),
             share: Some(Cents { value: 0 }),
+            charged: Some(Charge { cents: 0, currency: "USD".to_string() }),
+            late_owed: Some(Cents { value: 0 }),
+            net: Some(Cents { value: 0 }),
         }),
         state_independent: true,
     }
@@ -371,6 +455,9 @@ pub fn dispatch_open(
             refund: Some(Cents { value: 0 }),
             remaining: Some(Cents { value: 0 }),
             share: Some(Cents { value: 0 }),
+            charged: Some(Charge { cents: 0, currency: "USD".to_string() }),
+            late_owed: Some(Cents { value: 0 }),
+            net: Some(Cents { value: 0 }),
         }),
         state_independent: true,
     } }
@@ -635,6 +722,440 @@ if !absent.is_empty() {
         command: "Settle",
         absent: &absent,
         declared: &["rate", "shortfall"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for ChargeArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "charged" => Some(Field::Nested(&self.charged)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct ChargeArgs {
+    pub charged: Charge,
+}
+
+pub fn dispatch_charge(
+    repo: &mut impl crate::kernel::Repository<Settlement>, id: &str, args: ChargeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Settlement> {
+        args.charged.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SETTLEMENT_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Charge",
+        "ComputedSetsFixture::Settlement",
+        "Settlement",
+        "ref.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.charged = Some(args.charged.clone());
+            Ok(())
+        },
+        &[
+
+        ],
+        &settlement_invariants(),
+        &["SettlementCharged"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl ChargeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("charged".to_string(), self.charged.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl ChargeArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ChargeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["charged", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Charge",
+        unknown: &unknown,
+        declared: &["charged"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["charged"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Charge",
+        absent: &absent,
+        declared: &["charged"],
+    }.render_args()));
+}
+        let charged = Charge::from_json((match v.get("charged").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ChargeArgs.charged expects Charge, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("charged", "Charge")?)?;
+        charged.check_invariants()?;
+        Ok(Self {
+        charged,
+        })
+    }
+}
+
+impl ChargeArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ChargeArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["charged", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Charge",
+        unknown: &unknown,
+        declared: &["charged"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["charged"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Charge",
+        absent: &absent,
+        declared: &["charged"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for LateArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "late_percent" => Some(Field::Nested(&self.late_percent)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct LateArgs {
+    pub late_percent: Percent,
+}
+
+pub fn dispatch_late(
+    repo: &mut impl crate::kernel::Repository<Settlement>, id: &str, args: LateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Settlement> {
+        args.late_percent.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SETTLEMENT_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Late",
+        "ComputedSetsFixture::Settlement",
+        "Settlement",
+        "ref.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        let pre = record.clone();
+        record.late_owed = Some({
+            let number = match crate::kernel::interpret(&Expr::Div(Box::new(Expr::Mul(Box::new(Expr::Lookup("charged.cents")), Box::new(Expr::Lookup("late_percent.value")))), Box::new(Expr::Int(100))), &crate::kernel::EvalContext { args: &args, instance: &pre })? {
+            crate::kernel::Value::Int(number) => number,
+            other => return Err(crate::kernel::Refusal::TypeMismatch(format!("late_owed expects a Integer, computed {other:?}"))),
+            };
+            Cents { value: number }
+        });
+            Ok(())
+        },
+        &[
+
+        ],
+        &settlement_invariants(),
+        &["SettlementLate"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl LateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("late_percent".to_string(), self.late_percent.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl LateArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LateArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["late_percent", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Late",
+        unknown: &unknown,
+        declared: &["late_percent"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["late_percent"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Late",
+        absent: &absent,
+        declared: &["late_percent"],
+    }.render_args()));
+}
+        let late_percent = Percent::from_json(&(match v.get("late_percent").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LateArgs.late_percent expects Percent, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        late_percent.check_invariants()?;
+        Ok(Self {
+        late_percent,
+        })
+    }
+}
+
+impl LateArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LateArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["late_percent", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Late",
+        unknown: &unknown,
+        declared: &["late_percent"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["late_percent"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Late",
+        absent: &absent,
+        declared: &["late_percent"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for DiscountArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "discount" => Some(Field::Nested(&self.discount)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DiscountArgs {
+    pub discount: Charge,
+}
+
+pub fn dispatch_discount(
+    repo: &mut impl crate::kernel::Repository<Settlement>, id: &str, args: DiscountArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Settlement> {
+        args.discount.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SETTLEMENT_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Discount",
+        "ComputedSetsFixture::Settlement",
+        "Settlement",
+        "ref.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        let pre = record.clone();
+        record.net = Some({
+            let number = match crate::kernel::interpret(&Expr::Sub(Box::new(Expr::Lookup("charged.cents")), Box::new(Expr::Lookup("discount.cents"))), &crate::kernel::EvalContext { args: &args, instance: &pre })? {
+            crate::kernel::Value::Int(number) => number,
+            other => return Err(crate::kernel::Refusal::TypeMismatch(format!("net expects a Integer, computed {other:?}"))),
+            };
+            Cents { value: number }
+        });
+            Ok(())
+        },
+        &[
+
+        ],
+        &settlement_invariants(),
+        &["SettlementDiscounted"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DiscountArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("discount".to_string(), self.discount.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DiscountArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DiscountArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["discount", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Discount",
+        unknown: &unknown,
+        declared: &["discount"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["discount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Discount",
+        absent: &absent,
+        declared: &["discount"],
+    }.render_args()));
+}
+        let discount = Charge::from_json((match v.get("discount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DiscountArgs.discount expects Charge, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("discount", "Charge")?)?;
+        discount.check_invariants()?;
+        Ok(Self {
+        discount,
+        })
+    }
+}
+
+impl DiscountArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DiscountArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["discount", "id", "settlement", "ref"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Discount",
+        unknown: &unknown,
+        declared: &["discount"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["discount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Discount",
+        absent: &absent,
+        declared: &["discount"],
     }.render_args()));
 }
         Ok(())

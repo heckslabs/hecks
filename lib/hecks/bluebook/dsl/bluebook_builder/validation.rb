@@ -5,6 +5,7 @@ require_relative "validation/fan_out_rows"
 require_relative "validation/with_projections"
 require_relative "validation/query_hops"
 require_relative "validation/projected_fields"
+require_relative "validation/computed_sources"
 require_relative "validation/correlation_keys"
 
 module Hecks
@@ -22,6 +23,7 @@ module Hecks
           include WithProjections
           include QueryHops
           include ProjectedFields
+          include ComputedSources
           include CorrelationKeys
 
           # Runs every whole-chapter check against one assembled chapter.
@@ -60,6 +62,7 @@ module Hecks
             infer_hop_query_arguments!(bluebook)
             validate_query_hops!(bluebook)
             validate_projected_fields!(bluebook)
+            validate_computed_sources!(bluebook)
           end
         end
       end

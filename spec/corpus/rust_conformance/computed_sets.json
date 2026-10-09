@@ -1,6 +1,6 @@
 {
   "domain": "spec/fixtures/rust_project/computed_sets_fixture",
-  "note": "A `sets` whose source is arithmetic over command arguments and the record's own fields. 10801 * 50 / 100 is 5400 (the integer quotient rounds down, here 5400.5), a negative operand subtracts as a negative, -7 / 2 floors to -4 (toward negative infinity, not truncated to -3), a zero divisor and an overflowing product are faults that leave the record unchanged, and each result is stored in the target's single-field value object. A runtime that truncates, rounds to nearest, or crashes on a zero divisor fails this fixture.",
+  "note": "A `sets` whose source is arithmetic over command arguments and the record's own fields. 10801 * 50 / 100 is 5400 (the integer quotient rounds down, here 5400.5), a negative operand subtracts as a negative, -7 / 2 floors to -4 (toward negative infinity, not truncated to -3), a zero divisor and an overflowing product are faults that leave the record unchanged, and each result is stored in the target's single-field value object. A runtime that truncates, rounds to nearest, or crashes on a zero divisor fails this fixture. A dotted operand reaches into a value object: `charged.cents` (the record's multi-field Charge) and `discount.cents` (an argument's), while `late_percent.value` reads a single-field value object's field explicitly. Run on a record whose charged is still the default, it computes from zero.",
   "steps": [
     {
       "verb": "ComputedSetsFixture::Settlement.Open",
@@ -84,6 +84,40 @@
         "rate": 2,
         "shortfall": 0
       }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Charge",
+      "args": {
+        "settlement": "s1",
+        "charged": {
+          "cents": 10801,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Late",
+      "args": {
+        "settlement": "s1",
+        "late_percent": 50
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Discount",
+      "args": {
+        "settlement": "s1",
+        "discount": {
+          "cents": 801,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Late",
+      "args": {
+        "settlement": "s6",
+        "late_percent": 10
+      }
     }
   ],
   "expect": {
@@ -115,6 +149,16 @@
         },
         "share": {
           "value": 0
+        },
+        "charged": {
+          "cents": 10801,
+          "currency": "USD"
+        },
+        "late_owed": {
+          "value": 5400
+        },
+        "net": {
+          "value": 10000
         }
       },
       "ComputedSetsFixture::Settlement#s6": {
@@ -131,6 +175,16 @@
           "value": 12801
         },
         "share": {
+          "value": 0
+        },
+        "charged": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "late_owed": {
+          "value": 0
+        },
+        "net": {
           "value": 0
         }
       },
@@ -149,6 +203,16 @@
         },
         "share": {
           "value": -4
+        },
+        "charged": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "late_owed": {
+          "value": 0
+        },
+        "net": {
+          "value": 0
         }
       },
       "ComputedSetsFixture::Settlement#s4": {
@@ -166,6 +230,16 @@
         },
         "share": {
           "value": 333
+        },
+        "charged": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "late_owed": {
+          "value": 0
+        },
+        "net": {
+          "value": 0
         }
       },
       "ComputedSetsFixture::Settlement#s3": {
@@ -182,6 +256,16 @@
           "value": 0
         },
         "share": {
+          "value": 0
+        },
+        "charged": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "late_owed": {
+          "value": 0
+        },
+        "net": {
           "value": 0
         }
       }
@@ -305,6 +389,52 @@
           },
           "paid": {
             "value": 9223372036854775807
+          }
+        }
+      },
+      {
+        "name": "SettlementCharged",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s1",
+        "payload": {
+          "settlement": "s1",
+          "charged": {
+            "cents": 10801,
+            "currency": "USD"
+          }
+        }
+      },
+      {
+        "name": "SettlementLate",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s1",
+        "payload": {
+          "settlement": "s1",
+          "late_percent": {
+            "value": 50
+          }
+        }
+      },
+      {
+        "name": "SettlementDiscounted",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s1",
+        "payload": {
+          "settlement": "s1",
+          "discount": {
+            "cents": 801,
+            "currency": "USD"
+          }
+        }
+      },
+      {
+        "name": "SettlementLate",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s6",
+        "payload": {
+          "settlement": "s6",
+          "late_percent": {
+            "value": 10
           }
         }
       }

@@ -17,6 +17,9 @@ Hecks.bluebook "ComputedSetsFixture" do
     attribute :refund, Cents, default: { value: 0 }
     attribute :remaining, Cents, default: { value: 0 }
     attribute :share, Cents, default: { value: 0 }
+    attribute :charged, Charge, default: { cents: 0, currency: "USD" }
+    attribute :late_owed, Cents, default: { value: 0 }
+    attribute :net, Cents, default: { value: 0 }
 
     value_object "SettlementRef" do
       attribute :value, String
@@ -28,6 +31,11 @@ Hecks.bluebook "ComputedSetsFixture" do
 
     value_object "Percent" do
       attribute :value, Integer
+    end
+
+    value_object "Charge" do
+      attribute :cents, Integer
+      attribute :currency, String
     end
 
     command "Open" do
@@ -54,6 +62,42 @@ Hecks.bluebook "ComputedSetsFixture" do
       sets :remaining, to: paid - shortfall
 
       emits "SettlementSettled"
+    end
+
+    command "Charge" do
+      goal "Record what was charged, in a currency"
+
+      reference_to Settlement
+      attribute :charged, Charge
+
+      sets :charged
+
+      emits "SettlementCharged"
+    end
+
+    # `charged.cents` reads a field of the record's own multi-field value object; `late_percent.value`
+    # reads the one field of a single-field value object explicitly.
+    command "Late" do
+      goal "Work out what a late payment owes"
+
+      reference_to Settlement
+      attribute :late_percent, Percent
+
+      sets :late_owed, to: charged.cents * late_percent.value / 100
+
+      emits "SettlementLate"
+    end
+
+    # `discount.cents` reaches into an argument's multi-field value object.
+    command "Discount" do
+      goal "Take a discount off what was charged"
+
+      reference_to Settlement
+      attribute :discount, Charge
+
+      sets :net, to: charged.cents - discount.cents
+
+      emits "SettlementDiscounted"
     end
 
     command "Share" do

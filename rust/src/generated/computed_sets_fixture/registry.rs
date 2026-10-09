@@ -116,6 +116,42 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::computed_sets_fixture::settlement::dispatch_settle(&mut store.settlement, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "ComputedSetsFixture::Settlement.Charge" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::ChargeArgs::from_json(v)?; args.charged.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::ChargeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::ChargeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::ChargeArgs::from_json(v)?; args.charged.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::ChargeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::computed_sets_fixture::settlement::Settlement::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Charge", aggregate: "Settlement", identity: "ref.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ComputedSetsFixture::Settlement", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::computed_sets_fixture::settlement::dispatch_charge(&mut store.settlement, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "ComputedSetsFixture::Settlement.Late" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::LateArgs::from_json(v)?; args.late_percent.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::LateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::LateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::LateArgs::from_json(v)?; args.late_percent.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::LateArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::computed_sets_fixture::settlement::Settlement::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Late", aggregate: "Settlement", identity: "ref.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ComputedSetsFixture::Settlement", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::computed_sets_fixture::settlement::dispatch_late(&mut store.settlement, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "ComputedSetsFixture::Settlement.Discount" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::DiscountArgs::from_json(v)?; args.discount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::DiscountArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::computed_sets_fixture::settlement::DiscountArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::computed_sets_fixture::settlement::DiscountArgs::from_json(v)?; args.discount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::computed_sets_fixture::settlement::DiscountArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::computed_sets_fixture::settlement::Settlement::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Discount", aggregate: "Settlement", identity: "ref.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ComputedSetsFixture::Settlement", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::computed_sets_fixture::settlement::dispatch_discount(&mut store.settlement, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "ComputedSetsFixture::Settlement.Share" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -189,6 +225,9 @@ pub fn command_creates(verb: &str) -> bool {
     match verb {
         "ComputedSetsFixture::Settlement.Open" => true,
         "ComputedSetsFixture::Settlement.Settle" => false,
+        "ComputedSetsFixture::Settlement.Charge" => false,
+        "ComputedSetsFixture::Settlement.Late" => false,
+        "ComputedSetsFixture::Settlement.Discount" => false,
         "ComputedSetsFixture::Settlement.Share" => false,
         _ => false,
     }
@@ -212,6 +251,9 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "ComputedSetsFixture::Settlement.Open" => &["ref", "paid"],
         "ComputedSetsFixture::Settlement.Settle" => &["rate", "shortfall"],
+        "ComputedSetsFixture::Settlement.Charge" => &["charged"],
+        "ComputedSetsFixture::Settlement.Late" => &["late_percent"],
+        "ComputedSetsFixture::Settlement.Discount" => &["discount"],
         "ComputedSetsFixture::Settlement.Share" => &["amount", "parts"],
         _ => &[],
     }

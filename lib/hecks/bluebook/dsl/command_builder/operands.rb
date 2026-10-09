@@ -40,8 +40,25 @@ module Hecks
             def to_source
               return Computed.new(to_text) if operator
 
-              left.is_a?(Numeric) ? left : left.to_sym
+              return left if left.is_a?(Numeric)
+
+              path? ? Computed.new(left.to_s) : left.to_sym
             end
+
+            # Reaches a field of the value object a name holds: `charged.cents` is the operand
+            # `charged` followed by its field `cents`, read by the same dotted path a `given` reads.
+            #
+            # @return [Computation] the operand extended by one path segment
+            def method_missing(field, *args, &block)
+              return super unless field_read?(args, block)
+
+              Computation.new(nil, "#{left}.#{field}")
+            end
+
+            def respond_to_missing?(field, include_private = false) = field_read?([], nil) || super
+
+            # @return [Boolean] whether this operand is a dotted path into a value object
+            def path? = left.to_s.include?(".")
 
             # @return [String] the expression text, such as `paid * rate / 100`
             def to_text
@@ -63,6 +80,9 @@ module Hecks
             private
 
             def operand_text = left.to_s
+
+            # Only a bare name (or an existing path) can be followed by a field.
+            def field_read?(args, block) = operator.nil? && !left.is_a?(Numeric) && args.empty? && block.nil?
 
             # A joined side is parenthesised when it binds looser than this operator, or equally
             # on the right, so the printed text parses back to the same grouping.
