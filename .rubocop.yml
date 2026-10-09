@@ -11,6 +11,7 @@ require:
   - ./lib/rubocop/cop/hecks/no_wall_clock_in_runtime
   - ./lib/rubocop/cop/hecks/monotonic_duration
   - ./lib/rubocop/cop/hecks/raw_shell_interpolation
+  - ./lib/rubocop/cop/hecks/env_dump
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -81,6 +82,11 @@ Hecks/MonotonicDuration:
 # A command string with a value interpolated into it is re-parsed by the shell; the array form
 # passes each argument as-is. Shellwords.escape-wrapped values are left alone.
 Hecks/RawShellInterpolation:
+  Enabled: true
+
+# Secrets stay out of strings and output (1Password-only rule): no printing the whole
+# environment, no interpolating a *_KEY/_SECRET/_TOKEN/_PASSWORD variable.
+Hecks/EnvDump:
   Enabled: true
 
 AllCops:
