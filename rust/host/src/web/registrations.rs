@@ -34,9 +34,9 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
         .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
-/// Payment statuses whose registration still holds a seat. A registration
-/// with no Payment, or one that's archived, holds none regardless of status.
-const SEAT_HOLDING_PAYMENT_STATUSES: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
+// Payment statuses whose registration still holds a seat come from the
+// payment lifecycle's `holds_seat` mark (`PaymentsProvider::holds_seat`). A
+// registration with no Payment, or one that's archived, holds none.
 
 /// The Registration lifecycle state that gives its seat back.
 const ARCHIVED_REGISTRATION_STATUS: &str = "archived";
@@ -64,7 +64,7 @@ fn seat_counts(read: &Value, domain: &str, payments: &PaymentsProvider) -> std::
         .collect();
     let mut counts = std::collections::HashMap::new();
     for (id, registration) in instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix()) {
-        let holds = statuses.get(&id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str()));
+        let holds = statuses.get(&id).is_some_and(|status| payments.holds_seat.iter().any(|held| held == status));
         if let (true, false, Some(event_slug)) = (holds, registration_archived(&registration), plain_id(registration.get("event_slug"))) {
             *counts.entry(event_slug).or_insert(0) += 1;
         }
@@ -849,9 +849,9 @@ mod tests {
 
     #[test]
     fn the_seat_holding_table_is_exactly_pending_succeeded_refunding_and_disputed() {
-        let mut table = SEAT_HOLDING_PAYMENT_STATUSES;
+        let mut table: Vec<String> = crate::commerce_ir::fixture_payments().holds_seat;
         table.sort_unstable();
-        let mut expected = HOLDING;
+        let mut expected: Vec<String> = HOLDING.iter().map(|s| s.to_string()).collect();
         expected.sort_unstable();
         assert_eq!(table, expected);
     }
