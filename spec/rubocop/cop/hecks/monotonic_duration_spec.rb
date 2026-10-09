@@ -18,6 +18,7 @@ RSpec.describe RuboCop::Cop::Hecks::MonotonicDuration do
   # A wall-clock subtraction can go negative when the clock steps.
   it "flags Time.now minus a local" do
     expect_offense(<<~RUBY)
+      started = Time.now
       elapsed = Time.now - started
                 ^^^^^^^^^^^^^^^^^^ `Time.now - started` measures elapsed time on the wall clock, which can step. Take both ends from `Process.clock_gettime(Process::CLOCK_MONOTONIC)`.
     RUBY
