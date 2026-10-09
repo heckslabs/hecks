@@ -83,6 +83,18 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "lapse_reason",
+          "type": "FailureReason",
+          "list": false,
+          "default": {
+            "value": "checkout_expired"
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -814,6 +826,11 @@
       "capability": "payments",
       "key": "holds_seat",
       "verb": "Payment.holds_seat"
+    },
+    {
+      "capability": "payments",
+      "key": "lapse_reason",
+      "verb": "Payment.lapse_reason"
     }
   ],
   "canonical_form": [

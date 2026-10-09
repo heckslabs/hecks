@@ -123,7 +123,8 @@ module Hecks
 
           verbs = verbs_of(provider, Bluebook::Capabilities::REGISTRATIONS, :schedule, :request)
           { provider: provider.name, **verbs,
-            **aggregates_of(verbs, event_aggregate: :schedule, registration_aggregate: :request) }
+            **aggregates_of(verbs, event_aggregate: :schedule, registration_aggregate: :request),
+            **all_words(provider, Bluebook::Capabilities::REGISTRATIONS) }
         end
 
         # Which chapter owns the payment-processor connection
@@ -152,14 +153,16 @@ module Hecks
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
         #   `:failed` (qualified verbs), `:aggregate` (`:initiate`'s own leading qualified
         #   aggregate name) and, when declared, `:holds_seat` (the states of the lifecycle mark
-        #   it names); `{}` if nothing this domain attaches provides payments
+        #   it names) and `:lapse_reason` (the word a lapsed hold
+        #   records); `{}` if nothing this domain attaches provides payments
         def payments(registry, domain_name)
           provider = registry.payments_provider_for(domain_name)
           return {} unless provider
 
           verbs = verbs_of(provider, Bluebook::Capabilities::PAYMENTS, :initiate, :succeeded, :failed)
           { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]),
-            **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat) }
+            **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat),
+            **all_words(provider, Bluebook::Capabilities::PAYMENTS) }
         end
 
         # Which chapter owns the checkout boundary (`Registry#checkout_provider_for`); `{}` if

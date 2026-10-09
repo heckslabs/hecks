@@ -1398,3 +1398,14 @@ fn purpose_tokens_only_verify_for_their_own_purpose_and_secret() {
     assert!(auth::verify_purpose_token("other", "one", &token).is_none());
     assert!(auth::verify_account_token("k", &token).is_none(), "not a session cookie");
 }
+
+// ADR 0099: the processor and the modes are this adapter's own words, but the domain still has to
+// admit them. The fixture's source is the bluebook as the domain wrote it.
+#[test]
+fn the_adapter_words_are_ones_the_connection_domain_admits() {
+    let ir = crate::commerce_ir::fixture_ir();
+    let source = ir["source_text"].as_str().expect("the fixture carries its bluebook source");
+    assert!(source.contains(&format!("one_of: {MODES:?}")), "ConnectionMode must admit exactly {MODES:?}");
+    let payments = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec/fixtures/rust_host/checkout_fixture/bluebook/payments.bluebook")).expect("payments bluebook");
+    assert!(payments.contains(&format!("one_of: [\"mock_stripe\", \"{PROCESSOR}\"]")), "Payment's Processor must admit {PROCESSOR}");
+}

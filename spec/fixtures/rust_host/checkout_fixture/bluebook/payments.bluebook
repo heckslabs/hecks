@@ -16,7 +16,8 @@ Hecks.bluebook "Payments" do
            initiate:   "Payment.Initiate",
            succeeded:  "Payment.PaymentGateway.Succeeded",
            failed:     "Payment.PaymentGateway.Failed",
-           holds_seat: "Payment.holds_seat"
+           holds_seat: "Payment.holds_seat",
+           lapse_reason: "Payment.lapse_reason"
 
   aggregate "Payment" do
     description "One attempt to collect money from a client through a specific payment processor."
@@ -67,6 +68,9 @@ Hecks.bluebook "Payments" do
     attribute :client,         Client
     attribute :transaction_id, ProcessorTransactionId, optional: true
     attribute :failure_reason, FailureReason,          optional: true
+    # The reason a lapsed checkout hold records when the processor reports the
+    # session expired (a processor event, but the reason is the domain's word).
+    attribute :lapse_reason,   FailureReason,          default: { value: "checkout_expired" }
 
     lifecycle :status, default: "pending" do
       mark :holds_seat, "pending", "succeeded"

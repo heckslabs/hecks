@@ -155,4 +155,33 @@ RSpec.describe "payments capability" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /Payment\.holds_seat.*no lifecycle mark/)
     end
   end
+
+  context "with an optional lapse_reason text" do
+    # A payment that records why a lapsed hold failed (ADR 0099).
+    let(:lapse_body) do
+      proc do
+        instance_exec(&PAYMENT_AGGREGATE_BODY)
+        value_object "Reason" do
+          attribute :value, String
+        end
+        attribute :lapse_reason, Reason, default: { value: "hold_lapsed" }
+        attribute :note, Reason
+      end
+    end
+
+    it "exports the string default of the attribute it names" do
+      registry = registry_with_payments(provides: full_row.merge(lapse_reason: "Payment.lapse_reason"), body: lapse_body)
+
+      expect(Hecks::Projector::Exporter.payments(registry, "Payments")).to eq(PAYMENTS_EXPORT.merge(lapse_reason: "hold_lapsed"))
+    end
+
+    it "leaves the export unchanged when the row is not declared" do
+      expect(Hecks::Projector::Exporter.payments(registry_with_payments(body: lapse_body), "Payments")).to eq(PAYMENTS_EXPORT)
+    end
+
+    it "refuses an attribute with no text default" do
+      expect { registry_with_payments(provides: full_row.merge(lapse_reason: "Payment.note"), body: lapse_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Payment\.note.*text default/)
+    end
+  end
 end
