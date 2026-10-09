@@ -35,6 +35,8 @@ Hecks.bluebook "Pizzas" do
       attribute :value, String, pattern: '[^ \t\n\r]'
 
       invariant("a topping is named") { !value.to_s.empty? }
+      # The pattern lets a form feed through; `.strip` is what sees past it.
+      invariant("a topping name is more than whitespace") { !value.to_s.strip.empty? }
     end
 
     value_object "ToppingAmount" do
@@ -67,6 +69,33 @@ Hecks.bluebook "Pizzas" do
     query "Available" do
       where(status: "available")
       order_by :name
+    end
+
+    # No `where`: every order answers, by identity when nothing orders them.
+    query "Everything" do
+    end
+
+    # Where-less and ordered. Equal prices keep identity order; the nested path reaches the cents.
+    query "ByPrice" do
+      order_by :"pizza.price_cents.cents"
+    end
+
+    query "ByPriceDescending" do
+      order_by :"pizza.price_cents.cents", :desc
+    end
+
+    # `customer_name` is unset until a purchase, so these show where an unset value sorts.
+    query "ByCustomer" do
+      order_by :"customer_name.value"
+    end
+
+    query "ByCustomerDescending" do
+      order_by :"customer_name.value", :desc
+    end
+
+    query "ByCustomerUnsetLast" do
+      order_by :"customer_name.value"
+      nulls :last
     end
 
     # Both price queries reach through the nested Pizza value object with a dotted path.

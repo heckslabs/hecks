@@ -242,6 +242,90 @@ crate::kernel::QueryDef {
     authorization: None,
 },
 crate::kernel::QueryDef {
+    verb: "Pizzas::Order.Everything",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.ByPrice",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "pizza.price_cents.cents", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.ByPriceDescending",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "pizza.price_cents.cents", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.ByCustomer",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "customer_name.value", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.ByCustomerDescending",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "customer_name.value", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.ByCustomerUnsetLast",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "customer_name.value", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Last }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
     verb: "Pizzas::Order.CostingLessThan",
     aggregate: "Pizzas::Order",
     conditions: &[

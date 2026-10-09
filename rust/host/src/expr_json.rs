@@ -12,6 +12,14 @@ pub struct Comparison {
     pub negated: bool,
 }
 
+/// Which ends of a string `Expr::Strip` trims.
+#[derive(Debug, Clone, Copy)]
+pub enum StripSide {
+    Both,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum BlockMode {
     All,
@@ -48,6 +56,7 @@ pub enum Expr {
     Presence { receiver: Box<Expr>, negated: bool },
     Assignment { receiver: Box<Expr>, negated: bool },
     Split { receiver: Box<Expr>, separator: String },
+    Strip { receiver: Box<Expr>, side: StripSide },
     StartsWith { receiver: Box<Expr>, substring: String },
     EndsWith { receiver: Box<Expr>, substring: String },
     First { receiver: Box<Expr> },
@@ -136,6 +145,15 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
             negated: field("negated")?.as_bool().ok_or_else(|| format!("assignment's negated isn't a boolean: {json}"))?,
         },
         "split" => Expr::Split { receiver: Box::new(expr("receiver")?), separator: str_field("separator")? },
+        "strip" => Expr::Strip {
+            receiver: Box::new(expr("receiver")?),
+            side: match str_field("side")?.as_str() {
+                "both" => StripSide::Both,
+                "left" => StripSide::Left,
+                "right" => StripSide::Right,
+                other => return Err(format!("strip's side {other:?} is none of both/left/right: {json}")),
+            },
+        },
         "starts_with" => Expr::StartsWith { receiver: Box::new(expr("receiver")?), substring: str_field("substring")? },
         "ends_with" => Expr::EndsWith { receiver: Box::new(expr("receiver")?), substring: str_field("substring")? },
         "first" => Expr::First { receiver: Box::new(expr("receiver")?) },
@@ -423,6 +441,18 @@ fn split(text: &str, separator: &str) -> Vec<Value> {
     parts.into_iter().map(Value::Str).collect()
 }
 
+/// Ruby's `String#strip` family: trims null, tab, line feed, vertical tab, form feed, carriage
+/// return and space, never a Unicode space (Rust's own `trim` would drop U+00A0 too).
+fn strip(text: &str, side: StripSide) -> String {
+    let stripped = |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
+    match side {
+        StripSide::Both => text.trim_matches(stripped),
+        StripSide::Left => text.trim_start_matches(stripped),
+        StripSide::Right => text.trim_end_matches(stripped),
+    }
+    .to_string()
+}
+
 /// Compiles a Ruby `Regexp` source for the `regex` crate.
 ///
 /// Ruby's `\d \w \s \h` are ASCII and its `^ $` are always line anchors, where `regex` reads
@@ -586,6 +616,10 @@ fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, St
         Expr::Last { receiver } => match recur(receiver)? {
             Value::Array(items) => Ok(items.into_iter().next_back().unwrap_or(Value::Nil)),
             other => Err(format!("last expects a list, got {}", describe(&other))),
+        },
+        Expr::Strip { receiver, side } => match recur(receiver)? {
+            Value::Str(text) => Ok(Value::Str(strip(&text, *side))),
+            other => Err(format!("strip expects a string, got {}", describe(&other))),
         },
         Expr::StartsWith { receiver, substring } => match recur(receiver)? {
             Value::Str(text) => Ok(Value::Bool(text.starts_with(substring.as_str()))),
@@ -1033,6 +1067,19 @@ mod tests {
         assert_eq!(run(call("first", lookup_of("x")), json!({"x": []})), Ok(Value::Nil));
         assert_eq!(run(call("last", lookup_of("x")), json!({"x": "abc"})), Err("last expects a list, got \"abc\"".to_string()));
         assert_eq!(run(call("first", lookup_of("x")), json!({"x": null})), Err("first expects a list, got nil".to_string()));
+    }
+
+    #[test]
+    fn strip_trims_rubys_whitespace_and_needs_a_string() {
+        let strip_of = |side: &str, text: &str| run(json!({"op":"strip","receiver":lookup_of("x"),"side":side}), json!({"x": text}));
+        assert_eq!(strip_of("both", " \t a b \0"), Ok(Value::Str("a b".into())));
+        assert_eq!(strip_of("left", "  a "), Ok(Value::Str("a ".into())));
+        assert_eq!(strip_of("right", " a  "), Ok(Value::Str(" a".into())));
+        assert_eq!(strip_of("both", "\u{a0}a"), Ok(Value::Str("\u{a0}a".into())));
+        assert_eq!(
+            run(json!({"op":"strip","receiver":lookup_of("x"),"side":"both"}), json!({"x": null})),
+            Err("strip expects a string, got nil".to_string())
+        );
     }
 
     #[test]

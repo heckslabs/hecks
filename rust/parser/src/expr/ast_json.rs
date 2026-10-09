@@ -106,6 +106,9 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
         Resolver::Split { receiver, separator } => {
             obj(vec![op_tag("split"), ("receiver", emit_resolver(receiver)), ("separator", JsonValue::String(separator.clone()))])
         }
+        Resolver::Strip { receiver, side } => {
+            obj(vec![op_tag("strip"), ("receiver", emit_resolver(receiver)), ("side", JsonValue::String((*side).to_string()))])
+        }
         Resolver::StartsWith { receiver, substring } => {
             obj(vec![op_tag("starts_with"), ("receiver", emit_resolver(receiver)), ("substring", JsonValue::String(substring.clone()))])
         }

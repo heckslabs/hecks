@@ -3,7 +3,8 @@ require "spec_helper"
 # Projections::Statements turns declared facts into plain-English sentences, never inventing one.
 RSpec.describe "the domain's own English statements" do
   PIZZAS_STATEMENTS = ["An Order has many toppings.", "A pizza is named.", "A price is never negative.",
-                       "A customer is named.", "A topping is named.", "An amount is positive."].freeze
+                       "A customer is named.", "A topping is named.", "A topping name is more than whitespace.",
+                       "An amount is positive."].freeze
 
   def boot_banking
     registry = Hecks::Runtime::Registry.new

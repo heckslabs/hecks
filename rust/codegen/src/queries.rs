@@ -313,8 +313,17 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
     // field itself is validated afterward by `declared_authorization_skip_reason`.
     let declared_tenant = query.get("authorization").and_then(|a| a.get("tenant")).is_some();
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
-    if wheres.is_empty() && !declared_tenant {
-        return Some(skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in"));
+    // A query with no `where` answers every record, ordered and bounded as declared, as Ruby's
+    // `QueryInterpreter` does. Ruby refuses at boot one that takes arguments yet filters, orders
+    // and bounds nothing (`Registry::QueryVerification#derivable?`: it reads none of them), so no
+    // answer exists to generate for it.
+    let selects_nothing = query.get("order_by").is_none() && query.get("limit").is_none() && query.get("offset").is_none();
+    let takes_arguments = query.get("attributes").map(Json::each).is_some_and(|attributes| !attributes.is_empty());
+    if wheres.is_empty() && !declared_tenant && selects_nothing && takes_arguments {
+        return Some(skip(
+            "no_wheres",
+            "takes arguments but declares no where, order_by, limit or offset — it selects nothing, so Ruby refuses it at boot and there is no answer to generate",
+        ));
     }
 
     for where_clause in wheres {

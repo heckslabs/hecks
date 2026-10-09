@@ -76,6 +76,16 @@ module Hecks
           value.split(separator)
         end
 
+        def strip_value(value, side)
+          raise EvaluationError, "strip expects a string, got #{describe(value)}" unless value.is_a?(String)
+
+          case side
+          when :left  then value.lstrip
+          when :right then value.rstrip
+          else value.strip
+          end
+        end
+
         def last_of(value)
           return value.last if value.respond_to?(:last)
 

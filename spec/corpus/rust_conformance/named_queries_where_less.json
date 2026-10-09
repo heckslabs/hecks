@@ -1,0 +1,2269 @@
+{
+  "domain": "examples/pizzas",
+  "note": "Where-less declared queries on Pizzas::Order, held to the frozen expect on both runtimes. Six orders are created so identity order (alpha..foxtrot) and the declared orders visibly differ: prices 1200/900/1200/1500/900/1500 give ties in every price bucket, which keep identity order; three orders are bought (alpha by Zed, charlie by Amy, echo by Amy) and three stay unbought, so customer_name is unset on bravo, delta and foxtrot. Everything has no where and no order_by (every order, by identity). ByPrice and ByPriceDescending are where-less with a dotted order_by through two value objects, ascending and descending, with ties in identity order in both directions. ByCustomer (ascending, native null placement: unset first), ByCustomerDescending (native: unset last) and ByCustomerUnsetLast (ascending with nulls :last) pin the nil ordering rules, and the two customers named Amy tie and keep identity order. Available keeps the where-bearing path in the same answer.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "alpha"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "bravo"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "charlie"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "delta"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "echo"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "foxtrot"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "alpha",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "charlie",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "echo",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "alpha",
+        "customer_name": {
+          "value": "Zed"
+        },
+        "amount": {
+          "cents": 1200
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "charlie",
+        "customer_name": {
+          "value": "Amy"
+        },
+        "amount": {
+          "cents": 1200
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "echo",
+        "customer_name": {
+          "value": "Amy"
+        },
+        "amount": {
+          "cents": 900
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Order.Everything",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.ByPrice",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.ByPriceDescending",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.ByCustomer",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.ByCustomerDescending",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.ByCustomerUnsetLast",
+      "args": {
+      }
+    },
+    {
+      "query": "Pizzas::Order.Available",
+      "args": {
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Pizzas::Order#alpha": {
+        "name": {
+          "value": "alpha"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": {
+          "value": "Zed"
+        },
+        "status": "sold"
+      },
+      "Pizzas::Order#bravo": {
+        "name": {
+          "value": "bravo"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      },
+      "Pizzas::Order#charlie": {
+        "name": {
+          "value": "charlie"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": {
+          "value": "Amy"
+        },
+        "status": "sold"
+      },
+      "Pizzas::Order#delta": {
+        "name": {
+          "value": "delta"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      },
+      "Pizzas::Order#echo": {
+        "name": {
+          "value": "echo"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": {
+          "value": "Amy"
+        },
+        "status": "sold"
+      },
+      "Pizzas::Order#foxtrot": {
+        "name": {
+          "value": "foxtrot"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "alpha",
+        "payload": {
+          "name": {
+            "value": "alpha"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "bravo",
+        "payload": {
+          "name": {
+            "value": "bravo"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 900
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "charlie",
+        "payload": {
+          "name": {
+            "value": "charlie"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "delta",
+        "payload": {
+          "name": {
+            "value": "delta"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1500
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "echo",
+        "payload": {
+          "name": {
+            "value": "echo"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 900
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "foxtrot",
+        "payload": {
+          "name": {
+            "value": "foxtrot"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1500
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "alpha",
+        "payload": {
+          "name": "alpha",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "charlie",
+        "payload": {
+          "name": "charlie",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "echo",
+        "payload": {
+          "name": "echo",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "alpha",
+        "payload": {
+          "name": "alpha",
+          "customer_name": {
+            "value": "Zed"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "charlie",
+        "payload": {
+          "name": "charlie",
+          "customer_name": {
+            "value": "Amy"
+          },
+          "amount": {
+            "cents": 1200
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "echo",
+        "payload": {
+          "name": "echo",
+          "customer_name": {
+            "value": "Amy"
+          },
+          "amount": {
+            "cents": 900
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Pizzas::Order.Everything",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.ByPrice",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.ByPriceDescending",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.ByCustomer",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.ByCustomerDescending",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.ByCustomerUnsetLast",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "charlie"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "charlie"
+          },
+          {
+            "name": {
+              "value": "echo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Amy"
+            },
+            "status": "sold",
+            "id": "echo"
+          },
+          {
+            "name": {
+              "value": "alpha"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1200
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+              {
+                "name": "Basil",
+                "amount": 1
+              }
+            ],
+            "customer_name": {
+              "value": "Zed"
+            },
+            "status": "sold",
+            "id": "alpha"
+          },
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ]
+      },
+      {
+        "query": "Pizzas::Order.Available",
+        "args": {
+        },
+        "rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ],
+        "reference_rows": [
+          {
+            "name": {
+              "value": "bravo"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 900
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "bravo"
+          },
+          {
+            "name": {
+              "value": "delta"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "delta"
+          },
+          {
+            "name": {
+              "value": "foxtrot"
+            },
+            "pizza": {
+              "price_cents": {
+                "cents": 1500
+              },
+              "size": {
+                "value": "large"
+              }
+            },
+            "toppings": [
+
+            ],
+            "customer_name": null,
+            "status": "available",
+            "id": "foxtrot"
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

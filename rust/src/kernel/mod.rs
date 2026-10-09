@@ -21,7 +21,7 @@ pub mod repository;
 pub mod routing;
 
 pub use dispatch::{aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments, dispatch, dispatch_entity, enforce_invariants, entity_step_site, ArgumentGates, EnsuresSpec, EntityInvariants, GivenSpec, Hydrate, InvariantSet, InvariantSpec, StepSite, TransitionCheck};
-pub use expr::{interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value, WithParent};
+pub use expr::{interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields, StripSide, Value, WithParent};
 pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
