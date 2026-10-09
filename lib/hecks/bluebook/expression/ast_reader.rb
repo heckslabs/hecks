@@ -110,6 +110,7 @@ module Hecks
           when "size"  then Resolver::Size.new(receiver: receiver(json))
           when "first" then Resolver::First.new(receiver: receiver(json))
           when "last"  then Resolver::Last.new(receiver: receiver(json))
+          when "strip" then Resolver::Strip.new(receiver: receiver(json), side: json["side"].to_sym)
           end
         end
 
@@ -120,7 +121,6 @@ module Hecks
           when "matches_regex"
             Resolver::MatchesRegex.new(receiver: receiver(json), pattern: json["pattern"], flags: json["flags"])
           when "split"         then Resolver::Split.new(receiver: receiver(json), separator: json["separator"])
-          when "strip"         then Resolver::Strip.new(receiver: receiver(json), side: json["side"].to_sym)
           when "starts_with"   then Resolver::StartsWith.new(receiver: receiver(json), substring: json["substring"])
           when "ends_with"     then Resolver::EndsWith.new(receiver: receiver(json), substring: json["substring"])
           end

@@ -388,11 +388,16 @@ RSpec.describe "the expression sublanguage" do
   end
 
   describe "strip, lstrip and rstrip" do
-    it "trim Ruby's whitespace set from the ends they name", :aggregate_failures do
+    it "trim Ruby's whitespace set from both ends", :aggregate_failures do
       padded = "\0 \t\n a b \v\f\r\0"
 
-      expect(evaluate('!value.to_s.strip.empty?', value: "  \f ")).to be(false)
+      expect(evaluate("!value.to_s.strip.empty?", value: "  \f ")).to be(false)
       expect(evaluate('value.strip == "a b"', value: padded)).to be(true)
+    end
+
+    it "trim only the end each names", :aggregate_failures do
+      padded = "\0 \t\n a b \v\f\r\0"
+
       expect(evaluate('value.lstrip.start_with?("a")', value: padded)).to be(true)
       expect(evaluate('value.lstrip.end_with?("a")', value: padded)).to be(false)
       expect(evaluate('value.rstrip.end_with?("b")', value: padded)).to be(true)
