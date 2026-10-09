@@ -108,6 +108,29 @@ pub struct PaymentsProvider {
     pub failed: String,
     /// Qualified paying aggregate, e.g. `Payments::Payment`.
     pub aggregate: String,
+    /// Payment states whose registration still holds a seat: the aggregate's
+    /// lifecycle `holds_seat` mark, or [`LEGACY_HOLDS_SEAT`] when it declares none.
+    pub holds_seat: Vec<String>,
+}
+
+/// LEGACY DEFAULT: the seat-holding payment states used while the payment
+/// lifecycle declares no `holds_seat` mark. Delete this (and the fallback in
+/// `payments_provider`) once the Payments bluebook declares
+/// `mark :holds_seat, "pending", "succeeded", "refunding", "disputed"`.
+pub const LEGACY_HOLDS_SEAT: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
+
+/// The states a lifecycle `mark` names on one aggregate, read from the IR's
+/// `aggregates[].lifecycle.marks`. `qualified_aggregate` is `Chapter::Aggregate`;
+/// it matches only when the chapter is this IR's own domain. `None` when the
+/// aggregate, its lifecycle or the mark is absent.
+pub fn lifecycle_mark(domain_ir: &Value, qualified_aggregate: &str, mark: &str) -> Option<Vec<String>> {
+    let (chapter, name) = qualified_aggregate.rsplit_once("::")?;
+    if domain_ir.get("name").and_then(|n| n.as_str()) != Some(chapter) {
+        return None;
+    }
+    let aggregate = domain_ir.get("aggregates")?.as_array()?.iter().find(|a| a.get("name").and_then(|n| n.as_str()) == Some(name))?;
+    let states = aggregate.get("lifecycle")?.get("marks")?.get(mark)?.as_array()?;
+    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
 }
 
 impl PaymentsProvider {
@@ -120,12 +143,19 @@ impl PaymentsProvider {
 
 pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     let fact = domain_ir.get("payments")?;
+    let aggregate = fact.get("aggregate")?.as_str()?.to_string();
+    let holds_seat = lifecycle_mark(domain_ir, &aggregate, "holds_seat").unwrap_or_else(|| {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| eprintln!("payment lifecycle declares no holds_seat mark; using built-in default"));
+        LEGACY_HOLDS_SEAT.iter().map(|s| s.to_string()).collect()
+    });
     Some(PaymentsProvider {
         provider: fact.get("provider")?.as_str()?.to_string(),
         initiate: fact.get("initiate")?.as_str()?.to_string(),
         succeeded: fact.get("succeeded")?.as_str()?.to_string(),
         failed: fact.get("failed")?.as_str()?.to_string(),
-        aggregate: fact.get("aggregate")?.as_str()?.to_string(),
+        aggregate,
+        holds_seat,
     })
 }
 
@@ -363,6 +393,44 @@ mod tests {
         assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
         assert_eq!(provider.instance_prefix(), "Payments::Payment#");
         assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    fn payments_ir(marks: Option<serde_json::Value>) -> Value {
+        let mut lifecycle = serde_json::json!({"field": "status", "default": "pending", "transitions": []});
+        if let Some(marks) = marks {
+            lifecycle["marks"] = marks;
+        }
+        serde_json::json!({
+            "name": "Payments",
+            "aggregates": [{"name": "Payment", "lifecycle": lifecycle}],
+            "payments": {
+                "provider": "Payments", "initiate": "Payments::Payment.Initiate",
+                "succeeded": "Payments::Payment.PaymentGateway.Succeeded",
+                "failed": "Payments::Payment.PaymentGateway.Failed", "aggregate": "Payments::Payment"
+            }
+        })
+    }
+
+    #[test]
+    fn lifecycle_mark_reads_the_declared_states() {
+        let ir = payments_ir(Some(serde_json::json!({"holds_seat": ["pending", "paid"]})));
+        assert_eq!(lifecycle_mark(&ir, "Payments::Payment", "holds_seat"), Some(vec!["pending".to_string(), "paid".to_string()]));
+        assert_eq!(lifecycle_mark(&ir, "Payments::Payment", "other"), None);
+        assert_eq!(lifecycle_mark(&ir, "Payments::Missing", "holds_seat"), None);
+        assert_eq!(lifecycle_mark(&ir, "Elsewhere::Payment", "holds_seat"), None);
+        assert_eq!(lifecycle_mark(&payments_ir(None), "Payments::Payment", "holds_seat"), None);
+    }
+
+    #[test]
+    fn payments_provider_uses_the_declared_holds_seat_mark() {
+        let ir = payments_ir(Some(serde_json::json!({"holds_seat": ["pending", "paid"]})));
+        assert_eq!(payments_provider(&ir).expect("payments").holds_seat, vec!["pending", "paid"]);
+    }
+
+    #[test]
+    fn payments_provider_falls_back_to_the_legacy_default_without_the_mark() {
+        let held = payments_provider(&payments_ir(None)).expect("payments").holds_seat;
+        assert_eq!(held, LEGACY_HOLDS_SEAT);
     }
 
     #[test]
