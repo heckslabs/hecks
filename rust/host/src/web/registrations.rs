@@ -477,7 +477,7 @@ pub(crate) async fn registrations_route(
     // follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key } = &plan {
         let auth = checkout::StripeAuth { api_key, base_url: &platform.api_base };
-        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
+        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now(), crate::commerce_ir::checkout_windows_binding().session_hold)).await {
             // Stripe.js is opened with the publishable key; the answer carries
             // no `checkout_url`.
             Ok(session) => Some(json!({
@@ -611,9 +611,10 @@ pub(crate) async fn webhook_route(
         return mock_secret_refused();
     }
     let candidates = if configured.is_empty() { vec![MOCK_STRIPE_WEBHOOK_SECRET] } else { configured };
+    let tolerance = crate::commerce_ir::checkout_windows_binding().webhook_tolerance;
     let mut verification = Ok(());
     for secret in &candidates {
-        verification = checkout::verify_signature(raw_body, signature_header, secret, now);
+        verification = checkout::verify_signature(raw_body, signature_header, secret, now, tolerance);
         if verification.is_ok() {
             break;
         }

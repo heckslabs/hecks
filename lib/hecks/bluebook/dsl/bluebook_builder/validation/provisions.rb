@@ -5,6 +5,13 @@ module Hecks
         module Validation
           # Checks every `provides` row of a chapter against `Capabilities::CONTRACTS`.
           module Provisions
+            # The checks for the kinds whose verb is not a command or a query.
+            SPECIAL_KIND_CHECKS = {
+              port_operation: :validate_provided_port_operation!,
+              mark:           :validate_provided_mark!,
+              duration:       :validate_provided_duration!
+            }.freeze
+
             private
 
             # Checks every `provides` row against `Capabilities::CONTRACTS`.
@@ -44,8 +51,8 @@ module Hecks
             end
 
             def validate_provided_verb!(bluebook, capability, row, kind)
-              return validate_provided_port_operation!(bluebook, capability, row) if kind == :port_operation
-              return validate_provided_mark!(bluebook, capability, row) if kind == :mark
+              special = SPECIAL_KIND_CHECKS[kind]
+              return send(special, bluebook, capability, row) if special
 
               aggregate_name, member = row.verb.split(".", 2)
               aggregate = bluebook.aggregate(aggregate_name)
@@ -76,6 +83,18 @@ module Hecks
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
                                "which names no lifecycle mark this chapter declares (spelled " \
                                "\"Aggregate.mark_name\", with `mark :mark_name, ...` in that aggregate's lifecycle)"
+            end
+
+            # A duration verb is spelled "Aggregate.attribute" and must name an attribute of
+            # that aggregate whose `default:` is a whole, positive number of seconds (a bare
+            # integer, or the `{ value: N }` fill of a one-field value object).
+            def validate_provided_duration!(bluebook, capability, row)
+              return if Capabilities.duration_of(bluebook, row.verb)
+
+              raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                               "which names no attribute with a whole-seconds default this chapter declares " \
+                               "(spelled \"Aggregate.attribute\", with `attribute :attribute, Seconds, " \
+                               "default: { value: 1800 }` in that aggregate)"
             end
 
             def provided_member_names(aggregate, kind)

@@ -30,6 +30,86 @@ pub struct NewsletterProvider {
     /// Subscriber states of someone who has left: the `left` list, or
     /// [`LEGACY_LEFT`] when the chapter declares none.
     pub left: Vec<String>,
+    /// Seconds the emailed confirm link stays valid: the `confirm_window` of
+    /// the `newsletter` fact (ADR 0098), or [`LEGACY_CONFIRM_WINDOW_SECS`].
+    pub confirm_window: u64,
+    /// Seconds an emailed unsubscribe link stays valid: the `unsubscribe_window`,
+    /// or [`LEGACY_UNSUBSCRIBE_WINDOW_SECS`].
+    pub unsubscribe_window: u64,
+}
+
+/// LEGACY DEFAULT: how long the emailed confirm link lasts (14 days), used
+/// while the `newsletter` fact carries no `confirm_window`, because the
+/// Newsletter chapter predates ADR 0098 and does not declare
+/// `provides "newsletter", ..., confirm_window: "Subscriber.confirm_window"`.
+/// Delete this (and the fallback in `newsletter_provider`) once every shipped
+/// Newsletter bluebook does.
+pub const LEGACY_CONFIRM_WINDOW_SECS: u64 = 14 * 24 * 60 * 60;
+
+/// LEGACY DEFAULT: how long an emailed unsubscribe link lasts (730 days), used
+/// while the `newsletter` fact carries no `unsubscribe_window` (see
+/// [`LEGACY_CONFIRM_WINDOW_SECS`]).
+pub const LEGACY_UNSUBSCRIBE_WINDOW_SECS: u64 = 730 * 24 * 60 * 60;
+
+/// The whole seconds the fact `fact` lists under `key`: an attribute default
+/// resolved by the exporter (ADR 0098). `None` when the fact omits it.
+fn declared_seconds(fact: &Value, key: &str) -> Option<u64> {
+    fact.get(key)?.as_u64().filter(|seconds| *seconds > 0)
+}
+
+/// The declared seconds for `key`, else `legacy` with a single warning per process.
+fn seconds_or_legacy(fact: &Value, capability: &str, key: &str, legacy: u64, warned: &std::sync::Once) -> u64 {
+    declared_seconds(fact, key).unwrap_or_else(|| {
+        warned.call_once(|| eprintln!("{capability} capability declares no {key}; using built-in default"));
+        legacy
+    })
+}
+
+/// The checkout boundary's windows, read from `ir.json`'s own `checkout` key
+/// (ADR 0098). Always present: a window the chapter does not declare takes its
+/// labelled legacy default.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CheckoutWindows {
+    /// Seconds either side of now a signed webhook's timestamp may sit.
+    pub webhook_tolerance: i64,
+    /// Seconds a checkout session holds its seat (before the processor's own
+    /// minimum is applied by the checkout adapter).
+    pub session_hold: i64,
+}
+
+/// LEGACY DEFAULT: the webhook freshness window (5 minutes), used while the
+/// `checkout` fact carries no `webhook_tolerance`, because no shipped Checkout
+/// bluebook declares `provides "checkout", webhook_tolerance: "WebhookReceipt.tolerance"`.
+/// Delete this (and the fallback in `checkout_windows`) once every one does.
+pub const LEGACY_WEBHOOK_TOLERANCE_SECS: i64 = 300;
+
+/// LEGACY DEFAULT: the seat hold of a session (30 minutes), used while the
+/// `checkout` fact carries no `session_hold` (see [`LEGACY_WEBHOOK_TOLERANCE_SECS`]).
+pub const LEGACY_SESSION_HOLD_SECS: i64 = 30 * 60;
+
+/// The checkout windows `domain_ir` declares, each falling back to its legacy default.
+pub fn checkout_windows(domain_ir: &Value) -> CheckoutWindows {
+    static TOLERANCE_WARNED: std::sync::Once = std::sync::Once::new();
+    static HOLD_WARNED: std::sync::Once = std::sync::Once::new();
+    let fact = domain_ir.get("checkout").unwrap_or(&Value::Null);
+    let seconds = |key, legacy: i64, warned| seconds_or_legacy(fact, "checkout", key, legacy as u64, warned) as i64;
+    CheckoutWindows {
+        webhook_tolerance: seconds("webhook_tolerance", LEGACY_WEBHOOK_TOLERANCE_SECS, &TOLERANCE_WARNED),
+        session_hold: seconds("session_hold", LEGACY_SESSION_HOLD_SECS, &HOLD_WARNED),
+    }
+}
+
+/// The checkout windows of the IR this host loaded (legacy defaults without one).
+pub fn checkout_windows_binding() -> CheckoutWindows {
+    checkout_windows(ir().unwrap_or(&Value::Null))
+}
+
+/// The confirm-link and unsubscribe-link windows of the IR this host loaded:
+/// `(confirm, unsubscribe)` seconds, legacy defaults without a `newsletter` fact.
+pub fn newsletter_windows_binding() -> (u64, u64) {
+    ir().and_then(newsletter_provider)
+        .map(|p| (p.confirm_window, p.unsubscribe_window))
+        .unwrap_or((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS))
 }
 
 /// LEGACY DEFAULT: the states a new subscriber waits in, used while the
@@ -115,8 +195,12 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     static AWAITING_WARNED: std::sync::Once = std::sync::Once::new();
     static RECEIVES_WARNED: std::sync::Once = std::sync::Once::new();
     static LEFT_WARNED: std::sync::Once = std::sync::Once::new();
+    static CONFIRM_WINDOW_WARNED: std::sync::Once = std::sync::Once::new();
+    static UNSUBSCRIBE_WINDOW_WARNED: std::sync::Once = std::sync::Once::new();
     let fact = domain_ir.get("newsletter")?;
     Some(NewsletterProvider {
+        confirm_window: seconds_or_legacy(fact, "newsletter", "confirm_window", LEGACY_CONFIRM_WINDOW_SECS, &CONFIRM_WINDOW_WARNED),
+        unsubscribe_window: seconds_or_legacy(fact, "newsletter", "unsubscribe_window", LEGACY_UNSUBSCRIBE_WINDOW_SECS, &UNSUBSCRIBE_WINDOW_WARNED),
         awaiting_confirmation: states_or_legacy(fact, "awaiting_confirmation", &LEGACY_AWAITING_CONFIRMATION, &AWAITING_WARNED),
         receives_issues: states_or_legacy(fact, "receives_issues", &LEGACY_RECEIVES_ISSUES, &RECEIVES_WARNED),
         left: states_or_legacy(fact, "left", &LEGACY_LEFT, &LEFT_WARNED),
@@ -464,6 +548,37 @@ mod tests {
         assert!(provider.has_left(Some("unsubscribed")));
         assert!(!provider.has_left(None));
         assert_eq!(provider.initial_status(), "pending");
+    }
+
+    #[test]
+    fn newsletter_provider_reads_the_link_windows_from_the_fact() {
+        let ir = newsletter_ir(serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }));
+        let provider = newsletter_provider(&ir).expect("newsletter");
+        assert_eq!((provider.confirm_window, provider.unsubscribe_window), (3600, 7200));
+    }
+
+    #[test]
+    fn newsletter_provider_falls_back_to_the_legacy_windows_without_them() {
+        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        assert_eq!(provider.confirm_window, LEGACY_CONFIRM_WINDOW_SECS);
+        assert_eq!(provider.unsubscribe_window, LEGACY_UNSUBSCRIBE_WINDOW_SECS);
+        assert_eq!((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS), (1_209_600, 63_072_000));
+    }
+
+    #[test]
+    fn checkout_windows_read_the_fact_and_fall_back_per_window() {
+        let declared = serde_json::json!({ "checkout": { "provider": "Checkout", "webhook_tolerance": 120, "session_hold": 2400 } });
+        assert_eq!(checkout_windows(&declared), CheckoutWindows { webhook_tolerance: 120, session_hold: 2400 });
+        let partial = serde_json::json!({ "checkout": { "provider": "Checkout", "session_hold": 2400 } });
+        assert_eq!(checkout_windows(&partial), CheckoutWindows { webhook_tolerance: LEGACY_WEBHOOK_TOLERANCE_SECS, session_hold: 2400 });
+        let none = checkout_windows(&serde_json::json!({ "name": "Pizzas" }));
+        assert_eq!(none, CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
+    }
+
+    #[test]
+    fn a_zero_or_non_numeric_window_is_not_a_declaration() {
+        let ir = serde_json::json!({ "checkout": { "webhook_tolerance": 0, "session_hold": "soon" } });
+        assert_eq!(checkout_windows(&ir), CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
     }
 
     #[test]

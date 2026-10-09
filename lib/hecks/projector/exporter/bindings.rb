@@ -1,3 +1,5 @@
+require_relative "capability_values"
+
 module Hecks
   module Projector
     module Exporter
@@ -5,6 +7,8 @@ module Hecks
       # membership, identity, newsletter, registrations, payments): a per-deployment binding fact,
       # not part of the declared IR. Each answers `{}` when nothing the domain attaches provides it.
       module Bindings
+        include CapabilityValues
+
         # Which chapter this domain's role checks resolve against
         # (`Registry#authorization_provider_for`); `{}` if none does.
         #
@@ -72,8 +76,9 @@ module Hecks
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
         #   `:confirm`, `:unsubscribe` (qualified verbs), `:aggregate` (`:subscribe`'s own
         #   leading qualified aggregate name) and, when declared, `:awaiting_confirmation`,
-        #   `:receives_issues` and `:left` (the states of the lifecycle marks they name); `{}` if
-        #   nothing this domain attaches provides newsletter
+        #   `:receives_issues` and `:left` (the states of the lifecycle marks they name) and
+        #   `:confirm_window` and `:unsubscribe_window` (seconds); `{}` if nothing this domain
+        #   attaches provides newsletter
         def newsletter(registry, domain_name)
           provider = registry.newsletter_provider_for(domain_name)
           return {} unless provider
@@ -81,7 +86,8 @@ module Hecks
           verbs = verbs_of(provider, Bluebook::Capabilities::NEWSLETTER,
                            :subscribe, :add_name, :confirm, :unsubscribe)
           { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]),
-            **all_marked_states(provider, Bluebook::Capabilities::NEWSLETTER) }
+            **all_marked_states(provider, Bluebook::Capabilities::NEWSLETTER),
+            **all_durations(provider, Bluebook::Capabilities::NEWSLETTER) }
         end
 
         # Which chapter answers sending a newsletter issue
@@ -156,29 +162,26 @@ module Hecks
             **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat) }
         end
 
+        # Which chapter owns the checkout boundary (`Registry#checkout_provider_for`); `{}` if
+        # none does.
+        #
+        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+        # @param domain_name [String] the domain to export the checkout binding for
+        # @return [Hash{Symbol => Object}] `:provider` (name) and, when declared,
+        #   `:webhook_tolerance` and `:session_hold` (whole seconds); `{}` if nothing this
+        #   domain attaches provides checkout
+        def checkout(registry, domain_name)
+          provider = registry.checkout_provider_for(domain_name)
+          return {} unless provider
+
+          { provider: provider.name, **all_durations(provider, Bluebook::Capabilities::CHECKOUT) }
+        end
+
         private
 
         # The qualified verb `provider` supplies for each of `keys` under `capability`.
         def verbs_of(provider, capability, *keys)
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
-        end
-
-        # `{ key => states }` for each optional `:mark` entry `provider` declares under
-        # `capability`.
-        def all_marked_states(provider, capability)
-          contract = Bluebook::Capabilities::CONTRACTS.fetch(capability)
-          mark_keys = contract.select { |_, kind| kind == :mark }.keys
-          mark_keys.reduce({}) { |marks, key| marks.merge(marked_states(provider, capability, key)) }
-        end
-
-        # `{ key => states }` for an optional `:mark` entry `provider` declares under `capability`:
-        # the states of the named aggregate's lifecycle mark. `{}` when the entry is not declared.
-        def marked_states(provider, capability, key)
-          verb = provider.provision(capability)&.fetch(key, nil)
-          return {} unless verb
-
-          aggregate_name, mark = verb.split(".", 2)
-          { key => provider.aggregate(aggregate_name).lifecycle.marked(mark) }
         end
 
         # Each name in `names` mapped to the leading aggregate of the verb its key names in `verbs`.

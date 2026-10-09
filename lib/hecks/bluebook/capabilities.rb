@@ -30,11 +30,18 @@ module Hecks
       # declaration rather than the literal name "PaymentConnection".
       PAYMENT_CONNECTION = "payment_connection".freeze
 
+      # The checkout boundary in front of a payment processor: how long a
+      # signed webhook stays fresh and how long a session holds its seat,
+      # recognised by declaration rather than the literal chapter name.
+      CHECKOUT = "checkout".freeze
+
       # The kinds of contract entry a capability may name: `:command` and
       # `:query` ("Aggregate.Name"), `:port_operation` ("Aggregate.Port.Operation")
       # and `:mark` ("Aggregate.mark_name", the states of that aggregate's
-      # lifecycle mark). A `:mark` entry is optional; every other entry is required.
-      OPTIONAL_KINDS = %i[mark].freeze
+      # lifecycle mark) and `:duration` ("Aggregate.attribute", the whole-seconds
+      # `default:` of that attribute, ADR 0098). `:mark` and `:duration` entries are
+      # optional; every other entry is required.
+      OPTIONAL_KINDS = %i[mark duration].freeze
 
       CONTRACTS = {
         AUTHORIZATION      => {
@@ -76,7 +83,12 @@ module Hecks
           # Optional: the subscriber states that receive each issue sent
           receives_issues:       :mark,
           # Optional: the subscriber states of someone who has left
-          left:                  :mark
+          left:                  :mark,
+          # Optional: how many seconds the emailed confirm link stays valid,
+          # spelled "Subscriber.confirm_window"
+          confirm_window:        :duration,
+          # Optional: how many seconds an emailed unsubscribe link stays valid
+          unsubscribe_window:    :duration
         }.freeze,
         NEWSLETTER_ISSUES  => {
           # mark an issue sent; the issue aggregate is the one it names
@@ -118,8 +130,37 @@ module Hecks
           enable:     :command,
           # switch taking payments off
           disable:    :command
+        }.freeze,
+        CHECKOUT           => {
+          # Optional: how many seconds either side of now a signed webhook's
+          # timestamp may sit, spelled "WebhookReceipt.tolerance"
+          webhook_tolerance: :duration,
+          # Optional: how many seconds a session holds its seat
+          session_hold:      :duration
         }.freeze
       }.freeze
+
+      # The whole seconds a duration attribute's `default:` holds: a bare integer, or the
+      # `{ value: N }` fill of a one-field value object (how a bluebook types a number).
+      #
+      # @param default [Object] an attribute's `default:`
+      # @return [Integer, nil] the positive whole seconds, or `nil` when it is not that
+      def self.duration_seconds(default)
+        seconds = default.is_a?(Hash) ? default.fetch(:value) { default["value"] } : default
+        seconds if seconds.is_a?(Integer) && seconds.positive?
+      end
+
+      # The seconds a `:duration` verb ("Aggregate.attribute") resolves to in `chapter`.
+      #
+      # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+      # @param verb [String] the entry, spelled "Aggregate.attribute"
+      # @return [Integer, nil] the positive whole seconds, or `nil` when the verb names no such
+      #   attribute or its default is not whole seconds
+      def self.duration_of(chapter, verb)
+        aggregate_name, attribute_name = verb.split(".", 2)
+        attribute = chapter.aggregate(aggregate_name)&.attributes&.find { |a| a.name.to_s == attribute_name }
+        duration_seconds(attribute&.default)
+      end
 
       # The keys a capability's `provides` must name.
       #

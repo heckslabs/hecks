@@ -101,6 +101,16 @@ module Hecks
           vendored_provider_for(domain, Bluebook::Capabilities::PAYMENT_CONNECTION)
         end
 
+        # The chapter that owns the checkout boundary for `domain` — resolved by what it
+        # declares (`provides "checkout"`). Nil when none does.
+        #
+        # @param domain [String, Symbol] the domain whose checkout chapter is being resolved
+        # @return [Bluebook::Chapter, nil] the chapter that owns `domain`'s checkout windows,
+        #   or nil if none does
+        def checkout_provider_for(domain)
+          vendored_provider_for(domain, Bluebook::Capabilities::CHECKOUT)
+        end
+
         # The chapter that takes payments for `domain`: the domain's own chapter, a
         # framework member, or a vendored embryonaut bluebook it attaches, that
         # declares `provides "payments"`.

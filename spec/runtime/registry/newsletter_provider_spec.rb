@@ -140,4 +140,40 @@ RSpec.describe "newsletter capability" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /no lifecycle mark/)
     end
   end
+
+  context "with optional link windows (ADR 0098)" do
+    let(:windowed_body) do
+      proc do
+        instance_exec(&NEWSLETTER_SUBSCRIBER_BODY)
+        value_object("Seconds") { attribute :value, Integer }
+        attribute :confirm_window,     Seconds, default: { value: 1_209_600 }
+        attribute :unsubscribe_window, Seconds, default: { value: 63_072_000 }
+      end
+    end
+    let(:window_row) do
+      NEWSLETTER_VERBS.merge(confirm_window:     "Subscriber.confirm_window",
+                             unsubscribe_window: "Subscriber.unsubscribe_window")
+    end
+
+    it "exports the whole-seconds default of each attribute it names" do
+      registry = registry_with_newsletter(provides: window_row, body: windowed_body)
+
+      expect(Hecks::Projector::Exporter.newsletter(registry, "Newsletter"))
+        .to eq(NEWSLETTER_EXPORT.merge(confirm_window: 1_209_600, unsubscribe_window: 63_072_000))
+    end
+
+    it "refuses a window that names an attribute with no whole-seconds default" do
+      row = NEWSLETTER_VERBS.merge(confirm_window: "Subscriber.email")
+
+      expect { registry_with_newsletter(provides: row, body: windowed_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.email.*whole-seconds default/)
+    end
+
+    it "refuses a window that names no attribute at all" do
+      row = NEWSLETTER_VERBS.merge(unsubscribe_window: "Subscriber.nope")
+
+      expect { registry_with_newsletter(provides: row, body: windowed_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.nope/)
+    end
+  end
 end

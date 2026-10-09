@@ -134,7 +134,6 @@ async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client
 }
 
 const CONFIRM_PURPOSE: &str = "newsletter-confirm";
-const CONFIRM_TTL_SECS: u64 = 14 * 24 * 60 * 60;
 
 // SESSION_SECRET; unset means no confirm link can be signed and none is sent.
 fn confirm_secret() -> Option<String> {
@@ -142,7 +141,7 @@ fn confirm_secret() -> Option<String> {
 }
 
 fn confirm_token(secret: &str, email: &str) -> String {
-    auth::purpose_token(secret, CONFIRM_PURPOSE, json!({ "email": email }), CONFIRM_TTL_SECS)
+    auth::purpose_token(secret, CONFIRM_PURPOSE, json!({ "email": email }), crate::commerce_ir::newsletter_windows_binding().0)
 }
 
 fn confirm_token_matches(secret: &str, token: &str, email: &str) -> bool {

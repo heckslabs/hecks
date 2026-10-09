@@ -7,10 +7,6 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
-// docs.stripe.com/webhooks#verify-events — 5 minutes, guards against a
-// replayed old payload even against a leaked (not yet rotated) secret.
-const TOLERANCE_SECONDS: i64 = 300;
-
 pub struct SignatureError(pub String);
 
 impl std::fmt::Display for SignatureError {
@@ -22,7 +18,10 @@ impl std::fmt::Display for SignatureError {
 // Signs `<timestamp>.<raw body>`, the exact bytes Stripe sent -- re-serializing
 // the JSON would disagree on whitespace or key order and break every match.
 // `now` is a parameter, not read internally, so a test can hold time fixed.
-pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64) -> Result<(), SignatureError> {
+// `tolerance_seconds` is the freshness window the Checkout bluebook declares
+// (`WebhookReceipt.tolerance`, read from the IR): it guards against a replayed
+// old payload even against a leaked (not yet rotated) secret.
+pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64, tolerance_seconds: i64) -> Result<(), SignatureError> {
     let mut timestamp: Option<i64> = None;
     let mut signatures: Vec<&str> = Vec::new();
     for part in header.split(',') {
@@ -39,9 +38,9 @@ pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64) -> 
     if signatures.is_empty() {
         return Err(SignatureError("Stripe-Signature header has no v1= signature".to_string()));
     }
-    if (now - timestamp).abs() > TOLERANCE_SECONDS {
+    if (now - timestamp).abs() > tolerance_seconds {
         return Err(SignatureError(format!(
-            "timestamp {timestamp} is outside the {TOLERANCE_SECONDS}s tolerance (now: {now})"
+            "timestamp {timestamp} is outside the {tolerance_seconds}s tolerance (now: {now})"
         )));
     }
 
@@ -98,11 +97,19 @@ pub struct EmbeddedSession {
     pub client_secret: String,
 }
 
-// 31, not 30: Stripe requires an expiry at least 30 minutes out.
-pub const SESSION_HOLD_SECONDS: i64 = 31 * 60;
+// 31, not 30: Stripe requires an expiry at least 30 minutes out. This floor is a
+// fact about the processor, so it lives here in the adapter; the domain declares
+// only how long a session holds its seat (`CheckoutSession.hold`), and a hold
+// shorter than the floor is raised to it.
+pub const STRIPE_MIN_HOLD_SECONDS: i64 = 31 * 60;
 
-pub fn session_expires_at(now: i64) -> i64 {
-    now + SESSION_HOLD_SECONDS
+/// The hold actually sent to Stripe for a domain hold of `hold_seconds`.
+pub fn effective_hold_seconds(hold_seconds: i64) -> i64 {
+    hold_seconds.max(STRIPE_MIN_HOLD_SECONDS)
+}
+
+pub fn session_expires_at(now: i64, hold_seconds: i64) -> i64 {
+    now + effective_hold_seconds(hold_seconds)
 }
 
 // Errors carry Stripe's message when it refuses, never a secret.
@@ -158,6 +165,8 @@ pub async fn create_checkout_session(
 mod tests {
     use super::*;
 
+    const TOLERANCE_SECONDS: i64 = 300;
+
     fn sign(secret: &str, timestamp: i64, payload: &str) -> String {
         let signed_payload = format!("{timestamp}.{payload}");
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
@@ -195,7 +204,7 @@ mod tests {
         let now = 1_700_000_000;
         let header = format!("t={now},v1={}", sign(secret, now, payload));
 
-        assert!(verify_signature(payload, &header, secret, now).is_ok());
+        assert!(verify_signature(payload, &header, secret, now, TOLERANCE_SECONDS).is_ok());
     }
 
     #[test]
@@ -207,7 +216,7 @@ mod tests {
         // Same header, different body — exactly what an attacker
         // intercepting and rewriting the request in transit would send.
         let tampered = r#"{"type":"checkout.session.expired"}"#;
-        assert!(verify_signature(tampered, &header, secret, now).is_err());
+        assert!(verify_signature(tampered, &header, secret, now, TOLERANCE_SECONDS).is_err());
     }
 
     #[test]
@@ -216,7 +225,7 @@ mod tests {
         let now = 1_700_000_000;
         let header = format!("t={now},v1={}", sign("whsec_real", now, payload));
 
-        assert!(verify_signature(payload, &header, "whsec_wrong", now).is_err());
+        assert!(verify_signature(payload, &header, "whsec_wrong", now, TOLERANCE_SECONDS).is_err());
     }
 
     #[test]
@@ -231,7 +240,14 @@ mod tests {
         // to be a separate, independent gate rather than folded into
         // "does the signature verify at all."
         let much_later = signed_at + TOLERANCE_SECONDS + 1;
-        assert!(verify_signature(payload, &header, secret, much_later).is_err());
+        assert!(verify_signature(payload, &header, secret, much_later, TOLERANCE_SECONDS).is_err());
+    }
+
+    #[test]
+    fn a_hold_shorter_than_stripes_floor_is_raised_to_it() {
+        assert_eq!(effective_hold_seconds(1800), STRIPE_MIN_HOLD_SECONDS);
+        assert_eq!(effective_hold_seconds(3600), 3600);
+        assert_eq!(session_expires_at(1_000, 1800), 1_000 + STRIPE_MIN_HOLD_SECONDS);
     }
 
     #[test]
@@ -246,20 +262,20 @@ mod tests {
             sign(new_secret, now, payload)
         );
 
-        assert!(verify_signature(payload, &header, old_secret, now).is_ok());
-        assert!(verify_signature(payload, &header, new_secret, now).is_ok());
+        assert!(verify_signature(payload, &header, old_secret, now, TOLERANCE_SECONDS).is_ok());
+        assert!(verify_signature(payload, &header, new_secret, now, TOLERANCE_SECONDS).is_ok());
     }
 
     #[test]
     fn a_header_with_no_v1_at_all_is_rejected() {
         let now = 1_700_000_000;
         let header = format!("t={now}");
-        assert!(verify_signature("{}", &header, "whsec_test", now).is_err());
+        assert!(verify_signature("{}", &header, "whsec_test", now, TOLERANCE_SECONDS).is_err());
     }
 
     #[test]
     fn a_header_with_no_timestamp_at_all_is_rejected() {
         let header = "v1=deadbeef".to_string();
-        assert!(verify_signature("{}", &header, "whsec_test", 1_700_000_000).is_err());
+        assert!(verify_signature("{}", &header, "whsec_test", 1_700_000_000, TOLERANCE_SECONDS).is_err());
     }
 }
