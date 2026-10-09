@@ -1,6 +1,6 @@
 # A capability names a word and a field, and the host keeps only the adapter's own vocabulary
 
-**Status:** Accepted. Built for the failure reason and the registration timestamp; the port-outcome declaration is a documented follow-up. Date: 2026-10-09. It continues ADR 0097 (marks name states) and ADR 0098 (durations name quantities): this one decides, leak by leak, which side of the seam each remaining host literal lives on, and moves only what is domain.
+**Status:** Accepted. Built for the failure reason and the registration timestamp; the mock mailer's refusal is adapter vocabulary and stays as it is. Date: 2026-10-09. It continues ADR 0097 (marks name states) and ADR 0098 (durations name quantities): this one decides, leak by leak, which side of the seam each remaining host literal lives on, and moves only what is domain.
 
 ## Context
 
@@ -22,7 +22,7 @@ Four more literals in `rust/host` look like domain vocabulary baked into the ada
 | Modes `test`, `live` | adapter | They name a Stripe account's two key environments (`sk_test_`, `sk_live_`). The constant stays, documented, and the same test holds it to the domain's `ConnectionMode` list, so the two cannot drift silently. |
 | Which registration attribute holds the timestamp | domain | `provides "registrations", registered_at: "Registration.requested_at"` names it. The `registrations` fact carries the attribute name; the host reads it, with a labelled `LEGACY_REGISTERED_AT` guess list and one warning. |
 | `ir.rs` `conventional(domain)` names (`Event`, `Registration`, ...) | unchanged | A declaration already replaces the guess (`provides "registrations"`, `provides "payment_connection"`); the conventional names are what a host with no IR loaded uses. No declaration can replace them, so they stay. |
-| Mock refusal vocabulary (`bounce@example.com`, `bounced`) | follow-up | See below. |
+| Mock refusal vocabulary (`bounce@example.com`, `bounced`) | adapter | Not a leak: nothing in the domain names it. See below. |
 
 ### Two more optional capability kinds
 
@@ -33,11 +33,13 @@ ADR 0098 added `:duration`. The two items above need a word and a field name, no
 
 No grammar logic changes: `lapse_reason:` and `registered_at:` are two more rows of the `provides` argument table, mirrored in the Rust parser's keyword table. A chapter that declares neither exports exactly what it did before.
 
-## Follow-up: a port declares its outcomes once
+## The mock mailer's refusal is adapter vocabulary, not a leak
 
-The email mock lives in `rust/host/src/resend.rs`; no Ruby mock mailer exists in this repository (the shipped bluebooks' Ruby side carries its own). Each runtime therefore keeps its own copy of "which address the mock refuses and what it says". The fix is a port-operation outcome declaration in the hecksagon, for example a `deliver` operation listing `bounced` among its refusals and naming the address the mock refuses, which both the Rust mock and any Ruby mock read.
+There are two mock mailers, both adapter-side test doubles for the `resend` port: `rust/host/src/resend.rs` here and `newsletter/adapters/mock_resend.rb` in the newsletter package. Each refuses the address `bounce@example.com` with the reason `bounced`, so the same test address lives in two files in two languages.
 
-No such mechanism exists today: a port operation declares its arguments and the event it emits, not its outcomes, and adding outcomes means a new hecksagon word, its grammar rows, both parsers, the exporter and the IR. That is larger than the pattern of ADRs 0097 and 0098, so it is left as a decision to take on its own. Until then the Rust mock's address and reason stay constants whose comment points here, and `the_mock_logs_instead_of_sending_and_bounces_the_test_address` keeps them stable.
+That is not domain meaning duplicated across the seam. The newsletter bluebooks have no bounced state and nothing reads the reason: the host passes `delivery.reason` through as an opaque string (`web/newsletter_send.rs`), and the `resend` port declares only its verb and its signal. The word `bounced` is the mock's own report of a refusal, like the mock checkout's `declined_at_local_checkout`, so it stays in the adapters.
+
+If the domain ever acts on a refused delivery (a `Delivery` state, a retry rule), the outcome is declared in the bluebook first, and both mocks read it from there. Until then nothing needs a port-outcome declaration; the Rust mock's address stays a named constant and `the_mock_logs_instead_of_sending_and_bounces_the_test_address` keeps it stable.
 
 ## Consequences
 

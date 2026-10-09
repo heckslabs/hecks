@@ -9,9 +9,8 @@ const TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_ATTEMPTS: u32 = 4;
 const DEFAULT_RETRY_SECS: u64 = 1;
 const MAX_RETRY_SECS: u64 = 5;
-/// The address the mock refuses, and (in `mock_deliver`) the reason it gives. Declared here
-/// because no port-operation outcome declaration exists yet to share it with a Ruby mock
-/// (ADR 0099, follow-up).
+/// The address the mock refuses, and (in `mock_deliver`) the reason it gives. Adapter-side test
+/// vocabulary: the domain names neither, and the Ruby mock keeps its own copy (ADR 0099).
 const MOCK_BOUNCE_ADDRESS: &str = "bounce@example.com";
 
 /// One email to one recipient.
