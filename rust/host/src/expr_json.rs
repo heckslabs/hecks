@@ -43,6 +43,9 @@ pub enum Expr {
     Bool { value: bool },
     Nil,
     Add { left: Box<Expr>, right: Box<Expr> },
+    Sub { left: Box<Expr>, right: Box<Expr> },
+    Mul { left: Box<Expr>, right: Box<Expr> },
+    Div { left: Box<Expr>, right: Box<Expr> },
     SignTest { cmp: Comparison, receiver: Box<Expr> },
     Empty { receiver: Box<Expr> },
     ToS { receiver: Box<Expr> },
@@ -104,6 +107,9 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
         "bool" => Expr::Bool { value: field("value")?.as_bool().ok_or_else(|| format!("bool's value isn't a boolean: {json}"))? },
         "nil" => Expr::Nil,
         "add" => Expr::Add { left: Box::new(expr("left")?), right: Box::new(expr("right")?) },
+        "sub" => Expr::Sub { left: Box::new(expr("left")?), right: Box::new(expr("right")?) },
+        "mul" => Expr::Mul { left: Box::new(expr("left")?), right: Box::new(expr("right")?) },
+        "div" => Expr::Div { left: Box::new(expr("left")?), right: Box::new(expr("right")?) },
         "sign_test" => Expr::SignTest { cmp: comparison()?, receiver: Box::new(expr("receiver")?) },
         "empty" => Expr::Empty { receiver: Box::new(expr("receiver")?) },
         "to_s" => Expr::ToS { receiver: Box::new(expr("receiver")?) },
@@ -392,6 +398,45 @@ fn add(left: &Value, right: &Value) -> Result<Value, String> {
     }
 }
 
+/// `Resolver.checked_arithmetic`: the same 64-bit and finiteness limits `add` holds to, named for
+/// the operation that overflowed.
+fn arithmetic(
+    name: &str,
+    symbol: &str,
+    left: &Value,
+    right: &Value,
+    int_op: fn(i64, i64) -> Option<i64>,
+    float_op: fn(f64, f64) -> f64,
+) -> Result<Value, String> {
+    let lhs = require_number(left, name)?;
+    let rhs = require_number(right, name)?;
+    if let (Value::Int(a), Value::Int(b)) = (&lhs, &rhs) {
+        return int_op(*a, *b)
+            .map(Value::Int)
+            .ok_or_else(|| format!("{name} overflowed: {a} {symbol} {b} does not fit in a 64-bit integer"));
+    }
+    let result = float_op(numeric(&lhs).unwrap_or_default(), numeric(&rhs).unwrap_or_default());
+    if result.is_finite() {
+        Ok(Value::Float(result))
+    } else {
+        Err(format!("{name} overflowed: {} {symbol} {} is not a finite number", to_s(&lhs)?, to_s(&rhs)?))
+    }
+}
+
+/// `Resolver.divide`: a zero divisor faults first; integers floor toward negative infinity.
+fn divide(left: &Value, right: &Value) -> Result<Value, String> {
+    if numeric(&require_number(right, "division")?) == Some(0.0) {
+        return Err("divided by 0".to_string());
+    }
+    arithmetic("division", "/", left, right, floor_div, |a, b| a / b)
+}
+
+/// Floored integer division; `None` only for `i64::MIN / -1`, which does not fit in 64 bits.
+fn floor_div(a: i64, b: i64) -> Option<i64> {
+    let quotient = a.checked_div(b)?;
+    Some(if a % b != 0 && ((a < 0) != (b < 0)) { quotient - 1 } else { quotient })
+}
+
 /// `Resolver.apply_modulo`: floored like Ruby's `%`, so the result takes the divisor's sign.
 fn modulo(receiver: &Value, divisor: &Value) -> Result<Value, String> {
     let receiver = require_number(receiver, "modulo")?;
@@ -575,6 +620,13 @@ fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, St
             }
         }
         Expr::Add { left, right } => add(&recur(left)?, &recur(right)?),
+        Expr::Sub { left, right } => {
+            arithmetic("subtraction", "-", &recur(left)?, &recur(right)?, i64::checked_sub, |a, b| a - b)
+        }
+        Expr::Mul { left, right } => {
+            arithmetic("multiplication", "*", &recur(left)?, &recur(right)?, i64::checked_mul, |a, b| a * b)
+        }
+        Expr::Div { left, right } => divide(&recur(left)?, &recur(right)?),
         Expr::Modulo { receiver, divisor } => modulo(&recur(receiver)?, &recur(divisor)?),
         Expr::SignTest { cmp, receiver } => {
             let v = recur(receiver)?;
@@ -860,6 +912,25 @@ mod tests {
             run(add(huge.clone(), huge), json!({})),
             Err("addition overflowed: 1.7e+308 + 1.7e+308 is not a finite number".to_string())
         );
+    }
+
+    #[test]
+    fn sub_mul_div_follow_rubys_limits_and_floor_integer_division() {
+        let op = |name: &str, l: Json, r: Json| json!({"op":name,"left":l,"right":r});
+        assert_eq!(run(op("sub", int(5), int(2)), json!({})), Ok(Value::Int(3)));
+        assert_eq!(run(op("mul", int(6), json!({"op":"float","value":0.5})), json!({})), Ok(Value::Float(3.0)));
+        assert_eq!(run(op("div", int(-7), int(2)), json!({})), Ok(Value::Int(-4)));
+        assert_eq!(run(op("div", int(7), int(-2)), json!({})), Ok(Value::Int(-4)));
+        assert_eq!(run(op("div", int(7), int(0)), json!({})), Err("divided by 0".to_string()));
+        assert_eq!(
+            run(op("mul", int(i64::MAX), int(2)), json!({})),
+            Err("multiplication overflowed: 9223372036854775807 * 2 does not fit in a 64-bit integer".to_string())
+        );
+        assert_eq!(
+            run(op("div", int(i64::MIN), int(-1)), json!({})),
+            Err("division overflowed: -9223372036854775808 / -1 does not fit in a 64-bit integer".to_string())
+        );
+        assert_eq!(run(op("sub", lookup_of("a"), int(1)), json!({"a": null})), Err("subtraction expects a number, got nil".to_string()));
     }
 
     #[test]

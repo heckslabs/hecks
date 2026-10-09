@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use crate::json::Json;
 use crate::lineage_pass;
+use crate::translation_pass;
 
 /// Sets `persistence`, the first of the binding facts, in `TargetIr#call`'s order.
 pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Path>) -> Result<(), String> {
@@ -19,10 +20,10 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
 /// Sets `translations` and `source_text`, after the capability seams so the key order matches
 /// `TargetIr#call`.
 ///
-/// `translations` is always empty: a domain whose source declares a translation is refused, since
-/// its edges carry precompiled SQL that only the Ruby `Translation::RuleCompiler` produces.
+/// `translations` carries each `translations/*.bluebook` edge with its precompiled SQL, from
+/// `translation_pass`; an edge using a rule kind that pass does not compile is refused, never
+/// shipped without its SQL. A `translates` declaration in a bluebook is refused outright.
 pub fn finish(ir: &mut Json, bluebook_files: &[PathBuf], bluebook_dir: &Path) -> Result<(), String> {
-    refuse_translation_files(bluebook_dir)?;
     let mut texts = Vec::new();
     for path in bluebook_files {
         let text = read(path)?;
@@ -34,22 +35,9 @@ pub fn finish(ir: &mut Json, bluebook_files: &[PathBuf], bluebook_dir: &Path) ->
         }
         texts.push(text);
     }
-    ir.set("translations", Json::Array(Vec::new()));
+    ir.set("translations", Json::Array(translation_pass::edges(bluebook_dir)?));
     if !texts.is_empty() {
         ir.set("source_text", Json::String(texts.join("\n")));
-    }
-    Ok(())
-}
-
-// A translation is a `.bluebook` under the domain's `translations/` directory, one per era step.
-fn refuse_translation_files(bluebook_dir: &Path) -> Result<(), String> {
-    let Ok(entries) = std::fs::read_dir(bluebook_dir.join("translations")) else { return Ok(()) };
-    let declared = entries.filter_map(Result::ok).any(|entry| entry.path().extension().and_then(|e| e.to_str()) == Some("bluebook"));
-    if declared {
-        return Err(format!(
-            "{} declares translations; hecks-build cannot compile their SQL yet, so generate this domain with the Ruby toolchain",
-            bluebook_dir.display()
-        ));
     }
     Ok(())
 }
