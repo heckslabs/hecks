@@ -265,7 +265,25 @@ pub struct PaymentsProvider {
     /// list of the `payments` fact (the payment lifecycle's mark), or
     /// [`LEGACY_HOLDS_SEAT`] when the chapter declares none.
     pub holds_seat: Vec<String>,
+    /// The failure reason a lapsed checkout hold records: the `lapse_reason` of
+    /// the `payments` fact (ADR 0099), or [`LEGACY_LAPSE_REASON`] when the
+    /// chapter declares none.
+    pub lapse_reason: String,
 }
+
+/// LEGACY DEFAULT: the failure reason a lapsed hold records, used while the
+/// `payments` capability fact carries no `lapse_reason` because the Payments
+/// chapter predates `provides "payments", lapse_reason: "Payment.lapse_reason"`.
+/// Delete this (and the fallback in `payments_provider`) once every shipped
+/// Payments bluebook declares it.
+pub const LEGACY_LAPSE_REASON: &str = "checkout_expired";
+
+/// LEGACY DEFAULT: the registration attributes guessed to hold the timestamp, in
+/// order, used while the `registrations` fact carries no `registered_at` because
+/// the chapter predates `provides "registrations", registered_at: "Registration.requested_at"`.
+/// Delete this (and the fallback in `registrations_provider`) once every shipped
+/// bluebook declares it.
+pub const LEGACY_REGISTERED_AT: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
 
 /// LEGACY DEFAULT: the seat-holding payment states used while the `payments`
 /// capability fact carries no `holds_seat` list, because the Payments chapter
@@ -304,6 +322,11 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
         failed: fact.get("failed")?.as_str()?.to_string(),
         aggregate,
         holds_seat,
+        lapse_reason: fact.get("lapse_reason").and_then(|v| v.as_str()).filter(|v| !v.is_empty()).map(String::from).unwrap_or_else(|| {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| eprintln!("payments capability declares no lapse_reason; using built-in default"));
+            LEGACY_LAPSE_REASON.to_string()
+        }),
     })
 }
 
@@ -321,6 +344,10 @@ pub struct RegistrationsProvider {
     pub event_aggregate: String,
     /// Qualified registration aggregate, e.g. `Studio::Registration`.
     pub registration_aggregate: String,
+    /// The registration attributes that may hold when it was asked for, in the order
+    /// to try them: the one `registered_at` of the `registrations` fact names
+    /// (ADR 0099), or [`LEGACY_REGISTERED_AT`] when the chapter declares none.
+    pub timestamp_keys: Vec<String>,
 }
 
 impl RegistrationsProvider {
@@ -333,6 +360,7 @@ impl RegistrationsProvider {
             request: format!("{domain}::Registration.Request"),
             event_aggregate: format!("{domain}::Event"),
             registration_aggregate: format!("{domain}::Registration"),
+            timestamp_keys: LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect(),
         }
     }
 
@@ -363,6 +391,14 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
         request: fact.get("request")?.as_str()?.to_string(),
         event_aggregate: fact.get("event_aggregate")?.as_str()?.to_string(),
         registration_aggregate: fact.get("registration_aggregate")?.as_str()?.to_string(),
+        timestamp_keys: match fact.get("registered_at").and_then(|v| v.as_str()).filter(|v| !v.is_empty()) {
+            Some(declared) => vec![declared.to_string()],
+            None => {
+                static WARNED: std::sync::Once = std::sync::Once::new();
+                WARNED.call_once(|| eprintln!("registrations capability declares no registered_at; using built-in default"));
+                LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect()
+            }
+        },
     })
 }
 
@@ -666,7 +702,28 @@ mod tests {
 
     #[test]
     fn the_conventional_registrations_names_match_what_the_fixture_declares() {
-        assert_eq!(registrations_provider(&fixture_ir()), Some(RegistrationsProvider::conventional("CheckoutFixture")));
+        let declared = registrations_provider(&fixture_ir()).expect("registrations");
+        let conventional = RegistrationsProvider { timestamp_keys: declared.timestamp_keys.clone(), ..RegistrationsProvider::conventional("CheckoutFixture") };
+        assert_eq!(declared, conventional);
+    }
+
+    #[test]
+    fn the_registration_timestamp_is_the_declared_attribute_or_the_legacy_guess() {
+        assert_eq!(registrations_provider(&fixture_ir()).expect("registrations").timestamp_keys, vec!["requested_at"]);
+        let undeclared = serde_json::json!({"registrations": {
+            "provider": "B", "schedule": "B::E.S", "request": "B::R.Q",
+            "event_aggregate": "B::E", "registration_aggregate": "B::R"
+        }});
+        assert_eq!(registrations_provider(&undeclared).expect("registrations").timestamp_keys, LEGACY_REGISTERED_AT);
+    }
+
+    #[test]
+    fn the_lapse_reason_is_the_declared_word_or_the_legacy_default() {
+        assert_eq!(fixture_payments().lapse_reason, "checkout_expired");
+        let mut ir = payments_ir(None);
+        assert_eq!(payments_provider(&ir).expect("payments").lapse_reason, LEGACY_LAPSE_REASON);
+        ir["payments"]["lapse_reason"] = serde_json::json!("hold_lapsed");
+        assert_eq!(payments_provider(&ir).expect("payments").lapse_reason, "hold_lapsed");
     }
 
     #[test]

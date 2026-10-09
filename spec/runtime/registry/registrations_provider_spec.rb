@@ -23,6 +23,7 @@ RSpec.describe "registrations capability" do
   BOOKINGS_REGISTRATION_BODY = proc do
     identified_by :registration_id
     attribute :registration_id, RegistrationId
+    attribute :requested_at, RegistrationId, optional: true
     value_object "RegistrationId" do
       attribute :value, String
     end
@@ -80,11 +81,30 @@ RSpec.describe "registrations capability" do
 
   it "refuses a provides row that leaves out a key the contract needs" do
     expect { registry_with_registrations(provides: { schedule: "Event.Schedule" }) }
-      .to raise_error(Hecks::Bluebook::DSL::Malformed, /registrations needs exactly/)
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /registrations needs schedule, request and may add registered_at/)
   end
 
   it "refuses a provides row whose verb names no command the chapter declares" do
     expect { registry_with_registrations(provides: { schedule: "Event.Schedule", request: "Registration.Ask" }) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /Registration\.Ask/)
+  end
+
+  context "with an optional registered_at attribute" do
+    it "exports the name of the attribute the registration is stamped by" do
+      registry = registry_with_registrations(
+        provides: { schedule: "Event.Schedule", request: "Registration.Request", registered_at: "Registration.requested_at" }
+      )
+
+      expect(Hecks::Projector::Exporter.registrations(registry, "Bookings"))
+        .to eq(BOOKINGS_EXPORT.merge(registered_at: "requested_at"))
+    end
+
+    it "refuses an attribute the aggregate does not declare" do
+      expect do
+        registry_with_registrations(
+          provides: { schedule: "Event.Schedule", request: "Registration.Request", registered_at: "Registration.stamped" }
+        )
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /Registration\.stamped.*no attribute/)
+    end
   end
 end
