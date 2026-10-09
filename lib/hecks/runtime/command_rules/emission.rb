@@ -20,7 +20,7 @@ module Hecks
           stamp = { aggregate: "#{domain}::#{aggregate.hecks_name}", id: instance.id,
                     payload: args, correlation: correlation }
           command.emits.map do |event_name|
-            record_emitted(Event.new(name: event_name, occurred_at: Time.now.utc.iso8601, **stamp), repository)
+            record_emitted(Event.new(name: event_name, occurred_at: Event.stamp, **stamp), repository)
           end
         end
 
