@@ -60,6 +60,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       - name: hecks fuzz
         run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz --wait
 
@@ -80,6 +83,9 @@ jobs:
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       - name: hecks fuzz adapter=sqlite
         run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite --wait
@@ -107,6 +113,9 @@ jobs:
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
       - uses: ./.github/actions/postgres
 
       - name: hecks fuzz adapter=postgres
@@ -125,6 +134,9 @@ jobs:
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       # Only 3 of this job's 5 steps overlap .githooks/pre-push's own checks
       # (lint_deploy_recipes and comment_style run regardless); those 3 gain an `if:` against
@@ -222,6 +234,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       # `hecks project_rust` runs the hecks-codegen binary (ADR 0086), so the regeneration below
       # builds it; cached like every other job that builds that crate.
       - uses: ./.github/actions/cargo-cache
@@ -230,15 +245,15 @@ jobs:
           crate-root: rust/codegen
 
       # Regenerates every domain whose Bluebook source lives in this
-      # checkout and fails on any diff from the committed rust/src/generated/
-      # tree, so a Bluebook change with no matching regen is caught on the
-      # push that caused it, not whenever someone next runs hecks ask rust_coverage
-      # by hand. The domain list and order come from
-      # `Hecks::Corpus.rust_regen_order` (every corpus directory that already
-      # has committed generated output, sorted by full path) rather than a
-      # hand-maintained list, so a new domain needs no edit here — see
-      # hecks regenerate_corpus's own header for the ordering rule.
-      - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
+      # checkout and fails on any diff from the rust/src/generated/ the
+      # generated-rust step above restored, so a stale cache entry, or a
+      # change to the committed pizzas, mod.rs or Cargo.toml with no matching
+      # regen, is caught on the push that caused it. The domain list and order
+      # come from `Hecks::Corpus.rust_regen_order` (every corpus domain with a
+      # Cargo feature, sorted by full path) rather than a hand-maintained
+      # list, so a new domain needs no edit here — see hecks
+      # regenerate_corpus's own header for the ordering rule.
+      - name: "rust codegen: regenerate every in-repo domain, fail on drift from the generated tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
 
   # The remaining drift checks of the old checks_codegen_drift job: tables, gates and coverage,

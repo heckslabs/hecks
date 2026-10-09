@@ -157,6 +157,12 @@ none of it (`spec/gemspec_packaging_spec.rb`). The gem also ships `rust/`,
 without `target/`, `rust/tests/` or `rust/src/generated/`; `Build` copies it to
 `.hecks/rust/<version>/` in the client project and never writes into the gem.
 
+`rust/src/generated/` is not committed, except `pizzas/` (its translations carry SQL that only the Ruby
+toolchain compiles) and `mod.rs`, which lists the domains beside the Cargo features. A fresh checkout
+materializes it with `exe/hecks regeneration_run.regenerate_corpus --confirm --wait`, about a minute with
+`HECKS_ENVIRONMENT=memory`, before `cargo build` or any spec that reads it. CI does the same through the
+`generated-rust` action, which caches the result on the bluebooks and generator sources it reads.
+
 `spec/ir_golden_spec.rb` freezes the builder's `to_h` output per corpus
 member. If your change is a deliberate shape change (not a bug), you
 regenerate it explicitly and read the diff before trusting it — it's a

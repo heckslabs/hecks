@@ -8,8 +8,9 @@ require_relative "../corpus"
 
 module Hecks
   module Tools
-    # Regenerates every corpus domain's committed Rust output with `hecks project_rust`, or checks
-    # that the committed output is what a regeneration would write.
+    # Regenerates every corpus domain's Rust output with `hecks project_rust`, or checks that the
+    # output on disk is what a regeneration would write. The output is not committed (pizzas,
+    # `mod.rs` and `Cargo.toml` aside), so a fresh checkout is materialized with `--confirm` first.
     #
     # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list. The
     # order is fixed (sorted by relative path): domains that share governance/, identity/,
@@ -26,6 +27,11 @@ module Hecks
                    "output in Hecks::Corpus — that almost certainly means this script is running from the " \
                    "wrong directory, or something upstream deleted rust/src/generated/ entirely. Refusing " \
                    "to silently treat that as \"nothing to regenerate.\""
+
+      # The refusal when a check finds nothing generated to compare.
+      NOT_MATERIALIZED = "hecks regenerate_corpus --check: rust/src/generated has no generated output to compare. " \
+                         "Only pizzas, mod.rs and Cargo.toml are committed; run " \
+                         "`hecks regenerate_corpus --confirm` first, then the check."
 
       module_function
 
@@ -147,6 +153,8 @@ module Hecks
       # @param root [String] the checkout
       # @return [String] the scratch directory
       def scratch_crate(root)
+        abort NOT_MATERIALIZED unless File.directory?(File.join(root, "rust/src/generated/meta"))
+
         scratch = Dir.mktmpdir("regen-codegen-check")
         FileUtils.mkdir_p(File.join(scratch, "src"))
         FileUtils.cp_r(File.join(root, "rust/src/generated"), File.join(scratch, "src/generated"))

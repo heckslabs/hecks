@@ -44,6 +44,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       - uses: ./.github/actions/cargo-cache
         with:
           name: codegen

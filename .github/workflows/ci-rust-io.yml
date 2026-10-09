@@ -55,12 +55,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The generated Rust is not committed, so its sources' hash stands in for it in the key.
+      - name: Hash the generator inputs
+        id: inputs
+        uses: ./.github/actions/generated-rust-inputs
+
       - name: Look for the cached feature binaries
         id: probe
         uses: actions/cache/restore@v4
         with:
           path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}-${{ steps.inputs.outputs.hash }}
           lookup-only: true
 
   rust_feature_binaries:
@@ -81,6 +86,9 @@ jobs:
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       # `hecks project_rust` runs the hecks-codegen binary, so these builds are restored.
       - uses: ./.github/actions/cargo-cache
@@ -161,9 +169,16 @@ jobs:
 
       # The feature binaries' cache key, from the committed sources: the probe job computes the same
       # one from a bare checkout, before the regeneration below adds files to rust/src.
+      - name: Hash the generator inputs
+        id: inputs
+        uses: ./.github/actions/generated-rust-inputs
+
       - name: Name the feature binaries' cache entry
         id: feature_key
-        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
 
       # Root crate only, so a dependency bump in rust/parser does not invalidate it.
       - uses: ./.github/actions/cargo-cache

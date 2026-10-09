@@ -68,9 +68,9 @@ pre_push:
       blocked: rubocop found an offense.
     - &check_codegen_drift
       id: codegen_drift
-      title: codegen drift, the committed rust/src/generated/ must match a fresh regeneration
+      title: codegen drift, rust/src/generated/ must match a fresh regeneration
       run: [bundle, exec, exe/hecks, regeneration_run.regenerate_corpus, --check, --wait]
-      blocked: regenerating hits a diff, so the committed Rust is stale; run `hecks regenerate_corpus --confirm` and commit the result.
+      blocked: regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed.
     - &check_comment_style
       id: comment_style
       title: comment style, every comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md

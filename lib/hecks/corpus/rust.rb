@@ -184,9 +184,10 @@ module Hecks
       # domain wins Cargo's `default` is derived, not hand-picked.
       #
       # @param root [String] repository root to search under
-      # @return [Array<RustDomain>] already-generated Rust domains, in regeneration order
+      # @return [Array<RustDomain>] every Rust domain with a Cargo feature, in regeneration order:
+      #   a fresh checkout has no generated output, so the sources, not the output, name them
       def rust_regen_order(root: ROOT)
-        rust_domains(root: root).select { |domain| generated?(domain.feature, root: root) }
+        rust_domains(root: root)
       end
     end
   end

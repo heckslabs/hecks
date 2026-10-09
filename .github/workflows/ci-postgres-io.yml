@@ -44,6 +44,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       # Preinstalled and tuned Postgres, not a `services:` container. Its trust rule for
       # 127.0.0.1/::1 covers the passwordless roles spec/adapters/driven/postgres/lineage_spec.rb
       # creates at runtime.
