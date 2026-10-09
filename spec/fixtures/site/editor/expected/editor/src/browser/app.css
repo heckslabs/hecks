@@ -419,7 +419,8 @@
   }
 
   .input,
-  .select {
+  .select,
+  .file-input {
     height: 2.75rem;
   }
 
@@ -438,6 +439,15 @@
     min-height: 2.75rem;
     min-width: 2.75rem;
   }
+}
+
+/* The picture picker stands in the window, never taller than the part of it the page's bars leave
+   (the script narrows this to the sticky action bar's top edge and the on-screen keyboard), scrolls
+   inside itself, and keeps clear of the notch and the home bar. */
+.picker-panel {
+  max-height: calc(100dvh - 5rem - env(safe-area-inset-bottom, 0px));
+  max-width: min(42rem, calc(100vw - 1rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -176,7 +176,7 @@ ${backInput(back)}${refusal(own?.message ?? null)}${note}
 ${draft.bar}
 ${target}
 ${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined)}
-<div class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 py-3 shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command)}</div>
+<div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command)}</div>
 </form>
 ${dialog}${draft.dialogs}`;
 }
