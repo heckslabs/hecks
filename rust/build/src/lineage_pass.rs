@@ -57,7 +57,7 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
 }
 
 // Skips any line naming `role:` — only a role-less bind is authoritative.
-fn persistence_binds(text: &str) -> HashMap<String, String> {
+pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
     let mut binds = HashMap::new();
 
     for line in text.lines() {
@@ -87,7 +87,7 @@ fn persistence_binds(text: &str) -> HashMap<String, String> {
 
 // Only lines inside the target chapter's own `Hecks.world` block count; the
 // last `default_adapter` there wins, matching the Ruby builder.
-fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
+pub(crate) fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
     let mut in_target_world = false;
     let mut found = None;
 
@@ -182,7 +182,7 @@ fn top_level_class_name(text: &str) -> Option<String> {
 
 // Hand-ported `Naming.snake` (Ruby): split acronym boundaries, then camelCase
 // boundaries, then downcase — no regex dependency.
-fn snake_case(name: &str) -> String {
+pub(crate) fn snake_case(name: &str) -> String {
     let after_pass1 = split_acronym_boundaries(name);
     let after_pass2 = split_camel_boundaries(&after_pass1);
     after_pass2.to_ascii_lowercase()
