@@ -83,6 +83,17 @@ module Hecks
         raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end
 
+      # Asks rustup whether a compile target is installed for the active toolchain.
+      #
+      # @param target [String] the target triple, such as `wasm32-unknown-unknown`
+      # @return [Boolean] false when rustup is missing or does not list the target
+      def target_installed?(target)
+        listed = IO.popen(["rustup", "target", "list", "--installed", { err: File::NULL }], &:read)
+        listed.split("\n").include?(target)
+      rescue SystemCallError
+        false
+      end
+
       # Runs a tool and holds what it printed.
       #
       # @param tool [String] a key of `TOOLS`

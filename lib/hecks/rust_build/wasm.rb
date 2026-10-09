@@ -60,7 +60,7 @@ module Hecks
       end
 
       def require_target!
-        return if system("rustup target list --installed 2>/dev/null | grep -qx #{TARGET}")
+        return if RustBuild.target_installed?(TARGET)
 
         raise Failure, <<~MSG
           #{TARGET} isn't installed for this toolchain. Install it once with:
