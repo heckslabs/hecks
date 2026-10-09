@@ -2,7 +2,8 @@ module Hecks
   module Projector
     module Exporter
       # The values a capability's optional contract entries resolve to in the exported fact: the
-      # states of a lifecycle `:mark` (ADR 0097) and the whole seconds of a `:duration` (ADR 0098).
+      # states of a lifecycle `:mark` (ADR 0097), the whole seconds of a `:duration` (ADR 0098), and
+      # the word of a `:text` or `:attribute` entry (ADR 0099).
       module CapabilityValues
         private
 
@@ -20,6 +21,18 @@ module Hecks
             verb = provider.provision(capability)&.fetch(key, nil)
             durations[key] = Bluebook::Capabilities.duration_of(provider, verb) if verb
           end
+        end
+
+        # `{ key => word }` for each optional `:text` entry and `{ key => attribute_name }` for each
+        # optional `:attribute` entry `provider` declares under `capability` (ADR 0099).
+        def all_words(provider, capability)
+          words = { text: :text_of, attribute: :attribute_of }.flat_map do |kind, resolver|
+            declared_keys(capability, kind).filter_map do |key|
+              verb = provider.provision(capability)&.fetch(key, nil)
+              [key, Bluebook::Capabilities.public_send(resolver, provider, verb)] if verb
+            end
+          end
+          words.to_h
         end
 
         # `{ key => states }` for an optional `:mark` entry `provider` declares under `capability`:

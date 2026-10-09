@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -216,11 +216,13 @@ merged table and cannot tell a core row from an attached one.
 | `initiate:` | text | false | provides |
 | `succeeded:` | text | false | provides |
 | `failed:` | text | false | provides |
+| `lapse_reason:` | text | false | provides |
 | `holds_seat:` | text | false | provides |
 | `send_issue:` | text | false | provides |
 | `record_delivery:` | text | false | provides |
 | `schedule:` | text | false | provides |
 | `request:` | text | false | provides |
+| `registered_at:` | text | false | provides |
 | `connect:` | text | false | provides |
 | `reconnect:` | text | false | provides |
 | `disconnect:` | text | false | provides |
@@ -273,6 +275,13 @@ provides "checkout", session_hold: "CheckoutSession.hold"
 
 A chapter that names an attribute that does not exist, or whose default is not a
 positive whole number of seconds, is refused when it is built.
+
+Two more optional kinds name a word and a field (ADR 0099). A `:text` entry
+(`provides "payments", lapse_reason: "Payment.lapse_reason"`) resolves to the string
+`default:` of that attribute, and an `:attribute` entry
+(`provides "registrations", registered_at: "Registration.requested_at"`) resolves to the
+attribute's own name. Both are refused when the attribute is missing, and a `:text` entry
+when its default is not a non-empty string.
 
 ## core
 

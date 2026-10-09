@@ -181,10 +181,76 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct RequestedAt {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for RequestedAt {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+
+impl RequestedAt {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl RequestedAt {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl RequestedAt {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RequestedAt expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "RequestedAt",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
+}
+        Ok(Self {
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestedAt.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestedAt.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestedAt.value: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Registration {
     pub event_slug: Option<String>,
     pub registration_id: Option<RegistrationId>,
     pub attendee: Option<Attendee>,
+    pub requested_at: Option<RequestedAt>,
     pub status: String,
 }
 
@@ -195,6 +261,7 @@ impl crate::kernel::Fielded for Registration {
             "event_slug" => self.event_slug.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "registration_id" => self.registration_id.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "attendee" => self.attendee.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "requested_at" => self.requested_at.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -220,6 +287,7 @@ impl Registration {
         ("event_slug".to_string(), self.event_slug.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("registration_id".to_string(), self.registration_id.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("attendee".to_string(), self.attendee.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("requested_at".to_string(), self.requested_at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -234,6 +302,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         event_slug: match v.get("event_slug") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Registration.event_slug expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Registration.event_slug: expected String".to_string()) })?), },
         registration_id: match v.get("registration_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RegistrationId::from_json(&x.coerce_single_field("value"))?), },
         attendee: match v.get("attendee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Attendee::from_json(x.expect_value_object_shape("attendee", "Attendee")?)?), },
+        requested_at: match v.get("requested_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RequestedAt::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Registration")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Registration.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -335,6 +404,7 @@ pub fn dispatch_request(
             event_slug: Some(args.event_slug.clone()),
             registration_id: Some(args.registration_id.clone()),
             attendee: Some(args.attendee.clone()),
+            requested_at: None,
             status: "active".to_string(),
         }),
         state_independent: false,

@@ -41,7 +41,11 @@ module Hecks
       # lifecycle mark) and `:duration` ("Aggregate.attribute", the whole-seconds
       # `default:` of that attribute, ADR 0098). `:mark` and `:duration` entries are
       # optional; every other entry is required.
-      OPTIONAL_KINDS = %i[mark duration].freeze
+      #
+      # ADR 0099 adds two more optional kinds: `:text` ("Aggregate.attribute", the string
+      # `default:` of that attribute, a word the domain owns) and `:attribute`
+      # ("Aggregate.attribute", the attribute's own name, for the host to read a field by).
+      OPTIONAL_KINDS = %i[mark duration text attribute].freeze
 
       CONTRACTS = {
         AUTHORIZATION      => {
@@ -99,21 +103,27 @@ module Hecks
         }.freeze,
         PAYMENTS           => {
           # start a payment; the aggregate it names is the payment
-          initiate:   :command,
+          initiate:     :command,
           # the processor reports the money arrived
-          succeeded:  :port_operation,
+          succeeded:    :port_operation,
           # the processor reports the payment failed or expired
-          failed:     :port_operation,
+          failed:       :port_operation,
           # Optional: the lifecycle states of the payment that hold a seat,
           # spelled "Payment.holds_seat" (Aggregate.mark_name); resolves to the
           # states of that aggregate's lifecycle `mark :holds_seat`
-          holds_seat: :mark
+          holds_seat:   :mark,
+          # Optional: the failure reason a lapsed checkout hold records, spelled
+          # "Payment.lapse_reason" (the string `default:` of that attribute)
+          lapse_reason: :text
         }.freeze,
         REGISTRATIONS      => {
           # schedule a session; the aggregate it names is the event
-          schedule: :command,
+          schedule:      :command,
           # a guest asks for a place; the aggregate it names is the registration
-          request:  :command
+          request:       :command,
+          # Optional: the registration attribute that stamps when it was asked for,
+          # spelled "Registration.requested_at"
+          registered_at: :attribute
         }.freeze,
         PAYMENT_CONNECTION => {
           # link the processor account; the aggregate it names is the connection
@@ -146,7 +156,7 @@ module Hecks
       # @param default [Object] an attribute's `default:`
       # @return [Integer, nil] the positive whole seconds, or `nil` when it is not that
       def self.duration_seconds(default)
-        seconds = default.is_a?(Hash) ? default.fetch(:value) { default["value"] } : default
+        seconds = filled_value(default)
         seconds if seconds.is_a?(Integer) && seconds.positive?
       end
 
@@ -157,9 +167,48 @@ module Hecks
       # @return [Integer, nil] the positive whole seconds, or `nil` when the verb names no such
       #   attribute or its default is not whole seconds
       def self.duration_of(chapter, verb)
+        duration_seconds(attribute_default(chapter, verb))
+      end
+
+      # The `default:` of the attribute a verb ("Aggregate.attribute") names in `chapter`.
+      #
+      # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+      # @param verb [String] the entry, spelled "Aggregate.attribute"
+      # @return [Object, nil] that attribute's `default:`, or `nil` when there is none
+      def self.attribute_default(chapter, verb)
         aggregate_name, attribute_name = verb.split(".", 2)
-        attribute = chapter.aggregate(aggregate_name)&.attributes&.find { |a| a.name.to_s == attribute_name }
-        duration_seconds(attribute&.default)
+        chapter.aggregate(aggregate_name)&.attributes&.find { |a| a.name.to_s == attribute_name }&.default
+      end
+
+      # A default's value: the bare value, or the `{ value: x }` fill of a one-field value object.
+      #
+      # @param default [Object] an attribute's `default:`
+      # @return [Object] the bare value
+      def self.filled_value(default)
+        default.is_a?(Hash) ? default.fetch(:value) { default["value"] } : default
+      end
+
+      # The string a `:text` verb ("Aggregate.attribute") resolves to in `chapter`: the attribute's
+      # `default:`, bare or as the `{ value: "..." }` fill of a one-field value object (ADR 0099).
+      #
+      # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+      # @param verb [String] the entry, spelled "Aggregate.attribute"
+      # @return [String, nil] the non-empty text, or `nil` when the verb names no such attribute
+      #   or its default is not text
+      def self.text_of(chapter, verb)
+        text = filled_value(attribute_default(chapter, verb))
+        text if text.is_a?(String) && !text.empty?
+      end
+
+      # The attribute name an `:attribute` verb ("Aggregate.attribute") resolves to in `chapter`.
+      #
+      # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+      # @param verb [String] the entry, spelled "Aggregate.attribute"
+      # @return [String, nil] the attribute's name, or `nil` when the aggregate lacks it
+      def self.attribute_of(chapter, verb)
+        aggregate_name, attribute_name = verb.split(".", 2)
+        found = chapter.aggregate(aggregate_name)&.attributes&.any? { |a| a.name.to_s == attribute_name }
+        attribute_name if found
       end
 
       # The keys a capability's `provides` must name.

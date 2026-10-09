@@ -9,7 +9,8 @@ Hecks.bluebook "CheckoutFixture" do
   # ir.json instead of naming these verbs.
   provides "registrations",
            schedule: "Event.Schedule",
-           request:  "Registration.Request"
+           request:  "Registration.Request",
+           registered_at: "Registration.requested_at"
   provides "payment_connection",
            connect:    "PaymentConnection.Connect",
            reconnect:  "PaymentConnection.Reconnect",
@@ -97,10 +98,15 @@ Hecks.bluebook "CheckoutFixture" do
       invariant("an attendee has an email") { !email.to_s.empty? }
     end
 
+    value_object "RequestedAt" do
+      attribute :value, String
+    end
+
     reference_to Event, as: :event_slug
 
     attribute :registration_id, RegistrationId
     attribute :attendee,        Attendee
+    attribute :requested_at,    RequestedAt, optional: true
 
     # Archiving takes a registration off the guest list and gives its seat back;
     # restoring puts it back. The Payment sharing this reference is never
