@@ -96,7 +96,9 @@ module Hecks
         [[evaluator::Or, "||", %i[left right]], [evaluator::And, "&&", %i[left right]],
          [evaluator::Not, "!", %i[node]], [evaluator::Compare, ->(node) { node.operator.symbol }, %i[left right]],
          [evaluator::Include, ".include?", %i[haystack needle]], [evaluator::Resolve, nil, %i[expr]],
-         [resolver::Addition, "+", %i[left right]], [resolver::Modulo, ".modulo", %i[receiver divisor]]]
+         [resolver::Addition, "+", %i[left right]], [resolver::Subtraction, "-", %i[left right]],
+         [resolver::Multiplication, "*", %i[left right]], [resolver::Division, "/", %i[left right]],
+         [resolver::Modulo, ".modulo", %i[receiver divisor]]]
       end
 
       # @return [Array<String>] operators found in the members of a Struct node; none for any

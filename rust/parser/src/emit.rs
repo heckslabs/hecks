@@ -411,6 +411,11 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
             ("kind".to_string(), JsonValue::str("state")),
             ("name".to_string(), JsonValue::str(name.clone())),
         ]),
+        Some(ir::MutationSource::Expression(text)) => JsonValue::Object(vec![
+            ("kind".to_string(), JsonValue::str("expression")),
+            ("text".to_string(), JsonValue::str(text.clone())),
+            ("ast".to_string(), crate::expr::ast_json::emit_resolver(&crate::expr::resolver::parse(text))),
+        ]),
         None => JsonValue::Null,
     }
 }

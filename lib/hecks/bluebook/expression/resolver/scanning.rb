@@ -66,17 +66,34 @@ module Hecks
           elements.map(&:strip)
         end
 
-        # Braces and brackets count toward depth like parens, so a `+` inside a block body
-        # or an array element is not this expression's own addition.
-        def split_addition(expr)
+        # The text before and after the last top-level binary operator in `operators`, so a chain
+        # splits left-associatively. A `-` is binary only after an operand (`a - b`, not `a - -b`
+        # or a leading `-5`).
+        #
+        # @param operators [Array<String>] the single-character operators to split on
+        # @return [Array<String>, nil] the operator and the texts either side, or `nil`
+        def split_last_binary(expr, operators)
           depth = 0
+          found = nil
           scan_text(expr) do |char, index, plain|
             next unless plain
 
             depth += DEPTH_DELTA.fetch(char, 0)
-            return [expr[0...index].strip, expr[(index + 1)..].strip] if char == "+" && depth.zero?
+            found = index if depth.zero? && operators.include?(char) && binary_position?(expr, index, char)
           end
-          nil
+          found && [expr[found], expr[0...found].strip, expr[(found + 1)..].strip]
+        end
+
+        # Whether the operator at `index` has an operand on its left; only `-` can also be a sign.
+        def binary_position?(expr, index, char)
+          return true unless char == "-"
+
+          expr[0...index].rstrip.match?(/[[:alnum:]_)\]"']\z/)
+        end
+
+        # Whether `expr` is one parenthesised group: its first `(` closes at its last character.
+        def grouped?(expr)
+          expr.start_with?("(") && matching_paren(expr, 1) == expr.length - 1
         end
 
         # Whether `expr` is wrapped in a matching pair of quotes.

@@ -66,7 +66,7 @@ fn emit_include(haystack: &Resolver, needle: &Resolver) -> JsonValue {
         .expect("non-empty by the guard above")
 }
 
-fn emit_resolver(node: &Resolver) -> JsonValue {
+pub fn emit_resolver(node: &Resolver) -> JsonValue {
     match node {
         Resolver::IntegerLiteral(v) => obj(vec![op_tag("int"), ("value", JsonValue::Number(v.to_string()))]),
         Resolver::FloatLiteral(v) => obj(vec![op_tag("float"), ("value", JsonValue::Number(ruby_float(*v)))]),
@@ -78,6 +78,9 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
             ("path", JsonValue::Array(path.split('.').map(|s| JsonValue::String(s.to_string())).collect())),
         ]),
         Resolver::Addition(left, right) => obj(vec![op_tag("add"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
+        Resolver::Subtraction(left, right) => obj(vec![op_tag("sub"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
+        Resolver::Multiplication(left, right) => obj(vec![op_tag("mul"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
+        Resolver::Division(left, right) => obj(vec![op_tag("div"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
         Resolver::SignTest { operator, receiver } => obj(vec![
             op_tag("sign_test"),
             ("cmp", emit_comparison(operator)),

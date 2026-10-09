@@ -1902,6 +1902,192 @@
           "value": ".unset?"
         }
       }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "-"
+        },
+        "category": {
+          "value": "arithmetic"
+        },
+        "precedence": {
+          "value": 6
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "top_level_split"
+        },
+        "position": {
+          "value": 23
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "-"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a - b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "-"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a - b -> checked i64 arithmetic, refusing on overflow"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "-"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "*"
+        },
+        "category": {
+          "value": "arithmetic"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "top_level_split"
+        },
+        "position": {
+          "value": 24
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "*"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a * b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "*"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a * b -> checked i64 arithmetic, refusing on overflow"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "*"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "/"
+        },
+        "category": {
+          "value": "arithmetic"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "top_level_split"
+        },
+        "position": {
+          "value": 25
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "/"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a / b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "/"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a / b -> floor division on integers, refusing a zero divisor and overflow"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "/"
+        }
+      }
     }
   ]
 }

@@ -1,7 +1,7 @@
 //! Parses value expressions into a `Resolver` tree (port of `resolver.rb#parse`).
 
 use super::evaluator::Evaluator;
-use super::{find_operator, top_level_index, Operator};
+use super::{find_operator, Operator};
 
 /// Which of `all?`, `any?` or `none?` a block predicate uses.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -39,6 +39,10 @@ pub enum Resolver {
     BoolLiteral(bool),
     NilLiteral,
     Addition(Box<Resolver>, Box<Resolver>),
+    Subtraction(Box<Resolver>, Box<Resolver>),
+    Multiplication(Box<Resolver>, Box<Resolver>),
+    /// Integer operands floor toward negative infinity; a zero divisor is an evaluation fault.
+    Division(Box<Resolver>, Box<Resolver>),
     SignTest { operator: Operator, receiver: Box<Resolver> },
     Empty(Box<Resolver>),
     ToS(Box<Resolver>),
@@ -100,8 +104,16 @@ pub fn parse(expr: &str) -> Resolver {
         return Resolver::ArrayLiteral(elements.iter().map(|element| parse(element)).collect());
     }
 
-    if let Some((left, right)) = split_addition(expr) {
-        return Resolver::Addition(Box::new(parse(left)), Box::new(parse(right)));
+    if let Some((operator, left, right)) = split_last_binary(expr, b"+-") {
+        let (left, right) = (Box::new(parse(left)), Box::new(parse(right)));
+        return if operator == b'+' { Resolver::Addition(left, right) } else { Resolver::Subtraction(left, right) };
+    }
+    if let Some((operator, left, right)) = split_last_binary(expr, b"*/") {
+        let (left, right) = (Box::new(parse(left)), Box::new(parse(right)));
+        return if operator == b'*' { Resolver::Multiplication(left, right) } else { Resolver::Division(left, right) };
+    }
+    if grouped(expr) {
+        return parse(&expr[1..expr.len() - 1]);
     }
 
     if let Some((receiver, test)) = match_suffix(expr, &SIGN_TESTS.map(|(s, _)| s)) {
@@ -351,9 +363,118 @@ fn array_elements(expr: &str) -> Option<Vec<String>> {
     Some(elements.into_iter().filter(|element| !element.is_empty()).collect())
 }
 
-fn split_addition(expr: &str) -> Option<(&str, &str)> {
-    let index = top_level_index(expr, "+", |_| true)?;
-    Some((expr[..index].trim(), expr[index + 1..].trim()))
+/// The canonical text of an arithmetic expression over names and numbers, as the Ruby DSL prints
+/// it: one space around each operator, parentheses only where the grouping needs them. `None` when
+/// `expr` is not arithmetic, or holds anything but names and numbers.
+pub fn arithmetic_text(expr: &str) -> Option<String> {
+    let node = parse(expr);
+    match node {
+        Resolver::Addition(..) | Resolver::Subtraction(..) | Resolver::Multiplication(..) | Resolver::Division(..) => render_arithmetic(&node),
+        _ => None,
+    }
+}
+
+fn render_arithmetic(node: &Resolver) -> Option<String> {
+    match node {
+        Resolver::Addition(l, r) => render_binary(l, '+', r),
+        Resolver::Subtraction(l, r) => render_binary(l, '-', r),
+        Resolver::Multiplication(l, r) => render_binary(l, '*', r),
+        Resolver::Division(l, r) => render_binary(l, '/', r),
+        Resolver::Lookup(path) => Some(path.clone()),
+        Resolver::IntegerLiteral(n) => Some(n.to_string()),
+        Resolver::FloatLiteral(f) => Some(crate::ruby_value::format_ruby_float(*f)),
+        _ => None,
+    }
+}
+
+fn binding_strength(operator: char) -> u8 {
+    if matches!(operator, '*' | '/') { 2 } else { 1 }
+}
+
+fn node_strength(node: &Resolver) -> u8 {
+    match node {
+        Resolver::Addition(..) | Resolver::Subtraction(..) => 1,
+        Resolver::Multiplication(..) | Resolver::Division(..) => 2,
+        _ => 0,
+    }
+}
+
+// A joined side is parenthesised when it binds looser than the operator, or equally on the right,
+// so the printed text parses back to the same grouping.
+fn render_binary(left: &Resolver, operator: char, right: &Resolver) -> Option<String> {
+    let strength = binding_strength(operator);
+    let side = |node: &Resolver, on_right: bool| -> Option<String> {
+        let text = render_arithmetic(node)?;
+        let held = node_strength(node);
+        Some(if held != 0 && (held < strength || (on_right && held == strength)) { format!("({text})") } else { text })
+    };
+    Some(format!("{} {operator} {}", side(left, false)?, side(right, true)?))
+}
+
+/// The operator and the texts either side of the LAST top-level binary operator in `operators`, so
+/// a chain splits left-associatively. A `-` is binary only after an operand (`a - b`, not `a - -b`
+/// or a leading `-5`). Brackets of every kind count toward depth, quotes hide their contents.
+fn split_last_binary<'a>(expr: &'a str, operators: &[u8]) -> Option<(u8, &'a str, &'a str)> {
+    let bytes = expr.as_bytes();
+    let mut depth: i32 = 0;
+    let mut quote: Option<u8> = None;
+    let mut found: Option<usize> = None;
+
+    for (index, &byte) in bytes.iter().enumerate() {
+        if let Some(open) = quote {
+            if byte == open {
+                quote = None;
+            }
+            continue;
+        }
+        match byte {
+            b'"' | b'\'' => quote = Some(byte),
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => depth -= 1,
+            _ if depth == 0 && operators.contains(&byte) && binary_position(bytes, index) => found = Some(index),
+            _ => {}
+        }
+    }
+    found.map(|index| (bytes[index], expr[..index].trim(), expr[index + 1..].trim()))
+}
+
+// Only `-` can also be a sign, so it needs an operand ending on its left.
+fn binary_position(bytes: &[u8], index: usize) -> bool {
+    if bytes[index] != b'-' {
+        return true;
+    }
+    let before = bytes[..index].iter().rev().find(|b| !b.is_ascii_whitespace());
+    matches!(before, Some(b) if b.is_ascii_alphanumeric() || matches!(b, b'_' | b')' | b']' | b'"' | b'\''))
+}
+
+/// Whether `expr` is one parenthesised group: its first `(` closes at its last character.
+fn grouped(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    if bytes.first() != Some(&b'(') || bytes.last() != Some(&b')') {
+        return false;
+    }
+    let mut depth: i32 = 0;
+    let mut quote: Option<u8> = None;
+    for (index, &byte) in bytes.iter().enumerate() {
+        if let Some(open) = quote {
+            if byte == open {
+                quote = None;
+            }
+            continue;
+        }
+        match byte {
+            b'"' | b'\'' => quote = Some(byte),
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return index == bytes.len() - 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 fn match_suffix<'a>(expr: &'a str, suffixes: &[&'a str]) -> Option<(&'a str, &'a str)> {
@@ -493,5 +614,38 @@ mod tests {
         for (text, expected) in cases {
             assert_eq!(compact(text), expected, "{text}");
         }
+    }
+
+    #[test]
+    fn splits_arithmetic_by_level_and_left_to_right() {
+        assert!(matches!(parse("a + b * c"), Resolver::Addition(..)));
+        assert!(matches!(parse("a - b - c"), Resolver::Subtraction(left, _) if matches!(*left, Resolver::Subtraction(..))));
+        assert!(matches!(parse("a * b / c"), Resolver::Division(left, _) if matches!(*left, Resolver::Multiplication(..))));
+    }
+
+    #[test]
+    fn a_minus_is_binary_only_after_an_operand() {
+        assert!(matches!(parse("a - -5"), Resolver::Subtraction(_, right) if matches!(*right, Resolver::IntegerLiteral(-5))));
+        assert!(matches!(parse("-5"), Resolver::IntegerLiteral(-5)));
+    }
+
+    #[test]
+    fn a_parenthesised_group_reads_as_what_it_wraps() {
+        assert!(matches!(parse("(a + b) * c"), Resolver::Multiplication(left, _) if matches!(*left, Resolver::Addition(..))));
+    }
+
+    #[test]
+    fn prints_arithmetic_with_parentheses_only_where_the_grouping_needs_them() {
+        assert_eq!(arithmetic_text("a*b/100").as_deref(), Some("a * b / 100"));
+        assert_eq!(arithmetic_text("(a+b)*2").as_deref(), Some("(a + b) * 2"));
+        assert_eq!(arithmetic_text("a-(b-c)").as_deref(), Some("a - (b - c)"));
+        assert_eq!(arithmetic_text("(a*b)+c").as_deref(), Some("a * b + c"));
+    }
+
+    #[test]
+    fn text_that_is_not_arithmetic_over_names_and_numbers_prints_nothing() {
+        assert_eq!(arithmetic_text("paid"), None);
+        assert_eq!(arithmetic_text("a.size + 1"), None);
+        assert_eq!(arithmetic_text("\"x\""), None);
     }
 }
