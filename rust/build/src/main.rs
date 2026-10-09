@@ -9,11 +9,13 @@ mod cargo_sync;
 #[allow(dead_code)]
 #[path = "../../codegen/src/json.rs"]
 mod json;
+mod binding_pass;
 mod lineage_pass;
 mod pipeline;
 mod reserved_names;
 mod resolve;
 mod root;
+mod seams_pass;
 mod subprocess;
 mod tmp;
 

@@ -3,11 +3,13 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::binding_pass;
 use crate::build_artifact;
 use crate::cargo_sync;
 use crate::json::Json;
 use crate::lineage_pass;
 use crate::resolve;
+use crate::seams_pass;
 use crate::subprocess;
 use crate::tmp::TempDir;
 
@@ -73,6 +75,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         None => (Vec::new(), Vec::new()),
     };
 
+    let source_files = target_files.clone();
     if let Some(p) = &hecksagon_path {
         target_files.push(p.clone());
     }
@@ -82,7 +85,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
     lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
-    let target_ir_text = crate::json::write(&target_ir);
+    binding_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref())?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
@@ -167,6 +170,16 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             seen.push(&c.mod_name);
         }
     }
+
+    // The capability seams read the attached chapters' own `provides`, so they are decided only
+    // once every chapter is loaded; `translations` and `source_text` close the binding facts.
+    let mut member_irs = Vec::new();
+    for c in &chapters {
+        member_irs.push(Json::parse(&c.ir_text).map_err(|e| format!("re-parsing {} ir.json for its seams: {e}", c.mod_name))?);
+    }
+    seams_pass::run(&mut target_ir, &member_irs)?;
+    binding_pass::finish(&mut target_ir, &source_files, &bluebook_directory)?;
+    let target_ir_text = crate::json::write(&target_ir);
 
     // The self-hosted language, compiled in too, under the same "Bluebook"
     // chapter name.
