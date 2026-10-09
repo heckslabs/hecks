@@ -128,3 +128,13 @@ A state the lifecycle does not have is refused when the lifecycle is built:
 Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") { mark :holds_seat, "pending", "paid" }  # ~> Malformed: lifecycle :status mark :holds_seat names "paid", which is not a state of the lifecycle (states: pending)
 ```
 
+
+A host reads a mark through a capability. The `payments` capability may add
+an optional `holds_seat: "Payment.holds_seat"` entry (spelled
+`Aggregate.mark_name`) to the chapter's `provides "payments"` row. It must name
+a mark declared on that aggregate's lifecycle, or the chapter is refused when it
+is built. The exported `ir.json` then carries the states in its `payments` fact
+as `holds_seat: ["pending", "succeeded"]`, and the Rust host counts seats from
+that list. A chapter that leaves the entry out exports exactly what it did
+before, and the host falls back to its built-in default list with one warning.
+

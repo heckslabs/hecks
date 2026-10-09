@@ -33,12 +33,30 @@ RSpec.describe "payments capability" do
     end
   end
 
-  def payments_chapter(provides)
+  # A payment whose lifecycle marks the states that hold a seat (ADR 0096).
+  MARKED_PAYMENT_BODY = proc do
+    instance_exec(&PAYMENT_AGGREGATE_BODY)
+    lifecycle :status, default: "pending" do
+      mark :holds_seat, "pending", "paid", "disputed"
+      transition "Settle"  => "paid",     from: "pending"
+      transition "Dispute" => "disputed", from: "paid"
+    end
+    command "Settle" do
+      goal "settle"
+      reference_to Payment
+    end
+    command "Dispute" do
+      goal "dispute"
+      reference_to Payment
+    end
+  end
+
+  def payments_chapter(provides, body = PAYMENT_AGGREGATE_BODY)
     Hecks.bluebook "Payments" do
       vision "probe"
       supporting
       provides "payments", **provides
-      aggregate "Payment", &PAYMENT_AGGREGATE_BODY
+      aggregate "Payment", &body
     end
   end
 
@@ -61,11 +79,11 @@ RSpec.describe "payments capability" do
     end
   end
 
-  def registry_with_payments(provides: full_row, operations: %w[Succeeded Failed])
+  def registry_with_payments(provides: full_row, operations: %w[Succeeded Failed], body: PAYMENT_AGGREGATE_BODY)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      payments_chapter(provides)
+      payments_chapter(provides, body)
       payments_hecksagon(operations)
     end
     registry
@@ -102,11 +120,39 @@ RSpec.describe "payments capability" do
 
   it "refuses a provides row that leaves out a key the contract needs" do
     expect { registry_with_payments(provides: { initiate: "Payment.Initiate" }) }
-      .to raise_error(Hecks::Bluebook::DSL::Malformed, /payments needs exactly/)
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /payments needs initiate, succeeded, failed and may add holds_seat/)
   end
 
   it "refuses an initiate verb that names no command the chapter declares" do
     expect { registry_with_payments(provides: full_row.merge(initiate: "Payment.Begin")) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /Payment\.Begin/)
+  end
+
+  context "with an optional holds_seat mark" do
+    let(:marked_row) { full_row.merge(holds_seat: "Payment.holds_seat") }
+
+    it "exports the states of the lifecycle mark it names" do
+      exported = Hecks::Projector::Exporter.payments(
+        registry_with_payments(provides: marked_row, body: MARKED_PAYMENT_BODY), "Payments"
+      )
+
+      expect(exported).to eq(PAYMENTS_EXPORT.merge(holds_seat: %w[pending paid disputed]))
+    end
+
+    it "leaves the export byte-identical to today when the row is not declared" do
+      exported = Hecks::Projector::Exporter.payments(registry_with_payments(body: MARKED_PAYMENT_BODY), "Payments")
+
+      expect(exported).to eq(PAYMENTS_EXPORT)
+    end
+
+    it "refuses a mark the aggregate's lifecycle does not declare" do
+      expect { registry_with_payments(provides: full_row.merge(holds_seat: "Payment.refunded"), body: MARKED_PAYMENT_BODY) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Payment\.refunded.*no lifecycle mark/)
+    end
+
+    it "refuses a mark on an aggregate that has no lifecycle" do
+      expect { registry_with_payments(provides: marked_row) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Payment\.holds_seat.*no lifecycle mark/)
+    end
   end
 end

@@ -30,6 +30,12 @@ module Hecks
       # declaration rather than the literal name "PaymentConnection".
       PAYMENT_CONNECTION = "payment_connection".freeze
 
+      # The kinds of contract entry a capability may name: `:command` and
+      # `:query` ("Aggregate.Name"), `:port_operation` ("Aggregate.Port.Operation")
+      # and `:mark` ("Aggregate.mark_name", the states of that aggregate's
+      # lifecycle mark). A `:mark` entry is optional; every other entry is required.
+      OPTIONAL_KINDS = %i[mark].freeze
+
       CONTRACTS = {
         AUTHORIZATION      => {
           # every assignment an actor holds, current or historical
@@ -78,7 +84,11 @@ module Hecks
           # the processor reports the money arrived
           succeeded: :port_operation,
           # the processor reports the payment failed or expired
-          failed:    :port_operation
+          failed:    :port_operation,
+          # OPTIONAL: the lifecycle states of the payment that hold a seat,
+          # spelled "Payment.holds_seat" (Aggregate.mark_name); resolves to the
+          # states of that aggregate's lifecycle `mark :holds_seat`
+          holds_seat: :mark
         }.freeze,
         REGISTRATIONS      => {
           # schedule a session; the aggregate it names is the event
@@ -103,6 +113,14 @@ module Hecks
           disable:    :command
         }.freeze
       }.freeze
+
+      # The keys a capability's `provides` must name.
+      #
+      # @param capability [String] a `CONTRACTS` key
+      # @return [Array<Symbol>] the keys whose kind is not optional
+      def self.required_keys(capability)
+        CONTRACTS.fetch(capability).reject { |_, kind| OPTIONAL_KINDS.include?(kind) }.keys
+      end
     end
   end
 end

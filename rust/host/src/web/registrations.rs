@@ -749,7 +749,7 @@ mod tests {
 
     #[test]
     fn a_registration_holds_a_seat_while_its_payment_is_open_paid_or_being_settled() {
-        let payments = crate::commerce_ir::fixture_payments();
+        let payments = four_state_payments();
         let read = read_with(
             10,
             &[("a", "yoga", "pending"), ("b", "yoga", "succeeded"), ("c", "yoga", "refunding"), ("d", "yoga", "disputed")],
@@ -847,18 +847,22 @@ mod tests {
         read["instances"][format!("CheckoutFixture::Registration#{reference}")]["status"] = json!(status);
     }
 
+    /// The fixture's payments binding with the production table: the fixture lifecycle has only
+    /// pending, succeeded and failed, so refunding and disputed need the table set here.
+    fn four_state_payments() -> crate::commerce_ir::PaymentsProvider {
+        let mut payments = crate::commerce_ir::fixture_payments();
+        payments.holds_seat = HOLDING.iter().map(|s| s.to_string()).collect();
+        payments
+    }
+
     #[test]
-    fn the_seat_holding_table_is_exactly_pending_succeeded_refunding_and_disputed() {
-        let mut table: Vec<String> = crate::commerce_ir::fixture_payments().holds_seat;
-        table.sort_unstable();
-        let mut expected: Vec<String> = HOLDING.iter().map(|s| s.to_string()).collect();
-        expected.sort_unstable();
-        assert_eq!(table, expected);
+    fn the_seat_holding_table_comes_from_the_fixture_ir_mark() {
+        assert_eq!(crate::commerce_ir::fixture_payments().holds_seat, vec!["pending", "succeeded"]);
     }
 
     #[test]
     fn every_holding_status_holds_one_seat_and_every_freeing_status_holds_none() {
-        let payments = crate::commerce_ir::fixture_payments();
+        let payments = four_state_payments();
         for status in HOLDING {
             let read = read_with(10, &[("r", "yoga", status)]);
             assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "{status} should hold a seat");
